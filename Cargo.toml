@@ -11,8 +11,5 @@ console_error_panic_hook = "0.1"
 [profile.dev]
 opt-level = 1
 
-[profile.dev.package.bevy_rapier2d]
-opt-level = 3
-
 [profile.release]
 codegen-units = 1
