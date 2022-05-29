@@ -13,3 +13,7 @@ opt-level = 1
 
 [profile.release]
 codegen-units = 1
+
+[[example]]
+name = "move_marbles"
+path = "examples/2d/move_marbles.rs"
