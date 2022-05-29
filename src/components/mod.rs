@@ -8,10 +8,22 @@ pub struct Pos(pub Vec2);
 pub struct PrevPos(pub Vec2);
 
 #[derive(Component, Debug, Default, Deref, DerefMut)]
-pub struct Vel(pub Vec2);
+pub struct Rot(pub Vec2);
 
 #[derive(Component, Debug, Default, Deref, DerefMut)]
-pub struct PreSolveVel(pub Vec2);
+pub struct PrevRot(pub Vec2);
+
+#[derive(Component, Debug, Default, Deref, DerefMut)]
+pub struct LinVel(pub Vec2);
+
+#[derive(Component, Debug, Default, Deref, DerefMut)]
+pub struct PreSolveLinVel(pub Vec2);
+
+#[derive(Component, Debug, Default, Deref, DerefMut)]
+pub struct AngVel(pub Vec2);
+
+#[derive(Component, Debug, Default, Deref, DerefMut)]
+pub struct PreSolveAngVel(pub Vec2);
 
 #[derive(Component, Debug)]
 pub struct Mass(pub f32);
@@ -21,6 +33,9 @@ impl Default for Mass {
         Self(1.0) // Default to 1 kg
     }
 }
+
+#[derive(Component, Debug, Default)]
+pub struct Inertia(pub f32);
 
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
@@ -34,5 +49,9 @@ impl Default for Restitution {
     }
 }
 
-#[derive(Component)]
-pub struct ParticleCollider(pub SharedShape);
+pub type ColliderShape = SharedShape;
+
+#[derive(Component, Clone)]
+pub struct Collider {
+    pub shape: ColliderShape,
+}

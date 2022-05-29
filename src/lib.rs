@@ -1,16 +1,17 @@
+pub mod bundles;
 pub mod components;
 pub mod resources;
 pub mod systems;
 
-use components::*;
-use parry2d::shape::SharedShape;
+pub use parry2d;
+
 use resources::*;
 use systems::*;
 
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
 
 pub const DELTA_TIME: f32 = 1.0 / 60.0;
-pub const NUM_SUBSTEPS: u32 = 6;
+pub const NUM_SUBSTEPS: u32 = 8;
 pub const SUB_DT: f32 = DELTA_TIME / NUM_SUBSTEPS as f32;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
@@ -66,46 +67,6 @@ impl Plugin for XPBDPlugin {
                             .after(Step::SolveVel),
                     ),
             );
-    }
-}
-
-#[derive(Bundle, Default)]
-pub struct ParticleBundle {
-    pub pos: Pos,
-    pub prev_pos: PrevPos,
-    pub vel: Vel,
-    pub pre_solve_vel: PreSolveVel,
-    pub mass: Mass,
-    pub restitution: Restitution,
-}
-
-#[derive(Bundle, Default)]
-pub struct StaticBundle {
-    pub pos: Pos,
-    pub restitution: Restitution,
-}
-
-#[derive(Bundle)]
-pub struct ParticleColliderBundle {
-    pub collider: ParticleCollider,
-}
-
-impl ParticleColliderBundle {
-    pub fn with_shape(shape: SharedShape) -> Self {
-        Self {
-            collider: ParticleCollider(shape),
-        }
-    }
-}
-
-impl ParticleBundle {
-    pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
-        Self {
-            pos: Pos(pos),
-            prev_pos: PrevPos(pos - vel * SUB_DT),
-            vel: Vel(vel),
-            ..default()
-        }
     }
 }
 

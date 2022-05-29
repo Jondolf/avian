@@ -5,7 +5,7 @@ use parry2d::{math::Isometry, shape::SharedShape};
 
 /// Collects bodies that are potentially colliding and stores them in pairs in the [`CollisionPairs`] array.
 pub(crate) fn collect_collision_pairs(
-    query: Query<(Entity, &Pos, &Vel, &ParticleCollider)>,
+    query: Query<(Entity, &Pos, &LinVel, &Collider)>,
     mut collision_pairs: ResMut<CollisionPairs>,
 ) {
     collision_pairs.0.clear();
@@ -23,7 +23,13 @@ pub(crate) fn collect_collision_pairs(
         let ab_len = ab.length();
         let safety_margin = safety_margin_factor * (vel_a_len + vel_b.length());
 
-        if let Some(contact) = get_contact(pos_a.0, &collider_a.0, pos_b.0, &collider_b.0, ab_len) {
+        if let Some(contact) = get_contact(
+            pos_a.0,
+            &collider_a.shape,
+            pos_b.0,
+            &collider_b.shape,
+            ab_len,
+        ) {
             // If distance between contact points is negative, it's a penetration.
             // A safety margin is subtracted from the computed penetration depth to make everything stabler.
             if contact.dist - safety_margin < 0.0 {
@@ -35,7 +41,13 @@ pub(crate) fn collect_collision_pairs(
 
 /// Applies forces and predicts the next position and velocity for all dynamic bodies.
 pub(crate) fn integrate(
-    mut query: Query<(&mut Pos, &mut PrevPos, &mut Vel, &mut PreSolveVel, &Mass)>,
+    mut query: Query<(
+        &mut Pos,
+        &mut PrevPos,
+        &mut LinVel,
+        &mut PreSolveLinVel,
+        &Mass,
+    )>,
     gravity: Res<Gravity>,
 ) {
     for (mut pos, mut prev_pos, mut vel, mut pre_solve_vel, mass) in query.iter_mut() {
@@ -51,7 +63,7 @@ pub(crate) fn integrate(
 
 /// Solves position constraints for dynamic-dynamic interactions.
 pub(crate) fn solve_pos_dynamics(
-    mut query: Query<(&mut Pos, &Mass, &ParticleCollider)>,
+    mut query: Query<(&mut Pos, &Mass, &Collider)>,
     collision_pairs: Res<CollisionPairs>,
     mut contacts: ResMut<DynamicContacts>,
 ) {
@@ -62,9 +74,13 @@ pub(crate) fn solve_pos_dynamics(
             let ab = pos_b.0 - pos_a.0;
             let ab_len = ab.length();
 
-            if let Some(contact) =
-                get_contact(pos_a.0, &collider_a.0, pos_b.0, &collider_b.0, ab_len)
-            {
+            if let Some(contact) = get_contact(
+                pos_a.0,
+                &collider_a.shape,
+                pos_b.0,
+                &collider_b.shape,
+                ab_len,
+            ) {
                 // If distance between contact points is negative, it's a penetration.
                 if contact.dist < 0.0 {
                     // Contact normal
@@ -86,17 +102,21 @@ pub(crate) fn solve_pos_dynamics(
 
 /// Solves position constraints for dynamic-static interactions.
 pub(crate) fn solve_pos_statics(
-    mut dynamics: Query<(Entity, &mut Pos, &ParticleCollider), With<Mass>>,
-    statics: Query<(Entity, &Pos, &ParticleCollider), Without<Mass>>,
+    mut dynamics: Query<(Entity, &mut Pos, &Collider), With<Mass>>,
+    statics: Query<(Entity, &Pos, &Collider), Without<Mass>>,
     mut contacts: ResMut<StaticContacts>,
 ) {
     for (ent_a, mut pos_a, collider_a) in dynamics.iter_mut() {
         for (ent_b, pos_b, collider_b) in statics.iter() {
             let ab = pos_b.0 - pos_a.0;
             let ab_len = ab.length();
-            if let Some(contact) =
-                get_contact(pos_a.0, &collider_a.0, pos_b.0, &collider_b.0, ab_len)
-            {
+            if let Some(contact) = get_contact(
+                pos_a.0,
+                &collider_a.shape,
+                pos_b.0,
+                &collider_b.shape,
+                ab_len,
+            ) {
                 // If distance between contact points is negative, it's a penetration.
                 if contact.dist < 0.0 {
                     // Contact normal
@@ -129,7 +149,7 @@ pub(crate) fn get_contact(
 }
 
 /// Moves objects in the physics world.
-pub(crate) fn update_vel(mut query: Query<(&Pos, &PrevPos, &mut Vel)>) {
+pub(crate) fn update_vel(mut query: Query<(&Pos, &PrevPos, &mut LinVel)>) {
     for (pos, prev_pos, mut vel) in query.iter_mut() {
         vel.0 = (pos.0 - prev_pos.0) / SUB_DT;
     }
@@ -137,7 +157,7 @@ pub(crate) fn update_vel(mut query: Query<(&Pos, &PrevPos, &mut Vel)>) {
 
 /// Solves the new velocities of dynamic bodies after dynamic-dynamic collisions.
 pub(crate) fn solve_vel_dynamics(
-    mut query: Query<(&mut Vel, &PreSolveVel, &Mass, &Restitution)>,
+    mut query: Query<(&mut LinVel, &PreSolveLinVel, &Mass, &Restitution)>,
     contacts: Res<DynamicContacts>,
 ) {
     for (entity_a, entity_b, n) in contacts.0.iter() {
@@ -167,7 +187,7 @@ pub(crate) fn solve_vel_dynamics(
 
 /// Solves the new velocities of dynamic bodies after dynamic-static collisions.
 pub(crate) fn solve_vel_statics(
-    mut dynamics: Query<(&mut Vel, &PreSolveVel, &Restitution), With<Mass>>,
+    mut dynamics: Query<(&mut LinVel, &PreSolveLinVel, &Restitution), With<Mass>>,
     statics: Query<&Restitution, Without<Mass>>,
     contacts: Res<StaticContacts>,
 ) {
