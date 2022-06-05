@@ -13,10 +13,20 @@ impl Default for Gravity {
 #[derive(Debug, Default)]
 pub(crate) struct CollisionPairs(pub Vec<(Entity, Entity)>);
 
-// Stores dynamic-dynamic contacts and contact normals.
+// Stores dynamic-dynamic contact data.
 #[derive(Default, Debug)]
-pub struct DynamicContacts(pub Vec<(Entity, Entity, Vec2)>);
+pub struct DynamicContacts(pub Vec<Contact>);
 
-// Stores dynamic-static contacts and contact normals.
+// Stores dynamic-static contact data.
 #[derive(Default, Debug)]
-pub struct StaticContacts(pub Vec<(Entity, Entity, Vec2)>);
+pub struct StaticContacts(pub Vec<Contact>);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Contact {
+    pub entity_a: Entity,
+    pub entity_b: Entity,
+    pub r_a: Vec2,
+    pub r_b: Vec2,
+    pub normal: Vec2,
+    pub penetration: f32,
+}

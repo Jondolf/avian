@@ -2,6 +2,7 @@ pub mod bundles;
 pub mod components;
 pub mod resources;
 pub mod systems;
+mod utils;
 
 pub use parry2d;
 
@@ -42,9 +43,14 @@ impl Plugin for XPBDPlugin {
                     .with_system(
                         collect_collision_pairs
                             .with_run_criteria(first_substep)
-                            .before(integrate),
+                            .before(Step::Integrate),
                     )
-                    .with_system(integrate.label(Step::Integrate))
+                    .with_system_set(
+                        SystemSet::new()
+                            .label(Step::Integrate)
+                            .with_system(integrate_pos)
+                            .with_system(integrate_rot),
+                    )
                     .with_system(clear_contacts.before(Step::SolvePos))
                     .with_system_set(
                         SystemSet::new()
@@ -53,7 +59,13 @@ impl Plugin for XPBDPlugin {
                             .with_system(solve_pos_dynamics)
                             .with_system(solve_pos_statics),
                     )
-                    .with_system(update_vel.label(Step::UpdateVel).after(Step::SolvePos))
+                    .with_system_set(
+                        SystemSet::new()
+                            .label(Step::UpdateVel)
+                            .after(Step::SolvePos)
+                            .with_system(update_lin_vel)
+                            .with_system(update_ang_vel),
+                    )
                     .with_system_set(
                         SystemSet::new()
                             .label(Step::SolveVel)

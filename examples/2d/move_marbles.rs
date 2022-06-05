@@ -39,56 +39,56 @@ fn setup(
         ..default()
     });
 
-    let floor = commands
+    let _floor = commands
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle {
-            pos: Pos(Vec2::new(0.0, -7.5)),
-            restitution: Restitution(0.3),
-        })
+        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
+            Vec2::new(0.0, -7.5),
+            0.0,
+        ))
         .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(10.0, 0.5)));
 
-    let ceiling = commands
+    let _ceiling = commands
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle {
-            pos: Pos(Vec2::new(0.0, 7.5)),
-            restitution: Restitution(0.3),
-        })
+        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
+            Vec2::new(0.0, 7.5),
+            0.0,
+        ))
         .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(10.0, 0.5)));
 
-    let left_wall = commands
+    let _left_wall = commands
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle {
-            pos: Pos(Vec2::new(-9.5, 0.0)),
-            restitution: Restitution(0.3),
-        })
+        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
+            Vec2::new(-9.5, 0.0),
+            0.0,
+        ))
         .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(0.5, 10.0)));
 
-    let right_wall = commands
+    let _right_wall = commands
         .spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
-            material: white.clone(),
+            material: white,
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle {
-            pos: Pos(Vec2::new(9.5, 0.0)),
-            restitution: Restitution(0.3),
-        })
+        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
+            Vec2::new(9.5, 0.0),
+            0.0,
+        ))
         .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(0.5, 10.0)));
 
     let radius = 0.15;

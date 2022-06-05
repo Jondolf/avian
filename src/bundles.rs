@@ -7,17 +7,51 @@ pub struct DynamicBodyBundle {
     pub pos: Pos,
     pub prev_pos: PrevPos,
 
+    pub rot: Rot,
+    pub prev_rot: PrevRot,
+
     pub lin_vel: LinVel,
     pub pre_solve_lin_vel: PreSolveLinVel,
 
-    pub mass: Mass,
+    pub ang_vel: AngVel,
+    pub pre_solve_ang_vel: PreSolveAngVel,
+
+    pub density: Density,
     pub restitution: Restitution,
+}
+
+impl DynamicBodyBundle {
+    pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
+        Self {
+            pos: Pos(pos),
+            prev_pos: PrevPos(pos - vel * SUB_DT),
+            lin_vel: LinVel(vel),
+            ..default()
+        }
+    }
+    pub fn with_rot(self, rot_degrees: f32) -> Self {
+        Self {
+            rot: Rot::from_degrees(rot_degrees),
+            ..self
+        }
+    }
 }
 
 #[derive(Bundle, Default)]
 pub struct StaticBodyBundle {
     pub pos: Pos,
+    pub rot: Rot,
     pub restitution: Restitution,
+}
+
+impl StaticBodyBundle {
+    pub fn new_with_pos_and_rot(pos: Vec2, rot_degrees: f32) -> Self {
+        Self {
+            pos: Pos(pos),
+            rot: Rot::from_degrees(rot_degrees),
+            restitution: Restitution::default(),
+        }
+    }
 }
 
 #[derive(Bundle)]
@@ -29,17 +63,6 @@ impl ColliderBundle {
     pub fn with_shape(shape: ColliderShape) -> Self {
         Self {
             collider: Collider { shape },
-        }
-    }
-}
-
-impl DynamicBodyBundle {
-    pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
-        Self {
-            pos: Pos(pos),
-            prev_pos: PrevPos(pos - vel * SUB_DT),
-            lin_vel: LinVel(vel),
-            ..default()
         }
     }
 }

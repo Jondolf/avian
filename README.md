@@ -8,17 +8,16 @@ Currently this only works in 2D, but it should be relatively straightforward to 
 
 ## Current features
 
-- Position and linear velocity integration
+- Dynamic and static bodies
+- Position/rotation and linear/angular velocity integration and solving
 - Gravity
 - Collision detection via [parry](https://parry.rs)
-- Position and linear velocity solving after dynamic-dynamic and dynamic-static contacts
 - Restitution
 - Substepping
 
 ## Future features
 
 - Friction and drag
-- Rotation and angular velocity
 - External forces and maybe impulses
 - 3D support
 - Joints
