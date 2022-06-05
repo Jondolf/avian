@@ -16,8 +16,10 @@ pub struct DynamicBodyBundle {
     pub ang_vel: AngVel,
     pub pre_solve_ang_vel: PreSolveAngVel,
 
-    pub density: Density,
     pub restitution: Restitution,
+
+    pub density: Density,
+    pub mass_props: MassProperties,
 }
 
 impl DynamicBodyBundle {

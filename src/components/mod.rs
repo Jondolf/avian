@@ -46,7 +46,7 @@ impl Default for Restitution {
 
 pub type ColliderShape = SharedShape;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Component, Default, PartialEq)]
 pub struct MassProperties {
     pub mass: f32,
     pub inv_mass: f32,

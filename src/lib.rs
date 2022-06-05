@@ -22,6 +22,7 @@ pub struct XPBDPlugin;
 
 #[derive(SystemLabel, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Step {
+    CollectCollisionPairs,
     Integrate,
     SolvePos,
     UpdateVel,
@@ -40,8 +41,10 @@ impl Plugin for XPBDPlugin {
                 FixedUpdateStage,
                 SystemStage::parallel()
                     .with_run_criteria(run_criteria)
+                    .with_system(update_mass_props.before(Step::CollectCollisionPairs))
                     .with_system(
                         collect_collision_pairs
+                            .label(Step::CollectCollisionPairs)
                             .with_run_criteria(first_substep)
                             .before(Step::Integrate),
                     )

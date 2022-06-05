@@ -71,20 +71,20 @@ pub(crate) fn integrate_rot(
     for (mut rot, mut prev_rot, ang_vel, mut pre_solve_ang_vel) in query.iter_mut() {
         prev_rot.cos = rot.cos;
         prev_rot.sin = rot.sin;
-        *rot = rot.mul(Rot::from_radians(SUB_DT * ang_vel.0));
+        *rot += Rot::from_radians(SUB_DT * ang_vel.0);
         pre_solve_ang_vel.0 = ang_vel.0;
     }
 }
 
 /// Solves position constraints for dynamic-dynamic interactions.
 pub(crate) fn solve_pos_dynamics(
-    mut query: Query<(&mut Pos, &mut Rot, &Density, &Collider)>,
+    mut query: Query<(&mut Pos, &mut Rot, &Collider, &MassProperties)>,
     collision_pairs: Res<CollisionPairs>,
     mut contacts: ResMut<DynamicContacts>,
 ) {
     for (ent_a, ent_b) in collision_pairs.0.iter() {
         if let Ok(
-            [(mut pos_a, mut rot_a, density_a, collider_a), (mut pos_b, mut rot_b, density_b, collider_b)],
+            [(mut pos_a, mut rot_a, collider_a, mass_props_a), (mut pos_b, mut rot_b, collider_b, mass_props_b)],
         ) = query.get_many_mut([*ent_a, *ent_b])
         {
             if let Some(contact) = get_contact(
@@ -102,10 +102,8 @@ pub(crate) fn solve_pos_dynamics(
                     &mut pos_b,
                     &mut rot_a,
                     &mut rot_b,
-                    density_a.0,
-                    density_b.0,
-                    collider_a,
-                    collider_b,
+                    mass_props_a,
+                    mass_props_b,
                     contact,
                 );
 
@@ -117,11 +115,11 @@ pub(crate) fn solve_pos_dynamics(
 
 /// Solves position constraints for dynamic-static interactions.
 pub(crate) fn solve_pos_statics(
-    mut dynamics: Query<(Entity, &mut Pos, &mut Rot, &Collider, &Density)>,
-    statics: Query<(Entity, &Pos, &Rot, &Collider), Without<Density>>,
+    mut dynamics: Query<(Entity, &mut Pos, &mut Rot, &Collider, &MassProperties)>,
+    statics: Query<(Entity, &Pos, &Rot, &Collider), Without<MassProperties>>,
     mut contacts: ResMut<StaticContacts>,
 ) {
-    for (ent_a, mut pos_a, mut rot_a, collider_a, density_a) in dynamics.iter_mut() {
+    for (ent_a, mut pos_a, mut rot_a, collider_a, mass_props) in dynamics.iter_mut() {
         for (ent_b, pos_b, rot_b, collider_b) in statics.iter() {
             if let Some(contact) = get_contact(
                 ent_a,
@@ -133,13 +131,7 @@ pub(crate) fn solve_pos_statics(
                 &collider_a.shape,
                 &collider_b.shape,
             ) {
-                constrain_position_dynamic_static(
-                    &mut pos_a,
-                    &mut rot_a,
-                    density_a.0,
-                    collider_a,
-                    contact,
-                );
+                constrain_position_dynamic_static(&mut pos_a, &mut rot_a, mass_props, contact);
 
                 contacts.0.push(contact);
             }
@@ -154,34 +146,23 @@ fn constrain_positions_dynamic_dynamic(
     pos_b: &mut Pos,
     rot_a: &mut Rot,
     rot_b: &mut Rot,
-    density_a: f32,
-    density_b: f32,
-    collider_a: &Collider,
-    collider_b: &Collider,
-    Contact {
+    mass_props_a: &MassProperties,
+    mass_props_b: &MassProperties,
+    contact: Contact,
+) {
+    let Contact {
         normal,
         penetration,
         r_a,
         r_b,
         ..
-    }: Contact,
-) {
-    let MassProperties {
-        inv_mass: inv_mass_a,
-        inv_inertia: inv_inertia_a,
-        ..
-    } = collider_a.mass_properties(density_a);
-    let MassProperties {
-        inv_mass: inv_mass_b,
-        inv_inertia: inv_inertia_b,
-        ..
-    } = collider_b.mass_properties(density_b);
+    } = contact;
 
-    let w_a_rot = inv_inertia_a * r_a.perp_dot(normal).powi(2);
-    let w_b_rot = inv_inertia_b * r_b.perp_dot(normal).powi(2);
+    let w_a_rot = mass_props_a.inv_inertia * r_a.perp_dot(normal).powi(2);
+    let w_b_rot = mass_props_b.inv_inertia * r_b.perp_dot(normal).powi(2);
 
-    let w_a = inv_mass_a + w_a_rot;
-    let w_b = inv_mass_b + w_b_rot;
+    let w_a = mass_props_a.inv_mass + w_a_rot;
+    let w_b = mass_props_b.inv_mass + w_b_rot;
 
     let w = w_a + w_b;
     let p = normal * (-penetration / w);
@@ -189,35 +170,30 @@ fn constrain_positions_dynamic_dynamic(
     pos_a.0 += p * w_a;
     pos_b.0 -= p * w_b;
 
-    *rot_a = rot_a.mul(Rot::from_radians(inv_inertia_a * r_a.perp_dot(p)));
-    *rot_b = rot_b.mul(Rot::from_radians(inv_inertia_b * r_b.perp_dot(-p)));
+    *rot_a += Rot::from_radians(mass_props_a.inv_inertia * r_a.perp_dot(p));
+    *rot_b += Rot::from_radians(mass_props_b.inv_inertia * r_b.perp_dot(-p));
 }
 
 /// Solves overlap between a dynamic body and a static body.
 fn constrain_position_dynamic_static(
     pos: &mut Pos,
     rot: &mut Rot,
-    density: f32,
-    collider: &Collider,
-    Contact {
+    mass_props: &MassProperties,
+    contact: Contact,
+) {
+    let Contact {
         normal,
         penetration,
         r_a: r,
         ..
-    }: Contact,
-) {
-    let MassProperties {
-        inv_mass,
-        inv_inertia,
-        ..
-    } = collider.mass_properties(density);
+    } = contact;
 
-    let w_rot = inv_inertia * r.perp_dot(normal).powi(2);
-    let w = inv_mass + w_rot;
+    let w_rot = mass_props.inv_inertia * r.perp_dot(normal).powi(2);
+    let w = mass_props.inv_mass + w_rot;
     let p = -normal * penetration / w;
 
-    pos.0 += p * inv_mass;
-    *rot = rot.mul(Rot::from_radians(inv_inertia * r.perp_dot(p)));
+    pos.0 += p * mass_props.inv_mass;
+    *rot += Rot::from_radians(mass_props.inv_inertia * r.perp_dot(p));
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
@@ -397,5 +373,15 @@ pub(crate) fn sync_transforms(mut query: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in query.iter_mut() {
         transform.translation = pos.0.extend(0.0);
         transform.rotation = (*rot).into();
+    }
+}
+
+type MassPropsChanged = Or<(Changed<Density>, Changed<Collider>)>;
+
+pub(crate) fn update_mass_props(
+    mut query: Query<(&mut MassProperties, &Density, &Collider), MassPropsChanged>,
+) {
+    for (mut mass_props, density, collider) in query.iter_mut() {
+        *mass_props = collider.mass_properties(density.0);
     }
 }

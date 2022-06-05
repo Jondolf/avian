@@ -1,6 +1,8 @@
+use std::ops::{Add, AddAssign};
+
 use bevy::prelude::*;
 
-pub trait Rotation: Default {
+pub trait Rotation: Default + Add<Self> + AddAssign<Self> {
     const ZERO: Self;
 
     fn cos(&self) -> f32;
@@ -78,44 +80,27 @@ impl Default for Rot {
     }
 }
 
-#[derive(Clone, Copy, Component, Debug)]
-pub struct PrevRot {
-    pub cos: f32,
-    pub sin: f32,
-}
-
-impl Rotation for PrevRot {
-    const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
-
-    fn cos(&self) -> f32 {
-        self.cos
-    }
-
-    fn sin(&self) -> f32 {
-        self.sin
-    }
-
-    fn from_radians(radians: f32) -> Self {
-        Self {
-            cos: radians.cos(),
-            sin: radians.sin(),
-        }
-    }
-
-    fn inv(&self) -> Self {
-        Self {
-            cos: self.cos,
-            sin: -self.sin,
-        }
-    }
-
-    fn mul<T: Rotation>(&self, rhs: T) -> Self {
-        Self {
-            cos: self.cos * rhs.cos() - self.sin * rhs.sin(),
-            sin: self.sin * rhs.cos() + self.cos * rhs.sin(),
-        }
+impl Add<Self> for Rot {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        self.mul(rhs)
     }
 }
+
+impl AddAssign<Self> for Rot {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl From<Rot> for Quat {
+    fn from(rot: Rot) -> Self {
+        quat_from_rot(rot)
+    }
+}
+
+#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+pub struct PrevRot(Rot);
 
 fn quat_from_rot<T: Rotation>(rot: T) -> Quat {
     if rot.cos() < 0.0 {
@@ -130,23 +115,5 @@ fn quat_from_rot<T: Rotation>(rot: T) -> Quat {
         let z = t * d;
         let w = -rot.sin() * d;
         Quat::from_xyzw(0.0, 0.0, z, w)
-    }
-}
-
-impl Default for PrevRot {
-    fn default() -> Self {
-        Self::ZERO
-    }
-}
-
-impl From<Rot> for Quat {
-    fn from(rot: Rot) -> Self {
-        quat_from_rot(rot)
-    }
-}
-
-impl From<PrevRot> for Quat {
-    fn from(rot: PrevRot) -> Self {
-        quat_from_rot(rot)
     }
 }
