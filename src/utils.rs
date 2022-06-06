@@ -87,6 +87,7 @@ pub(crate) fn get_dynamic_friction(
     penetration: f32,
     friction_a: &Friction,
     friction_b: &Friction,
+    sub_dt: f32,
 ) -> Vec2 {
     // Only call .length() once
     let tangent_vel_length = tangent_vel.length();
@@ -99,7 +100,7 @@ pub(crate) fn get_dynamic_friction(
 
         // Magnitude of velocity correction caused by friction
         let friction_magnitude =
-            SUB_DT * friction_coefficient * (penetration / SUB_DT.powi(2)).abs();
+            sub_dt * friction_coefficient * (penetration / sub_dt.powi(2)).abs();
 
         // Velocity correction vector caused by friction, never exceeds the magnitude of the velocity itself
         tangent_vel / tangent_vel_length * (friction_magnitude.min(tangent_vel_length))

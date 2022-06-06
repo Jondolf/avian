@@ -12,8 +12,6 @@ use systems::*;
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
 
 pub const DELTA_TIME: f32 = 1.0 / 60.0;
-pub const NUM_SUBSTEPS: u32 = 8;
-pub const SUB_DT: f32 = DELTA_TIME / NUM_SUBSTEPS as f32;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 struct FixedUpdateStage;
@@ -31,7 +29,9 @@ pub enum Step {
 
 impl Plugin for XPBDPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LoopState>()
+        app.init_resource::<XPBDSubsteps>()
+            .init_resource::<SubDeltaTime>()
+            .init_resource::<LoopState>()
             .init_resource::<Gravity>()
             .init_resource::<CollisionPairs>()
             .init_resource::<DynamicContacts>()
@@ -41,7 +41,12 @@ impl Plugin for XPBDPlugin {
                 FixedUpdateStage,
                 SystemStage::parallel()
                     .with_run_criteria(run_criteria)
-                    .with_system(update_mass_props.before(Step::CollectCollisionPairs))
+                    .with_system_set(
+                        SystemSet::new()
+                            .before(Step::CollectCollisionPairs)
+                            .with_system(update_sub_delta_time)
+                            .with_system(update_mass_props),
+                    )
                     .with_system(
                         collect_collision_pairs
                             .label(Step::CollectCollisionPairs)
@@ -103,7 +108,11 @@ impl Default for LoopState {
     }
 }
 
-fn run_criteria(time: Res<Time>, mut state: ResMut<LoopState>) -> ShouldRun {
+fn run_criteria(
+    time: Res<Time>,
+    substeps: Res<XPBDSubsteps>,
+    mut state: ResMut<LoopState>,
+) -> ShouldRun {
     if !state.has_added_time {
         state.has_added_time = true;
         state.accumulator += time.delta_seconds();
@@ -112,7 +121,7 @@ fn run_criteria(time: Res<Time>, mut state: ResMut<LoopState>) -> ShouldRun {
     if state.substepping {
         state.current_substep += 1;
 
-        if state.current_substep < NUM_SUBSTEPS {
+        if state.current_substep < substeps.0 {
             return ShouldRun::YesAndCheckAgain;
         } else {
             // We finished a whole step
@@ -140,8 +149,8 @@ fn first_substep(state: Res<LoopState>) -> ShouldRun {
     }
 }
 
-fn last_substep(state: Res<LoopState>) -> ShouldRun {
-    if state.current_substep == NUM_SUBSTEPS - 1 {
+fn last_substep(substeps: Res<XPBDSubsteps>, state: Res<LoopState>) -> ShouldRun {
+    if state.current_substep == substeps.0 - 1 {
         ShouldRun::Yes
     } else {
         ShouldRun::No

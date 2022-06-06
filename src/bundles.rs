@@ -1,4 +1,4 @@
-use crate::{components::*, SUB_DT};
+use crate::components::*;
 
 use bevy::prelude::*;
 
@@ -27,7 +27,6 @@ impl DynamicBodyBundle {
     pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
         Self {
             pos: Pos(pos),
-            prev_pos: PrevPos(pos - vel * SUB_DT),
             lin_vel: LinVel(vel),
             ..default()
         }

@@ -1,5 +1,25 @@
 use bevy::prelude::*;
 
+use crate::DELTA_TIME;
+
+/// Amount of substeps used in XPBD simulation
+pub struct XPBDSubsteps(pub u32);
+
+impl Default for XPBDSubsteps {
+    fn default() -> Self {
+        Self(8)
+    }
+}
+
+/// Substep delta time
+pub(crate) struct SubDeltaTime(pub f32);
+
+impl Default for SubDeltaTime {
+    fn default() -> Self {
+        Self(DELTA_TIME / XPBDSubsteps::default().0 as f32)
+    }
+}
+
 #[derive(Debug)]
 pub struct Gravity(pub Vec2);
 

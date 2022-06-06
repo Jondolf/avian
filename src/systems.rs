@@ -1,4 +1,4 @@
-use crate::{components::*, resources::*, utils::*, Contact, DELTA_TIME, SUB_DT};
+use crate::{components::*, resources::*, utils::*, Contact, DELTA_TIME};
 
 use bevy::prelude::*;
 
@@ -47,14 +47,15 @@ pub(crate) fn integrate_pos(
         &Density,
     )>,
     gravity: Res<Gravity>,
+    sub_dt: Res<SubDeltaTime>,
 ) {
     for (mut pos, mut prev_pos, mut vel, mut pre_solve_vel, mass) in query.iter_mut() {
         prev_pos.0 = pos.0;
 
         let gravitation_force = mass.0 * gravity.0;
         let external_forces = gravitation_force;
-        vel.0 += SUB_DT * external_forces / mass.0;
-        pos.0 += SUB_DT * vel.0;
+        vel.0 += sub_dt.0 * external_forces / mass.0;
+        pos.0 += sub_dt.0 * vel.0;
         pre_solve_vel.0 = vel.0;
     }
 }
@@ -62,11 +63,12 @@ pub(crate) fn integrate_pos(
 /// Integrates rotations for all dynamic bodies.
 pub(crate) fn integrate_rot(
     mut query: Query<(&mut Rot, &mut PrevRot, &AngVel, &mut PreSolveAngVel)>,
+    sub_dt: Res<SubDeltaTime>,
 ) {
     for (mut rot, mut prev_rot, ang_vel, mut pre_solve_ang_vel) in query.iter_mut() {
         prev_rot.cos = rot.cos;
         prev_rot.sin = rot.sin;
-        *rot += Rot::from_radians(SUB_DT * ang_vel.0);
+        *rot += Rot::from_radians(sub_dt.0 * ang_vel.0);
         pre_solve_ang_vel.0 = ang_vel.0;
     }
 }
@@ -242,16 +244,22 @@ fn constrain_position_dynamic_static(
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
-pub(crate) fn update_lin_vel(mut query: Query<(&Pos, &PrevPos, &mut LinVel)>) {
+pub(crate) fn update_lin_vel(
+    mut query: Query<(&Pos, &PrevPos, &mut LinVel)>,
+    sub_dt: Res<SubDeltaTime>,
+) {
     for (pos, prev_pos, mut vel) in query.iter_mut() {
-        vel.0 = (pos.0 - prev_pos.0) / SUB_DT;
+        vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
     }
 }
 
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
-pub(crate) fn update_ang_vel(mut query: Query<(&Rot, &PrevRot, &mut AngVel)>) {
+pub(crate) fn update_ang_vel(
+    mut query: Query<(&Rot, &PrevRot, &mut AngVel)>,
+    sub_dt: Res<SubDeltaTime>,
+) {
     for (rot, prev_rot, mut ang_vel) in query.iter_mut() {
-        ang_vel.0 = (prev_rot.inv().mul(*rot)).as_radians() / SUB_DT;
+        ang_vel.0 = (prev_rot.inv().mul(*rot)).as_radians() / sub_dt.0;
     }
 }
 
@@ -269,6 +277,7 @@ pub(crate) fn solve_vel_dynamics(
         &Collider,
     )>,
     contacts: Res<DynamicContacts>,
+    sub_dt: Res<SubDeltaTime>,
 ) {
     for Contact {
         entity_a,
@@ -337,7 +346,7 @@ pub(crate) fn solve_vel_dynamics(
 
             let tangent_vel = relative_vel - normal * normal_vel;
             let friction_force =
-                get_dynamic_friction(tangent_vel, penetration, friction_a, friction_b);
+                get_dynamic_friction(tangent_vel, penetration, friction_a, friction_b, sub_dt.0);
 
             let restitution_force = get_restitution(
                 normal,
@@ -375,6 +384,7 @@ pub(crate) fn solve_vel_statics(
     )>,
     statics: Query<(&Restitution, &Friction), Without<Density>>,
     contacts: Res<StaticContacts>,
+    sub_dt: Res<SubDeltaTime>,
 ) {
     for Contact {
         entity_a,
@@ -415,8 +425,13 @@ pub(crate) fn solve_vel_statics(
                 let w = inv_mass + w_rot;
 
                 let tangent_vel = contact_vel - normal * normal_vel;
-                let friction_force =
-                    get_dynamic_friction(tangent_vel, penetration, friction_a, friction_b);
+                let friction_force = get_dynamic_friction(
+                    tangent_vel,
+                    penetration,
+                    friction_a,
+                    friction_b,
+                    sub_dt.0,
+                );
 
                 let restitution_force = get_restitution(
                     normal,
@@ -452,6 +467,10 @@ pub(crate) fn sync_transforms(mut query: Query<(&mut Transform, &Pos, &Rot)>) {
         transform.translation = pos.0.extend(0.0);
         transform.rotation = (*rot).into();
     }
+}
+
+pub(crate) fn update_sub_delta_time(substeps: Res<XPBDSubsteps>, mut sub_dt: ResMut<SubDeltaTime>) {
+    sub_dt.0 = DELTA_TIME / substeps.0 as f32;
 }
 
 type MassPropsChanged = Or<(Changed<Density>, Changed<Collider>)>;
