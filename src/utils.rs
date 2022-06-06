@@ -1,4 +1,4 @@
-use crate::{components::Rotation, Contact};
+use crate::{components::*, *};
 
 use bevy::prelude::*;
 use parry2d::{bounding_volume::AABB, math::Isometry, na::Vector2, shape::SharedShape};
@@ -59,4 +59,65 @@ pub(crate) fn get_contact(
         }
     }
     None
+}
+
+/// Calculates velocity correction caused by static friction.
+pub(crate) fn get_static_friction(
+    delta_pos_a: Vec2,
+    delta_pos_b: Vec2,
+    friction_a: &Friction,
+    friction_b: &Friction,
+    contact_normal: Vec2,
+    normal_force: f32,
+) -> Vec2 {
+    let static_friction_coefficient =
+        (friction_a.static_coefficient + friction_b.static_coefficient) * 0.5;
+    let relative_mov = delta_pos_a - delta_pos_b;
+    let tangential_mov = relative_mov - (relative_mov.dot(contact_normal)) * contact_normal;
+    if tangential_mov.length() < normal_force * static_friction_coefficient {
+        tangential_mov
+    } else {
+        Vec2::ZERO
+    }
+}
+
+/// Calculates velocity correction caused by dynamic friction.
+pub(crate) fn get_dynamic_friction(
+    tangent_vel: Vec2,
+    penetration: f32,
+    friction_a: &Friction,
+    friction_b: &Friction,
+) -> Vec2 {
+    // Only call .length() once
+    let tangent_vel_length = tangent_vel.length();
+
+    // Prevent division by zero when normalizing tangent_vel
+    if tangent_vel_length != 0.0 {
+        // Average of the bodies' dynamic friction coefficients
+        let friction_coefficient =
+            (friction_a.dynamic_coefficient + friction_b.dynamic_coefficient) * 0.5;
+
+        // Magnitude of velocity correction caused by friction
+        let friction_magnitude =
+            SUB_DT * friction_coefficient * (penetration / SUB_DT.powi(2)).abs();
+
+        // Velocity correction vector caused by friction, never exceeds the magnitude of the velocity itself
+        tangent_vel / tangent_vel_length * (friction_magnitude.min(tangent_vel_length))
+    } else {
+        // No tangential movement -> no friction
+        Vec2::ZERO
+    }
+}
+
+/// Calculates velocity correction caused by restitution.
+pub(crate) fn get_restitution(
+    normal: Vec2,
+    normal_vel: f32,
+    pre_solve_normal_vel: f32,
+    restitution_a: &Restitution,
+    restitution_b: &Restitution,
+) -> Vec2 {
+    let restitution = (restitution_a.0 + restitution_b.0) * 0.5;
+    let restitution_velocity = (-restitution * pre_solve_normal_vel).min(0.0);
+    normal * (restitution_velocity - normal_vel)
 }

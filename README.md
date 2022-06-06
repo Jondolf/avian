@@ -13,11 +13,12 @@ Currently this only works in 2D, but it should be relatively straightforward to 
 - Gravity
 - Collision detection via [parry](https://parry.rs)
 - Restitution
+- Friction
 - Substepping
 
 ## Future features
 
-- Friction and drag
+- Linear and angular velocity damping
 - External forces and maybe impulses
 - 3D support
 - Joints

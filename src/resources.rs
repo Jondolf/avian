@@ -13,20 +13,25 @@ impl Default for Gravity {
 #[derive(Debug, Default)]
 pub(crate) struct CollisionPairs(pub Vec<(Entity, Entity)>);
 
-// Stores dynamic-dynamic contact data.
+/// Stores dynamic-dynamic contact data.
 #[derive(Default, Debug)]
 pub struct DynamicContacts(pub Vec<Contact>);
 
-// Stores dynamic-static contact data.
+/// Stores dynamic-static contact data.
 #[derive(Default, Debug)]
 pub struct StaticContacts(pub Vec<Contact>);
 
+/// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Contact {
     pub entity_a: Entity,
     pub entity_b: Entity,
+    /// Local contact point a
     pub r_a: Vec2,
+    /// Local contact point b
     pub r_b: Vec2,
+    /// Contact normal from contact point a to b
     pub normal: Vec2,
+    /// Penetration depth
     pub penetration: f32,
 }

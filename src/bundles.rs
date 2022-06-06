@@ -17,6 +17,7 @@ pub struct DynamicBodyBundle {
     pub pre_solve_ang_vel: PreSolveAngVel,
 
     pub restitution: Restitution,
+    pub friction: Friction,
 
     pub density: Density,
     pub mass_props: MassProperties,
@@ -43,7 +44,9 @@ impl DynamicBodyBundle {
 pub struct StaticBodyBundle {
     pub pos: Pos,
     pub rot: Rot,
+
     pub restitution: Restitution,
+    pub friction: Friction,
 }
 
 impl StaticBodyBundle {
@@ -51,7 +54,7 @@ impl StaticBodyBundle {
         Self {
             pos: Pos(pos),
             rot: Rot::from_degrees(rot_degrees),
-            restitution: Restitution::default(),
+            ..default()
         }
     }
 }
