@@ -3,7 +3,9 @@ mod rotation;
 pub use rotation::*;
 
 use bevy::prelude::*;
-use parry2d::shape::SharedShape;
+use parry2d::{bounding_volume::AABB, shape::SharedShape};
+
+use crate::utils::aabb_with_margin;
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 pub struct Pos(pub Vec2);
@@ -88,6 +90,7 @@ pub struct MassProperties {
 #[derive(Component, Clone)]
 pub struct Collider {
     pub shape: ColliderShape,
+    pub aabb: AABB,
 }
 
 impl Collider {
@@ -102,5 +105,14 @@ impl Collider {
             inv_inertia: 1.0 / inertia,
             local_center_of_mass: Vec2::new(props.local_com.x, props.local_com.y),
         }
+    }
+    pub fn update_aabb_with_margin(
+        &mut self,
+        pos: &Vec2,
+        rot: &Rot,
+        shape: &SharedShape,
+        margin: f32,
+    ) {
+        self.aabb = aabb_with_margin(pos, rot, shape, margin);
     }
 }

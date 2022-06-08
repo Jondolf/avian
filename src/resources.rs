@@ -1,6 +1,6 @@
-use bevy::prelude::*;
-
 use crate::DELTA_TIME;
+
+use bevy::prelude::*;
 
 /// Amount of substeps used in XPBD simulation
 pub struct XPBDSubsteps(pub u32);
@@ -29,9 +29,13 @@ impl Default for Gravity {
     }
 }
 
-/// Stores pairs of colliding entities.
+/// Stores colliding dynamic-dynamic entities in pairs.
 #[derive(Debug, Default)]
-pub(crate) struct CollisionPairs(pub Vec<(Entity, Entity)>);
+pub(crate) struct DynamicCollisionPairs(pub Vec<(Entity, Entity)>);
+
+/// Stores colliding dynamic-static entities in pairs.
+#[derive(Debug, Default)]
+pub(crate) struct StaticCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Stores dynamic-dynamic contact data.
 #[derive(Default, Debug)]

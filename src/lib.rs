@@ -33,7 +33,8 @@ impl Plugin for XPBDPlugin {
             .init_resource::<SubDeltaTime>()
             .init_resource::<LoopState>()
             .init_resource::<Gravity>()
-            .init_resource::<CollisionPairs>()
+            .init_resource::<DynamicCollisionPairs>()
+            .init_resource::<StaticCollisionPairs>()
             .init_resource::<DynamicContacts>()
             .init_resource::<StaticContacts>()
             .add_stage_before(
@@ -45,6 +46,7 @@ impl Plugin for XPBDPlugin {
                         SystemSet::new()
                             .before(Step::CollectCollisionPairs)
                             .with_system(update_sub_delta_time)
+                            .with_system(update_aabb)
                             .with_system(update_mass_props),
                     )
                     .with_system(

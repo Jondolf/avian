@@ -65,8 +65,10 @@ pub struct ColliderBundle {
 
 impl ColliderBundle {
     pub fn with_shape(shape: ColliderShape) -> Self {
+        let aabb = shape.compute_local_aabb();
+
         Self {
-            collider: Collider { shape },
+            collider: Collider { shape, aabb },
         }
     }
 }

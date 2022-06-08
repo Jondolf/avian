@@ -1,38 +1,35 @@
 use crate::{components::*, resources::*, utils::*, Contact, DELTA_TIME};
 
 use bevy::prelude::*;
+use parry2d::bounding_volume::BoundingVolume;
 
-/// Collects bodies that are potentially colliding and stores them in pairs in the [`CollisionPairs`] array.
+/// Collects bodies that are potentially colliding and stores them in pairs.
 pub(crate) fn collect_collision_pairs(
-    query: Query<(Entity, &Pos, &Rot, &LinVel, &Collider)>,
-    mut collision_pairs: ResMut<CollisionPairs>,
+    query: Query<(Entity, &Collider, Option<&MassProperties>)>,
+    mut dynamic_collision_pairs: ResMut<DynamicCollisionPairs>,
+    mut static_collision_pairs: ResMut<StaticCollisionPairs>,
 ) {
-    collision_pairs.0.clear();
+    dynamic_collision_pairs.0.clear();
+    static_collision_pairs.0.clear();
 
-    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * DELTA_TIME;
-
-    let mut iter = query.iter_combinations();
-    while let Some(
-        [(ent_a, pos_a, rot_a, vel_a, collider_a), (ent_b, pos_b, rot_b, vel_b, collider_b)],
-    ) = iter.fetch_next()
+    for [(ent_a, collider_a, mass_props_a), (ent_b, collider_b, mass_props_b)] in
+        query.iter_combinations()
     {
-        let aabb_a = aabb_with_margin(
-            &pos_a.0,
-            rot_a,
-            &collider_a.shape,
-            safety_margin_factor * vel_a.length(),
-        );
+        let is_dynamic_a = mass_props_a.is_some();
+        let is_dynamic_b = mass_props_b.is_some();
 
-        let aabb_b = aabb_with_margin(
-            &pos_b.0,
-            rot_b,
-            &collider_b.shape,
-            safety_margin_factor * vel_b.length(),
-        );
-
-        if aabb_a.intersection(&aabb_b).is_some() {
-            collision_pairs.0.push((ent_a, ent_b));
+        // At least one of the bodies is dynamic and their AABBs intersect
+        if (is_dynamic_a || is_dynamic_b) && collider_a.aabb.intersects(&collider_b.aabb) {
+            if is_dynamic_a && is_dynamic_b {
+                // Both are dynamic
+                dynamic_collision_pairs.0.push((ent_a, ent_b));
+            } else if is_dynamic_a {
+                // A is dynamic, B is static
+                static_collision_pairs.0.push((ent_a, ent_b));
+            } else if is_dynamic_b {
+                // B is dynamic, A is static
+                static_collision_pairs.0.push((ent_b, ent_a));
+            }
         }
     }
 }
@@ -83,10 +80,10 @@ pub(crate) fn solve_pos_dynamics(
         &Collider,
         &MassProperties,
     )>,
-    collision_pairs: Res<CollisionPairs>,
+    collisions: Res<DynamicCollisionPairs>,
     mut contacts: ResMut<DynamicContacts>,
 ) {
-    for (ent_a, ent_b) in collision_pairs.0.iter() {
+    for (ent_a, ent_b) in collisions.0.iter() {
         if let Ok(
             [(mut pos_a, mut rot_a, prev_pos_a, friction_a, collider_a, mass_props_a), (mut pos_b, mut rot_b, prev_pos_b, friction_b, collider_b, mass_props_b)],
         ) = query.get_many_mut([*ent_a, *ent_b])
@@ -124,7 +121,6 @@ pub(crate) fn solve_pos_dynamics(
 /// Solves position constraints for dynamic-static interactions.
 pub(crate) fn solve_pos_statics(
     mut dynamics: Query<(
-        Entity,
         &mut Pos,
         &mut Rot,
         &PrevPos,
@@ -132,28 +128,37 @@ pub(crate) fn solve_pos_statics(
         &Collider,
         &MassProperties,
     )>,
-    statics: Query<(Entity, &Pos, &Rot, &Friction, &Collider), Without<MassProperties>>,
+    statics: Query<(&Pos, &Rot, &Friction, &Collider), Without<MassProperties>>,
+    collisions: Res<StaticCollisionPairs>,
     mut contacts: ResMut<StaticContacts>,
 ) {
-    for (ent_a, mut pos_a, mut rot_a, prev_pos_a, friction_a, collider_a, mass_props) in
-        dynamics.iter_mut()
-    {
-        for (ent_b, pos_b, rot_b, friction_b, collider_b) in statics.iter() {
-            if let Some(contact) = get_contact(
-                ent_a,
-                ent_b,
-                pos_a.0,
-                pos_b.0,
-                rot_a.as_radians(),
-                rot_b.as_radians(),
-                &collider_a.shape,
-                &collider_b.shape,
-            ) {
-                constrain_position_dynamic_static(
-                    &mut pos_a, &mut rot_a, prev_pos_a, friction_a, friction_b, mass_props, contact,
-                );
+    for (ent_a, ent_b) in collisions.0.iter() {
+        if let Ok((mut pos_a, mut rot_a, prev_pos_a, friction_a, collider_a, mass_props_a)) =
+            dynamics.get_mut(*ent_a)
+        {
+            if let Ok((pos_b, rot_b, friction_b, collider_b)) = statics.get(*ent_b) {
+                if let Some(contact) = get_contact(
+                    *ent_a,
+                    *ent_b,
+                    pos_a.0,
+                    pos_b.0,
+                    rot_a.as_radians(),
+                    rot_b.as_radians(),
+                    &collider_a.shape,
+                    &collider_b.shape,
+                ) {
+                    constrain_position_dynamic_static(
+                        &mut pos_a,
+                        &mut rot_a,
+                        prev_pos_a,
+                        friction_a,
+                        friction_b,
+                        mass_props_a,
+                        contact,
+                    );
 
-                contacts.0.push(contact);
+                    contacts.0.push(contact);
+                }
             }
         }
     }
@@ -466,6 +471,35 @@ pub(crate) fn sync_transforms(mut query: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in query.iter_mut() {
         transform.translation = pos.0.extend(0.0);
         transform.rotation = (*rot).into();
+    }
+}
+
+type AABBChanged = Or<(
+    Changed<Collider>,
+    Changed<Pos>,
+    Changed<Rot>,
+    Changed<LinVel>,
+)>;
+
+/// Updates the AABBs of all bodies.
+pub(crate) fn update_aabb(
+    mut query: Query<(&mut Collider, &Pos, &Rot, Option<&LinVel>), AABBChanged>,
+) {
+    for (mut collider, pos, rot, lin_vel) in query.iter_mut() {
+        // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
+        let safety_margin_factor = 2.0 * DELTA_TIME;
+        let lin_vel = if let Some(lin_vel) = lin_vel {
+            lin_vel.0
+        } else {
+            Vec2::ZERO
+        };
+        let collider_shape = collider.shape.clone();
+        collider.update_aabb_with_margin(
+            &pos.0,
+            rot,
+            &collider_shape,
+            safety_margin_factor * lin_vel.length(),
+        );
     }
 }
 
