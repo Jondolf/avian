@@ -33,8 +33,8 @@ impl Plugin for XPBDPlugin {
             .init_resource::<SubDeltaTime>()
             .init_resource::<LoopState>()
             .init_resource::<Gravity>()
-            .init_resource::<DynamicCollisionPairs>()
-            .init_resource::<StaticCollisionPairs>()
+            .init_resource::<DynamicPenetrationConstraints>()
+            .init_resource::<StaticPenetrationConstraints>()
             .init_resource::<DynamicContacts>()
             .init_resource::<StaticContacts>()
             .add_stage_before(

@@ -29,13 +29,35 @@ impl Default for Gravity {
     }
 }
 
-/// Stores colliding dynamic-dynamic entities in pairs.
-#[derive(Debug, Default)]
-pub(crate) struct DynamicCollisionPairs(pub Vec<(Entity, Entity)>);
+/// A constraint between two bodies that prevents overlap with a given compliance.
+///
+/// A compliance of 0.0 resembles a constraint with infinite stiffness, so the bodies should not have any overlap.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PenetrationConstraint {
+    pub entity_a: Entity,
+    pub entity_b: Entity,
+    pub lagrange: f32,
+    pub compliance: f32,
+}
 
-/// Stores colliding dynamic-static entities in pairs.
+impl PenetrationConstraint {
+    pub fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+        Self {
+            entity_a,
+            entity_b,
+            lagrange: 0.0,
+            compliance,
+        }
+    }
+}
+
+/// Stores penetration constraints for potentially colliding dynamic-dynamic entity pairs.
 #[derive(Debug, Default)]
-pub(crate) struct StaticCollisionPairs(pub Vec<(Entity, Entity)>);
+pub(crate) struct DynamicPenetrationConstraints(pub Vec<PenetrationConstraint>);
+
+/// Stores penetration constraints for potentially colliding dynamic-static entity pairs.
+#[derive(Debug, Default)]
+pub(crate) struct StaticPenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 /// Stores dynamic-dynamic contact data.
 #[derive(Default, Debug)]
