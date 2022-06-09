@@ -1,4 +1,4 @@
-use crate::DELTA_TIME;
+use crate::{constraints::penetration::PenetrationConstraint, DELTA_TIME};
 
 use bevy::prelude::*;
 
@@ -26,28 +26,6 @@ pub struct Gravity(pub Vec2);
 impl Default for Gravity {
     fn default() -> Self {
         Self(Vec2::new(0.0, -9.81))
-    }
-}
-
-/// A constraint between two bodies that prevents overlap with a given compliance.
-///
-/// A compliance of 0.0 resembles a constraint with infinite stiffness, so the bodies should not have any overlap.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct PenetrationConstraint {
-    pub entity_a: Entity,
-    pub entity_b: Entity,
-    pub lagrange: f32,
-    pub compliance: f32,
-}
-
-impl PenetrationConstraint {
-    pub fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
-        Self {
-            entity_a,
-            entity_b,
-            lagrange: 0.0,
-            compliance,
-        }
     }
 }
 

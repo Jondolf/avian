@@ -61,26 +61,6 @@ pub(crate) fn get_contact(
     None
 }
 
-/// Calculates velocity correction caused by static friction.
-pub(crate) fn get_static_friction(
-    delta_pos_a: Vec2,
-    delta_pos_b: Vec2,
-    friction_a: &Friction,
-    friction_b: &Friction,
-    contact_normal: Vec2,
-    normal_force: f32,
-) -> Vec2 {
-    let static_friction_coefficient =
-        (friction_a.static_coefficient + friction_b.static_coefficient) * 0.5;
-    let relative_mov = delta_pos_a - delta_pos_b;
-    let tangential_mov = relative_mov - (relative_mov.dot(contact_normal)) * contact_normal;
-    if tangential_mov.length() < normal_force * static_friction_coefficient {
-        tangential_mov
-    } else {
-        Vec2::ZERO
-    }
-}
-
 /// Calculates velocity correction caused by dynamic friction.
 pub(crate) fn get_dynamic_friction(
     tangent_vel: Vec2,

@@ -1,7 +1,9 @@
 pub mod bundles;
 pub mod components;
+pub mod constraints;
 pub mod resources;
 pub mod systems;
+
 mod utils;
 
 pub use parry2d;

@@ -2,7 +2,10 @@
 //!
 //! The math and physics are primarily from [Matthias Müller's paper titled "Detailed Rigid Body Simulation with Extended Position Based Dynamics"](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
 
-use crate::{components::*, resources::*, utils::*, Contact, DELTA_TIME};
+use crate::{
+    components::*, constraints::penetration::PenetrationConstraint, resources::*, utils::*,
+    Contact, DELTA_TIME,
+};
 
 use bevy::prelude::*;
 use parry2d::bounding_volume::BoundingVolume;
@@ -119,7 +122,7 @@ pub(crate) fn solve_pos_dynamics(
                 &collider_b.shape,
             ) {
                 // Apply non-penetration constraints for dynamic-dynamic interactions
-                constrain_penetration_dynamics(
+                constraint.constrain_dynamic(
                     &mut pos_a,
                     &mut pos_b,
                     &mut rot_a,
@@ -131,8 +134,6 @@ pub(crate) fn solve_pos_dynamics(
                     mass_props_a,
                     mass_props_b,
                     contact,
-                    &mut constraint.lagrange,
-                    constraint.compliance,
                     sub_dt.0,
                 );
 
@@ -177,7 +178,7 @@ pub(crate) fn solve_pos_statics(
                     &collider_b.shape,
                 ) {
                     // Apply non-penetration constraints for dynamic-static interactions
-                    constrain_penetration_statics(
+                    constraint.constrain_static(
                         &mut pos_a,
                         &mut rot_a,
                         prev_pos_a,
@@ -185,8 +186,6 @@ pub(crate) fn solve_pos_statics(
                         friction_b,
                         mass_props_a,
                         contact,
-                        &mut constraint.lagrange,
-                        constraint.compliance,
                         sub_dt.0,
                     );
 
@@ -195,126 +194,6 @@ pub(crate) fn solve_pos_statics(
             }
         }
     }
-}
-
-/// Solves overlap between two dynamic bodies according to their masses.
-#[allow(clippy::too_many_arguments)]
-fn constrain_penetration_dynamics(
-    pos_a: &mut Pos,
-    pos_b: &mut Pos,
-    rot_a: &mut Rot,
-    rot_b: &mut Rot,
-    prev_pos_a: &PrevPos,
-    prev_pos_b: &PrevPos,
-    friction_a: &Friction,
-    friction_b: &Friction,
-    mass_props_a: &MassProperties,
-    mass_props_b: &MassProperties,
-    contact: Contact,
-    lagrange: &mut f32,
-    compliance: f32,
-    sub_dt: f32,
-) {
-    let Contact {
-        normal,
-        penetration,
-        r_a,
-        r_b,
-        ..
-    } = contact;
-    let MassProperties {
-        inv_mass: inv_mass_a,
-        inv_inertia: inv_inertia_a,
-        ..
-    } = mass_props_a;
-    let MassProperties {
-        inv_mass: inv_mass_b,
-        inv_inertia: inv_inertia_b,
-        ..
-    } = mass_props_b;
-
-    // Compute generalized inverse masses (equations 2-3)
-    let w_a = inv_mass_a + inv_inertia_a * r_a.perp_dot(normal).powi(2);
-    let w_b = inv_mass_b + inv_inertia_b * r_b.perp_dot(normal).powi(2);
-
-    // Compute Lagrange multiplier updates (equations 4-5)
-    let a = compliance / sub_dt.powi(2);
-    let delta_lagrange = (-penetration - a * *lagrange) / (w_a + w_b + a);
-    *lagrange += delta_lagrange;
-
-    // Positional impulse
-    let p = delta_lagrange * normal;
-
-    // Update positions and rotations of the bodies (equations 6-9)
-    pos_a.0 += p * w_a;
-    pos_b.0 -= p * w_b;
-    *rot_a += Rot::from_radians(inv_inertia_a * r_a.perp_dot(p));
-    *rot_b += Rot::from_radians(inv_inertia_b * r_b.perp_dot(-p));
-
-    // Compute static friction
-    let friction = get_static_friction(
-        pos_a.0 - prev_pos_a.0,
-        pos_b.0 - prev_pos_b.0,
-        friction_a,
-        friction_b,
-        normal,
-        delta_lagrange,
-    );
-    // Apply static friction
-    pos_a.0 -= friction;
-    pos_b.0 += friction;
-}
-
-/// Solves overlap between a dynamic body and a static body.
-#[allow(clippy::too_many_arguments)]
-fn constrain_penetration_statics(
-    pos: &mut Pos,
-    rot: &mut Rot,
-    prev_pos: &PrevPos,
-    friction_a: &Friction,
-    friction_b: &Friction,
-    mass_props: &MassProperties,
-    contact: Contact,
-    lagrange: &mut f32,
-    compliance: f32,
-    sub_dt: f32,
-) {
-    let Contact {
-        normal,
-        penetration,
-        r_a,
-        ..
-    } = contact;
-    let MassProperties {
-        inv_mass,
-        inv_inertia,
-        ..
-    } = *mass_props;
-
-    // Compute generalized inverse mass (equation 2)
-    let w_a = inv_mass + inv_inertia * r_a.perp_dot(normal).powi(2);
-
-    // Compute Lagrange multiplier updates (equations 4-5)
-    let a = compliance / sub_dt.powi(2);
-    let delta_lagrange = (-penetration - a * *lagrange) / (w_a + a);
-    *lagrange += delta_lagrange;
-
-    // Positional impulse
-    let p = delta_lagrange * normal;
-
-    // Update position and rotation of the dynamic body (equations 6 and 8)
-    pos.0 += p * inv_mass;
-    *rot += Rot::from_radians(inv_inertia * r_a.perp_dot(p));
-
-    // Compute and apply static friction
-    pos.0 -= get_static_friction(
-        pos.0 - prev_pos.0,
-        Vec2::ZERO,
-        friction_a,
-        friction_b,
-        normal,
-        delta_lagrange,
-    );
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
@@ -334,7 +213,7 @@ pub(crate) fn update_ang_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rot, prev_rot, mut ang_vel) in query.iter_mut() {
-        ang_vel.0 = (prev_rot.inv().mul(*rot)).as_radians() / sub_dt.0;
+        ang_vel.0 = (rot.mul(prev_rot.inv())).as_radians() / sub_dt.0;
     }
 }
 
