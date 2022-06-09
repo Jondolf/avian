@@ -8,10 +8,15 @@ use bevy::prelude::*;
 /// A compliance of 0.0 resembles a constraint with infinite stiffness, so the bodies should not have any overlap.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct PenetrationConstraint {
+    /// Entity "a" in the constraint. This should always be a dynamic body.
     pub entity_a: Entity,
+    /// Entity "b" in the constraint. This can be either a dynamic or a static body.
     pub entity_b: Entity,
     pub lagrange: f32,
+    /// The inverse of the constraint's stiffness
     pub compliance: f32,
+    /// Force exerted by this constraint at dynamic body "a"
+    pub force: Vec2,
 }
 
 impl PenetrationConstraint {
@@ -21,8 +26,10 @@ impl PenetrationConstraint {
             entity_b,
             lagrange: 0.0,
             compliance,
+            force: Vec2::ZERO,
         }
     }
+
     /// Solves overlap between two dynamic bodies according to their masses.
     #[allow(clippy::too_many_arguments)]
     pub fn constrain_dynamic(
@@ -68,6 +75,8 @@ impl PenetrationConstraint {
         // Apply static friction
         pos_a.0 -= friction;
         pos_b.0 += friction;
+
+        self.update_force(contact.normal, sub_dt);
     }
 
     /// Solves overlap between a dynamic body and a static body.
@@ -104,6 +113,8 @@ impl PenetrationConstraint {
             contact.normal,
             delta_lagrange,
         );
+
+        self.update_force(contact.normal, sub_dt);
     }
 
     fn get_static_friction(
@@ -123,6 +134,11 @@ impl PenetrationConstraint {
         } else {
             Vec2::ZERO
         }
+    }
+
+    fn update_force(&mut self, normal: Vec2, sub_dt: f32) {
+        // Equation 10
+        self.force = self.lagrange * normal / sub_dt.powi(2);
     }
 }
 
