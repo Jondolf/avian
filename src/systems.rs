@@ -60,17 +60,17 @@ pub(crate) fn integrate_pos(
         &mut PrevPos,
         &mut LinVel,
         &mut PreSolveLinVel,
-        &Density,
+        &MassProperties,
     )>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (mut pos, mut prev_pos, mut vel, mut pre_solve_vel, mass) in query.iter_mut() {
+    for (mut pos, mut prev_pos, mut vel, mut pre_solve_vel, mass_props) in query.iter_mut() {
         prev_pos.0 = pos.0;
 
-        let gravitation_force = mass.0 * gravity.0;
+        let gravitation_force = mass_props.mass * gravity.0;
         let external_forces = gravitation_force;
-        vel.0 += sub_dt.0 * external_forces / mass.0;
+        vel.0 += sub_dt.0 * external_forces / mass_props.mass;
         pos.0 += sub_dt.0 * vel.0;
         pre_solve_vel.0 = vel.0;
     }
@@ -227,8 +227,7 @@ pub(crate) fn solve_vel_dynamics(
         &PreSolveAngVel,
         &Restitution,
         &Friction,
-        &Density,
-        &Collider,
+        &MassProperties,
     )>,
     contacts: Res<DynamicContacts>,
     sub_dt: Res<SubDeltaTime>,
@@ -251,8 +250,7 @@ pub(crate) fn solve_vel_dynamics(
                 pre_solve_ang_vel_a,
                 restitution_a,
                 friction_a,
-                density_a,
-                collider_a,
+                mass_props_a,
             ), (
                 mut lin_vel_b,
                 mut ang_vel_b,
@@ -260,8 +258,7 @@ pub(crate) fn solve_vel_dynamics(
                 pre_solve_ang_vel_b,
                 restitution_b,
                 friction_b,
-                density_b,
-                collider_b,
+                mass_props_b,
             )],
         ) = query.get_many_mut([entity_a, entity_b])
         {
@@ -270,13 +267,13 @@ pub(crate) fn solve_vel_dynamics(
                 inv_mass: inv_mass_a,
                 inv_inertia: inv_inertia_a,
                 ..
-            } = collider_a.mass_properties(density_a.0);
+            } = *mass_props_a;
             let MassProperties {
                 mass: mass_b,
                 inv_mass: inv_mass_b,
                 inv_inertia: inv_inertia_b,
                 ..
-            } = collider_b.mass_properties(density_b.0);
+            } = *mass_props_b;
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel_a =
@@ -330,8 +327,7 @@ pub(crate) fn solve_vel_statics(
         &PreSolveAngVel,
         &Restitution,
         &Friction,
-        &Density,
-        &Collider,
+        &MassProperties,
     )>,
     statics: Query<(&Restitution, &Friction), Without<Density>>,
     contacts: Res<StaticContacts>,
@@ -353,8 +349,7 @@ pub(crate) fn solve_vel_statics(
             pre_solve_ang_vel,
             restitution_a,
             friction_a,
-            density,
-            collider,
+            mass_props,
         )) = dynamics.get_mut(entity_a)
         {
             if let Ok((restitution_b, friction_b)) = statics.get(entity_b) {
@@ -363,7 +358,7 @@ pub(crate) fn solve_vel_statics(
                     inv_mass,
                     inv_inertia,
                     ..
-                } = collider.mass_properties(density.0);
+                } = *mass_props;
 
                 // Compute pre-solve normal velocity at the contact point (used for restitution)
                 let pre_solve_contact_vel = pre_solve_lin_vel.0 + pre_solve_ang_vel.0 * r.perp();
@@ -454,12 +449,38 @@ pub(crate) fn update_sub_delta_time(substeps: Res<XPBDSubsteps>, mut sub_dt: Res
     sub_dt.0 = DELTA_TIME / substeps.0 as f32;
 }
 
-type MassPropsChanged = Or<(Changed<Density>, Changed<Collider>)>;
+type MassPropsChanged = Or<(Changed<ExplicitMassProperties>, Changed<Collider>)>;
 
+/// Updates each body's [`MassProperties`] whenever their [`ExplicitMassProperties`] or [`Collider`] change.
+///
+/// Also updates the collider's mass properties if the body has a collider.
 pub(crate) fn update_mass_props(
-    mut query: Query<(&mut MassProperties, &Density, &Collider), MassPropsChanged>,
+    mut query: Query<
+        (
+            &mut MassProperties,
+            Option<&ExplicitMassProperties>,
+            Option<&mut Collider>,
+        ),
+        MassPropsChanged,
+    >,
 ) {
-    for (mut mass_props, density, collider) in query.iter_mut() {
-        *mass_props = collider.mass_properties(density.0);
+    for (mut mass_props, explicit_mass_props, collider) in query.iter_mut() {
+        let mut new_mass_props = MassProperties::ZERO;
+
+        if let Some(explicit_mass_props) = explicit_mass_props {
+            new_mass_props = explicit_mass_props.0;
+        }
+
+        if let Some(mut collider) = collider {
+            collider.update_mass_props();
+
+            new_mass_props.mass += collider.mass_properties.mass;
+            new_mass_props.inv_mass += collider.mass_properties.inv_mass;
+            new_mass_props.inertia += collider.mass_properties.inertia;
+            new_mass_props.inv_inertia += collider.mass_properties.inv_inertia;
+            new_mass_props.local_center_of_mass += collider.mass_properties.local_center_of_mass;
+        }
+
+        *mass_props = new_mass_props;
     }
 }

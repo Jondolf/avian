@@ -50,7 +50,7 @@ fn setup(
             Vec2::new(0.0, -7.5),
             0.0,
         ))
-        .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(10.0, 0.5)));
+        .insert(Collider::from_shape(ColliderShape::cuboid(10.0, 0.5)));
 
     let _ceiling = commands
         .spawn_bundle(PbrBundle {
@@ -63,7 +63,7 @@ fn setup(
             Vec2::new(0.0, 7.5),
             0.0,
         ))
-        .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(10.0, 0.5)));
+        .insert(Collider::from_shape(ColliderShape::cuboid(10.0, 0.5)));
 
     let _left_wall = commands
         .spawn_bundle(PbrBundle {
@@ -76,7 +76,7 @@ fn setup(
             Vec2::new(-9.5, 0.0),
             0.0,
         ))
-        .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(0.5, 10.0)));
+        .insert(Collider::from_shape(ColliderShape::cuboid(0.5, 10.0)));
 
     let _right_wall = commands
         .spawn_bundle(PbrBundle {
@@ -89,7 +89,7 @@ fn setup(
             Vec2::new(9.5, 0.0),
             0.0,
         ))
-        .insert_bundle(ColliderBundle::with_shape(ColliderShape::cuboid(0.5, 10.0)));
+        .insert(Collider::from_shape(ColliderShape::cuboid(0.5, 10.0)));
 
     let radius = 0.15;
     let stacks = 25;
@@ -115,7 +115,7 @@ fn setup(
                     restitution: Restitution(0.3),
                     ..DynamicBodyBundle::new_with_pos_and_vel(pos, vel)
                 })
-                .insert_bundle(ColliderBundle::with_shape(ColliderShape::ball(radius)))
+                .insert(Collider::from_shape(ColliderShape::ball(radius)))
                 .insert(Player)
                 .insert(MoveAcceleration(0.005))
                 .insert(MaxVelocity(Vec2::new(30.0, 30.0)));

@@ -19,8 +19,8 @@ pub struct DynamicBodyBundle {
     pub restitution: Restitution,
     pub friction: Friction,
 
-    pub density: Density,
     pub mass_props: MassProperties,
+    pub explicit_mass_props: ExplicitMassProperties,
 }
 
 impl DynamicBodyBundle {
@@ -34,6 +34,12 @@ impl DynamicBodyBundle {
     pub fn with_rot(self, rot_degrees: f32) -> Self {
         Self {
             rot: Rot::from_degrees(rot_degrees),
+            ..self
+        }
+    }
+    pub fn with_explicit_mass_properties(self, mass_props: MassProperties) -> Self {
+        Self {
+            explicit_mass_props: ExplicitMassProperties(mass_props),
             ..self
         }
     }
@@ -54,21 +60,6 @@ impl StaticBodyBundle {
             pos: Pos(pos),
             rot: Rot::from_degrees(rot_degrees),
             ..default()
-        }
-    }
-}
-
-#[derive(Bundle)]
-pub struct ColliderBundle {
-    pub collider: Collider,
-}
-
-impl ColliderBundle {
-    pub fn with_shape(shape: ColliderShape) -> Self {
-        let aabb = shape.compute_local_aabb();
-
-        Self {
-            collider: Collider { shape, aabb },
         }
     }
 }
