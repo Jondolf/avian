@@ -16,7 +16,7 @@ pub trait PositionConstraint {
         rot_b: &mut Rot,
         mass_props_a: &MassProperties,
         mass_props_b: &MassProperties,
-        direction: Vec2,
+        dir: Vec2,
         magnitude: f32,
         r_a: Vec2,
         r_b: Vec2,
@@ -24,20 +24,9 @@ pub trait PositionConstraint {
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        let MassProperties {
-            inv_mass: inv_mass_a,
-            inv_inertia: inv_inertia_a,
-            ..
-        } = mass_props_a;
-        let MassProperties {
-            inv_mass: inv_mass_b,
-            inv_inertia: inv_inertia_b,
-            ..
-        } = mass_props_b;
-
         // Compute generalized inverse masses (equations 2-3)
-        let w_a = inv_mass_a + inv_inertia_a * r_a.perp_dot(direction).powi(2);
-        let w_b = inv_mass_b + inv_inertia_b * r_b.perp_dot(direction).powi(2);
+        let w_a = mass_props_a.inv_mass + mass_props_a.inv_inertia * r_a.perp_dot(dir).powi(2);
+        let w_b = mass_props_b.inv_mass + mass_props_b.inv_inertia * r_b.perp_dot(dir).powi(2);
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let a = compliance / sub_dt.powi(2);
@@ -45,13 +34,13 @@ pub trait PositionConstraint {
         *lagrange += delta_lagrange;
 
         // Positional impulse
-        let p = delta_lagrange * direction;
+        let p = delta_lagrange * dir;
 
         // Update positions and rotations of the bodies (equations 6-9)
-        pos_a.0 += p * w_a;
-        pos_b.0 -= p * w_b;
-        *rot_a += Rot::from_radians(inv_inertia_a * r_a.perp_dot(p));
-        *rot_b += Rot::from_radians(inv_inertia_b * r_b.perp_dot(-p));
+        pos_a.0 += p / mass_props_a.mass;
+        pos_b.0 -= p / mass_props_b.mass;
+        *rot_a += Rot::from_radians(mass_props_a.inv_inertia * r_a.perp_dot(p));
+        *rot_b += Rot::from_radians(mass_props_b.inv_inertia * r_b.perp_dot(-p));
 
         delta_lagrange
     }
@@ -64,21 +53,15 @@ pub trait PositionConstraint {
         pos_a: &mut Pos,
         rot_a: &mut Rot,
         mass_props_a: &MassProperties,
-        direction: Vec2,
+        dir: Vec2,
         magnitude: f32,
         r_a: Vec2,
         lagrange: &mut f32,
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        let MassProperties {
-            inv_mass,
-            inv_inertia,
-            ..
-        } = *mass_props_a;
-
         // Compute generalized inverse mass (equation 2)
-        let w_a = inv_mass + inv_inertia * r_a.perp_dot(direction).powi(2);
+        let w_a = mass_props_a.inv_mass + mass_props_a.inv_inertia * r_a.perp_dot(dir).powi(2);
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let a = compliance / sub_dt.powi(2);
@@ -86,11 +69,11 @@ pub trait PositionConstraint {
         *lagrange += delta_lagrange;
 
         // Positional impulse
-        let p = delta_lagrange * direction;
+        let p = delta_lagrange * dir;
 
         // Update position and rotation of the dynamic body (equations 6 and 8)
-        pos_a.0 += p * inv_mass;
-        *rot_a += Rot::from_radians(inv_inertia * r_a.perp_dot(p));
+        pos_a.0 += p / mass_props_a.mass;
+        *rot_a += Rot::from_radians(mass_props_a.inv_inertia * r_a.perp_dot(p));
 
         delta_lagrange
     }

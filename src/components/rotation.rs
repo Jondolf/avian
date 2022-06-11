@@ -100,7 +100,7 @@ impl From<Rot> for Quat {
 }
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-pub struct PrevRot(Rot);
+pub struct PrevRot(pub Rot);
 
 fn quat_from_rot<T: Rotation>(rot: T) -> Quat {
     if rot.cos() < 0.0 {

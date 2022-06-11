@@ -64,26 +64,27 @@ pub(crate) fn get_contact(
 /// Calculates velocity correction caused by dynamic friction.
 pub(crate) fn get_dynamic_friction(
     tangent_vel: Vec2,
-    penetration: f32,
     friction_a: &Friction,
     friction_b: &Friction,
+    normal_lagrange: f32,
     sub_dt: f32,
 ) -> Vec2 {
     // Only call .length() once
-    let tangent_vel_length = tangent_vel.length();
+    let tangent_vel_magnitude = tangent_vel.length();
 
     // Prevent division by zero when normalizing tangent_vel
-    if tangent_vel_length != 0.0 {
+    if tangent_vel_magnitude != 0.0 {
         // Average of the bodies' dynamic friction coefficients
         let friction_coefficient =
             (friction_a.dynamic_coefficient + friction_b.dynamic_coefficient) * 0.5;
 
+        let normal_force = normal_lagrange / sub_dt.powi(2);
+
         // Magnitude of velocity correction caused by friction
-        let friction_magnitude =
-            sub_dt * friction_coefficient * (penetration / sub_dt.powi(2)).abs();
+        let friction_magnitude = sub_dt * friction_coefficient * normal_force.abs();
 
         // Velocity correction vector caused by friction, never exceeds the magnitude of the velocity itself
-        tangent_vel / tangent_vel_length * (friction_magnitude.min(tangent_vel_length))
+        -tangent_vel / tangent_vel_magnitude * (friction_magnitude.min(tangent_vel_magnitude))
     } else {
         // No tangential movement -> no friction
         Vec2::ZERO

@@ -37,13 +37,13 @@ pub(crate) struct DynamicPenetrationConstraints(pub Vec<PenetrationConstraint>);
 #[derive(Debug, Default)]
 pub(crate) struct StaticPenetrationConstraints(pub Vec<PenetrationConstraint>);
 
-/// Stores dynamic-dynamic contact data.
+/// Stores dynamic-static contact data and Lagrange multipliers for the normal forces.
 #[derive(Default, Debug)]
-pub struct DynamicContacts(pub Vec<Contact>);
+pub struct DynamicContacts(pub Vec<(Contact, f32)>);
 
-/// Stores dynamic-static contact data.
+/// Stores dynamic-static contact data and Lagrange multipliers for the normal forces.
 #[derive(Default, Debug)]
-pub struct StaticContacts(pub Vec<Contact>);
+pub struct StaticContacts(pub Vec<(Contact, f32)>);
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]

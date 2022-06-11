@@ -91,14 +91,7 @@ pub(crate) fn integrate_rot(
 
 /// Solves position constraints for dynamic-dynamic interactions.
 pub(crate) fn solve_pos_dynamics(
-    mut query: Query<(
-        &mut Pos,
-        &mut Rot,
-        &PrevPos,
-        &Friction,
-        &Collider,
-        &MassProperties,
-    )>,
+    mut query: Query<(&mut Pos, &mut Rot, &Collider, &MassProperties)>,
     mut penetration_constraints: ResMut<DynamicPenetrationConstraints>,
     mut contacts: ResMut<DynamicContacts>,
     sub_dt: Res<SubDeltaTime>,
@@ -107,7 +100,7 @@ pub(crate) fn solve_pos_dynamics(
     for constraint in penetration_constraints.0.iter_mut() {
         // Get components for entity a and b
         if let Ok(
-            [(mut pos_a, mut rot_a, prev_pos_a, friction_a, collider_a, mass_props_a), (mut pos_b, mut rot_b, prev_pos_b, friction_b, collider_b, mass_props_b)],
+            [(mut pos_a, mut rot_a, collider_a, mass_props_a), (mut pos_b, mut rot_b, collider_b, mass_props_b)],
         ) = query.get_many_mut([constraint.entity_a, constraint.entity_b])
         {
             // Detect if the entities are actually colliding and get contact data
@@ -127,17 +120,13 @@ pub(crate) fn solve_pos_dynamics(
                     &mut pos_b,
                     &mut rot_a,
                     &mut rot_b,
-                    prev_pos_a,
-                    prev_pos_b,
-                    friction_a,
-                    friction_b,
                     mass_props_a,
                     mass_props_b,
                     contact,
                     sub_dt.0,
                 );
 
-                contacts.0.push(contact);
+                contacts.0.push((contact, constraint.normal_lagrange));
             }
         }
     }
@@ -145,15 +134,8 @@ pub(crate) fn solve_pos_dynamics(
 
 /// Solves position constraints for dynamic-static interactions.
 pub(crate) fn solve_pos_statics(
-    mut dynamics: Query<(
-        &mut Pos,
-        &mut Rot,
-        &PrevPos,
-        &Friction,
-        &Collider,
-        &MassProperties,
-    )>,
-    statics: Query<(&Pos, &Rot, &Friction, &Collider), Without<MassProperties>>,
+    mut dynamics: Query<(&mut Pos, &mut Rot, &Collider, &MassProperties)>,
+    statics: Query<(&Pos, &Rot, &Collider), Without<MassProperties>>,
     mut penetration_constraints: ResMut<StaticPenetrationConstraints>,
     mut contacts: ResMut<StaticContacts>,
     sub_dt: Res<SubDeltaTime>,
@@ -161,11 +143,11 @@ pub(crate) fn solve_pos_statics(
     // Handle non-penetration constraints
     for constraint in penetration_constraints.0.iter_mut() {
         // Get components for dynamic entity a
-        if let Ok((mut pos_a, mut rot_a, prev_pos_a, friction_a, collider_a, mass_props_a)) =
+        if let Ok((mut pos_a, mut rot_a, collider_a, mass_props_a)) =
             dynamics.get_mut(constraint.entity_a)
         {
             // Get components for static entity b
-            if let Ok((pos_b, rot_b, friction_b, collider_b)) = statics.get(constraint.entity_b) {
+            if let Ok((pos_b, rot_b, collider_b)) = statics.get(constraint.entity_b) {
                 // Detect if the entities are actually colliding and get contact data
                 if let Some(contact) = get_contact(
                     constraint.entity_a,
@@ -181,15 +163,12 @@ pub(crate) fn solve_pos_statics(
                     constraint.constrain_static(
                         &mut pos_a,
                         &mut rot_a,
-                        prev_pos_a,
-                        friction_a,
-                        friction_b,
                         mass_props_a,
                         contact,
                         sub_dt.0,
                     );
 
-                    contacts.0.push(contact);
+                    contacts.0.push((contact, constraint.normal_lagrange));
                 }
             }
         }
@@ -232,15 +211,17 @@ pub(crate) fn solve_vel_dynamics(
     contacts: Res<DynamicContacts>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for Contact {
-        entity_a,
-        entity_b,
-        r_a,
-        r_b,
-        normal,
-        penetration,
-        ..
-    } in contacts.0.iter().cloned()
+    for (
+        Contact {
+            entity_a,
+            entity_b,
+            r_a,
+            r_b,
+            normal,
+            ..
+        },
+        normal_lagrange,
+    ) in contacts.0.iter().cloned()
     {
         if let Ok(
             [(
@@ -295,8 +276,13 @@ pub(crate) fn solve_vel_dynamics(
             let w_b = inv_mass_b + inv_inertia_b * r_b.perp_dot(normal).powi(2);
 
             // Compute dynamic friction
-            let friction_impulse =
-                get_dynamic_friction(tangent_vel, penetration, friction_a, friction_b, sub_dt.0);
+            let friction_impulse = get_dynamic_friction(
+                tangent_vel,
+                friction_a,
+                friction_b,
+                normal_lagrange,
+                sub_dt.0,
+            );
 
             // Compute restitution
             let restitution_impulse = get_restitution(
@@ -308,7 +294,7 @@ pub(crate) fn solve_vel_dynamics(
             );
 
             // Compute velocity impulse and apply velocity updates (equation 33)
-            let p = (restitution_impulse - friction_impulse) / (w_a + w_b);
+            let p = (restitution_impulse + friction_impulse) / (w_a + w_b);
             lin_vel_a.0 += p / mass_a;
             lin_vel_b.0 -= p / mass_b;
             ang_vel_a.0 += inv_inertia_a * r_a.perp_dot(p);
@@ -329,18 +315,20 @@ pub(crate) fn solve_vel_statics(
         &Friction,
         &MassProperties,
     )>,
-    statics: Query<(&Restitution, &Friction), Without<Density>>,
+    statics: Query<(&Restitution, &Friction), Without<MassProperties>>,
     contacts: Res<StaticContacts>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for Contact {
-        entity_a,
-        entity_b,
-        r_a: r,
-        normal,
-        penetration,
-        ..
-    } in contacts.0.iter().cloned()
+    for (
+        Contact {
+            entity_a,
+            entity_b,
+            r_a: r,
+            normal,
+            ..
+        },
+        normal_lagrange,
+    ) in contacts.0.iter().cloned()
     {
         if let Ok((
             mut lin_vel,
@@ -362,11 +350,11 @@ pub(crate) fn solve_vel_statics(
 
                 // Compute pre-solve normal velocity at the contact point (used for restitution)
                 let pre_solve_contact_vel = pre_solve_lin_vel.0 + pre_solve_ang_vel.0 * r.perp();
-                let pre_solve_normal_vel = Vec2::dot(pre_solve_contact_vel, normal);
+                let pre_solve_normal_vel = normal.dot(pre_solve_contact_vel);
 
                 // Compute normal and tangential velocity at the contact point (equation 29)
                 let contact_vel = lin_vel.0 + ang_vel.0 * r.perp();
-                let normal_vel = Vec2::dot(contact_vel, normal);
+                let normal_vel = normal.dot(contact_vel);
                 let tangent_vel = contact_vel - normal * normal_vel;
 
                 // Compute generalized inverse mass (equation 2)
@@ -375,9 +363,9 @@ pub(crate) fn solve_vel_statics(
                 // Compute dynamic friction
                 let friction_impulse = get_dynamic_friction(
                     tangent_vel,
-                    penetration,
                     friction_a,
                     friction_b,
+                    normal_lagrange,
                     sub_dt.0,
                 );
 
@@ -391,7 +379,7 @@ pub(crate) fn solve_vel_statics(
                 );
 
                 // Compute velocity impulse and apply velocity updates (equation 33)
-                let p = (restitution_impulse - friction_impulse) / w_a;
+                let p = (restitution_impulse + friction_impulse) / w_a;
                 lin_vel.0 += p / mass;
                 ang_vel.0 += inv_inertia * r.perp_dot(p);
             }

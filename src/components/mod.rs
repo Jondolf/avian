@@ -25,15 +25,6 @@ pub struct AngVel(pub f32);
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 pub struct PreSolveAngVel(pub f32);
 
-#[derive(Clone, Copy, Component, Debug)]
-pub struct Density(pub f32);
-
-impl Default for Density {
-    fn default() -> Self {
-        Self(1.0)
-    }
-}
-
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
 /// 2.0: kinetic energy is doubled
@@ -47,24 +38,20 @@ impl Default for Restitution {
 }
 
 /// 0.0: no friction at all, the body slides infinitely\
-/// 1.0: very high friction\
-/// Values larger than 1.0 may work, but they can cause weird behaviour in some situations.
+/// 1.0: high friction\
 #[derive(Clone, Copy, Component, Debug)]
 pub struct Friction {
-    pub static_coefficient: f32,
     pub dynamic_coefficient: f32,
 }
 
 impl Friction {
     pub const ZERO: Self = Self {
-        static_coefficient: 0.0,
         dynamic_coefficient: 0.0,
     };
 
-    /// Creates a new Friction component with equal static and dynamic friction coefficients.
+    /// Creates a new Friction component with a given dynamic friction coefficient.
     fn new(friction_coefficient: f32) -> Self {
         Self {
-            static_coefficient: friction_coefficient,
             dynamic_coefficient: friction_coefficient,
         }
     }
