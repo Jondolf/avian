@@ -1,9 +1,11 @@
-use crate::components::*;
+use crate::{components::*, Vector};
 
 use bevy::prelude::*;
 
 #[derive(Bundle, Default)]
-pub struct DynamicBodyBundle {
+pub struct RigidBodyBundle {
+    pub rigid_body: RigidBody,
+
     pub pos: Pos,
     pub prev_pos: PrevPos,
 
@@ -23,17 +25,33 @@ pub struct DynamicBodyBundle {
     pub explicit_mass_props: ExplicitMassProperties,
 }
 
-impl DynamicBodyBundle {
-    pub fn new_with_pos_and_vel(pos: Vec2, vel: Vec2) -> Self {
+impl RigidBodyBundle {
+    pub fn new_dynamic() -> Self {
         Self {
-            pos: Pos(pos),
-            lin_vel: LinVel(vel),
+            rigid_body: RigidBody::Dynamic,
             ..default()
         }
     }
-    pub fn with_rot(self, rot_degrees: f32) -> Self {
+    pub fn new_static() -> Self {
         Self {
-            rot: Rot::from_degrees(rot_degrees),
+            rigid_body: RigidBody::Static,
+            ..default()
+        }
+    }
+    pub fn with_pos(self, pos: Vector) -> Self {
+        Self {
+            pos: Pos(pos),
+            ..self
+        }
+    }
+    #[cfg(feature = "2d")]
+    pub fn with_rot(self, rot: Rot) -> Self {
+        Self { rot, ..self }
+    }
+    #[cfg(feature = "3d")]
+    pub fn with_rot(self, quat: Quat) -> Self {
+        Self {
+            rot: Rot(quat),
             ..self
         }
     }
@@ -41,25 +59,6 @@ impl DynamicBodyBundle {
         Self {
             explicit_mass_props: ExplicitMassProperties(mass_props),
             ..self
-        }
-    }
-}
-
-#[derive(Bundle, Default)]
-pub struct StaticBodyBundle {
-    pub pos: Pos,
-    pub rot: Rot,
-
-    pub restitution: Restitution,
-    pub friction: Friction,
-}
-
-impl StaticBodyBundle {
-    pub fn new_with_pos_and_rot(pos: Vec2, rot_degrees: f32) -> Self {
-        Self {
-            pos: Pos(pos),
-            rot: Rot::from_degrees(rot_degrees),
-            ..default()
         }
     }
 }

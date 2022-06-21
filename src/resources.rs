@@ -1,4 +1,4 @@
-use crate::{constraints::penetration::PenetrationConstraint, DELTA_TIME};
+use crate::{constraints::penetration::PenetrationConstraint, Vector, DELTA_TIME};
 
 use bevy::prelude::*;
 
@@ -21,29 +21,21 @@ impl Default for SubDeltaTime {
 }
 
 #[derive(Debug)]
-pub struct Gravity(pub Vec2);
+pub struct Gravity(pub Vector);
 
 impl Default for Gravity {
     fn default() -> Self {
-        Self(Vec2::new(0.0, -9.81))
+        Self(Vector::Y * -9.81)
     }
 }
 
-/// Stores penetration constraints for potentially colliding dynamic-dynamic entity pairs.
+/// Stores penetration constraints for potentially colliding entity pairs.
 #[derive(Debug, Default)]
-pub(crate) struct DynamicPenetrationConstraints(pub Vec<PenetrationConstraint>);
+pub(crate) struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
-/// Stores penetration constraints for potentially colliding dynamic-static entity pairs.
-#[derive(Debug, Default)]
-pub(crate) struct StaticPenetrationConstraints(pub Vec<PenetrationConstraint>);
-
-/// Stores dynamic-static contact data and Lagrange multipliers for the normal forces.
+/// Stores contact data and Lagrange multipliers for the normal forces.
 #[derive(Default, Debug)]
-pub struct DynamicContacts(pub Vec<(Contact, f32)>);
-
-/// Stores dynamic-static contact data and Lagrange multipliers for the normal forces.
-#[derive(Default, Debug)]
-pub struct StaticContacts(pub Vec<(Contact, f32)>);
+pub struct Contacts(pub Vec<(Contact, f32)>);
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,11 +43,11 @@ pub struct Contact {
     pub entity_a: Entity,
     pub entity_b: Entity,
     /// Local contact point a
-    pub r_a: Vec2,
+    pub r_a: Vector,
     /// Local contact point b
-    pub r_b: Vec2,
+    pub r_b: Vector,
     /// Contact normal from contact point a to b
-    pub normal: Vec2,
+    pub normal: Vector,
     /// Penetration depth
     pub penetration: f32,
 }

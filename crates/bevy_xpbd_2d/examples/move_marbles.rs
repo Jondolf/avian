@@ -1,5 +1,10 @@
 use bevy::prelude::*;
-use bevy_xpbd::{bundles::*, components::*, resources::Gravity, *};
+use bevy_xpbd_2d::{
+    bundles::*,
+    components::*,
+    resources::{Gravity, XPBDSubsteps},
+    *,
+};
 
 #[derive(Component)]
 struct Player;
@@ -46,10 +51,7 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
-            Vec2::new(0.0, -7.5),
-            0.0,
-        ))
+        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, -7.5)))
         .insert(Collider::from_shape(ColliderShape::cuboid(10.0, 0.5)));
 
     let _ceiling = commands
@@ -59,10 +61,7 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
-            Vec2::new(0.0, 7.5),
-            0.0,
-        ))
+        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 7.5)))
         .insert(Collider::from_shape(ColliderShape::cuboid(10.0, 0.5)));
 
     let _left_wall = commands
@@ -72,10 +71,7 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
-            Vec2::new(-9.5, 0.0),
-            0.0,
-        ))
+        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(-9.5, 0.0)))
         .insert(Collider::from_shape(ColliderShape::cuboid(0.5, 10.0)));
 
     let _right_wall = commands
@@ -85,21 +81,17 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         })
-        .insert_bundle(StaticBodyBundle::new_with_pos_and_rot(
-            Vec2::new(9.5, 0.0),
-            0.0,
-        ))
+        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(9.5, 0.0)))
         .insert(Collider::from_shape(ColliderShape::cuboid(0.5, 10.0)));
 
     let radius = 0.15;
-    let stacks = 25;
-    for i in 0..15 {
+    let stacks = 20;
+    for i in 0..20 {
         for j in 0..stacks {
             let pos = Vec2::new(
                 (j as f32 - stacks as f32 * 0.5) * 2.5 * radius,
                 2.0 * radius * i as f32 - 2.0,
             );
-            let vel = Vec2::ZERO;
             commands
                 .spawn_bundle(PbrBundle {
                     mesh: sphere.clone(),
@@ -111,9 +103,9 @@ fn setup(
                     },
                     ..default()
                 })
-                .insert_bundle(DynamicBodyBundle {
+                .insert_bundle(RigidBodyBundle {
                     restitution: Restitution(0.3),
-                    ..DynamicBodyBundle::new_with_pos_and_vel(pos, vel)
+                    ..RigidBodyBundle::new_dynamic().with_pos(pos)
                 })
                 .insert(Collider::from_shape(ColliderShape::ball(radius)))
                 .insert(Player)
@@ -178,6 +170,7 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
+        .insert_resource(XPBDSubsteps(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XPBDPlugin)
         .add_event::<MovementEvent>()

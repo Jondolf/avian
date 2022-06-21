@@ -1,3 +1,12 @@
+#[cfg(feature = "2d")]
+pub extern crate parry2d as parry;
+
+#[cfg(feature = "3d")]
+pub extern crate parry3d as parry;
+
+#[macro_use]
+pub extern crate cfg_if;
+
 pub mod bundles;
 pub mod components;
 pub mod constraints;
@@ -6,12 +15,16 @@ pub mod systems;
 
 mod utils;
 
-pub use parry2d;
-
 use resources::*;
 use systems::*;
 
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
+
+#[cfg(feature = "2d")]
+pub type Vector = Vec2;
+
+#[cfg(feature = "3d")]
+pub type Vector = Vec3;
 
 pub const DELTA_TIME: f32 = 1.0 / 60.0;
 
@@ -35,10 +48,8 @@ impl Plugin for XPBDPlugin {
             .init_resource::<SubDeltaTime>()
             .init_resource::<LoopState>()
             .init_resource::<Gravity>()
-            .init_resource::<DynamicPenetrationConstraints>()
-            .init_resource::<StaticPenetrationConstraints>()
-            .init_resource::<DynamicContacts>()
-            .init_resource::<StaticContacts>()
+            .init_resource::<PenetrationConstraints>()
+            .init_resource::<Contacts>()
             .add_stage_before(
                 CoreStage::Update,
                 FixedUpdateStage,
@@ -68,8 +79,7 @@ impl Plugin for XPBDPlugin {
                         SystemSet::new()
                             .label(Step::SolvePos)
                             .after(Step::Integrate)
-                            .with_system(solve_pos_dynamics)
-                            .with_system(solve_pos_statics),
+                            .with_system(solve_pos),
                     )
                     .with_system_set(
                         SystemSet::new()
@@ -82,8 +92,7 @@ impl Plugin for XPBDPlugin {
                         SystemSet::new()
                             .label(Step::SolveVel)
                             .after(Step::UpdateVel)
-                            .with_system(solve_vel_dynamics)
-                            .with_system(solve_vel_statics),
+                            .with_system(solve_vel),
                     )
                     .with_system(
                         sync_transforms

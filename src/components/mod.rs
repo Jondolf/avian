@@ -3,27 +3,52 @@ mod rotation;
 pub use rotation::*;
 
 use bevy::prelude::*;
-use parry2d::{bounding_volume::AABB, shape::SharedShape};
+use parry::{bounding_volume::AABB, shape::SharedShape};
 
-use crate::utils::aabb_with_margin;
+use crate::{utils::aabb_with_margin, Vector};
+
+#[cfg(feature = "3d")]
+use crate::utils::get_rotated_inertia_tensor;
+
+#[derive(Clone, Copy, Component, PartialEq, Eq)]
+pub enum RigidBody {
+    Dynamic,
+    Static,
+}
+
+impl Default for RigidBody {
+    fn default() -> Self {
+        Self::Dynamic
+    }
+}
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-pub struct Pos(pub Vec2);
+pub struct Pos(pub Vector);
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-pub struct PrevPos(pub Vec2);
+pub struct PrevPos(pub Vector);
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-pub struct LinVel(pub Vec2);
+pub struct LinVel(pub Vector);
 
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-pub struct PreSolveLinVel(pub Vec2);
+pub struct PreSolveLinVel(pub Vector);
 
+#[cfg(feature = "2d")]
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 pub struct AngVel(pub f32);
 
+#[cfg(feature = "3d")]
+#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+pub struct AngVel(pub Vec3);
+
+#[cfg(feature = "2d")]
 #[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 pub struct PreSolveAngVel(pub f32);
+
+#[cfg(feature = "3d")]
+#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+pub struct PreSolveAngVel(pub Vec3);
 
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
@@ -63,22 +88,37 @@ impl Default for Friction {
     }
 }
 
+#[cfg(feature = "2d")]
+type Inertia = f32;
+
+#[cfg(feature = "3d")]
+type Inertia = Mat3;
+
 #[derive(Clone, Copy, Component, PartialEq)]
 pub struct MassProperties {
     pub mass: f32,
     pub inv_mass: f32,
-    pub inertia: f32,
-    pub inv_inertia: f32,
-    pub local_center_of_mass: Vec2,
+    pub inertia: Inertia,
+    pub inv_inertia: Inertia,
+    pub local_center_of_mass: Vector,
 }
 
 impl MassProperties {
     pub const ZERO: Self = Self {
         mass: 0.0,
         inv_mass: 0.0,
+
+        #[cfg(feature = "2d")]
         inertia: 0.0,
+        #[cfg(feature = "3d")]
+        inertia: Mat3::ZERO,
+
+        #[cfg(feature = "2d")]
         inv_inertia: 0.0,
-        local_center_of_mass: Vec2::ZERO,
+        #[cfg(feature = "3d")]
+        inv_inertia: Mat3::ZERO,
+
+        local_center_of_mass: Vector::ZERO,
     };
 }
 
@@ -86,14 +126,34 @@ impl MassProperties {
     /// Computes mass properties for a given shape and density. This shape can be a [`ColliderShape`], which is just a type alias for [`SharedShape`].
     pub fn from_shape(shape: &SharedShape, density: f32) -> Self {
         let props = shape.mass_properties(density);
-        let inertia = props.principal_inertia();
 
         Self {
             mass: props.mass(),
             inv_mass: props.inv_mass,
-            inertia,
-            inv_inertia: 1.0 / inertia,
-            local_center_of_mass: Vec2::new(props.local_com.x, props.local_com.y),
+
+            #[cfg(feature = "2d")]
+            inertia: props.principal_inertia(),
+            #[cfg(feature = "3d")]
+            inertia: props.reconstruct_inertia_matrix().into(),
+
+            #[cfg(feature = "2d")]
+            inv_inertia: 1.0 / props.principal_inertia(),
+            #[cfg(feature = "3d")]
+            inv_inertia: props.reconstruct_inverse_inertia_matrix().into(),
+
+            local_center_of_mass: props.local_com.into(),
+        }
+    }
+    #[cfg(feature = "2d")]
+    pub(crate) fn with_rotation(self, _rot: Rot) -> Self {
+        self
+    }
+    #[cfg(feature = "3d")]
+    pub fn with_rotation(self, rot: Rot) -> Self {
+        Self {
+            inertia: get_rotated_inertia_tensor(self.inertia, rot.0),
+            inv_inertia: get_rotated_inertia_tensor(self.inv_inertia, rot.0),
+            ..self
         }
     }
 }
@@ -147,20 +207,28 @@ impl Collider {
 
     pub fn update_mass_props(&mut self) {
         let props = self.shape.mass_properties(self.density);
-        let inertia = props.principal_inertia();
 
         self.mass_properties = MassProperties {
             mass: props.mass(),
             inv_mass: props.inv_mass,
-            inertia,
-            inv_inertia: 1.0 / inertia,
-            local_center_of_mass: Vec2::new(props.local_com.x, props.local_com.y),
-        };
+
+            #[cfg(feature = "2d")]
+            inertia: props.principal_inertia(),
+            #[cfg(feature = "3d")]
+            inertia: props.reconstruct_inertia_matrix().into(),
+
+            #[cfg(feature = "2d")]
+            inv_inertia: 1.0 / props.principal_inertia(),
+            #[cfg(feature = "3d")]
+            inv_inertia: props.reconstruct_inverse_inertia_matrix().into(),
+
+            local_center_of_mass: props.local_com.into(),
+        }
     }
 
     pub(crate) fn update_aabb_with_margin(
         &mut self,
-        pos: &Vec2,
+        pos: &Vector,
         rot: &Rot,
         shape: &SharedShape,
         margin: f32,

@@ -762,12 +762,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_xpbd"
+name = "bevy_xpbd_2d"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "cfg-if 1.0.0",
  "console_error_panic_hook",
+ "nalgebra",
  "parry2d",
+ "web-sys",
+]
+
+[[package]]
+name = "bevy_xpbd_3d"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "cfg-if 1.0.0",
+ "console_error_panic_hook",
+ "nalgebra",
+ "parry3d",
+ "web-sys",
 ]
 
 [[package]]
@@ -1999,12 +2014,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "18a89248335f688e4bd994e6d030fd7e185eb41769b8c435395075425e100ac6"
 dependencies = [
  "approx",
+ "glam",
  "matrixmultiply",
+ "nalgebra-macros",
  "num-complex",
  "num-rational 0.4.0",
  "num-traits",
  "simba",
  "typenum",
+]
+
+[[package]]
+name = "nalgebra-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01fcc0b8149b4632adc89ac3b7b31a12fb6099a0317a4eb2ebff574ef7de7218"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2360,6 +2388,27 @@ name = "parry2d"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2841cebc29aaf7c69058b242742853d9b106c5245ed946090a75d941d23a6f5e"
+dependencies = [
+ "approx",
+ "arrayvec",
+ "bitflags",
+ "downcast-rs",
+ "either",
+ "nalgebra",
+ "num-derive",
+ "num-traits",
+ "rustc-hash",
+ "simba",
+ "slab",
+ "smallvec",
+ "spade",
+]
+
+[[package]]
+name = "parry3d"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89cd07f0e1e9e207662f430a4e758c357fdf89450a548ef1ce59113822fd5fa7"
 dependencies = [
  "approx",
  "arrayvec",
