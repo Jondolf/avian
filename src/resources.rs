@@ -2,12 +2,21 @@ use crate::{constraints::penetration::PenetrationConstraint, Vector, DELTA_TIME}
 
 use bevy::prelude::*;
 
-/// Amount of substeps used in XPBD simulation
-pub struct XPBDSubsteps(pub u32);
+/// Number of substeps used in XPBD simulation
+pub struct NumSubsteps(pub u32);
 
-impl Default for XPBDSubsteps {
+impl Default for NumSubsteps {
     fn default() -> Self {
         Self(8)
+    }
+}
+
+/// Number of iterations used in XPBD position solving
+pub struct NumPosIters(pub u32);
+
+impl Default for NumPosIters {
+    fn default() -> Self {
+        Self(4)
     }
 }
 
@@ -16,7 +25,7 @@ pub(crate) struct SubDeltaTime(pub f32);
 
 impl Default for SubDeltaTime {
     fn default() -> Self {
-        Self(DELTA_TIME / XPBDSubsteps::default().0 as f32)
+        Self(DELTA_TIME / NumSubsteps::default().0 as f32)
     }
 }
 

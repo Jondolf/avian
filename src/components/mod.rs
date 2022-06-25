@@ -145,11 +145,11 @@ impl MassProperties {
         }
     }
     #[cfg(feature = "2d")]
-    pub(crate) fn with_rotation(self, _rot: Rot) -> Self {
+    pub(crate) fn with_rotation(self, _rot: &Rot) -> Self {
         self
     }
     #[cfg(feature = "3d")]
-    pub fn with_rotation(self, rot: Rot) -> Self {
+    pub fn with_rotation(self, rot: &Rot) -> Self {
         Self {
             inertia: get_rotated_inertia_tensor(self.inertia, rot.0),
             inv_inertia: get_rotated_inertia_tensor(self.inv_inertia, rot.0),

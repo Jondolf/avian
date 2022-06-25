@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_xpbd_2d::{
     bundles::*,
     components::*,
-    resources::{Gravity, XPBDSubsteps},
+    resources::{Gravity, NumSubsteps},
     *,
 };
 
@@ -170,7 +170,7 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
-        .insert_resource(XPBDSubsteps(6))
+        .insert_resource(NumSubsteps(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XPBDPlugin)
         .add_event::<MovementEvent>()

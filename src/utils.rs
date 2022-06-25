@@ -120,3 +120,29 @@ pub(crate) fn get_restitution(
 
     normal * (-normal_vel + (-restitution_coefficient * pre_solve_normal_vel).min(0.0))
 }
+
+/*
+#[cfg(feature = "3d")]
+pub(crate) fn get_quat_axis_1(q: Quat) -> Vec3 {
+    let x2 = q.x * 2.0;
+    let w2 = q.w * 2.0;
+
+    Vec3::new(
+        (q.w * w2) - 1.0 + q.x * x2,
+        (q.z * w2) + q.y * x2,
+        (-q.y * w2) + q.z * x2,
+    )
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn get_quat_axis_2(q: Quat) -> Vec3 {
+    let y2 = q.y * 2.0;
+    let w2 = q.w * 2.0;
+
+    Vec3::new(
+        (-q.z * w2) + q.x * y2,
+        (q.w * w2) - 1.0 + q.y * y2,
+        (q.x * w2) + q.z * y2,
+    )
+}
+*/

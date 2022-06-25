@@ -11,6 +11,8 @@ This is an experimental work-in-progress that I am working on because I'm intere
 - Position and rotation integration and solving
 - Linear and angular velocity integration and solving
 - Collision detection via [parry](https://parry.rs)
+- Basic joints (currently only spherical joint, no angle limits)
+- Joint damping
 - Gravity
 - Restitution
 - Friction
@@ -20,7 +22,7 @@ This is an experimental work-in-progress that I am working on because I'm intere
 
 - Linear and angular velocity damping
 - External forces and maybe impulses
-- Joints
+- More joint types and joint limits
 - Maybe utils for rope and cloth simulation
 - Maybe basic soft bodies
 - Maybe (unlikely) fluid simulation

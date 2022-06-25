@@ -44,7 +44,8 @@ pub enum Step {
 
 impl Plugin for XPBDPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<XPBDSubsteps>()
+        app.init_resource::<NumSubsteps>()
+            .init_resource::<NumPosIters>()
             .init_resource::<SubDeltaTime>()
             .init_resource::<LoopState>()
             .init_resource::<Gravity>()
@@ -74,12 +75,18 @@ impl Plugin for XPBDPlugin {
                             .with_system(integrate_pos)
                             .with_system(integrate_rot),
                     )
-                    .with_system(clear_contacts.before(Step::SolvePos))
+                    .with_system_set(
+                        SystemSet::new()
+                            .before(Step::SolvePos)
+                            .with_system(clear_contacts)
+                            .with_system(clear_constraint_lagrange),
+                    )
                     .with_system_set(
                         SystemSet::new()
                             .label(Step::SolvePos)
                             .after(Step::Integrate)
-                            .with_system(solve_pos),
+                            .with_system(solve_pos)
+                            .with_system(joint_constraints),
                     )
                     .with_system_set(
                         SystemSet::new()
@@ -92,7 +99,8 @@ impl Plugin for XPBDPlugin {
                         SystemSet::new()
                             .label(Step::SolveVel)
                             .after(Step::UpdateVel)
-                            .with_system(solve_vel),
+                            .with_system(solve_vel)
+                            .with_system(joint_damping),
                     )
                     .with_system(
                         sync_transforms
@@ -123,7 +131,7 @@ impl Default for LoopState {
 
 fn run_criteria(
     time: Res<Time>,
-    substeps: Res<XPBDSubsteps>,
+    substeps: Res<NumSubsteps>,
     mut state: ResMut<LoopState>,
 ) -> ShouldRun {
     if !state.has_added_time {
@@ -162,7 +170,7 @@ fn first_substep(state: Res<LoopState>) -> ShouldRun {
     }
 }
 
-fn last_substep(substeps: Res<XPBDSubsteps>, state: Res<LoopState>) -> ShouldRun {
+fn last_substep(substeps: Res<NumSubsteps>, state: Res<LoopState>) -> ShouldRun {
     if state.current_substep == substeps.0 - 1 {
         ShouldRun::Yes
     } else {
