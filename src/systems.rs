@@ -18,20 +18,16 @@ use parry::bounding_volume::BoundingVolume;
 /// Collects bodies that are potentially colliding and adds non-penetration constraints for them.
 pub(crate) fn collect_collision_pairs(
     bodies: Query<(Entity, &Collider, &RigidBody)>,
-    mut penetration_constraints: ResMut<PenetrationConstraints>,
+    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
 ) {
-    penetration_constraints.0.clear();
+    broad_collision_pairs.0.clear();
 
     for [(ent_a, collider_a, rb_a), (ent_b, collider_b, rb_b)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect
         if (*rb_a == RigidBody::Dynamic || *rb_b == RigidBody::Dynamic)
             && collider_a.aabb.intersects(&collider_b.aabb)
         {
-            penetration_constraints
-                .0
-                .push(PenetrationConstraint::new_with_compliance(
-                    ent_b, ent_a, 0.0,
-                ));
+            broad_collision_pairs.0.push((ent_a, ent_b));
         }
     }
 }
@@ -43,35 +39,32 @@ pub(crate) fn integrate_pos(
         &mut Pos,
         &mut PrevPos,
         &mut LinVel,
-        &mut PreSolveLinVel,
         &MassProperties,
     )>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut pos, mut prev_pos, mut vel, mut pre_solve_vel, mass_props) in bodies.iter_mut() {
+    for (rb, mut pos, mut prev_pos, mut lin_vel, mass_props) in bodies.iter_mut() {
         prev_pos.0 = pos.0;
 
         if *rb != RigidBody::Static {
             let gravitation_force = mass_props.mass * gravity.0;
             let external_forces = gravitation_force;
-            vel.0 += sub_dt.0 * external_forces / mass_props.mass;
+            lin_vel.0 += sub_dt.0 * external_forces / mass_props.mass;
         }
-        pos.0 += sub_dt.0 * vel.0;
-        pre_solve_vel.0 = vel.0;
+        pos.0 += sub_dt.0 * lin_vel.0;
     }
 }
 
 /// Integrates rotations for all dynamic bodies.
 #[cfg(feature = "2d")]
 pub(crate) fn integrate_rot(
-    mut bodies: Query<(&mut Rot, &mut PrevRot, &AngVel, &mut PreSolveAngVel)>,
+    mut bodies: Query<(&mut Rot, &mut PrevRot, &AngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (mut rot, mut prev_rot, ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+    for (mut rot, mut prev_rot, ang_vel) in bodies.iter_mut() {
         prev_rot.0 = *rot;
         *rot += Rot::from_radians(sub_dt.0 * ang_vel.0);
-        pre_solve_ang_vel.0 = ang_vel.0;
     }
 }
 
@@ -83,14 +76,11 @@ pub(crate) fn integrate_rot(
         &mut Rot,
         &mut PrevRot,
         &mut AngVel,
-        &mut PreSolveAngVel,
         &MassProperties,
     )>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, mut pre_solve_ang_vel, mass_props) in
-        bodies.iter_mut()
-    {
+    for (rb, mut rot, mut prev_rot, mut ang_vel, mass_props) in bodies.iter_mut() {
         prev_rot.0 = *rot;
 
         if *rb != RigidBody::Static {
@@ -109,8 +99,6 @@ pub(crate) fn integrate_rot(
             rot.w + sub_dt.0 * 0.5 * q.w,
         );
         rot.0 = Quat::from_xyzw(x, y, z, w).normalize();
-
-        pre_solve_ang_vel.0 = ang_vel.0;
     }
 }
 
@@ -128,85 +116,63 @@ pub(crate) fn clear_constraint_lagrange(
 
 /// Solves position constraints for dynamic-dynamic interactions.
 pub(crate) fn solve_pos(
-    mut bodies: Query<(&mut Pos, &mut Rot, &Collider, &MassProperties, &RigidBody)>,
+    mut bodies: Query<(ConstraintBodyQuery, &Collider, &Friction)>,
+    broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    mut contacts: ResMut<Contacts>,
     sub_dt: Res<SubDeltaTime>,
 ) {
+    penetration_constraints.0.clear();
+
     // Handle non-penetration constraints
-    for constraint in penetration_constraints.0.iter_mut() {
+    for (ent_a, ent_b) in broad_collision_pairs.0.iter().cloned() {
         // Get components for entity a and b
-        if let Ok(
-            [(mut pos_a, mut rot_a, collider_a, mass_props_a, rb_a), (mut pos_b, mut rot_b, collider_b, mass_props_b, rb_b)],
-        ) = bodies.get_many_mut([constraint.entity_a, constraint.entity_b])
+        if let Ok([(mut body1, collider_a, friction_a), (mut body2, collider_b, friction_b)]) =
+            bodies.get_many_mut([ent_a, ent_b])
         {
             // No need to solve collisions if both bodies are static
-            if *rb_a == RigidBody::Static && *rb_b == RigidBody::Static {
+            if *body1.rb == RigidBody::Static && *body2.rb == RigidBody::Static {
                 continue;
             }
 
             // Detect if the entities are actually colliding and get contact data
             if let Some(contact) = get_contact(
-                constraint.entity_a,
-                constraint.entity_b,
-                pos_a.0,
-                pos_b.0,
-                mass_props_a.local_center_of_mass,
-                mass_props_b.local_center_of_mass,
-                &rot_a,
-                &rot_b,
+                ent_a,
+                ent_b,
+                body1.pos.0,
+                body2.pos.0,
+                body1.mass_props.local_center_of_mass,
+                body2.mass_props.local_center_of_mass,
+                &body1.rot,
+                &body2.rot,
                 &collider_a.shape,
                 &collider_b.shape,
             ) {
-                // Apply non-penetration constraints for dynamic-dynamic interactions
-                constraint.constrain(
-                    rb_a,
-                    rb_b,
-                    &mut pos_a,
-                    &mut pos_b,
-                    &mut rot_a,
-                    &mut rot_b,
-                    mass_props_a,
-                    mass_props_b,
-                    contact,
-                    sub_dt.0,
-                );
+                let mut constraint = PenetrationConstraint::new(ent_a, ent_b, contact);
 
-                contacts.0.push((contact, constraint.normal_lagrange));
+                constraint.constrain(&mut body1, &mut body2, friction_a, friction_b, sub_dt.0);
+
+                penetration_constraints.0.push(constraint);
             }
         }
     }
 }
 
 pub(crate) fn joint_constraints(
-    mut bodies: Query<(&RigidBody, &mut Pos, &mut Rot, &MassProperties), With<MassProperties>>,
+    mut bodies: Query<ConstraintBodyQuery>,
     mut joints: Query<&mut SphericalJoint, Without<Pos>>,
-    sub_dt: Res<SubDeltaTime>,
     num_pos_iters: Res<NumPosIters>,
+    sub_dt: Res<SubDeltaTime>,
 ) {
-    for _ in 0..num_pos_iters.0 {
+    for _j in 0..num_pos_iters.0 {
         for mut joint in joints.iter_mut() {
             // Get components for entity a and b
-            if let Ok(
-                [(rb_a, mut pos_a, mut rot_a, mass_props_a), (rb_b, mut pos_b, mut rot_b, mass_props_b)],
-            ) = bodies.get_many_mut([joint.entity_a, joint.entity_b])
-            {
+            if let Ok([mut a, mut b]) = bodies.get_many_mut([joint.entity_a, joint.entity_b]) {
                 // No need to solve constraints if both bodies are static
-                if *rb_a == RigidBody::Static && *rb_b == RigidBody::Static {
+                if *a.rb == RigidBody::Static && *b.rb == RigidBody::Static {
                     continue;
                 }
 
-                joint.constrain(
-                    rb_a,
-                    rb_b,
-                    &mut pos_a,
-                    &mut pos_b,
-                    &mut rot_a,
-                    &mut rot_b,
-                    mass_props_a,
-                    mass_props_b,
-                    sub_dt.0,
-                );
+                joint.constrain(&mut a, &mut b, sub_dt.0);
             }
         }
     }
@@ -214,22 +180,24 @@ pub(crate) fn joint_constraints(
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
 pub(crate) fn update_lin_vel(
-    mut bodies: Query<(&Pos, &PrevPos, &mut LinVel)>,
+    mut bodies: Query<(&Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (pos, prev_pos, mut vel) in bodies.iter_mut() {
+    for (pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in bodies.iter_mut() {
+        pre_solve_lin_vel.0 = lin_vel.0;
         // v = (x - x_prev) / h
-        vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
+        lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
     }
 }
 
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
 #[cfg(feature = "2d")]
 pub(crate) fn update_ang_vel(
-    mut bodies: Query<(&Rot, &PrevRot, &mut AngVel)>,
+    mut bodies: Query<(&Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rot, prev_rot, mut ang_vel) in bodies.iter_mut() {
+    for (rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+        pre_solve_ang_vel.0 = ang_vel.0;
         ang_vel.0 = (rot.mul(prev_rot.inv())).as_radians() / sub_dt.0;
     }
 }
@@ -254,53 +222,45 @@ pub(crate) fn update_ang_vel(
 #[allow(clippy::type_complexity)]
 pub(crate) fn solve_vel(
     mut bodies: Query<(
-        &Rot,
+        ConstraintBodyQuery,
         &mut LinVel,
         &mut AngVel,
         &PreSolveLinVel,
         &PreSolveAngVel,
         &Restitution,
         &Friction,
-        &MassProperties,
-        &RigidBody,
     )>,
-    contacts: Res<Contacts>,
+    penetration_constraints: Res<PenetrationConstraints>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (
-        Contact {
+    for constraint in penetration_constraints.0.iter().cloned() {
+        let Contact {
             entity_a,
             entity_b,
-            r_a,
-            r_b,
+            world_r_a: r_a,
+            world_r_b: r_b,
             normal,
             ..
-        },
-        normal_lagrange,
-    ) in contacts.0.iter().cloned()
-    {
+        } = constraint.contact_data;
+
         if let Ok(
             [(
-                rot_a,
+                body1,
                 mut lin_vel_a,
                 mut ang_vel_a,
                 pre_solve_lin_vel_a,
                 pre_solve_ang_vel_a,
                 restitution_a,
                 friction_a,
-                mass_props_a,
-                rb_a,
             ), (
-                rot_b,
+                body2,
                 mut lin_vel_b,
                 mut ang_vel_b,
                 pre_solve_lin_vel_b,
                 pre_solve_ang_vel_b,
                 restitution_b,
                 friction_b,
-                mass_props_b,
-                rb_b,
             )],
         ) = bodies.get_many_mut([entity_a, entity_b])
         {
@@ -321,12 +281,14 @@ pub(crate) fn solve_vel(
 
             // Compute generalized inverse masses
             let w_a = PenetrationConstraint::get_generalized_inverse_mass(
-                &mass_props_a.with_rotation(rot_a),
+                body1.mass_props.inv_mass,
+                body1.mass_props.inv_inertia(&body1.rot),
                 r_a,
                 normal,
             );
             let w_b = PenetrationConstraint::get_generalized_inverse_mass(
-                &mass_props_b.with_rotation(rot_b),
+                body2.mass_props.inv_mass,
+                body2.mass_props.inv_inertia(&body2.rot),
                 r_b,
                 normal,
             );
@@ -336,7 +298,7 @@ pub(crate) fn solve_vel(
                 tangent_vel,
                 friction_a,
                 friction_b,
-                normal_lagrange,
+                constraint.normal_lagrange,
                 sub_dt.0,
             );
 
@@ -355,13 +317,15 @@ pub(crate) fn solve_vel(
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w_a + w_b);
-            if *rb_a != RigidBody::Static {
-                lin_vel_a.0 += p / mass_props_a.mass;
-                ang_vel_a.0 += compute_delta_ang_vel(mass_props_a.inv_inertia, r_a, p);
+            if *body1.rb != RigidBody::Static {
+                lin_vel_a.0 += p / body1.mass_props.mass;
+                ang_vel_a.0 +=
+                    compute_delta_ang_vel(body1.mass_props.inv_inertia(&body1.rot), r_a, p);
             }
-            if *rb_b != RigidBody::Static {
-                lin_vel_b.0 -= p / mass_props_b.mass;
-                ang_vel_b.0 -= compute_delta_ang_vel(mass_props_b.inv_inertia, r_b, p);
+            if *body2.rb != RigidBody::Static {
+                lin_vel_b.0 -= p / body2.mass_props.mass;
+                ang_vel_b.0 -=
+                    compute_delta_ang_vel(body2.mass_props.inv_inertia(&body2.rot), r_b, p);
             }
         }
     }
@@ -419,11 +383,6 @@ fn compute_delta_ang_vel(inv_inertia: f32, r: Vector, p: Vector) -> f32 {
 #[cfg(feature = "3d")]
 fn compute_delta_ang_vel(inv_inertia: Mat3, r: Vector, p: Vector) -> Vector {
     inv_inertia * r.cross(p)
-}
-
-/// Clears all contact resources.
-pub(crate) fn clear_contacts(mut contacts: ResMut<Contacts>) {
-    contacts.0.clear();
 }
 
 /// Copies positions from the physics world to bevy Transforms

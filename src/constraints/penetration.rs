@@ -12,6 +12,7 @@ pub(crate) struct PenetrationConstraint {
     pub entity_a: Entity,
     /// Entity "b" in the constraint.
     pub entity_b: Entity,
+    pub contact_data: Contact,
     /// Lagrange multiplier for the normal force
     pub normal_lagrange: f32,
     /// Lagrange multiplier for the tangential force
@@ -23,13 +24,14 @@ pub(crate) struct PenetrationConstraint {
 }
 
 impl PenetrationConstraint {
-    pub fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+    pub fn new(entity_a: Entity, entity_b: Entity, contact_data: Contact) -> Self {
         Self {
             entity_a,
             entity_b,
+            contact_data,
             normal_lagrange: 0.0,
             tangential_lagrange: 0.0,
-            compliance,
+            compliance: 0.0,
             normal_force: Vector::ZERO,
         }
     }
@@ -38,36 +40,85 @@ impl PenetrationConstraint {
     #[allow(clippy::too_many_arguments)]
     pub fn constrain(
         &mut self,
-        rb_a: &RigidBody,
-        rb_b: &RigidBody,
-        pos_a: &mut Pos,
-        pos_b: &mut Pos,
-        rot_a: &mut Rot,
-        rot_b: &mut Rot,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
-        contact: Contact,
+        body1: &mut ConstraintBodyQueryItem,
+        body2: &mut ConstraintBodyQueryItem,
+        friction_a: &Friction,
+        friction_b: &Friction,
         sub_dt: f32,
     ) {
-        // Apply position correction with direction contact.normal and magnitude contact.penetration
-        Self::_constrain_pos(
-            contact.normal * contact.penetration,
-            contact.r_a,
-            contact.r_b,
-            rb_a,
-            rb_b,
-            pos_a,
-            pos_b,
-            rot_a,
-            rot_b,
-            &mass_props_a.with_rotation(rot_a),
-            &mass_props_b.with_rotation(rot_b),
-            &mut self.normal_lagrange,
-            self.compliance,
-            sub_dt,
-        );
+        let p_a = body1.pos.0 + body1.rot.rotate(self.contact_data.local_r_a);
+        let p_b = body2.pos.0 + body2.rot.rotate(self.contact_data.local_r_b);
 
-        self.update_normal_force(contact.normal, sub_dt);
+        let d = (p_a - p_b).dot(self.contact_data.normal);
+
+        if d > 0.0 {
+            let delta_lagrange_n = Self::get_delta_pos_lagrange(
+                body1,
+                body2,
+                self.normal_lagrange,
+                self.contact_data.normal,
+                d,
+                self.contact_data.world_r_a,
+                self.contact_data.world_r_b,
+                self.compliance,
+                sub_dt,
+            );
+
+            self.normal_lagrange += delta_lagrange_n;
+
+            Self::apply_pos_constraint(
+                body1,
+                body2,
+                delta_lagrange_n,
+                self.contact_data.normal,
+                self.contact_data.world_r_a,
+                self.contact_data.world_r_b,
+            );
+
+            let p_a = body1.pos.0 + body1.rot.rotate(self.contact_data.local_r_a);
+            let p_b = body2.pos.0 + body2.rot.rotate(self.contact_data.local_r_b);
+
+            let delta_lagrange_t = Self::get_delta_pos_lagrange(
+                body1,
+                body2,
+                self.tangential_lagrange,
+                self.contact_data.normal,
+                d,
+                self.contact_data.world_r_a,
+                self.contact_data.world_r_b,
+                self.compliance,
+                sub_dt,
+            );
+
+            let static_friction_coefficient =
+                (friction_a.static_coefficient + friction_b.static_coefficient) * 0.5;
+
+            let lagrange_n = self.normal_lagrange;
+            let lagrange_t = self.tangential_lagrange + delta_lagrange_t;
+
+            if lagrange_t > static_friction_coefficient * lagrange_n {
+                let prev_p_a =
+                    body1.prev_pos.0 + body1.prev_rot.rotate(self.contact_data.local_r_a);
+                let prev_p_b =
+                    body2.prev_pos.0 + body2.prev_rot.rotate(self.contact_data.local_r_b);
+                let delta_p = (p_a - prev_p_a) - (p_b - prev_p_b);
+                let delta_p_t =
+                    delta_p - delta_p.dot(self.contact_data.normal) * self.contact_data.normal;
+
+                self.tangential_lagrange += delta_lagrange_t;
+
+                Self::apply_pos_constraint(
+                    body1,
+                    body2,
+                    delta_lagrange_t,
+                    delta_p_t.normalize_or_zero(),
+                    self.contact_data.world_r_a,
+                    self.contact_data.world_r_b,
+                );
+            }
+
+            self.update_normal_force(self.contact_data.normal, sub_dt);
+        }
     }
 
     fn update_normal_force(&mut self, normal: Vector, sub_dt: f32) {

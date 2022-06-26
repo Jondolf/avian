@@ -42,19 +42,22 @@ impl Default for Gravity {
 #[derive(Debug, Default)]
 pub(crate) struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
-/// Stores contact data and Lagrange multipliers for the normal forces.
 #[derive(Default, Debug)]
-pub struct Contacts(pub Vec<(Contact, f32)>);
+pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Contact {
     pub entity_a: Entity,
     pub entity_b: Entity,
-    /// Local contact point a
-    pub r_a: Vector,
-    /// Local contact point b
-    pub r_b: Vector,
+    /// Local contact point a in local coordinates
+    pub local_r_a: Vector,
+    /// Local contact point b in local coordinates
+    pub local_r_b: Vector,
+    /// Local contact point a in world coordinates
+    pub world_r_a: Vector,
+    /// Local contact point b in world coordinates
+    pub world_r_b: Vector,
     /// Contact normal from contact point a to b
     pub normal: Vector,
     /// Penetration depth

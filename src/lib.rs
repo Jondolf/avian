@@ -50,7 +50,7 @@ impl Plugin for XPBDPlugin {
             .init_resource::<LoopState>()
             .init_resource::<Gravity>()
             .init_resource::<PenetrationConstraints>()
-            .init_resource::<Contacts>()
+            .init_resource::<BroadCollisionPairs>()
             .add_stage_before(
                 CoreStage::Update,
                 FixedUpdateStage,
@@ -78,7 +78,6 @@ impl Plugin for XPBDPlugin {
                     .with_system_set(
                         SystemSet::new()
                             .before(Step::SolvePos)
-                            .with_system(clear_contacts)
                             .with_system(clear_constraint_lagrange),
                     )
                     .with_system_set(

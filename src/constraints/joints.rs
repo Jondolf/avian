@@ -1,5 +1,5 @@
 use super::{AngularConstraint, Constraint, PositionConstraint};
-use crate::{components::*, Vector};
+use crate::{components::ConstraintBodyQueryItem, Vector};
 
 use bevy::prelude::*;
 
@@ -91,39 +91,37 @@ impl SphericalJoint {
     #[allow(clippy::too_many_arguments)]
     pub fn constrain(
         &mut self,
-        rb_a: &RigidBody,
-        rb_b: &RigidBody,
-        pos_a: &mut Pos,
-        pos_b: &mut Pos,
-        rot_a: &mut Rot,
-        rot_b: &mut Rot,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
+        body1: &mut ConstraintBodyQueryItem,
+        body2: &mut ConstraintBodyQueryItem,
         sub_dt: f32,
     ) {
-        let r_a = rot_a.rotate(self.local_anchor_a);
-        let r_b = rot_b.rotate(self.local_anchor_b);
+        let world_r_a = body1.rot.rotate(self.local_anchor_a);
+        let world_r_b = body2.rot.rotate(self.local_anchor_b);
 
-        let delta_x = self.limit_distance(0.0, 0.0, r_a, r_b, pos_a, pos_b);
+        let delta_x = self.limit_distance(0.0, 0.0, world_r_a, world_r_b, &body1.pos, &body2.pos);
+        let magnitude = delta_x.length();
 
-        Self::_constrain_pos(
-            delta_x,
-            r_a,
-            r_b,
-            rb_a,
-            rb_b,
-            pos_a,
-            pos_b,
-            rot_a,
-            rot_b,
-            mass_props_a,
-            mass_props_b,
-            &mut self.pos_lagrange,
-            self.compliance,
-            sub_dt,
-        );
+        if magnitude > f32::EPSILON {
+            let dir = delta_x / magnitude;
 
-        self.update_force(delta_x.normalize_or_zero(), sub_dt);
+            let delta_lagrange = Self::get_delta_pos_lagrange(
+                body1,
+                body2,
+                self.pos_lagrange,
+                dir,
+                magnitude,
+                world_r_a,
+                world_r_b,
+                self.compliance,
+                sub_dt,
+            );
+
+            self.pos_lagrange += delta_lagrange;
+
+            Self::apply_pos_constraint(body1, body2, delta_lagrange, dir, world_r_a, world_r_b);
+
+            self.update_force(dir, sub_dt);
+        }
 
         /*
         cfg_if! {

@@ -44,16 +44,19 @@ pub(crate) fn get_contact(
     )
     .unwrap()
     {
-        if contact.dist <= 0.0 {
-            return Some(Contact {
-                entity_a: ent_a,
-                entity_b: ent_b,
-                r_a: Vector::from(contact.point1) - pos_a + local_com_a,
-                r_b: Vector::from(contact.point2) - pos_b + local_com_b,
-                normal: Vector::from(contact.normal1),
-                penetration: -contact.dist,
-            });
-        }
+        let world_r_a = Vector::from(contact.point1) - pos_a + local_com_a;
+        let world_r_b = Vector::from(contact.point2) - pos_b + local_com_b;
+
+        return Some(Contact {
+            entity_a: ent_a,
+            entity_b: ent_b,
+            local_r_a: rot_a.inv().rotate(world_r_a),
+            local_r_b: rot_b.inv().rotate(world_r_b),
+            world_r_a,
+            world_r_b,
+            normal: Vector::from(contact.normal1),
+            penetration: -contact.dist,
+        });
     }
     None
 }
@@ -92,7 +95,7 @@ pub(crate) fn get_dynamic_friction(
 
     // Average of the bodies' dynamic friction coefficients
     let dynamic_friction_coefficient =
-        (friction_a.dynamic_coefficient + friction_b.dynamic_coefficient) / 2.0;
+        (friction_a.dynamic_coefficient + friction_b.dynamic_coefficient) * 0.5;
 
     let normal_force = normal_lagrange / sub_dt.powi(2);
 

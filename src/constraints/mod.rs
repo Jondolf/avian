@@ -17,64 +17,73 @@ pub trait Constraint {
 ///
 /// The constraint functions are based on equations 2-9 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
 pub trait PositionConstraint: Constraint {
-    /// Applies position constraints for interactions between two dynamic bodies.
-    ///
-    /// Returns the change of the Lagrange multiplier.
+    /// Computes the change of a given Lagrange multiplier when a positional correction is applied to two bodies.
     #[allow(clippy::too_many_arguments)]
-    fn _constrain_pos(
-        delta_x: Vector,
+    fn get_delta_pos_lagrange(
+        body1: &ConstraintBodyQueryItem,
+        body2: &ConstraintBodyQueryItem,
+        lagrange: f32,
+        dir: Vector,
+        magnitude: f32,
         r_a: Vector,
         r_b: Vector,
-        rb_a: &RigidBody,
-        rb_b: &RigidBody,
-        pos_a: &mut Pos,
-        pos_b: &mut Pos,
-        rot_a: &mut Rot,
-        rot_b: &mut Rot,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
-        lagrange: &mut f32,
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        let magnitude = delta_x.length();
+        // Compute generalized inverse masses (equations 2-3)
+        let w_a = Self::get_generalized_inverse_mass(
+            body1.mass_props.inv_mass,
+            body1.mass_props.inv_inertia(&body1.rot),
+            r_a,
+            dir,
+        );
+        let w_b = Self::get_generalized_inverse_mass(
+            body2.mass_props.inv_mass,
+            body2.mass_props.inv_inertia(&body2.rot),
+            r_b,
+            dir,
+        );
 
-        // Avoid division by zero when normalizing the vector later.
-        // We compare against epsilon to avoid potential floating point precision problems.
-        if magnitude <= f32::EPSILON {
+        let w = w_a + w_b;
+
+        if w <= f32::EPSILON {
             return 0.0;
         }
 
-        let dir = delta_x / magnitude;
+        // Compute Lagrange multiplier updates (equations 4-5)
+        let tilde_compliance = compliance / sub_dt.powi(2);
 
-        let delta_lagrange = Self::get_delta_lagrange(
-            *lagrange,
-            dir,
-            magnitude,
-            r_a,
-            r_b,
-            mass_props_a,
-            mass_props_b,
-            compliance,
-            sub_dt,
-        );
+        (-magnitude - tilde_compliance * lagrange) / (w + tilde_compliance)
+    }
 
-        *lagrange += delta_lagrange;
-
+    /// Applies position constraints for interactions between two bodies.
+    ///
+    /// Returns the positional impulse that is applied proportional to the inverse masses of the bodies.
+    fn apply_pos_constraint(
+        body1: &mut ConstraintBodyQueryItem,
+        body2: &mut ConstraintBodyQueryItem,
+        delta_lagrange: f32,
+        dir: Vector,
+        r_a: Vector,
+        r_b: Vector,
+    ) -> Vector {
         // Positional impulse
         let p = delta_lagrange * dir;
 
+        let rot_a = *body1.rot;
+        let rot_b = *body2.rot;
+
         // Update positions and rotations of the bodies (equations 6-9)
-        if *rb_a != RigidBody::Static {
-            pos_a.0 += p / mass_props_a.mass;
-            *rot_a += Self::get_delta_rot(*rot_a, mass_props_a.inv_inertia, r_a, p);
+        if *body1.rb != RigidBody::Static {
+            body1.pos.0 += p / body1.mass_props.mass;
+            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), r_a, p);
         }
-        if *rb_b != RigidBody::Static {
-            pos_b.0 -= p / mass_props_b.mass;
-            *rot_b -= Self::get_delta_rot(*rot_b, mass_props_b.inv_inertia, r_b, p);
+        if *body2.rb != RigidBody::Static {
+            body2.pos.0 -= p / body2.mass_props.mass;
+            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), r_b, p);
         }
 
-        delta_lagrange
+        p
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -84,8 +93,8 @@ pub trait PositionConstraint: Constraint {
         max: f32,
         r_a: Vector,
         r_b: Vector,
-        pos_a: &mut Pos,
-        pos_b: &mut Pos,
+        pos_a: &Pos,
+        pos_b: &Pos,
     ) -> Vector {
         let pos_offset = (pos_b.0 + r_b) - (pos_a.0 + r_a);
         let distance = pos_offset.length();
@@ -106,46 +115,18 @@ pub trait PositionConstraint: Constraint {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn get_delta_lagrange(
-        lagrange: f32,
-        dir: Vector,
-        magnitude: f32,
-        r_a: Vector,
-        r_b: Vector,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
-        compliance: f32,
-        sub_dt: f32,
-    ) -> f32 {
-        // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(mass_props_a, r_a, dir);
-        let w_b = Self::get_generalized_inverse_mass(mass_props_b, r_b, dir);
-
-        let w = w_a + w_b;
-
-        if w <= f32::EPSILON {
-            return 0.0;
-        }
-
-        // Compute Lagrange multiplier updates (equations 4-5)
-        let tilde_compliance = compliance / sub_dt.powi(2);
-
-        (-magnitude - tilde_compliance * lagrange) / (w + tilde_compliance)
-    }
-
     #[cfg(feature = "2d")]
-    fn get_generalized_inverse_mass(mass_props: &MassProperties, r: Vector, n: Vector) -> f32 {
-        mass_props.inv_mass + mass_props.inv_inertia * r.perp_dot(n).powi(2)
+    fn get_generalized_inverse_mass(inv_mass: f32, inv_inertia: f32, r: Vector, n: Vector) -> f32 {
+        inv_mass + inv_inertia * r.perp_dot(n).powi(2)
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(mass_props: &MassProperties, r: Vector, n: Vector) -> f32 {
+    fn get_generalized_inverse_mass(inv_mass: f32, inv_inertia: Mat3, r: Vector, n: Vector) -> f32 {
         let r_cross_n = r.cross(n); // Compute the cross product only once
 
         // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
         // a^T * b = a • b
-        mass_props.inv_mass + r_cross_n.dot(mass_props.inv_inertia * r_cross_n)
+        inv_mass + r_cross_n.dot(inv_inertia * r_cross_n)
     }
 
     #[cfg(feature = "2d")]
@@ -162,55 +143,57 @@ pub trait PositionConstraint: Constraint {
 }
 
 pub trait AngularConstraint: Constraint {
-    /// Applies angular constraints for two dynamic bodies.
-    ///
-    /// Returns the change of the Lagrange multiplier.
     #[allow(clippy::too_many_arguments)]
-    fn _constrain_angle(
-        delta_q: Vector,
-        rb_a: &RigidBody,
-        rb_b: &RigidBody,
-        rot_a: &mut Rot,
-        rot_b: &mut Rot,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
-        lagrange: &mut f32,
+    fn get_delta_ang_lagrange(
+        body1: &ConstraintBodyQueryItem,
+        body2: &ConstraintBodyQueryItem,
+        lagrange: f32,
+        axis: Vector,
+        angle: f32,
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        let angle = delta_q.length();
+        // Compute generalized inverse masses (equations 2-3)
+        let w_a =
+            Self::get_generalized_inverse_mass(body1.mass_props.inv_inertia(&body1.rot), axis);
+        let w_b =
+            Self::get_generalized_inverse_mass(body2.mass_props.inv_inertia(&body2.rot), axis);
 
-        // Avoid division by zero when normalizing the vector later.
-        // We compare against epsilon to avoid potential floating point precision problems.
-        if angle <= f32::EPSILON {
+        let w = w_a + w_b;
+
+        if w <= f32::EPSILON {
             return 0.0;
         }
 
-        let axis = delta_q / angle;
+        // Compute Lagrange multiplier updates (equations 4-5)
+        let tilde_compliance = compliance / sub_dt.powi(2);
 
-        let delta_lagrange = Self::get_delta_lagrange(
-            *lagrange,
-            axis,
-            angle,
-            mass_props_a,
-            mass_props_b,
-            compliance,
-            sub_dt,
-        );
+        (-angle - tilde_compliance * lagrange) / (w + tilde_compliance)
+    }
 
-        *lagrange += delta_lagrange;
-
+    /// Applies angular constraints for interactions between two bodies.
+    ///
+    /// Returns the angular impulse that is applied proportional to the inverse masses of the bodies.
+    fn apply_ang_constraint(
+        body1: &mut ConstraintBodyQueryItem,
+        body2: &mut ConstraintBodyQueryItem,
+        delta_lagrange: f32,
+        axis: Vector,
+    ) -> Vector {
         let p = delta_lagrange * axis;
 
-        if *rb_a != RigidBody::Static {
-            *rot_a += Self::get_delta_rot(*rot_a, mass_props_a.inv_inertia, p);
+        let rot_a = *body1.rot;
+        let rot_b = *body2.rot;
+
+        if *body1.rb != RigidBody::Static {
+            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), p);
         }
 
-        if *rb_b != RigidBody::Static {
-            *rot_b -= Self::get_delta_rot(*rot_b, mass_props_b.inv_inertia, p);
+        if *body2.rb != RigidBody::Static {
+            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), p);
         }
 
-        delta_lagrange
+        p
     }
 
     #[cfg(feature = "3d")]
@@ -252,32 +235,6 @@ pub trait AngularConstraint: Constraint {
         }
 
         None
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn get_delta_lagrange(
-        lagrange: f32,
-        axis: Vector,
-        angle: f32,
-        mass_props_a: &MassProperties,
-        mass_props_b: &MassProperties,
-        compliance: f32,
-        sub_dt: f32,
-    ) -> f32 {
-        // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(mass_props_a.inv_inertia, axis);
-        let w_b = Self::get_generalized_inverse_mass(mass_props_b.inv_inertia, axis);
-
-        let w = w_a + w_b;
-
-        if w <= f32::EPSILON {
-            return 0.0;
-        }
-
-        // Compute Lagrange multiplier updates (equations 4-5)
-        let tilde_compliance = compliance / sub_dt.powi(2);
-
-        (-angle - tilde_compliance * lagrange) / (w + tilde_compliance)
     }
 
     #[cfg(feature = "2d")]

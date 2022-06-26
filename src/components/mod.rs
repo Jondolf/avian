@@ -2,13 +2,26 @@ mod rotation;
 
 pub use rotation::*;
 
-use bevy::prelude::*;
+use bevy::{ecs::query::WorldQuery, prelude::*};
 use parry::{bounding_volume::AABB, shape::SharedShape};
 
 use crate::{utils::aabb_with_margin, Vector};
 
 #[cfg(feature = "3d")]
 use crate::utils::get_rotated_inertia_tensor;
+
+#[derive(WorldQuery)]
+#[world_query(mutable)]
+/// Groups components that bodies generally need to have in all constraints.\
+/// This makes passing components to functions much more concise.
+pub struct ConstraintBodyQuery<'w> {
+    pub rb: &'w RigidBody,
+    pub pos: &'w mut Pos,
+    pub rot: &'w mut Rot,
+    pub prev_pos: &'w PrevPos,
+    pub prev_rot: &'w PrevRot,
+    pub mass_props: &'w MassProperties,
+}
 
 #[derive(Clone, Copy, Component, PartialEq, Eq)]
 pub enum RigidBody {
@@ -67,17 +80,20 @@ impl Default for Restitution {
 #[derive(Clone, Copy, Component, Debug)]
 pub struct Friction {
     pub dynamic_coefficient: f32,
+    pub static_coefficient: f32,
 }
 
 impl Friction {
     pub const ZERO: Self = Self {
         dynamic_coefficient: 0.0,
+        static_coefficient: 0.0,
     };
 
-    /// Creates a new Friction component with a given dynamic friction coefficient.
+    /// Creates a new Friction component with the same dynamic and static friction coefficients.
     fn new(friction_coefficient: f32) -> Self {
         Self {
             dynamic_coefficient: friction_coefficient,
+            static_coefficient: friction_coefficient,
         }
     }
 }
@@ -98,8 +114,18 @@ type Inertia = Mat3;
 pub struct MassProperties {
     pub mass: f32,
     pub inv_mass: f32,
+
+    // In 2D inertia can be accessed publicly.
+    // In 3D it has to be computed with getter functions because it depends on the body's orientation.
+    #[cfg(feature = "2d")]
     pub inertia: Inertia,
+    #[cfg(feature = "2d")]
     pub inv_inertia: Inertia,
+    #[cfg(feature = "3d")]
+    pub(crate) inertia: Inertia,
+    #[cfg(feature = "3d")]
+    pub(crate) inv_inertia: Inertia,
+
     pub local_center_of_mass: Vector,
 }
 
@@ -145,16 +171,21 @@ impl MassProperties {
         }
     }
     #[cfg(feature = "2d")]
-    pub(crate) fn with_rotation(self, _rot: &Rot) -> Self {
-        self
+    #[allow(dead_code)]
+    pub(crate) fn inertia(&self, _rot: &Rot) -> f32 {
+        self.inertia
+    }
+    #[cfg(feature = "2d")]
+    pub(crate) fn inv_inertia(&self, _rot: &Rot) -> f32 {
+        self.inv_inertia
     }
     #[cfg(feature = "3d")]
-    pub fn with_rotation(self, rot: &Rot) -> Self {
-        Self {
-            inertia: get_rotated_inertia_tensor(self.inertia, rot.0),
-            inv_inertia: get_rotated_inertia_tensor(self.inv_inertia, rot.0),
-            ..self
-        }
+    pub fn inertia(self, rot: &Rot) -> Mat3 {
+        get_rotated_inertia_tensor(self.inertia, rot.0)
+    }
+    #[cfg(feature = "3d")]
+    pub fn inv_inertia(self, rot: &Rot) -> Mat3 {
+        get_rotated_inertia_tensor(self.inv_inertia, rot.0)
     }
 }
 
