@@ -19,3 +19,6 @@ nalgebra = { version = "0.31.0", features = [ "convert-glam020" ] }
 console_error_panic_hook = "0.1"
 web-sys = "0.3.57"
 cfg-if = "1.0.0"
+
+[dev-dependencies]
+examples_common_3d = { path = "../examples_common_3d" }

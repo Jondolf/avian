@@ -4,8 +4,8 @@ use bevy_xpbd_3d::{
     components::*,
     constraints::joints::SphericalJoint,
     resources::{Gravity, NumSubsteps},
-    *,
 };
+use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
 struct Player;
@@ -188,7 +188,7 @@ fn main() {
         .insert_resource(Gravity(Vec3::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
-        .add_plugin(XPBDPlugin)
+        .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)
         .add_system(player_movement)
         .run();

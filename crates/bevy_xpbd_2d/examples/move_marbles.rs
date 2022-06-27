@@ -3,8 +3,8 @@ use bevy_xpbd_2d::{
     bundles::*,
     components::*,
     resources::{Gravity, NumSubsteps},
-    *,
 };
+use examples_common_2d::XpbdExamplePlugin;
 
 #[derive(Component)]
 struct Player;
@@ -172,7 +172,7 @@ fn main() {
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(6))
         .add_plugins(DefaultPlugins)
-        .add_plugin(XPBDPlugin)
+        .add_plugin(XpbdExamplePlugin)
         .add_event::<MovementEvent>()
         .add_startup_system(setup)
         .add_system(handle_input)

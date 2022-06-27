@@ -8,14 +8,16 @@ use nalgebra::Matrix3x1;
 use crate::Vector;
 
 #[cfg(feature = "2d")]
-#[derive(Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[reflect(Component)]
 pub struct Rot {
     pub cos: f32,
     pub sin: f32,
 }
 
 #[cfg(feature = "3d")]
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct Rot(pub Quat);
 
 #[cfg(feature = "2d")]
@@ -154,7 +156,8 @@ impl From<Rot> for Matrix3x1<f32> {
     }
 }
 
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct PrevRot(pub Rot);
 
 #[cfg(feature = "2d")]

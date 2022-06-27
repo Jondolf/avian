@@ -23,7 +23,8 @@ pub struct ConstraintBodyQuery<'w> {
     pub mass_props: &'w MassProperties,
 }
 
-#[derive(Clone, Copy, Component, PartialEq, Eq)]
+#[derive(Reflect, Clone, Copy, Component, PartialEq, Eq)]
+#[reflect(Component)]
 pub enum RigidBody {
     Dynamic,
     Static,
@@ -35,38 +36,47 @@ impl Default for RigidBody {
     }
 }
 
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct Pos(pub Vector);
 
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct PrevPos(pub Vector);
 
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct LinVel(pub Vector);
 
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct PreSolveLinVel(pub Vector);
 
 #[cfg(feature = "2d")]
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct AngVel(pub f32);
 
 #[cfg(feature = "3d")]
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct AngVel(pub Vec3);
 
 #[cfg(feature = "2d")]
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct PreSolveAngVel(pub f32);
 
 #[cfg(feature = "3d")]
-#[derive(Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
 pub struct PreSolveAngVel(pub Vec3);
 
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
 /// 2.0: kinetic energy is doubled
-#[derive(Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[reflect(Component)]
 pub struct Restitution(pub f32);
 
 impl Default for Restitution {
@@ -77,7 +87,8 @@ impl Default for Restitution {
 
 /// 0.0: no friction at all, the body slides infinitely\
 /// 1.0: high friction\
-#[derive(Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[reflect(Component)]
 pub struct Friction {
     pub dynamic_coefficient: f32,
     pub static_coefficient: f32,
@@ -110,7 +121,8 @@ type Inertia = f32;
 #[cfg(feature = "3d")]
 type Inertia = Mat3;
 
-#[derive(Clone, Copy, Component, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, PartialEq)]
+#[reflect(Component)]
 pub struct MassProperties {
     pub mass: f32,
     pub inv_mass: f32,
@@ -202,7 +214,8 @@ impl Default for MassProperties {
 /// Explicit mass properties are zero by default, as mass properties are generally computed from the collider.
 ///
 /// You should usually only use explicit mass properties if a body doesn't have a collider or you want to have extra control over the body's mass properties.
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
 pub struct ExplicitMassProperties(pub MassProperties);
 
 pub type ColliderShape = SharedShape;

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::{bundles::*, components::*, resources::Gravity, *};
+use bevy_xpbd_3d::{bundles::*, components::*, resources::Gravity};
+use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
 struct Player;
@@ -118,7 +119,7 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(Gravity::default())
         .add_plugins(DefaultPlugins)
-        .add_plugin(XPBDPlugin)
+        .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)
         .add_system(player_movement)
         .run();

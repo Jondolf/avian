@@ -1,0 +1,9 @@
+[package]
+name = "examples_common_3d"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.7"
+bevy_editor_pls = { git = "https://github.com/jakobhellermann/bevy_editor_pls", branch = "main" }
+bevy_xpbd_3d = { path = "../bevy_xpbd_3d" }

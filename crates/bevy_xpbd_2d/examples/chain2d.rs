@@ -4,8 +4,8 @@ use bevy_xpbd_2d::{
     components::*,
     constraints::joints::SphericalJoint,
     resources::{Gravity, NumPosIters, NumSubsteps},
-    *,
 };
+use examples_common_2d::XpbdExamplePlugin;
 
 #[derive(Default)]
 struct MouseWorldPos(Vec2);
@@ -147,7 +147,7 @@ fn main() {
         .insert_resource(NumPosIters(6))
         .init_resource::<MouseWorldPos>()
         .add_plugins(DefaultPlugins)
-        .add_plugin(XPBDPlugin)
+        .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)
         .add_system(mouse_position)
         .add_system(follow_mouse)
