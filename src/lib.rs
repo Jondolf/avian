@@ -13,6 +13,10 @@ pub mod constraints;
 pub mod resources;
 pub mod systems;
 
+pub mod prelude {
+    pub use crate::{bundles::*, components::*, constraints::joints::*, resources::*, *};
+}
+
 mod utils;
 
 use components::*;
@@ -32,8 +36,6 @@ pub const DELTA_TIME: f32 = 1.0 / 60.0;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 struct FixedUpdateStage;
 
-pub struct XpbdPlugin;
-
 #[derive(SystemLabel, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Step {
     CollectCollisionPairs,
@@ -42,6 +44,8 @@ pub enum Step {
     UpdateVel,
     SolveVel,
 }
+
+pub struct XpbdPlugin;
 
 impl Plugin for XpbdPlugin {
     fn build(&self, app: &mut App) {

@@ -1,10 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_2d::{
-    bundles::*,
-    components::*,
-    constraints::joints::SphericalJoint,
-    resources::{Gravity, NumPosIters, NumSubsteps},
-};
+use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
 #[derive(Default)]

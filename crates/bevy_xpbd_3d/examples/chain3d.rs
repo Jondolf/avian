@@ -1,10 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::{
-    bundles::*,
-    components::*,
-    constraints::joints::SphericalJoint,
-    resources::{Gravity, NumSubsteps},
-};
+use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
