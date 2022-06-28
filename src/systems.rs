@@ -7,6 +7,7 @@ use crate::{
     constraints::{
         joints::SphericalJoint, penetration::PenetrationConstraint, Constraint, PositionConstraint,
     },
+    prelude::Joint,
     resources::*,
     utils::*,
     *,
@@ -157,16 +158,16 @@ pub(crate) fn solve_pos(
     }
 }
 
-pub(crate) fn joint_constraints(
+pub(crate) fn joint_constraints<T: Joint>(
     mut bodies: Query<ConstraintBodyQuery>,
-    mut joints: Query<&mut SphericalJoint, Without<Pos>>,
+    mut joints: Query<&mut T, Without<Pos>>,
     num_pos_iters: Res<NumPosIters>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for _j in 0..num_pos_iters.0 {
         for mut joint in joints.iter_mut() {
             // Get components for entity a and b
-            if let Ok([mut a, mut b]) = bodies.get_many_mut([joint.entity_a, joint.entity_b]) {
+            if let Ok([mut a, mut b]) = bodies.get_many_mut(joint.entities()) {
                 // No need to solve constraints if both bodies are static
                 if *a.rb == RigidBody::Static && *b.rb == RigidBody::Static {
                     continue;

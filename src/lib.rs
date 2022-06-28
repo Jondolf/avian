@@ -14,16 +14,20 @@ pub mod resources;
 pub mod systems;
 
 pub mod prelude {
-    pub use crate::{bundles::*, components::*, constraints::joints::*, resources::*, *};
+    pub use crate::{
+        bundles::*,
+        components::*,
+        constraints::{joints::*, *},
+        resources::*,
+        *,
+    };
 }
 
 mod utils;
 
-use components::*;
-use resources::*;
-use systems::*;
-
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
+use prelude::*;
+use systems::*;
 
 #[cfg(feature = "2d")]
 pub type Vector = Vec2;
@@ -103,7 +107,8 @@ impl Plugin for XpbdPlugin {
                             .label(Step::SolvePos)
                             .after(Step::Integrate)
                             .with_system(solve_pos)
-                            .with_system(joint_constraints),
+                            .with_system(joint_constraints::<RevoluteJoint>)
+                            .with_system(joint_constraints::<SphericalJoint>),
                     )
                     .with_system_set(
                         SystemSet::new()

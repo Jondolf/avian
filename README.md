@@ -11,7 +11,9 @@ This is an experimental work-in-progress that I am working on because I'm intere
 - Position and rotation integration and solving
 - Linear and angular velocity integration and solving
 - Collision detection via [parry](https://parry.rs)
-- Basic joints (currently only spherical joint, no angle limits)
+- Basic joints
+  - Revolute joint (or hinge joint) with optional angle limits
+  - Spherical joint
 - Joint damping
 - Gravity
 - Restitution

@@ -20,6 +20,21 @@ pub struct Rot {
 #[reflect(Component)]
 pub struct Rot(pub Quat);
 
+impl Rot {
+    #[cfg(feature = "2d")]
+    pub fn rotate_vec3(&self, vec: Vec3) -> Vec3 {
+        Vec3::new(
+            vec.x * self.cos() - vec.y * self.sin(),
+            vec.x * self.sin() + vec.y * self.cos(),
+            vec.z,
+        )
+    }
+    #[cfg(feature = "3d")]
+    pub fn rotate_vec3(&self, vec: Vec3) -> Vec3 {
+        self.0 * vec
+    }
+}
+
 #[cfg(feature = "2d")]
 impl Rot {
     pub const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
@@ -136,16 +151,35 @@ impl SubAssign<Self> for Rot {
 }
 
 #[cfg(feature = "2d")]
-impl From<Rot> for Quat {
+impl From<Rot> for f32 {
     fn from(rot: Rot) -> Self {
-        quat_from_rot(rot)
+        rot.as_radians()
     }
 }
 
 #[cfg(feature = "2d")]
-impl From<Rot> for f32 {
+impl From<Rot> for Quat {
     fn from(rot: Rot) -> Self {
-        rot.as_radians()
+        if rot.cos() < 0.0 {
+            let t = 1.0 - rot.cos();
+            let d = 1.0 / (t * 2.0).sqrt();
+            let z = -rot.sin() * d;
+            let w = t * d;
+            Quat::from_xyzw(0.0, 0.0, z, w)
+        } else {
+            let t = 1.0 + rot.cos();
+            let d = 1.0 / (t * 2.0).sqrt();
+            let z = t * d;
+            let w = -rot.sin() * d;
+            Quat::from_xyzw(0.0, 0.0, z, w)
+        }
+    }
+}
+
+#[cfg(feature = "3d")]
+impl From<Rot> for Quat {
+    fn from(rot: Rot) -> Self {
+        rot.0
     }
 }
 
@@ -159,20 +193,3 @@ impl From<Rot> for Matrix3x1<f32> {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
 pub struct PrevRot(pub Rot);
-
-#[cfg(feature = "2d")]
-fn quat_from_rot(rot: Rot) -> Quat {
-    if rot.cos() < 0.0 {
-        let t = 1.0 - rot.cos();
-        let d = 1.0 / (t * 2.0).sqrt();
-        let z = -rot.sin() * d;
-        let w = t * d;
-        Quat::from_xyzw(0.0, 0.0, z, w)
-    } else {
-        let t = 1.0 + rot.cos();
-        let d = 1.0 / (t * 2.0).sqrt();
-        let z = t * d;
-        let w = -rot.sin() * d;
-        Quat::from_xyzw(0.0, 0.0, z, w)
-    }
-}

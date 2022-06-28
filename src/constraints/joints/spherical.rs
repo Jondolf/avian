@@ -1,26 +1,5 @@
-use super::{AngularConstraint, Constraint, PositionConstraint};
-use crate::{components::ConstraintBodyQueryItem, Vector};
-
+use crate::prelude::*;
 use bevy::prelude::*;
-
-/*
-#[cfg(feature = "3d")]
-use crate::utils::{get_quat_axis_1, get_quat_axis_2};
-#[cfg(feature = "3d")]
-use std::f32::consts::PI;
-*/
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct JointLimit {
-    pub min: f32,
-    pub max: f32,
-}
-
-impl JointLimit {
-    pub fn new(min: f32, max: f32) -> Self {
-        Self { min, max }
-    }
-}
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct SphericalJoint {
@@ -40,8 +19,8 @@ pub struct SphericalJoint {
     pub torque: f32,
 }
 
-impl SphericalJoint {
-    pub fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+impl Joint for SphericalJoint {
+    fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
         Self {
             entity_a,
             entity_b,
@@ -60,36 +39,40 @@ impl SphericalJoint {
         }
     }
 
-    pub fn with_local_anchor_1(self, anchor: Vector) -> Self {
+    fn with_local_anchor_1(self, anchor: Vector) -> Self {
         Self {
             local_anchor_a: anchor,
             ..self
         }
     }
 
-    pub fn with_local_anchor_2(self, anchor: Vector) -> Self {
+    fn with_local_anchor_2(self, anchor: Vector) -> Self {
         Self {
             local_anchor_b: anchor,
             ..self
         }
     }
 
-    pub fn with_lin_vel_damping(self, damping: f32) -> Self {
+    fn with_lin_vel_damping(self, damping: f32) -> Self {
         Self {
             damping_lin: damping,
             ..self
         }
     }
 
-    pub fn with_ang_vel_damping(self, damping: f32) -> Self {
+    fn with_ang_vel_damping(self, damping: f32) -> Self {
         Self {
             damping_ang: damping,
             ..self
         }
     }
 
+    fn entities(&self) -> [Entity; 2] {
+        [self.entity_a, self.entity_b]
+    }
+
     #[allow(clippy::too_many_arguments)]
-    pub fn constrain(
+    fn constrain(
         &mut self,
         body1: &mut ConstraintBodyQueryItem,
         body2: &mut ConstraintBodyQueryItem,
@@ -139,7 +122,9 @@ impl SphericalJoint {
         }
         */
     }
+}
 
+impl SphericalJoint {
     /*
     #[cfg(feature = "3d")]
     #[allow(clippy::too_many_arguments)]

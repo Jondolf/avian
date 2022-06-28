@@ -2,12 +2,7 @@ pub mod joints;
 pub mod penetration;
 
 use crate::{components::*, Vector};
-
-#[cfg(feature = "3d")]
-use std::f32::consts::PI;
-
-#[cfg(feature = "3d")]
-use bevy::math::{Mat3, Quat};
+use bevy::prelude::*;
 
 pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);
@@ -148,7 +143,7 @@ pub trait AngularConstraint: Constraint {
         body1: &ConstraintBodyQueryItem,
         body2: &ConstraintBodyQueryItem,
         lagrange: f32,
-        axis: Vector,
+        axis: Vec3,
         angle: f32,
         compliance: f32,
         sub_dt: f32,
@@ -173,14 +168,18 @@ pub trait AngularConstraint: Constraint {
 
     /// Applies angular constraints for interactions between two bodies.
     ///
+    /// Here in 2D, `axis` is a unit vector with the Z coordinate set to 1 or -1. It controls if the body should rotate counterclockwise or clockwise.
+    ///
     /// Returns the angular impulse that is applied proportional to the inverse masses of the bodies.
+    #[cfg(feature = "2d")]
     fn apply_ang_constraint(
         body1: &mut ConstraintBodyQueryItem,
         body2: &mut ConstraintBodyQueryItem,
         delta_lagrange: f32,
-        axis: Vector,
-    ) -> Vector {
-        let p = delta_lagrange * axis;
+        axis: Vec3,
+    ) -> f32 {
+        // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
+        let p = -delta_lagrange * axis.z;
 
         let rot_a = *body1.rot;
         let rot_b = *body2.rot;
@@ -196,65 +195,50 @@ pub trait AngularConstraint: Constraint {
         p
     }
 
+    /// Applies angular constraints for interactions between two bodies.
+    ///
+    /// Returns the angular impulse that is applied proportional to the inverse masses of the bodies.
     #[cfg(feature = "3d")]
-    fn limit_angle(
-        n: Vector,
-        n1: Vector,
-        n2: Vector,
-        alpha: f32,
-        beta: f32,
-        max_correction: f32,
-    ) -> Option<Vector> {
-        let mut phi = n1.cross(n2).dot(n).asin();
+    fn apply_ang_constraint(
+        body1: &mut ConstraintBodyQueryItem,
+        body2: &mut ConstraintBodyQueryItem,
+        delta_lagrange: f32,
+        axis: Vec3,
+    ) -> Vec3 {
+        let p = -delta_lagrange * axis;
 
-        if n1.dot(n2) < 0.0 {
-            phi = PI - phi;
+        let rot_a = *body1.rot;
+        let rot_b = *body2.rot;
+
+        if *body1.rb != RigidBody::Static {
+            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), p);
         }
 
-        if phi > PI {
-            phi -= 2.0 * PI;
+        if *body2.rb != RigidBody::Static {
+            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), p);
         }
 
-        if phi < -PI {
-            phi += 2.0 * PI;
-        }
-
-        if phi < alpha || phi > beta {
-            phi = phi.clamp(alpha, beta);
-
-            let rot = Quat::from_axis_angle(n, phi);
-            let mut omega = rot.mul_vec3(n1).cross(n2);
-
-            phi = omega.length();
-
-            if phi > max_correction {
-                omega *= max_correction / phi;
-            }
-
-            return Some(omega);
-        }
-
-        None
+        p
     }
 
     #[cfg(feature = "2d")]
-    fn get_generalized_inverse_mass(inv_inertia: f32, _axis: Vector) -> f32 {
-        inv_inertia
+    fn get_generalized_inverse_mass(inv_inertia: f32, axis: Vec3) -> f32 {
+        axis.dot(inv_inertia * axis)
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(inv_inertia: Mat3, axis: Vector) -> f32 {
+    fn get_generalized_inverse_mass(inv_inertia: Mat3, axis: Vec3) -> f32 {
         axis.dot(inv_inertia * axis)
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rot, inv_inertia: f32, _p: Vector) -> Rot {
+    fn get_delta_rot(_rot: Rot, inv_inertia: f32, p: f32) -> Rot {
         // Equation 8/9 but in 2D
-        Rot::from_radians(inv_inertia)
+        Rot::from_radians(inv_inertia * p)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, p: Vector) -> Rot {
+    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, p: Vec3) -> Rot {
         // Equation 8/9
         Rot(Quat::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
     }
