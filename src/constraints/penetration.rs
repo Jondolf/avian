@@ -52,9 +52,14 @@ impl PenetrationConstraint {
         let d = (p_a - p_b).dot(self.contact_data.normal);
 
         if d > 0.0 {
+            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
+            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+
             let delta_lagrange_n = Self::get_delta_pos_lagrange(
                 body1,
                 body2,
+                inv_inertia1,
+                inv_inertia2,
                 self.normal_lagrange,
                 self.contact_data.normal,
                 d,
@@ -69,6 +74,8 @@ impl PenetrationConstraint {
             Self::apply_pos_constraint(
                 body1,
                 body2,
+                inv_inertia1,
+                inv_inertia2,
                 delta_lagrange_n,
                 self.contact_data.normal,
                 self.contact_data.world_r_a,
@@ -78,9 +85,14 @@ impl PenetrationConstraint {
             let p_a = body1.pos.0 + body1.rot.rotate(self.contact_data.local_r_a);
             let p_b = body2.pos.0 + body2.rot.rotate(self.contact_data.local_r_b);
 
+            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
+            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+
             let delta_lagrange_t = Self::get_delta_pos_lagrange(
                 body1,
                 body2,
+                inv_inertia1,
+                inv_inertia2,
                 self.tangential_lagrange,
                 self.contact_data.normal,
                 d,
@@ -110,6 +122,8 @@ impl PenetrationConstraint {
                 Self::apply_pos_constraint(
                     body1,
                     body2,
+                    inv_inertia1,
+                    inv_inertia2,
                     delta_lagrange_t,
                     delta_p_t.normalize_or_zero(),
                     self.contact_data.world_r_a,

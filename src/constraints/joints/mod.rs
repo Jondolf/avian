@@ -8,7 +8,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use std::f32::consts::PI;
 
-pub trait Joint: Component {
+pub trait Joint: Component + PositionConstraint + AngularConstraint {
     fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self;
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self;

@@ -13,7 +13,7 @@ This is an experimental work-in-progress that I am working on because I'm intere
 - Collision detection via [parry](https://parry.rs)
 - Basic joints
   - Revolute joint (or hinge joint) with optional angle limits
-  - Spherical joint
+  - Spherical joint with optional swing and twist angle limits
 - Joint damping
 - Gravity
 - Restitution

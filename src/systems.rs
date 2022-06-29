@@ -86,9 +86,8 @@ pub(crate) fn integrate_rot(
 
         if *rb != RigidBody::Static {
             let delta_ang_vel = sub_dt.0
-                * get_rotated_inertia_tensor(mass_props.inv_inertia, rot.0)
-                * (-ang_vel
-                    .cross(get_rotated_inertia_tensor(mass_props.inertia, rot.0) * ang_vel.0));
+                * mass_props.world_inv_inertia(&rot)
+                * (-ang_vel.cross(mass_props.world_inertia(&rot) * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }
 
@@ -283,13 +282,13 @@ pub(crate) fn solve_vel(
             // Compute generalized inverse masses
             let w_a = PenetrationConstraint::get_generalized_inverse_mass(
                 body1.mass_props.inv_mass,
-                body1.mass_props.inv_inertia(&body1.rot),
+                body1.mass_props.world_inv_inertia(&body1.rot),
                 r_a,
                 normal,
             );
             let w_b = PenetrationConstraint::get_generalized_inverse_mass(
                 body2.mass_props.inv_mass,
-                body2.mass_props.inv_inertia(&body2.rot),
+                body2.mass_props.world_inv_inertia(&body2.rot),
                 r_b,
                 normal,
             );
@@ -321,12 +320,12 @@ pub(crate) fn solve_vel(
             if *body1.rb != RigidBody::Static {
                 lin_vel_a.0 += p / body1.mass_props.mass;
                 ang_vel_a.0 +=
-                    compute_delta_ang_vel(body1.mass_props.inv_inertia(&body1.rot), r_a, p);
+                    compute_delta_ang_vel(body1.mass_props.world_inv_inertia(&body1.rot), r_a, p);
             }
             if *body2.rb != RigidBody::Static {
                 lin_vel_b.0 -= p / body2.mass_props.mass;
                 ang_vel_b.0 -=
-                    compute_delta_ang_vel(body2.mass_props.inv_inertia(&body2.rot), r_b, p);
+                    compute_delta_ang_vel(body2.mass_props.world_inv_inertia(&body2.rot), r_b, p);
             }
         }
     }

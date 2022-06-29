@@ -17,6 +17,8 @@ pub trait PositionConstraint: Constraint {
     fn get_delta_pos_lagrange(
         body1: &ConstraintBodyQueryItem,
         body2: &ConstraintBodyQueryItem,
+        inv_inertia1: Inertia,
+        inv_inertia2: Inertia,
         lagrange: f32,
         dir: Vector,
         magnitude: f32,
@@ -26,18 +28,10 @@ pub trait PositionConstraint: Constraint {
         sub_dt: f32,
     ) -> f32 {
         // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(
-            body1.mass_props.inv_mass,
-            body1.mass_props.inv_inertia(&body1.rot),
-            r_a,
-            dir,
-        );
-        let w_b = Self::get_generalized_inverse_mass(
-            body2.mass_props.inv_mass,
-            body2.mass_props.inv_inertia(&body2.rot),
-            r_b,
-            dir,
-        );
+        let w_a =
+            Self::get_generalized_inverse_mass(body1.mass_props.inv_mass, inv_inertia1, r_a, dir);
+        let w_b =
+            Self::get_generalized_inverse_mass(body2.mass_props.inv_mass, inv_inertia2, r_b, dir);
 
         let w = w_a + w_b;
 
@@ -54,9 +48,12 @@ pub trait PositionConstraint: Constraint {
     /// Applies position constraints for interactions between two bodies.
     ///
     /// Returns the positional impulse that is applied proportional to the inverse masses of the bodies.
+    #[allow(clippy::too_many_arguments)]
     fn apply_pos_constraint(
         body1: &mut ConstraintBodyQueryItem,
         body2: &mut ConstraintBodyQueryItem,
+        inv_inertia1: Inertia,
+        inv_inertia2: Inertia,
         delta_lagrange: f32,
         dir: Vector,
         r_a: Vector,
@@ -71,11 +68,11 @@ pub trait PositionConstraint: Constraint {
         // Update positions and rotations of the bodies (equations 6-9)
         if *body1.rb != RigidBody::Static {
             body1.pos.0 += p / body1.mass_props.mass;
-            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), r_a, p);
+            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, r_a, p);
         }
         if *body2.rb != RigidBody::Static {
             body2.pos.0 -= p / body2.mass_props.mass;
-            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), r_b, p);
+            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, r_b, p);
         }
 
         p
@@ -140,8 +137,8 @@ pub trait PositionConstraint: Constraint {
 pub trait AngularConstraint: Constraint {
     #[allow(clippy::too_many_arguments)]
     fn get_delta_ang_lagrange(
-        body1: &ConstraintBodyQueryItem,
-        body2: &ConstraintBodyQueryItem,
+        inv_inertia1: Inertia,
+        inv_inertia2: Inertia,
         lagrange: f32,
         axis: Vec3,
         angle: f32,
@@ -149,10 +146,8 @@ pub trait AngularConstraint: Constraint {
         sub_dt: f32,
     ) -> f32 {
         // Compute generalized inverse masses (equations 2-3)
-        let w_a =
-            Self::get_generalized_inverse_mass(body1.mass_props.inv_inertia(&body1.rot), axis);
-        let w_b =
-            Self::get_generalized_inverse_mass(body2.mass_props.inv_inertia(&body2.rot), axis);
+        let w_a = Self::get_generalized_inverse_mass(inv_inertia1, axis);
+        let w_b = Self::get_generalized_inverse_mass(inv_inertia2, axis);
 
         let w = w_a + w_b;
 
@@ -175,6 +170,8 @@ pub trait AngularConstraint: Constraint {
     fn apply_ang_constraint(
         body1: &mut ConstraintBodyQueryItem,
         body2: &mut ConstraintBodyQueryItem,
+        inv_inertia1: Inertia,
+        inv_inertia2: Inertia,
         delta_lagrange: f32,
         axis: Vec3,
     ) -> f32 {
@@ -185,11 +182,11 @@ pub trait AngularConstraint: Constraint {
         let rot_b = *body2.rot;
 
         if *body1.rb != RigidBody::Static {
-            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), p);
+            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, p);
         }
 
         if *body2.rb != RigidBody::Static {
-            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), p);
+            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, p);
         }
 
         p
@@ -202,6 +199,8 @@ pub trait AngularConstraint: Constraint {
     fn apply_ang_constraint(
         body1: &mut ConstraintBodyQueryItem,
         body2: &mut ConstraintBodyQueryItem,
+        inv_inertia1: Inertia,
+        inv_inertia2: Inertia,
         delta_lagrange: f32,
         axis: Vec3,
     ) -> Vec3 {
@@ -211,11 +210,11 @@ pub trait AngularConstraint: Constraint {
         let rot_b = *body2.rot;
 
         if *body1.rb != RigidBody::Static {
-            *body1.rot += Self::get_delta_rot(rot_a, body1.mass_props.inv_inertia(&rot_a), p);
+            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, p);
         }
 
         if *body2.rb != RigidBody::Static {
-            *body2.rot -= Self::get_delta_rot(rot_b, body2.mass_props.inv_inertia(&rot_b), p);
+            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, p);
         }
 
         p

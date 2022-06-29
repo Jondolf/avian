@@ -91,9 +91,12 @@ impl Joint for RevoluteJoint {
         if angle > f32::EPSILON {
             let axis = delta_q / angle;
 
+            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
+            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+
             let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                body1,
-                body2,
+                inv_inertia1,
+                inv_inertia2,
                 self.align_lagrange,
                 axis,
                 angle,
@@ -103,7 +106,14 @@ impl Joint for RevoluteJoint {
 
             self.align_lagrange += delta_ang_lagrange;
 
-            Self::apply_ang_constraint(body1, body2, delta_ang_lagrange, axis);
+            Self::apply_ang_constraint(
+                body1,
+                body2,
+                inv_inertia1,
+                inv_inertia2,
+                delta_ang_lagrange,
+                axis,
+            );
         }
 
         let world_r_a = body1.rot.rotate(self.local_anchor_a);
@@ -115,9 +125,14 @@ impl Joint for RevoluteJoint {
         if magnitude > f32::EPSILON {
             let dir = delta_x / magnitude;
 
+            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
+            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+
             let delta_lagrange = Self::get_delta_pos_lagrange(
                 body1,
                 body2,
+                inv_inertia1,
+                inv_inertia2,
                 self.pos_lagrange,
                 dir,
                 magnitude,
@@ -129,7 +144,16 @@ impl Joint for RevoluteJoint {
 
             self.pos_lagrange += delta_lagrange;
 
-            Self::apply_pos_constraint(body1, body2, delta_lagrange, dir, world_r_a, world_r_b);
+            Self::apply_pos_constraint(
+                body1,
+                body2,
+                inv_inertia1,
+                inv_inertia2,
+                delta_lagrange,
+                dir,
+                world_r_a,
+                world_r_b,
+            );
 
             self.update_force(dir, sub_dt);
         }
@@ -190,9 +214,12 @@ impl RevoluteJoint {
                 if angle > f32::EPSILON {
                     let axis = delta_q / angle;
 
+                    let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
+                    let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+
                     let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                        body1,
-                        body2,
+                        inv_inertia1,
+                        inv_inertia2,
                         self.angle_limit_lagrange,
                         axis,
                         angle,
@@ -202,7 +229,14 @@ impl RevoluteJoint {
 
                     self.angle_limit_lagrange += delta_ang_lagrange;
 
-                    Self::apply_ang_constraint(body1, body2, delta_ang_lagrange, axis);
+                    Self::apply_ang_constraint(
+                        body1,
+                        body2,
+                        inv_inertia1,
+                        inv_inertia2,
+                        delta_ang_lagrange,
+                        axis,
+                    );
                 }
             }
         }

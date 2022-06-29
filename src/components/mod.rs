@@ -116,10 +116,10 @@ impl Default for Friction {
 }
 
 #[cfg(feature = "2d")]
-type Inertia = f32;
+pub(crate) type Inertia = f32;
 
 #[cfg(feature = "3d")]
-type Inertia = Mat3;
+pub(crate) type Inertia = Mat3;
 
 #[derive(Reflect, Clone, Copy, Component, PartialEq)]
 #[reflect(Component)]
@@ -127,16 +127,26 @@ pub struct MassProperties {
     pub mass: f32,
     pub inv_mass: f32,
 
-    // In 2D inertia can be accessed publicly.
-    // In 3D it has to be computed with getter functions because it depends on the body's orientation.
+    /// The moment of inertia of the body. In 2D this is scalar because bodies can only rotate around one axis.
     #[cfg(feature = "2d")]
-    pub inertia: Inertia,
+    pub inertia: f32,
+
+    /// The local moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
+    ///
+    /// For the world-space version, consider using [`MassProperties::world_inertia`].
+
+    /// The inverse moment of inertia of the body. In 2D this is scalar because bodies can only rotate around one axis.
+    #[cfg(feature = "3d")]
+    pub inertia: Mat3,
+
     #[cfg(feature = "2d")]
-    pub inv_inertia: Inertia,
+    pub inv_inertia: f32,
+
+    /// The local inverse moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
+    ///
+    /// For the world-space version, consider using [`MassProperties::world_inv_inertia`].
     #[cfg(feature = "3d")]
-    pub(crate) inertia: Inertia,
-    #[cfg(feature = "3d")]
-    pub(crate) inv_inertia: Inertia,
+    pub inv_inertia: Mat3,
 
     pub local_center_of_mass: Vector,
 }
@@ -184,19 +194,27 @@ impl MassProperties {
     }
     #[cfg(feature = "2d")]
     #[allow(dead_code)]
-    pub(crate) fn inertia(&self, _rot: &Rot) -> f32 {
+    /// This is equivalent to just "inertia" in 2D.
+    pub(crate) fn world_inertia(&self, _rot: &Rot) -> f32 {
         self.inertia
     }
     #[cfg(feature = "2d")]
-    pub(crate) fn inv_inertia(&self, _rot: &Rot) -> f32 {
+    /// This is equivalent to just "inv_inertia" in 2D.
+    pub(crate) fn world_inv_inertia(&self, _rot: &Rot) -> f32 {
         self.inv_inertia
     }
     #[cfg(feature = "3d")]
-    pub fn inertia(self, rot: &Rot) -> Mat3 {
+    /// Computes the world-space moment of inertia of the body.
+    ///
+    /// This is a rather expensive operation, so use it sparingly.
+    pub fn world_inertia(self, rot: &Rot) -> Mat3 {
         get_rotated_inertia_tensor(self.inertia, rot.0)
     }
     #[cfg(feature = "3d")]
-    pub fn inv_inertia(self, rot: &Rot) -> Mat3 {
+    /// Computes the world-space inverse moment of inertia of the body.
+    ///
+    /// This is a rather expensive operation, so use it sparingly.
+    pub fn world_inv_inertia(self, rot: &Rot) -> Mat3 {
         get_rotated_inertia_tensor(self.inv_inertia, rot.0)
     }
 }
