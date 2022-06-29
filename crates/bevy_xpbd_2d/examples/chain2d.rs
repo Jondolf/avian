@@ -8,6 +8,9 @@ struct MouseWorldPos(Vec2);
 #[derive(Component)]
 struct FollowMouse;
 
+#[derive(Component)]
+struct GameCamera;
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -25,22 +28,24 @@ fn setup(
     });
 
     // Rope
-    create_rope(&mut commands, sphere, blue, 300, 0.0, 0.06, 0.0);
+    create_chain(&mut commands, sphere, blue, 300, 0.0, 0.06, 0.0);
 
     // Pendulum
-    //create_rope(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
+    //create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
 
-    commands.spawn_bundle(OrthographicCameraBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-        orthographic_projection: OrthographicProjection {
-            scale: 0.025,
-            ..default()
-        },
-        ..OrthographicCameraBundle::new_3d()
-    });
+    commands
+        .spawn_bundle(OrthographicCameraBundle {
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
+            orthographic_projection: OrthographicProjection {
+                scale: 0.025,
+                ..default()
+            },
+            ..OrthographicCameraBundle::new_3d()
+        })
+        .insert(GameCamera);
 }
 
-fn create_rope(
+fn create_chain(
     commands: &mut Commands,
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
@@ -98,7 +103,7 @@ fn create_rope(
 fn mouse_position(
     windows: Res<Windows>,
     mut mouse_world_pos: ResMut<MouseWorldPos>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
 ) {
     let window = windows.get_primary().unwrap();
     let (camera, camera_transform) = q_camera.single();

@@ -46,10 +46,30 @@ fn setup(
         )));
 
     // Rope
-    create_rope(&mut commands, sphere, blue, 175, 0.001, 0.075, 0.0);
+    create_chain(
+        &mut commands,
+        sphere,
+        blue,
+        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::Y,
+        100,
+        0.001,
+        0.075,
+        0.0,
+    );
 
     // Pendulum
-    //create_rope(&mut commands, cube, blue, 2, 3.0, 1.0, 0.0);
+    /*create_chain(
+        &mut commands,
+        cube,
+        blue,
+        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::Y,
+        2,
+        3.0,
+        1.0,
+        0.0,
+    );*/
 
     // Directional 'sun' light
     let sun_half_size = 50.0;
@@ -89,10 +109,13 @@ fn setup(
     });
 }
 
-fn create_rope(
+#[allow(clippy::too_many_arguments)]
+fn create_chain(
     commands: &mut Commands,
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
+    start_pos: Vec3,
+    dir: Vec3,
     node_count: usize,
     node_dist: f32,
     node_size: f32,
@@ -109,12 +132,13 @@ fn create_rope(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static())
+        .insert_bundle(RigidBodyBundle::new_static().with_pos(start_pos))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();
 
     for i in 1..node_count {
+        let delta_pos = -dir * (node_size + node_dist);
         let curr = commands
             .spawn_bundle(PbrBundle {
                 mesh: mesh.clone(),
@@ -127,8 +151,7 @@ fn create_rope(
                 ..default()
             })
             .insert_bundle(
-                RigidBodyBundle::new_dynamic()
-                    .with_pos(Vec3::Y * -(node_size + node_dist) * i as f32),
+                RigidBodyBundle::new_dynamic().with_pos(start_pos + delta_pos * i as f32),
             )
             .insert(ExplicitMassProperties(MassProperties::from_shape(
                 &ColliderShape::ball(node_size * 0.5),
@@ -138,8 +161,8 @@ fn create_rope(
 
         commands.spawn().insert(
             SphericalJoint::new_with_compliance(prev, curr, compliance)
-                .with_local_anchor_1(Vec3::Y * -0.5 * (node_size + node_dist))
-                .with_local_anchor_2(Vec3::Y * 0.5 * (node_size + node_dist)),
+                .with_local_anchor_1(0.5 * delta_pos)
+                .with_local_anchor_2(-0.5 * delta_pos),
         );
 
         prev = curr;
