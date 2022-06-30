@@ -12,8 +12,9 @@ This is an experimental work-in-progress that I am working on because I'm intere
 - Linear and angular velocity integration and solving
 - Collision detection via [parry](https://parry.rs)
 - Basic joints
-  - Revolute joint (or hinge joint) with optional angle limits
-  - Spherical joint with optional swing and twist angle limits
+  - Revolute joint (or hinge joint), optional angle limits
+  - Spherical joint, optional swing and twist angle limits
+  - Prismatic joint, one free translational axis with optional limits
 - Joint damping
 - Gravity
 - Restitution
@@ -24,7 +25,6 @@ This is an experimental work-in-progress that I am working on because I'm intere
 
 - Linear and angular velocity damping
 - External forces and maybe impulses
-- More joint types and joint limits
 - Maybe utils for rope and cloth simulation
 - Maybe basic soft bodies
 - Maybe (unlikely) fluid simulation

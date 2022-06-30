@@ -78,35 +78,6 @@ pub trait PositionConstraint: Constraint {
         p
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn limit_distance(
-        &mut self,
-        min: f32,
-        max: f32,
-        r_a: Vector,
-        r_b: Vector,
-        pos_a: &Pos,
-        pos_b: &Pos,
-    ) -> Vector {
-        let pos_offset = (pos_b.0 + r_b) - (pos_a.0 + r_a);
-        let distance = pos_offset.length();
-
-        if distance <= f32::EPSILON {
-            return Vector::ZERO;
-        }
-
-        // Equation 25
-        if distance < min {
-            // Separation distance lower limit
-            -pos_offset / distance * (distance - min)
-        } else if distance > max {
-            // Separation distance upper limit
-            -pos_offset / distance * (distance - max)
-        } else {
-            Vector::ZERO
-        }
-    }
-
     #[cfg(feature = "2d")]
     fn get_generalized_inverse_mass(inv_mass: f32, inv_inertia: f32, r: Vector, n: Vector) -> f32 {
         inv_mass + inv_inertia * r.perp_dot(n).powi(2)
