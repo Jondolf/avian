@@ -23,6 +23,10 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 
     fn entities(&self) -> [Entity; 2];
 
+    fn damping_lin(&self) -> f32;
+
+    fn damping_ang(&self) -> f32;
+
     fn constrain(
         &mut self,
         body1: &mut ConstraintBodyQueryItem,

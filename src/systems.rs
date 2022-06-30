@@ -4,9 +4,7 @@
 
 use crate::{
     components::*,
-    constraints::{
-        joints::SphericalJoint, penetration::PenetrationConstraint, Constraint, PositionConstraint,
-    },
+    constraints::{penetration::PenetrationConstraint, Constraint, PositionConstraint},
     prelude::Joint,
     resources::*,
     utils::*,
@@ -102,15 +100,17 @@ pub(crate) fn integrate_rot(
     }
 }
 
-pub(crate) fn clear_constraint_lagrange(
-    mut joints: Query<&mut SphericalJoint>,
+pub(crate) fn clear_penetration_constraint_lagrange(
     mut penetration_constraints: ResMut<PenetrationConstraints>,
 ) {
-    for mut joint in joints.iter_mut() {
-        joint.clear_lagrange_multipliers();
-    }
     for constraint in penetration_constraints.0.iter_mut() {
         constraint.clear_lagrange_multipliers();
+    }
+}
+
+pub(crate) fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
+    for mut joint in joints.iter_mut() {
+        joint.clear_lagrange_multipliers();
     }
 }
 
@@ -331,17 +331,18 @@ pub(crate) fn solve_vel(
     }
 }
 
-pub(crate) fn joint_damping(
+pub(crate) fn joint_damping<T: Joint>(
     mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &MassProperties)>,
-    joints: Query<&SphericalJoint, Without<RigidBody>>,
+    joints: Query<&T, Without<RigidBody>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for joint in joints.iter() {
         if let Ok(
             [(rb_a, mut lin_vel_a, mut ang_vel_a, mass_props_a), (rb_b, mut lin_vel_b, mut ang_vel_b, mass_props_b)],
-        ) = bodies.get_many_mut([joint.entity_a, joint.entity_b])
+        ) = bodies.get_many_mut(joint.entities())
         {
-            let delta_omega = (ang_vel_b.0 - ang_vel_a.0) * (joint.damping_ang * sub_dt.0).min(1.0);
+            let delta_omega =
+                (ang_vel_b.0 - ang_vel_a.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
 
             if *rb_a != RigidBody::Static {
                 ang_vel_a.0 += delta_omega;
@@ -350,7 +351,7 @@ pub(crate) fn joint_damping(
                 ang_vel_b.0 -= delta_omega;
             }
 
-            let delta_v = (lin_vel_b.0 - lin_vel_a.0) * (joint.damping_lin * sub_dt.0).min(1.0);
+            let delta_v = (lin_vel_b.0 - lin_vel_a.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
             let w_a = mass_props_a.inv_mass;
             let w_b = mass_props_b.inv_mass;
 

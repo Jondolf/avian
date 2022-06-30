@@ -32,8 +32,8 @@ impl Joint for SphericalJoint {
             twist_axis: Vec3::Y,
             swing_limit: None,
             twist_limit: None,
-            damping_lin: 5.0,
-            damping_ang: 5.0,
+            damping_lin: 1.0,
+            damping_ang: 1.0,
             pos_lagrange: 0.0,
             swing_lagrange: 0.0,
             twist_lagrange: 0.0,
@@ -73,6 +73,14 @@ impl Joint for SphericalJoint {
 
     fn entities(&self) -> [Entity; 2] {
         [self.entity_a, self.entity_b]
+    }
+
+    fn damping_lin(&self) -> f32 {
+        self.damping_lin
+    }
+
+    fn damping_ang(&self) -> f32 {
+        self.damping_ang
     }
 
     #[allow(clippy::too_many_arguments)]

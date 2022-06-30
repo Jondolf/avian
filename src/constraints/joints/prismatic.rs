@@ -69,6 +69,14 @@ impl Joint for PrismaticJoint {
         [self.entity_a, self.entity_b]
     }
 
+    fn damping_lin(&self) -> f32 {
+        self.damping_lin
+    }
+
+    fn damping_ang(&self) -> f32 {
+        self.damping_ang
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn constrain(
         &mut self,

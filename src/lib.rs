@@ -100,7 +100,10 @@ impl Plugin for XpbdPlugin {
                     .with_system_set(
                         SystemSet::new()
                             .before(Step::SolvePos)
-                            .with_system(clear_constraint_lagrange),
+                            .with_system(clear_penetration_constraint_lagrange)
+                            .with_system(clear_joint_lagrange::<RevoluteJoint>)
+                            .with_system(clear_joint_lagrange::<SphericalJoint>)
+                            .with_system(clear_joint_lagrange::<PrismaticJoint>),
                     )
                     .with_system_set(
                         SystemSet::new()
@@ -108,7 +111,8 @@ impl Plugin for XpbdPlugin {
                             .after(Step::Integrate)
                             .with_system(solve_pos)
                             .with_system(joint_constraints::<RevoluteJoint>)
-                            .with_system(joint_constraints::<SphericalJoint>),
+                            .with_system(joint_constraints::<SphericalJoint>)
+                            .with_system(joint_constraints::<PrismaticJoint>),
                     )
                     .with_system_set(
                         SystemSet::new()
@@ -122,7 +126,9 @@ impl Plugin for XpbdPlugin {
                             .label(Step::SolveVel)
                             .after(Step::UpdateVel)
                             .with_system(solve_vel)
-                            .with_system(joint_damping),
+                            .with_system(joint_damping::<RevoluteJoint>)
+                            .with_system(joint_damping::<SphericalJoint>)
+                            .with_system(joint_damping::<PrismaticJoint>),
                     )
                     .with_system(
                         sync_transforms
