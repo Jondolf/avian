@@ -132,7 +132,7 @@ fn create_chain(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(start_pos))
+        .insert_bundle(RigidBodyBundle::new_kinematic().with_pos(start_pos))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();

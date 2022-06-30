@@ -32,7 +32,7 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 0.0)))
+        .insert_bundle(RigidBodyBundle::new_kinematic().with_pos(Vec2::new(0.0, 0.0)))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();

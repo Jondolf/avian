@@ -66,11 +66,11 @@ pub trait PositionConstraint: Constraint {
         let rot_b = *body2.rot;
 
         // Update positions and rotations of the bodies (equations 6-9)
-        if *body1.rb != RigidBody::Static {
+        if body1.rb.is_dynamic() {
             body1.pos.0 += p / body1.mass_props.mass;
             *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, r_a, p);
         }
-        if *body2.rb != RigidBody::Static {
+        if body2.rb.is_dynamic() {
             body2.pos.0 -= p / body2.mass_props.mass;
             *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, r_b, p);
         }
@@ -152,11 +152,11 @@ pub trait AngularConstraint: Constraint {
         let rot_a = *body1.rot;
         let rot_b = *body2.rot;
 
-        if *body1.rb != RigidBody::Static {
+        if body1.rb.is_dynamic() {
             *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, p);
         }
 
-        if *body2.rb != RigidBody::Static {
+        if body2.rb.is_dynamic() {
             *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, p);
         }
 
@@ -180,11 +180,11 @@ pub trait AngularConstraint: Constraint {
         let rot_a = *body1.rot;
         let rot_b = *body2.rot;
 
-        if *body1.rb != RigidBody::Static {
+        if body1.rb.is_dynamic() {
             *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1, p);
         }
 
-        if *body2.rb != RigidBody::Static {
+        if body2.rb.is_dynamic() {
             *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2, p);
         }
 

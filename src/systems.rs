@@ -23,8 +23,7 @@ pub(crate) fn collect_collision_pairs(
 
     for [(ent_a, collider_a, rb_a), (ent_b, collider_b, rb_b)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect
-        if (*rb_a == RigidBody::Dynamic || *rb_b == RigidBody::Dynamic)
-            && collider_a.aabb.intersects(&collider_b.aabb)
+        if (rb_a.is_dynamic() || rb_b.is_dynamic()) && collider_a.aabb.intersects(&collider_b.aabb)
         {
             broad_collision_pairs.0.push((ent_a, ent_b));
         }
@@ -47,8 +46,12 @@ pub(crate) fn integrate_pos(
     for (rb, mut pos, mut prev_pos, mut lin_vel, external_force, mass_props) in bodies.iter_mut() {
         prev_pos.0 = pos.0;
 
+        if rb.is_static() {
+            continue;
+        }
+
         // Apply gravity and other external forces
-        if *rb != RigidBody::Static {
+        if rb.is_dynamic() {
             let gravitation_force = mass_props.mass * gravity.0;
             let external_forces = gravitation_force + external_force.0;
             lin_vel.0 += sub_dt.0 * external_forces / mass_props.mass;
@@ -74,8 +77,12 @@ pub(crate) fn integrate_rot(
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, mass_props) in bodies.iter_mut() {
         prev_rot.0 = *rot;
 
+        if rb.is_static() {
+            continue;
+        }
+
         // Apply external torque
-        if *rb != RigidBody::Static {
+        if rb.is_dynamic() {
             ang_vel.0 += sub_dt.0 * mass_props.inv_inertia * external_torque.0;
         }
 
@@ -99,8 +106,12 @@ pub(crate) fn integrate_rot(
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, mass_props) in bodies.iter_mut() {
         prev_rot.0 = *rot;
 
+        if rb.is_static() {
+            continue;
+        }
+
         // Apply external torque
-        if *rb != RigidBody::Static {
+        if rb.is_dynamic() {
             let delta_ang_vel = sub_dt.0
                 * mass_props.world_inv_inertia(&rot)
                 * (external_torque.0 - ang_vel.cross(mass_props.world_inertia(&rot) * ang_vel.0));
@@ -147,8 +158,8 @@ pub(crate) fn solve_pos(
         if let Ok([(mut body1, collider_a, friction_a), (mut body2, collider_b, friction_b)]) =
             bodies.get_many_mut([ent_a, ent_b])
         {
-            // No need to solve collisions if both bodies are static
-            if *body1.rb == RigidBody::Static && *body2.rb == RigidBody::Static {
+            // No need to solve collisions if neither of the bodies is dynamic
+            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
 
@@ -184,13 +195,13 @@ pub(crate) fn joint_constraints<T: Joint>(
     for _j in 0..num_pos_iters.0 {
         for mut joint in joints.iter_mut() {
             // Get components for entity a and b
-            if let Ok([mut a, mut b]) = bodies.get_many_mut(joint.entities()) {
-                // No need to solve constraints if both bodies are static
-                if *a.rb == RigidBody::Static && *b.rb == RigidBody::Static {
+            if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
+                // No need to solve constraints if neither of the bodies is dynamic
+                if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                     continue;
                 }
 
-                joint.constrain(&mut a, &mut b, sub_dt.0);
+                joint.constrain(&mut body1, &mut body2, sub_dt.0);
             }
         }
     }
@@ -198,10 +209,17 @@ pub(crate) fn joint_constraints<T: Joint>(
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
 pub(crate) fn update_lin_vel(
-    mut bodies: Query<(&Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel)>,
+    mut bodies: Query<(&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in bodies.iter_mut() {
+    for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in bodies.iter_mut() {
+        // Static bodies have no velocity
+        if rb.is_static() {
+            pre_solve_lin_vel.0 = Vector::ZERO;
+            lin_vel.0 = Vector::ZERO;
+            continue;
+        }
+
         pre_solve_lin_vel.0 = lin_vel.0;
         // v = (x - x_prev) / h
         lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
@@ -211,10 +229,17 @@ pub(crate) fn update_lin_vel(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
 #[cfg(feature = "2d")]
 pub(crate) fn update_ang_vel(
-    mut bodies: Query<(&Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
+    mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+        // Static bodies have no velocity
+        if rb.is_static() {
+            pre_solve_ang_vel.0 = 0.0;
+            ang_vel.0 = 0.0;
+            continue;
+        }
+
         pre_solve_ang_vel.0 = ang_vel.0;
         ang_vel.0 = (rot.mul(prev_rot.inv())).as_radians() / sub_dt.0;
     }
@@ -223,10 +248,19 @@ pub(crate) fn update_ang_vel(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
 #[cfg(feature = "3d")]
 pub(crate) fn update_ang_vel(
-    mut bodies: Query<(&Rot, &PrevRot, &mut AngVel)>,
+    mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rot, prev_rot, mut ang_vel) in bodies.iter_mut() {
+    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+        // Static bodies have no velocity
+        if rb.is_static() {
+            pre_solve_ang_vel.0 = Vec3::ZERO;
+            ang_vel.0 = Vec3::ZERO;
+            continue;
+        }
+
+        pre_solve_ang_vel.0 = ang_vel.0;
+
         let delta_rot = rot.mul_quat(prev_rot.inverse());
         ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
 
@@ -335,12 +369,12 @@ pub(crate) fn solve_vel(
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w_a + w_b);
-            if *body1.rb != RigidBody::Static {
+            if body1.rb.is_dynamic() {
                 lin_vel_a.0 += p / body1.mass_props.mass;
                 ang_vel_a.0 +=
                     compute_delta_ang_vel(body1.mass_props.world_inv_inertia(&body1.rot), r_a, p);
             }
-            if *body2.rb != RigidBody::Static {
+            if body2.rb.is_dynamic() {
                 lin_vel_b.0 -= p / body2.mass_props.mass;
                 ang_vel_b.0 -=
                     compute_delta_ang_vel(body2.mass_props.world_inv_inertia(&body2.rot), r_b, p);
@@ -362,10 +396,10 @@ pub(crate) fn joint_damping<T: Joint>(
             let delta_omega =
                 (ang_vel_b.0 - ang_vel_a.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
 
-            if *rb_a != RigidBody::Static {
+            if rb_a.is_dynamic() {
                 ang_vel_a.0 += delta_omega;
             }
-            if *rb_b != RigidBody::Static {
+            if rb_b.is_dynamic() {
                 ang_vel_b.0 -= delta_omega;
             }
 
@@ -374,10 +408,10 @@ pub(crate) fn joint_damping<T: Joint>(
             let w_b = mass_props_b.inv_mass;
 
             let p = delta_v / (w_a + w_b);
-            if *rb_a != RigidBody::Static {
+            if rb_a.is_dynamic() {
                 lin_vel_a.0 += p / mass_props_a.mass;
             }
-            if *rb_b != RigidBody::Static {
+            if rb_b.is_dynamic() {
                 lin_vel_b.0 -= p / mass_props_b.mass;
             }
         }

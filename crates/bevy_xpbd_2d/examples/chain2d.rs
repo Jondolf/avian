@@ -65,7 +65,7 @@ fn create_chain(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static())
+        .insert_bundle(RigidBodyBundle::new_kinematic())
         .insert(FollowMouse)
         .id();
 

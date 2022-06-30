@@ -26,8 +26,36 @@ pub struct ConstraintBodyQuery<'w> {
 #[derive(Reflect, Clone, Copy, Component, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
+    /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
+    ///
+    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinVel`] or [`AngVel`] components. Directly changing the [`Pos`] or [`Rot`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
     Dynamic,
+
+    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia. The only way to move a static body is to manually change its position.
+    ///
+    /// Collisions with static bodies will affect dynamic bodies, but not other static bodies or kinematic bodies.
+    ///
+    /// Static bodies are typically used for things like the ground, walls and any other objects that you don't want to move.
     Static,
+
+    /// Kinematic bodies are bodies that are not affected by any external forces or collisions. They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
+    ///
+    /// Unlike static bodies, the [`Pos`], [`LinVel`] and [`AngVel`] components will move kinematic bodies as expected. These components will never be altered by the physics engine, so you can kinematic bodies freely.
+    Kinematic,
+}
+
+impl RigidBody {
+    pub fn is_dynamic(&self) -> bool {
+        *self == Self::Dynamic
+    }
+
+    pub fn is_static(&self) -> bool {
+        *self == Self::Static
+    }
+
+    pub fn is_kinematic(&self) -> bool {
+        *self == Self::Kinematic
+    }
 }
 
 impl Default for RigidBody {

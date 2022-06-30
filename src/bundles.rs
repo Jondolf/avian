@@ -41,6 +41,12 @@ impl RigidBodyBundle {
             ..default()
         }
     }
+    pub fn new_kinematic() -> Self {
+        Self {
+            rigid_body: RigidBody::Kinematic,
+            ..default()
+        }
+    }
     pub fn with_pos(self, pos: Vector) -> Self {
         Self {
             pos: Pos(pos),
