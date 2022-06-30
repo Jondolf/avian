@@ -18,6 +18,9 @@ pub struct RigidBodyBundle {
     pub ang_vel: AngVel,
     pub pre_solve_ang_vel: PreSolveAngVel,
 
+    pub external_force: ExternalForce,
+    pub external_torque: ExternalTorque,
+
     pub restitution: Restitution,
     pub friction: Friction,
 

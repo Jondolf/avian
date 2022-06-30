@@ -71,6 +71,8 @@ impl Plugin for XpbdPlugin {
             .register_type::<PreSolveAngVel>()
             .register_type::<Restitution>()
             .register_type::<Friction>()
+            .register_type::<ExternalForce>()
+            .register_type::<ExternalTorque>()
             .register_type::<MassProperties>()
             .register_type::<ExplicitMassProperties>()
             .add_stage_before(

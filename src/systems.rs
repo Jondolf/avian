@@ -38,19 +38,22 @@ pub(crate) fn integrate_pos(
         &mut Pos,
         &mut PrevPos,
         &mut LinVel,
+        &ExternalForce,
         &MassProperties,
     )>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut pos, mut prev_pos, mut lin_vel, mass_props) in bodies.iter_mut() {
+    for (rb, mut pos, mut prev_pos, mut lin_vel, external_force, mass_props) in bodies.iter_mut() {
         prev_pos.0 = pos.0;
 
+        // Apply gravity and other external forces
         if *rb != RigidBody::Static {
             let gravitation_force = mass_props.mass * gravity.0;
-            let external_forces = gravitation_force;
+            let external_forces = gravitation_force + external_force.0;
             lin_vel.0 += sub_dt.0 * external_forces / mass_props.mass;
         }
+
         pos.0 += sub_dt.0 * lin_vel.0;
     }
 }
@@ -58,11 +61,24 @@ pub(crate) fn integrate_pos(
 /// Integrates rotations for all dynamic bodies.
 #[cfg(feature = "2d")]
 pub(crate) fn integrate_rot(
-    mut bodies: Query<(&mut Rot, &mut PrevRot, &AngVel)>,
+    mut bodies: Query<(
+        &RigidBody,
+        &mut Rot,
+        &mut PrevRot,
+        &mut AngVel,
+        &ExternalTorque,
+        &MassProperties,
+    )>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (mut rot, mut prev_rot, ang_vel) in bodies.iter_mut() {
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, mass_props) in bodies.iter_mut() {
         prev_rot.0 = *rot;
+
+        // Apply external torque
+        if *rb != RigidBody::Static {
+            ang_vel.0 += sub_dt.0 * mass_props.inv_inertia * external_torque.0;
+        }
+
         *rot += Rot::from_radians(sub_dt.0 * ang_vel.0);
     }
 }
@@ -75,17 +91,19 @@ pub(crate) fn integrate_rot(
         &mut Rot,
         &mut PrevRot,
         &mut AngVel,
+        &ExternalTorque,
         &MassProperties,
     )>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, mass_props) in bodies.iter_mut() {
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, mass_props) in bodies.iter_mut() {
         prev_rot.0 = *rot;
 
+        // Apply external torque
         if *rb != RigidBody::Static {
             let delta_ang_vel = sub_dt.0
                 * mass_props.world_inv_inertia(&rot)
-                * (-ang_vel.cross(mass_props.world_inertia(&rot) * ang_vel.0));
+                * (external_torque.0 - ang_vel.cross(mass_props.world_inertia(&rot) * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }
 

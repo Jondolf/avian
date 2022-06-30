@@ -72,6 +72,20 @@ pub struct PreSolveAngVel(pub f32);
 #[reflect(Component)]
 pub struct PreSolveAngVel(pub Vec3);
 
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct ExternalForce(pub Vector);
+
+#[cfg(feature = "2d")]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct ExternalTorque(pub f32);
+
+#[cfg(feature = "3d")]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct ExternalTorque(pub Vector);
+
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
 /// 2.0: kinetic energy is doubled
