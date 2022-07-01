@@ -120,7 +120,7 @@ impl Joint for PrismaticJoint {
 
         let mut delta_x = Vector::ZERO;
 
-        let axis1 = self.free_axis;
+        let axis1 = body1.rot.rotate(self.free_axis);
         if let Some(limits) = self.free_axis_limits {
             delta_x += self.limit_distance_along_axis(
                 limits.min, limits.max, axis1, world_r_a, world_r_b, &body1.pos, &body2.pos,
