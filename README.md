@@ -15,6 +15,7 @@ This is an experimental work-in-progress that I am working on because I'm intere
   - Revolute joint (or hinge joint), optional angle limits
   - Spherical joint, optional swing and twist angle limits
   - Prismatic joint, one free translational axis with optional limits
+  - Fixed joint
 - Joint damping
 - Gravity
 - External forces
