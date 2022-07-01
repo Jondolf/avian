@@ -105,14 +105,14 @@ pub struct PreSolveAngVel(pub Vec3);
 pub struct ExternalForce(pub Vector);
 
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
-#[reflect(Component)]
-pub struct ExternalTorque(pub f32);
+pub(crate) type Torque = f32;
 
 #[cfg(feature = "3d")]
+pub(crate) type Torque = Vec3;
+
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
-pub struct ExternalTorque(pub Vector);
+pub struct ExternalTorque(pub Torque);
 
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\

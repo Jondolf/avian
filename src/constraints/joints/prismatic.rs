@@ -15,7 +15,7 @@ pub struct PrismaticJoint {
     pub align_lagrange: f32,
     pub compliance: f32,
     pub force: Vector,
-    pub torque: f32,
+    pub align_torque: Torque,
 }
 
 impl Joint for PrismaticJoint {
@@ -33,7 +33,7 @@ impl Joint for PrismaticJoint {
             align_lagrange: 0.0,
             compliance,
             force: Vector::ZERO,
-            torque: 0.0,
+            align_torque: Torque::ZERO,
         }
     }
 
@@ -113,6 +113,8 @@ impl Joint for PrismaticJoint {
                 delta_ang_lagrange,
                 -axis,
             );
+            
+            self.update_align_torque(axis, sub_dt);
         }
 
         let world_r_a = body1.rot.rotate(self.local_anchor_a);
@@ -213,8 +215,20 @@ impl PrismaticJoint {
     }
 
     fn update_force(&mut self, dir: Vector, sub_dt: f32) {
-        // Equation 10
+        // Eq (10)
         self.force = self.pos_lagrange * dir / sub_dt.powi(2);
+    }
+    
+    fn update_align_torque(&mut self, axis: Vec3, sub_dt: f32) {
+        // Eq (17)
+        #[cfg(feature = "2d")]
+        {
+            self.align_torque = self.align_lagrange * axis.z / sub_dt.powi(2);
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.align_torque = self.align_lagrange * axis / sub_dt.powi(2);
+        }
     }
 }
 

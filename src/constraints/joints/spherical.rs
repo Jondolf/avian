@@ -18,7 +18,8 @@ pub struct SphericalJoint {
     pub twist_lagrange: f32,
     pub compliance: f32,
     pub force: Vector,
-    pub torque: f32,
+    pub swing_torque: Torque,
+    pub twist_torque: Torque,
 }
 
 impl Joint for SphericalJoint {
@@ -39,7 +40,8 @@ impl Joint for SphericalJoint {
             twist_lagrange: 0.0,
             compliance,
             force: Vector::ZERO,
-            torque: 0.0,
+            swing_torque: Torque::ZERO,
+            twist_torque: Torque::ZERO,
         }
     }
 
@@ -208,6 +210,8 @@ impl SphericalJoint {
                             delta_ang_lagrange,
                             axis,
                         );
+
+                        self.update_swing_torque(axis, sub_dt);
                     }
                 }
             }
@@ -277,6 +281,8 @@ impl SphericalJoint {
                                 delta_ang_lagrange,
                                 axis,
                             );
+
+                            self.update_twist_torque(axis, sub_dt);
                         }
                     }
                 }
@@ -285,8 +291,32 @@ impl SphericalJoint {
     }
 
     fn update_force(&mut self, dir: Vector, sub_dt: f32) {
-        // Equation 10
+        // Eq (10)
         self.force = self.pos_lagrange * dir / sub_dt.powi(2);
+    }
+
+    fn update_swing_torque(&mut self, axis: Vec3, sub_dt: f32) {
+        // Eq (17)
+        #[cfg(feature = "2d")]
+        {
+            self.swing_torque = self.swing_lagrange * axis.z / sub_dt.powi(2);
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.swing_torque = self.swing_lagrange * axis / sub_dt.powi(2);
+        }
+    }
+
+    fn update_twist_torque(&mut self, axis: Vec3, sub_dt: f32) {
+        // Eq (17)
+        #[cfg(feature = "2d")]
+        {
+            self.twist_torque = self.twist_lagrange * axis.z / sub_dt.powi(2);
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.twist_torque = self.twist_lagrange * axis / sub_dt.powi(2);
+        }
     }
 }
 
