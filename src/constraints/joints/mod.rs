@@ -1,7 +1,9 @@
+mod fixed;
 mod prismatic;
 mod revolute;
 mod spherical;
 
+pub use fixed::*;
 pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
