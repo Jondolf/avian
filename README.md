@@ -17,6 +17,7 @@ This is an experimental work-in-progress that I am working on because I'm intere
   - Prismatic joint, one free translational axis with optional limits
 - Joint damping
 - Gravity
+- External forces
 - Restitution
 - Friction
 - Substepping
@@ -24,10 +25,18 @@ This is an experimental work-in-progress that I am working on because I'm intere
 ## Future features
 
 - Linear and angular velocity damping
-- External forces and maybe impulses
-- Maybe utils for rope and cloth simulation
+- Locking translational and rotational axes without joints
+- Collision groups
+- Publicly accessable contact data
+- Performance optimization (proper broadphase, sleeping, maybe simulation on the GPU...)
 - Maybe basic soft bodies
 - Maybe (unlikely) fluid simulation
+
+## Other future work
+
+- Documentation
+- More examples
+- Publish crate
 
 ## Inspirations
 
