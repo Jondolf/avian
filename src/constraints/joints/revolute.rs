@@ -43,8 +43,14 @@ impl Joint for RevoluteJoint {
             angle_limit_lagrange: 0.0,
             compliance,
             force: Vector::ZERO,
-            align_torque: Torque::ZERO,
-            angle_limit_torque: Torque::ZERO,
+            #[cfg(feature = "2d")]
+            align_torque: 0.0,
+            #[cfg(feature = "3d")]
+            align_torque: Vec3::ZERO,
+            #[cfg(feature = "2d")]
+            angle_limit_torque: 0.0,
+            #[cfg(feature = "3d")]
+            angle_limit_torque: Vec3::ZERO,
         }
     }
 
@@ -260,7 +266,7 @@ impl RevoluteJoint {
         // Eq (10)
         self.force = self.pos_lagrange * dir / sub_dt.powi(2);
     }
-    
+
     fn update_align_torque(&mut self, axis: Vec3, sub_dt: f32) {
         // Eq (17)
         #[cfg(feature = "2d")]
@@ -272,7 +278,7 @@ impl RevoluteJoint {
             self.align_torque = self.align_lagrange * axis / sub_dt.powi(2);
         }
     }
-    
+
     fn update_angle_limit_torque(&mut self, axis: Vec3, sub_dt: f32) {
         // Eq (17)
         #[cfg(feature = "2d")]

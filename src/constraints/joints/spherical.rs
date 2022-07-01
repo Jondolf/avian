@@ -40,8 +40,14 @@ impl Joint for SphericalJoint {
             twist_lagrange: 0.0,
             compliance,
             force: Vector::ZERO,
-            swing_torque: Torque::ZERO,
-            twist_torque: Torque::ZERO,
+            #[cfg(feature = "2d")]
+            swing_torque: 0.0,
+            #[cfg(feature = "3d")]
+            swing_torque: Vec3::ZERO,
+            #[cfg(feature = "2d")]
+            twist_torque: 0.0,
+            #[cfg(feature = "3d")]
+            twist_torque: Vec3::ZERO,
         }
     }
 
