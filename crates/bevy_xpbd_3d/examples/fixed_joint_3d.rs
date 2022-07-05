@@ -47,16 +47,15 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_dynamic().with_pos(Vec3::X * 1.5))
-        .insert(ExplicitMassProperties(MassProperties::from_shape(
-            &ColliderShape::cuboid(0.5, 0.5, 0.5),
-            1.0,
-        )))
+        .insert_bundle(
+            RigidBodyBundle::new_dynamic()
+                .with_pos(Vec3::X * 1.5)
+                .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+        )
         .id();
 
     commands.spawn().insert(
-        FixedJoint::new_with_compliance(anchor, object, 0.0)
-            .with_local_anchor_1(Vec3::X * 1.5),
+        FixedJoint::new_with_compliance(anchor, object, 0.0).with_local_anchor_1(Vec3::X * 1.5),
     );
 
     // Directional 'sun' light

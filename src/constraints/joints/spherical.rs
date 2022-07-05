@@ -94,8 +94,8 @@ impl Joint for SphericalJoint {
     #[allow(clippy::too_many_arguments)]
     fn constrain(
         &mut self,
-        body1: &mut ConstraintBodyQueryItem,
-        body2: &mut ConstraintBodyQueryItem,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
         sub_dt: f32,
     ) {
         let world_r_a = body1.rot.rotate(self.local_anchor_a);
@@ -107,8 +107,8 @@ impl Joint for SphericalJoint {
         if magnitude > f32::EPSILON {
             let dir = delta_x / magnitude;
 
-            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
-            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
+            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
             let delta_lagrange = Self::get_delta_pos_lagrange(
                 body1,
@@ -162,8 +162,8 @@ impl SphericalJoint {
 
     fn apply_angle_limits(
         &mut self,
-        body1: &mut ConstraintBodyQueryItem,
-        body2: &mut ConstraintBodyQueryItem,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
         sub_dt: f32,
     ) {
         if self.swing_limit.is_none() && self.twist_limit.is_none() {
@@ -193,8 +193,8 @@ impl SphericalJoint {
                     if angle > f32::EPSILON {
                         let axis = delta_q / angle;
 
-                        let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
-                        let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+                        let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
+                        let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
                         let delta_ang_lagrange = Self::get_delta_ang_lagrange(
                             inv_inertia1,
@@ -264,8 +264,8 @@ impl SphericalJoint {
                         if angle > f32::EPSILON {
                             let axis = delta_q / angle;
 
-                            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
-                            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+                            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
+                            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
                             let delta_ang_lagrange = Self::get_delta_ang_lagrange(
                                 inv_inertia1,

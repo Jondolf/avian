@@ -40,10 +40,8 @@ impl PenetrationConstraint {
     #[allow(clippy::too_many_arguments)]
     pub fn constrain(
         &mut self,
-        body1: &mut ConstraintBodyQueryItem,
-        body2: &mut ConstraintBodyQueryItem,
-        friction_a: &Friction,
-        friction_b: &Friction,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
         sub_dt: f32,
     ) {
         let p_a = body1.pos.0 + body1.rot.rotate(self.contact_data.local_r_a);
@@ -52,8 +50,8 @@ impl PenetrationConstraint {
         let d = (p_a - p_b).dot(self.contact_data.normal);
 
         if d > 0.0 {
-            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
-            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
+            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
             let delta_lagrange_n = Self::get_delta_pos_lagrange(
                 body1,
@@ -85,8 +83,8 @@ impl PenetrationConstraint {
             let p_a = body1.pos.0 + body1.rot.rotate(self.contact_data.local_r_a);
             let p_b = body2.pos.0 + body2.rot.rotate(self.contact_data.local_r_b);
 
-            let inv_inertia1 = body1.mass_props.world_inv_inertia(&body1.rot);
-            let inv_inertia2 = body2.mass_props.world_inv_inertia(&body2.rot);
+            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
+            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
             let delta_lagrange_t = Self::get_delta_pos_lagrange(
                 body1,
@@ -103,7 +101,7 @@ impl PenetrationConstraint {
             );
 
             let static_friction_coefficient =
-                (friction_a.static_coefficient + friction_b.static_coefficient) * 0.5;
+                (body1.friction.static_coefficient + body2.friction.static_coefficient) * 0.5;
 
             let lagrange_n = self.normal_lagrange;
             let lagrange_t = self.tangential_lagrange + delta_lagrange_t;

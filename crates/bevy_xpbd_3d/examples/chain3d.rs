@@ -39,11 +39,10 @@ fn setup(
             ..default()
         })
         .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -18.0, 0.0)))
-        .insert(Collider::from_shape(ColliderShape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )));
+        .insert_bundle(ColliderBundle::new(
+            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
+            1.0,
+        ));
 
     // Rope
     create_chain(
@@ -151,12 +150,10 @@ fn create_chain(
                 ..default()
             })
             .insert_bundle(
-                RigidBodyBundle::new_dynamic().with_pos(start_pos + delta_pos * i as f32),
+                RigidBodyBundle::new_dynamic()
+                    .with_pos(start_pos + delta_pos * i as f32)
+                    .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
-            .insert(ExplicitMassProperties(MassProperties::from_shape(
-                &ColliderShape::ball(node_size * 0.5),
-                1.0,
-            )))
             .id();
 
         commands.spawn().insert(

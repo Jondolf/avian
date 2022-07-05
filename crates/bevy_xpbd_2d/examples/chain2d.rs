@@ -83,12 +83,9 @@ fn create_chain(
             })
             .insert_bundle(
                 RigidBodyBundle::new_dynamic()
-                    .with_pos(Vec2::Y * -(node_size + node_dist) * i as f32),
+                    .with_pos(Vec2::Y * -(node_size + node_dist) * i as f32)
+                    .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
-            .insert(ExplicitMassProperties(MassProperties::from_shape(
-                &ColliderShape::ball(node_size * 0.5),
-                1.0,
-            )))
             .id();
 
         commands.spawn().insert(

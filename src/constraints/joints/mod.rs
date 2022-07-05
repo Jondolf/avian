@@ -31,8 +31,8 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 
     fn constrain(
         &mut self,
-        body1: &mut ConstraintBodyQueryItem,
-        body2: &mut ConstraintBodyQueryItem,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
         sub_dt: f32,
     );
 

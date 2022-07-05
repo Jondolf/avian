@@ -73,8 +73,11 @@ impl Plugin for XpbdPlugin {
             .register_type::<Friction>()
             .register_type::<ExternalForce>()
             .register_type::<ExternalTorque>()
-            .register_type::<MassProperties>()
-            .register_type::<ExplicitMassProperties>()
+            .register_type::<Mass>()
+            .register_type::<InvMass>()
+            .register_type::<Inertia>()
+            .register_type::<InvInertia>()
+            .register_type::<LocalCom>()
             .add_stage_before(
                 CoreStage::Update,
                 FixedUpdateStage,

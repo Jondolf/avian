@@ -1,24 +1,6 @@
 use crate::prelude::*;
 use bevy::prelude::*;
-use parry::{bounding_volume::AABB, math::Isometry, shape::SharedShape};
-
-pub(crate) fn aabb_with_margin(pos: &Vector, rot: &Rot, shape: &SharedShape, margin: f32) -> AABB {
-    let mut aabb = shape.compute_aabb(&Isometry::new((*pos).into(), (*rot).into()));
-
-    aabb.mins.x -= margin;
-    aabb.maxs.x += margin;
-    aabb.mins.y -= margin;
-    aabb.maxs.y += margin;
-
-    cfg_if! {
-        if #[cfg(feature = "3d")] {
-            aabb.mins.z -= margin;
-            aabb.maxs.z += margin;
-        }
-    }
-
-    aabb
-}
+use parry::math::Isometry;
 
 /// Computes one pair of contact points between two shapes.
 #[allow(clippy::too_many_arguments)]
@@ -31,8 +13,8 @@ pub(crate) fn get_contact(
     local_com_b: Vector,
     rot_a: &Rot,
     rot_b: &Rot,
-    shape_a: &SharedShape,
-    shape_b: &SharedShape,
+    shape_a: &Shape,
+    shape_b: &Shape,
 ) -> Option<Contact> {
     if let Some(contact) = parry::query::contact(
         &make_isometry(pos_a, rot_a),
