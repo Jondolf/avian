@@ -13,11 +13,11 @@ path = "../../src/lib.rs"
 required-features = [ "3d" ]
 
 [dependencies]
-bevy = "0.7.0"
+bevy = "0.8.0"
 parry3d = { version = "0.9.0" }
-nalgebra = { version = "0.31.0", features = [ "convert-glam020" ] }
+nalgebra = { version = "0.31.0", features = [ "convert-glam021" ] }
 console_error_panic_hook = "0.1"
-web-sys = "0.3.57"
+web-sys = "0.3.59"
 cfg-if = "1.0.0"
 
 [dev-dependencies]

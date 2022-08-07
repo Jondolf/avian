@@ -62,13 +62,14 @@ fn setup(
             .with_limits(1.0, 3.0),
     );
 
-    commands.spawn_bundle(OrthographicCameraBundle {
+    commands.spawn_bundle(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-        orthographic_projection: OrthographicProjection {
+        projection: OrthographicProjection {
             scale: 0.025,
             ..default()
-        },
-        ..OrthographicCameraBundle::new_3d()
+        }
+        .into(),
+        ..default()
     });
 }
 
@@ -76,7 +77,7 @@ fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut LinVel, &MoveSpeed), With<Player>>,
 ) {
-    for (mut vel, move_speed) in query.iter_mut() {
+    for (mut vel, move_speed) in &mut query {
         vel.0 *= 0.95;
         if keyboard_input.pressed(KeyCode::Up) {
             vel.y += move_speed.0;

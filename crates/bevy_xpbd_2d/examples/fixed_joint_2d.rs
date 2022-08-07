@@ -59,13 +59,14 @@ fn setup(
         FixedJoint::new_with_compliance(anchor, object, 0.0).with_local_anchor_1(Vec2::X * 1.5),
     );
 
-    commands.spawn_bundle(OrthographicCameraBundle {
+    commands.spawn_bundle(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-        orthographic_projection: OrthographicProjection {
+        projection: OrthographicProjection {
             scale: 0.025,
             ..default()
-        },
-        ..OrthographicCameraBundle::new_3d()
+        }
+        .into(),
+        ..default()
     });
 }
 
@@ -73,7 +74,7 @@ fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut LinVel, &mut AngVel, &MoveSpeed), With<Player>>,
 ) {
-    for (mut lin_vel, mut ang_vel, move_speed) in query.iter_mut() {
+    for (mut lin_vel, mut ang_vel, move_speed) in &mut query {
         lin_vel.0 *= 0.95;
         ang_vel.0 *= 0.95;
         if keyboard_input.pressed(KeyCode::Up) {

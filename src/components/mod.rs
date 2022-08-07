@@ -51,7 +51,7 @@ pub(crate) struct ColliderQuery<'w> {
     pub prev_mass_props: &'w mut PrevColliderMassProperties,
 }
 
-impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryMutItem<'w> {
+impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryMutItem<'_w, 'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 += rhs.mass.0;
         self.inv_mass.0 = 1.0 / rhs.mass.0;
@@ -61,7 +61,7 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryMutItem<'w> {
     }
 }
 
-impl<'w> SubAssign<ColliderMassProperties> for MassPropsQueryMutItem<'w> {
+impl<'_w, 'w> SubAssign<ColliderMassProperties> for MassPropsQueryMutItem<'_w, 'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 -= rhs.mass.0;
         self.inv_mass.0 = 1.0 / rhs.mass.0;

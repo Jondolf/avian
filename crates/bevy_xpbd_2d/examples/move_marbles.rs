@@ -110,13 +110,14 @@ fn setup(
         }
     }
 
-    commands.spawn_bundle(OrthographicCameraBundle {
+    commands.spawn_bundle(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-        orthographic_projection: OrthographicProjection {
+        projection: OrthographicProjection {
             scale: 0.025,
             ..default()
-        },
-        ..OrthographicCameraBundle::new_3d()
+        }
+        .into(),
+        ..default()
     });
 }
 
@@ -125,7 +126,7 @@ fn handle_input(
     mut ev_movement: EventWriter<MovementEvent>,
     query: Query<Entity, With<Player>>,
 ) {
-    for entity in query.iter() {
+    for entity in &query {
         if keyboard_input.pressed(KeyCode::Up) {
             ev_movement.send(MovementEvent::Up(entity));
         }
@@ -146,7 +147,7 @@ fn player_movement(
     mut query: Query<(&mut LinVel, &MaxVelocity, &MoveAcceleration), With<Player>>,
 ) {
     for ev in ev_movement.iter() {
-        for (mut vel, max_vel, move_acceleration) in query.iter_mut() {
+        for (mut vel, max_vel, move_acceleration) in &mut query {
             match ev {
                 MovementEvent::Up(_ent) => vel.y += move_acceleration.0,
                 MovementEvent::Down(_ent) => vel.y -= move_acceleration.0,

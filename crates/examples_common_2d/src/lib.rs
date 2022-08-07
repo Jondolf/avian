@@ -1,6 +1,6 @@
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
+use bevy_inspector_egui::WorldInspectorPlugin;
 
-use bevy_editor_pls::EditorPlugin;
 use bevy_xpbd_2d::{XpbdLoop, XpbdPlugin};
 
 #[derive(Default)]
@@ -9,7 +9,7 @@ pub struct XpbdExamplePlugin;
 impl Plugin for XpbdExamplePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(XpbdPlugin)
-            .add_plugin(EditorPlugin)
+            .add_plugin(WorldInspectorPlugin::new())
             .add_plugin(FrameTimeDiagnosticsPlugin)
             .add_state(AppState::Running)
             .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(bevy_xpbd_2d::pause))

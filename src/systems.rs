@@ -42,7 +42,7 @@ pub(crate) fn integrate_pos(
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut pos, mut prev_pos, mut lin_vel, external_force, mass) in bodies.iter_mut() {
+    for (rb, mut pos, mut prev_pos, mut lin_vel, external_force, mass) in &mut bodies {
         prev_pos.0 = pos.0;
 
         if rb.is_static() {
@@ -73,8 +73,7 @@ pub(crate) fn integrate_rot(
     )>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inv_inertia) in bodies.iter_mut()
-    {
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inv_inertia) in &mut bodies {
         prev_rot.0 = *rot;
 
         if rb.is_static() {
@@ -105,7 +104,7 @@ pub(crate) fn integrate_rot(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inv_inertia) in
-        bodies.iter_mut()
+        &mut bodies
     {
         prev_rot.0 = *rot;
 
@@ -135,13 +134,13 @@ pub(crate) fn integrate_rot(
 pub(crate) fn clear_penetration_constraint_lagrange(
     mut penetration_constraints: ResMut<PenetrationConstraints>,
 ) {
-    for constraint in penetration_constraints.0.iter_mut() {
+    for constraint in &mut penetration_constraints.0 {
         constraint.clear_lagrange_multipliers();
     }
 }
 
 pub(crate) fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
-    for mut joint in joints.iter_mut() {
+    for mut joint in &mut joints {
         joint.clear_lagrange_multipliers();
     }
 }
@@ -196,7 +195,7 @@ pub(crate) fn joint_constraints<T: Joint>(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for _j in 0..num_pos_iters.0 {
-        for mut joint in joints.iter_mut() {
+        for mut joint in &mut joints {
             // Get components for entity a and b
             if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
                 // No need to solve constraints if neither of the bodies is dynamic
@@ -215,7 +214,7 @@ pub(crate) fn update_lin_vel(
     mut bodies: Query<(&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in bodies.iter_mut() {
+    for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
             pre_solve_lin_vel.0 = Vector::ZERO;
@@ -235,7 +234,7 @@ pub(crate) fn update_ang_vel(
     mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
             pre_solve_ang_vel.0 = 0.0;
@@ -254,7 +253,7 @@ pub(crate) fn update_ang_vel(
     mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in bodies.iter_mut() {
+    for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
             pre_solve_ang_vel.0 = Vec3::ZERO;
@@ -365,7 +364,7 @@ pub(crate) fn joint_damping<T: Joint>(
     joints: Query<&T, Without<RigidBody>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for joint in joints.iter() {
+    for joint in &joints {
         if let Ok(
             [(rb_a, mut lin_vel_a, mut ang_vel_a, inv_mass_a), (rb_b, mut lin_vel_b, mut ang_vel_b, inv_mass_b)],
         ) = bodies.get_many_mut(joint.entities())
@@ -418,7 +417,7 @@ fn compute_delta_ang_vel(inv_inertia: Mat3, r: Vector, p: Vector) -> Vector {
 /// Copies positions from the physics world to bevy Transforms
 #[cfg(feature = "2d")]
 pub(crate) fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in bodies.iter_mut() {
+    for (mut transform, pos, rot) in &mut bodies {
         transform.translation = pos.extend(0.0);
         transform.rotation = (*rot).into();
     }
@@ -427,7 +426,7 @@ pub(crate) fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
 /// Copies positions from the physics world to bevy Transforms
 #[cfg(feature = "3d")]
 pub(crate) fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in bodies.iter_mut() {
+    for (mut transform, pos, rot) in &mut bodies {
         transform.translation = pos.0;
         transform.rotation = rot.0;
     }
@@ -447,7 +446,7 @@ pub(crate) fn update_aabb(
 ) {
     let safety_margin_factor = 2.0 * DELTA_TIME;
 
-    for (mut collider, pos, rot, lin_vel) in bodies.iter_mut() {
+    for (mut collider, pos, rot, lin_vel) in &mut bodies {
         // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
         let lin_vel = if let Some(lin_vel) = lin_vel {
             lin_vel.0
@@ -482,7 +481,7 @@ type MassPropsChanged = Or<(
 pub(crate) fn update_mass_props(
     mut bodies: Query<(MassPropsQueryMut, Option<ColliderQuery>), MassPropsChanged>,
 ) {
-    for (mut mass_props, collider) in bodies.iter_mut() {
+    for (mut mass_props, collider) in &mut bodies {
         if mass_props.mass.is_changed() && mass_props.mass.0 >= f32::EPSILON {
             mass_props.inv_mass.0 = 1.0 / mass_props.mass.0;
         }

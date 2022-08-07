@@ -28,19 +28,20 @@ fn setup(
     });
 
     // Rope
-    create_chain(&mut commands, sphere, blue, 300, 0.0, 0.06, 0.0);
+    create_chain(&mut commands, sphere, blue, 160, 0.0, 0.06, 0.0);
 
     // Pendulum
     //create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
 
     commands
-        .spawn_bundle(OrthographicCameraBundle {
+        .spawn_bundle(Camera3dBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
-            orthographic_projection: OrthographicProjection {
+            projection: OrthographicProjection {
                 scale: 0.025,
                 ..default()
-            },
-            ..OrthographicCameraBundle::new_3d()
+            }
+            .into(),
+            ..default()
         })
         .insert(GameCamera);
 }
@@ -111,7 +112,7 @@ fn mouse_position(
         let ndc = (pos / window_size) * 2.0 - Vec2::ONE;
 
         // matrix for undoing the projection and camera transform
-        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix.inverse();
+        let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
 
         // use it to convert ndc to world-space coordinates
         let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
@@ -125,7 +126,7 @@ fn follow_mouse(
     buttons: Res<Input<MouseButton>>,
     mut query: Query<&mut Pos, With<FollowMouse>>,
 ) {
-    for mut pos in query.iter_mut() {
+    for mut pos in &mut query {
         if buttons.pressed(MouseButton::Left) {
             pos.0 = mouse_pos.0;
         }

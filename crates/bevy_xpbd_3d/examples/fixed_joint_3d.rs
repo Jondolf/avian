@@ -89,7 +89,7 @@ fn setup(
         ..default()
     });
 
-    commands.spawn_bundle(PerspectiveCameraBundle {
+    commands.spawn_bundle(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0))
             .looking_at(Vec3::Y * 0.0, Vec3::Y),
         ..default()
@@ -100,7 +100,7 @@ fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut LinVel, &mut AngVel, &MoveSpeed), With<Player>>,
 ) {
-    for (mut lin_vel, mut ang_vel, move_speed) in query.iter_mut() {
+    for (mut lin_vel, mut ang_vel, move_speed) in &mut query {
         lin_vel.0 *= 0.95;
         ang_vel.0 *= 0.95;
         if keyboard_input.pressed(KeyCode::Up) {
