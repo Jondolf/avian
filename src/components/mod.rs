@@ -200,7 +200,7 @@ impl Friction {
 
 impl Default for Friction {
     fn default() -> Self {
-        Self::new(0.7)
+        Self::new(0.3)
     }
 }
 
