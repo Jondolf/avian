@@ -111,6 +111,8 @@ impl Joint for RevoluteJoint {
             let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
             let delta_ang_lagrange = Self::get_delta_ang_lagrange(
+                body1.rb,
+                body2.rb,
                 inv_inertia1,
                 inv_inertia2,
                 self.align_lagrange,
@@ -236,6 +238,8 @@ impl RevoluteJoint {
                     let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
                     let delta_ang_lagrange = Self::get_delta_ang_lagrange(
+                        body1.rb,
+                        body2.rb,
                         inv_inertia1,
                         inv_inertia2,
                         self.angle_limit_lagrange,

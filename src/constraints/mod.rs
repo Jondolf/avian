@@ -27,20 +27,31 @@ pub trait PositionConstraint: Constraint {
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(body1.inv_mass.0, inv_inertia1.0, r_a, dir);
-        let w_b = Self::get_generalized_inverse_mass(body2.inv_mass.0, inv_inertia2.0, r_b, dir);
-
-        let w = w_a + w_b;
-
-        if w <= f32::EPSILON {
+        // If both bodies are not dynamic and compliance is 0, we return 0.0 early to avoid division by zero later.
+        if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() && compliance <= f32::EPSILON {
             return 0.0;
         }
+
+        // Compute generalized inverse masses (equations 2-3)
+        let w_a = Self::get_generalized_inverse_mass(
+            body1.rb,
+            body1.inv_mass.0,
+            inv_inertia1.0,
+            r_a,
+            dir,
+        );
+        let w_b = Self::get_generalized_inverse_mass(
+            body2.rb,
+            body2.inv_mass.0,
+            inv_inertia2.0,
+            r_b,
+            dir,
+        );
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let tilde_compliance = compliance / sub_dt.powi(2);
 
-        (-magnitude - tilde_compliance * lagrange) / (w + tilde_compliance)
+        (-magnitude - tilde_compliance * lagrange) / (w_a + w_b + tilde_compliance)
     }
 
     /// Applies position constraints for interactions between two bodies.
@@ -77,17 +88,39 @@ pub trait PositionConstraint: Constraint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_generalized_inverse_mass(inv_mass: f32, inv_inertia: f32, r: Vector, n: Vector) -> f32 {
-        inv_mass + inv_inertia * r.perp_dot(n).powi(2)
+    fn get_generalized_inverse_mass(
+        rb: &RigidBody,
+        inv_mass: f32,
+        inv_inertia: f32,
+        r: Vector,
+        n: Vector,
+    ) -> f32 {
+        if rb.is_dynamic() {
+            inv_mass + inv_inertia * r.perp_dot(n).powi(2)
+        } else {
+            // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
+            0.0
+        }
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(inv_mass: f32, inv_inertia: Mat3, r: Vector, n: Vector) -> f32 {
-        let r_cross_n = r.cross(n); // Compute the cross product only once
+    fn get_generalized_inverse_mass(
+        rb: &RigidBody,
+        inv_mass: f32,
+        inv_inertia: Mat3,
+        r: Vector,
+        n: Vector,
+    ) -> f32 {
+        if rb.is_dynamic() {
+            let r_cross_n = r.cross(n); // Compute the cross product only once
 
-        // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
-        // a^T * b = a • b
-        inv_mass + r_cross_n.dot(inv_inertia * r_cross_n)
+            // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
+            // a^T * b = a • b
+            inv_mass + r_cross_n.dot(inv_inertia * r_cross_n)
+        } else {
+            // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
+            0.0
+        }
     }
 
     #[cfg(feature = "2d")]
@@ -106,6 +139,8 @@ pub trait PositionConstraint: Constraint {
 pub trait AngularConstraint: Constraint {
     #[allow(clippy::too_many_arguments)]
     fn get_delta_ang_lagrange(
+        rb1: &RigidBody,
+        rb2: &RigidBody,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
         lagrange: f32,
@@ -114,20 +149,19 @@ pub trait AngularConstraint: Constraint {
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
-        // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(inv_inertia1.0, axis);
-        let w_b = Self::get_generalized_inverse_mass(inv_inertia2.0, axis);
-
-        let w = w_a + w_b;
-
-        if w <= f32::EPSILON {
+        // If both bodies are not dynamic and compliance is 0, we return 0.0 early to avoid division by zero later.
+        if !rb1.is_dynamic() && !rb2.is_dynamic() && compliance <= f32::EPSILON {
             return 0.0;
         }
+
+        // Compute generalized inverse masses (equations 2-3)
+        let w_a = Self::get_generalized_inverse_mass(rb1, inv_inertia1.0, axis);
+        let w_b = Self::get_generalized_inverse_mass(rb2, inv_inertia2.0, axis);
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let tilde_compliance = compliance / sub_dt.powi(2);
 
-        (-angle - tilde_compliance * lagrange) / (w + tilde_compliance)
+        (-angle - tilde_compliance * lagrange) / (w_a + w_b + tilde_compliance)
     }
 
     /// Applies angular constraints for interactions between two bodies.
@@ -190,13 +224,23 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_generalized_inverse_mass(inv_inertia: f32, axis: Vec3) -> f32 {
-        axis.dot(inv_inertia * axis)
+    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: f32, axis: Vec3) -> f32 {
+        if rb.is_dynamic() {
+            axis.dot(inv_inertia * axis)
+        } else {
+            // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
+            0.0
+        }
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(inv_inertia: Mat3, axis: Vec3) -> f32 {
-        axis.dot(inv_inertia * axis)
+    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Mat3, axis: Vec3) -> f32 {
+        if rb.is_dynamic() {
+            axis.dot(inv_inertia * axis)
+        } else {
+            // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
+            0.0
+        }
     }
 
     #[cfg(feature = "2d")]

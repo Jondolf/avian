@@ -16,7 +16,7 @@ use parry::{bounding_volume::BoundingVolume, math::Isometry};
 
 /// Collects bodies that are potentially colliding and adds non-penetration constraints for them.
 pub(crate) fn collect_collision_pairs(
-    bodies: Query<(Entity, &ColliderAabbWithMargin, &RigidBody)>,
+    bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
 ) {
     broad_collision_pairs.0.clear();
@@ -291,6 +291,10 @@ pub(crate) fn solve_vel(
         } = constraint.contact_data;
 
         if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity_a, entity_b]) {
+            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+                continue;
+            }
+
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel_a =
                 compute_contact_vel(body1.pre_solve_lin_vel.0, body1.pre_solve_ang_vel.0, r_a);
@@ -311,12 +315,14 @@ pub(crate) fn solve_vel(
 
             // Compute generalized inverse masses
             let w_a = PenetrationConstraint::get_generalized_inverse_mass(
+                body1.rb,
                 body1.inv_mass.0,
                 inv_inertia1,
                 r_a,
                 normal,
             );
             let w_b = PenetrationConstraint::get_generalized_inverse_mass(
+                body2.rb,
                 body2.inv_mass.0,
                 inv_inertia2,
                 r_b,
@@ -380,10 +386,16 @@ pub(crate) fn joint_damping<T: Joint>(
             }
 
             let delta_v = (lin_vel_b.0 - lin_vel_a.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
-            let w_a = inv_mass_a.0;
-            let w_b = inv_mass_b.0;
+
+            let w_a = if rb_a.is_dynamic() { inv_mass_a.0 } else { 0.0 };
+            let w_b = if rb_b.is_dynamic() { inv_mass_b.0 } else { 0.0 };
+
+            if w_a + w_b <= f32::EPSILON {
+                continue;
+            }
 
             let p = delta_v / (w_a + w_b);
+
             if rb_a.is_dynamic() {
                 lin_vel_a.0 += p * inv_mass_a.0;
             }
@@ -432,33 +444,30 @@ pub(crate) fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     }
 }
 
-type AABBChanged = Or<(
-    Changed<ColliderShape>,
-    Changed<ColliderAabb>,
-    Changed<Pos>,
-    Changed<Rot>,
-    Changed<LinVel>,
-)>;
+type AABBChanged = Or<(Changed<Pos>, Changed<Rot>, Changed<LinVel>)>;
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 pub(crate) fn update_aabb(
     mut bodies: Query<(ColliderQuery, &Pos, &Rot, Option<&LinVel>), AABBChanged>,
 ) {
+    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * DELTA_TIME;
 
     for (mut collider, pos, rot, lin_vel) in &mut bodies {
-        // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-        let lin_vel = if let Some(lin_vel) = lin_vel {
-            lin_vel.0
-        } else {
-            Vector::ZERO
-        };
-        collider.aabb.0 = collider
-            .shape
-            .compute_aabb(&Isometry::new(pos.0.into(), (*rot).into()));
-        collider.aabb_with_margin.0 = collider
-            .aabb
-            .with_margin(safety_margin_factor * lin_vel.length());
+        let lin_vel = lin_vel.map_or(Vector::ZERO, |v| v.0);
+
+        let half_extents = Vector::from(
+            collider
+                .shape
+                .compute_aabb(&Isometry::new(pos.0.into(), (*rot).into()))
+                .half_extents(),
+        );
+        // Add a safety margin.
+        // Todo: The 1.5 multiplier shouldn't be needed, but without it bodies sometimes overlap too much and get launched. I'll return to this at some point, as it isn't ideal and it hurts performance.
+        let scaled_half_extents = (half_extents + safety_margin_factor * lin_vel.length()) * 1.5;
+
+        collider.aabb.mins.coords = (pos.0 - scaled_half_extents).into();
+        collider.aabb.maxs.coords = (pos.0 + scaled_half_extents).into();
     }
 }
 
@@ -475,7 +484,7 @@ type MassPropsChanged = Or<(
     Changed<ColliderMassProperties>,
 )>;
 
-/// Updates each body's mass properties whenever their dependant mass properties or the body's ,[`Collider`] change.
+/// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
 pub(crate) fn update_mass_props(

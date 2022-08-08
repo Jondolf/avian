@@ -413,23 +413,6 @@ impl ColliderAabb {
     pub fn from_shape(shape: &Shape) -> Self {
         Self(shape.compute_local_aabb())
     }
-
-    pub(crate) fn with_margin(&self, margin: f32) -> Self {
-        let mut aabb = *self;
-        aabb.mins.x -= margin;
-        aabb.maxs.x += margin;
-        aabb.mins.y -= margin;
-        aabb.maxs.y += margin;
-
-        cfg_if! {
-            if #[cfg(feature = "3d")] {
-                aabb.mins.z -= margin;
-                aabb.maxs.z += margin;
-            }
-        }
-
-        ColliderAabb(*aabb)
-    }
 }
 
 impl Default for ColliderAabb {
