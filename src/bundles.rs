@@ -99,7 +99,6 @@ impl RigidBodyBundle {
 pub struct ColliderBundle {
     collider_shape: ColliderShape,
     collider_aabb: ColliderAabb,
-    collider_aabb_with_margin: ColliderAabbWithMargin,
     pub mass_props: ColliderMassProperties,
     pub(crate) prev_mass_props: PrevColliderMassProperties,
 }
@@ -113,7 +112,6 @@ impl ColliderBundle {
         Self {
             collider_shape: ColliderShape(shape.to_owned()),
             collider_aabb: aabb,
-            collider_aabb_with_margin: ColliderAabbWithMargin(aabb),
             mass_props,
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
         }

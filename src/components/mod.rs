@@ -46,7 +46,6 @@ pub(crate) struct MassPropsQueryMut<'w> {
 pub(crate) struct ColliderQuery<'w> {
     pub shape: &'w mut ColliderShape,
     pub aabb: &'w mut ColliderAabb,
-    pub aabb_with_margin: &'w mut ColliderAabbWithMargin,
     pub mass_props: &'w mut ColliderMassProperties,
     pub prev_mass_props: &'w mut PrevColliderMassProperties,
 }
@@ -403,10 +402,6 @@ impl Default for ColliderShape {
 
 #[derive(Clone, Copy, Component, Deref, DerefMut, PartialEq)]
 pub(crate) struct ColliderAabb(pub AABB);
-
-/// An Axis-Aligned Bounding Box for colliders, with an additional safety margin to account for sudden accelerations.
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
-pub(crate) struct ColliderAabbWithMargin(pub ColliderAabb);
 
 impl ColliderAabb {
     /// Creates a new collider from a given [`ColliderShape`] with a default density of 1.0.
