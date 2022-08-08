@@ -4,9 +4,6 @@ pub extern crate parry2d as parry;
 #[cfg(feature = "3d")]
 pub extern crate parry3d as parry;
 
-#[macro_use]
-pub extern crate cfg_if;
-
 pub mod bundles;
 pub mod components;
 pub mod constraints;
