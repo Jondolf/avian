@@ -15,7 +15,7 @@ impl Plugin for NarrowPhasePlugin {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Resource, Default, Debug)]
 pub struct Collisions(pub HashMap<(Entity, Entity), Collision>);
 
 /// Data related to a collision between two bodies.

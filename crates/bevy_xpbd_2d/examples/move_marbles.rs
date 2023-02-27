@@ -12,10 +12,10 @@ pub struct MoveAcceleration(pub f32);
 pub struct MaxVelocity(pub Vec2);
 
 pub enum MovementEvent {
-    Up(Entity),
-    Down(Entity),
-    Left(Entity),
-    Right(Entity),
+    Up,
+    Down,
+    Left,
+    Right,
 }
 
 fn setup(
@@ -40,56 +40,60 @@ fn setup(
         ..default()
     });
 
-    let _floor = commands
-        .spawn_bundle(PbrBundle {
+    let _floor = commands.spawn((
+        PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
-        })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, -7.5)))
-        .insert_bundle(ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0));
+        },
+        RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, -7.5)),
+        ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0),
+    ));
 
-    let _ceiling = commands
-        .spawn_bundle(PbrBundle {
+    let _ceiling = commands.spawn((
+        PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
-        })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 7.5)))
-        .insert_bundle(ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0));
+        },
+        RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 7.5)),
+        ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0),
+    ));
 
-    let _left_wall = commands
-        .spawn_bundle(PbrBundle {
+    let _left_wall = commands.spawn((
+        PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white.clone(),
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
-        })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(-9.5, 0.0)))
-        .insert_bundle(ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0));
+        },
+        RigidBodyBundle::new_static().with_pos(Vec2::new(-9.5, 0.0)),
+        ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0),
+    ));
 
-    let _right_wall = commands
-        .spawn_bundle(PbrBundle {
+    let _right_wall = commands.spawn((
+        PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
             material: white,
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
-        })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec2::new(9.5, 0.0)))
-        .insert_bundle(ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0));
+        },
+        RigidBodyBundle::new_static().with_pos(Vec2::new(9.5, 0.0)),
+        ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0),
+    ));
 
     let radius = 0.15;
-    let stacks = 20;
-    for i in 0..20 {
+    let stacks = 25;
+    for i in 0..25 {
         for j in 0..stacks {
             let pos = Vec2::new(
                 (j as f32 - stacks as f32 * 0.5) * 2.5 * radius,
                 2.0 * radius * i as f32 - 2.0,
             );
-            commands
-                .spawn_bundle(PbrBundle {
+            commands.spawn((
+                PbrBundle {
                     mesh: sphere.clone(),
                     material: blue.clone(),
                     transform: Transform {
@@ -98,19 +102,20 @@ fn setup(
                         ..default()
                     },
                     ..default()
-                })
-                .insert_bundle(RigidBodyBundle {
+                },
+                RigidBodyBundle {
                     restitution: Restitution(0.3),
                     ..RigidBodyBundle::new_dynamic().with_pos(pos)
-                })
-                .insert_bundle(ColliderBundle::new(&Shape::ball(radius), 1.0))
-                .insert(Player)
-                .insert(MoveAcceleration(0.005))
-                .insert(MaxVelocity(Vec2::new(30.0, 30.0)));
+                },
+                ColliderBundle::new(&Shape::ball(radius), 1.0),
+                Player,
+                MoveAcceleration(0.5),
+                MaxVelocity(Vec2::new(30.0, 30.0)),
+            ));
         }
     }
 
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
         projection: OrthographicProjection {
             scale: 0.025,
@@ -121,24 +126,18 @@ fn setup(
     });
 }
 
-fn handle_input(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut ev_movement: EventWriter<MovementEvent>,
-    query: Query<Entity, With<Player>>,
-) {
-    for entity in &query {
-        if keyboard_input.pressed(KeyCode::Up) {
-            ev_movement.send(MovementEvent::Up(entity));
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            ev_movement.send(MovementEvent::Down(entity));
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            ev_movement.send(MovementEvent::Left(entity));
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            ev_movement.send(MovementEvent::Right(entity));
-        }
+fn handle_input(keyboard_input: Res<Input<KeyCode>>, mut ev_movement: EventWriter<MovementEvent>) {
+    if keyboard_input.pressed(KeyCode::Up) {
+        ev_movement.send(MovementEvent::Up);
+    }
+    if keyboard_input.pressed(KeyCode::Down) {
+        ev_movement.send(MovementEvent::Down);
+    }
+    if keyboard_input.pressed(KeyCode::Left) {
+        ev_movement.send(MovementEvent::Left);
+    }
+    if keyboard_input.pressed(KeyCode::Right) {
+        ev_movement.send(MovementEvent::Right);
     }
 }
 
@@ -149,10 +148,10 @@ fn player_movement(
     for ev in ev_movement.iter() {
         for (mut vel, max_vel, move_acceleration) in &mut query {
             match ev {
-                MovementEvent::Up(_ent) => vel.y += move_acceleration.0,
-                MovementEvent::Down(_ent) => vel.y -= move_acceleration.0,
-                MovementEvent::Left(_ent) => vel.x -= move_acceleration.0,
-                MovementEvent::Right(_ent) => vel.x += move_acceleration.0,
+                MovementEvent::Up => vel.y += move_acceleration.0,
+                MovementEvent::Down => vel.y -= move_acceleration.0,
+                MovementEvent::Left => vel.x -= move_acceleration.0,
+                MovementEvent::Right => vel.x += move_acceleration.0,
             }
             vel.0 = vel.0.clamp(-max_vel.0, max_vel.0);
         }

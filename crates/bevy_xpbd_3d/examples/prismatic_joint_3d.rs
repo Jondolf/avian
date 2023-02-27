@@ -21,7 +21,7 @@ fn setup(
     });
 
     let anchor = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube.clone(),
             material: blue.clone(),
             transform: Transform {
@@ -31,13 +31,13 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_kinematic().with_pos(Vec3::new(0.0, 0.0, 0.0)))
+        .insert(RigidBodyBundle::new_kinematic().with_pos(Vec3::new(0.0, 0.0, 0.0)))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();
 
     let object = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube,
             material: blue,
             transform: Transform {
@@ -47,14 +47,14 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(
+        .insert(
             RigidBodyBundle::new_dynamic()
                 .with_pos(Vec3::X * 1.5)
                 .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
         )
         .id();
 
-    commands.spawn().insert(
+    commands.spawn(
         PrismaticJoint::new_with_compliance(anchor, object, 0.0)
             .with_local_anchor_1(Vec3::X)
             .with_free_axis(Vec3::X)
@@ -63,7 +63,7 @@ fn setup(
 
     // Directional 'sun' light
     let sun_half_size = 50.0;
-    commands.spawn_bundle(DirectionalLightBundle {
+    commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             // Configure the projection to better fit the scene
             shadow_projection: OrthographicProjection {
@@ -92,7 +92,7 @@ fn setup(
         ..default()
     });
 
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0))
             .looking_at(Vec3::Y * 0.0, Vec3::Y),
         ..default()

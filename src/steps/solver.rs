@@ -55,7 +55,7 @@ impl Plugin for SolverPlugin {
 }
 
 /// Stores penetration constraints for colliding entity pairs.
-#[derive(Debug, Default)]
+#[derive(Resource, Debug, Default)]
 pub(crate) struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 fn clear_penetration_constraint_lagrange(

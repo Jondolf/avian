@@ -17,7 +17,7 @@ impl Plugin for BroadPhasePlugin {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Resource, Default, Debug)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Collects bodies that are potentially colliding.

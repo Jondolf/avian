@@ -1,6 +1,9 @@
+use bevy::prelude::Resource;
+
 use crate::{Vector, DELTA_TIME};
 
 /// Number of substeps used in XPBD simulation
+#[derive(Resource)]
 pub struct NumSubsteps(pub u32);
 
 impl Default for NumSubsteps {
@@ -10,6 +13,7 @@ impl Default for NumSubsteps {
 }
 
 /// Number of iterations used in XPBD position solving
+#[derive(Resource)]
 pub struct NumPosIters(pub u32);
 
 impl Default for NumPosIters {
@@ -19,6 +23,7 @@ impl Default for NumPosIters {
 }
 
 /// Substep delta time
+#[derive(Resource)]
 pub(crate) struct SubDeltaTime(pub f32);
 
 impl Default for SubDeltaTime {
@@ -27,7 +32,7 @@ impl Default for SubDeltaTime {
     }
 }
 
-#[derive(Debug)]
+#[derive(Resource, Debug)]
 pub struct Gravity(pub Vector);
 
 impl Default for Gravity {

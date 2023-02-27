@@ -83,7 +83,7 @@ impl Plugin for XpbdPlugin {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
     pub(crate) has_added_time: bool,
     pub(crate) accumulator: f32,

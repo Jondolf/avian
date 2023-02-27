@@ -22,7 +22,7 @@ fn setup(
     });
 
     let anchor = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube.clone(),
             material: blue.clone(),
             transform: Transform {
@@ -32,13 +32,13 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_kinematic().with_pos(Vec2::new(0.0, 0.0)))
+        .insert(RigidBodyBundle::new_kinematic().with_pos(Vec2::new(0.0, 0.0)))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();
 
     let object = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube,
             material: blue,
             transform: Transform {
@@ -48,18 +48,18 @@ fn setup(
             },
             ..default()
         })
-        .insert_bundle(
+        .insert(
             RigidBodyBundle::new_dynamic()
                 .with_pos(Vec2::X * 1.5)
                 .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5), 1.0),
         )
         .id();
 
-    commands.spawn().insert(
+    commands.spawn(
         FixedJoint::new_with_compliance(anchor, object, 0.0).with_local_anchor_1(Vec2::X * 1.5),
     );
 
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
         projection: OrthographicProjection {
             scale: 0.025,

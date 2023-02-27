@@ -18,6 +18,7 @@ impl Plugin for PreparePlugin {
         );
     }
 }
+
 /// Copies positions from the physics world to bevy Transforms
 #[cfg(feature = "2d")]
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {

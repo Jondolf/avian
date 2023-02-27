@@ -32,23 +32,23 @@ fn setup(
         ..default()
     });
 
-    let floor_size = Vec3::new(30.0, 1.0, 30.0);
+    let floor_size = Vec3::new(80.0, 1.0, 80.0);
     let _floor = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube,
             material: white,
             transform: Transform::from_scale(floor_size),
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -5.0, 0.0)))
-        .insert_bundle(ColliderBundle::new(
+        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -5.0, 0.0)))
+        .insert(ColliderBundle::new(
             &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
             1.0,
         ));
 
     let radius = 0.5;
     let count_x = 1;
-    let count_y = 1;
+    let count_y = 500;
     let count_z = 1;
     for y in 0..count_y {
         for x in 0..count_x {
@@ -59,7 +59,7 @@ fn setup(
                     (z as f32 - count_z as f32 * 0.5) * 2.5 * radius,
                 );
                 commands
-                    .spawn_bundle(PbrBundle {
+                    .spawn(PbrBundle {
                         mesh: ball.clone(),
                         material: blue.clone(),
                         transform: Transform {
@@ -69,8 +69,8 @@ fn setup(
                         },
                         ..default()
                     })
-                    .insert_bundle(RigidBodyBundle::new_dynamic().with_pos(pos))
-                    .insert_bundle(ColliderBundle::new(&Shape::ball(radius), 1.0))
+                    .insert(RigidBodyBundle::new_dynamic().with_pos(pos))
+                    .insert(ColliderBundle::new(&Shape::ball(radius), 1.0))
                     .insert(Player)
                     .insert(RollAcceleration(Vec3::splat(0.5)))
                     .insert(MaxAngularVelocity(Vec3::new(30.0, 30.0, 30.0)));
@@ -78,12 +78,38 @@ fn setup(
         }
     }
 
-    commands.insert_resource(AmbientLight {
-        color: Color::WHITE,
-        brightness: 1.5,
+    // Directional 'sun' light
+    let sun_half_size = 50.0;
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            // Configure the projection to better fit the scene
+            shadow_projection: OrthographicProjection {
+                left: -sun_half_size,
+                right: sun_half_size,
+                bottom: -sun_half_size,
+                top: sun_half_size,
+                near: -10.0 * sun_half_size,
+                far: 10.0 * sun_half_size,
+                ..default()
+            },
+            illuminance: 20_000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform {
+            translation: Vec3::new(0.0, 10.0, 0.0),
+            rotation: Quat::from_euler(
+                EulerRot::XYZ,
+                std::f32::consts::PI * 1.3,
+                std::f32::consts::PI * 1.85,
+                0.0,
+            ),
+            ..default()
+        },
+        ..default()
     });
 
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 15.0, -50.0))
             .looking_at(Vec3::Y * 10.0, Vec3::Y),
         ..default()
@@ -118,6 +144,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
+        .insert_resource(NumSubsteps(6))
         .insert_resource(Gravity(Vec3::Y * -9.81))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct MouseWorldPos(Vec2);
 
 #[derive(Component)]
@@ -34,7 +34,7 @@ fn setup(
     //create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
 
     commands
-        .spawn_bundle(Camera3dBundle {
+        .spawn(Camera3dBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
             projection: OrthographicProjection {
                 scale: 0.025,
@@ -56,7 +56,7 @@ fn create_chain(
     compliance: f32,
 ) {
     let mut prev = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: mesh.clone(),
             material: material.clone(),
             transform: Transform {
@@ -66,13 +66,13 @@ fn create_chain(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_kinematic())
+        .insert(RigidBodyBundle::new_kinematic())
         .insert(FollowMouse)
         .id();
 
     for i in 1..node_count {
         let curr = commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh: mesh.clone(),
                 material: material.clone(),
                 transform: Transform {
@@ -82,14 +82,14 @@ fn create_chain(
                 },
                 ..default()
             })
-            .insert_bundle(
+            .insert(
                 RigidBodyBundle::new_dynamic()
                     .with_pos(Vec2::Y * -(node_size + node_dist) * i as f32)
                     .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
             .id();
 
-        commands.spawn().insert(
+        commands.spawn(
             SphericalJoint::new_with_compliance(prev, curr, compliance)
                 .with_local_anchor_2(Vec2::Y * (node_size + node_dist)),
         );
@@ -141,7 +141,7 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
-        .insert_resource(NumSubsteps(25))
+        .insert_resource(NumSubsteps(15))
         .insert_resource(NumPosIters(6))
         .init_resource::<MouseWorldPos>()
         .add_plugins(DefaultPlugins)

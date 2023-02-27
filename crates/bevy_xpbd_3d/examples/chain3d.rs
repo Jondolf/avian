@@ -32,14 +32,14 @@ fn setup(
 
     let floor_size = Vec3::new(30.0, 1.0, 30.0);
     let _floor = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: cube,
             material: white,
             transform: Transform::from_scale(floor_size),
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -18.0, 0.0)))
-        .insert_bundle(ColliderBundle::new(
+        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -18.0, 0.0)))
+        .insert(ColliderBundle::new(
             &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
             1.0,
         ));
@@ -72,7 +72,7 @@ fn setup(
 
     // Directional 'sun' light
     let sun_half_size = 50.0;
-    commands.spawn_bundle(DirectionalLightBundle {
+    commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             // Configure the projection to better fit the scene
             shadow_projection: OrthographicProjection {
@@ -101,7 +101,7 @@ fn setup(
         ..default()
     });
 
-    commands.spawn_bundle(Camera3dBundle {
+    commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, -20.0))
             .looking_at(Vec3::Y * -10.0, Vec3::Y),
         ..default()
@@ -121,7 +121,7 @@ fn create_chain(
     compliance: f32,
 ) {
     let mut prev = commands
-        .spawn_bundle(PbrBundle {
+        .spawn(PbrBundle {
             mesh: mesh.clone(),
             material: material.clone(),
             transform: Transform {
@@ -131,7 +131,7 @@ fn create_chain(
             },
             ..default()
         })
-        .insert_bundle(RigidBodyBundle::new_kinematic().with_pos(start_pos))
+        .insert(RigidBodyBundle::new_kinematic().with_pos(start_pos))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();
@@ -139,7 +139,7 @@ fn create_chain(
     for i in 1..node_count {
         let delta_pos = -dir * (node_size + node_dist);
         let curr = commands
-            .spawn_bundle(PbrBundle {
+            .spawn(PbrBundle {
                 mesh: mesh.clone(),
                 material: material.clone(),
                 transform: Transform {
@@ -149,14 +149,14 @@ fn create_chain(
                 },
                 ..default()
             })
-            .insert_bundle(
+            .insert(
                 RigidBodyBundle::new_dynamic()
                     .with_pos(start_pos + delta_pos * i as f32)
                     .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
             .id();
 
-        commands.spawn().insert(
+        commands.spawn(
             SphericalJoint::new_with_compliance(prev, curr, compliance)
                 .with_local_anchor_1(0.5 * delta_pos)
                 .with_local_anchor_2(-0.5 * delta_pos),

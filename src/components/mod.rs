@@ -4,7 +4,7 @@ pub use rotation::*;
 
 use crate::Vector;
 use bevy::{ecs::query::WorldQuery, prelude::*};
-use parry::{bounding_volume::AABB, shape::SharedShape};
+use parry::{bounding_volume::Aabb, shape::SharedShape};
 use std::ops::{AddAssign, SubAssign};
 
 #[cfg(feature = "3d")]
@@ -401,7 +401,7 @@ impl Default for ColliderShape {
 }
 
 #[derive(Clone, Copy, Component, Deref, DerefMut, PartialEq)]
-pub(crate) struct ColliderAabb(pub AABB);
+pub(crate) struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
     /// Creates a new collider from a given [`ColliderShape`] with a default density of 1.0.
@@ -412,6 +412,6 @@ impl ColliderAabb {
 
 impl Default for ColliderAabb {
     fn default() -> Self {
-        ColliderAabb(AABB::new_invalid())
+        ColliderAabb(Aabb::new_invalid())
     }
 }
