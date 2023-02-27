@@ -1,12 +1,16 @@
 # Bevy XPBD
 
-This is a physics engine for bevy that is based on Extended Position Based Dynamics (XPBD).
+Bevy XPBD is a physics engine based on Extended Position Based Dynamics (XPBD) for the Bevy game engine.
 
 This is an experimental work-in-progress that I am working on because I'm interested in learning about physics engines. You probably shouldn't use this for anything serious.
 
+Currently this physics engine supports Bevy 0.9.1, and I will try to keep up with major releases.
+
+**Note: No crate is available on Cargo yet. I will publish this as a crate when I have fixed the biggest issues, reached respectable performance and added enough documentation.**
+
 ## Current features
 
-- 2D and 3D support (3D should mostly work, but it's still a bit rough)
+- 2D and 3D support
 - Dynamic and static rigid bodies
 - Position and rotation integration and solving
 - Linear and angular velocity integration and solving
