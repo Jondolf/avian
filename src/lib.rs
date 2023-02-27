@@ -8,7 +8,7 @@ pub mod bundles;
 pub mod components;
 pub mod constraints;
 pub mod resources;
-pub mod systems;
+pub mod steps;
 
 pub mod prelude {
     pub use crate::{
@@ -16,6 +16,7 @@ pub mod prelude {
         components::*,
         constraints::{joints::*, *},
         resources::*,
+        steps::*,
         *,
     };
 }
@@ -23,8 +24,8 @@ pub mod prelude {
 mod utils;
 
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
+use parry::math::Isometry;
 use prelude::*;
-use systems::*;
 
 #[cfg(feature = "2d")]
 pub type Vector = Vec2;
@@ -37,26 +38,16 @@ pub const DELTA_TIME: f32 = 1.0 / 60.0;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 struct FixedUpdateStage;
 
-#[derive(SystemLabel, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Step {
-    CollectCollisionPairs,
-    Integrate,
-    SolvePos,
-    UpdateVel,
-    SolveVel,
-}
-
 pub struct XpbdPlugin;
 
 impl Plugin for XpbdPlugin {
     fn build(&self, app: &mut App) {
+        // Init resources and register component types
         app.init_resource::<NumSubsteps>()
             .init_resource::<NumPosIters>()
             .init_resource::<SubDeltaTime>()
             .init_resource::<XpbdLoop>()
             .init_resource::<Gravity>()
-            .init_resource::<PenetrationConstraints>()
-            .init_resource::<BroadCollisionPairs>()
             .register_type::<RigidBody>()
             .register_type::<Pos>()
             .register_type::<Rot>()
@@ -74,73 +65,21 @@ impl Plugin for XpbdPlugin {
             .register_type::<InvMass>()
             .register_type::<Inertia>()
             .register_type::<InvInertia>()
-            .register_type::<LocalCom>()
-            .add_stage_before(
-                CoreStage::Update,
-                FixedUpdateStage,
-                SystemStage::parallel()
-                    .with_run_criteria(run_criteria)
-                    .with_system_set(
-                        SystemSet::new()
-                            .before(Step::CollectCollisionPairs)
-                            .with_system(update_sub_delta_time)
-                            .with_system(update_aabb)
-                            .with_system(update_mass_props),
-                    )
-                    .with_system(
-                        collect_collision_pairs
-                            .label(Step::CollectCollisionPairs)
-                            .with_run_criteria(first_substep)
-                            .before(Step::Integrate),
-                    )
-                    .with_system_set(
-                        SystemSet::new()
-                            .label(Step::Integrate)
-                            .with_system(integrate_pos)
-                            .with_system(integrate_rot),
-                    )
-                    .with_system_set(
-                        SystemSet::new()
-                            .before(Step::SolvePos)
-                            .with_system(clear_penetration_constraint_lagrange)
-                            .with_system(clear_joint_lagrange::<FixedJoint>)
-                            .with_system(clear_joint_lagrange::<RevoluteJoint>)
-                            .with_system(clear_joint_lagrange::<SphericalJoint>)
-                            .with_system(clear_joint_lagrange::<PrismaticJoint>),
-                    )
-                    .with_system_set(
-                        SystemSet::new()
-                            .label(Step::SolvePos)
-                            .after(Step::Integrate)
-                            .with_system(solve_pos)
-                            .with_system(joint_constraints::<FixedJoint>)
-                            .with_system(joint_constraints::<RevoluteJoint>)
-                            .with_system(joint_constraints::<SphericalJoint>)
-                            .with_system(joint_constraints::<PrismaticJoint>),
-                    )
-                    .with_system_set(
-                        SystemSet::new()
-                            .label(Step::UpdateVel)
-                            .after(Step::SolvePos)
-                            .with_system(update_lin_vel)
-                            .with_system(update_ang_vel),
-                    )
-                    .with_system_set(
-                        SystemSet::new()
-                            .label(Step::SolveVel)
-                            .after(Step::UpdateVel)
-                            .with_system(solve_vel)
-                            .with_system(joint_damping::<FixedJoint>)
-                            .with_system(joint_damping::<RevoluteJoint>)
-                            .with_system(joint_damping::<SphericalJoint>)
-                            .with_system(joint_damping::<PrismaticJoint>),
-                    )
-                    .with_system(
-                        sync_transforms
-                            .with_run_criteria(last_substep)
-                            .after(Step::SolveVel),
-                    ),
-            );
+            .register_type::<LocalCom>();
+
+        // Add stages
+        app.add_stage_before(
+            CoreStage::Update,
+            FixedUpdateStage,
+            SystemStage::parallel().with_run_criteria(run_criteria),
+        );
+
+        // Add plugins for physics simulation loop
+        app.add_plugin(PreparePlugin)
+            .add_plugin(BroadPhasePlugin)
+            .add_plugin(NarrowPhasePlugin)
+            .add_plugin(IntegratorPlugin)
+            .add_plugin(SolverPlugin);
     }
 }
 
@@ -223,14 +162,6 @@ fn run_criteria(
 
 fn first_substep(state: Res<XpbdLoop>) -> ShouldRun {
     if state.current_substep == 0 {
-        ShouldRun::Yes
-    } else {
-        ShouldRun::No
-    }
-}
-
-fn last_substep(substeps: Res<NumSubsteps>, state: Res<XpbdLoop>) -> ShouldRun {
-    if state.current_substep == substeps.0 - 1 {
         ShouldRun::Yes
     } else {
         ShouldRun::No

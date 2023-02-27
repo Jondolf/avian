@@ -1,56 +1,6 @@
 use crate::prelude::*;
-use bevy::prelude::*;
-use parry::math::Isometry;
-
-/// Computes one pair of contact points between two shapes.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn get_contact(
-    ent_a: Entity,
-    ent_b: Entity,
-    pos_a: Vector,
-    pos_b: Vector,
-    local_com_a: Vector,
-    local_com_b: Vector,
-    rot_a: &Rot,
-    rot_b: &Rot,
-    shape_a: &Shape,
-    shape_b: &Shape,
-) -> Option<Contact> {
-    if let Some(contact) = parry::query::contact(
-        &make_isometry(pos_a, rot_a),
-        shape_a.0.as_ref(),
-        &make_isometry(pos_b, rot_b),
-        shape_b.0.as_ref(),
-        0.0,
-    )
-    .unwrap()
-    {
-        let world_r_a = Vector::from(contact.point1) - pos_a + local_com_a;
-        let world_r_b = Vector::from(contact.point2) - pos_b + local_com_b;
-
-        return Some(Contact {
-            entity_a: ent_a,
-            entity_b: ent_b,
-            local_r_a: rot_a.inv().rotate(world_r_a),
-            local_r_b: rot_b.inv().rotate(world_r_b),
-            world_r_a,
-            world_r_b,
-            normal: Vector::from(contact.normal1),
-            penetration: -contact.dist,
-        });
-    }
-    None
-}
-
-#[cfg(feature = "2d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
-    Isometry::<f32>::new(pos.into(), (*rot).into())
-}
-
 #[cfg(feature = "3d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
-    Isometry::<f32>::new(pos.into(), rot.to_scaled_axis().into())
-}
+use bevy::prelude::*;
 
 #[cfg(feature = "3d")]
 pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Mat3, rot: Quat) -> Mat3 {
