@@ -42,7 +42,7 @@ type AABBChanged = Or<(Changed<Pos>, Changed<Rot>, Changed<LinVel>)>;
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 fn update_aabb(mut bodies: Query<(ColliderQuery, &Pos, &Rot, Option<&LinVel>), AABBChanged>) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * DELTA_TIME;
+    let safety_margin_factor = 1.5 * DELTA_TIME;
 
     for (mut collider, pos, rot, lin_vel) in &mut bodies {
         let lin_vel = lin_vel.map_or(Vector::ZERO, |v| v.0);
@@ -54,7 +54,7 @@ fn update_aabb(mut bodies: Query<(ColliderQuery, &Pos, &Rot, Option<&LinVel>), A
                 .half_extents(),
         );
         // Add a safety margin.
-        let scaled_half_extents = (half_extents + safety_margin_factor * lin_vel.length()) * 1.0;
+        let scaled_half_extents = half_extents + safety_margin_factor * lin_vel.length();
 
         collider.aabb.mins.coords = (pos.0 - scaled_half_extents).into();
         collider.aabb.maxs.coords = (pos.0 + scaled_half_extents).into();
