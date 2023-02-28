@@ -24,6 +24,7 @@ pub mod prelude {
 mod utils;
 
 use bevy::{ecs::schedule::ShouldRun, prelude::*};
+use bevy_prototype_debug_lines::*;
 use parry::math::Isometry;
 use prelude::*;
 
@@ -80,6 +81,52 @@ impl Plugin for XpbdPlugin {
             .add_plugin(NarrowPhasePlugin)
             .add_plugin(IntegratorPlugin)
             .add_plugin(SolverPlugin);
+
+        app.add_plugin(DebugLinesPlugin::default());
+
+        #[cfg(feature = "debug-render-aabbs")]
+        app.add_system(draw_aabbs.before(PhysicsStep::BroadPhase));
+    }
+}
+
+#[cfg(feature = "debug-render-aabbs")]
+fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
+    #[cfg(feature = "2d")]
+    for aabb in aabbs.iter() {
+        let v1 = Vec3::new(aabb.mins.x, aabb.mins.y, 0.0);
+        let v2 = Vec3::new(aabb.maxs.x, aabb.mins.y, 0.0);
+        let v3 = Vec3::new(aabb.maxs.x, aabb.maxs.y, 0.0);
+        let v4 = Vec3::new(aabb.mins.x, aabb.maxs.y, 0.0);
+
+        lines.line(v1, v2, 0.0);
+        lines.line(v2, v3, 0.0);
+        lines.line(v3, v4, 0.0);
+        lines.line(v4, v1, 0.0);
+    }
+
+    #[cfg(feature = "3d")]
+    for aabb in aabbs.iter() {
+        let v1 = Vec3::new(aabb.mins.x, aabb.mins.y, aabb.mins.z);
+        let v2 = Vec3::new(aabb.maxs.x, aabb.mins.y, aabb.mins.z);
+        let v3 = Vec3::new(aabb.maxs.x, aabb.maxs.y, aabb.mins.z);
+        let v4 = Vec3::new(aabb.mins.x, aabb.maxs.y, aabb.mins.z);
+        let v5 = Vec3::new(aabb.mins.x, aabb.mins.y, aabb.maxs.z);
+        let v6 = Vec3::new(aabb.maxs.x, aabb.mins.y, aabb.maxs.z);
+        let v7 = Vec3::new(aabb.maxs.x, aabb.maxs.y, aabb.maxs.z);
+        let v8 = Vec3::new(aabb.mins.x, aabb.maxs.y, aabb.maxs.z);
+
+        lines.line(v1, v2, 0.0);
+        lines.line(v2, v3, 0.0);
+        lines.line(v3, v4, 0.0);
+        lines.line(v4, v1, 0.0);
+        lines.line(v5, v6, 0.0);
+        lines.line(v6, v7, 0.0);
+        lines.line(v7, v8, 0.0);
+        lines.line(v8, v5, 0.0);
+        lines.line(v1, v5, 0.0);
+        lines.line(v2, v6, 0.0);
+        lines.line(v3, v7, 0.0);
+        lines.line(v4, v8, 0.0);
     }
 }
 
