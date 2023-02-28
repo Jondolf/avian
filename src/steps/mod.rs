@@ -18,7 +18,7 @@ pub enum PhysicsStep {
     /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
     /// For example, bevy `Transform`s are synchronized with the physics world, AABBs are updated etc.
     Prepare,
-    /// During the broad phase, pairs of potentially colliding entities will be collected into the [`BroadCollisionPairs`] resource using simple AABB intersection checks. These will be further checked for collision in the [`PhysicsStep::NarrowPhase`].
+    /// During the broad phase, potential collisions will be collected into the [`BroadCollisions`] resource using simple AABB intersection checks. These will be further checked for collision in the [`PhysicsStep::NarrowPhase`].
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,

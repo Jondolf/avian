@@ -33,7 +33,7 @@ Currently this physics engine supports Bevy 0.9.1, and I will try to keep up wit
 - Locking translational and rotational axes without joints
 - Collision groups
 - Publicly accessable contact data
-- Performance optimization (proper broadphase, sleeping, maybe simulation on the GPU...)
+- Performance optimization (sleeping, multithreading...)
 - Maybe basic soft bodies
 - Maybe (unlikely) fluid simulation
 
