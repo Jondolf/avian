@@ -7,11 +7,11 @@ use bevy::prelude::*;
 ///
 /// A compliance of 0.0 resembles a constraint with infinite stiffness, so the bodies should not have any overlap.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct PenetrationConstraint {
-    /// Entity "a" in the constraint.
-    pub entity_a: Entity,
-    /// Entity "b" in the constraint.
-    pub entity_b: Entity,
+pub struct PenetrationConstraint {
+    /// First entity in the constraint.
+    pub entity1: Entity,
+    /// Second entity in the constraint.
+    pub entity2: Entity,
     pub collision_data: Collision,
     /// Lagrange multiplier for the normal force
     pub normal_lagrange: f32,
@@ -24,10 +24,10 @@ pub(crate) struct PenetrationConstraint {
 }
 
 impl PenetrationConstraint {
-    pub fn new(entity_a: Entity, entity_b: Entity, collision_data: Collision) -> Self {
+    pub fn new(entity1: Entity, entity2: Entity, collision_data: Collision) -> Self {
         Self {
-            entity_a,
-            entity_b,
+            entity1,
+            entity2,
             collision_data,
             normal_lagrange: 0.0,
             tangential_lagrange: 0.0,
@@ -46,10 +46,10 @@ impl PenetrationConstraint {
     ) {
         // Compute collision positions on the two bodies.
         // Subtracting the local center of mass from the position seems to be important for some shapes, although it's not shown in the paper. Something may be wrong elsewhere?
-        let p_a = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r_a);
-        let p_b = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r_b);
+        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
+        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
 
-        let d = (p_a - p_b).dot(self.collision_data.normal);
+        let d = (p1 - p2).dot(self.collision_data.normal);
 
         // Penetration under 0, skip collision
         if d <= 0.0 {
@@ -69,8 +69,8 @@ impl PenetrationConstraint {
             self.normal_lagrange,
             n,
             d,
-            self.collision_data.world_r_a,
-            self.collision_data.world_r_b,
+            self.collision_data.world_r1,
+            self.collision_data.world_r2,
             self.compliance,
             sub_dt,
         );
@@ -84,12 +84,12 @@ impl PenetrationConstraint {
             inv_inertia2,
             delta_lagrange_n,
             n,
-            self.collision_data.world_r_a,
-            self.collision_data.world_r_b,
+            self.collision_data.world_r1,
+            self.collision_data.world_r2,
         );
 
-        let p_a = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r_a);
-        let p_b = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r_b);
+        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
+        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
 
         let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
         let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
@@ -102,8 +102,8 @@ impl PenetrationConstraint {
             self.tangential_lagrange,
             n,
             d,
-            self.collision_data.world_r_a,
-            self.collision_data.world_r_b,
+            self.collision_data.world_r1,
+            self.collision_data.world_r2,
             self.compliance,
             sub_dt,
         );
@@ -115,11 +115,11 @@ impl PenetrationConstraint {
         let lagrange_t = self.tangential_lagrange + delta_lagrange_t;
 
         if lagrange_t > static_friction_coefficient * lagrange_n {
-            let prev_p_a = body1.prev_pos.0 - body1.local_com.0
-                + body1.prev_rot.rotate(self.collision_data.local_r_a);
-            let prev_p_b = body2.prev_pos.0 - body2.local_com.0
-                + body2.prev_rot.rotate(self.collision_data.local_r_b);
-            let delta_p = (p_a - prev_p_a) - (p_b - prev_p_b);
+            let prev_p1 = body1.prev_pos.0 - body1.local_com.0
+                + body1.prev_rot.rotate(self.collision_data.local_r1);
+            let prev_p2 = body2.prev_pos.0 - body2.local_com.0
+                + body2.prev_rot.rotate(self.collision_data.local_r2);
+            let delta_p = (p1 - prev_p1) - (p2 - prev_p2);
             let delta_p_t = delta_p - delta_p.dot(n) * n;
 
             self.tangential_lagrange += delta_lagrange_t;
@@ -131,8 +131,8 @@ impl PenetrationConstraint {
                 inv_inertia2,
                 delta_lagrange_t,
                 delta_p_t.normalize_or_zero(),
-                self.collision_data.world_r_a,
-                self.collision_data.world_r_b,
+                self.collision_data.world_r1,
+                self.collision_data.world_r2,
             );
         }
 

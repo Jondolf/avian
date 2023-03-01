@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use std::f32::consts::PI;
 
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self;
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self;
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self;
 
@@ -41,12 +41,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         &mut self,
         min: f32,
         max: f32,
-        r_a: Vector,
-        r_b: Vector,
-        pos_a: &Pos,
-        pos_b: &Pos,
+        r1: Vector,
+        r2: Vector,
+        pos1: &Pos,
+        pos2: &Pos,
     ) -> Vector {
-        let pos_offset = (pos_b.0 + r_b) - (pos_a.0 + r_a);
+        let pos_offset = (pos2.0 + r2) - (pos1.0 + r1);
         let distance = pos_offset.length();
 
         if distance <= f32::EPSILON {
@@ -71,12 +71,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         min: f32,
         max: f32,
         axis: Vector,
-        r_a: Vector,
-        r_b: Vector,
-        pos_a: &Pos,
-        pos_b: &Pos,
+        r1: Vector,
+        r2: Vector,
+        pos1: &Pos,
+        pos2: &Pos,
     ) -> Vector {
-        let pos_offset = (pos_b.0 + r_b) - (pos_a.0 + r_a);
+        let pos_offset = (pos2.0 + r2) - (pos1.0 + r1);
         let a = pos_offset.dot(axis);
 
         // Equation 25

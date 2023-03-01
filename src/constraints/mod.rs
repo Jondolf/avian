@@ -8,7 +8,7 @@ pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);
 }
 
-/// Positional constraints apply a position correction with a given direction and magnitude at the local contact points `r_a` and  `r_b`.
+/// Positional constraints apply a position correction with a given direction and magnitude at the local contact points `r1` and  `r2`.
 ///
 /// The constraint functions are based on equations 2-9 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
 pub trait PositionConstraint: Constraint {
@@ -22,8 +22,8 @@ pub trait PositionConstraint: Constraint {
         lagrange: f32,
         dir: Vector,
         magnitude: f32,
-        r_a: Vector,
-        r_b: Vector,
+        r1: Vector,
+        r2: Vector,
         compliance: f32,
         sub_dt: f32,
     ) -> f32 {
@@ -33,25 +33,15 @@ pub trait PositionConstraint: Constraint {
         }
 
         // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(
-            body1.rb,
-            body1.inv_mass.0,
-            inv_inertia1.0,
-            r_a,
-            dir,
-        );
-        let w_b = Self::get_generalized_inverse_mass(
-            body2.rb,
-            body2.inv_mass.0,
-            inv_inertia2.0,
-            r_b,
-            dir,
-        );
+        let w1 =
+            Self::get_generalized_inverse_mass(body1.rb, body1.inv_mass.0, inv_inertia1.0, r1, dir);
+        let w2 =
+            Self::get_generalized_inverse_mass(body2.rb, body2.inv_mass.0, inv_inertia2.0, r2, dir);
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let tilde_compliance = compliance / sub_dt.powi(2);
 
-        (-magnitude - tilde_compliance * lagrange) / (w_a + w_b + tilde_compliance)
+        (-magnitude - tilde_compliance * lagrange) / (w1 + w2 + tilde_compliance)
     }
 
     /// Applies position constraints for interactions between two bodies.
@@ -65,23 +55,23 @@ pub trait PositionConstraint: Constraint {
         inv_inertia2: InvInertia,
         delta_lagrange: f32,
         dir: Vector,
-        r_a: Vector,
-        r_b: Vector,
+        r1: Vector,
+        r2: Vector,
     ) -> Vector {
         // Positional impulse
         let p = delta_lagrange * dir;
 
-        let rot_a = *body1.rot;
-        let rot_b = *body2.rot;
+        let rot1 = *body1.rot;
+        let rot2 = *body2.rot;
 
         // Update positions and rotations of the bodies (equations 6-9)
         if body1.rb.is_dynamic() {
             body1.pos.0 += p / body1.mass.0;
-            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1.0, r_a, p);
+            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1.0, r1, p);
         }
         if body2.rb.is_dynamic() {
             body2.pos.0 -= p / body2.mass.0;
-            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2.0, r_b, p);
+            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2.0, r2, p);
         }
 
         p
@@ -155,13 +145,13 @@ pub trait AngularConstraint: Constraint {
         }
 
         // Compute generalized inverse masses (equations 2-3)
-        let w_a = Self::get_generalized_inverse_mass(rb1, inv_inertia1.0, axis);
-        let w_b = Self::get_generalized_inverse_mass(rb2, inv_inertia2.0, axis);
+        let w1 = Self::get_generalized_inverse_mass(rb1, inv_inertia1.0, axis);
+        let w2 = Self::get_generalized_inverse_mass(rb2, inv_inertia2.0, axis);
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let tilde_compliance = compliance / sub_dt.powi(2);
 
-        (-angle - tilde_compliance * lagrange) / (w_a + w_b + tilde_compliance)
+        (-angle - tilde_compliance * lagrange) / (w1 + w2 + tilde_compliance)
     }
 
     /// Applies angular constraints for interactions between two bodies.
@@ -181,15 +171,15 @@ pub trait AngularConstraint: Constraint {
         // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
         let p = -delta_lagrange * axis.z;
 
-        let rot_a = *body1.rot;
-        let rot_b = *body2.rot;
+        let rot1 = *body1.rot;
+        let rot2 = *body2.rot;
 
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1.0, p);
+            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1.0, p);
         }
 
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2.0, p);
+            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2.0, p);
         }
 
         p
@@ -209,15 +199,15 @@ pub trait AngularConstraint: Constraint {
     ) -> Vec3 {
         let p = -delta_lagrange * axis;
 
-        let rot_a = *body1.rot;
-        let rot_b = *body2.rot;
+        let rot1 = *body1.rot;
+        let rot2 = *body2.rot;
 
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot_a, inv_inertia1.0, p);
+            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1.0, p);
         }
 
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot_b, inv_inertia2.0, p);
+            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2.0, p);
         }
 
         p

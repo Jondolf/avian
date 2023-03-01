@@ -3,10 +3,10 @@ use bevy::prelude::*;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct SphericalJoint {
-    pub entity_a: Entity,
-    pub entity_b: Entity,
-    pub local_anchor_a: Vector,
-    pub local_anchor_b: Vector,
+    pub entity1: Entity,
+    pub entity2: Entity,
+    pub local_anchor1: Vector,
+    pub local_anchor2: Vector,
     pub swing_axis: Vec3,
     pub twist_axis: Vec3,
     pub swing_limit: Option<JointLimit>,
@@ -23,12 +23,12 @@ pub struct SphericalJoint {
 }
 
 impl Joint for SphericalJoint {
-    fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self {
         Self {
-            entity_a,
-            entity_b,
-            local_anchor_a: Vector::ZERO,
-            local_anchor_b: Vector::ZERO,
+            entity1,
+            entity2,
+            local_anchor1: Vector::ZERO,
+            local_anchor2: Vector::ZERO,
             swing_axis: Vec3::X,
             twist_axis: Vec3::Y,
             swing_limit: None,
@@ -53,14 +53,14 @@ impl Joint for SphericalJoint {
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_a: anchor,
+            local_anchor1: anchor,
             ..self
         }
     }
 
     fn with_local_anchor_2(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_b: anchor,
+            local_anchor2: anchor,
             ..self
         }
     }
@@ -80,7 +80,7 @@ impl Joint for SphericalJoint {
     }
 
     fn entities(&self) -> [Entity; 2] {
-        [self.entity_a, self.entity_b]
+        [self.entity1, self.entity2]
     }
 
     fn damping_lin(&self) -> f32 {
@@ -98,10 +98,10 @@ impl Joint for SphericalJoint {
         body2: &mut RigidBodyQueryItem,
         sub_dt: f32,
     ) {
-        let world_r_a = body1.rot.rotate(self.local_anchor_a);
-        let world_r_b = body2.rot.rotate(self.local_anchor_b);
+        let world_r1 = body1.rot.rotate(self.local_anchor1);
+        let world_r2 = body2.rot.rotate(self.local_anchor2);
 
-        let delta_x = self.limit_distance(0.0, 0.0, world_r_a, world_r_b, &body1.pos, &body2.pos);
+        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
         let magnitude = delta_x.length();
 
         if magnitude > f32::EPSILON {
@@ -118,8 +118,8 @@ impl Joint for SphericalJoint {
                 self.pos_lagrange,
                 dir,
                 magnitude,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
                 self.compliance,
                 sub_dt,
             );
@@ -133,8 +133,8 @@ impl Joint for SphericalJoint {
                 inv_inertia2,
                 delta_lagrange,
                 dir,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
             );
 
             self.update_force(dir, sub_dt);

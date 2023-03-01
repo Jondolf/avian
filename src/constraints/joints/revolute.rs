@@ -3,10 +3,10 @@ use bevy::prelude::*;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct RevoluteJoint {
-    pub entity_a: Entity,
-    pub entity_b: Entity,
-    pub local_anchor_a: Vector,
-    pub local_anchor_b: Vector,
+    pub entity1: Entity,
+    pub entity2: Entity,
+    pub local_anchor1: Vector,
+    pub local_anchor2: Vector,
     #[cfg(feature = "2d")]
     /// A unit vector that controls which axis is aligned for both entities.
     ///
@@ -28,12 +28,12 @@ pub struct RevoluteJoint {
 }
 
 impl Joint for RevoluteJoint {
-    fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self {
         Self {
-            entity_a,
-            entity_b,
-            local_anchor_a: Vector::ZERO,
-            local_anchor_b: Vector::ZERO,
+            entity1,
+            entity2,
+            local_anchor1: Vector::ZERO,
+            local_anchor2: Vector::ZERO,
             aligned_axis: Vec3::Z,
             angle_limit: None,
             damping_lin: 1.0,
@@ -56,14 +56,14 @@ impl Joint for RevoluteJoint {
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_a: anchor,
+            local_anchor1: anchor,
             ..self
         }
     }
 
     fn with_local_anchor_2(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_b: anchor,
+            local_anchor2: anchor,
             ..self
         }
     }
@@ -83,7 +83,7 @@ impl Joint for RevoluteJoint {
     }
 
     fn entities(&self) -> [Entity; 2] {
-        [self.entity_a, self.entity_b]
+        [self.entity1, self.entity2]
     }
 
     fn damping_lin(&self) -> f32 {
@@ -136,10 +136,10 @@ impl Joint for RevoluteJoint {
             self.update_align_torque(axis, sub_dt);
         }
 
-        let world_r_a = body1.rot.rotate(self.local_anchor_a);
-        let world_r_b = body2.rot.rotate(self.local_anchor_b);
+        let world_r1 = body1.rot.rotate(self.local_anchor1);
+        let world_r2 = body2.rot.rotate(self.local_anchor2);
 
-        let delta_x = self.limit_distance(0.0, 0.0, world_r_a, world_r_b, &body1.pos, &body2.pos);
+        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
         let magnitude = delta_x.length();
 
         if magnitude > f32::EPSILON {
@@ -156,8 +156,8 @@ impl Joint for RevoluteJoint {
                 self.pos_lagrange,
                 dir,
                 magnitude,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
                 self.compliance,
                 sub_dt,
             );
@@ -171,8 +171,8 @@ impl Joint for RevoluteJoint {
                 inv_inertia2,
                 delta_lagrange,
                 dir,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
             );
 
             self.update_force(dir, sub_dt);
@@ -198,9 +198,9 @@ impl RevoluteJoint {
         }
     }
 
-    fn get_delta_q(&self, rot_a: &Rot, rot_b: &Rot) -> Vec3 {
-        let a1 = rot_a.rotate_vec3(self.aligned_axis);
-        let a2 = rot_b.rotate_vec3(self.aligned_axis);
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+        let a1 = rot1.rotate_vec3(self.aligned_axis);
+        let a2 = rot2.rotate_vec3(self.aligned_axis);
         a1.cross(a2)
     }
 

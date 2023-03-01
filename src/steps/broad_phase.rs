@@ -70,26 +70,26 @@ fn sweep_and_prune(
     broad_collisions.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
-    for (i, (ent_a, aabb_a)) in intervals.0.iter().enumerate() {
-        let colliding_with_a = broad_collisions.insert_unique_unchecked(*ent_a, vec![]).1;
-        for (ent_b, aabb_b) in intervals.0.iter().skip(i + 1) {
+    for (i, (ent1, aabb1)) in intervals.0.iter().enumerate() {
+        let colliding_with1 = broad_collisions.insert_unique_unchecked(*ent1, vec![]).1;
+        for (ent2, aabb2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect
-            if aabb_b.mins.x > aabb_a.maxs.x {
+            if aabb2.mins.x > aabb1.maxs.x {
                 break;
             }
 
             // y doesn't intersect
-            if aabb_a.mins.y > aabb_b.maxs.y || aabb_a.maxs.y < aabb_b.mins.y {
+            if aabb1.mins.y > aabb2.maxs.y || aabb1.maxs.y < aabb2.mins.y {
                 continue;
             }
 
             #[cfg(feature = "3d")]
             // z doesn't intersect
-            if aabb_a.mins.z > aabb_b.maxs.z || aabb_a.maxs.z < aabb_b.mins.z {
+            if aabb1.mins.z > aabb2.maxs.z || aabb1.maxs.z < aabb2.mins.z {
                 continue;
             }
 
-            colliding_with_a.push(*ent_b);
+            colliding_with1.push(*ent2);
         }
     }
 }

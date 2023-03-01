@@ -21,16 +21,16 @@ pub struct Collisions(pub HashMap<(Entity, Entity), Collision>);
 /// Data related to a collision between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Collision {
-    pub entity_a: Entity,
-    pub entity_b: Entity,
+    pub entity1: Entity,
+    pub entity2: Entity,
     /// Local contact point a in local coordinates
-    pub local_r_a: Vector,
+    pub local_r1: Vector,
     /// Local contact point b in local coordinates
-    pub local_r_b: Vector,
+    pub local_r2: Vector,
     /// Local contact point a in world coordinates
-    pub world_r_a: Vector,
+    pub world_r1: Vector,
     /// Local contact point b in world coordinates
-    pub world_r_b: Vector,
+    pub world_r2: Vector,
     /// Contact normal from contact point a to b
     pub normal: Vector,
     /// Penetration depth
@@ -45,11 +45,11 @@ fn collect_collisions(
 ) {
     collisions.0.clear();
 
-    for (ent_a, colliding_with) in broad_collisions.0.iter() {
-        let (body1, collider_shape_a) = bodies.get(*ent_a).unwrap();
-        for (i, (body2, collider_shape_b)) in bodies.iter_many(colliding_with.iter()).enumerate() {
+    for (ent1, colliding_with) in broad_collisions.0.iter() {
+        let (body1, collider_shape1) = bodies.get(*ent1).unwrap();
+        for (i, (body2, collider_shape2)) in bodies.iter_many(colliding_with.iter()).enumerate() {
             if let Some(collision) = get_collision(
-                *ent_a,
+                *ent1,
                 colliding_with[i],
                 body1.pos.0,
                 body2.pos.0,
@@ -57,10 +57,10 @@ fn collect_collisions(
                 body2.local_com.0,
                 body1.rot,
                 body2.rot,
-                &collider_shape_a.0,
-                &collider_shape_b.0,
+                &collider_shape1.0,
+                &collider_shape2.0,
             ) {
-                collisions.0.insert((*ent_a, colliding_with[i]), collision);
+                collisions.0.insert((*ent1, colliding_with[i]), collision);
             }
         }
     }
@@ -69,34 +69,34 @@ fn collect_collisions(
 /// Computes one pair of collision points between two shapes.
 #[allow(clippy::too_many_arguments)]
 fn get_collision(
-    ent_a: Entity,
-    ent_b: Entity,
-    pos_a: Vector,
-    pos_b: Vector,
-    local_com_a: Vector,
-    local_com_b: Vector,
-    rot_a: &Rot,
-    rot_b: &Rot,
-    shape_a: &Shape,
-    shape_b: &Shape,
+    ent1: Entity,
+    ent2: Entity,
+    pos1: Vector,
+    pos2: Vector,
+    local_com1: Vector,
+    local_com2: Vector,
+    rot1: &Rot,
+    rot2: &Rot,
+    shape1: &Shape,
+    shape2: &Shape,
 ) -> Option<Collision> {
     if let Ok(Some(collision)) = parry::query::contact(
-        &make_isometry(pos_a, rot_a),
-        shape_a.0.as_ref(),
-        &make_isometry(pos_b, rot_b),
-        shape_b.0.as_ref(),
+        &make_isometry(pos1, rot1),
+        shape1.0.as_ref(),
+        &make_isometry(pos2, rot2),
+        shape2.0.as_ref(),
         0.0,
     ) {
-        let world_r_a = Vector::from(collision.point1) - pos_a + local_com_a;
-        let world_r_b = Vector::from(collision.point2) - pos_b + local_com_b;
+        let world_r1 = Vector::from(collision.point1) - pos1 + local_com1;
+        let world_r2 = Vector::from(collision.point2) - pos2 + local_com2;
 
         return Some(Collision {
-            entity_a: ent_a,
-            entity_b: ent_b,
-            local_r_a: rot_a.inv().rotate(world_r_a),
-            local_r_b: rot_b.inv().rotate(world_r_b),
-            world_r_a,
-            world_r_b,
+            entity1: ent1,
+            entity2: ent2,
+            local_r1: rot1.inv().rotate(world_r1),
+            local_r2: rot2.inv().rotate(world_r2),
+            world_r1,
+            world_r2,
             normal: Vector::from(collision.normal1),
             penetration: -collision.dist,
         });

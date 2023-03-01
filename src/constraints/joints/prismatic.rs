@@ -3,10 +3,10 @@ use bevy::prelude::*;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct PrismaticJoint {
-    pub entity_a: Entity,
-    pub entity_b: Entity,
-    pub local_anchor_a: Vector,
-    pub local_anchor_b: Vector,
+    pub entity1: Entity,
+    pub entity2: Entity,
+    pub local_anchor1: Vector,
+    pub local_anchor2: Vector,
     pub free_axis: Vector,
     pub free_axis_limits: Option<JointLimit>,
     pub damping_lin: f32,
@@ -19,12 +19,12 @@ pub struct PrismaticJoint {
 }
 
 impl Joint for PrismaticJoint {
-    fn new_with_compliance(entity_a: Entity, entity_b: Entity, compliance: f32) -> Self {
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self {
         Self {
-            entity_a,
-            entity_b,
-            local_anchor_a: Vector::ZERO,
-            local_anchor_b: Vector::ZERO,
+            entity1,
+            entity2,
+            local_anchor1: Vector::ZERO,
+            local_anchor2: Vector::ZERO,
             free_axis: Vector::X,
             free_axis_limits: None,
             damping_lin: 1.0,
@@ -42,14 +42,14 @@ impl Joint for PrismaticJoint {
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_a: anchor,
+            local_anchor1: anchor,
             ..self
         }
     }
 
     fn with_local_anchor_2(self, anchor: Vector) -> Self {
         Self {
-            local_anchor_b: anchor,
+            local_anchor2: anchor,
             ..self
         }
     }
@@ -69,7 +69,7 @@ impl Joint for PrismaticJoint {
     }
 
     fn entities(&self) -> [Entity; 2] {
-        [self.entity_a, self.entity_b]
+        [self.entity1, self.entity2]
     }
 
     fn damping_lin(&self) -> f32 {
@@ -122,15 +122,15 @@ impl Joint for PrismaticJoint {
             self.update_align_torque(axis, sub_dt);
         }
 
-        let world_r_a = body1.rot.rotate(self.local_anchor_a);
-        let world_r_b = body2.rot.rotate(self.local_anchor_b);
+        let world_r1 = body1.rot.rotate(self.local_anchor1);
+        let world_r2 = body2.rot.rotate(self.local_anchor2);
 
         let mut delta_x = Vector::ZERO;
 
         let axis1 = body1.rot.rotate(self.free_axis);
         if let Some(limits) = self.free_axis_limits {
             delta_x += self.limit_distance_along_axis(
-                limits.min, limits.max, axis1, world_r_a, world_r_b, &body1.pos, &body2.pos,
+                limits.min, limits.max, axis1, world_r1, world_r2, &body1.pos, &body2.pos,
             );
         }
 
@@ -138,7 +138,7 @@ impl Joint for PrismaticJoint {
         {
             let axis2 = Vec2::new(axis1.y, -axis1.x);
             delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r_a, world_r_b, &body1.pos, &body2.pos,
+                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
             );
         }
         #[cfg(feature = "3d")]
@@ -147,10 +147,10 @@ impl Joint for PrismaticJoint {
             let axis3 = axis1.cross(axis2);
 
             delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r_a, world_r_b, &body1.pos, &body2.pos,
+                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
             );
             delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis3, world_r_a, world_r_b, &body1.pos, &body2.pos,
+                0.0, 0.0, axis3, world_r1, world_r2, &body1.pos, &body2.pos,
             );
         }
 
@@ -170,8 +170,8 @@ impl Joint for PrismaticJoint {
                 self.pos_lagrange,
                 dir,
                 magnitude,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
                 self.compliance,
                 sub_dt,
             );
@@ -185,8 +185,8 @@ impl Joint for PrismaticJoint {
                 inv_inertia2,
                 delta_lagrange,
                 dir,
-                world_r_a,
-                world_r_b,
+                world_r1,
+                world_r2,
             );
 
             self.update_force(dir, sub_dt);
@@ -210,13 +210,13 @@ impl PrismaticJoint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_q(&self, rot_a: &Rot, rot_b: &Rot) -> Vec3 {
-        rot_a.mul(rot_b.inv()).as_radians() * Vec3::Z
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+        rot1.mul(rot2.inv()).as_radians() * Vec3::Z
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot_a: &Rot, rot_b: &Rot) -> Vec3 {
-        2.0 * (rot_a.0 * rot_b.inverse()).xyz()
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+        2.0 * (rot1.0 * rot2.inverse()).xyz()
     }
 
     fn update_force(&mut self, dir: Vector, sub_dt: f32) {

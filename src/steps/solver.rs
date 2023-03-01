@@ -82,14 +82,14 @@ fn solve_pos(
     penetration_constraints.0.clear();
 
     // Handle non-penetration constraints
-    for ((ent_a, ent_b), collision) in collisions.0.iter() {
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([*ent_a, *ent_b]) {
+    for ((ent1, ent2), collision) in collisions.0.iter() {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([*ent1, *ent2]) {
             // No need to solve collisions if neither of the bodies is dynamic
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
 
-            let mut constraint = PenetrationConstraint::new(*ent_a, *ent_b, *collision);
+            let mut constraint = PenetrationConstraint::new(*ent1, *ent2, *collision);
             constraint.constrain(&mut body1, &mut body2, sub_dt.0);
             penetration_constraints.0.push(constraint);
         }
@@ -188,33 +188,33 @@ fn solve_vel(
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for constraint in penetration_constraints.0.iter().cloned() {
+    for constraint in penetration_constraints.0.iter() {
         let Collision {
-            entity_a,
-            entity_b,
-            world_r_a: r_a,
-            world_r_b: r_b,
+            entity1,
+            entity2,
+            world_r1: r1,
+            world_r2: r2,
             normal,
             ..
         } = constraint.collision_data;
 
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity_a, entity_b]) {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
-            let pre_solve_contact_vel_a =
-                compute_contact_vel(body1.pre_solve_lin_vel.0, body1.pre_solve_ang_vel.0, r_a);
-            let pre_solve_contact_vel_b =
-                compute_contact_vel(body2.pre_solve_lin_vel.0, body2.pre_solve_ang_vel.0, r_b);
-            let pre_solve_relative_vel = pre_solve_contact_vel_a - pre_solve_contact_vel_b;
+            let pre_solve_contact_vel1 =
+                compute_contact_vel(body1.pre_solve_lin_vel.0, body1.pre_solve_ang_vel.0, r1);
+            let pre_solve_contact_vel2 =
+                compute_contact_vel(body2.pre_solve_lin_vel.0, body2.pre_solve_ang_vel.0, r2);
+            let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel_a = compute_contact_vel(body1.lin_vel.0, body1.ang_vel.0, r_a);
-            let contact_vel_b = compute_contact_vel(body2.lin_vel.0, body2.ang_vel.0, r_b);
-            let relative_vel = contact_vel_a - contact_vel_b;
+            let contact_vel1 = compute_contact_vel(body1.lin_vel.0, body1.ang_vel.0, r1);
+            let contact_vel2 = compute_contact_vel(body2.lin_vel.0, body2.ang_vel.0, r2);
+            let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
 
@@ -222,18 +222,18 @@ fn solve_vel(
             let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot).0;
 
             // Compute generalized inverse masses
-            let w_a = PenetrationConstraint::get_generalized_inverse_mass(
+            let w1 = PenetrationConstraint::get_generalized_inverse_mass(
                 body1.rb,
                 body1.inv_mass.0,
                 inv_inertia1,
-                r_a,
+                r1,
                 normal,
             );
-            let w_b = PenetrationConstraint::get_generalized_inverse_mass(
+            let w2 = PenetrationConstraint::get_generalized_inverse_mass(
                 body2.rb,
                 body2.inv_mass.0,
                 inv_inertia2,
-                r_b,
+                r2,
                 normal,
             );
 
@@ -260,14 +260,14 @@ fn solve_vel(
             let delta_v = friction_impulse + restitution_impulse;
 
             // Compute velocity impulse and apply velocity updates (equation 33)
-            let p = delta_v / (w_a + w_b);
+            let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.lin_vel.0 += p / body1.mass.0;
-                body1.ang_vel.0 += compute_delta_ang_vel(inv_inertia1, r_a, p);
+                body1.ang_vel.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
             }
             if body2.rb.is_dynamic() {
                 body2.lin_vel.0 -= p / body2.mass.0;
-                body2.ang_vel.0 -= compute_delta_ang_vel(inv_inertia2, r_b, p);
+                body2.ang_vel.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
             }
         }
     }
@@ -280,35 +280,34 @@ fn joint_damping<T: Joint>(
 ) {
     for joint in &joints {
         if let Ok(
-            [(rb_a, mut lin_vel_a, mut ang_vel_a, inv_mass_a), (rb_b, mut lin_vel_b, mut ang_vel_b, inv_mass_b)],
+            [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2)],
         ) = bodies.get_many_mut(joint.entities())
         {
-            let delta_omega =
-                (ang_vel_b.0 - ang_vel_a.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
+            let delta_omega = (ang_vel2.0 - ang_vel1.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
 
-            if rb_a.is_dynamic() {
-                ang_vel_a.0 += delta_omega;
+            if rb1.is_dynamic() {
+                ang_vel1.0 += delta_omega;
             }
-            if rb_b.is_dynamic() {
-                ang_vel_b.0 -= delta_omega;
+            if rb2.is_dynamic() {
+                ang_vel2.0 -= delta_omega;
             }
 
-            let delta_v = (lin_vel_b.0 - lin_vel_a.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
+            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
 
-            let w_a = if rb_a.is_dynamic() { inv_mass_a.0 } else { 0.0 };
-            let w_b = if rb_b.is_dynamic() { inv_mass_b.0 } else { 0.0 };
+            let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
+            let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
 
-            if w_a + w_b <= f32::EPSILON {
+            if w1 + w2 <= f32::EPSILON {
                 continue;
             }
 
-            let p = delta_v / (w_a + w_b);
+            let p = delta_v / (w1 + w2);
 
-            if rb_a.is_dynamic() {
-                lin_vel_a.0 += p * inv_mass_a.0;
+            if rb1.is_dynamic() {
+                lin_vel1.0 += p * inv_mass1.0;
             }
-            if rb_b.is_dynamic() {
-                lin_vel_b.0 -= p * inv_mass_b.0;
+            if rb2.is_dynamic() {
+                lin_vel2.0 -= p * inv_mass2.0;
             }
         }
     }

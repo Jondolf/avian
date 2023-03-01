@@ -11,8 +11,8 @@ pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Mat3, rot: Quat) -> Mat
 /// Calculates velocity correction caused by dynamic friction.
 pub(crate) fn get_dynamic_friction(
     tangent_vel: Vector,
-    friction_a: &Friction,
-    friction_b: &Friction,
+    friction1: &Friction,
+    friction2: &Friction,
     normal_lagrange: f32,
     sub_dt: f32,
 ) -> Vector {
@@ -26,7 +26,7 @@ pub(crate) fn get_dynamic_friction(
 
     // Average of the bodies' dynamic friction coefficients
     let dynamic_friction_coefficient =
-        (friction_a.dynamic_coefficient + friction_b.dynamic_coefficient) * 0.5;
+        (friction1.dynamic_coefficient + friction2.dynamic_coefficient) * 0.5;
 
     let normal_force = normal_lagrange / sub_dt.powi(2);
 
@@ -40,12 +40,12 @@ pub(crate) fn get_restitution(
     normal: Vector,
     normal_vel: f32,
     pre_solve_normal_vel: f32,
-    restitution_a: &Restitution,
-    restitution_b: &Restitution,
+    restitution1: &Restitution,
+    restitution2: &Restitution,
     gravity: Vector,
     sub_dt: f32,
 ) -> Vector {
-    let mut restitution_coefficient = (restitution_a.0 + restitution_b.0) * 0.5;
+    let mut restitution_coefficient = (restitution1.0 + restitution2.0) * 0.5;
 
     // If normal velocity is small enough, use restitution of 0 to avoid jittering
     if normal_vel.abs() <= 2.0 * gravity.length() * sub_dt {
