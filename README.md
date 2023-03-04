@@ -49,3 +49,10 @@ Currently this physics engine supports Bevy 0.9.1, and I will try to keep up wit
 - The original papers
   - [XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)
   - [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf) (I have used this one way more)
+
+## License
+
+Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
+
+- MIT License ([LICENSE-MIT](/LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
