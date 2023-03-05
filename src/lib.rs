@@ -9,6 +9,7 @@ pub mod components;
 pub mod constraints;
 pub mod resources;
 pub mod steps;
+pub mod collision;
 
 pub mod prelude {
     pub use crate::{
@@ -78,7 +79,6 @@ impl Plugin for XpbdPlugin {
         // Add plugins for physics simulation loop
         app.add_plugin(PreparePlugin)
             .add_plugin(BroadPhasePlugin)
-            .add_plugin(NarrowPhasePlugin)
             .add_plugin(IntegratorPlugin)
             .add_plugin(SolverPlugin);
 

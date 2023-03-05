@@ -1,6 +1,7 @@
 use crate::{
-    narrow_phase::{Collision, Collisions},
     prelude::*,
+    collision::*,
+    steps::broad_phase::BroadCollisionPairs,
     utils::{get_dynamic_friction, get_restitution},
 };
 use bevy::prelude::*;
@@ -25,8 +26,8 @@ impl Plugin for SolverPlugin {
                 FixedUpdateStage,
                 SystemSet::new()
                     .label(PhysicsStep::SolvePos)
-                    .after(PhysicsStep::NarrowPhase)
-                    .with_system(solve_pos)
+                    .after(PhysicsStep::Integrate)
+                    .with_system(penetration_constraints)
                     .with_system(joint_constraints::<FixedJoint>)
                     .with_system(joint_constraints::<RevoluteJoint>)
                     .with_system(joint_constraints::<SphericalJoint>)
@@ -56,7 +57,7 @@ impl Plugin for SolverPlugin {
 
 /// Stores penetration constraints for colliding entity pairs.
 #[derive(Resource, Debug, Default)]
-pub(crate) struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
+pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 fn clear_penetration_constraint_lagrange(
     mut penetration_constraints: ResMut<PenetrationConstraints>,
@@ -72,26 +73,34 @@ fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
     }
 }
 
-/// Solves position constraints for dynamic-dynamic interactions.
-fn solve_pos(
-    mut bodies: Query<RigidBodyQuery>,
-    collisions: Res<Collisions>,
+/// Iterates through broad phase collision pairs, checks which ones are actually colliding, and creates penetration constraints for them.
+fn penetration_constraints(
+    mut bodies: Query<(RigidBodyQuery, &ColliderShape)>,
+    broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     penetration_constraints.0.clear();
 
-    // Handle non-penetration constraints
-    for ((ent1, ent2), collision) in collisions.0.iter() {
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            // No need to solve collisions if neither of the bodies is dynamic
-            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
-                continue;
+    for (ent1, ent2) in broad_collision_pairs.0.iter() {
+        if let Ok([(mut body1, collider_shape1), (mut body2, collider_shape2)]) =
+            bodies.get_many_mut([*ent1, *ent2]){
+            if let Some(collision) = get_collision(
+                *ent1,
+                *ent2,
+                body1.pos.0,
+                body2.pos.0,
+                body1.local_com.0,
+                body2.local_com.0,
+                &body1.rot,
+                &body2.rot,
+                &collider_shape1.0,
+                &collider_shape2.0,
+            ) {
+                let mut constraint = PenetrationConstraint::new(*ent1, *ent2, collision);
+                constraint.constrain(&mut body1, &mut body2, sub_dt.0);
+                penetration_constraints.0.push(constraint);
             }
-
-            let mut constraint = PenetrationConstraint::new(*ent1, *ent2, *collision);
-            constraint.constrain(&mut body1, &mut body2, sub_dt.0);
-            penetration_constraints.0.push(constraint);
         }
     }
 }

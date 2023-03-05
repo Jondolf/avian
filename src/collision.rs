@@ -1,22 +1,4 @@
-use crate::{broad_phase::BroadCollisions, prelude::*};
-use bevy::{prelude::*, utils::HashMap};
-use parry::math::Isometry;
-
-pub struct NarrowPhasePlugin;
-
-impl Plugin for NarrowPhasePlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<Collisions>().add_system_to_stage(
-            FixedUpdateStage,
-            collect_collisions
-                .label(PhysicsStep::NarrowPhase)
-                .after(PhysicsStep::Integrate),
-        );
-    }
-}
-
-#[derive(Resource, Default, Debug)]
-pub struct Collisions(pub HashMap<(Entity, Entity), Collision>);
+use crate::prelude::*;
 
 /// Data related to a collision between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -37,38 +19,9 @@ pub struct Collision {
     pub penetration: f32,
 }
 
-/// Iterates through broad phase collision pairs, checks which ones are actually colliding, and stores the collision data in the [`Collisions`] resource.
-fn collect_collisions(
-    bodies: Query<(RigidBodyQuery, &ColliderShape)>,
-    broad_collisions: Res<BroadCollisions>,
-    mut collisions: ResMut<Collisions>,
-) {
-    collisions.0.clear();
-
-    for (ent1, colliding_with) in broad_collisions.0.iter() {
-        let (body1, collider_shape1) = bodies.get(*ent1).unwrap();
-        for (i, (body2, collider_shape2)) in bodies.iter_many(colliding_with.iter()).enumerate() {
-            if let Some(collision) = get_collision(
-                *ent1,
-                colliding_with[i],
-                body1.pos.0,
-                body2.pos.0,
-                body1.local_com.0,
-                body2.local_com.0,
-                body1.rot,
-                body2.rot,
-                &collider_shape1.0,
-                &collider_shape2.0,
-            ) {
-                collisions.0.insert((*ent1, colliding_with[i]), collision);
-            }
-        }
-    }
-}
-
 /// Computes one pair of collision points between two shapes.
 #[allow(clippy::too_many_arguments)]
-fn get_collision(
+pub(crate) fn get_collision(
     ent1: Entity,
     ent2: Entity,
     pos1: Vector,

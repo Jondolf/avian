@@ -1,14 +1,11 @@
 use crate::prelude::*;
-use bevy::{
-    prelude::*,
-    utils::{StableHashMap, StableHashSet},
-};
+use bevy::{prelude::*, utils::StableHashSet};
 
 pub struct BroadPhasePlugin;
 
 impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BroadCollisions>()
+        app.init_resource::<BroadCollisionPairs>()
             .init_resource::<AabbIntervals>()
             .add_system_set_to_stage(
                 FixedUpdateStage,
@@ -24,7 +21,7 @@ impl Plugin for BroadPhasePlugin {
 }
 
 #[derive(Resource, Default, Debug)]
-pub struct BroadCollisions(pub StableHashMap<Entity, Vec<Entity>>);
+pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 #[derive(Resource, Default)]
 struct AabbIntervals(Vec<(Entity, ColliderAabb)>);
@@ -54,24 +51,23 @@ fn remove_old_aabb_intervals(
 /// Collects bodies that are potentially colliding.
 fn collect_collision_pairs(
     intervals: ResMut<AabbIntervals>,
-    mut broad_collisions: ResMut<BroadCollisions>,
+    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
 ) {
-    sweep_and_prune(intervals, &mut broad_collisions.0);
+    sweep_and_prune(intervals, &mut broad_collision_pairs.0);
 }
 
 fn sweep_and_prune(
     mut intervals: ResMut<AabbIntervals>,
-    broad_collisions: &mut StableHashMap<Entity, Vec<Entity>>,
+    broad_collision_pairs: &mut Vec<(Entity, Entity)>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
     insertion_sort(&mut intervals.0, |a, b| a.1.mins.x > b.1.mins.x);
 
     // Clear broad phase collisions from previous iteration.
-    broad_collisions.clear();
+    broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (ent1, aabb1)) in intervals.0.iter().enumerate() {
-        let colliding_with1 = broad_collisions.insert_unique_unchecked(*ent1, vec![]).1;
         for (ent2, aabb2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect
             if aabb2.mins.x > aabb1.maxs.x {
@@ -89,7 +85,7 @@ fn sweep_and_prune(
                 continue;
             }
 
-            colliding_with1.push(*ent2);
+            broad_collision_pairs.push((*ent1, *ent2));
         }
     }
 }
