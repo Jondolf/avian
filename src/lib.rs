@@ -5,11 +5,11 @@ pub extern crate parry2d as parry;
 pub extern crate parry3d as parry;
 
 pub mod bundles;
+pub mod collision;
 pub mod components;
 pub mod constraints;
 pub mod resources;
 pub mod steps;
-pub mod collision;
 
 pub mod prelude {
     pub use crate::{
@@ -85,7 +85,7 @@ impl Plugin for XpbdPlugin {
         app.add_plugin(DebugLinesPlugin::default());
 
         #[cfg(feature = "debug-render-aabbs")]
-        app.add_system(draw_aabbs.before(PhysicsStep::BroadPhase));
+        app.add_system(draw_aabbs);
     }
 }
 
