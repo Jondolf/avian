@@ -2,6 +2,16 @@ use crate::prelude::*;
 #[cfg(feature = "3d")]
 use bevy::prelude::*;
 
+#[cfg(feature = "2d")]
+pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
+    Isometry::<f32>::new(pos.into(), (*rot).into())
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
+    Isometry::<f32>::new(pos.into(), rot.to_scaled_axis().into())
+}
+
 #[cfg(feature = "3d")]
 pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Mat3, rot: Quat) -> Mat3 {
     let rot_mat3 = Mat3::from_quat(rot);

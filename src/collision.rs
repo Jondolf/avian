@@ -34,9 +34,9 @@ pub(crate) fn get_collision(
     shape2: &Shape,
 ) -> Option<Collision> {
     if let Ok(Some(collision)) = parry::query::contact(
-        &make_isometry(pos1, rot1),
+        &utils::make_isometry(pos1, rot1),
         shape1.0.as_ref(),
-        &make_isometry(pos2, rot2),
+        &utils::make_isometry(pos2, rot2),
         shape2.0.as_ref(),
         0.0,
     ) {
@@ -55,14 +55,4 @@ pub(crate) fn get_collision(
         });
     }
     None
-}
-
-#[cfg(feature = "2d")]
-fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
-    Isometry::<f32>::new(pos.into(), (*rot).into())
-}
-
-#[cfg(feature = "3d")]
-fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<f32> {
-    Isometry::<f32>::new(pos.into(), rot.to_scaled_axis().into())
 }
