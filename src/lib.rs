@@ -43,9 +43,12 @@ struct FixedUpdateSet;
 
 pub struct XpbdPlugin;
 
+/// The high-level Xpbd physics schedule, run once per physics frame
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSchedule;
 
+/// The substepping schedule, there number of substeps per physics step is
+/// configured through the [`NumSubsteps`] resource
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSubstepSchedule;
 

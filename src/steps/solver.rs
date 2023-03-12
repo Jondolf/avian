@@ -17,6 +17,16 @@ impl Plugin for SolverPlugin {
             .get_schedule_mut(XpbdSubstepSchedule)
             .expect("add XpbdSubstepSchedule first");
 
+        substeps.configure_sets(
+            (
+                SubsteppingSet::Integrate,
+                SubsteppingSet::SolvePos,
+                SubsteppingSet::UpdateVel,
+                SubsteppingSet::SolveVel,
+            )
+                .chain(),
+        );
+
         substeps.add_systems(
             (
                 clear_penetration_constraint_lagrange,
@@ -25,13 +35,8 @@ impl Plugin for SolverPlugin {
                 clear_joint_lagrange::<SphericalJoint>,
                 clear_joint_lagrange::<PrismaticJoint>,
             )
-                .before(PhysicsSubstep::SolvePos),
+                .before(SubsteppingSet::SolvePos),
         );
-
-        // todo: just use chain?
-        substeps.configure_set(PhysicsSubstep::SolvePos.after(PhysicsSubstep::Integrate));
-        substeps.configure_set(PhysicsSubstep::UpdateVel.after(PhysicsSubstep::SolvePos));
-        substeps.configure_set(PhysicsSubstep::SolveVel.after(PhysicsSubstep::UpdateVel));
 
         substeps.add_systems(
             (
@@ -41,10 +46,10 @@ impl Plugin for SolverPlugin {
                 joint_constraints::<SphericalJoint>,
                 joint_constraints::<PrismaticJoint>,
             )
-                .in_set(PhysicsSubstep::SolvePos),
+                .in_set(SubsteppingSet::SolvePos),
         );
 
-        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(PhysicsSubstep::UpdateVel));
+        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
 
         substeps.add_systems(
             (
@@ -54,7 +59,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
             )
-                .in_set(PhysicsSubstep::SolveVel),
+                .in_set(SubsteppingSet::SolveVel),
         );
     }
 }
