@@ -79,7 +79,18 @@ impl Plugin for XpbdPlugin {
             .register_type::<InvInertia>()
             .register_type::<LocalCom>();
 
-        app.add_schedule(XpbdSchedule, Schedule::default());
+        let mut xpbd_schedule = Schedule::default();
+
+        xpbd_schedule.configure_sets(
+            (
+                PhysicsSet::Prepare,
+                PhysicsSet::BroadPhase,
+                PhysicsSet::Substeps,
+            )
+                .chain(),
+        );
+
+        app.add_schedule(XpbdSchedule, xpbd_schedule);
 
         app.add_schedule(XpbdSubstepSchedule, Schedule::default());
 

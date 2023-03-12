@@ -7,8 +7,6 @@ impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
-            // todo: move set config to top-level plugin?
-            .configure_set(PhysicsSet::Prepare.before(PhysicsSet::BroadPhase))
             .add_systems(
                 (
                     sync_transforms,
