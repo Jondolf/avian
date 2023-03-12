@@ -77,19 +77,8 @@ fn setup(
     }
 
     // Directional 'sun' light
-    let sun_half_size = 50.0;
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            // Configure the projection to better fit the scene
-            shadow_projection: OrthographicProjection {
-                left: -sun_half_size,
-                right: sun_half_size,
-                bottom: -sun_half_size,
-                top: sun_half_size,
-                near: -10.0 * sun_half_size,
-                far: 10.0 * sun_half_size,
-                ..default()
-            },
             illuminance: 20_000.0,
             shadows_enabled: true,
             ..default()
@@ -141,7 +130,7 @@ fn main() {
 
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .insert_resource(Gravity::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
