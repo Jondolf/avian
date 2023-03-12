@@ -46,7 +46,7 @@ pub struct XpbdPlugin;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSchedule;
 
-/// The substepping schedule, there number of substeps per physics step is
+/// The substepping schedule, the number of substeps per physics step is
 /// configured through the [`NumSubsteps`] resource
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSubstepSchedule;
