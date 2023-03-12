@@ -101,7 +101,6 @@ impl Plugin for XpbdPlugin {
         );
         app.add_system(run_physics_schedule.in_set(FixedUpdateSet));
 
-        // move to plugin?
         app.add_system(
             run_substep_schedule
                 .in_set(PhysicsSet::Substeps)
