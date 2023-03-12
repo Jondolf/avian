@@ -183,8 +183,8 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no xpbd loop resource");
 
     if xpbd_loop.paused {
-        // todo: what's this about?
         xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as f32;
+        xpbd_loop.queued_steps = 0;
     } else {
         let time = world.resource::<Time>();
         xpbd_loop.accumulator += time.delta_seconds();
