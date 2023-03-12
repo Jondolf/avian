@@ -6,18 +6,24 @@ pub struct BroadPhasePlugin;
 impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BroadCollisionPairs>()
-            .init_resource::<AabbIntervals>()
+            .init_resource::<AabbIntervals>();
+
+        let xpbd_schedule = app
             .get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first")
+            .expect("add xpbd schedule first");
+
+        xpbd_schedule
+            .add_systems(
+                (add_new_aabb_intervals.before(collect_collision_pairs),)
+                    .in_set(PhysicsSet::BroadPhase),
+            )
             .add_systems(
                 (
-                    // todo: maybe just order based on sets instead of systems?
-                    // would certainly make it easier to read
-                    add_new_aabb_intervals.before(collect_collision_pairs),
-                    remove_old_aabb_intervals.before(update_aabb_intervals),
-                    update_aabb_intervals.before(collect_collision_pairs),
+                    remove_old_aabb_intervals,
+                    update_aabb_intervals,
                     collect_collision_pairs,
                 )
+                    .chain()
                     .in_set(PhysicsSet::BroadPhase),
             );
     }

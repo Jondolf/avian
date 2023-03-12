@@ -37,7 +37,6 @@ pub type Vector = Vec3;
 
 pub const DELTA_TIME: f32 = 1.0 / 60.0;
 
-// todo: rename?
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
 
@@ -165,7 +164,6 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 
 #[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
-    // todo: split public and private api into separate resources?
     pub(crate) accumulator: f32,
     pub(crate) queued_steps: u32,
     pub paused: bool,
