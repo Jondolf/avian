@@ -1690,6 +1690,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mio"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b9d9a46eff5b4ff64b45a9e316a6d1e0bc719ef429cbec4dc630684212bfdf9"
+dependencies = [
+ "libc",
+ "log",
+ "wasi",
+ "windows-sys 0.45.0",
+]
+
+[[package]]
 name = "naga"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3014,16 +3026,19 @@ dependencies = [
  "instant",
  "libc",
  "log",
+ "mio",
  "ndk",
  "ndk-glue",
  "objc",
  "once_cell",
  "parking_lot",
+ "percent-encoding",
  "raw-window-handle 0.4.3",
  "raw-window-handle 0.5.1",
  "wasm-bindgen",
  "web-sys",
  "windows-sys 0.36.1",
+ "x11-dl",
 ]
 
 [[package]]
@@ -3033,6 +3048,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee7b2c67f962bf5042bfd8b6a916178df33a26eec343ae064cb8e069f638fa6f"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "x11-dl"
+version = "2.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38735924fedd5314a6e548792904ed8c6de6636285cb9fec04d5b1db85c1516f"
+dependencies = [
+ "libc",
+ "once_cell",
+ "pkg-config",
 ]
 
 [[package]]
