@@ -24,7 +24,7 @@ pub mod prelude {
 
 mod utils;
 
-use bevy::{ecs::schedule::ShouldRun, prelude::*};
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use bevy_prototype_debug_lines::*;
 use parry::math::Isometry;
 use prelude::*;
@@ -37,10 +37,17 @@ pub type Vector = Vec3;
 
 pub const DELTA_TIME: f32 = 1.0 / 60.0;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
-struct FixedUpdateStage;
+// todo: rename?
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct FixedUpdateSet;
 
 pub struct XpbdPlugin;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct XpbdSchedule;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct XpbdSubstepSchedule;
 
 impl Plugin for XpbdPlugin {
     fn build(&self, app: &mut App) {
@@ -69,11 +76,23 @@ impl Plugin for XpbdPlugin {
             .register_type::<InvInertia>()
             .register_type::<LocalCom>();
 
-        // Add stages
-        app.add_stage_before(
-            CoreStage::Update,
-            FixedUpdateStage,
-            SystemStage::parallel().with_run_criteria(run_criteria),
+        app.add_schedule(XpbdSchedule, Schedule::default());
+
+        app.add_schedule(XpbdSubstepSchedule, Schedule::default());
+
+        // Add system set for running physics schedule
+        app.configure_set(
+            FixedUpdateSet
+                .before(CoreSet::Update)
+                .in_base_set(CoreSet::PreUpdate),
+        );
+        app.add_system(run_physics_schedule.in_set(FixedUpdateSet));
+
+        // move to plugin?
+        app.add_system(
+            run_substep_schedule
+                .in_set(PhysicsStep::Substeps)
+                .in_schedule(XpbdSchedule),
         );
 
         // Add plugins for physics simulation loop
@@ -132,10 +151,8 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 
 #[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
-    pub(crate) has_added_time: bool,
+    // todo: split public and private api into separate resources?
     pub(crate) accumulator: f32,
-    pub(crate) substepping: bool,
-    pub(crate) current_substep: u32,
     pub(crate) queued_steps: u32,
     pub paused: bool,
 }
@@ -160,57 +177,34 @@ pub fn resume(mut xpbd_loop: ResMut<XpbdLoop>) {
     xpbd_loop.resume();
 }
 
-fn run_criteria(
-    time: Res<Time>,
-    substeps: Res<NumSubsteps>,
-    mut state: ResMut<XpbdLoop>,
-) -> ShouldRun {
-    if state.paused && state.queued_steps == 0 {
-        return ShouldRun::No;
-    }
+fn run_physics_schedule(world: &mut World) {
+    let mut xpbd_loop = world
+        .remove_resource::<XpbdLoop>()
+        .expect("no xpbd loop resource");
 
-    if !state.has_added_time {
-        state.has_added_time = true;
-
-        if state.paused {
-            state.accumulator += DELTA_TIME * state.queued_steps as f32;
-        } else {
-            state.accumulator += time.delta_seconds();
-        }
-    }
-
-    if state.substepping {
-        state.current_substep += 1;
-
-        if state.current_substep < substeps.0 {
-            return ShouldRun::YesAndCheckAgain;
-        } else {
-            // We finished a whole step
-            if state.paused && state.queued_steps > 0 {
-                state.queued_steps -= 1;
-            } else {
-                state.accumulator -= DELTA_TIME;
-            }
-
-            state.current_substep = 0;
-            state.substepping = false;
-        }
-    }
-
-    if state.accumulator >= DELTA_TIME {
-        state.substepping = true;
-        state.current_substep = 0;
-        ShouldRun::YesAndCheckAgain
+    if xpbd_loop.paused {
+        // todo: what's this about?
+        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as f32;
     } else {
-        state.has_added_time = false;
-        ShouldRun::No
+        let time = world.resource::<Time>();
+        xpbd_loop.accumulator += time.delta_seconds();
+    }
+
+    while xpbd_loop.accumulator >= DELTA_TIME {
+        debug!("running physics schedule");
+        world.run_schedule(XpbdSchedule);
+        xpbd_loop.accumulator -= DELTA_TIME;
+    }
+
+    world.insert_resource(xpbd_loop);
+}
+
+fn run_substep_schedule(world: &mut World) {
+    let NumSubsteps(substeps) = *world.resource::<NumSubsteps>();
+    for i in 0..substeps {
+        debug!("running substep schedule: {i}");
+        world.run_schedule(XpbdSubstepSchedule);
     }
 }
 
-fn first_substep(state: Res<XpbdLoop>) -> ShouldRun {
-    if state.current_substep == 0 {
-        ShouldRun::Yes
-    } else {
-        ShouldRun::No
-    }
-}
+// state.accumulator += DELTA_TIME * state.queued_steps as f32;

@@ -5,17 +5,19 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_system_set_to_stage(
-            FixedUpdateStage,
-            SystemSet::new()
-                .before(PhysicsStep::BroadPhase)
-                .label(PhysicsStep::Prepare)
-                .with_run_criteria(first_substep)
-                .with_system(sync_transforms)
-                .with_system(update_sub_delta_time)
-                .with_system(update_aabb)
-                .with_system(update_mass_props),
-        );
+        app.get_schedule_mut(XpbdSchedule)
+            .expect("add xpbd schedule first")
+            // todo: move set config to top-level plugin?
+            .configure_set(PhysicsStep::Prepare.before(PhysicsStep::BroadPhase))
+            .add_systems(
+                (
+                    sync_transforms,
+                    update_sub_delta_time,
+                    update_aabb,
+                    update_mass_props,
+                )
+                    .in_set(PhysicsStep::Prepare),
+            );
     }
 }
 

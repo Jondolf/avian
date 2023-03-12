@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.9.1"
-bevy-inspector-egui = "0.17.0"
+bevy = "0.10"
+bevy-inspector-egui = "0.18"
 bevy_xpbd_2d = { path = "../bevy_xpbd_2d" }

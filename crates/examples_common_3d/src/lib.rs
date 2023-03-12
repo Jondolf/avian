@@ -9,7 +9,7 @@ pub struct XpbdExamplePlugin;
 impl Plugin for XpbdExamplePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugin(XpbdPlugin)
-            .add_plugin(WorldInspectorPlugin)
+            .add_plugin(WorldInspectorPlugin::default())
             .add_plugin(FrameTimeDiagnosticsPlugin)
             .add_state(AppState::Running)
             .add_system_set(SystemSet::on_enter(AppState::Paused).with_system(bevy_xpbd_3d::pause))

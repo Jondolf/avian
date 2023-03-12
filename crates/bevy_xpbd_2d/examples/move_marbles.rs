@@ -23,10 +23,13 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let sphere = meshes.add(Mesh::from(shape::Icosphere {
-        radius: 1.0,
-        subdivisions: 4,
-    }));
+    let sphere = meshes.add(
+        Mesh::try_from(shape::Icosphere {
+            radius: 1.0,
+            subdivisions: 4,
+        })
+        .unwrap(),
+    );
 
     let white = materials.add(StandardMaterial {
         base_color: Color::rgb(0.8, 0.8, 1.0),
@@ -164,7 +167,7 @@ fn main() {
 
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(6))
         .add_plugins(DefaultPlugins)
