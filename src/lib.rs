@@ -218,5 +218,3 @@ fn run_substep_schedule(world: &mut World) {
         world.run_schedule(XpbdSubstepSchedule);
     }
 }
-
-// state.accumulator += DELTA_TIME * state.queued_steps as f32;
