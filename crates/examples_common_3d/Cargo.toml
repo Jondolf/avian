@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.9.1"
+bevy = { version = "0.9.1", default-features = false, features = [
+    "bevy_pbr",
+    "bevy_winit"
+] }
 bevy-inspector-egui = "0.17.0"
 bevy_xpbd_3d = { path = "../bevy_xpbd_3d" }
