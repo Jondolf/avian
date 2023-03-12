@@ -1812,6 +1812,7 @@ checksum = "d68d47bba83f9e2006d117a9a33af1524e655516b8919caac694427a6fb1e511"
 dependencies = [
  "approx",
  "glam 0.22.0",
+ "glam 0.23.0",
  "matrixmultiply",
  "nalgebra-macros",
  "num-complex",
