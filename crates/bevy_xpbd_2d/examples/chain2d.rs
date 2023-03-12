@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
@@ -16,10 +16,13 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let sphere = meshes.add(Mesh::from(shape::Icosphere {
-        radius: 0.5,
-        subdivisions: 4,
-    }));
+    let sphere = meshes.add(
+        Mesh::try_from(shape::Icosphere {
+            radius: 0.5,
+            subdivisions: 4,
+        })
+        .unwrap(),
+    );
 
     let blue = materials.add(StandardMaterial {
         base_color: Color::rgb(0.2, 0.6, 0.8),
@@ -99,11 +102,11 @@ fn create_chain(
 }
 
 fn mouse_position(
-    windows: Res<Windows>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut mouse_world_pos: ResMut<MouseWorldPos>,
     q_camera: Query<(&Camera, &GlobalTransform), With<GameCamera>>,
 ) {
-    let window = windows.get_primary().unwrap();
+    let window = windows.single();
     let (camera, camera_transform) = q_camera.single();
     if let Some(pos) = window.cursor_position() {
         let window_size = Vec2::new(window.width() as f32, window.height() as f32);
@@ -139,7 +142,7 @@ fn main() {
 
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(15))
         .insert_resource(NumPosIters(6))
