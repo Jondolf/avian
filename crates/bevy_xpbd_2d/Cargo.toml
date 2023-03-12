@@ -14,7 +14,7 @@ path = "../../src/lib.rs"
 required-features = [ "2d" ]
 
 [dependencies]
-bevy = "0.10"
+bevy = { version = "0.10", default-features = false }
 bevy_prototype_debug_lines = "0.10"
 parry2d = { version = "0.13.1", features = [ "simd-stable" ] }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
