@@ -22,7 +22,6 @@ pub enum PhysicsSet {
     BroadPhase,
     /// Substepping is an inner loop inside a physics step, see [`PhysicsSubstep`] and [`XpbdSubstepSchedule`]
     Substeps,
-    // todo: what about sync transforms?
 }
 
 /// The steps in the inner substepping loop
