@@ -12,7 +12,7 @@ use bevy::prelude::SystemSet;
 
 /// The main steps in the physics simulation loop.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PhysicsStep {
+pub enum PhysicsSet {
     /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
     /// For example, bevy `Transform`s are synchronized with the physics world, AABBs are updated etc.
     Prepare,

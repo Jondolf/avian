@@ -18,7 +18,7 @@ impl Plugin for BroadPhasePlugin {
                     update_aabb_intervals.before(collect_collision_pairs),
                     collect_collision_pairs,
                 )
-                    .in_set(PhysicsStep::BroadPhase),
+                    .in_set(PhysicsSet::BroadPhase),
             );
     }
 }

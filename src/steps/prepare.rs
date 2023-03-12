@@ -8,7 +8,7 @@ impl Plugin for PreparePlugin {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
             // todo: move set config to top-level plugin?
-            .configure_set(PhysicsStep::Prepare.before(PhysicsStep::BroadPhase))
+            .configure_set(PhysicsSet::Prepare.before(PhysicsSet::BroadPhase))
             .add_systems(
                 (
                     sync_transforms,
@@ -16,7 +16,7 @@ impl Plugin for PreparePlugin {
                     update_aabb,
                     update_mass_props,
                 )
-                    .in_set(PhysicsStep::Prepare),
+                    .in_set(PhysicsSet::Prepare),
             );
     }
 }

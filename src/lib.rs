@@ -94,7 +94,7 @@ impl Plugin for XpbdPlugin {
         // move to plugin?
         app.add_system(
             run_substep_schedule
-                .in_set(PhysicsStep::Substeps)
+                .in_set(PhysicsSet::Substeps)
                 .in_schedule(XpbdSchedule),
         );
 
