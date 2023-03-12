@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.9.1"
+bevy = { version = "0.9.1", default-features = false, features = [
+    "bevy_pbr", # todo use sprites instead
+    "bevy_winit",
+    "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
+] }
 bevy-inspector-egui = "0.17.0"
 bevy_xpbd_2d = { path = "../bevy_xpbd_2d" }

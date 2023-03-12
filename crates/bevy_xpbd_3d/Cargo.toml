@@ -14,7 +14,7 @@ path = "../../src/lib.rs"
 required-features = [ "3d" ]
 
 [dependencies]
-bevy = "0.9.1"
+bevy = { version = "0.9.1", default-features = false }
 bevy_prototype_debug_lines = { version = "0.9", features = [ "3d" ] }
 parry3d = { version = "0.13.1" }
 nalgebra = { version = "0.32.1", features = [ "convert-glam022" ] }

@@ -1,6 +1,6 @@
 use crate::{
-    prelude::*,
     collision::*,
+    prelude::*,
     steps::broad_phase::BroadCollisionPairs,
     utils::{get_dynamic_friction, get_restitution},
 };
@@ -84,7 +84,8 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([(mut body1, collider_shape1), (mut body2, collider_shape2)]) =
-            bodies.get_many_mut([*ent1, *ent2]){
+            bodies.get_many_mut([*ent1, *ent2])
+        {
             if let Some(collision) = get_collision(
                 *ent1,
                 *ent2,
