@@ -5,14 +5,9 @@ pub struct IntegratorPlugin;
 
 impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set_to_stage(
-            FixedUpdateStage,
-            SystemSet::new()
-                .label(PhysicsStep::Integrate)
-                .after(PhysicsStep::BroadPhase)
-                .with_system(integrate_pos)
-                .with_system(integrate_rot),
-        );
+        app.get_schedule_mut(XpbdSubstepSchedule)
+            .expect("add XpbdSubstepSchedule first")
+            .add_systems((integrate_pos, integrate_rot).in_set(SubsteppingSet::Integrate));
     }
 }
 

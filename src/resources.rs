@@ -3,7 +3,7 @@ use bevy::prelude::Resource;
 use crate::{Vector, DELTA_TIME};
 
 /// Number of substeps used in XPBD simulation
-#[derive(Resource)]
+#[derive(Resource, Clone, Copy)]
 pub struct NumSubsteps(pub u32);
 
 impl Default for NumSubsteps {

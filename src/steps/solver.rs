@@ -11,47 +11,56 @@ pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PenetrationConstraints>()
-            .add_system_set_to_stage(
-                FixedUpdateStage,
-                SystemSet::new()
-                    .before(PhysicsStep::SolvePos)
-                    .with_system(clear_penetration_constraint_lagrange)
-                    .with_system(clear_joint_lagrange::<FixedJoint>)
-                    .with_system(clear_joint_lagrange::<RevoluteJoint>)
-                    .with_system(clear_joint_lagrange::<SphericalJoint>)
-                    .with_system(clear_joint_lagrange::<PrismaticJoint>),
+        app.init_resource::<PenetrationConstraints>();
+
+        let substeps = app
+            .get_schedule_mut(XpbdSubstepSchedule)
+            .expect("add XpbdSubstepSchedule first");
+
+        substeps.configure_sets(
+            (
+                SubsteppingSet::Integrate,
+                SubsteppingSet::SolvePos,
+                SubsteppingSet::UpdateVel,
+                SubsteppingSet::SolveVel,
             )
-            .add_system_set_to_stage(
-                FixedUpdateStage,
-                SystemSet::new()
-                    .label(PhysicsStep::SolvePos)
-                    .after(PhysicsStep::Integrate)
-                    .with_system(penetration_constraints)
-                    .with_system(joint_constraints::<FixedJoint>)
-                    .with_system(joint_constraints::<RevoluteJoint>)
-                    .with_system(joint_constraints::<SphericalJoint>)
-                    .with_system(joint_constraints::<PrismaticJoint>),
+                .chain(),
+        );
+
+        substeps.add_systems(
+            (
+                clear_penetration_constraint_lagrange,
+                clear_joint_lagrange::<FixedJoint>,
+                clear_joint_lagrange::<RevoluteJoint>,
+                clear_joint_lagrange::<SphericalJoint>,
+                clear_joint_lagrange::<PrismaticJoint>,
             )
-            .add_system_set_to_stage(
-                FixedUpdateStage,
-                SystemSet::new()
-                    .label(PhysicsStep::UpdateVel)
-                    .after(PhysicsStep::SolvePos)
-                    .with_system(update_lin_vel)
-                    .with_system(update_ang_vel),
+                .before(SubsteppingSet::SolvePos),
+        );
+
+        substeps.add_systems(
+            (
+                penetration_constraints,
+                joint_constraints::<FixedJoint>,
+                joint_constraints::<RevoluteJoint>,
+                joint_constraints::<SphericalJoint>,
+                joint_constraints::<PrismaticJoint>,
             )
-            .add_system_set_to_stage(
-                FixedUpdateStage,
-                SystemSet::new()
-                    .label(PhysicsStep::SolveVel)
-                    .after(PhysicsStep::UpdateVel)
-                    .with_system(solve_vel)
-                    .with_system(joint_damping::<FixedJoint>)
-                    .with_system(joint_damping::<RevoluteJoint>)
-                    .with_system(joint_damping::<SphericalJoint>)
-                    .with_system(joint_damping::<PrismaticJoint>),
-            );
+                .in_set(SubsteppingSet::SolvePos),
+        );
+
+        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
+
+        substeps.add_systems(
+            (
+                solve_vel,
+                joint_damping::<FixedJoint>,
+                joint_damping::<RevoluteJoint>,
+                joint_damping::<SphericalJoint>,
+                joint_damping::<PrismaticJoint>,
+            )
+                .in_set(SubsteppingSet::SolveVel),
+        );
     }
 }
 

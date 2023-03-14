@@ -100,7 +100,7 @@ fn main() {
 
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
-        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa::Sample4)
         .insert_resource(Gravity(Vec2::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)

@@ -6,16 +6,25 @@ pub struct BroadPhasePlugin;
 impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BroadCollisionPairs>()
-            .init_resource::<AabbIntervals>()
-            .add_system_set_to_stage(
-                FixedUpdateStage,
-                SystemSet::new()
-                    .label(PhysicsStep::BroadPhase)
-                    .with_run_criteria(first_substep)
-                    .with_system(add_new_aabb_intervals.before(collect_collision_pairs))
-                    .with_system(remove_old_aabb_intervals.before(update_aabb_intervals))
-                    .with_system(update_aabb_intervals.before(collect_collision_pairs))
-                    .with_system(collect_collision_pairs),
+            .init_resource::<AabbIntervals>();
+
+        let xpbd_schedule = app
+            .get_schedule_mut(XpbdSchedule)
+            .expect("add xpbd schedule first");
+
+        xpbd_schedule
+            .add_systems(
+                (add_new_aabb_intervals.before(collect_collision_pairs),)
+                    .in_set(PhysicsSet::BroadPhase),
+            )
+            .add_systems(
+                (
+                    remove_old_aabb_intervals,
+                    update_aabb_intervals,
+                    collect_collision_pairs,
+                )
+                    .chain()
+                    .in_set(PhysicsSet::BroadPhase),
             );
     }
 }
@@ -41,7 +50,7 @@ fn add_new_aabb_intervals(
 }
 
 fn remove_old_aabb_intervals(
-    removals: RemovedComponents<ColliderAabb>,
+    mut removals: RemovedComponents<ColliderAabb>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     let removed = removals.iter().collect::<StableHashSet<Entity>>();
