@@ -1,8 +1,20 @@
-#[cfg(feature = "2d")]
+#[cfg(all(feature = "f32", feature = "f64"))]
+compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "2d", feature = "3d"))]
+compile_error!("feature \"f2d\" and feature \"3d\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "2d", feature = "f32"))]
 pub extern crate parry2d as parry;
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "2d", feature = "f64"))]
+pub extern crate parry2d_f64 as parry;
+
+#[cfg(all(feature = "3d", feature = "f32"))]
 pub extern crate parry3d as parry;
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+pub extern crate parry3d_f64 as parry;
 
 pub mod bundles;
 pub mod collision;
@@ -34,13 +46,81 @@ use bevy::{
 use parry::math::Isometry;
 use prelude::*;
 
-#[cfg(feature = "2d")]
-pub type Vector = Vec2;
+#[cfg(all(feature = "2d", feature = "f32"))]
+pub type Vector = bevy::math::Vec2;
 
-#[cfg(feature = "3d")]
-pub type Vector = Vec3;
+#[cfg(all(feature = "2d", feature = "f64"))]
+pub type Vector = bevy::math::DVec2;
 
-pub const DELTA_TIME: f32 = 1.0 / 60.0;
+#[cfg(all(feature = "3d", feature = "f32"))]
+pub type Vector = bevy::math::Vec3;
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+pub type Vector = bevy::math::DVec3;
+
+#[cfg(all(feature = "3d", feature = "f32"))]
+pub type Matrix3 = bevy::math::Mat3;
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+pub type Matrix3 = bevy::math::DMat3;
+
+#[cfg(feature = "f32")]
+pub type Scalar = f32;
+
+#[cfg(feature = "f64")]
+pub type Scalar = f64;
+
+#[cfg(feature = "f32")]
+const PI: Scalar = std::f32::consts::PI;
+
+#[cfg(feature = "f64")]
+const PI: Scalar = std::f64::consts::PI;
+
+#[cfg(feature = "f32")]
+pub type Quaternion = bevy::math::Quat;
+
+#[cfg(feature = "f64")]
+pub type Quaternion = bevy::math::DQuat;
+
+#[cfg(feature = "f32")]
+pub type Vector3 = bevy::math::Vec3;
+
+#[cfg(feature = "f64")]
+pub type Vector3 = bevy::math::DVec3;
+
+pub trait AsVec3F32 {
+    fn as_vec3_f32(self) -> Vec3;
+}
+
+impl AsVec3F32 for bevy::math::DVec3 {
+    fn as_vec3_f32(self) -> Vec3 {
+        self.as_vec3()
+    }
+}
+
+impl AsVec3F32 for bevy::math::Vec3 {
+    fn as_vec3_f32(self) -> Vec3 {
+        self
+    }
+}
+
+pub trait AsQuatF32Ext {
+    fn as_quat_f32(self) -> Quat;
+}
+
+impl AsQuatF32Ext for bevy::math::Quat {
+    fn as_quat_f32(self) -> Quat {
+        self
+    }
+}
+
+impl AsQuatF32Ext for bevy::math::DQuat {
+    fn as_quat_f32(self) -> Quat {
+        self.as_f32()
+    }
+}
+
+pub const DELTA_TIME: Scalar = 1.0 / 60.0;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
@@ -183,7 +263,7 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 
 #[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
-    pub(crate) accumulator: f32,
+    pub(crate) accumulator: Scalar,
     pub(crate) queued_steps: u32,
     pub paused: bool,
 }
@@ -214,11 +294,18 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no xpbd loop resource");
 
     if xpbd_loop.paused {
-        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as f32;
+        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as Scalar;
         xpbd_loop.queued_steps = 0;
     } else {
         let time = world.resource::<Time>();
-        xpbd_loop.accumulator += time.delta_seconds();
+
+        #[cfg(feature = "f32")]
+        let delta_time = time.delta_seconds();
+
+        #[cfg(feature = "f64")]
+        let delta_time = time.delta_seconds_f64();
+
+        xpbd_loop.accumulator += delta_time;
     }
 
     while xpbd_loop.accumulator >= DELTA_TIME {

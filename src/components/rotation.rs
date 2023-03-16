@@ -5,32 +5,32 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 #[cfg(feature = "3d")]
 use nalgebra::Matrix3x1;
 
-use crate::Vector;
+use crate::prelude::*;
 
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug)]
 #[reflect(Component)]
 pub struct Rot {
-    pub cos: f32,
-    pub sin: f32,
+    pub cos: Scalar,
+    pub sin: Scalar,
 }
 
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, derive_more::From)]
 #[reflect(Component)]
-pub struct Rot(pub Quat);
+pub struct Rot(pub Quaternion);
 
 impl Rot {
     #[cfg(feature = "2d")]
-    pub fn rotate_vec3(&self, vec: Vec3) -> Vec3 {
-        Vec3::new(
+    pub fn rotate_vec3(&self, vec: crate::Vector3) -> crate::Vector3 {
+        crate::Vector3::new(
             vec.x * self.cos() - vec.y * self.sin(),
             vec.x * self.sin() + vec.y * self.cos(),
             vec.z,
         )
     }
     #[cfg(feature = "3d")]
-    pub fn rotate_vec3(&self, vec: Vec3) -> Vec3 {
+    pub fn rotate_vec3(&self, vec: Vector) -> Vector {
         self.0 * vec
     }
 }
@@ -39,30 +39,30 @@ impl Rot {
 impl Rot {
     pub const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
 
-    pub fn cos(&self) -> f32 {
+    pub fn cos(&self) -> Scalar {
         self.cos
     }
 
-    pub fn sin(&self) -> f32 {
+    pub fn sin(&self) -> Scalar {
         self.sin
     }
 
-    pub fn from_radians(radians: f32) -> Self {
+    pub fn from_radians(radians: Scalar) -> Self {
         Self {
             cos: radians.cos(),
             sin: radians.sin(),
         }
     }
 
-    pub fn from_degrees(degrees: f32) -> Self {
+    pub fn from_degrees(degrees: Scalar) -> Self {
         Self::from_radians(degrees.to_radians())
     }
 
-    pub fn as_radians(&self) -> f32 {
-        f32::atan2(self.sin(), self.cos())
+    pub fn as_radians(&self) -> Scalar {
+        Scalar::atan2(self.sin(), self.cos())
     }
 
-    pub fn as_degrees(&self) -> f32 {
+    pub fn as_degrees(&self) -> Scalar {
         self.as_radians().to_degrees()
     }
 
@@ -151,7 +151,7 @@ impl SubAssign<Self> for Rot {
 }
 
 #[cfg(feature = "2d")]
-impl From<Rot> for f32 {
+impl From<Rot> for Scalar {
     fn from(rot: Rot) -> Self {
         rot.as_radians()
     }
@@ -165,13 +165,13 @@ impl From<Rot> for Quat {
             let d = 1.0 / (t * 2.0).sqrt();
             let z = -rot.sin() * d;
             let w = t * d;
-            Quat::from_xyzw(0.0, 0.0, z, w)
+            Quat::from_xyzw(0.0, 0.0, z as f32, w as f32)
         } else {
             let t = 1.0 + rot.cos();
             let d = 1.0 / (t * 2.0).sqrt();
             let z = t * d;
             let w = -rot.sin() * d;
-            Quat::from_xyzw(0.0, 0.0, z, w)
+            Quat::from_xyzw(0.0, 0.0, z as f32, w as f32)
         }
     }
 }
@@ -179,12 +179,12 @@ impl From<Rot> for Quat {
 #[cfg(feature = "3d")]
 impl From<Rot> for Quat {
     fn from(rot: Rot) -> Self {
-        rot.0
+        rot.0.as_quat_f32()
     }
 }
 
 #[cfg(feature = "3d")]
-impl From<Rot> for Matrix3x1<f32> {
+impl From<Rot> for Matrix3x1<Scalar> {
     fn from(rot: Rot) -> Self {
         Matrix3x1::new(rot.x, rot.y, rot.z)
     }

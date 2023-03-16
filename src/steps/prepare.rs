@@ -49,7 +49,7 @@ fn update_aabb(
 }
 
 fn update_sub_delta_time(substeps: Res<NumSubsteps>, mut sub_dt: ResMut<SubDeltaTime>) {
-    sub_dt.0 = DELTA_TIME / substeps.0 as f32;
+    sub_dt.0 = DELTA_TIME / substeps.0 as Scalar;
 }
 
 type MassPropsChanged = Or<(
@@ -68,7 +68,7 @@ fn update_mass_props(
     mut bodies: Query<(MassPropsQueryMut, Option<ColliderQuery>), MassPropsChanged>,
 ) {
     for (mut mass_props, collider) in &mut bodies {
-        if mass_props.mass.is_changed() && mass_props.mass.0 >= f32::EPSILON {
+        if mass_props.mass.is_changed() && mass_props.mass.0 >= Scalar::EPSILON {
             mass_props.inv_mass.0 = 1.0 / mass_props.mass.0;
         }
 
@@ -87,11 +87,11 @@ fn update_mass_props(
             mass_props += *collider.mass_props;
         }
 
-        if mass_props.mass.0 < f32::EPSILON {
-            mass_props.mass.0 = f32::EPSILON;
+        if mass_props.mass.0 < Scalar::EPSILON {
+            mass_props.mass.0 = Scalar::EPSILON;
         }
-        if mass_props.inv_mass.0 < f32::EPSILON {
-            mass_props.inv_mass.0 = f32::EPSILON;
+        if mass_props.inv_mass.0 < Scalar::EPSILON {
+            mass_props.inv_mass.0 = Scalar::EPSILON;
         }
     }
 }

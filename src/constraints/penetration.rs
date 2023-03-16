@@ -1,5 +1,5 @@
 use super::{Constraint, PositionConstraint};
-use crate::{collision::Collision, components::*, Vector};
+use crate::{collision::Collision, components::*, Scalar, Vector};
 
 use bevy::prelude::*;
 
@@ -14,11 +14,11 @@ pub struct PenetrationConstraint {
     pub entity2: Entity,
     pub collision_data: Collision,
     /// Lagrange multiplier for the normal force
-    pub normal_lagrange: f32,
+    pub normal_lagrange: Scalar,
     /// Lagrange multiplier for the tangential force
-    pub tangential_lagrange: f32,
+    pub tangential_lagrange: Scalar,
     /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton
-    pub compliance: f32,
+    pub compliance: Scalar,
     /// Normal force acting along this constraint
     pub normal_force: Vector,
 }
@@ -42,7 +42,7 @@ impl PenetrationConstraint {
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: f32,
+        sub_dt: Scalar,
     ) {
         // Compute collision positions on the two bodies.
         // Subtracting the local center of mass from the position seems to be important for some shapes, although it's not shown in the paper. Something may be wrong elsewhere?
@@ -139,7 +139,7 @@ impl PenetrationConstraint {
         self.update_normal_force(n, sub_dt);
     }
 
-    fn update_normal_force(&mut self, normal: Vector, sub_dt: f32) {
+    fn update_normal_force(&mut self, normal: Vector, sub_dt: Scalar) {
         // Equation 10
         self.normal_force = self.normal_lagrange * normal / sub_dt.powi(2);
     }

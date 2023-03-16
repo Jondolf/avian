@@ -6,10 +6,10 @@ use examples_common_2d::XpbdExamplePlugin;
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveAcceleration(pub f32);
+pub struct MoveAcceleration(pub Scalar);
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MaxVelocity(pub Vec2);
+pub struct MaxVelocity(pub Vector);
 
 pub enum MovementEvent {
     Up,
@@ -91,17 +91,17 @@ fn setup(
     let stacks = 25;
     for i in 0..25 {
         for j in 0..stacks {
-            let pos = Vec2::new(
-                (j as f32 - stacks as f32 * 0.5) * 2.5 * radius,
-                2.0 * radius * i as f32 - 2.0,
+            let pos = Vector::new(
+                (j as Scalar - stacks as Scalar * 0.5) * 2.5 * radius,
+                2.0 * radius * i as Scalar - 2.0,
             );
             commands.spawn((
                 PbrBundle {
                     mesh: sphere.clone(),
                     material: blue.clone(),
                     transform: Transform {
-                        scale: Vec3::splat(radius),
-                        translation: pos.extend(0.0),
+                        scale: Vec3::splat(radius as f32),
+                        translation: pos.extend(0.0).as_vec3_f32(),
                         ..default()
                     },
                     ..default()
@@ -113,7 +113,7 @@ fn setup(
                 ColliderBundle::new(&Shape::ball(radius), 1.0),
                 Player,
                 MoveAcceleration(0.5),
-                MaxVelocity(Vec2::new(30.0, 30.0)),
+                MaxVelocity(Vector::new(30.0, 30.0)),
             ));
         }
     }
@@ -168,7 +168,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
+        .insert_resource(Gravity(Vector::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

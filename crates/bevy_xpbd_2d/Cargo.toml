@@ -6,6 +6,8 @@ edition = "2021"
 [features]
 default = [ "2d" ]
 2d = []
+f64 = [ "parry2d-f64" ]
+f32 = [ "parry2d" ]
 debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
 
 [lib]
@@ -16,7 +18,8 @@ required-features = [ "2d" ]
 [dependencies]
 bevy = { version = "0.10", default-features = false }
 bevy_prototype_debug_lines = { version = "0.10", optional = true }
-parry2d = { version = "0.13.1", features = [ "simd-stable" ] }
+parry2d = { version = "0.13.1", optional = true, features = [ "simd-stable" ] }
+parry2d-f64 = { version = "0.13.1", optional = true, features = [ "simd-stable" ] }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
 console_error_panic_hook = "0.1.7"
 web-sys = "0.3.59"

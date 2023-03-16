@@ -16,7 +16,7 @@ impl Plugin for SyncPlugin {
 #[cfg(feature = "2d")]
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.extend(0.0);
+        transform.translation = pos.extend(0.0).as_vec3_f32();
         transform.rotation = (*rot).into();
     }
 }
@@ -25,7 +25,7 @@ fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
 #[cfg(feature = "3d")]
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.0;
-        transform.rotation = rot.0;
+        transform.translation = pos.0.as_vec3_f32();
+        transform.rotation = rot.0.as_quat_f32();
     }
 }
