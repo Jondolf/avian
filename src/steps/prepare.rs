@@ -8,7 +8,12 @@ impl Plugin for PreparePlugin {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
             .add_systems(
-                (update_sub_delta_time, update_aabb, update_mass_props).in_set(PhysicsSet::Prepare),
+                (
+                    update_sub_delta_time,
+                    update_aabb,
+                    update_mass_props.after(update_aabb),
+                )
+                    .in_set(PhysicsSet::Prepare),
             );
     }
 }
