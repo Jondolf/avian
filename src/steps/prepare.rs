@@ -8,32 +8,8 @@ impl Plugin for PreparePlugin {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
             .add_systems(
-                (
-                    sync_transforms,
-                    update_sub_delta_time,
-                    update_aabb,
-                    update_mass_props,
-                )
-                    .in_set(PhysicsSet::Prepare),
+                (update_sub_delta_time, update_aabb, update_mass_props).in_set(PhysicsSet::Prepare),
             );
-    }
-}
-
-/// Copies positions from the physics world to bevy Transforms
-#[cfg(feature = "2d")]
-fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.extend(0.0);
-        transform.rotation = (*rot).into();
-    }
-}
-
-/// Copies positions from the physics world to bevy Transforms
-#[cfg(feature = "3d")]
-fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.0;
-        transform.rotation = rot.0;
     }
 }
 

@@ -2,11 +2,13 @@ pub mod broad_phase;
 pub mod integrator;
 pub mod prepare;
 pub mod solver;
+pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
 pub use solver::SolverPlugin;
+pub use sync::SyncPlugin;
 
 use bevy::prelude::SystemSet;
 
@@ -22,6 +24,7 @@ pub enum PhysicsSet {
     BroadPhase,
     /// Substepping is an inner loop inside a physics step, see [`PhysicsSubstep`] and [`XpbdSubstepSchedule`]
     Substeps,
+    Sync,
 }
 
 /// The steps in the inner substepping loop
