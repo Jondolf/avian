@@ -24,3 +24,5 @@ derive_more = "0.99"
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
+approx = "0.5"
+glam = { version = "0.23", features = [ "approx" ] }

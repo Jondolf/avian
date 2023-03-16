@@ -863,11 +863,13 @@ dependencies = [
 name = "bevy_xpbd_2d"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "bevy",
  "bevy_prototype_debug_lines",
  "console_error_panic_hook",
  "derive_more",
  "examples_common_2d",
+ "glam",
  "nalgebra",
  "parry2d",
  "web-sys",
@@ -877,11 +879,13 @@ dependencies = [
 name = "bevy_xpbd_3d"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "bevy",
  "bevy_prototype_debug_lines",
  "console_error_panic_hook",
  "derive_more",
  "examples_common_3d",
+ "glam",
  "nalgebra",
  "parry3d",
  "web-sys",
@@ -1452,6 +1456,7 @@ version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e4afd9ad95555081e109fe1d21f2a30c691b5f0919c67dfa690a2e1eb6bd51c"
 dependencies = [
+ "approx",
  "bytemuck",
  "serde",
 ]

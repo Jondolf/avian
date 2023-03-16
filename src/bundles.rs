@@ -124,3 +124,40 @@ impl ColliderBundle {
         );
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::prelude::*;
+    use approx::assert_relative_eq;
+    use bevy::prelude::*;
+
+    #[cfg(feature = "2d")]
+    #[test]
+    fn body_builder_accepts_vec_2d() {
+        let body = RigidBodyBundle::new_dynamic()
+            .with_ang_vel(1.)
+            .with_lin_vel(Vec2::new(2., 3.))
+            .with_pos(Vec2::new(4., 5.))
+            .with_rot(Rot::from_radians(0.123));
+
+        assert_relative_eq!(body.ang_vel.0, 1.);
+        assert_relative_eq!(body.lin_vel.0, Vec2::new(2., 3.));
+        assert_relative_eq!(body.pos.0, Vec2::new(4., 5.));
+        assert_relative_eq!(body.rot.as_radians(), 0.123);
+    }
+
+    #[cfg(feature = "3d")]
+    #[test]
+    fn body_builder_accepts_vec_3d() {
+        let body = RigidBodyBundle::new_dynamic()
+            .with_ang_vel(Vec3::X)
+            .with_lin_vel(Vec3::new(2., 3., 4.))
+            .with_pos(Vec3::new(5., 6., 7.))
+            .with_rot(Quat::from_axis_angle(Vec3::X, 0.123));
+
+        assert_relative_eq!(body.ang_vel.0, Vec3::X);
+        assert_relative_eq!(body.lin_vel.0, Vec3::new(2., 3., 4.));
+        assert_relative_eq!(body.pos.0, Vec3::new(5., 6., 7.));
+        assert_relative_eq!(body.rot.0, Quat::from_axis_angle(Vec3::X, 0.123));
+    }
+}
