@@ -4,6 +4,7 @@ pub use rotation::*;
 
 use crate::{Scalar, Vector};
 use bevy::{ecs::query::WorldQuery, prelude::*};
+use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 use std::ops::{AddAssign, SubAssign};
 
@@ -111,43 +112,52 @@ impl Default for RigidBody {
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct Pos(pub Vector);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[cfg(all(feature = "2d", feature = "f64"))]
+impl From<Vec2> for Pos {
+    fn from(value: Vec2) -> Self {
+        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
+        // see: https://github.com/bitshifter/glam-rs/issues/220
+        value.as_dvec2().into()
+    }
+}
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PrevPos(pub Vector);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinVel(pub Vector);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreSolveLinVel(pub Vector);
 
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Scalar);
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Vec3);
 
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreSolveAngVel(pub Scalar);
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreSolveAngVel(pub Vec3);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalForce(pub Vector);
 
@@ -164,7 +174,7 @@ pub struct ExternalTorque(pub Torque);
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
 /// 2.0: kinetic energy is doubled
-#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug, From)]
 #[reflect(Component)]
 pub struct Restitution(pub Scalar);
 

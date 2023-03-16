@@ -71,7 +71,7 @@ pub type Vector3 = bevy::math::Vec3;
 #[cfg(feature = "f64")]
 pub type Vector3 = bevy::math::DVec3;
 
-trait AsVector3Ext {
+pub trait AsVector3Ext {
     fn as_vec3_f32(self) -> Vec3;
 }
 

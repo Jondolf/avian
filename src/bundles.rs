@@ -1,4 +1,4 @@
-use crate::{components::*, Scalar, Vector};
+use crate::{components::*, Scalar};
 
 use bevy::prelude::*;
 
@@ -53,9 +53,9 @@ impl RigidBodyBundle {
         }
     }
 
-    pub fn with_pos(self, pos: Vector) -> Self {
+    pub fn with_pos(self, pos: impl Into<Pos>) -> Self {
         Self {
-            pos: Pos(pos),
+            pos: pos.into(),
             ..self
         }
     }

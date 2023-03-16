@@ -3,6 +3,10 @@ name = "examples_common_2d"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+f32 = [ "bevy_xpbd_2d" ]
+f64 = [ "bevy_xpbd_2d_f64" ]
+
 [dependencies]
 bevy = { version = "0.10", default-features = false, features = [
     "bevy_pbr", # todo use sprites instead
@@ -10,4 +14,5 @@ bevy = { version = "0.10", default-features = false, features = [
     "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
 bevy-inspector-egui = "0.18"
-bevy_xpbd_2d = { path = "../bevy_xpbd_2d" }
+bevy_xpbd_2d = { path = "../bevy_xpbd_2d", optional = true }
+bevy_xpbd_2d_f64 = { path = "../bevy_xpbd_2d_f64", optional = true }

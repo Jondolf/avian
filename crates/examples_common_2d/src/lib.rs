@@ -1,7 +1,13 @@
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
-use bevy_xpbd_2d::{XpbdLoop, XpbdPlugin};
+#[cfg(feature = "f32")]
+extern crate bevy_xpbd_2d as bevy_xpbd;
+
+#[cfg(feature = "f64")]
+extern crate bevy_xpbd_2d_f64 as bevy_xpbd;
+
+use bevy_xpbd::{XpbdLoop, XpbdPlugin};
 
 #[derive(Default)]
 pub struct XpbdExamplePlugin;
@@ -12,8 +18,8 @@ impl Plugin for XpbdExamplePlugin {
             .add_plugin(WorldInspectorPlugin::default())
             .add_plugin(FrameTimeDiagnosticsPlugin)
             .add_state::<AppState>()
-            .add_system(bevy_xpbd_2d::pause.in_schedule(OnEnter(AppState::Paused)))
-            .add_system(bevy_xpbd_2d::resume.in_schedule(OnExit(AppState::Paused)))
+            .add_system(bevy_xpbd::pause.in_schedule(OnEnter(AppState::Paused)))
+            .add_system(bevy_xpbd::resume.in_schedule(OnExit(AppState::Paused)))
             .add_system(pause_button)
             .add_system(step_button.run_if(in_state(AppState::Paused)));
     }
