@@ -16,7 +16,7 @@ pub struct Rot {
 }
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, derive_more::From)]
 #[reflect(Component)]
 pub struct Rot(pub Quat);
 

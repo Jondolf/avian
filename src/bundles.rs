@@ -1,4 +1,4 @@
-use crate::{components::*, Vector};
+use crate::components::*;
 
 use bevy::prelude::*;
 
@@ -53,24 +53,24 @@ impl RigidBodyBundle {
         }
     }
 
-    pub fn with_pos(self, pos: Vector) -> Self {
-        Self {
-            pos: Pos(pos),
-            ..self
-        }
+    pub fn with_pos(self, pos: impl Into<Pos>) -> Self {
+        let pos = pos.into();
+        Self { pos, ..self }
     }
 
-    #[cfg(feature = "2d")]
-    pub fn with_rot(self, rot: Rot) -> Self {
+    pub fn with_rot(self, rot: impl Into<Rot>) -> Self {
+        let rot = rot.into();
         Self { rot, ..self }
     }
 
-    #[cfg(feature = "3d")]
-    pub fn with_rot(self, quat: Quat) -> Self {
-        Self {
-            rot: Rot(quat),
-            ..self
-        }
+    pub fn with_lin_vel(self, lin_vel: impl Into<LinVel>) -> Self {
+        let lin_vel = lin_vel.into();
+        Self { lin_vel, ..self }
+    }
+
+    pub fn with_ang_vel(self, ang_vel: impl Into<AngVel>) -> Self {
+        let ang_vel = ang_vel.into();
+        Self { ang_vel, ..self }
     }
 
     /// Computes the mass properties that a [`Collider`] would have with a given density, and adds those to the body.

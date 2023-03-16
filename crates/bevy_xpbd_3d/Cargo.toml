@@ -20,6 +20,7 @@ parry3d = { version = "0.13.1" }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
 console_error_panic_hook = "0.1"
 web-sys = "0.3.59"
+derive_more = "0.99"
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
