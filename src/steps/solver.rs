@@ -46,6 +46,7 @@ impl Plugin for SolverPlugin {
                 joint_constraints::<SphericalJoint>,
                 joint_constraints::<PrismaticJoint>,
             )
+                .chain()
                 .in_set(SubsteppingSet::SolvePos),
         );
 
@@ -59,6 +60,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
             )
+                .chain()
                 .in_set(SubsteppingSet::SolveVel),
         );
     }

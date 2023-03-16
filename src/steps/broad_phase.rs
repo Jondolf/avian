@@ -12,20 +12,16 @@ impl Plugin for BroadPhasePlugin {
             .get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first");
 
-        xpbd_schedule
-            .add_systems(
-                (add_new_aabb_intervals.before(collect_collision_pairs),)
-                    .in_set(PhysicsSet::BroadPhase),
+        xpbd_schedule.add_systems(
+            (
+                remove_old_aabb_intervals,
+                update_aabb_intervals,
+                add_new_aabb_intervals,
+                collect_collision_pairs,
             )
-            .add_systems(
-                (
-                    remove_old_aabb_intervals,
-                    update_aabb_intervals,
-                    collect_collision_pairs,
-                )
-                    .chain()
-                    .in_set(PhysicsSet::BroadPhase),
-            );
+                .chain()
+                .in_set(PhysicsSet::BroadPhase),
+        );
     }
 }
 
