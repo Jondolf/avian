@@ -82,6 +82,11 @@ impl Plugin for XpbdPlugin {
 
         let mut xpbd_schedule = Schedule::default();
 
+        // xpbd_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
+        //     ambiguity_detection: LogLevel::Error,
+        //     ..default()
+        // });
+
         xpbd_schedule.configure_sets(
             (
                 PhysicsSet::Prepare,
@@ -94,7 +99,14 @@ impl Plugin for XpbdPlugin {
 
         app.add_schedule(XpbdSchedule, xpbd_schedule);
 
-        app.add_schedule(XpbdSubstepSchedule, Schedule::default());
+        let substep_schedule = Schedule::default();
+
+        // substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
+        //     ambiguity_detection: LogLevel::Error,
+        //     ..default()
+        // });
+
+        app.add_schedule(XpbdSubstepSchedule, substep_schedule);
 
         // Add system set for running physics schedule
         app.configure_set(
