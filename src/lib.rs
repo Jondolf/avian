@@ -25,7 +25,6 @@ pub mod prelude {
 mod utils;
 
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
-use bevy_prototype_debug_lines::*;
 use parry::math::Isometry;
 use prelude::*;
 
@@ -113,10 +112,11 @@ impl Plugin for XpbdPlugin {
             .add_plugin(IntegratorPlugin)
             .add_plugin(SolverPlugin);
 
-        app.add_plugin(DebugLinesPlugin::default());
-
         #[cfg(feature = "debug-render-aabbs")]
-        app.add_system(draw_aabbs);
+        {
+            app.add_plugin(DebugLinesPlugin::default());
+            app.add_system(draw_aabbs);
+        }
     }
 }
 
