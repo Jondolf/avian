@@ -27,7 +27,10 @@ mod utils;
 #[cfg(test)]
 mod tests;
 
-use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
+use bevy::{
+    ecs::schedule::{LogLevel, ScheduleLabel},
+    prelude::*,
+};
 use parry::math::Isometry;
 use prelude::*;
 
@@ -82,10 +85,10 @@ impl Plugin for XpbdPlugin {
 
         let mut xpbd_schedule = Schedule::default();
 
-        // xpbd_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-        //     ambiguity_detection: LogLevel::Error,
-        //     ..default()
-        // });
+        xpbd_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
+            ambiguity_detection: LogLevel::Error,
+            ..default()
+        });
 
         xpbd_schedule.configure_sets(
             (
@@ -99,12 +102,12 @@ impl Plugin for XpbdPlugin {
 
         app.add_schedule(XpbdSchedule, xpbd_schedule);
 
-        let substep_schedule = Schedule::default();
+        let mut substep_schedule = Schedule::default();
 
-        // substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-        //     ambiguity_detection: LogLevel::Error,
-        //     ..default()
-        // });
+        substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
+            ambiguity_detection: LogLevel::Error,
+            ..default()
+        });
 
         app.add_schedule(XpbdSubstepSchedule, substep_schedule);
 
