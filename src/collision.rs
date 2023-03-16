@@ -50,7 +50,7 @@ pub(crate) fn get_collision(
             local_r2: rot2.inv().rotate(world_r2),
             world_r1,
             world_r2,
-            normal: Vector::from(collision.normal1),
+            normal: collision.normal1.into(),
             penetration: -collision.dist,
         });
     }

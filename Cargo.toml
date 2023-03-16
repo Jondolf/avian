@@ -2,6 +2,7 @@
 members = [
     "crates/bevy_xpbd_2d",
     "crates/bevy_xpbd_2d_f64",
-    "crates/bevy_xpbd_3d"
+    "crates/bevy_xpbd_3d",
+    "crates/bevy_xpbd_3d_f64"
 ]
 resolver = "2"

@@ -66,9 +66,9 @@ impl RigidBodyBundle {
     }
 
     #[cfg(feature = "3d")]
-    pub fn with_rot(self, quat: Quat) -> Self {
+    pub fn with_rot(self, rot: impl Into<Rot>) -> Self {
         Self {
-            rot: Rot(quat),
+            rot: rot.into(),
             ..self
         }
     }

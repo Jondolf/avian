@@ -23,4 +23,4 @@ web-sys = "0.3.59"
 derive_more = "0.99"
 
 [dev-dependencies]
-examples_common_2d = { path = "../examples_common_2d", features = [ "f64" ]}
+examples_common_2d_f64 = { path = "../examples_common_2d_f64" }

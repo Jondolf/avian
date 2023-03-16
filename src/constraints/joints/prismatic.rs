@@ -36,7 +36,7 @@ impl Joint for PrismaticJoint {
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
-            align_torque: Vec3::ZERO,
+            align_torque: Vector::ZERO,
         }
     }
 
@@ -143,7 +143,7 @@ impl Joint for PrismaticJoint {
         }
         #[cfg(feature = "3d")]
         {
-            let axis2 = axis1.cross(Vec3::Y);
+            let axis2 = axis1.cross(Vector::Y);
             let axis3 = axis1.cross(axis2);
 
             delta_x += self.limit_distance_along_axis(
@@ -215,7 +215,7 @@ impl PrismaticJoint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
         2.0 * (rot1.0 * rot2.inverse()).xyz()
     }
 

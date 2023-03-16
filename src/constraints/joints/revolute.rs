@@ -14,7 +14,7 @@ pub struct RevoluteJoint {
     pub(crate) aligned_axis: Vector3,
     #[cfg(feature = "3d")]
     /// A unit vector that controls which axis is aligned for both entities.
-    pub aligned_axis: Vec3,
+    pub aligned_axis: Vector,
     pub angle_limit: Option<JointLimit>,
     pub damping_lin: Scalar,
     pub damping_ang: Scalar,
@@ -46,11 +46,11 @@ impl Joint for RevoluteJoint {
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
-            align_torque: Vec3::ZERO,
+            align_torque: Vector::ZERO,
             #[cfg(feature = "2d")]
             angle_limit_torque: 0.0,
             #[cfg(feature = "3d")]
-            angle_limit_torque: Vec3::ZERO,
+            angle_limit_torque: Vector::ZERO,
         }
     }
 
@@ -184,7 +184,7 @@ impl Joint for RevoluteJoint {
 
 impl RevoluteJoint {
     #[cfg(feature = "3d")]
-    pub fn with_aligned_axis(self, axis: Vec3) -> Self {
+    pub fn with_aligned_axis(self, axis: Vector) -> Self {
         Self {
             aligned_axis: axis,
             ..self

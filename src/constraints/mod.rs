@@ -1,9 +1,7 @@
 pub mod joints;
 pub mod penetration;
 
-use crate::{components::*, Scalar, Vector, Vector3};
-#[cfg(feature = "3d")]
-use bevy::prelude::*;
+use crate::prelude::*;
 
 pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);
@@ -98,7 +96,7 @@ pub trait PositionConstraint: Constraint {
     fn get_generalized_inverse_mass(
         rb: &RigidBody,
         inv_mass: Scalar,
-        inv_inertia: Mat3,
+        inv_inertia: Matrix3,
         r: Vector,
         n: Vector,
     ) -> Scalar {
@@ -121,9 +119,9 @@ pub trait PositionConstraint: Constraint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, r: Vector, p: Vector) -> Rot {
+    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, r: Vector, p: Vector) -> Rot {
         // Equation 8/9
-        Rot(Quat::from_vec4(0.5 * (inv_inertia * r.cross(p)).extend(0.0)) * rot.0)
+        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * r.cross(p)).extend(0.0)) * rot.0)
     }
 }
 
@@ -196,8 +194,8 @@ pub trait AngularConstraint: Constraint {
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
         delta_lagrange: Scalar,
-        axis: Vec3,
-    ) -> Vec3 {
+        axis: Vector,
+    ) -> Vector {
         let p = -delta_lagrange * axis;
 
         let rot1 = *body1.rot;
@@ -225,7 +223,7 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Mat3, axis: Vec3) -> Scalar {
+    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Matrix3, axis: Vector) -> Scalar {
         if rb.is_dynamic() {
             axis.dot(inv_inertia * axis)
         } else {
@@ -241,8 +239,8 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, p: Vec3) -> Rot {
+    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, p: Vector) -> Rot {
         // Equation 8/9
-        Rot(Quat::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
+        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
     }
 }

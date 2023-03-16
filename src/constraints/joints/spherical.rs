@@ -43,11 +43,11 @@ impl Joint for SphericalJoint {
             #[cfg(feature = "2d")]
             swing_torque: 0.0,
             #[cfg(feature = "3d")]
-            swing_torque: Vec3::ZERO,
+            swing_torque: Vector::ZERO,
             #[cfg(feature = "2d")]
             twist_torque: 0.0,
             #[cfg(feature = "3d")]
-            twist_torque: Vec3::ZERO,
+            twist_torque: Vector::ZERO,
         }
     }
 

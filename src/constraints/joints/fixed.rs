@@ -32,7 +32,7 @@ impl Joint for FixedJoint {
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
-            align_torque: Vec3::ZERO,
+            align_torque: Vector::ZERO,
         }
     }
 
@@ -169,7 +169,7 @@ impl FixedJoint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
         2.0 * (rot1.0 * rot2.inverse()).xyz()
     }
 

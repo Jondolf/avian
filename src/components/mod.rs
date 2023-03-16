@@ -2,7 +2,7 @@ mod rotation;
 
 pub use rotation::*;
 
-use crate::{Scalar, Vector};
+use crate::prelude::*;
 use bevy::{ecs::query::WorldQuery, prelude::*};
 use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
@@ -125,6 +125,15 @@ impl From<Vec2> for Pos {
     }
 }
 
+#[cfg(all(feature = "3d", feature = "f64"))]
+impl From<Vec3> for Pos {
+    fn from(value: Vec3) -> Self {
+        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
+        // see: https://github.com/bitshifter/glam-rs/issues/220
+        value.as_dvec3().into()
+    }
+}
+
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PrevPos(pub Vector);
@@ -145,7 +154,7 @@ pub struct AngVel(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct AngVel(pub Vec3);
+pub struct AngVel(pub Vector);
 
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -155,7 +164,7 @@ pub struct PreSolveAngVel(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngVel(pub Vec3);
+pub struct PreSolveAngVel(pub Vector);
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -165,7 +174,7 @@ pub struct ExternalForce(pub Vector);
 pub(crate) type Torque = Scalar;
 
 #[cfg(feature = "3d")]
-pub(crate) type Torque = Vec3;
+pub(crate) type Torque = Vector;
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
@@ -242,13 +251,13 @@ pub struct Inertia(pub Scalar);
 /// The local moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
 ///
 /// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
-pub struct Inertia(pub Mat3);
+pub struct Inertia(pub Matrix3);
 
 impl Inertia {
     #[cfg(feature = "2d")]
     pub const ZERO: Self = Self(0.0);
     #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Mat3::ZERO);
+    pub const ZERO: Self = Self(Matrix3::ZERO);
 
     #[cfg(feature = "2d")]
     /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.
@@ -284,13 +293,13 @@ pub struct InvInertia(pub Scalar);
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
 ///
 /// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
-pub struct InvInertia(pub Mat3);
+pub struct InvInertia(pub Matrix3);
 
 impl InvInertia {
     #[cfg(feature = "2d")]
     pub const ZERO: Self = Self(0.0);
     #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Mat3::ZERO);
+    pub const ZERO: Self = Self(Matrix3::ZERO);
 
     #[cfg(feature = "2d")]
     /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.

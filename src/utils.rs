@@ -1,6 +1,4 @@
 use crate::prelude::*;
-#[cfg(feature = "3d")]
-use bevy::prelude::*;
 
 #[cfg(feature = "2d")]
 pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<Scalar> {
@@ -13,8 +11,8 @@ pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<Scalar> {
 }
 
 #[cfg(feature = "3d")]
-pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Mat3, rot: Quat) -> Mat3 {
-    let rot_mat3 = Mat3::from_quat(rot);
+pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternion) -> Matrix3 {
+    let rot_mat3 = Matrix3::from_quat(rot);
     (rot_mat3 * inertia_tensor) * rot_mat3.transpose()
 }
 

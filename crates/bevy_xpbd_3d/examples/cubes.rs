@@ -1,15 +1,25 @@
 use bevy::prelude::*;
+
+#[cfg(feature = "f64")]
+use bevy_xpbd_3d_f64::prelude::*;
+
+#[cfg(feature = "f32")]
 use bevy_xpbd_3d::prelude::*;
+
+#[cfg(feature = "f64")]
+use examples_common_3d_f64::XpbdExamplePlugin;
+
+#[cfg(feature = "f32")]
 use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveAcceleration(pub f32);
+pub struct MoveAcceleration(pub Scalar);
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MaxLinearVelocity(pub Vec3);
+pub struct MaxLinearVelocity(pub Vector);
 
 fn setup(
     mut commands: Commands,
@@ -38,7 +48,11 @@ fn setup(
         })
         .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -1.0, 0.0)))
         .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
+            &Shape::cuboid(
+                floor_size.x as Scalar * 0.5,
+                floor_size.y as Scalar * 0.5,
+                floor_size.z as Scalar * 0.5,
+            ),
             1.0,
         ));
 
@@ -66,12 +80,12 @@ fn setup(
                     })
                     .insert(RigidBodyBundle::new_dynamic().with_pos(pos + Vec3::Y * 5.0))
                     .insert(ColliderBundle::new(
-                        &Shape::cuboid(radius, radius, radius),
+                        &Shape::cuboid(radius as Scalar, radius as Scalar, radius as Scalar),
                         1.0,
                     ))
                     .insert(Player)
                     .insert(MoveAcceleration(0.1))
-                    .insert(MaxLinearVelocity(Vec3::new(30.0, 30.0, 30.0)));
+                    .insert(MaxLinearVelocity(Vector::new(30.0, 30.0, 30.0)));
             }
         }
     }

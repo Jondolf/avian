@@ -1,26 +1,26 @@
 [package]
-name = "bevy_xpbd_3d"
+name = "bevy_xpbd_3d_f64"
 version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d", "f32" ]
+default = [ "3d", "f64" ]
 3d = []
-f32 = []
+f64 = []
 debug-render-aabbs = []
 
 [lib]
-name = "bevy_xpbd_3d"
-required-features = [ "3d", "f32" ]
+name = "bevy_xpbd_3d_f64"
+required-features = [ "3d", "f64" ]
 
 [dependencies]
 bevy = { version = "0.10", default-features = false }
 bevy_prototype_debug_lines = { version = "0.10", features = [ "3d" ] }
-parry3d = { version = "0.13.1" }
+parry3d-f64 = { version = "0.13.1" }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
 console_error_panic_hook = "0.1"
 web-sys = "0.3.59"
 derive_more = "0.99"
 
 [dev-dependencies]
-examples_common_3d = { path = "../examples_common_3d" }
+examples_common_3d_f64 = { path = "../examples_common_3d_f64" }

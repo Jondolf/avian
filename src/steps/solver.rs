@@ -183,8 +183,8 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = Vec3::ZERO;
-            ang_vel.0 = Vec3::ZERO;
+            pre_solve_ang_vel.0 = Vector::ZERO;
+            ang_vel.0 = Vector::ZERO;
             continue;
         }
 
@@ -348,6 +348,6 @@ fn compute_delta_ang_vel(inv_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
 }
 
 #[cfg(feature = "3d")]
-fn compute_delta_ang_vel(inv_inertia: Mat3, r: Vector, p: Vector) -> Vector {
+fn compute_delta_ang_vel(inv_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
     inv_inertia * r.cross(p)
 }

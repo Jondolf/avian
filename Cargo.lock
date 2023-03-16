@@ -584,7 +584,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e45e46c2ac0a92db3ae622f2ed690928fe2612e7c9470a46d0ed4c2c77e2e95"
 dependencies = [
- "glam 0.23.0",
+ "glam",
  "serde",
 ]
 
@@ -594,7 +594,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aaa0358a79823e6f0069b910d90b615d02dad08279b5856d3d1e401472b6379a"
 dependencies = [
- "glam 0.23.0",
+ "glam",
 ]
 
 [[package]]
@@ -646,7 +646,7 @@ dependencies = [
  "bevy_utils",
  "downcast-rs",
  "erased-serde",
- "glam 0.23.0",
+ "glam",
  "once_cell",
  "parking_lot",
  "serde",
@@ -881,7 +881,7 @@ dependencies = [
  "bevy_prototype_debug_lines",
  "console_error_panic_hook",
  "derive_more",
- "examples_common_2d",
+ "examples_common_2d_f64",
  "nalgebra",
  "parry2d-f64",
  "web-sys",
@@ -898,6 +898,20 @@ dependencies = [
  "examples_common_3d",
  "nalgebra",
  "parry3d",
+ "web-sys",
+]
+
+[[package]]
+name = "bevy_xpbd_3d_f64"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_prototype_debug_lines",
+ "console_error_panic_hook",
+ "derive_more",
+ "examples_common_3d_f64",
+ "nalgebra",
+ "parry3d-f64",
  "web-sys",
 ]
 
@@ -1254,7 +1268,7 @@ checksum = "e6591f13a63571c4821802eb5b10fd1155b1290bce87086440003841c8c3909b"
 dependencies = [
  "const_panic",
  "encase_derive",
- "glam 0.23.0",
+ "glam",
  "thiserror",
 ]
 
@@ -1335,6 +1349,14 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_xpbd_2d",
+]
+
+[[package]]
+name = "examples_common_2d_f64"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
  "bevy_xpbd_2d_f64",
 ]
 
@@ -1345,6 +1367,15 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_xpbd_3d",
+]
+
+[[package]]
+name = "examples_common_3d_f64"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_xpbd_3d_f64",
 ]
 
 [[package]]
@@ -1463,12 +1494,6 @@ checksum = "ad0a93d233ebf96623465aad4046a8d3aa4da22d4f4beba5388838c8a434bbb4"
 
 [[package]]
 name = "glam"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12f597d56c1bd55a811a1be189459e8fad2bbc272616375602443bdfb37fa774"
-
-[[package]]
-name = "glam"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e4afd9ad95555081e109fe1d21f2a30c691b5f0919c67dfa690a2e1eb6bd51c"
@@ -1582,7 +1607,7 @@ version = "8.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd41d443f978bfa380a6dad58b62a08c43bcb960631f13e9d015b911eaf73588"
 dependencies = [
- "glam 0.23.0",
+ "glam",
  "once_cell",
 ]
 
@@ -1847,8 +1872,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d68d47bba83f9e2006d117a9a33af1524e655516b8919caac694427a6fb1e511"
 dependencies = [
  "approx",
- "glam 0.22.0",
- "glam 0.23.0",
+ "glam",
  "matrixmultiply",
  "nalgebra-macros",
  "num-complex",
@@ -2196,6 +2220,27 @@ name = "parry3d"
 version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c73a9ea58699f422dcd322c134ab02dad2871ba02ee871c9ae1f277c302eb092"
+dependencies = [
+ "approx",
+ "arrayvec",
+ "bitflags",
+ "downcast-rs",
+ "either",
+ "nalgebra",
+ "num-derive",
+ "num-traits",
+ "rustc-hash",
+ "simba",
+ "slab",
+ "smallvec",
+ "spade",
+]
+
+[[package]]
+name = "parry3d-f64"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5dd9aeaccbb2bdc6b1ee9b9c7976a54523af68cb88112050b5f4b02935d5a346"
 dependencies = [
  "approx",
  "arrayvec",

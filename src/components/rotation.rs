@@ -5,7 +5,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 #[cfg(feature = "3d")]
 use nalgebra::Matrix3x1;
 
-use crate::{Scalar, Vector};
+use crate::prelude::*;
 
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug)]
@@ -18,7 +18,7 @@ pub struct Rot {
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
-pub struct Rot(pub Quat);
+pub struct Rot(pub Quaternion);
 
 impl Rot {
     #[cfg(feature = "2d")]
@@ -179,7 +179,7 @@ impl From<Rot> for Quat {
 #[cfg(feature = "3d")]
 impl From<Rot> for Quat {
     fn from(rot: Rot) -> Self {
-        rot.0
+        rot.0.as_quat_f32()
     }
 }
 

@@ -47,6 +47,12 @@ pub type Vector = bevy::math::Vec3;
 #[cfg(all(feature = "3d", feature = "f64"))]
 pub type Vector = bevy::math::DVec3;
 
+#[cfg(all(feature = "3d", feature = "f32"))]
+pub type Matrix3 = bevy::math::Mat3;
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+pub type Matrix3 = bevy::math::DMat3;
+
 #[cfg(feature = "f32")]
 pub type Scalar = f32;
 
@@ -84,6 +90,22 @@ impl AsVector3Ext for bevy::math::DVec3 {
 impl AsVector3Ext for bevy::math::Vec3 {
     fn as_vec3_f32(self) -> Vec3 {
         self
+    }
+}
+
+pub trait AsQuatF32Ext {
+    fn as_quat_f32(self) -> Quat;
+}
+
+impl AsQuatF32Ext for bevy::math::Quat {
+    fn as_quat_f32(self) -> Quat {
+        self
+    }
+}
+
+impl AsQuatF32Ext for bevy::math::DQuat {
+    fn as_quat_f32(self) -> Quat {
+        self.as_f32()
     }
 }
 
