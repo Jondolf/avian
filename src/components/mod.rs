@@ -4,6 +4,7 @@ pub use rotation::*;
 
 use crate::Vector;
 use bevy::{ecs::query::WorldQuery, prelude::*};
+use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 use std::ops::{AddAssign, SubAssign};
 
@@ -111,15 +112,15 @@ impl Default for RigidBody {
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct Pos(pub Vector);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PrevPos(pub Vector);
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinVel(pub Vector);
 
@@ -128,12 +129,12 @@ pub struct LinVel(pub Vector);
 pub struct PreSolveLinVel(pub Vector);
 
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub f32);
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Vec3);
 
