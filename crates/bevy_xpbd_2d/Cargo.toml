@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 default = [ "2d" ]
 2d = []
-debug-render-aabbs = []
+debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -15,7 +15,7 @@ required-features = [ "2d" ]
 
 [dependencies]
 bevy = { version = "0.10", default-features = false }
-bevy_prototype_debug_lines = "0.10"
+bevy_prototype_debug_lines = { version = "0.10", optional = true }
 parry2d = { version = "0.13.1", features = [ "simd-stable" ] }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
 console_error_panic_hook = "0.1.7"
