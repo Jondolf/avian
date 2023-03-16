@@ -24,6 +24,9 @@ pub mod prelude {
 
 mod utils;
 
+#[cfg(test)]
+mod tests;
+
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 use parry::math::Isometry;
 use prelude::*;
