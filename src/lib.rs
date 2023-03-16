@@ -85,6 +85,7 @@ impl Plugin for XpbdPlugin {
                 PhysicsSet::Prepare,
                 PhysicsSet::BroadPhase,
                 PhysicsSet::Substeps,
+                PhysicsSet::Sync,
             )
                 .chain(),
         );
@@ -111,7 +112,8 @@ impl Plugin for XpbdPlugin {
         app.add_plugin(PreparePlugin)
             .add_plugin(BroadPhasePlugin)
             .add_plugin(IntegratorPlugin)
-            .add_plugin(SolverPlugin);
+            .add_plugin(SolverPlugin)
+            .add_plugin(SyncPlugin);
 
         app.add_plugin(DebugLinesPlugin::default());
 

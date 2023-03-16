@@ -2,11 +2,13 @@ pub mod broad_phase;
 pub mod integrator;
 pub mod prepare;
 pub mod solver;
+pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
 pub use solver::SolverPlugin;
+pub use sync::SyncPlugin;
 
 use bevy::prelude::SystemSet;
 
@@ -14,7 +16,6 @@ use bevy::prelude::SystemSet;
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
-    /// For example, bevy `Transform`s are synchronized with the physics world, AABBs are updated etc.
     Prepare,
     /// During the broad phase, potential collisions will be collected into the [`BroadCollisions`] resource using simple AABB intersection checks. These will be further checked for collision in the [`PhysicsStep::NarrowPhase`].
     ///
@@ -22,6 +23,8 @@ pub enum PhysicsSet {
     BroadPhase,
     /// Substepping is an inner loop inside a physics step, see [`PhysicsSubstep`] and [`XpbdSubstepSchedule`]
     Substeps,
+    /// In the sync step, Bevy `Transform`s are synchronized with the physics world.
+    Sync,
 }
 
 /// The steps in the inner substepping loop
