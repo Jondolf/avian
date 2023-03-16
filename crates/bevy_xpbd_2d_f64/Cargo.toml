@@ -1,5 +1,5 @@
 [package]
-name = "bevy_xpbd_2d"
+name = "bevy_xpbd_2d_f64"
 version = "0.1.0"
 edition = "2021"
 

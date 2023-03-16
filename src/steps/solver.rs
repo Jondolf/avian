@@ -316,7 +316,7 @@ fn joint_damping<T: Joint>(
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
 
-            if w1 + w2 <= f32::EPSILON {
+            if w1 + w2 <= Scalar::EPSILON {
                 continue;
             }
 
@@ -333,7 +333,7 @@ fn joint_damping<T: Joint>(
 }
 
 #[cfg(feature = "2d")]
-fn compute_contact_vel(lin_vel: Vector, ang_vel: f32, r: Vector) -> Vector {
+fn compute_contact_vel(lin_vel: Vector, ang_vel: Scalar, r: Vector) -> Vector {
     lin_vel + ang_vel * r.perp()
 }
 
@@ -343,7 +343,7 @@ fn compute_contact_vel(lin_vel: Vector, ang_vel: Vector, r: Vector) -> Vector {
 }
 
 #[cfg(feature = "2d")]
-fn compute_delta_ang_vel(inv_inertia: f32, r: Vector, p: Vector) -> f32 {
+fn compute_delta_ang_vel(inv_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
     inv_inertia * r.perp_dot(p)
 }
 

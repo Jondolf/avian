@@ -1,6 +1,6 @@
 use bevy::prelude::Resource;
 
-use crate::{Vector, DELTA_TIME};
+use crate::{Scalar, Vector, DELTA_TIME};
 
 /// Number of substeps used in XPBD simulation
 #[derive(Resource, Clone, Copy)]
@@ -24,11 +24,11 @@ impl Default for NumPosIters {
 
 /// Substep delta time
 #[derive(Resource)]
-pub(crate) struct SubDeltaTime(pub f32);
+pub(crate) struct SubDeltaTime(pub Scalar);
 
 impl Default for SubDeltaTime {
     fn default() -> Self {
-        Self(DELTA_TIME / NumSubsteps::default().0 as f32)
+        Self(DELTA_TIME / NumSubsteps::default().0 as Scalar)
     }
 }
 

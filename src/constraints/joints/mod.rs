@@ -8,39 +8,38 @@ pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
 
-use crate::prelude::*;
+use crate::{prelude::*, PI};
 use bevy::prelude::*;
-use std::f32::consts::PI;
 
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self;
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self;
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self;
 
     fn with_local_anchor_2(self, anchor: Vector) -> Self;
 
-    fn with_lin_vel_damping(self, damping: f32) -> Self;
+    fn with_lin_vel_damping(self, damping: Scalar) -> Self;
 
-    fn with_ang_vel_damping(self, damping: f32) -> Self;
+    fn with_ang_vel_damping(self, damping: Scalar) -> Self;
 
     fn entities(&self) -> [Entity; 2];
 
-    fn damping_lin(&self) -> f32;
+    fn damping_lin(&self) -> Scalar;
 
-    fn damping_ang(&self) -> f32;
+    fn damping_ang(&self) -> Scalar;
 
     fn constrain(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: f32,
+        sub_dt: Scalar,
     );
 
     #[allow(clippy::too_many_arguments)]
     fn limit_distance(
         &mut self,
-        min: f32,
-        max: f32,
+        min: Scalar,
+        max: Scalar,
         r1: Vector,
         r2: Vector,
         pos1: &Pos,
@@ -49,7 +48,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let pos_offset = (pos2.0 + r2) - (pos1.0 + r1);
         let distance = pos_offset.length();
 
-        if distance <= f32::EPSILON {
+        if distance <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
@@ -68,8 +67,8 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     #[allow(clippy::too_many_arguments)]
     fn limit_distance_along_axis(
         &mut self,
-        min: f32,
-        max: f32,
+        min: Scalar,
+        max: Scalar,
         axis: Vector,
         r1: Vector,
         r2: Vector,
@@ -92,13 +91,13 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     }
 
     fn limit_angle(
-        n: Vec3,
-        n1: Vec3,
-        n2: Vec3,
-        alpha: f32,
-        beta: f32,
-        max_correction: f32,
-    ) -> Option<Vec3> {
+        n: Vector3,
+        n1: Vector3,
+        n2: Vector3,
+        alpha: Scalar,
+        beta: Scalar,
+        max_correction: Scalar,
+    ) -> Option<Vector3> {
         let mut phi = n1.cross(n2).dot(n).asin();
 
         if n1.dot(n2) < 0.0 {
@@ -116,7 +115,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         if phi < alpha || phi > beta {
             phi = phi.clamp(alpha, beta);
 
-            let rot = Quat::from_axis_angle(n, phi);
+            let rot = Quaternion::from_axis_angle(n, phi);
             let mut omega = rot.mul_vec3(n1).cross(n2);
 
             phi = omega.length();
@@ -134,12 +133,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JointLimit {
-    pub min: f32,
-    pub max: f32,
+    pub min: Scalar,
+    pub max: Scalar,
 }
 
 impl JointLimit {
-    pub fn new(min: f32, max: f32) -> Self {
+    pub fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
     }
 }

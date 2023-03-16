@@ -7,30 +7,30 @@ pub struct SphericalJoint {
     pub entity2: Entity,
     pub local_anchor1: Vector,
     pub local_anchor2: Vector,
-    pub swing_axis: Vec3,
-    pub twist_axis: Vec3,
+    pub swing_axis: Vector3,
+    pub twist_axis: Vector3,
     pub swing_limit: Option<JointLimit>,
     pub twist_limit: Option<JointLimit>,
-    pub damping_lin: f32,
-    pub damping_ang: f32,
-    pub pos_lagrange: f32,
-    pub swing_lagrange: f32,
-    pub twist_lagrange: f32,
-    pub compliance: f32,
+    pub damping_lin: Scalar,
+    pub damping_ang: Scalar,
+    pub pos_lagrange: Scalar,
+    pub swing_lagrange: Scalar,
+    pub twist_lagrange: Scalar,
+    pub compliance: Scalar,
     pub force: Vector,
     pub swing_torque: Torque,
     pub twist_torque: Torque,
 }
 
 impl Joint for SphericalJoint {
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self {
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
         Self {
             entity1,
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
-            swing_axis: Vec3::X,
-            twist_axis: Vec3::Y,
+            swing_axis: Vector3::X,
+            twist_axis: Vector3::Y,
             swing_limit: None,
             twist_limit: None,
             damping_lin: 1.0,
@@ -65,14 +65,14 @@ impl Joint for SphericalJoint {
         }
     }
 
-    fn with_lin_vel_damping(self, damping: f32) -> Self {
+    fn with_lin_vel_damping(self, damping: Scalar) -> Self {
         Self {
             damping_lin: damping,
             ..self
         }
     }
 
-    fn with_ang_vel_damping(self, damping: f32) -> Self {
+    fn with_ang_vel_damping(self, damping: Scalar) -> Self {
         Self {
             damping_ang: damping,
             ..self
@@ -83,11 +83,11 @@ impl Joint for SphericalJoint {
         [self.entity1, self.entity2]
     }
 
-    fn damping_lin(&self) -> f32 {
+    fn damping_lin(&self) -> Scalar {
         self.damping_lin
     }
 
-    fn damping_ang(&self) -> f32 {
+    fn damping_ang(&self) -> Scalar {
         self.damping_ang
     }
 
@@ -96,7 +96,7 @@ impl Joint for SphericalJoint {
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: f32,
+        sub_dt: Scalar,
     ) {
         let world_r1 = body1.rot.rotate(self.local_anchor1);
         let world_r2 = body2.rot.rotate(self.local_anchor2);
@@ -104,7 +104,7 @@ impl Joint for SphericalJoint {
         let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
         let magnitude = delta_x.length();
 
-        if magnitude > f32::EPSILON {
+        if magnitude > Scalar::EPSILON {
             let dir = delta_x / magnitude;
 
             let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
@@ -145,7 +145,7 @@ impl Joint for SphericalJoint {
 }
 
 impl SphericalJoint {
-    pub fn with_swing_limits(self, min: f32, max: f32) -> Self {
+    pub fn with_swing_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             swing_limit: Some(JointLimit::new(min, max)),
             ..self
@@ -153,7 +153,7 @@ impl SphericalJoint {
     }
 
     #[cfg(feature = "3d")]
-    pub fn with_twist_limits(self, min: f32, max: f32) -> Self {
+    pub fn with_twist_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             twist_limit: Some(JointLimit::new(min, max)),
             ..self
@@ -164,7 +164,7 @@ impl SphericalJoint {
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: f32,
+        sub_dt: Scalar,
     ) {
         if self.swing_limit.is_none() && self.twist_limit.is_none() {
             return;
@@ -177,20 +177,15 @@ impl SphericalJoint {
             let n = a1.cross(a2);
             let n_magnitude = n.length();
 
-            if n_magnitude > f32::EPSILON {
+            if n_magnitude > Scalar::EPSILON {
                 let n = n / n_magnitude;
 
-                if let Some(delta_q) = Self::limit_angle(
-                    n,
-                    a1,
-                    a2,
-                    swing_limit.min,
-                    swing_limit.max,
-                    std::f32::consts::PI,
-                ) {
+                if let Some(delta_q) =
+                    Self::limit_angle(n, a1, a2, swing_limit.min, swing_limit.max, PI)
+                {
                     let angle = delta_q.length();
 
-                    if angle > f32::EPSILON {
+                    if angle > Scalar::EPSILON {
                         let axis = delta_q / angle;
 
                         let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
@@ -235,7 +230,7 @@ impl SphericalJoint {
             let n = a1 + a2;
             let n_magnitude = n.length();
 
-            if n_magnitude > f32::EPSILON {
+            if n_magnitude > Scalar::EPSILON {
                 let n = n / n_magnitude;
 
                 let n1 = b1 - n.dot(b1) * n;
@@ -243,15 +238,11 @@ impl SphericalJoint {
                 let n1_magnitude = n1.length();
                 let n2_magnitude = n2.length();
 
-                if n1_magnitude > f32::EPSILON && n2_magnitude > f32::EPSILON {
+                if n1_magnitude > Scalar::EPSILON && n2_magnitude > Scalar::EPSILON {
                     let n1 = n1 / n1_magnitude;
                     let n2 = n2 / n2_magnitude;
 
-                    let max_correction = if a1.dot(a2) > -0.5 {
-                        2.0 * std::f32::consts::PI
-                    } else {
-                        sub_dt
-                    };
+                    let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { sub_dt };
 
                     if let Some(delta_q) = Self::limit_angle(
                         n,
@@ -263,7 +254,7 @@ impl SphericalJoint {
                     ) {
                         let angle = delta_q.length();
 
-                        if angle > f32::EPSILON {
+                        if angle > Scalar::EPSILON {
                             let axis = delta_q / angle;
 
                             let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
@@ -300,12 +291,12 @@ impl SphericalJoint {
         }
     }
 
-    fn update_force(&mut self, dir: Vector, sub_dt: f32) {
+    fn update_force(&mut self, dir: Vector, sub_dt: Scalar) {
         // Eq (10)
         self.force = self.pos_lagrange * dir / sub_dt.powi(2);
     }
 
-    fn update_swing_torque(&mut self, axis: Vec3, sub_dt: f32) {
+    fn update_swing_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
         // Eq (17)
         #[cfg(feature = "2d")]
         {
@@ -317,7 +308,7 @@ impl SphericalJoint {
         }
     }
 
-    fn update_twist_torque(&mut self, axis: Vec3, sub_dt: f32) {
+    fn update_twist_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
         // Eq (17)
         #[cfg(feature = "2d")]
         {

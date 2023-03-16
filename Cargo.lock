@@ -873,6 +873,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_xpbd_2d_f64"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_prototype_debug_lines",
+ "console_error_panic_hook",
+ "examples_common_2d",
+ "nalgebra",
+ "parry2d-f64",
+ "web-sys",
+]
+
+[[package]]
 name = "bevy_xpbd_3d"
 version = "0.1.0"
 dependencies = [
@@ -2118,6 +2131,27 @@ name = "parry2d"
 version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49c6edd297a40754e762344dbeb454bdfb51472f03280473065b9b0898008ce3"
+dependencies = [
+ "approx",
+ "arrayvec",
+ "bitflags",
+ "downcast-rs",
+ "either",
+ "nalgebra",
+ "num-derive",
+ "num-traits",
+ "rustc-hash",
+ "simba",
+ "slab",
+ "smallvec",
+ "spade",
+]
+
+[[package]]
+name = "parry2d-f64"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a1bf555d44a3be6c6b6acdea1614af50b12987b4b9651c812d3219e8136c336"
 dependencies = [
  "approx",
  "arrayvec",

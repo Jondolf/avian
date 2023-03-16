@@ -16,7 +16,7 @@ pub struct Collision {
     /// Contact normal from contact point a to b
     pub normal: Vector,
     /// Penetration depth
-    pub penetration: f32,
+    pub penetration: Scalar,
 }
 
 /// Computes one pair of collision points between two shapes.

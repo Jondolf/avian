@@ -4,13 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d" ]
+default = [ "3d", "f32" ]
 3d = []
+f32 = []
 debug-render-aabbs = []
 
 [lib]
 name = "bevy_xpbd_3d"
-required-features = [ "3d" ]
+required-features = [ "3d", "f32" ]
 
 [dependencies]
 bevy = { version = "0.10", default-features = false }
