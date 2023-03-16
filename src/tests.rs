@@ -58,7 +58,7 @@ fn body_with_velocity_moves() {
     // make sure we end up in the expected position
     assert_relative_eq!(
         transform.translation.x,
-        1. * UPDATES as f32 * DELTA_TIME,
+        1. * UPDATES as f32 * 1. / 60.,
         epsilon = 0.03 // allow some leeway, as we might be one frame off
     );
 }
