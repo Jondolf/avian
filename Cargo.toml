@@ -1,3 +1,6 @@
 [workspace]
 members = [ "crates/bevy_xpbd_2d", "crates/bevy_xpbd_3d" ]
 resolver = "2"
+
+[profile.dev]
+opt-level = 1 # Use slightly better optimization, so examples work
