@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "2d" ]
+default = [ "2d", "simd" ]
 2d = []
 debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
+simd = [ "parry2d/simd-stable" ]
+enhanced_determinism = [ "parry2d/enhanced-determinism" ]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -16,7 +18,7 @@ required-features = [ "2d" ]
 [dependencies]
 bevy = { version = "0.10", default-features = false }
 bevy_prototype_debug_lines = { version = "0.10", optional = true }
-parry2d = { version = "0.13.1", features = [ "simd-stable" ] }
+parry2d = "0.13.1"
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
 console_error_panic_hook = "0.1.7"
 web-sys = "0.3.59"
@@ -26,3 +28,5 @@ derive_more = "0.99"
 examples_common_2d = { path = "../examples_common_2d" }
 approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
+insta = "1.0"
+itertools = "0.10"
