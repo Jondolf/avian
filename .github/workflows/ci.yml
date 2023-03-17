@@ -43,7 +43,8 @@ jobs:
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:
-          command: test --no-default-features --features enhanced_determinism,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d
+          command: test
+          args: --no-default-features --features enhanced_determinism,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d
 
   lints:
     name: Lints
