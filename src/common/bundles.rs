@@ -1,4 +1,4 @@
-use crate::{components::*, Scalar};
+use super::super::{components::*, Scalar};
 
 use bevy::prelude::*;
 

@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use super::super::prelude::*;
 
 #[cfg(feature = "2d")]
 pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<Scalar> {

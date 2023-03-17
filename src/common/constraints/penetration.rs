@@ -1,5 +1,5 @@
+use super::super::{collision::Collision, components::*, Scalar, Vector};
 use super::{Constraint, PositionConstraint};
-use crate::{collision::Collision, components::*, Scalar, Vector};
 
 use bevy::prelude::*;
 

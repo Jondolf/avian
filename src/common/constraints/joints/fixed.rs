@@ -1,14 +1,12 @@
-use crate::prelude::*;
+use super::super::prelude::*;
 use bevy::prelude::*;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
-pub struct PrismaticJoint {
+pub struct FixedJoint {
     pub entity1: Entity,
     pub entity2: Entity,
     pub local_anchor1: Vector,
     pub local_anchor2: Vector,
-    pub free_axis: Vector,
-    pub free_axis_limits: Option<JointLimit>,
     pub damping_lin: Scalar,
     pub damping_ang: Scalar,
     pub pos_lagrange: Scalar,
@@ -18,15 +16,13 @@ pub struct PrismaticJoint {
     pub align_torque: Torque,
 }
 
-impl Joint for PrismaticJoint {
+impl Joint for FixedJoint {
     fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
         Self {
             entity1,
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
-            free_axis: Vector::X,
-            free_axis_limits: None,
             damping_lin: 1.0,
             damping_ang: 1.0,
             pos_lagrange: 0.0,
@@ -125,35 +121,7 @@ impl Joint for PrismaticJoint {
         let world_r1 = body1.rot.rotate(self.local_anchor1);
         let world_r2 = body2.rot.rotate(self.local_anchor2);
 
-        let mut delta_x = Vector::ZERO;
-
-        let axis1 = body1.rot.rotate(self.free_axis);
-        if let Some(limits) = self.free_axis_limits {
-            delta_x += self.limit_distance_along_axis(
-                limits.min, limits.max, axis1, world_r1, world_r2, &body1.pos, &body2.pos,
-            );
-        }
-
-        #[cfg(feature = "2d")]
-        {
-            let axis2 = Vector::new(axis1.y, -axis1.x);
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
-            );
-        }
-        #[cfg(feature = "3d")]
-        {
-            let axis2 = axis1.cross(Vector::Y);
-            let axis3 = axis1.cross(axis2);
-
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
-            );
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis3, world_r1, world_r2, &body1.pos, &body2.pos,
-            );
-        }
-
+        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
         let magnitude = delta_x.length();
 
         if magnitude > Scalar::EPSILON {
@@ -194,21 +162,7 @@ impl Joint for PrismaticJoint {
     }
 }
 
-impl PrismaticJoint {
-    pub fn with_free_axis(self, axis: Vector) -> Self {
-        Self {
-            free_axis: axis,
-            ..self
-        }
-    }
-
-    pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
-        Self {
-            free_axis_limits: Some(JointLimit::new(min, max)),
-            ..self
-        }
-    }
-
+impl FixedJoint {
     #[cfg(feature = "2d")]
     fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector3 {
         rot1.mul(rot2.inv()).as_radians() * Vector3::Z
@@ -237,13 +191,13 @@ impl PrismaticJoint {
     }
 }
 
-impl Constraint for PrismaticJoint {
+impl Constraint for FixedJoint {
     fn clear_lagrange_multipliers(&mut self) {
         self.pos_lagrange = 0.0;
         self.align_lagrange = 0.0;
     }
 }
 
-impl PositionConstraint for PrismaticJoint {}
+impl PositionConstraint for FixedJoint {}
 
-impl AngularConstraint for PrismaticJoint {}
+impl AngularConstraint for FixedJoint {}

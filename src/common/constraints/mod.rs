@@ -1,7 +1,7 @@
 pub mod joints;
 pub mod penetration;
 
-use crate::prelude::*;
+use super::prelude::*;
 
 pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);

@@ -1,6 +1,6 @@
 use bevy::prelude::Resource;
 
-use crate::{Scalar, Vector, DELTA_TIME};
+use super::{Scalar, Vector, DELTA_TIME};
 
 /// Number of substeps used in XPBD simulation
 #[derive(Resource, Clone, Copy)]

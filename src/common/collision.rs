@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use super::prelude::*;
 
 /// Data related to a collision between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -33,7 +33,7 @@ pub(crate) fn get_collision(
     shape1: &Shape,
     shape2: &Shape,
 ) -> Option<Collision> {
-    if let Ok(Some(collision)) = parry::query::contact(
+    if let Ok(Some(collision)) = super::super::parry::query::contact(
         &utils::make_isometry(pos1, rot1),
         shape1.0.as_ref(),
         &utils::make_isometry(pos2, rot2),

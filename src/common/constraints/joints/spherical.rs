@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use super::super::super::prelude::*;
 use bevy::prelude::*;
 
 #[derive(Component, Clone, Copy, Debug, PartialEq)]

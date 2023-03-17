@@ -2,14 +2,14 @@ mod rotation;
 
 pub use rotation::*;
 
-use crate::prelude::*;
+use super::super::parry::{bounding_volume::Aabb, shape::SharedShape};
+use super::prelude::*;
 use bevy::{ecs::query::WorldQuery, prelude::*};
 use derive_more::From;
-use parry::{bounding_volume::Aabb, shape::SharedShape};
 use std::ops::{AddAssign, SubAssign};
 
 #[cfg(feature = "3d")]
-use crate::utils::get_rotated_inertia_tensor;
+use super::utils::get_rotated_inertia_tensor;
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
@@ -115,24 +115,6 @@ impl Default for RigidBody {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct Pos(pub Vector);
-
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for Pos {
-    fn from(value: Vec2) -> Self {
-        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
-        // see: https://github.com/bitshifter/glam-rs/issues/220
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for Pos {
-    fn from(value: Vec3) -> Self {
-        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
-        // see: https://github.com/bitshifter/glam-rs/issues/220
-        value.as_dvec3().into()
-    }
-}
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]

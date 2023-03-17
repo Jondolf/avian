@@ -5,7 +5,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 #[cfg(feature = "3d")]
 use nalgebra::Matrix3x1;
 
-use crate::prelude::*;
+use super::super::prelude::*;
 
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug)]

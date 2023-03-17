@@ -8,7 +8,7 @@ pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
 
-use crate::{prelude::*, PI};
+use super::super::prelude::*;
 use bevy::prelude::*;
 
 pub trait Joint: Component + PositionConstraint + AngularConstraint {

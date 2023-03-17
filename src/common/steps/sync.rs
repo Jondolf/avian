@@ -1,4 +1,4 @@
-use crate::{prelude::*, XpbdSchedule};
+use super::super::{prelude::*, XpbdSchedule};
 use bevy::prelude::*;
 
 /// Synchronizes changes from the physics world to Bevy `Transform`s
