@@ -40,3 +40,7 @@ impl Default for Gravity {
         Self(Vector::Y * -9.81)
     }
 }
+
+impl Gravity {
+    pub const ZERO: Gravity = Gravity(Vector::ZERO);
+}
