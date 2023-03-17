@@ -26,3 +26,4 @@ derive_more = "0.99"
 examples_common_2d = { path = "../examples_common_2d" }
 approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
+insta = "1.0"
