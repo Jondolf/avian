@@ -228,12 +228,19 @@ impl InvMass {
 pub struct Inertia(pub f32);
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 /// The local moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
 ///
 /// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 pub struct Inertia(pub Mat3);
+
+#[cfg(feature = "3d")]
+impl Default for Inertia {
+    fn default() -> Self {
+        Inertia(Mat3::ZERO)
+    }
+}
 
 impl Inertia {
     #[cfg(feature = "2d")]
@@ -270,12 +277,19 @@ impl Inertia {
 pub struct InvInertia(pub f32);
 
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix. This is computed in local-space, so the object's orientation is not taken into account.
 ///
 /// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 pub struct InvInertia(pub Mat3);
+
+#[cfg(feature = "3d")]
+impl Default for InvInertia {
+    fn default() -> Self {
+        InvInertia(Mat3::ZERO)
+    }
+}
 
 impl InvInertia {
     #[cfg(feature = "2d")]
