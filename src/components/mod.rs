@@ -119,8 +119,6 @@ pub struct Pos(pub Vector);
 #[cfg(all(feature = "2d", feature = "f64"))]
 impl From<Vec2> for Pos {
     fn from(value: Vec2) -> Self {
-        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
-        // see: https://github.com/bitshifter/glam-rs/issues/220
         value.as_dvec2().into()
     }
 }
@@ -128,8 +126,6 @@ impl From<Vec2> for Pos {
 #[cfg(all(feature = "3d", feature = "f64"))]
 impl From<Vec3> for Pos {
     fn from(value: Vec3) -> Self {
-        // unfortunately, glam doesn't implement `From<Vec2> for DVec2`
-        // see: https://github.com/bitshifter/glam-rs/issues/220
         value.as_dvec3().into()
     }
 }
@@ -141,6 +137,20 @@ pub struct PrevPos(pub Vector);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinVel(pub Vector);
+
+#[cfg(all(feature = "2d", feature = "f64"))]
+impl From<Vec2> for LinVel {
+    fn from(value: Vec2) -> Self {
+        value.as_dvec2().into()
+    }
+}
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+impl From<Vec3> for LinVel {
+    fn from(value: Vec3) -> Self {
+        value.as_dvec3().into()
+    }
+}
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -155,6 +165,13 @@ pub struct AngVel(pub Scalar);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Vector);
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+impl From<Vec3> for AngVel {
+    fn from(value: Vec3) -> Self {
+        value.as_dvec3().into()
+    }
+}
 
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -176,9 +193,16 @@ pub(crate) type Torque = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type Torque = Vector;
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalTorque(pub Torque);
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+impl From<Vec3> for ExternalTorque {
+    fn from(value: Vec3) -> Self {
+        value.as_dvec3().into()
+    }
+}
 
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
