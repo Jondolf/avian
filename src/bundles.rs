@@ -151,12 +151,12 @@ mod test {
         let body = RigidBodyBundle::new_dynamic()
             .with_ang_vel(Vec3::X)
             .with_lin_vel(Vec3::new(2., 3., 4.))
-            .with_pos(Vec3::new(5., 6., 7.))
-            .with_rot(Quat::from_axis_angle(Vec3::X, 0.123));
+            .with_pos(Vector::new(5., 6., 7.))
+            .with_rot(Quaternion::from_axis_angle(Vector::X, 0.123));
 
-        assert_relative_eq!(body.ang_vel.0, Vec3::X);
-        assert_relative_eq!(body.lin_vel.0, Vec3::new(2., 3., 4.));
-        assert_relative_eq!(body.pos.0, Vec3::new(5., 6., 7.));
-        assert_relative_eq!(body.rot.0, Quat::from_axis_angle(Vec3::X, 0.123));
+        assert_relative_eq!(body.ang_vel.0, Vector::X);
+        assert_relative_eq!(body.lin_vel.0, Vector::new(2., 3., 4.));
+        assert_relative_eq!(body.pos.0, Vector::new(5., 6., 7.));
+        assert_relative_eq!(body.rot.0, Quaternion::from_axis_angle(Vector::X, 0.123));
     }
 }
