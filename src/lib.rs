@@ -20,6 +20,7 @@ pub mod bundles;
 pub mod collision;
 pub mod components;
 pub mod constraints;
+pub mod math;
 pub mod resources;
 pub mod steps;
 
@@ -28,6 +29,7 @@ pub mod prelude {
         bundles::*,
         components::*,
         constraints::{joints::*, *},
+        math::*,
         resources::*,
         steps::*,
         *,
@@ -45,80 +47,6 @@ use bevy::{
 };
 use parry::math::Isometry;
 use prelude::*;
-
-#[cfg(all(feature = "2d", feature = "f32"))]
-pub type Vector = bevy::math::Vec2;
-
-#[cfg(all(feature = "2d", feature = "f64"))]
-pub type Vector = bevy::math::DVec2;
-
-#[cfg(all(feature = "3d", feature = "f32"))]
-pub type Vector = bevy::math::Vec3;
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-pub type Vector = bevy::math::DVec3;
-
-#[cfg(all(feature = "3d", feature = "f32"))]
-pub type Matrix3 = bevy::math::Mat3;
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-pub type Matrix3 = bevy::math::DMat3;
-
-#[cfg(feature = "f32")]
-pub type Scalar = f32;
-
-#[cfg(feature = "f64")]
-pub type Scalar = f64;
-
-#[cfg(feature = "f32")]
-const PI: Scalar = std::f32::consts::PI;
-
-#[cfg(feature = "f64")]
-const PI: Scalar = std::f64::consts::PI;
-
-#[cfg(feature = "f32")]
-pub type Quaternion = bevy::math::Quat;
-
-#[cfg(feature = "f64")]
-pub type Quaternion = bevy::math::DQuat;
-
-#[cfg(feature = "f32")]
-pub type Vector3 = bevy::math::Vec3;
-
-#[cfg(feature = "f64")]
-pub type Vector3 = bevy::math::DVec3;
-
-pub trait AsVec3F32 {
-    fn as_vec3_f32(self) -> Vec3;
-}
-
-impl AsVec3F32 for bevy::math::DVec3 {
-    fn as_vec3_f32(self) -> Vec3 {
-        self.as_vec3()
-    }
-}
-
-impl AsVec3F32 for bevy::math::Vec3 {
-    fn as_vec3_f32(self) -> Vec3 {
-        self
-    }
-}
-
-pub trait AsQuatF32Ext {
-    fn as_quat_f32(self) -> Quat;
-}
-
-impl AsQuatF32Ext for bevy::math::Quat {
-    fn as_quat_f32(self) -> Quat {
-        self
-    }
-}
-
-impl AsQuatF32Ext for bevy::math::DQuat {
-    fn as_quat_f32(self) -> Quat {
-        self.as_f32()
-    }
-}
 
 pub const DELTA_TIME: Scalar = 1.0 / 60.0;
 
