@@ -6,11 +6,11 @@ edition = "2021"
 [features]
 default = [ "3d", "f32", "simd" ]
 3d = []
-debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
-f32 = [ "parry3d" ]
-f64 = [ "parry3d-f64" ]
-simd = [ "parry3d/simd-stable" ]
-enhanced_determinism = [ "parry3d/enhanced-determinism" ]
+f32 = [ "dep:parry3d" ]
+f64 = [ "dep:parry3d-f64" ]
+debug-render-aabbs = [ "dep:bevy_prototype_debug_lines" ]
+simd = [ "parry3d?/simd-stable", "parry3d-f64?/simd-stable" ]
+enhanced_determinism = [ "parry3d?/enhanced-determinism", "parry3d-f64?/enhanced-determinism" ]
 
 [lib]
 name = "bevy_xpbd_3d"
