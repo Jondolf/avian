@@ -44,7 +44,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --no-default-features --features enhanced_determinism,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d
+          args: --no-default-features --features enhanced_determinism,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
 
   lints:
     name: Lints
