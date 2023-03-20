@@ -6,7 +6,7 @@ use examples_common_3d::XpbdExamplePlugin;
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveSpeed(pub f32);
+pub struct MoveSpeed(pub Scalar);
 
 fn setup(
     mut commands: Commands,
@@ -56,8 +56,8 @@ fn setup(
 
     commands.spawn(
         PrismaticJoint::new_with_compliance(anchor, object, 0.0)
-            .with_local_anchor_1(Vec3::X)
-            .with_free_axis(Vec3::X)
+            .with_local_anchor_1(Vector::X)
+            .with_free_axis(Vector::X)
             .with_limits(0.5, 3.0),
     );
 
@@ -122,7 +122,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec3::Y * -9.81))
+        .insert_resource(Gravity(Vector::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
