@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "2d" ]
+default = [ "2d", "simd" ]
 2d = []
 f64 = [ "parry2d-f64" ]
 f32 = [ "parry2d" ]
 debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
+simd = [ "parry2d/simd-stable" ]
+enhanced_determinism = [ "parry2d/enhanced-determinism" ]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -29,3 +31,5 @@ derive_more = "0.99"
 examples_common_2d = { path = "../examples_common_2d" }
 approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
+insta = "1.0"
+itertools = "0.10"

@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d", "f32" ]
+default = [ "3d", "f32", "simd" ]
 3d = []
 debug-render-aabbs = [ "bevy_prototype_debug_lines" ]
 f32 = [ "parry3d" ]
 f64 = [ "parry3d-f64" ]
+simd = [ "parry3d/simd-stable" ]
+enhanced_determinism = [ "parry3d/enhanced-determinism" ]
 
 [lib]
 name = "bevy_xpbd_3d"
@@ -29,3 +31,5 @@ derive_more = "0.99"
 examples_common_3d = { path = "../examples_common_3d" }
 approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
+insta = "1.0"
+itertools = "0.10"
