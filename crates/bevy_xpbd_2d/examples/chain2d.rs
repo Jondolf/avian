@@ -109,7 +109,7 @@ fn mouse_position(
     let window = windows.single();
     let (camera, camera_transform) = q_camera.single();
     if let Some(pos) = window.cursor_position() {
-        let window_size = Vec2::new(window.width() as f32, window.height() as f32);
+        let window_size = Vec2::new(window.width(), window.height());
 
         // convert screen position [0..resolution] to ndc [-1..1] (gpu coordinates)
         let ndc = (pos / window_size) * 2.0 - Vec2::ONE;

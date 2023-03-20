@@ -17,7 +17,9 @@ impl Plugin for SyncPlugin {
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in &mut bodies {
         transform.translation = pos.extend(0.0).as_vec3_f32();
-        transform.rotation = (*rot).into();
+
+        let q: Quaternion = (*rot).into();
+        transform.rotation = q.as_quat_f32();
     }
 }
 

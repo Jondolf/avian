@@ -182,7 +182,7 @@ fn cubes_simulation_is_locally_deterministic() {
 
         let mut bodies: Vec<(Id, Transform)> = app_query
             .iter(&app.world)
-            .map(|(id, transform)| (*id, transform.clone()))
+            .map(|(id, transform)| (*id, *transform))
             .collect();
         bodies.sort_by_key(|b| b.0);
         bodies

@@ -158,28 +158,28 @@ impl From<Rot> for Scalar {
 }
 
 #[cfg(feature = "2d")]
-impl From<Rot> for Quat {
+impl From<Rot> for Quaternion {
     fn from(rot: Rot) -> Self {
         if rot.cos() < 0.0 {
             let t = 1.0 - rot.cos();
             let d = 1.0 / (t * 2.0).sqrt();
             let z = -rot.sin() * d;
             let w = t * d;
-            Quat::from_xyzw(0.0, 0.0, z as f32, w as f32)
+            Quaternion::from_xyzw(0.0, 0.0, z, w)
         } else {
             let t = 1.0 + rot.cos();
             let d = 1.0 / (t * 2.0).sqrt();
             let z = t * d;
             let w = -rot.sin() * d;
-            Quat::from_xyzw(0.0, 0.0, z as f32, w as f32)
+            Quaternion::from_xyzw(0.0, 0.0, z, w)
         }
     }
 }
 
 #[cfg(feature = "3d")]
-impl From<Rot> for Quat {
+impl From<Rot> for Quaternion {
     fn from(rot: Rot) -> Self {
-        rot.0.as_quat_f32()
+        rot.0
     }
 }
 
