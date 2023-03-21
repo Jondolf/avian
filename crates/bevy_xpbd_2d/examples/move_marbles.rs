@@ -100,7 +100,6 @@ fn setup(
                     mesh: sphere.clone(),
                     material: blue.clone(),
                     transform: Transform {
-                        #[allow(clippy::unnecessary_cast)]
                         scale: Vec3::splat(radius),
                         translation: pos.extend(0.0),
                         ..default()
