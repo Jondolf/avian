@@ -3,7 +3,7 @@ use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
 #[derive(Resource, Default)]
-struct MouseWorldPos(Vector);
+struct MouseWorldPos(Vec2);
 
 #[derive(Component)]
 struct FollowMouse;
@@ -54,16 +54,16 @@ fn create_chain(
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
     node_count: usize,
-    node_dist: Scalar,
-    node_size: Scalar,
-    compliance: Scalar,
+    node_dist: f32,
+    node_size: f32,
+    compliance: f32,
 ) {
     let mut prev = commands
         .spawn(PbrBundle {
             mesh: mesh.clone(),
             material: material.clone(),
             transform: Transform {
-                scale: Vector3::splat(node_size).as_vec3_f32(),
+                scale: Vec3::splat(node_size),
                 translation: Vec3::ZERO,
                 ..default()
             },
@@ -79,7 +79,7 @@ fn create_chain(
                 mesh: mesh.clone(),
                 material: material.clone(),
                 transform: Transform {
-                    scale: Vector3::splat(node_size).as_vec3_f32(),
+                    scale: Vec3::splat(node_size),
                     translation: Vec3::ZERO,
                     ..default()
                 },
@@ -87,14 +87,14 @@ fn create_chain(
             })
             .insert(
                 RigidBodyBundle::new_dynamic()
-                    .with_pos(Vector::Y * -(node_size + node_dist) * i as Scalar)
+                    .with_pos(Vec2::Y * -(node_size + node_dist) * i as f32)
                     .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
             .id();
 
         commands.spawn(
             SphericalJoint::new_with_compliance(prev, curr, compliance)
-                .with_local_anchor_2(Vector::Y * (node_size + node_dist)),
+                .with_local_anchor_2(Vec2::Y * (node_size + node_dist)),
         );
 
         prev = curr;
@@ -120,15 +120,7 @@ fn mouse_position(
         // use it to convert ndc to world-space coordinates
         let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
 
-        #[cfg(feature = "f32")]
-        {
-            mouse_world_pos.0 = world_pos.truncate();
-        }
-
-        #[cfg(feature = "f64")]
-        {
-            mouse_world_pos.0 = world_pos.truncate().as_dvec2();
-        }
+        mouse_world_pos.0 = world_pos.truncate();
     }
 }
 
@@ -151,7 +143,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vector::new(0.0, -9.81)))
+        .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(15))
         .insert_resource(NumPosIters(6))
         .init_resource::<MouseWorldPos>()

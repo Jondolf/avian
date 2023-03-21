@@ -33,3 +33,23 @@ approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
 insta = "1.0"
 itertools = "0.10"
+
+[[example]]
+name = "chain2d"
+required-features = ["2d", "f32"]
+
+[[example]]
+name = "fixed_joint_2d"
+required-features = ["2d", "f32"]
+
+[[example]]
+name = "move_marbles"
+required-features = ["2d", "f32"]
+
+[[example]]
+name = "prismatic_joint_2d"
+required-features = ["2d", "f32"]
+
+[[example]]
+name = "revolute_joint_2d"
+required-features = ["2d", "f32"]
