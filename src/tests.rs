@@ -42,9 +42,9 @@ fn tick_60_fps(app: &mut App) {
 fn setup_cubes_simulation(mut commands: Commands) {
     let mut next_id = 0;
     // copied from "cubes" example
-    let floor_size = Vec3::new(80.0, 1.0, 80.0);
+    let floor_size = Vector::new(80.0, 1.0, 80.0);
     commands.spawn((
-        RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -1.0, 0.0)),
+        RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -1.0, 0.0)),
         ColliderBundle::new(
             &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
             1.0,
@@ -58,14 +58,14 @@ fn setup_cubes_simulation(mut commands: Commands) {
     for y in 0..count_y {
         for x in 0..count_x {
             for z in 0..count_z {
-                let pos = Vec3::new(
-                    (x as f32 - count_x as f32 * 0.5) * 2.1 * radius,
-                    10.0 * radius * y as f32,
-                    (z as f32 - count_z as f32 * 0.5) * 2.1 * radius,
+                let pos = Vector::new(
+                    (x as Scalar - count_x as Scalar * 0.5) * 2.1 * radius,
+                    10.0 * radius * y as Scalar,
+                    (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands.spawn((
                     SpatialBundle::default(),
-                    RigidBodyBundle::new_dynamic().with_pos(pos + Vec3::Y * 5.0),
+                    RigidBodyBundle::new_dynamic().with_pos(pos + Vector::Y * 5.0),
                     ColliderBundle::new(&Shape::cuboid(radius, radius, radius), 1.0),
                     Id(next_id),
                 ));
@@ -182,7 +182,7 @@ fn cubes_simulation_is_locally_deterministic() {
 
         let mut bodies: Vec<(Id, Transform)> = app_query
             .iter(&app.world)
-            .map(|(id, transform)| (*id, transform.clone()))
+            .map(|(id, transform)| (*id, *transform))
             .collect();
         bodies.sort_by_key(|b| b.0);
         bodies

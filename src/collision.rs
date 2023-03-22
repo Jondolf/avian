@@ -16,7 +16,7 @@ pub struct Collision {
     /// Contact normal from contact point a to b
     pub normal: Vector,
     /// Penetration depth
-    pub penetration: f32,
+    pub penetration: Scalar,
 }
 
 /// Computes one pair of collision points between two shapes.
@@ -50,7 +50,7 @@ pub(crate) fn get_collision(
             local_r2: rot2.inv().rotate(world_r2),
             world_r1,
             world_r2,
-            normal: Vector::from(collision.normal1),
+            normal: collision.normal1.into(),
             penetration: -collision.dist,
         });
     }

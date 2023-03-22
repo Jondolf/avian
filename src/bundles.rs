@@ -1,4 +1,4 @@
-use crate::components::*;
+use crate::{components::*, Scalar};
 
 use bevy::prelude::*;
 
@@ -74,7 +74,7 @@ impl RigidBodyBundle {
     }
 
     /// Computes the mass properties that a [`Collider`] would have with a given density, and adds those to the body.
-    pub fn with_mass_props_from_shape(self, shape: &Shape, density: f32) -> Self {
+    pub fn with_mass_props_from_shape(self, shape: &Shape, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
             inv_mass,
@@ -105,7 +105,7 @@ pub struct ColliderBundle {
 
 impl ColliderBundle {
     /// Creates a new [`ColliderBundle`] from a given [`ColliderShape`] and density.
-    pub fn new(shape: &Shape, density: f32) -> Self {
+    pub fn new(shape: &Shape, density: Scalar) -> Self {
         let aabb = ColliderAabb::from_shape(shape);
         let mass_props = ColliderMassProperties::from_shape_and_density(shape, density);
 
@@ -129,20 +129,19 @@ impl ColliderBundle {
 mod test {
     use crate::prelude::*;
     use approx::assert_relative_eq;
-    use bevy::prelude::*;
 
     #[cfg(feature = "2d")]
     #[test]
     fn body_builder_accepts_vec_2d() {
         let body = RigidBodyBundle::new_dynamic()
             .with_ang_vel(1.)
-            .with_lin_vel(Vec2::new(2., 3.))
-            .with_pos(Vec2::new(4., 5.))
+            .with_lin_vel(Vector::new(2., 3.))
+            .with_pos(Vector::new(4., 5.))
             .with_rot(Rot::from_radians(0.123));
 
         assert_relative_eq!(body.ang_vel.0, 1.);
-        assert_relative_eq!(body.lin_vel.0, Vec2::new(2., 3.));
-        assert_relative_eq!(body.pos.0, Vec2::new(4., 5.));
+        assert_relative_eq!(body.lin_vel.0, Vector::new(2., 3.));
+        assert_relative_eq!(body.pos.0, Vector::new(4., 5.));
         assert_relative_eq!(body.rot.as_radians(), 0.123);
     }
 
@@ -152,12 +151,12 @@ mod test {
         let body = RigidBodyBundle::new_dynamic()
             .with_ang_vel(Vec3::X)
             .with_lin_vel(Vec3::new(2., 3., 4.))
-            .with_pos(Vec3::new(5., 6., 7.))
-            .with_rot(Quat::from_axis_angle(Vec3::X, 0.123));
+            .with_pos(Vector::new(5., 6., 7.))
+            .with_rot(Quaternion::from_axis_angle(Vector::X, 0.123));
 
-        assert_relative_eq!(body.ang_vel.0, Vec3::X);
-        assert_relative_eq!(body.lin_vel.0, Vec3::new(2., 3., 4.));
-        assert_relative_eq!(body.pos.0, Vec3::new(5., 6., 7.));
-        assert_relative_eq!(body.rot.0, Quat::from_axis_angle(Vec3::X, 0.123));
+        assert_relative_eq!(body.ang_vel.0, Vector::X);
+        assert_relative_eq!(body.lin_vel.0, Vector::new(2., 3., 4.));
+        assert_relative_eq!(body.pos.0, Vector::new(5., 6., 7.));
+        assert_relative_eq!(body.rot.0, Quaternion::from_axis_angle(Vector::X, 0.123));
     }
 }
