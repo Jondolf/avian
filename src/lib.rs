@@ -48,8 +48,6 @@ use bevy::{
 use parry::math::Isometry;
 use prelude::*;
 
-pub const DELTA_TIME: Scalar = 1.0 / 60.0;
-
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
 
@@ -67,9 +65,11 @@ pub struct XpbdSubstepSchedule;
 impl Plugin for XpbdPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
-        app.init_resource::<NumSubsteps>()
-            .init_resource::<NumPosIters>()
+        app.init_resource::<PhysicsTimestep>()
+            .init_resource::<DeltaTime>()
             .init_resource::<SubDeltaTime>()
+            .init_resource::<NumSubsteps>()
+            .init_resource::<NumPosIters>()
             .init_resource::<XpbdLoop>()
             .init_resource::<Gravity>()
             .register_type::<RigidBody>()
@@ -221,25 +221,31 @@ fn run_physics_schedule(world: &mut World) {
         .remove_resource::<XpbdLoop>()
         .expect("no xpbd loop resource");
 
+    #[cfg(feature = "f32")]
+    let delta_seconds = world.resource::<Time>().delta_seconds();
+    #[cfg(feature = "f64")]
+    let delta_seconds = world.resource::<Time>().delta_seconds_f64();
+
+    let time_step = *world.resource::<PhysicsTimestep>();
+
+    // Update `DeltaTime` according to the `PhysicsTimestep` configuration
+    let dt = match time_step {
+        PhysicsTimestep::Fixed(fixed_delta_seconds) => fixed_delta_seconds,
+        PhysicsTimestep::Variable { max_dt } => delta_seconds.min(max_dt),
+    };
+    world.resource_mut::<DeltaTime>().0 = dt;
+
     if xpbd_loop.paused {
-        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as Scalar;
+        xpbd_loop.accumulator += dt * xpbd_loop.queued_steps as Scalar;
         xpbd_loop.queued_steps = 0;
     } else {
-        let time = world.resource::<Time>();
-
-        #[cfg(feature = "f32")]
-        let delta_time = time.delta_seconds();
-
-        #[cfg(feature = "f64")]
-        let delta_time = time.delta_seconds_f64();
-
-        xpbd_loop.accumulator += delta_time;
+        xpbd_loop.accumulator += delta_seconds;
     }
 
-    while xpbd_loop.accumulator >= DELTA_TIME {
+    while xpbd_loop.accumulator >= dt && dt != 0.0 {
         debug!("running physics schedule");
         world.run_schedule(XpbdSchedule);
-        xpbd_loop.accumulator -= DELTA_TIME;
+        xpbd_loop.accumulator -= dt;
     }
 
     world.insert_resource(xpbd_loop);
@@ -247,6 +253,12 @@ fn run_physics_schedule(world: &mut World) {
 
 fn run_substep_schedule(world: &mut World) {
     let NumSubsteps(substeps) = *world.resource::<NumSubsteps>();
+    let dt = world.resource::<DeltaTime>().0;
+
+    // Update `SubDeltaTime`
+    let mut sub_delta_time = world.resource_mut::<SubDeltaTime>();
+    sub_delta_time.0 = dt / substeps as Scalar;
+
     for i in 0..substeps {
         debug!("running substep schedule: {i}");
         world.run_schedule(XpbdSubstepSchedule);

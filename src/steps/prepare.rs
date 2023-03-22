@@ -8,12 +8,7 @@ impl Plugin for PreparePlugin {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
             .add_systems(
-                (
-                    update_sub_delta_time,
-                    update_aabb,
-                    update_mass_props.after(update_aabb),
-                )
-                    .in_set(PhysicsSet::Prepare),
+                (update_aabb, update_mass_props.after(update_aabb)).in_set(PhysicsSet::Prepare),
             );
     }
 }
@@ -24,9 +19,10 @@ type AABBChanged = Or<(Changed<Pos>, Changed<Rot>, Changed<LinVel>, Changed<AngV
 #[allow(clippy::type_complexity)]
 fn update_aabb(
     mut bodies: Query<(ColliderQuery, &Pos, &Rot, Option<&LinVel>, Option<&AngVel>), AABBChanged>,
+    dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * DELTA_TIME;
+    let safety_margin_factor = 2.0 * dt.0;
 
     for (mut collider, pos, rot, lin_vel, ang_vel) in &mut bodies {
         let lin_vel_len = lin_vel.map_or(0.0, |v| v.length());
@@ -46,10 +42,6 @@ fn update_aabb(
         collider.aabb.mins.coords = (pos.0 - extended_half_extents).into();
         collider.aabb.maxs.coords = (pos.0 + extended_half_extents).into();
     }
-}
-
-fn update_sub_delta_time(substeps: Res<NumSubsteps>, mut sub_dt: ResMut<SubDeltaTime>) {
-    sub_dt.0 = DELTA_TIME / substeps.0 as Scalar;
 }
 
 type MassPropsChanged = Or<(
