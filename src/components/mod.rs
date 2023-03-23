@@ -280,7 +280,7 @@ pub struct Inertia(pub Matrix3);
 #[cfg(feature = "3d")]
 impl Default for Inertia {
     fn default() -> Self {
-        Inertia(Mat3::ZERO)
+        Self(Matrix3::ZERO)
     }
 }
 
