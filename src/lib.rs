@@ -1,13 +1,26 @@
-#[cfg(feature = "2d")]
+#[cfg(all(feature = "f32", feature = "f64"))]
+compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "2d", feature = "3d"))]
+compile_error!("feature \"f2d\" and feature \"3d\" cannot be enabled at the same time");
+
+#[cfg(all(feature = "2d", feature = "f32"))]
 pub extern crate parry2d as parry;
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "2d", feature = "f64"))]
+pub extern crate parry2d_f64 as parry;
+
+#[cfg(all(feature = "3d", feature = "f32"))]
 pub extern crate parry3d as parry;
+
+#[cfg(all(feature = "3d", feature = "f64"))]
+pub extern crate parry3d_f64 as parry;
 
 pub mod bundles;
 pub mod collision;
 pub mod components;
 pub mod constraints;
+pub mod math;
 pub mod resources;
 pub mod steps;
 
@@ -16,6 +29,7 @@ pub mod prelude {
         bundles::*,
         components::*,
         constraints::{joints::*, *},
+        math::*,
         resources::*,
         steps::*,
         *,
@@ -34,13 +48,7 @@ use bevy::{
 use parry::math::Isometry;
 use prelude::*;
 
-#[cfg(feature = "2d")]
-pub type Vector = Vec2;
-
-#[cfg(feature = "3d")]
-pub type Vector = Vec3;
-
-pub const DELTA_TIME: f32 = 1.0 / 60.0;
+pub const DELTA_TIME: Scalar = 1.0 / 60.0;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
@@ -183,7 +191,7 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 
 #[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
-    pub(crate) accumulator: f32,
+    pub(crate) accumulator: Scalar,
     pub(crate) queued_steps: u32,
     pub paused: bool,
 }
@@ -214,11 +222,18 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no xpbd loop resource");
 
     if xpbd_loop.paused {
-        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as f32;
+        xpbd_loop.accumulator += DELTA_TIME * xpbd_loop.queued_steps as Scalar;
         xpbd_loop.queued_steps = 0;
     } else {
         let time = world.resource::<Time>();
-        xpbd_loop.accumulator += time.delta_seconds();
+
+        #[cfg(feature = "f32")]
+        let delta_time = time.delta_seconds();
+
+        #[cfg(feature = "f64")]
+        let delta_time = time.delta_seconds_f64();
+
+        xpbd_loop.accumulator += delta_time;
     }
 
     while xpbd_loop.accumulator >= DELTA_TIME {

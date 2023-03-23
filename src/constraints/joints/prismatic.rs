@@ -9,17 +9,17 @@ pub struct PrismaticJoint {
     pub local_anchor2: Vector,
     pub free_axis: Vector,
     pub free_axis_limits: Option<JointLimit>,
-    pub damping_lin: f32,
-    pub damping_ang: f32,
-    pub pos_lagrange: f32,
-    pub align_lagrange: f32,
-    pub compliance: f32,
+    pub damping_lin: Scalar,
+    pub damping_ang: Scalar,
+    pub pos_lagrange: Scalar,
+    pub align_lagrange: Scalar,
+    pub compliance: Scalar,
     pub force: Vector,
     pub align_torque: Torque,
 }
 
 impl Joint for PrismaticJoint {
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: f32) -> Self {
+    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
         Self {
             entity1,
             entity2,
@@ -36,7 +36,7 @@ impl Joint for PrismaticJoint {
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
-            align_torque: Vec3::ZERO,
+            align_torque: Vector::ZERO,
         }
     }
 
@@ -54,14 +54,14 @@ impl Joint for PrismaticJoint {
         }
     }
 
-    fn with_lin_vel_damping(self, damping: f32) -> Self {
+    fn with_lin_vel_damping(self, damping: Scalar) -> Self {
         Self {
             damping_lin: damping,
             ..self
         }
     }
 
-    fn with_ang_vel_damping(self, damping: f32) -> Self {
+    fn with_ang_vel_damping(self, damping: Scalar) -> Self {
         Self {
             damping_ang: damping,
             ..self
@@ -72,11 +72,11 @@ impl Joint for PrismaticJoint {
         [self.entity1, self.entity2]
     }
 
-    fn damping_lin(&self) -> f32 {
+    fn damping_lin(&self) -> Scalar {
         self.damping_lin
     }
 
-    fn damping_ang(&self) -> f32 {
+    fn damping_ang(&self) -> Scalar {
         self.damping_ang
     }
 
@@ -85,12 +85,12 @@ impl Joint for PrismaticJoint {
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: f32,
+        sub_dt: Scalar,
     ) {
         let delta_q = self.get_delta_q(&body1.rot, &body2.rot);
         let angle = delta_q.length();
 
-        if angle > f32::EPSILON {
+        if angle > Scalar::EPSILON {
             let axis = delta_q / angle;
 
             let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
@@ -136,14 +136,14 @@ impl Joint for PrismaticJoint {
 
         #[cfg(feature = "2d")]
         {
-            let axis2 = Vec2::new(axis1.y, -axis1.x);
+            let axis2 = Vector::new(axis1.y, -axis1.x);
             delta_x += self.limit_distance_along_axis(
                 0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
             );
         }
         #[cfg(feature = "3d")]
         {
-            let axis2 = axis1.cross(Vec3::Y);
+            let axis2 = axis1.cross(Vector::Y);
             let axis3 = axis1.cross(axis2);
 
             delta_x += self.limit_distance_along_axis(
@@ -156,7 +156,7 @@ impl Joint for PrismaticJoint {
 
         let magnitude = delta_x.length();
 
-        if magnitude > f32::EPSILON {
+        if magnitude > Scalar::EPSILON {
             let dir = delta_x / magnitude;
 
             let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
@@ -202,7 +202,7 @@ impl PrismaticJoint {
         }
     }
 
-    pub fn with_limits(self, min: f32, max: f32) -> Self {
+    pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             free_axis_limits: Some(JointLimit::new(min, max)),
             ..self
@@ -210,21 +210,21 @@ impl PrismaticJoint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
-        rot1.mul(rot2.inv()).as_radians() * Vec3::Z
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector3 {
+        rot1.mul(rot2.inv()).as_radians() * Vector3::Z
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vec3 {
+    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
         2.0 * (rot1.0 * rot2.inverse()).xyz()
     }
 
-    fn update_force(&mut self, dir: Vector, sub_dt: f32) {
+    fn update_force(&mut self, dir: Vector, sub_dt: Scalar) {
         // Eq (10)
         self.force = self.pos_lagrange * dir / sub_dt.powi(2);
     }
 
-    fn update_align_torque(&mut self, axis: Vec3, sub_dt: f32) {
+    fn update_align_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
         // Eq (17)
         #[cfg(feature = "2d")]
         {

@@ -1,8 +1,7 @@
 pub mod joints;
 pub mod penetration;
 
-use crate::{components::*, Vector};
-use bevy::prelude::*;
+use crate::prelude::*;
 
 pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);
@@ -19,16 +18,16 @@ pub trait PositionConstraint: Constraint {
         body2: &RigidBodyQueryItem,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
-        lagrange: f32,
+        lagrange: Scalar,
         dir: Vector,
-        magnitude: f32,
+        magnitude: Scalar,
         r1: Vector,
         r2: Vector,
-        compliance: f32,
-        sub_dt: f32,
-    ) -> f32 {
+        compliance: Scalar,
+        sub_dt: Scalar,
+    ) -> Scalar {
         // If both bodies are not dynamic and compliance is 0, we return 0.0 early to avoid division by zero later.
-        if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() && compliance <= f32::EPSILON {
+        if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() && compliance <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -53,7 +52,7 @@ pub trait PositionConstraint: Constraint {
         body2: &mut RigidBodyQueryItem,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
-        delta_lagrange: f32,
+        delta_lagrange: Scalar,
         dir: Vector,
         r1: Vector,
         r2: Vector,
@@ -80,11 +79,11 @@ pub trait PositionConstraint: Constraint {
     #[cfg(feature = "2d")]
     fn get_generalized_inverse_mass(
         rb: &RigidBody,
-        inv_mass: f32,
-        inv_inertia: f32,
+        inv_mass: Scalar,
+        inv_inertia: Scalar,
         r: Vector,
         n: Vector,
-    ) -> f32 {
+    ) -> Scalar {
         if rb.is_dynamic() {
             inv_mass + inv_inertia * r.perp_dot(n).powi(2)
         } else {
@@ -96,11 +95,11 @@ pub trait PositionConstraint: Constraint {
     #[cfg(feature = "3d")]
     fn get_generalized_inverse_mass(
         rb: &RigidBody,
-        inv_mass: f32,
-        inv_inertia: Mat3,
+        inv_mass: Scalar,
+        inv_inertia: Matrix3,
         r: Vector,
         n: Vector,
-    ) -> f32 {
+    ) -> Scalar {
         if rb.is_dynamic() {
             let r_cross_n = r.cross(n); // Compute the cross product only once
 
@@ -114,15 +113,15 @@ pub trait PositionConstraint: Constraint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rot, inv_inertia: f32, r: Vector, p: Vector) -> Rot {
+    fn get_delta_rot(_rot: Rot, inv_inertia: Scalar, r: Vector, p: Vector) -> Rot {
         // Equation 8/9 but in 2D
         Rot::from_radians(inv_inertia * r.perp_dot(p))
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, r: Vector, p: Vector) -> Rot {
+    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, r: Vector, p: Vector) -> Rot {
         // Equation 8/9
-        Rot(Quat::from_vec4(0.5 * (inv_inertia * r.cross(p)).extend(0.0)) * rot.0)
+        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * r.cross(p)).extend(0.0)) * rot.0)
     }
 }
 
@@ -133,14 +132,14 @@ pub trait AngularConstraint: Constraint {
         rb2: &RigidBody,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
-        lagrange: f32,
-        axis: Vec3,
-        angle: f32,
-        compliance: f32,
-        sub_dt: f32,
-    ) -> f32 {
+        lagrange: Scalar,
+        axis: Vector3,
+        angle: Scalar,
+        compliance: Scalar,
+        sub_dt: Scalar,
+    ) -> Scalar {
         // If both bodies are not dynamic and compliance is 0, we return 0.0 early to avoid division by zero later.
-        if !rb1.is_dynamic() && !rb2.is_dynamic() && compliance <= f32::EPSILON {
+        if !rb1.is_dynamic() && !rb2.is_dynamic() && compliance <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -165,9 +164,9 @@ pub trait AngularConstraint: Constraint {
         body2: &mut RigidBodyQueryItem,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
-        delta_lagrange: f32,
-        axis: Vec3,
-    ) -> f32 {
+        delta_lagrange: Scalar,
+        axis: Vector3,
+    ) -> Scalar {
         // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
         let p = -delta_lagrange * axis.z;
 
@@ -194,9 +193,9 @@ pub trait AngularConstraint: Constraint {
         body2: &mut RigidBodyQueryItem,
         inv_inertia1: InvInertia,
         inv_inertia2: InvInertia,
-        delta_lagrange: f32,
-        axis: Vec3,
-    ) -> Vec3 {
+        delta_lagrange: Scalar,
+        axis: Vector,
+    ) -> Vector {
         let p = -delta_lagrange * axis;
 
         let rot1 = *body1.rot;
@@ -214,7 +213,7 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: f32, axis: Vec3) -> f32 {
+    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Scalar, axis: Vector3) -> Scalar {
         if rb.is_dynamic() {
             axis.dot(inv_inertia * axis)
         } else {
@@ -224,7 +223,7 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "3d")]
-    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Mat3, axis: Vec3) -> f32 {
+    fn get_generalized_inverse_mass(rb: &RigidBody, inv_inertia: Matrix3, axis: Vector) -> Scalar {
         if rb.is_dynamic() {
             axis.dot(inv_inertia * axis)
         } else {
@@ -234,14 +233,14 @@ pub trait AngularConstraint: Constraint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rot, inv_inertia: f32, p: f32) -> Rot {
+    fn get_delta_rot(_rot: Rot, inv_inertia: Scalar, p: Scalar) -> Rot {
         // Equation 8/9 but in 2D
         Rot::from_radians(inv_inertia * p)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Mat3, p: Vec3) -> Rot {
+    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, p: Vector) -> Rot {
         // Equation 8/9
-        Rot(Quat::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
+        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
     }
 }

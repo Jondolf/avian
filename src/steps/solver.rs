@@ -185,8 +185,8 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = Vec3::ZERO;
-            ang_vel.0 = Vec3::ZERO;
+            pre_solve_ang_vel.0 = Vector::ZERO;
+            ang_vel.0 = Vector::ZERO;
             continue;
         }
 
@@ -318,7 +318,7 @@ fn joint_damping<T: Joint>(
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
 
-            if w1 + w2 <= f32::EPSILON {
+            if w1 + w2 <= Scalar::EPSILON {
                 continue;
             }
 
@@ -335,7 +335,7 @@ fn joint_damping<T: Joint>(
 }
 
 #[cfg(feature = "2d")]
-fn compute_contact_vel(lin_vel: Vector, ang_vel: f32, r: Vector) -> Vector {
+fn compute_contact_vel(lin_vel: Vector, ang_vel: Scalar, r: Vector) -> Vector {
     lin_vel + ang_vel * r.perp()
 }
 
@@ -345,11 +345,11 @@ fn compute_contact_vel(lin_vel: Vector, ang_vel: Vector, r: Vector) -> Vector {
 }
 
 #[cfg(feature = "2d")]
-fn compute_delta_ang_vel(inv_inertia: f32, r: Vector, p: Vector) -> f32 {
+fn compute_delta_ang_vel(inv_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
     inv_inertia * r.perp_dot(p)
 }
 
 #[cfg(feature = "3d")]
-fn compute_delta_ang_vel(inv_inertia: Mat3, r: Vector, p: Vector) -> Vector {
+fn compute_delta_ang_vel(inv_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
     inv_inertia * r.cross(p)
 }
