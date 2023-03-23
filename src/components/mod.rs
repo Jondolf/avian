@@ -329,7 +329,7 @@ pub struct InvInertia(pub Matrix3);
 #[cfg(feature = "3d")]
 impl Default for InvInertia {
     fn default() -> Self {
-        InvInertia(Mat3::ZERO)
+        InvInertia(Matrix3::ZERO)
     }
 }
 
