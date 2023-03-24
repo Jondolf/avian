@@ -242,7 +242,7 @@ fn run_physics_schedule(world: &mut World) {
         xpbd_loop.accumulator += delta_seconds;
     }
 
-    while xpbd_loop.accumulator >= dt && dt != 0.0 {
+    while xpbd_loop.accumulator >= dt && dt > 0.0 {
         debug!("running physics schedule");
         world.run_schedule(XpbdSchedule);
         xpbd_loop.accumulator -= dt;
