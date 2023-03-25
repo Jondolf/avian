@@ -53,6 +53,12 @@ pub(crate) fn get_restitution(
     gravity: Vector,
     sub_dt: Scalar,
 ) -> Vector {
+    if normal_vel < 0.0 {
+        // if bodies are moving away from each other, they should be able to do
+        // so unconstrained by restitution corrections.
+        return Vector::ZERO;
+    }
+
     let mut restitution_coefficient = (restitution1.0 + restitution2.0) * 0.5;
 
     // If normal velocity is small enough, use restitution of 0 to avoid jittering
@@ -61,4 +67,41 @@ pub(crate) fn get_restitution(
     }
 
     normal * (-normal_vel + (-restitution_coefficient * pre_solve_normal_vel).min(0.0))
+}
+
+#[cfg(test)]
+mod test {
+    #[cfg(feature = "2d")]
+    #[test]
+    fn no_restitution_corner_snagging() {
+        use super::get_restitution;
+        use crate::prelude::Restitution;
+        use approx::assert_relative_eq;
+        use glam::{vec2, Vec2};
+
+        let normal = -Vec2::Y; // 1 above 2 (normal points from 1 to 2)
+        let vel_1 = vec2(-0.1, 0.9).normalize();
+        let vel_2 = Vec2::ZERO;
+        let normal_vel = normal.dot(vel_1 - vel_2);
+
+        let pre_solve_vel_1 = vel_1;
+        let pre_solve_vel_2 = vel_2;
+        let pre_solve_normal_vel = normal.dot(pre_solve_vel_1 - pre_solve_vel_2);
+
+        let restitution = Restitution::from(0.);
+        let gravity = Vec2::ZERO;
+        let sub_dt = (1. / 60.) / 10.; // 60Hz, 10 substeps
+
+        let restitution_correction = dbg!(get_restitution(
+            normal,
+            normal_vel,
+            pre_solve_normal_vel,
+            &restitution,
+            &restitution,
+            gravity,
+            sub_dt,
+        ));
+
+        assert_relative_eq!(restitution_correction, Vec2::ZERO);
+    }
 }
