@@ -235,6 +235,7 @@ fn run_physics_schedule(world: &mut World) {
     };
     world.resource_mut::<DeltaTime>().0 = dt;
 
+    // Add time to the accumulator
     if xpbd_loop.paused {
         xpbd_loop.accumulator += dt * xpbd_loop.queued_steps as Scalar;
         xpbd_loop.queued_steps = 0;
@@ -242,6 +243,8 @@ fn run_physics_schedule(world: &mut World) {
         xpbd_loop.accumulator += delta_seconds;
     }
 
+    // Step the simulation until the accumulator has been consumed.
+    // Note that a small remainder may be passed on to the next run of the physics schedule.
     while xpbd_loop.accumulator >= dt && dt > 0.0 {
         debug!("running physics schedule");
         world.run_schedule(XpbdSchedule);
