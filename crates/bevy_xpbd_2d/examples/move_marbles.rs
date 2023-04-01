@@ -106,10 +106,7 @@ fn setup(
                     },
                     ..default()
                 },
-                RigidBodyBundle {
-                    restitution: Restitution(0.3),
-                    ..RigidBodyBundle::new_dynamic().with_pos(pos)
-                },
+                RigidBodyBundle::new_dynamic().with_pos(pos),
                 ColliderBundle::new(&Shape::ball(radius), 1.0),
                 Player,
                 MoveAcceleration(0.5),

@@ -261,8 +261,7 @@ fn solve_vel(
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(
                 tangent_vel,
-                body1.friction,
-                body2.friction,
+                body1.friction.combine(*body2.friction).dynamic_coefficient,
                 constraint.normal_lagrange,
                 sub_dt.0,
             );
@@ -272,8 +271,7 @@ fn solve_vel(
                 normal,
                 normal_vel,
                 pre_solve_normal_vel,
-                body1.restitution,
-                body2.restitution,
+                body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
