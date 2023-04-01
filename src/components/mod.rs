@@ -567,3 +567,37 @@ impl Default for ColliderAabb {
         ColliderAabb(Aabb::new_invalid())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn coefficient_combine_works() {
+        let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
+
+        // (0.3 + 0.7) / 2.0 == 0.5
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average)),
+            Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average)
+        );
+
+        // 0.3.min(0.7) == 0.3
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Min)),
+            Restitution::new(0.3).with_combine_rule(CoefficientCombine::Min)
+        );
+
+        // 0.3 * 0.7 == 0.21
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply)),
+            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply)
+        );
+
+        // 0.3.max(0.7) == 0.7
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)),
+            Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)
+        );
+    }
+}
