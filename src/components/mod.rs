@@ -209,7 +209,7 @@ impl From<Vec3> for ExternalTorque {
 /// When combine rules clash with each other, the following priority order is used: `Max > Multiply > Min > Average`.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CoefficientCombine {
-    // The discriminants allow `PartialEq` and `Eq` to work automatically
+    // The discriminants allow priority ordering to work automatically via comparison methods
     #[default]
     Average = 1,
     Min = 2,
