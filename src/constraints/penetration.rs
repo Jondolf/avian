@@ -108,13 +108,11 @@ impl PenetrationConstraint {
             sub_dt,
         );
 
-        let static_friction_coefficient =
-            (body1.friction.static_coefficient + body2.friction.static_coefficient) * 0.5;
-
         let lagrange_n = self.normal_lagrange;
         let lagrange_t = self.tangential_lagrange + delta_lagrange_t;
+        let coefficient = body1.friction.combine(*body2.friction).static_coefficient;
 
-        if lagrange_t > static_friction_coefficient * lagrange_n {
+        if lagrange_t > coefficient * lagrange_n {
             let prev_p1 = body1.prev_pos.0 - body1.local_com.0
                 + body1.prev_rot.rotate(self.collision_data.local_r1);
             let prev_p2 = body2.prev_pos.0 - body2.local_com.0

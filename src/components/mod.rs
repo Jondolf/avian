@@ -204,46 +204,141 @@ impl From<Vec3> for ExternalTorque {
     }
 }
 
+/// Determines how coefficients are combined. The default is `Average`.
+///
+/// When combine rules clash with each other, the following priority order is used: `Max > Multiply > Min > Average`.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CoefficientCombine {
+    // The discriminants allow priority ordering to work automatically via comparison methods
+    #[default]
+    Average = 1,
+    Min = 2,
+    Multiply = 3,
+    Max = 4,
+}
+
 /// 0.0: perfectly inelastic\
 /// 1.0: perfectly elastic\
 /// 2.0: kinetic energy is doubled
-#[derive(Reflect, Clone, Copy, Component, Debug, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
-pub struct Restitution(pub Scalar);
+pub struct Restitution {
+    pub coefficient: Scalar,
+    pub combine_rule: CoefficientCombine,
+}
+
+impl Restitution {
+    pub const ZERO: Self = Self {
+        coefficient: 0.0,
+        combine_rule: CoefficientCombine::Average,
+    };
+
+    /// Creates a new `Restitution` component with the given restitution coefficient.
+    pub fn new(coefficient: Scalar) -> Self {
+        Self {
+            coefficient,
+            ..default()
+        }
+    }
+
+    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
+        Self {
+            combine_rule,
+            ..*self
+        }
+    }
+
+    /// Combines the properties of two `Restitution` components.
+    pub fn combine(&self, other: Self) -> Self {
+        // Choose rule with higher priority
+        let rule = self.combine_rule.max(other.combine_rule);
+
+        Self {
+            coefficient: match rule {
+                CoefficientCombine::Average => (self.coefficient + other.coefficient) * 0.5,
+                CoefficientCombine::Min => self.coefficient.min(other.coefficient),
+                CoefficientCombine::Multiply => self.coefficient * other.coefficient,
+                CoefficientCombine::Max => self.coefficient.max(other.coefficient),
+            },
+            combine_rule: rule,
+        }
+    }
+}
 
 impl Default for Restitution {
     fn default() -> Self {
-        Self(0.3)
+        Self {
+            coefficient: 0.3,
+            combine_rule: CoefficientCombine::default(),
+        }
     }
 }
 
 /// 0.0: no friction at all, the body slides infinitely\
 /// 1.0: high friction\
-#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Friction {
     pub dynamic_coefficient: Scalar,
     pub static_coefficient: Scalar,
+    pub combine_rule: CoefficientCombine,
 }
 
 impl Friction {
     pub const ZERO: Self = Self {
         dynamic_coefficient: 0.0,
         static_coefficient: 0.0,
+        combine_rule: CoefficientCombine::Average,
     };
 
-    /// Creates a new Friction component with the same dynamic and static friction coefficients.
-    fn new(friction_coefficient: Scalar) -> Self {
+    /// Creates a new `Friction` component with the same dynamic and static friction coefficients.
+    pub fn new(friction_coefficient: Scalar) -> Self {
         Self {
             dynamic_coefficient: friction_coefficient,
             static_coefficient: friction_coefficient,
+            ..default()
+        }
+    }
+
+    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
+        Self {
+            combine_rule,
+            ..*self
+        }
+    }
+
+    /// Combines the properties of two `Friction` components.
+    pub fn combine(&self, other: Self) -> Self {
+        // Choose rule with higher priority
+        let rule = self.combine_rule.max(other.combine_rule);
+        let (dynamic1, dynamic2) = (self.dynamic_coefficient, other.dynamic_coefficient);
+        let (static1, static2) = (self.static_coefficient, other.static_coefficient);
+
+        Self {
+            dynamic_coefficient: match rule {
+                CoefficientCombine::Average => (dynamic1 + dynamic2) * 0.5,
+                CoefficientCombine::Min => dynamic1.min(dynamic2),
+                CoefficientCombine::Multiply => dynamic1 * dynamic2,
+                CoefficientCombine::Max => dynamic1.max(dynamic2),
+            },
+            static_coefficient: match rule {
+                CoefficientCombine::Average => (static1 + static2) * 0.5,
+                CoefficientCombine::Min => static1.min(static2),
+                CoefficientCombine::Multiply => static1 * static2,
+                CoefficientCombine::Max => static1.max(static2),
+            },
+            combine_rule: rule,
         }
     }
 }
 
 impl Default for Friction {
     fn default() -> Self {
-        Self::new(0.3)
+        Self {
+            dynamic_coefficient: 0.3,
+            static_coefficient: 0.3,
+            combine_rule: CoefficientCombine::default(),
+        }
     }
 }
 
@@ -470,5 +565,39 @@ impl ColliderAabb {
 impl Default for ColliderAabb {
     fn default() -> Self {
         ColliderAabb(Aabb::new_invalid())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+
+    #[test]
+    fn coefficient_combine_works() {
+        let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
+
+        // (0.3 + 0.7) / 2.0 == 0.5
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average)),
+            Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average)
+        );
+
+        // 0.3.min(0.7) == 0.3
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Min)),
+            Restitution::new(0.3).with_combine_rule(CoefficientCombine::Min)
+        );
+
+        // 0.3 * 0.7 == 0.21
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply)),
+            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply)
+        );
+
+        // 0.3.max(0.7) == 0.7
+        assert_eq!(
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)),
+            Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)
+        );
     }
 }
