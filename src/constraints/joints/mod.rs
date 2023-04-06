@@ -1,3 +1,5 @@
+//! General joint logic and different types of built-in joints.
+
 mod fixed;
 mod prismatic;
 mod revolute;
@@ -11,23 +13,33 @@ pub use spherical::*;
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// Joints are constraints that attach pairs of bodies and restrict their relative positional and rotational degrees of freedom.
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
+    /// Creates a new joint with a given compliance (inverse of stiffness).
     fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self;
 
+    /// Sets the attachment point on the first body.
     fn with_local_anchor_1(self, anchor: Vector) -> Self;
 
+    /// Sets the attachment point on the second body.
     fn with_local_anchor_2(self, anchor: Vector) -> Self;
 
+    /// Sets the linear velocity damping caused by the joint.
     fn with_lin_vel_damping(self, damping: Scalar) -> Self;
 
+    /// Sets the angular velocity damping caused by the joint.
     fn with_ang_vel_damping(self, damping: Scalar) -> Self;
 
+    /// Returns the two entities constrained by the joint.
     fn entities(&self) -> [Entity; 2];
 
+    /// Returns the linear velocity damping of the joint.
     fn damping_lin(&self) -> Scalar;
 
+    /// Returns the angular velocity damping of the joint.
     fn damping_ang(&self) -> Scalar;
 
+    /// Applies the positional and angular corrections caused by the joint.
     fn constrain(
         &mut self,
         body1: &mut RigidBodyQueryItem,
@@ -35,6 +47,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         sub_dt: Scalar,
     );
 
+    /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max`.
     #[allow(clippy::too_many_arguments)]
     fn limit_distance(
         &mut self,
@@ -64,6 +77,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         }
     }
 
+    /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max` along a given `axis`.
     #[allow(clippy::too_many_arguments)]
     fn limit_distance_along_axis(
         &mut self,
@@ -90,6 +104,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         }
     }
 
+    /// Returns the angular correction required to limit thw angle between the axes `n1` and `n2` to be in the interval between `alpha` and `beta` using the common rotation axis `n`.
     fn limit_angle(
         n: Vector3,
         n1: Vector3,
@@ -131,6 +146,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     }
 }
 
+/// A joint limit between `min` and `max`. This can represent things like distance limits or angle limits.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct JointLimit {
     pub min: Scalar,
@@ -138,6 +154,7 @@ pub struct JointLimit {
 }
 
 impl JointLimit {
+    /// Creates a new `JointLimit`.
     pub fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
     }
