@@ -1,8 +1,10 @@
 # Bevy XPBD
 
-Bevy XPBD is a 2D and 3D physics engine based on Extended Position Based Dynamics (XPBD) for the [Bevy game engine](https://bevyengine.org/).
+**Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD) for the [Bevy game engine](https://bevyengine.org/). The *Entity Component System* (ECS) is used heavily throughout the engine to enable enhanced parallellism, configurability and familiarity, while making the engine fit better into the Bevy ecosystem.
 
-XPBD is an improved variant of traditional position based dynamics. It provides unconditionally stable, time step independent and physically accurate simulations that use simple constraint projection to handle things like contacts, joints, and interactions between rigid bodies, soft bodies and fluids.
+XPBD is an improved variant of traditional *Position Based Dynamics* (PBD). It provides unconditionally stable, time step independent and physically accurate simulations that use simple constraint projection to handle things like contacts, joints, and interactions between rigid bodies, soft bodies and fluids.
+
+The current supported version of Bevy is 0.10.1.
 
 ## Stability warning
 
@@ -14,7 +16,7 @@ That being said, I hope to release 0.1.0 in the not-so-distant future, and I pla
 
 > **Note**: Since the crate isn't available on [crates.io](https://crates.io) yet, you will have to clone the Git repo to test it out.
 
-Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene example](https://bevyengine.org/examples/3d/3d-scene/).
+Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
 
 ```rs
 use bevy::prelude::*;
@@ -121,8 +123,8 @@ I recommend checking out [Johan Helsing's](https://github.com/johanhelsing) amaz
 
 To understand the algorithm better, it's also worth checking out some of the papers:
 
-  - Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*
-  - Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*
+  - Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*.
+  - Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*.
 
 ## License
 
