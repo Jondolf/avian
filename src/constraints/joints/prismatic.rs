@@ -1,20 +1,38 @@
+//! [`PrismaticJoint`] component.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// A prismatic joint prevents relative movement of the attached bodies, except for translation along one `free_axis`.
+///
+/// Prismatic joints can be useful for things like elevators, pistons, sliding doors and moving platforms.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct PrismaticJoint {
+    /// First entity constrained by the joint.
     pub entity1: Entity,
+    /// Second entity constrained by the joint.
     pub entity2: Entity,
+    /// Attachment point on the first body.
     pub local_anchor1: Vector,
+    /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// A free axis that the attached bodies can translate along relative to each other.
     pub free_axis: Vector,
+    /// The extents of the allowed relative translation along the free axis.
     pub free_axis_limits: Option<JointLimit>,
+    /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
+    /// Angular damping applied by the joint.
     pub damping_ang: Scalar,
+    /// Lagrange multiplier for the positional correction.
     pub pos_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub align_lagrange: Scalar,
+    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The force exerted by the joint.
     pub force: Vector,
+    /// The torque exerted by the joint when aligning the bodies.
     pub align_torque: Torque,
 }
 
@@ -195,6 +213,7 @@ impl Joint for PrismaticJoint {
 }
 
 impl PrismaticJoint {
+    /// Sets the joint's free axis. Relative translations are allowed along this free axis.
     pub fn with_free_axis(self, axis: Vector) -> Self {
         Self {
             free_axis: axis,
@@ -202,6 +221,7 @@ impl PrismaticJoint {
         }
     }
 
+    /// Sets the translational limits along the joint's free axis.
     pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             free_axis_limits: Some(JointLimit::new(min, max)),
