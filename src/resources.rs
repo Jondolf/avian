@@ -50,6 +50,9 @@ impl Default for NumPosIters {
     }
 }
 
+/// The global gravitational acceleration. This is applied to dynamic bodies in the integration step.
+///
+/// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational acceleration near Earth's surface.
 #[derive(Resource, Debug)]
 pub struct Gravity(pub Vector);
 
