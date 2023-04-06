@@ -1,29 +1,48 @@
+//! [`RevoluteJoint`] component.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
+///
+/// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct RevoluteJoint {
+    /// First entity constrained by the joint.
     pub entity1: Entity,
+    /// Second entity constrained by the joint.
     pub entity2: Entity,
+    /// Attachment point on the first body.
     pub local_anchor1: Vector,
+    /// Attachment point on the second body.
     pub local_anchor2: Vector,
-    #[cfg(feature = "2d")]
-    /// A unit vector that controls which axis is aligned for both entities.
+    /// A unit vector that controls which axis should be aligned for both entities.
     ///
     /// In 2D this should always be the Z axis.
+    #[cfg(feature = "2d")]
     pub(crate) aligned_axis: Vector3,
+    /// A unit vector that controls which axis should be aligned for both bodies.
     #[cfg(feature = "3d")]
-    /// A unit vector that controls which axis is aligned for both entities.
     pub aligned_axis: Vector,
+    /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit: Option<JointLimit>,
+    /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
+    /// Angular damping applied by the joint.
     pub damping_ang: Scalar,
+    /// Lagrange multiplier for the positional correction.
     pub pos_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub align_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the angle limits.
     pub angle_limit_lagrange: Scalar,
+    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The force exerted by the joint.
     pub force: Vector,
+    /// The torque exerted by the joint when aligning the bodies.
     pub align_torque: Torque,
+    /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit_torque: Torque,
 }
 
@@ -183,6 +202,7 @@ impl Joint for RevoluteJoint {
 }
 
 impl RevoluteJoint {
+    /// Sets the axis that the bodies should be aligned on.
     #[cfg(feature = "3d")]
     pub fn with_aligned_axis(self, axis: Vector) -> Self {
         Self {
@@ -191,6 +211,7 @@ impl RevoluteJoint {
         }
     }
 
+    /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
     pub fn with_angle_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             angle_limit: Some(JointLimit::new(min, max)),
@@ -204,6 +225,7 @@ impl RevoluteJoint {
         a1.cross(a2)
     }
 
+    /// Applies angle limits to limit the relative rotation of the bodies around the `aligned_axis`.
     #[allow(clippy::too_many_arguments)]
     fn apply_angle_limits(
         &mut self,
