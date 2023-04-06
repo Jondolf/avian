@@ -1,8 +1,11 @@
+//! General constraint logic and different types of constraints, such as joints and penetration constraints.
+
 pub mod joints;
 pub mod penetration;
 
 use crate::prelude::*;
 
+/// A generic trait for constraints.
 pub trait Constraint {
     fn clear_lagrange_multipliers(&mut self);
 }
@@ -125,7 +128,11 @@ pub trait PositionConstraint: Constraint {
     }
 }
 
+/// Angular constraints apply an angular correction of a given rotation angle around a given axis.
+///
+/// The constraint functions are based on equations 11-16 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
 pub trait AngularConstraint: Constraint {
+    /// Computes the change of a given Lagrange multiplier when an angular correction is applied to two bodies.
     #[allow(clippy::too_many_arguments)]
     fn get_delta_ang_lagrange(
         rb1: &RigidBody,
