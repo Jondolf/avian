@@ -1,21 +1,25 @@
+//! Collision data and helpers.
+
 use crate::prelude::*;
 
 /// Data related to a collision between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Collision {
+    /// First entity in a collision.
     pub entity1: Entity,
+    /// Second entity in a collision.
     pub entity2: Entity,
-    /// Local contact point a in local coordinates
+    /// Local contact point 1 in local coordinates.
     pub local_r1: Vector,
-    /// Local contact point b in local coordinates
+    /// Local contact point 2 in local coordinates.
     pub local_r2: Vector,
-    /// Local contact point a in world coordinates
+    /// Local contact point 1 in world coordinates.
     pub world_r1: Vector,
-    /// Local contact point b in world coordinates
+    /// Local contact point 2 in world coordinates.
     pub world_r2: Vector,
-    /// Contact normal from contact point a to b
+    /// Contact normal from contact point 1 to 2.
     pub normal: Vector,
-    /// Penetration depth
+    /// Penetration depth.
     pub penetration: Scalar,
 }
 
