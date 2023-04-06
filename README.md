@@ -2,6 +2,8 @@
 
 Bevy XPBD is a 2D and 3D physics engine based on Extended Position Based Dynamics (XPBD) for the [Bevy game engine](https://bevyengine.org/).
 
+XPBD is an improved variant of traditional position based dynamics. It provides unconditionally stable, time step independent and physically accurate simulations that use simple constraint projection to handle things like contacts, joints, and interactions between rigid bodies, soft bodies and fluids.
+
 ## Stability warning
 
 Bevy XPBD is in early development, and it has not been released on [crates.io](https://crates.io) yet. There are several stability and performance issues, missing features, and a lack of proper documentation, so for the time being, I recommend using alternatives like [bevy_rapier](https://github.com/dimforge/bevy_rapier) for any serious projects.
