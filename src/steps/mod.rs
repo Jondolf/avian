@@ -1,3 +1,5 @@
+//! The steps used in the simulation loop.
+
 pub mod broad_phase;
 pub mod integrator;
 pub mod prepare;
@@ -10,24 +12,26 @@ pub use prepare::PreparePlugin;
 pub use solver::SolverPlugin;
 pub use sync::SyncPlugin;
 
-use bevy::prelude::SystemSet;
+#[allow(unused_imports)]
+use crate::prelude::{steps::broad_phase::BroadCollisionPairs, *}; // For doc comments
+use bevy::prelude::*;
 
 /// The main steps in the physics simulation loop.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
     Prepare,
-    /// During the broad phase, potential collisions will be collected into the [`BroadCollisions`] resource using simple AABB intersection checks. These will be further checked for collision in the [`PhysicsStep::NarrowPhase`].
+    /// During the broad phase, potential collisions will be collected into the [`BroadCollisionPairs`] resource using simple AABB intersection checks.
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step, see [`PhysicsSubstep`] and [`XpbdSubstepSchedule`]
+    /// Substepping is an inner loop inside a physics step, see [`SubsteppingSet`] and [`XpbdSubstepSchedule`]
     Substeps,
-    /// In the sync step, Bevy `Transform`s are synchronized with the physics world.
+    /// In the sync step, Bevy [`Transform`]s are synchronized with the physics world.
     Sync,
 }
 
-/// The steps in the inner substepping loop
+/// The steps in the inner substepping loop.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubsteppingSet {
     /// In the integration step, the position and velocity of each particle and body is explicitly integrated, taking only external forces like gravity (and forces applied by the user) into account.
