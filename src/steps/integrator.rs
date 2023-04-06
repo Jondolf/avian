@@ -1,6 +1,9 @@
+//! The integrator explicitly integrates the positions and velocities of bodies. See [`IntegratorPlugin`].
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// The `IntegratorPlugin` explicitly integrates the positions and velocities of bodies taking only external forces like gravity into account. This acts as a prediction for the next positions and orientations of the bodies.
 pub struct IntegratorPlugin;
 
 impl Plugin for IntegratorPlugin {
@@ -11,7 +14,7 @@ impl Plugin for IntegratorPlugin {
     }
 }
 
-/// Applies forces and predicts the next position and velocity for all dynamic bodies.
+/// Explicitly integrates the positions and linear velocities of bodies taking only external forces like gravity into account. This acts as a prediction for the next positions of the bodies.
 fn integrate_pos(
     mut bodies: Query<(
         &RigidBody,
@@ -42,7 +45,7 @@ fn integrate_pos(
     }
 }
 
-/// Integrates rotations for all dynamic bodies.
+/// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "2d")]
 fn integrate_rot(
     mut bodies: Query<(
@@ -71,7 +74,7 @@ fn integrate_rot(
     }
 }
 
-/// Integrates rotations for all dynamic bodies.
+/// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "3d")]
 fn integrate_rot(
     mut bodies: Query<(
