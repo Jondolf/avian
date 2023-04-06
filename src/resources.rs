@@ -1,3 +1,5 @@
+//! Resources used in the simulation.
+
 use bevy::prelude::Resource;
 
 use crate::{Scalar, Vector};
@@ -24,13 +26,13 @@ impl Default for PhysicsTimestep {
 
 /// How much time the previous physics frame took. The timestep can be configured with the [`PhysicsTimestep`] resource.
 #[derive(Resource, Default)]
-pub(crate) struct DeltaTime(pub Scalar);
+pub struct DeltaTime(pub Scalar);
 
 /// How much time the previous physics substep took. This depends on the [`DeltaTime`] and [`NumSubsteps`] resources.
 #[derive(Resource, Default)]
-pub(crate) struct SubDeltaTime(pub Scalar);
+pub struct SubDeltaTime(pub Scalar);
 
-/// Number of substeps used in XPBD simulation
+/// The number of substeps used in XPBD simulation. A higher number of substeps reduces the value of [`SubDeltaTime`], which results in a more accurate simulation at the cost of performance.
 #[derive(Resource, Clone, Copy)]
 pub struct NumSubsteps(pub u32);
 
@@ -40,7 +42,7 @@ impl Default for NumSubsteps {
     }
 }
 
-/// Number of iterations used in XPBD position solving
+/// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`NumSubsteps`] instead, as substepping can provide better convergence, accuracy and energy conservation.
 #[derive(Resource)]
 pub struct NumPosIters(pub u32);
 
