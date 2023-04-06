@@ -152,13 +152,6 @@ impl ColliderBundle {
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
         }
     }
-
-    pub fn update_mass_props(&mut self) {
-        self.mass_props = ColliderMassProperties::from_shape_and_density(
-            &self.collider_shape.0,
-            self.mass_props.density,
-        );
-    }
 }
 
 #[cfg(test)]
