@@ -14,7 +14,13 @@ That being said, I hope to release 0.1.0 in the not-so-distant future, and I pla
 
 ## Usage example
 
-> **Note**: Since the crate isn't available on [crates.io](https://crates.io) yet, you will have to clone the Git repo to test it out.
+Bevy XPBD isn't available on [crates.io](https://crates.io) yet, so you will have to specify the dependency using the Git repository:
+
+```toml
+[dependencies]
+bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd.git" }
+# ...other dependencies
+```
 
 Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
 
