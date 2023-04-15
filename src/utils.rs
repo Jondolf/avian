@@ -1,3 +1,5 @@
+//! Miscallaneous utility functions.
+
 use crate::prelude::*;
 
 #[cfg(feature = "2d")]

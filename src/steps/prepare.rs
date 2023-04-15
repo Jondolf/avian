@@ -1,6 +1,9 @@
+//! Performs necessary preparations and updates at the start of each physics frame. See [`PreparePlugin`].
+
 use crate::{prelude::*, utils::make_isometry};
 use bevy::prelude::*;
 
+/// Performs necessary preparations and updates at the start of each physics frame. For example, [`ColliderAabb`]s and mass properties are updated.
 pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {

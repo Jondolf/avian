@@ -1,3 +1,5 @@
+//! The XPBD solver is reponsible for constraint projection, velocity updates, and velocity corrections. See [`SolverPlugin`].
+
 use crate::{
     collision::*,
     prelude::*,
@@ -7,6 +9,19 @@ use crate::{
 use bevy::prelude::*;
 use constraints::penetration::PenetrationConstraint;
 
+/// The `SolverPlugin` is reponsible for constraint projection, velocity updates, and velocity corrections caused by dynamic friction, restitution and damping.
+///
+/// ## Steps
+///
+/// Below are the three main steps of the `SolverPlugin`.
+///
+/// 1. **Constraint projection**: Constraints are handled by looping through them and applying positional and angular corrections to the bodies in order to satisfy the constraints.
+///
+/// 2. **Velocity update**: The velocities of bodies are updated based on positional and rotational changes from the last step.
+///
+/// 3. **Velocity solve**: Velocity corrections caused by dynamic friction, restitution and damping are applied.
+///
+/// In the case of collisions, [`PenetrationConstraint`]s are created for each contact pair. The constraints are resolved by moving the bodies so that they no longer penetrate. Then, the velocities are updated, and velocity corrections caused by dynamic friction and restitution are applied.
 pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
@@ -84,7 +99,7 @@ fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
     }
 }
 
-/// Iterates through broad phase collision pairs, checks which ones are actually colliding, and creates penetration constraints for them.
+/// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 fn penetration_constraints(
     mut bodies: Query<(RigidBodyQuery, &ColliderShape)>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
@@ -117,6 +132,7 @@ fn penetration_constraints(
     }
 }
 
+/// Iterates through all joints and solves the constraints.
 fn joint_constraints<T: Joint>(
     mut bodies: Query<RigidBodyQuery>,
     mut joints: Query<&mut T, Without<Pos>>,
@@ -201,7 +217,7 @@ fn update_ang_vel(
     }
 }
 
-/// Solves the new velocities of dynamic bodies after dynamic-dynamic collisions.
+/// Applies velocity corrections caused by dynamic friction and restitution.
 #[allow(clippy::type_complexity)]
 fn solve_vel(
     mut bodies: Query<RigidBodyQuery>,
@@ -292,6 +308,7 @@ fn solve_vel(
     }
 }
 
+/// Applies velocity corrections caused by joint damping.
 fn joint_damping<T: Joint>(
     mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &InvMass)>,
     joints: Query<&T, Without<RigidBody>>,

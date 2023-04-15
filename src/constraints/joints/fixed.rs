@@ -1,18 +1,35 @@
+//! [`FixedJoint`] component.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// A fixed joint prevents any relative movement of the attached bodies.
+///
+/// You should generally prefer using a single body instead of multiple bodies fixed together,
+/// but fixed joints can be useful for things like rigid structures where a force can dynamically break the joints connecting individual bodies.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct FixedJoint {
+    /// First entity constrained by the joint.
     pub entity1: Entity,
+    /// Second entity constrained by the joint.
     pub entity2: Entity,
+    /// Attachment point on the first body.
     pub local_anchor1: Vector,
+    /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
+    /// Angular damping applied by the joint.
     pub damping_ang: Scalar,
+    /// Lagrange multiplier for the positional correction.
     pub pos_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub align_lagrange: Scalar,
+    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The force exerted by the joint.
     pub force: Vector,
+    /// The torque exerted by the joint when aligning the bodies.
     pub align_torque: Torque,
 }
 

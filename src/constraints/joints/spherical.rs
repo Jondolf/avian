@@ -1,24 +1,46 @@
+//! [`SphericalJoint`] component.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
+/// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
+///
+/// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
 pub struct SphericalJoint {
+    /// First entity constrained by the joint.
     pub entity1: Entity,
+    /// Second entity constrained by the joint.
     pub entity2: Entity,
+    /// Attachment point on the first body.
     pub local_anchor1: Vector,
+    /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// An axis that the attached bodies can swing around. This is normally the x-axis.
     pub swing_axis: Vector3,
+    /// An axis that the attached bodies can twist around. This is normally the y-axis.
     pub twist_axis: Vector3,
+    /// The extents of the allowed relative rotation of the bodies around the `swing_axis`.
     pub swing_limit: Option<JointLimit>,
+    /// The extents of the allowed relative rotation of the bodies around the `twist_axis`.
     pub twist_limit: Option<JointLimit>,
+    /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
+    /// Angular damping applied by the joint.
     pub damping_ang: Scalar,
+    /// Lagrange multiplier for the positional correction.
     pub pos_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the swing limits.
     pub swing_lagrange: Scalar,
+    /// Lagrange multiplier for the angular correction caused by the twist limits.
     pub twist_lagrange: Scalar,
+    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The force exerted by the joint.
     pub force: Vector,
+    /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `swing_axis`.
     pub swing_torque: Torque,
+    /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `twist_axis`.
     pub twist_torque: Torque,
 }
 
@@ -145,6 +167,7 @@ impl Joint for SphericalJoint {
 }
 
 impl SphericalJoint {
+    /// Sets the limits of the allowed relative rotation around the `swing_axis`.
     pub fn with_swing_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             swing_limit: Some(JointLimit::new(min, max)),
@@ -152,6 +175,7 @@ impl SphericalJoint {
         }
     }
 
+    /// Sets the limits of the allowed relative rotation around the `twist_axis`.
     #[cfg(feature = "3d")]
     pub fn with_twist_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
@@ -160,6 +184,7 @@ impl SphericalJoint {
         }
     }
 
+    /// Applies angle limits to limit the relative rotation of the bodies around the `swing_axis` and `twist_axis`.
     fn apply_angle_limits(
         &mut self,
         body1: &mut RigidBodyQueryItem,

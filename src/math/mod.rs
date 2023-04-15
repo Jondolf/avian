@@ -1,3 +1,5 @@
+//! Feature-dependent math types used in the crate.
+
 mod double;
 mod single;
 

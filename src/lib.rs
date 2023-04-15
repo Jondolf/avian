@@ -1,3 +1,16 @@
+//! # Bevy XPBD
+//!
+//! **Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD) for the [Bevy game engine](https://bevyengine.org/). The *Entity Component System* (ECS) is used heavily throughout the engine to enable enhanced parallellism, configurability and familiarity, while making the engine fit better into the Bevy ecosystem.
+//!
+//! XPBD is an improved variant of traditional *Position Based Dynamics* (PBD).
+//! It provides unconditionally stable, time step independent and physically accurate simulations that use simple constraint projection to handle things like contacts, joints, and interactions between rigid bodies, soft bodies and fluids.
+//!
+//! To understand the algorithm better, it's worth checking out some of the academic papers:
+//!
+//! - Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*.
+//!
+//! - Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*.
+
 #[cfg(all(feature = "f32", feature = "f64"))]
 compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
 
@@ -24,6 +37,7 @@ pub mod math;
 pub mod resources;
 pub mod steps;
 
+/// Reimports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
         bundles::*,
@@ -51,14 +65,35 @@ use prelude::*;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
 
+/// The high-level XPBD plugin responsible for initializing the physics schedules and plugins.
+///
+/// ## Structure
+///
+/// The `XpbdPlugin` adds the [`XpbdSchedule`] and [`XpbdSubstepSchedule`].
+/// The former is responsible for the high-level physics schedule that runs once per physics frame,
+/// while the latter handles substepping.
+///
+/// The core XPBD simulation consists of a broad phase followed by the substepping loop that contains position integration, constraint projection, velocity updates and a velocity solve. Bevy XPBD also contains a preparation step and synchronization step to keep things updated.
+///
+/// The structure of the engine and the plugins and sets used can be broadly visualized like this:
+///
+/// - Main physics schedule ([`XpbdSchedule`])
+///     - Prepare ([`PreparePlugin`], [`PhysicsSet::Prepare`])
+///     - Broad phase ([`BroadPhasePlugin`], [`PhysicsSet::BroadPhase`])
+///     - Substepping schedule ([`XpbdSubstepSchedule`], [`PhysicsSet::Substeps`])
+///         - Integrate ([`IntegratorPlugin`], [`SubsteppingSet::Integrate`])
+///         - Constraint projection ([`SolverPlugin`], [`SubsteppingSet::SolvePos`])
+///         - Velocity updates ([`SolverPlugin`], [`SubsteppingSet::UpdateVel`])
+///         - Velocity solve ([`SolverPlugin`], [`SubsteppingSet::SolveVel`])
+///     - Synchronize physics with Bevy ([`SyncPlugin`], [`PhysicsSet::Sync`])
 pub struct XpbdPlugin;
 
-/// The high-level Xpbd physics schedule, run once per physics frame
+/// The high-level XPBD physics schedule that runs once per physics frame.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSchedule;
 
-/// The substepping schedule, the number of substeps per physics step is
-/// configured through the [`NumSubsteps`] resource
+/// The substepping schedule. The number of substeps per physics step is
+/// configured through the [`NumSubsteps`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct XpbdSubstepSchedule;
 
@@ -189,33 +224,43 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
     }
 }
 
+/// Data related to the simulation loop.
 #[derive(Resource, Debug, Default)]
 pub struct XpbdLoop {
+    /// Time accumulated into the physics loop. This is consumed by the [`XpbdSchedule`].
     pub(crate) accumulator: Scalar,
+    /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
     pub(crate) queued_steps: u32,
+    /// Determines if the simulation is paused.
     pub paused: bool,
 }
 
 impl XpbdLoop {
+    /// Add a step to be run on the next run of the [`XpbdSchedule`].
     pub fn step(&mut self) {
         self.queued_steps += 1;
     }
+    /// Pause the simulation.
     pub fn pause(&mut self) {
         self.paused = true;
     }
+    /// Resume the simulation.
     pub fn resume(&mut self) {
         self.paused = false;
     }
 }
 
+/// Pause the simulation.
 pub fn pause(mut xpbd_loop: ResMut<XpbdLoop>) {
     xpbd_loop.pause();
 }
 
+/// Resume the simulation.
 pub fn resume(mut xpbd_loop: ResMut<XpbdLoop>) {
     xpbd_loop.resume();
 }
 
+/// Runs the [`XpbdSchedule`].
 fn run_physics_schedule(world: &mut World) {
     let mut xpbd_loop = world
         .remove_resource::<XpbdLoop>()
@@ -254,6 +299,7 @@ fn run_physics_schedule(world: &mut World) {
     world.insert_resource(xpbd_loop);
 }
 
+/// Runs the [`XpbdSubstepSchedule`].
 fn run_substep_schedule(world: &mut World) {
     let NumSubsteps(substeps) = *world.resource::<NumSubsteps>();
     let dt = world.resource::<DeltaTime>().0;

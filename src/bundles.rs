@@ -1,7 +1,32 @@
+//! Bundles with physics components.
+
 use crate::{components::*, Scalar};
 
 use bevy::prelude::*;
 
+/// A bundle with all of the components that a rigid body needs. The associated builder methods can be used to configure the components.
+///
+/// ## Example
+///
+/// Below is an example of creating a dynamic rigid body with an initial position, rotation, linear velocity, angular velocity, and mass properties.
+///
+/// ```ignore
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// let mut app = App::new();
+///
+/// app.add_plugins(DefaultPlugins).add_plugin(XpbdPlugin).run();
+///
+/// app.world.spawn(
+///     RigidBodyBundle::new_dynamic()
+///         .with_pos(Vec3::Y * 4.0)
+///         .with_rot(Quat::from_rotation_x(2.1))
+///         .with_lin_vel(Vec3::new(0.0, 4.5, 0.0))
+///         .with_ang_vel(Vec3::new(2.5, 3.4, 1.6))
+///         .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+/// );
+/// ```
 #[derive(Bundle, Default)]
 pub struct RigidBodyBundle {
     pub rigid_body: RigidBody,
@@ -32,6 +57,7 @@ pub struct RigidBodyBundle {
 }
 
 impl RigidBodyBundle {
+    /// Creates a dynamic rigid body. See [`RigidBody::Dynamic`].
     pub fn new_dynamic() -> Self {
         Self {
             rigid_body: RigidBody::Dynamic,
@@ -39,6 +65,7 @@ impl RigidBodyBundle {
         }
     }
 
+    /// Creates a static rigid body. See [`RigidBody::Static`].
     pub fn new_static() -> Self {
         Self {
             rigid_body: RigidBody::Static,
@@ -46,6 +73,7 @@ impl RigidBodyBundle {
         }
     }
 
+    /// Creates a kinematic rigid body. See [`RigidBody::Kinematic`].
     pub fn new_kinematic() -> Self {
         Self {
             rigid_body: RigidBody::Kinematic,
@@ -53,27 +81,33 @@ impl RigidBodyBundle {
         }
     }
 
+    /// Sets the position of a rigid body. See [`Pos`].
     pub fn with_pos(self, pos: impl Into<Pos>) -> Self {
         let pos = pos.into();
         Self { pos, ..self }
     }
 
+    /// Sets the rotation of a rigid body. See [`Rot`].
     pub fn with_rot(self, rot: impl Into<Rot>) -> Self {
         let rot = rot.into();
         Self { rot, ..self }
     }
 
+    /// Sets the linear velocity of a rigid body. See [`LinVel`].
     pub fn with_lin_vel(self, lin_vel: impl Into<LinVel>) -> Self {
         let lin_vel = lin_vel.into();
         Self { lin_vel, ..self }
     }
 
+    /// Sets the angular velocity of a rigid body. See [`AngVel`].
     pub fn with_ang_vel(self, ang_vel: impl Into<AngVel>) -> Self {
         let ang_vel = ang_vel.into();
         Self { ang_vel, ..self }
     }
 
-    /// Computes the mass properties that a [`Collider`] would have with a given density, and adds those to the body.
+    /// Sets the mass properties of a rigid body by computing the [`ColliderMassProperties`] that a given [`ColliderShape`] would have with a given density.
+    ///
+    /// For the affected mass properties, see [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`].
     pub fn with_mass_props_from_shape(self, shape: &Shape, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
@@ -95,16 +129,18 @@ impl RigidBodyBundle {
     }
 }
 
+/// A bundle for the components associated with a collider.
+/// This includes the [`ColliderShape`], [`ColliderAabb`] and [`ColliderMassProperties`]
 #[derive(Bundle, Default)]
 pub struct ColliderBundle {
-    collider_shape: ColliderShape,
-    collider_aabb: ColliderAabb,
+    pub collider_shape: ColliderShape,
+    pub collider_aabb: ColliderAabb,
     pub mass_props: ColliderMassProperties,
     pub(crate) prev_mass_props: PrevColliderMassProperties,
 }
 
 impl ColliderBundle {
-    /// Creates a new [`ColliderBundle`] from a given [`ColliderShape`] and density.
+    /// Creates a new [`ColliderBundle`] from a given [`Shape`] and density.
     pub fn new(shape: &Shape, density: Scalar) -> Self {
         let aabb = ColliderAabb::from_shape(shape);
         let mass_props = ColliderMassProperties::from_shape_and_density(shape, density);
@@ -115,13 +151,6 @@ impl ColliderBundle {
             mass_props,
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
         }
-    }
-
-    pub fn update_mass_props(&mut self) {
-        self.mass_props = ColliderMassProperties::from_shape_and_density(
-            &self.collider_shape.0,
-            self.mass_props.density,
-        );
     }
 }
 

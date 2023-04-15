@@ -1,7 +1,9 @@
+//! Synchronizes changes from the physics world to Bevy [`Transform`]s.
+
 use crate::{prelude::*, XpbdSchedule};
 use bevy::prelude::*;
 
-/// Synchronizes changes from the physics world to Bevy `Transform`s
+/// Synchronizes changes from the physics world to Bevy [`Transform`]s.
 pub struct SyncPlugin;
 
 impl Plugin for SyncPlugin {
@@ -12,7 +14,7 @@ impl Plugin for SyncPlugin {
     }
 }
 
-/// Copies positions from the physics world to bevy Transforms
+/// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy [`Transform`]s.
 #[cfg(feature = "2d")]
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in &mut bodies {
@@ -23,7 +25,7 @@ fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     }
 }
 
-/// Copies positions from the physics world to bevy Transforms
+/// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy's [`Transform`]s.
 #[cfg(feature = "3d")]
 fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     for (mut transform, pos, rot) in &mut bodies {

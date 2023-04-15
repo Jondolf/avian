@@ -1,3 +1,5 @@
+//! Rotation components.
+
 use bevy::prelude::*;
 
 use std::ops::{Add, AddAssign, Sub, SubAssign};
@@ -7,6 +9,9 @@ use nalgebra::Matrix3x1;
 
 use crate::prelude::*;
 
+/// The rotation of a body.
+///
+/// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians. You should use the associated methods to create, access and modify rotations with normal radians or degrees.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug)]
 #[reflect(Component)]
@@ -15,12 +20,14 @@ pub struct Rot {
     pub sin: Scalar,
 }
 
+/// The rotation of a body represented as a [`Quat`].
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, derive_more::From)]
 #[reflect(Component)]
 pub struct Rot(pub Quaternion);
 
 impl Rot {
+    /// Rotates the rotation by a 3D vector.
     #[cfg(feature = "2d")]
     pub fn rotate_vec3(&self, vec: crate::Vector3) -> crate::Vector3 {
         crate::Vector3::new(
@@ -29,6 +36,7 @@ impl Rot {
             vec.z,
         )
     }
+    /// Rotates the rotation by a 3D vector.
     #[cfg(feature = "3d")]
     pub fn rotate_vec3(&self, vec: Vector) -> Vector {
         self.0 * vec
@@ -39,14 +47,17 @@ impl Rot {
 impl Rot {
     pub const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
 
+    /// Returns the cosine of the rotation in radians.
     pub fn cos(&self) -> Scalar {
         self.cos
     }
 
+    /// Returns the sine of the rotation in radians.
     pub fn sin(&self) -> Scalar {
         self.sin
     }
 
+    /// Creates a [`Rot`] from radians.
     pub fn from_radians(radians: Scalar) -> Self {
         Self {
             cos: radians.cos(),
@@ -54,18 +65,22 @@ impl Rot {
         }
     }
 
+    /// Creates a [`Rot`] from degrees.
     pub fn from_degrees(degrees: Scalar) -> Self {
         Self::from_radians(degrees.to_radians())
     }
 
+    /// Returns the rotation in radians..
     pub fn as_radians(&self) -> Scalar {
         Scalar::atan2(self.sin(), self.cos())
     }
 
+    /// Returns the rotation in degrees.
     pub fn as_degrees(&self) -> Scalar {
         self.as_radians().to_degrees()
     }
 
+    /// Rotates the rotation by a given vector.
     pub fn rotate(&self, vec: Vector) -> Vector {
         Vector::new(
             vec.x * self.cos() - vec.y * self.sin(),
@@ -73,6 +88,7 @@ impl Rot {
         )
     }
 
+    /// Inverts the rotation.
     pub fn inv(&self) -> Self {
         Self {
             cos: self.cos,
@@ -80,6 +96,7 @@ impl Rot {
         }
     }
 
+    /// Multiplies the rotation by another rotation. This is equivalent to adding angles.
     pub fn mul(&self, rhs: Self) -> Self {
         Self {
             cos: self.cos * rhs.cos() - self.sin * rhs.sin(),
@@ -90,10 +107,12 @@ impl Rot {
 
 #[cfg(feature = "3d")]
 impl Rot {
+    /// Rotates the rotation by a given vector,
     pub fn rotate(&self, vec: Vector) -> Vector {
         self.0 * vec
     }
 
+    /// Inverts the rotation.
     pub fn inv(&self) -> Self {
         Self(self.inverse())
     }
@@ -190,6 +209,7 @@ impl From<Rot> for Matrix3x1<Scalar> {
     }
 }
 
+/// The previous rotation of a body. See [`Rot`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
 pub struct PrevRot(pub Rot);

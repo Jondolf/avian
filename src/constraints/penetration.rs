@@ -1,3 +1,5 @@
+//! Penetration constraint.
+
 use super::{Constraint, PositionConstraint};
 use crate::{collision::Collision, components::*, Scalar, Vector};
 
@@ -12,14 +14,15 @@ pub struct PenetrationConstraint {
     pub entity1: Entity,
     /// Second entity in the constraint.
     pub entity2: Entity,
+    /// Data associated with the collision.
     pub collision_data: Collision,
-    /// Lagrange multiplier for the normal force
+    /// Lagrange multiplier for the normal force.
     pub normal_lagrange: Scalar,
-    /// Lagrange multiplier for the tangential force
+    /// Lagrange multiplier for the tangential force.
     pub tangential_lagrange: Scalar,
-    /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton
+    /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
-    /// Normal force acting along this constraint
+    /// Normal force acting along the constraint.
     pub normal_force: Vector,
 }
 
