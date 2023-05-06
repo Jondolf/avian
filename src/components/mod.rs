@@ -37,7 +37,7 @@ pub struct RigidBodyQuery<'w> {
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub(crate) struct MassPropsQueryMut<'w> {
+pub(crate) struct MassPropsQuery<'w> {
     pub mass: &'w mut Mass,
     pub inv_mass: &'w mut InvMass,
     pub inertia: &'w mut Inertia,
@@ -54,7 +54,7 @@ pub(crate) struct ColliderQuery<'w> {
     pub prev_mass_props: &'w mut PrevColliderMassProperties,
 }
 
-impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryMutItem<'_w, 'w> {
+impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'_w, 'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 += rhs.mass.0;
         self.inv_mass.0 = 1.0 / self.mass.0;
@@ -64,7 +64,7 @@ impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryMutItem<'_w, '
     }
 }
 
-impl<'_w, 'w> SubAssign<ColliderMassProperties> for MassPropsQueryMutItem<'_w, 'w> {
+impl<'_w, 'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'_w, 'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 -= rhs.mass.0;
         self.inv_mass.0 = 1.0 / self.mass.0;

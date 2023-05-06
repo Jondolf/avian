@@ -59,9 +59,7 @@ type MassPropsChanged = Or<(
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_props(
-    mut bodies: Query<(MassPropsQueryMut, Option<ColliderQuery>), MassPropsChanged>,
-) {
+fn update_mass_props(mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), MassPropsChanged>) {
     for (mut mass_props, collider) in &mut bodies {
         if mass_props.mass.is_changed() && mass_props.mass.0 >= Scalar::EPSILON {
             mass_props.inv_mass.0 = 1.0 / mass_props.mass.0;
