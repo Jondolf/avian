@@ -61,8 +61,8 @@ impl PenetrationConstraint {
 
         let n = self.collision_data.normal;
 
-        let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
-        let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
+        let inv_inertia1 = body1.world_inv_inertia();
+        let inv_inertia2 = body2.world_inv_inertia();
 
         let delta_lagrange_n = Self::get_delta_pos_lagrange(
             body1,
@@ -94,8 +94,8 @@ impl PenetrationConstraint {
         let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
         let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
 
-        let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
-        let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
+        let inv_inertia1 = body1.world_inv_inertia();
+        let inv_inertia2 = body2.world_inv_inertia();
 
         let delta_lagrange_t = Self::get_delta_pos_lagrange(
             body1,

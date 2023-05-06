@@ -35,6 +35,20 @@ pub struct RigidBodyQuery {
     pub restitution: &'static mut Restitution,
 }
 
+impl<'w> RigidBodyQueryItem<'w> {
+    /// Computes the world-space inverse inertia (does nothing in 2D).
+    #[cfg(feature = "2d")]
+    pub(crate) fn world_inv_inertia(&self) -> InvInertia {
+        *self.inv_inertia
+    }
+
+    // Computes the world-space inverse inertia tensor.
+    #[cfg(feature = "3d")]
+    pub fn world_inv_inertia(&self) -> InvInertia {
+        self.inv_inertia.rotated(&self.rot)
+    }
+}
+
 #[derive(WorldQuery)]
 #[world_query(mutable)]
 pub(crate) struct MassPropsQuery {

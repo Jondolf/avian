@@ -106,8 +106,8 @@ impl Joint for FixedJoint {
         if angle > Scalar::EPSILON {
             let axis = delta_q / angle;
 
-            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
-            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
+            let inv_inertia1 = body1.world_inv_inertia();
+            let inv_inertia2 = body2.world_inv_inertia();
 
             let delta_ang_lagrange = Self::get_delta_ang_lagrange(
                 &body1.rb,
@@ -144,8 +144,8 @@ impl Joint for FixedJoint {
         if magnitude > Scalar::EPSILON {
             let dir = delta_x / magnitude;
 
-            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot);
-            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
+            let inv_inertia1 = body1.world_inv_inertia();
+            let inv_inertia2 = body2.world_inv_inertia();
 
             let delta_lagrange = Self::get_delta_pos_lagrange(
                 body1,

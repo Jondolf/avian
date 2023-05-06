@@ -255,8 +255,8 @@ fn solve_vel(
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
 
-            let inv_inertia1 = body1.inv_inertia.rotated(&body1.rot).0;
-            let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot).0;
+            let inv_inertia1 = body1.world_inv_inertia().0;
+            let inv_inertia2 = body2.world_inv_inertia().0;
 
             // Compute generalized inverse masses
             let w1 = PenetrationConstraint::get_generalized_inverse_mass(
