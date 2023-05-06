@@ -89,12 +89,13 @@ impl<'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
 }
 
 /// The rigid body type. A rigid body can be either dynamic, kinematic or static.
-#[derive(Reflect, Clone, Copy, Component, PartialEq, Eq)]
+#[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     ///
     /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinVel`] or [`AngVel`] components. Directly changing the [`Pos`] or [`Rot`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
+    #[default]
     Dynamic,
 
     /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia. The only way to move a static body is to manually change its position.
@@ -124,12 +125,6 @@ impl RigidBody {
     /// Checks if the rigid body is kinematic.
     pub fn is_kinematic(&self) -> bool {
         *self == Self::Kinematic
-    }
-}
-
-impl Default for RigidBody {
-    fn default() -> Self {
-        Self::Dynamic
     }
 }
 
