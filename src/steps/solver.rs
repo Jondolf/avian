@@ -260,14 +260,14 @@ fn solve_vel(
 
             // Compute generalized inverse masses
             let w1 = PenetrationConstraint::get_generalized_inverse_mass(
-                body1.rb,
+                &body1.rb,
                 body1.inv_mass.0,
                 inv_inertia1,
                 r1,
                 normal,
             );
             let w2 = PenetrationConstraint::get_generalized_inverse_mass(
-                body2.rb,
+                &body2.rb,
                 body2.inv_mass.0,
                 inv_inertia2,
                 r2,

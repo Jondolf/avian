@@ -35,10 +35,20 @@ pub trait PositionConstraint: Constraint {
         }
 
         // Compute generalized inverse masses (equations 2-3)
-        let w1 =
-            Self::get_generalized_inverse_mass(body1.rb, body1.inv_mass.0, inv_inertia1.0, r1, dir);
-        let w2 =
-            Self::get_generalized_inverse_mass(body2.rb, body2.inv_mass.0, inv_inertia2.0, r2, dir);
+        let w1 = Self::get_generalized_inverse_mass(
+            &body1.rb,
+            body1.inv_mass.0,
+            inv_inertia1.0,
+            r1,
+            dir,
+        );
+        let w2 = Self::get_generalized_inverse_mass(
+            &body2.rb,
+            body2.inv_mass.0,
+            inv_inertia2.0,
+            r2,
+            dir,
+        );
 
         // Compute Lagrange multiplier updates (equations 4-5)
         let tilde_compliance = compliance / sub_dt.powi(2);

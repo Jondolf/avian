@@ -16,45 +16,45 @@ use crate::utils::get_rotated_inertia_tensor;
 /// A [`WorldQuery`] to make querying and modifying rigid bodies more convenient.
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub struct RigidBodyQuery<'w> {
-    pub rb: &'w RigidBody,
-    pub pos: &'w mut Pos,
-    pub rot: &'w mut Rot,
-    pub prev_pos: &'w PrevPos,
-    pub prev_rot: &'w PrevRot,
-    pub lin_vel: &'w mut LinVel,
-    pub pre_solve_lin_vel: &'w mut PreSolveLinVel,
-    pub ang_vel: &'w mut AngVel,
-    pub pre_solve_ang_vel: &'w mut PreSolveAngVel,
-    pub mass: &'w Mass,
-    pub inv_mass: &'w InvMass,
-    pub inertia: &'w Inertia,
-    pub inv_inertia: &'w InvInertia,
-    pub local_com: &'w LocalCom,
-    pub friction: &'w Friction,
-    pub restitution: &'w Restitution,
+pub struct RigidBodyQuery {
+    pub rb: &'static mut RigidBody,
+    pub pos: &'static mut Pos,
+    pub rot: &'static mut Rot,
+    pub prev_pos: &'static mut PrevPos,
+    pub prev_rot: &'static mut PrevRot,
+    pub lin_vel: &'static mut LinVel,
+    pub pre_solve_lin_vel: &'static mut PreSolveLinVel,
+    pub ang_vel: &'static mut AngVel,
+    pub pre_solve_ang_vel: &'static mut PreSolveAngVel,
+    pub mass: &'static mut Mass,
+    pub inv_mass: &'static mut InvMass,
+    pub inertia: &'static mut Inertia,
+    pub inv_inertia: &'static mut InvInertia,
+    pub local_com: &'static mut LocalCom,
+    pub friction: &'static mut Friction,
+    pub restitution: &'static mut Restitution,
 }
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub(crate) struct MassPropsQuery<'w> {
-    pub mass: &'w mut Mass,
-    pub inv_mass: &'w mut InvMass,
-    pub inertia: &'w mut Inertia,
-    pub inv_inertia: &'w mut InvInertia,
-    pub local_com: &'w mut LocalCom,
+pub(crate) struct MassPropsQuery {
+    pub mass: &'static mut Mass,
+    pub inv_mass: &'static mut InvMass,
+    pub inertia: &'static mut Inertia,
+    pub inv_inertia: &'static mut InvInertia,
+    pub local_com: &'static mut LocalCom,
 }
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub(crate) struct ColliderQuery<'w> {
-    pub shape: &'w mut ColliderShape,
-    pub aabb: &'w mut ColliderAabb,
-    pub mass_props: &'w mut ColliderMassProperties,
-    pub prev_mass_props: &'w mut PrevColliderMassProperties,
+pub(crate) struct ColliderQuery {
+    pub shape: &'static mut ColliderShape,
+    pub aabb: &'static mut ColliderAabb,
+    pub mass_props: &'static mut ColliderMassProperties,
+    pub prev_mass_props: &'static mut PrevColliderMassProperties,
 }
 
-impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'_w, 'w> {
+impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 += rhs.mass.0;
         self.inv_mass.0 = 1.0 / self.mass.0;
@@ -64,7 +64,7 @@ impl<'_w, 'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'_w, 'w> 
     }
 }
 
-impl<'_w, 'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'_w, 'w> {
+impl<'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 -= rhs.mass.0;
         self.inv_mass.0 = 1.0 / self.mass.0;

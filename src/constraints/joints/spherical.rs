@@ -217,8 +217,8 @@ impl SphericalJoint {
                         let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
                         let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                            body1.rb,
-                            body2.rb,
+                            &body1.rb,
+                            &body2.rb,
                             inv_inertia1,
                             inv_inertia2,
                             self.swing_lagrange,
@@ -286,8 +286,8 @@ impl SphericalJoint {
                             let inv_inertia2 = body2.inv_inertia.rotated(&body2.rot);
 
                             let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                                body1.rb,
-                                body2.rb,
+                                &body1.rb,
+                                &body2.rb,
                                 inv_inertia1,
                                 inv_inertia2,
                                 self.twist_lagrange,
