@@ -114,7 +114,7 @@ fn sweep_and_prune(
 fn insertion_sort<T>(items: &mut Vec<T>, comparison: fn(&T, &T) -> bool) {
     for i in 1..items.len() {
         let mut j = i;
-        while j > 0 && comparison(&items[(j - 1)], &items[j]) {
+        while j > 0 && comparison(&items[j - 1], &items[j]) {
             items.swap(j - 1, j);
             j -= 1;
         }
