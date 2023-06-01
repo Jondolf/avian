@@ -178,8 +178,8 @@ mod test {
     #[test]
     fn body_builder_accepts_vec_3d() {
         let body = RigidBodyBundle::new_dynamic()
-            .with_ang_vel(Vec3::X)
-            .with_lin_vel(Vec3::new(2., 3., 4.))
+            .with_ang_vel(Vector::X)
+            .with_lin_vel(Vector::new(2., 3., 4.))
             .with_pos(Vector::new(5., 6., 7.))
             .with_rot(Quaternion::from_axis_angle(Vector::X, 0.123));
 

@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d", "f32", "simd" ]
+#default = [ "3d", "f32", "simd" ]
+default = [ "3d", "f64", "simd" ]
 3d = []
 f32 = [ "dep:parry3d" ]
 f64 = [ "dep:parry3d-f64" ]
@@ -33,31 +34,28 @@ approx = "0.5"
 glam = { version = "0.23", features = [ "approx" ] }
 insta = "1.0"
 itertools = "0.10"
+bevy_editor_pls = "0.4"
 
 [[example]]
 name = "chain3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "cubes"
-required-features = ["3d", "f32"]
-
-[[example]]
-name = "cubes_f64"
-required-features = ["3d", "f64"]
+required-features = ["3d"]
 
 [[example]]
 name = "fixed_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "prismatic_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "revolute_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "rolling_balls"
-required-features = ["3d", "f32"]
+required-features = ["3d"]

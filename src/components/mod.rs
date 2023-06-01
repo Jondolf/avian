@@ -59,20 +59,6 @@ impl RigidBody {
 #[reflect(Component)]
 pub struct Pos(pub Vector);
 
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for Pos {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for Pos {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
-
 /// The previous position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -82,20 +68,6 @@ pub struct PrevPos(pub Vector);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinVel(pub Vector);
-
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for LinVel {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for LinVel {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
 
 /// The linear velocity of a body before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -113,13 +85,6 @@ pub struct AngVel(pub Scalar);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Vector);
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for AngVel {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
 
 /// The angular velocity of a body in radians before the velocity solve is performed. Positive values will result in counter-clockwise rotation.
 #[cfg(feature = "2d")]
@@ -148,13 +113,6 @@ pub(crate) type Torque = Vector;
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalTorque(pub Torque);
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for ExternalTorque {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
 
 /// Determines how coefficients are combined. The default is `Average`.
 ///

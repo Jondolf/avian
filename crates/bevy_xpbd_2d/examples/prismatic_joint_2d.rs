@@ -6,7 +6,7 @@ use examples_common_2d::XpbdExamplePlugin;
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveSpeed(pub f32);
+pub struct MoveSpeed(pub Scalar);
 
 fn setup(
     mut commands: Commands,
@@ -32,7 +32,7 @@ fn setup(
             },
             ..default()
         })
-        .insert(RigidBodyBundle::new_kinematic().with_pos(Vec2::new(0.0, 0.0)))
+        .insert(RigidBodyBundle::new_kinematic().with_pos(Vector2::new(0.0, 0.0)))
         .insert(Player)
         .insert(MoveSpeed(0.3))
         .id();
@@ -50,15 +50,15 @@ fn setup(
         })
         .insert(
             RigidBodyBundle::new_dynamic()
-                .with_pos(Vec2::X * 1.5)
+                .with_pos(Vector2::X * 1.5)
                 .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5), 1.0),
         )
         .id();
 
     commands.spawn(
         PrismaticJoint::new_with_compliance(anchor, object, 0.0)
-            .with_local_anchor_1(Vec2::X * 0.5)
-            .with_free_axis(Vec2::X)
+            .with_local_anchor_1(Vector2::X * 0.5)
+            .with_free_axis(Vector2::X)
             .with_limits(1.0, 3.0),
     );
 
@@ -101,7 +101,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec2::Y * -9.81))
+        .insert_resource(Gravity(Vector2::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

@@ -1,15 +1,16 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
+use bevy_editor_pls::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveAcceleration(pub f32);
+pub struct MoveAcceleration(pub Scalar);
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MaxLinearVelocity(pub Vec3);
+pub struct MaxLinearVelocity(pub Vector);
 
 fn setup(
     mut commands: Commands,
@@ -36,42 +37,42 @@ fn setup(
             transform: Transform::from_scale(floor_size),
             ..default()
         })
-        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -1.0, 0.0)))
+        .insert(RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -1.0, 0.0)))
         .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
+            &Shape::cuboid(floor_size.x as Scalar * 0.5, floor_size.y as Scalar * 0.5, floor_size.z as Scalar * 0.5),
             1.0,
         ));
 
-    let radius = 1.0;
-    let count_x = 4;
-    let count_y = 4;
-    let count_z = 4;
+    let radius: Scalar = 1.0;
+    let count_x = 1;
+    let count_y = 1;
+    let count_z = 1;
     for y in 0..count_y {
         for x in 0..count_x {
             for z in 0..count_z {
-                let pos = Vec3::new(
-                    (x as f32 - count_x as f32 * 0.5) * 2.1 * radius,
-                    10.0 * radius * y as f32,
-                    (z as f32 - count_z as f32 * 0.5) * 2.1 * radius,
+                let pos = Vector::new(
+                    (x as Scalar - count_x as Scalar * 0.5) * 2.1 * radius,
+                    10.0 * radius * y as Scalar,
+                    (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands
                     .spawn(PbrBundle {
                         mesh: cube.clone(),
                         material: blue.clone(),
                         transform: Transform {
-                            scale: Vec3::splat(radius * 2.0),
+                            scale: Vec3::splat(radius as f32 * 2.0),
                             ..default()
                         },
                         ..default()
                     })
-                    .insert(RigidBodyBundle::new_dynamic().with_pos(pos + Vec3::Y * 5.0))
+                    .insert(RigidBodyBundle::new_dynamic().with_pos(pos + Vector::Y * 5.0))
                     .insert(ColliderBundle::new(
                         &Shape::cuboid(radius, radius, radius),
                         1.0,
                     ))
                     .insert(Player)
                     .insert(MoveAcceleration(0.1))
-                    .insert(MaxLinearVelocity(Vec3::new(30.0, 30.0, 30.0)));
+                    .insert(MaxLinearVelocity(Vector::new(30.0, 30.0, 30.0)));
             }
         }
     }
@@ -124,6 +125,18 @@ fn player_movement(
     }
 }
 
+fn reset_velocities(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<(&mut LinVel, &mut AngVel), With<Player>>,
+) {
+    if keyboard_input.pressed(KeyCode::R) {
+        for (mut lin_vel, mut ang_vel) in &mut query {
+            **lin_vel = Vector::ZERO;
+            **ang_vel = Vector::ZERO;
+        }
+    }
+}
+
 fn main() {
     #[cfg(target_arch = "wasm32")]
     console_error_panic_hook::set_once();
@@ -134,7 +147,9 @@ fn main() {
         .insert_resource(Gravity::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
+        .add_plugin(EditorPlugin::default())
         .add_startup_system(setup)
         .add_system(player_movement)
+        .add_system(reset_velocities)
         .run();
 }

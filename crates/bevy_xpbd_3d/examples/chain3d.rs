@@ -6,7 +6,7 @@ use examples_common_3d::XpbdExamplePlugin;
 struct Player;
 
 #[derive(Component, Deref, DerefMut)]
-pub struct MoveSpeed(pub f32);
+pub struct MoveSpeed(pub Scalar);
 
 fn setup(
     mut commands: Commands,
@@ -36,24 +36,24 @@ fn setup(
     let floor_size = Vec3::new(30.0, 1.0, 30.0);
     let _floor = commands
         .spawn(PbrBundle {
-            mesh: cube,
+            mesh: cube.clone(),
             material: white,
             transform: Transform::from_scale(floor_size),
             ..default()
         })
-        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -18.0, 0.0)))
+        .insert(RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -18.0, 0.0)))
         .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
+            &Shape::cuboid(floor_size.x as Scalar * 0.5, floor_size.y as Scalar * 0.5, floor_size.z as Scalar * 0.5),
             1.0,
         ));
 
     // Rope
     create_chain(
         &mut commands,
-        sphere,
-        blue,
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::Y,
+        sphere.clone(),
+        blue.clone(),
+        Vector::new(0.0, 0.0, 0.0),
+        Vector::Y,
         100,
         0.001,
         0.075,
@@ -61,17 +61,17 @@ fn setup(
     );
 
     // Pendulum
-    /*create_chain(
+    create_chain(
         &mut commands,
         cube,
         blue,
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::Y,
+        Vector::new(0.0, 0.0, 0.0),
+        Vector::Y,
         2,
         3.0,
         1.0,
         0.0,
-    );*/
+    );
 
     // Directional 'sun' light
     commands.spawn(DirectionalLightBundle {
@@ -105,19 +105,19 @@ fn create_chain(
     commands: &mut Commands,
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
-    start_pos: Vec3,
-    dir: Vec3,
+    start_pos: Vector,
+    dir: Vector,
     node_count: usize,
-    node_dist: f32,
-    node_size: f32,
-    compliance: f32,
+    node_dist: Scalar,
+    node_size: Scalar,
+    compliance: Scalar,
 ) {
     let mut prev = commands
         .spawn(PbrBundle {
             mesh: mesh.clone(),
             material: material.clone(),
             transform: Transform {
-                scale: Vec3::splat(node_size),
+                scale: Vec3::splat(node_size as f32),
                 translation: Vec3::ZERO,
                 ..default()
             },
@@ -135,7 +135,7 @@ fn create_chain(
                 mesh: mesh.clone(),
                 material: material.clone(),
                 transform: Transform {
-                    scale: Vec3::splat(node_size),
+                    scale: Vec3::splat(node_size as f32),
                     translation: Vec3::ZERO,
                     ..default()
                 },
@@ -143,7 +143,7 @@ fn create_chain(
             })
             .insert(
                 RigidBodyBundle::new_dynamic()
-                    .with_pos(start_pos + delta_pos * i as f32)
+                    .with_pos(start_pos + delta_pos * i as Scalar)
                     .with_mass_props_from_shape(&Shape::ball(node_size * 0.5), 1.0),
             )
             .id();
@@ -192,7 +192,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec3::Y * -9.81))
+        .insert_resource(Gravity(Vector::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
