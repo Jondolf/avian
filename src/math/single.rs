@@ -1,6 +1,5 @@
-
-use bevy::math::*;
 use super::AdjustPrecision;
+use bevy::math::*;
 
 pub type Scalar = f32;
 pub const PI: Scalar = std::f32::consts::PI;
@@ -14,7 +13,6 @@ pub type Vector3 = Vec3;
 
 pub type Matrix3 = Mat3;
 pub type Quaternion = Quat;
-
 
 impl AdjustPrecision for f32 {
     type Adjusted = Scalar;

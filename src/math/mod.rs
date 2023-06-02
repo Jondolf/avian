@@ -52,7 +52,6 @@ impl AsF32 for bevy::math::Vec4 {
     }
 }
 
-
 impl AsF32 for bevy::math::DQuat {
     type F32 = bevy::math::Quat;
     fn as_f32(&self) -> Self::F32 {

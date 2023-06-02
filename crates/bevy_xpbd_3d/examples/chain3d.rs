@@ -43,7 +43,11 @@ fn setup(
         })
         .insert(RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -18.0, 0.0)))
         .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x as Scalar * 0.5, floor_size.y as Scalar * 0.5, floor_size.z as Scalar * 0.5),
+            &Shape::cuboid(
+                floor_size.x as Scalar * 0.5,
+                floor_size.y as Scalar * 0.5,
+                floor_size.z as Scalar * 0.5,
+            ),
             1.0,
         ));
 

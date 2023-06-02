@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
 use bevy_editor_pls::prelude::*;
+use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
 #[derive(Component)]
@@ -39,14 +39,18 @@ fn setup(
         })
         .insert(RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -1.0, 0.0)))
         .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x as Scalar * 0.5, floor_size.y as Scalar * 0.5, floor_size.z as Scalar * 0.5),
+            &Shape::cuboid(
+                floor_size.x as Scalar * 0.5,
+                floor_size.y as Scalar * 0.5,
+                floor_size.z as Scalar * 0.5,
+            ),
             1.0,
         ));
 
     let radius: Scalar = 1.0;
-    let count_x = 1;
-    let count_y = 1;
-    let count_z = 1;
+    let count_x = 4;
+    let count_y = 4;
+    let count_z = 4;
     for y in 0..count_y {
         for x in 0..count_x {
             for z in 0..count_z {
@@ -72,6 +76,7 @@ fn setup(
                     ))
                     .insert(Player)
                     .insert(MoveAcceleration(0.1))
+                    .insert(Name::new(format!("Cube {} {} {}", x, y, z)))
                     .insert(MaxLinearVelocity(Vector::new(30.0, 30.0, 30.0)));
             }
         }

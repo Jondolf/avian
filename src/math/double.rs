@@ -1,6 +1,5 @@
-
-use bevy::math::*;
 use super::AdjustPrecision;
+use bevy::math::*;
 
 pub type Scalar = f64;
 pub const PI: Scalar = std::f64::consts::PI;
