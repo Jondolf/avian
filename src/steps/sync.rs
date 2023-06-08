@@ -10,9 +10,9 @@ impl Plugin for SyncPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.get_schedule_mut(XpbdSchedule)
             .expect("add xpbd schedule first")
+            .add_system(sync_transforms.in_set(PhysicsSet::Sync))
             .add_systems(
                 (
-                    sync_transforms,
                     activate_sleeping,
                     deactivate_sleeping,
                     gravity_deactivate_sleeping,
