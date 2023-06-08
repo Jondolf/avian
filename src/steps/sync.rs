@@ -90,7 +90,7 @@ fn activate_sleeping(
 fn deactivate_sleeping(
     mut commands: Commands,
     mut bodies: Query<
-        (Entity, &mut TimeSleeping, &mut LinVel, &mut AngVel),
+        (Entity, &mut TimeSleeping),
         (
             With<Sleeping>,
             Or<(
@@ -102,9 +102,9 @@ fn deactivate_sleeping(
         ),
     >,
 ) {
-    for (entity, mut deactivation_time, mut lin_vel, mut ang_vel) in &mut bodies {
+    for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();
-        deactivation_time.0 = 0.0;
+        time_sleeping.0 = 0.0;
     }
 }
 
@@ -114,9 +114,9 @@ fn gravity_deactivate_sleeping(
     gravity: Res<Gravity>,
 ) {
     if gravity.is_changed() {
-        for (entity, mut deactivation_time) in &mut bodies {
+        for (entity, mut time_sleeping) in &mut bodies {
             commands.entity(entity).remove::<Sleeping>();
-            deactivation_time.0 = 0.0;
+            time_sleeping.0 = 0.0;
         }
     }
 }
