@@ -71,6 +71,11 @@ pub struct Sleeping;
 #[reflect(Component)]
 pub struct TimeSleeping(pub Scalar);
 
+/// Indicates that the body can not be deactivated by the physics engine. See [`Sleeping`] for information about sleeping.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[reflect(Component)]
+pub struct SleepingDisabled;
+
 /// The position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]

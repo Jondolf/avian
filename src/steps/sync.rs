@@ -53,7 +53,7 @@ fn activate_sleeping(
             &mut AngVel,
             &mut TimeSleeping,
         ),
-        Without<Sleeping>,
+        (Without<Sleeping>, Without<SleepingDisabled>),
     >,
     deactivation_time: Res<DeactivationTime>,
     sleeping_threshold: Res<SleepingThreshold>,

@@ -59,6 +59,8 @@ impl Default for NumPosIters {
 
 /// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
 ///
+/// Setting a negative sleeping threshold disables sleeping entirely.
+///
 /// See [`Sleeping`] for further information about sleeping.
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[reflect(Resource)]
