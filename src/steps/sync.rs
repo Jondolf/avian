@@ -56,7 +56,7 @@ fn activate_sleeping(
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
     deactivation_time: Res<DeactivationTime>,
-    sleeping_threshold: Res<SleepingThreshold>,
+    sleep_threshold: Res<SleepingThreshold>,
     dt: Res<DeltaTime>,
 ) {
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut bodies {
@@ -72,12 +72,13 @@ fn activate_sleeping(
         #[cfg(feature = "3d")]
         let ang_vel_sq = ang_vel.dot(ang_vel.0);
 
-        // Negative values indicate that sleeping is disabled.
-        let sleeping_threshold_sq = sleeping_threshold.0 * sleeping_threshold.0.abs();
+        // Negative thresholds indicate that sleeping is disabled.
+        let lin_sleeping_threshold_sq = sleep_threshold.linear * sleep_threshold.linear.abs();
+        let ang_sleeping_threshold_sq = sleep_threshold.angular * sleep_threshold.angular.abs();
 
         // If linear and angular velocity are below the sleeping threshold,
         // add delta time to the time sleeping, i.e. the time that the body has remained still.
-        if lin_vel_sq < sleeping_threshold_sq && ang_vel_sq < sleeping_threshold_sq {
+        if lin_vel_sq < lin_sleeping_threshold_sq && ang_vel_sq < ang_sleeping_threshold_sq {
             time_sleeping.0 += dt.0;
         } else {
             time_sleeping.0 = 0.0;

@@ -64,11 +64,17 @@ impl Default for NumPosIters {
 /// See [`Sleeping`] for further information about sleeping.
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[reflect(Resource)]
-pub struct SleepingThreshold(pub Scalar);
+pub struct SleepingThreshold {
+    pub linear: Scalar,
+    pub angular: Scalar,
+}
 
 impl Default for SleepingThreshold {
     fn default() -> Self {
-        Self(0.1)
+        Self {
+            linear: 0.1,
+            angular: 0.2,
+        }
     }
 }
 
