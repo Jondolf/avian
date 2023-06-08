@@ -3,12 +3,14 @@
 pub mod broad_phase;
 pub mod integrator;
 pub mod prepare;
+pub mod sleeping;
 pub mod solver;
 pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
+pub use sleeping::SleepingPlugin;
 pub use solver::SolverPlugin;
 pub use sync::SyncPlugin;
 
@@ -25,8 +27,10 @@ pub enum PhysicsSet {
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step, see [`SubsteppingSet`] and [`XpbdSubstepSchedule`]
+    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`XpbdSubstepSchedule`].
     Substeps,
+    /// The sleeping step controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
+    Sleeping,
     /// In the sync step, Bevy [`Transform`]s are synchronized with the physics world.
     Sync,
 }

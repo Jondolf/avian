@@ -152,6 +152,7 @@ impl Plugin for XpbdPlugin {
                 PhysicsSet::Prepare,
                 PhysicsSet::BroadPhase,
                 PhysicsSet::Substeps,
+                PhysicsSet::Sleeping,
                 PhysicsSet::Sync,
             )
                 .chain(),
@@ -187,6 +188,7 @@ impl Plugin for XpbdPlugin {
             .add_plugin(BroadPhasePlugin)
             .add_plugin(IntegratorPlugin)
             .add_plugin(SolverPlugin)
+            .add_plugin(SleepingPlugin)
             .add_plugin(SyncPlugin);
 
         #[cfg(feature = "debug-render-aabbs")]
