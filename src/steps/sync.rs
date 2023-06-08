@@ -87,20 +87,16 @@ fn activate_sleeping(
     }
 }
 
+type BodyActivatedFilter = Or<(
+    Changed<LinVel>,
+    Changed<AngVel>,
+    Changed<ExternalForce>,
+    Changed<ExternalTorque>,
+)>;
+
 fn deactivate_sleeping(
     mut commands: Commands,
-    mut bodies: Query<
-        (Entity, &mut TimeSleeping),
-        (
-            With<Sleeping>,
-            Or<(
-                Changed<LinVel>,
-                Changed<AngVel>,
-                Changed<ExternalForce>,
-                Changed<ExternalTorque>,
-            )>,
-        ),
-    >,
+    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyActivatedFilter)>,
 ) {
     for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();

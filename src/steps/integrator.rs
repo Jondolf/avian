@@ -14,19 +14,18 @@ impl Plugin for IntegratorPlugin {
     }
 }
 
+type PosIntegrationComponents = (
+    &'static RigidBody,
+    &'static mut Pos,
+    &'static mut PrevPos,
+    &'static mut LinVel,
+    &'static ExternalForce,
+    &'static Mass,
+);
+
 /// Explicitly integrates the positions and linear velocities of bodies taking only external forces like gravity into account. This acts as a prediction for the next positions of the bodies.
 fn integrate_pos(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut Pos,
-            &mut PrevPos,
-            &mut LinVel,
-            &ExternalForce,
-            &Mass,
-        ),
-        Without<Sleeping>,
-    >,
+    mut bodies: Query<PosIntegrationComponents, Without<Sleeping>>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
@@ -48,23 +47,25 @@ fn integrate_pos(
     }
 }
 
+type RotIntegrationComponents = (
+    &'static RigidBody,
+    &'static mut Rot,
+    &'static mut PrevRot,
+    &'static mut AngVel,
+    &'static ExternalTorque,
+    &'static Inertia,
+    &'static InvInertia,
+);
+
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "2d")]
 fn integrate_rot(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut Rot,
-            &mut PrevRot,
-            &mut AngVel,
-            &ExternalTorque,
-            &InvInertia,
-        ),
-        Without<Sleeping>,
-    >,
+    mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inv_inertia) in &mut bodies {
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, _inertia, inv_inertia) in
+        &mut bodies
+    {
         prev_rot.0 = *rot;
 
         if rb.is_static() {
@@ -83,18 +84,7 @@ fn integrate_rot(
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "3d")]
 fn integrate_rot(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut Rot,
-            &mut PrevRot,
-            &mut AngVel,
-            &ExternalTorque,
-            &Inertia,
-            &InvInertia,
-        ),
-        Without<Sleeping>,
-    >,
+    mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inv_inertia) in
