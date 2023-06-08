@@ -225,7 +225,8 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 }
 
 /// Data related to the simulation loop.
-#[derive(Resource, Debug, Default)]
+#[derive(Reflect, Resource, Debug, Default)]
+#[reflect(Resource)]
 pub struct XpbdLoop {
     /// Time accumulated into the physics loop. This is consumed by the [`XpbdSchedule`].
     pub(crate) accumulator: Scalar,
