@@ -101,7 +101,8 @@ fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
 
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 fn penetration_constraints(
-    mut bodies: Query<(RigidBodyQuery, &ColliderShape)>,
+    mut commands: Commands,
+    mut bodies: Query<(RigidBodyQuery, &ColliderShape, Option<&Sleeping>)>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     sub_dt: Res<SubDeltaTime>,
@@ -109,8 +110,9 @@ fn penetration_constraints(
     penetration_constraints.0.clear();
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok([(mut body1, collider_shape1), (mut body2, collider_shape2)]) =
-            bodies.get_many_mut([*ent1, *ent2])
+        if let Ok(
+            [(mut body1, collider_shape1, sleeping1), (mut body2, collider_shape2, sleeping2)],
+        ) = bodies.get_many_mut([*ent1, *ent2])
         {
             if let Some(collision) = get_collision(
                 *ent1,
@@ -124,6 +126,15 @@ fn penetration_constraints(
                 &collider_shape1.0,
                 &collider_shape2.0,
             ) {
+                // If neither of the bodies is static and one of the bodies is sleeping, wake up the body.
+                if !body1.rb.is_static() && !body2.rb.is_static() {
+                    if sleeping1.is_some() {
+                        commands.entity(*ent1).remove::<Sleeping>();
+                    } else if sleeping2.is_some() {
+                        commands.entity(*ent2).remove::<Sleeping>();
+                    }
+                }
+
                 let mut constraint = PenetrationConstraint::new(*ent1, *ent2, collision);
                 constraint.constrain(&mut body1, &mut body2, sub_dt.0);
                 penetration_constraints.0.push(constraint);
@@ -134,7 +145,8 @@ fn penetration_constraints(
 
 /// Iterates through all joints and solves the constraints.
 fn joint_constraints<T: Joint>(
-    mut bodies: Query<RigidBodyQuery>,
+    mut commands: Commands,
+    mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut joints: Query<&mut T, Without<Pos>>,
     num_pos_iters: Res<NumPosIters>,
     sub_dt: Res<SubDeltaTime>,
@@ -142,10 +154,22 @@ fn joint_constraints<T: Joint>(
     for _j in 0..num_pos_iters.0 {
         for mut joint in &mut joints {
             // Get components for entity a and b
-            if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
+            if let Ok([(mut body1, sleeping1), (mut body2, sleeping2)]) =
+                bodies.get_many_mut(joint.entities())
+            {
                 // No need to solve constraints if neither of the bodies is dynamic
                 if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                     continue;
+                }
+
+                // If neither of the bodies is static and one of the bodies is sleeping, wake up the body.
+                if !body1.rb.is_static() && !body2.rb.is_static() {
+                    let [ent1, ent2] = joint.entities();
+                    if sleeping1.is_some() {
+                        commands.entity(ent1).remove::<Sleeping>();
+                    } else if sleeping2.is_some() {
+                        commands.entity(ent2).remove::<Sleeping>();
+                    }
                 }
 
                 joint.constrain(&mut body1, &mut body2, sub_dt.0);
@@ -156,7 +180,10 @@ fn joint_constraints<T: Joint>(
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
 fn update_lin_vel(
-    mut bodies: Query<(&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel)>,
+    mut bodies: Query<
+        (&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel),
+        Without<Sleeping>,
+    >,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
@@ -176,7 +203,10 @@ fn update_lin_vel(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
 #[cfg(feature = "2d")]
 fn update_ang_vel(
-    mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
+    mut bodies: Query<
+        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        Without<Sleeping>,
+    >,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
@@ -195,7 +225,10 @@ fn update_ang_vel(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the previous step.
 #[cfg(feature = "3d")]
 fn update_ang_vel(
-    mut bodies: Query<(&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel)>,
+    mut bodies: Query<
+        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        Without<Sleeping>,
+    >,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
@@ -220,7 +253,7 @@ fn update_ang_vel(
 /// Applies velocity corrections caused by dynamic friction and restitution.
 #[allow(clippy::type_complexity)]
 fn solve_vel(
-    mut bodies: Query<RigidBodyQuery>,
+    mut bodies: Query<RigidBodyQuery, Without<Sleeping>>,
     penetration_constraints: Res<PenetrationConstraints>,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
@@ -310,7 +343,7 @@ fn solve_vel(
 
 /// Applies velocity corrections caused by joint damping.
 fn joint_damping<T: Joint>(
-    mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &InvMass)>,
+    mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &InvMass), Without<Sleeping>>,
     joints: Query<&T, Without<RigidBody>>,
     sub_dt: Res<SubDeltaTime>,
 ) {

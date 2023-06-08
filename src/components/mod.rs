@@ -54,6 +54,21 @@ impl RigidBody {
     }
 }
 
+/// Indicates that a body is not simulated by the physics engine until woken up again.
+/// This is done to improve performance and help prevent small jitter that is typically present in collisions.
+///
+/// Bodies are deactivated when their linear and angular velocity is below the [`SleepingThreshold`] for a time
+/// indicated by [`DeactivationTime`]. Sleeping bodies are woken up when an active body interacts with them,
+/// gravity changes, or the body's position, rotation, velocity, or external forces are changed.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[reflect(Component)]
+pub struct Sleeping;
+
+/// Time remaining until the body can be deactivated. See [`Sleeping`] for further information.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
+#[reflect(Component)]
+pub struct TimeUntilSleep(pub Scalar);
+
 /// The position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -82,6 +97,10 @@ pub struct PrevPos(pub Vector);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinVel(pub Vector);
+
+impl LinVel {
+    pub const ZERO: LinVel = LinVel(Vector::ZERO);
+}
 
 #[cfg(all(feature = "2d", feature = "f64"))]
 impl From<Vec2> for LinVel {
@@ -113,6 +132,13 @@ pub struct AngVel(pub Scalar);
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngVel(pub Vector);
+
+impl AngVel {
+    #[cfg(feature = "2d")]
+    pub const ZERO: AngVel = AngVel(0.0);
+    #[cfg(feature = "3d")]
+    pub const ZERO: AngVel = AngVel(Vector::ZERO);
+}
 
 #[cfg(all(feature = "3d", feature = "f64"))]
 impl From<Vec3> for AngVel {

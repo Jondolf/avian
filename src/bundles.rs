@@ -54,6 +54,8 @@ pub struct RigidBodyBundle {
     pub inertia: Inertia,
     pub inv_inertia: InvInertia,
     pub local_center_of_mass: LocalCom,
+
+    pub deactivation_time: TimeUntilSleep,
 }
 
 impl RigidBodyBundle {

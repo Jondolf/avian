@@ -16,14 +16,17 @@ impl Plugin for IntegratorPlugin {
 
 /// Explicitly integrates the positions and linear velocities of bodies taking only external forces like gravity into account. This acts as a prediction for the next positions of the bodies.
 fn integrate_pos(
-    mut bodies: Query<(
-        &RigidBody,
-        &mut Pos,
-        &mut PrevPos,
-        &mut LinVel,
-        &ExternalForce,
-        &Mass,
-    )>,
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &mut Pos,
+            &mut PrevPos,
+            &mut LinVel,
+            &ExternalForce,
+            &Mass,
+        ),
+        Without<Sleeping>,
+    >,
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
@@ -48,14 +51,17 @@ fn integrate_pos(
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "2d")]
 fn integrate_rot(
-    mut bodies: Query<(
-        &RigidBody,
-        &mut Rot,
-        &mut PrevRot,
-        &mut AngVel,
-        &ExternalTorque,
-        &InvInertia,
-    )>,
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &mut Rot,
+            &mut PrevRot,
+            &mut AngVel,
+            &ExternalTorque,
+            &InvInertia,
+        ),
+        Without<Sleeping>,
+    >,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inv_inertia) in &mut bodies {
@@ -77,15 +83,18 @@ fn integrate_rot(
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "3d")]
 fn integrate_rot(
-    mut bodies: Query<(
-        &RigidBody,
-        &mut Rot,
-        &mut PrevRot,
-        &mut AngVel,
-        &ExternalTorque,
-        &Inertia,
-        &InvInertia,
-    )>,
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &mut Rot,
+            &mut PrevRot,
+            &mut AngVel,
+            &ExternalTorque,
+            &Inertia,
+            &InvInertia,
+        ),
+        Without<Sleeping>,
+    >,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inv_inertia) in
