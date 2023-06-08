@@ -120,7 +120,7 @@ impl Plugin for XpbdPlugin {
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
             .register_type::<Sleeping>()
-            .register_type::<TimeUntilSleep>()
+            .register_type::<TimeSleeping>()
             .register_type::<Pos>()
             .register_type::<Rot>()
             .register_type::<PrevPos>()

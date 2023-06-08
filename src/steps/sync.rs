@@ -51,7 +51,7 @@ fn activate_sleeping(
             &RigidBody,
             &mut LinVel,
             &mut AngVel,
-            &mut TimeUntilSleep,
+            &mut TimeSleeping,
         ),
         Without<Sleeping>,
     >,
@@ -59,7 +59,7 @@ fn activate_sleeping(
     sleeping_threshold: Res<SleepingThreshold>,
     dt: Res<DeltaTime>,
 ) {
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_until_sleep) in &mut bodies {
+    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut bodies {
         // Only dynamic bodies can sleep
         if !rb.is_dynamic() {
             continue;
@@ -71,15 +71,15 @@ fn activate_sleeping(
         let ang_vel_magnitude = ang_vel.length();
 
         // If linear and angular velocity are below the sleeping threshold,
-        // add delta time to the deactivation time, i.e. the time that the body has remained still.
+        // add delta time to the time sleeping, i.e. the time that the body has remained still.
         if lin_vel.length() < sleeping_threshold.0 && ang_vel_magnitude < sleeping_threshold.0 {
-            time_until_sleep.0 += dt.0;
+            time_sleeping.0 += dt.0;
         } else {
-            time_until_sleep.0 = 0.0;
+            time_sleeping.0 = 0.0;
         }
 
         // If the body has been still for long enough, set it to sleep and reset velocities.
-        if time_until_sleep.0 > deactivation_time.0 {
+        if time_sleeping.0 > deactivation_time.0 {
             commands.entity(entity).insert(Sleeping);
             *lin_vel = LinVel::ZERO;
             *ang_vel = AngVel::ZERO;
@@ -90,7 +90,7 @@ fn activate_sleeping(
 fn deactivate_sleeping(
     mut commands: Commands,
     mut bodies: Query<
-        (Entity, &mut TimeUntilSleep, &mut LinVel, &mut AngVel),
+        (Entity, &mut TimeSleeping, &mut LinVel, &mut AngVel),
         (
             With<Sleeping>,
             Or<(
@@ -110,7 +110,7 @@ fn deactivate_sleeping(
 
 fn gravity_deactivate_sleeping(
     mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeUntilSleep), With<Sleeping>>,
+    mut bodies: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
     gravity: Res<Gravity>,
 ) {
     if gravity.is_changed() {

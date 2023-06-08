@@ -64,10 +64,12 @@ impl RigidBody {
 #[reflect(Component)]
 pub struct Sleeping;
 
-/// Time remaining until the body can be deactivated. See [`Sleeping`] for further information.
+/// How long the velocity of the body has been below the [`SleepingThreshold`].
+///
+/// See [`Sleeping`] for further information.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
-pub struct TimeUntilSleep(pub Scalar);
+pub struct TimeSleeping(pub Scalar);
 
 /// The position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
