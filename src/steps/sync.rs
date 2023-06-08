@@ -12,11 +12,7 @@ impl Plugin for SyncPlugin {
             .expect("add xpbd schedule first")
             .add_system(sync_transforms.in_set(PhysicsSet::Sync))
             .add_systems(
-                (
-                    activate_sleeping,
-                    deactivate_sleeping,
-                    gravity_deactivate_sleeping,
-                )
+                (mark_sleeping_bodies, wake_up_bodies, gravity_wake_up_bodies)
                     .chain()
                     .in_set(PhysicsSet::Sync),
             );
@@ -43,18 +39,19 @@ fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
     }
 }
 
-fn activate_sleeping(
+type SleepingQueryComponents = (
+    Entity,
+    &'static RigidBody,
+    &'static mut LinVel,
+    &'static mut AngVel,
+    &'static mut TimeSleeping,
+);
+
+/// Adds the [`Sleeping`] component to bodies whose linear and anigular velocities have been
+/// under the [`SleepingThreshold`] for a duration indicated by [`DeactivationTime`].
+fn mark_sleeping_bodies(
     mut commands: Commands,
-    mut bodies: Query<
-        (
-            Entity,
-            &RigidBody,
-            &mut LinVel,
-            &mut AngVel,
-            &mut TimeSleeping,
-        ),
-        (Without<Sleeping>, Without<SleepingDisabled>),
-    >,
+    mut bodies: Query<SleepingQueryComponents, (Without<Sleeping>, Without<SleepingDisabled>)>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
     dt: Res<DeltaTime>,
@@ -93,16 +90,18 @@ fn activate_sleeping(
     }
 }
 
-type BodyActivatedFilter = Or<(
+type BodyWokeUpFilter = Or<(
     Changed<LinVel>,
     Changed<AngVel>,
     Changed<ExternalForce>,
     Changed<ExternalTorque>,
 )>;
 
-fn deactivate_sleeping(
+/// Removes the [`Sleeping`] component from sleeping bodies when properties like
+/// position, rotation, velocity and external forces are changed.
+fn wake_up_bodies(
     mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyActivatedFilter)>,
+    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyWokeUpFilter)>,
 ) {
     for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();
@@ -110,7 +109,8 @@ fn deactivate_sleeping(
     }
 }
 
-fn gravity_deactivate_sleeping(
+/// Removes the [`Sleeping`] component from sleeping bodies when [`Gravity`] is changed.
+fn gravity_wake_up_bodies(
     mut commands: Commands,
     mut bodies: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
     gravity: Res<Gravity>,
