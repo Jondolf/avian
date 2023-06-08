@@ -60,19 +60,24 @@ fn activate_sleeping(
     dt: Res<DeltaTime>,
 ) {
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut bodies {
-        // Only dynamic bodies can sleep
+        // Only dynamic bodies can sleep.
         if !rb.is_dynamic() {
             continue;
         }
 
+        let lin_vel_sq = lin_vel.length_squared();
+
         #[cfg(feature = "2d")]
-        let ang_vel_magnitude = ang_vel.abs();
+        let ang_vel_sq = ang_vel.powi(2);
         #[cfg(feature = "3d")]
-        let ang_vel_magnitude = ang_vel.length();
+        let ang_vel_sq = ang_vel.dot(ang_vel.0);
+
+        // Negative values indicate that sleeping is disabled.
+        let sleeping_threshold_sq = sleeping_threshold.0 * sleeping_threshold.0.abs();
 
         // If linear and angular velocity are below the sleeping threshold,
         // add delta time to the time sleeping, i.e. the time that the body has remained still.
-        if lin_vel.length() < sleeping_threshold.0 && ang_vel_magnitude < sleeping_threshold.0 {
+        if lin_vel_sq < sleeping_threshold_sq && ang_vel_sq < sleeping_threshold_sq {
             time_sleeping.0 += dt.0;
         } else {
             time_sleeping.0 = 0.0;
