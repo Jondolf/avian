@@ -13,11 +13,11 @@ impl Plugin for BroadPhasePlugin {
         app.init_resource::<BroadCollisionPairs>()
             .init_resource::<AabbIntervals>();
 
-        let xpbd_schedule = app
-            .get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first");
+        let physics_schedule = app
+            .get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first");
 
-        xpbd_schedule.add_systems(
+        physics_schedule.add_systems(
             (
                 remove_old_aabb_intervals,
                 update_aabb_intervals,

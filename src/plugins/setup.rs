@@ -10,7 +10,7 @@ use crate::prelude::*;
 ///
 /// ## Schedules and sets
 ///
-/// The [`XpbdSchedule`] is responsible for the high-level physics schedule that runs once per physics frame.
+/// The [`PhysicsSchedule`] is responsible for the high-level physics schedule that runs once per physics frame.
 /// It has the following sets, in order:
 ///
 /// 1. [`PhysicsSet::Prepare`],
@@ -19,7 +19,7 @@ use crate::prelude::*;
 /// 4. [`PhysicsSet::Sleeping`],
 /// 5. [`PhysicsSet::Sync`],
 ///
-/// The [`XpbdSubstepSchedule`] handles physics substepping. It is run [`NumSubsteps`] times in [`PhysicsSet::Substeps`],
+/// The [`SubstepSchedule`] handles physics substepping. It is run [`NumSubsteps`] times in [`PhysicsSet::Substeps`],
 /// and it typically handles things like collision detection and constraint solving.
 ///
 /// Substepping sets are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
@@ -35,7 +35,7 @@ impl Plugin for PhysicsSetupPlugin {
             .init_resource::<NumPosIters>()
             .init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
-            .init_resource::<XpbdLoop>()
+            .init_resource::<PhysicsLoop>()
             .init_resource::<Gravity>()
             .register_type::<PhysicsTimestep>()
             .register_type::<DeltaTime>()
@@ -44,7 +44,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<NumPosIters>()
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
-            .register_type::<XpbdLoop>()
+            .register_type::<PhysicsLoop>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
             .register_type::<Sleeping>()
@@ -68,14 +68,14 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<InvInertia>()
             .register_type::<LocalCom>();
 
-        let mut xpbd_schedule = Schedule::default();
+        let mut physics_schedule = Schedule::default();
 
-        xpbd_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
+        physics_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
             ambiguity_detection: LogLevel::Error,
             ..default()
         });
 
-        xpbd_schedule.configure_sets(
+        physics_schedule.configure_sets(
             (
                 PhysicsSet::Prepare,
                 PhysicsSet::BroadPhase,
@@ -86,7 +86,7 @@ impl Plugin for PhysicsSetupPlugin {
                 .chain(),
         );
 
-        app.add_schedule(XpbdSchedule, xpbd_schedule);
+        app.add_schedule(PhysicsSchedule, physics_schedule);
 
         let mut substep_schedule = Schedule::default();
 
@@ -95,7 +95,7 @@ impl Plugin for PhysicsSetupPlugin {
             ..default()
         });
 
-        app.add_schedule(XpbdSubstepSchedule, substep_schedule);
+        app.add_schedule(SubstepSchedule, substep_schedule);
 
         // Add system set for running physics schedule
         app.configure_set(
@@ -108,7 +108,7 @@ impl Plugin for PhysicsSetupPlugin {
         app.add_system(
             run_substep_schedule
                 .in_set(PhysicsSet::Substeps)
-                .in_schedule(XpbdSchedule),
+                .in_schedule(PhysicsSchedule),
         );
 
         #[cfg(feature = "debug-render-aabbs")]
@@ -118,23 +118,23 @@ impl Plugin for PhysicsSetupPlugin {
     }
 }
 
-/// The high-level XPBD physics schedule that runs once per physics frame.
+/// The high-level physics schedule that runs once per physics frame.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct XpbdSchedule;
+pub struct PhysicsSchedule;
 
 /// The substepping schedule. The number of substeps per physics step is
 /// configured through the [`NumSubsteps`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct XpbdSubstepSchedule;
+pub struct SubstepSchedule;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct FixedUpdateSet;
 
-/// Data related to the simulation loop.
+/// Data related to the physics simulation loop.
 #[derive(Reflect, Resource, Debug, Default)]
 #[reflect(Resource)]
-pub struct XpbdLoop {
-    /// Time accumulated into the physics loop. This is consumed by the [`XpbdSchedule`].
+pub struct PhysicsLoop {
+    /// Time accumulated into the physics loop. This is consumed by the [`PhysicsSchedule`].
     pub(crate) accumulator: Scalar,
     /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
     pub(crate) queued_steps: u32,
@@ -142,8 +142,8 @@ pub struct XpbdLoop {
     pub paused: bool,
 }
 
-impl XpbdLoop {
-    /// Add a step to be run on the next run of the [`XpbdSchedule`].
+impl PhysicsLoop {
+    /// Add a step to be run on the next run of the [`PhysicsSchedule`].
     pub fn step(&mut self) {
         self.queued_steps += 1;
     }
@@ -158,20 +158,20 @@ impl XpbdLoop {
 }
 
 /// Pause the simulation.
-pub fn pause(mut xpbd_loop: ResMut<XpbdLoop>) {
-    xpbd_loop.pause();
+pub fn pause(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.pause();
 }
 
 /// Resume the simulation.
-pub fn resume(mut xpbd_loop: ResMut<XpbdLoop>) {
-    xpbd_loop.resume();
+pub fn resume(mut physics_loop: ResMut<PhysicsLoop>) {
+    physics_loop.resume();
 }
 
-/// Runs the [`XpbdSchedule`].
+/// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World) {
-    let mut xpbd_loop = world
-        .remove_resource::<XpbdLoop>()
-        .expect("no xpbd loop resource");
+    let mut physics_loop = world
+        .remove_resource::<PhysicsLoop>()
+        .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
     let delta_seconds = world.resource::<Time>().delta_seconds();
@@ -188,25 +188,25 @@ fn run_physics_schedule(world: &mut World) {
     world.resource_mut::<DeltaTime>().0 = dt;
 
     // Add time to the accumulator
-    if xpbd_loop.paused {
-        xpbd_loop.accumulator += dt * xpbd_loop.queued_steps as Scalar;
-        xpbd_loop.queued_steps = 0;
+    if physics_loop.paused {
+        physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
+        physics_loop.queued_steps = 0;
     } else {
-        xpbd_loop.accumulator += delta_seconds;
+        physics_loop.accumulator += delta_seconds;
     }
 
     // Step the simulation until the accumulator has been consumed.
     // Note that a small remainder may be passed on to the next run of the physics schedule.
-    while xpbd_loop.accumulator >= dt && dt > 0.0 {
-        debug!("running physics schedule");
-        world.run_schedule(XpbdSchedule);
-        xpbd_loop.accumulator -= dt;
+    while physics_loop.accumulator >= dt && dt > 0.0 {
+        debug!("running PhysicsSchedule");
+        world.run_schedule(PhysicsSchedule);
+        physics_loop.accumulator -= dt;
     }
 
-    world.insert_resource(xpbd_loop);
+    world.insert_resource(physics_loop);
 }
 
-/// Runs the [`XpbdSubstepSchedule`].
+/// Runs the [`SubstepSchedule`].
 fn run_substep_schedule(world: &mut World) {
     let NumSubsteps(substeps) = *world.resource::<NumSubsteps>();
     let dt = world.resource::<DeltaTime>().0;
@@ -216,7 +216,7 @@ fn run_substep_schedule(world: &mut World) {
     sub_delta_time.0 = dt / substeps as Scalar;
 
     for i in 0..substeps {
-        debug!("running substep schedule: {i}");
-        world.run_schedule(XpbdSubstepSchedule);
+        debug!("running SubstepSchedule: {i}");
+        world.run_schedule(SubstepSchedule);
     }
 }

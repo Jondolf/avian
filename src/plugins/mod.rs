@@ -29,7 +29,7 @@ pub enum PhysicsSet {
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`XpbdSubstepSchedule`].
+    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`SubstepSchedule`].
     Substeps,
     /// The sleeping step controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
     Sleeping,

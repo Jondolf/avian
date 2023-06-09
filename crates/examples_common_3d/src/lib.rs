@@ -40,8 +40,8 @@ fn pause_button(
     }
 }
 
-fn step_button(mut xpbd_loop: ResMut<XpbdLoop>, keys: Res<Input<KeyCode>>) {
+fn step_button(mut physics_loop: ResMut<PhysicsLoop>, keys: Res<Input<KeyCode>>) {
     if keys.just_pressed(KeyCode::Return) {
-        xpbd_loop.step();
+        physics_loop.step();
     }
 }

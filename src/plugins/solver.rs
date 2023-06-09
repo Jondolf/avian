@@ -29,8 +29,8 @@ impl Plugin for SolverPlugin {
         app.init_resource::<PenetrationConstraints>();
 
         let substeps = app
-            .get_schedule_mut(XpbdSubstepSchedule)
-            .expect("add XpbdSubstepSchedule first");
+            .get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first");
 
         substeps.configure_sets(
             (
