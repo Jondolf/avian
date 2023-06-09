@@ -2,10 +2,11 @@
 
 use bevy::prelude::Resource;
 
-use crate::{Scalar, Vector};
+use crate::prelude::*;
 
 /// Configures how many times per second the physics simulation is run.
-#[derive(Resource, Clone, Copy, Debug, PartialEq)]
+#[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
+#[reflect(Resource)]
 pub enum PhysicsTimestep {
     /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
     Fixed(Scalar),
@@ -25,15 +26,18 @@ impl Default for PhysicsTimestep {
 }
 
 /// How much time the previous physics frame took. The timestep can be configured with the [`PhysicsTimestep`] resource.
-#[derive(Resource, Default)]
+#[derive(Reflect, Resource, Default)]
+#[reflect(Resource)]
 pub struct DeltaTime(pub Scalar);
 
 /// How much time the previous physics substep took. This depends on the [`DeltaTime`] and [`NumSubsteps`] resources.
-#[derive(Resource, Default)]
+#[derive(Reflect, Resource, Default)]
+#[reflect(Resource)]
 pub struct SubDeltaTime(pub Scalar);
 
 /// The number of substeps used in XPBD simulation. A higher number of substeps reduces the value of [`SubDeltaTime`], which results in a more accurate simulation at the cost of performance.
-#[derive(Resource, Clone, Copy)]
+#[derive(Reflect, Resource, Clone, Copy)]
+#[reflect(Resource)]
 pub struct NumSubsteps(pub u32);
 
 impl Default for NumSubsteps {
@@ -43,7 +47,8 @@ impl Default for NumSubsteps {
 }
 
 /// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`NumSubsteps`] instead, as substepping can provide better convergence, accuracy and energy conservation.
-#[derive(Resource)]
+#[derive(Reflect, Resource)]
+#[reflect(Resource)]
 pub struct NumPosIters(pub u32);
 
 impl Default for NumPosIters {
@@ -55,7 +60,8 @@ impl Default for NumPosIters {
 /// The global gravitational acceleration. This is applied to dynamic bodies in the integration step.
 ///
 /// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational acceleration near Earth's surface.
-#[derive(Resource, Debug)]
+#[derive(Reflect, Resource, Debug)]
+#[reflect(Resource)]
 pub struct Gravity(pub Vector);
 
 impl Default for Gravity {

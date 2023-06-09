@@ -107,6 +107,13 @@ impl Plugin for XpbdPlugin {
             .init_resource::<NumPosIters>()
             .init_resource::<XpbdLoop>()
             .init_resource::<Gravity>()
+            .register_type::<PhysicsTimestep>()
+            .register_type::<DeltaTime>()
+            .register_type::<SubDeltaTime>()
+            .register_type::<NumSubsteps>()
+            .register_type::<NumPosIters>()
+            .register_type::<XpbdLoop>()
+            .register_type::<Gravity>()
             .register_type::<RigidBody>()
             .register_type::<Pos>()
             .register_type::<Rot>()
@@ -225,7 +232,8 @@ fn draw_aabbs(aabbs: Query<&ColliderAabb>, mut lines: ResMut<DebugLines>) {
 }
 
 /// Data related to the simulation loop.
-#[derive(Resource, Debug, Default)]
+#[derive(Reflect, Resource, Debug, Default)]
+#[reflect(Resource)]
 pub struct XpbdLoop {
     /// Time accumulated into the physics loop. This is consumed by the [`XpbdSchedule`].
     pub(crate) accumulator: Scalar,
