@@ -2,7 +2,6 @@
 
 use crate::{
     collision::*,
-    plugins::broad_phase::BroadCollisionPairs,
     prelude::*,
     utils::{get_dynamic_friction, get_restitution},
 };
