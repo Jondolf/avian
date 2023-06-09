@@ -74,6 +74,8 @@ fn mark_sleeping_bodies(
 }
 
 type BodyWokeUpFilter = Or<(
+    Changed<Pos>,
+    Changed<Rot>,
     Changed<LinVel>,
     Changed<AngVel>,
     Changed<ExternalForce>,
