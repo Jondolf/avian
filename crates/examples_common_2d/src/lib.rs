@@ -1,14 +1,14 @@
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
-use bevy_xpbd_2d::{XpbdLoop, XpbdPlugin};
+use bevy_xpbd_2d::prelude::*;
 
 #[derive(Default)]
 pub struct XpbdExamplePlugin;
 
 impl Plugin for XpbdExamplePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(XpbdPlugin)
+        app.add_plugins(PhysicsPlugins)
             .add_plugin(WorldInspectorPlugin::default())
             .add_plugin(FrameTimeDiagnosticsPlugin)
             .add_state::<AppState>()

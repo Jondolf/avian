@@ -16,7 +16,7 @@ use bevy::prelude::*;
 ///
 /// let mut app = App::new();
 ///
-/// app.add_plugins(DefaultPlugins).add_plugin(XpbdPlugin).run();
+/// app.add_plugins(DefaultPlugins).add_plugins(PhysicsPlugins).run();
 ///
 /// app.world.spawn(
 ///     RigidBodyBundle::new_dynamic()

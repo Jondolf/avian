@@ -2,8 +2,8 @@
 
 use crate::{
     collision::*,
+    plugins::broad_phase::BroadCollisionPairs,
     prelude::*,
-    steps::broad_phase::BroadCollisionPairs,
     utils::{get_dynamic_friction, get_restitution},
 };
 use bevy::prelude::*;
