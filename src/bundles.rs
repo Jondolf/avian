@@ -107,6 +107,52 @@ impl RigidBodyBundle {
         Self { ang_vel, ..self }
     }
 
+    /// Sets the restitution of a rigid body. See [`Restitution`].
+    pub fn with_restitution(self, restitution: impl Into<Restitution>) -> Self {
+        let restitution = restitution.into();
+        Self {
+            restitution,
+            ..self
+        }
+    }
+
+    /// Sets the friction of a rigid body. See [`Friction`].
+    pub fn with_friction(self, friction: impl Into<Friction>) -> Self {
+        let friction = friction.into();
+        Self { friction, ..self }
+    }
+
+    /// Sets the mass of a rigid body. See [`Mass`].
+    pub fn with_mass(self, mass: impl Into<Mass>) -> Self {
+        let mass = mass.into();
+        let inv_mass = InvMass(1.0 / mass.0);
+        Self {
+            mass,
+            inv_mass,
+            ..self
+        }
+    }
+
+    /// Sets the moment of inertia of a rigid body. See [`Inertia`].
+    pub fn with_inertia(self, inertia: impl Into<Inertia>) -> Self {
+        let inertia = inertia.into();
+        let inv_inertia = inertia.inverse();
+        Self {
+            inertia,
+            inv_inertia,
+            ..self
+        }
+    }
+
+    /// Sets the local center of mass of a rigid body. See [`LocalCom`].
+    pub fn with_local_center_of_mass(self, local_center_of_mass: impl Into<LocalCom>) -> Self {
+        let local_center_of_mass = local_center_of_mass.into();
+        Self {
+            local_center_of_mass,
+            ..self
+        }
+    }
+
     /// Sets the mass properties of a rigid body by computing the [`ColliderMassProperties`] that a given [`ColliderShape`] would have with a given density.
     ///
     /// For the affected mass properties, see [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`].
