@@ -65,7 +65,9 @@ impl Default for NumPosIters {
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[reflect(Resource)]
 pub struct SleepingThreshold {
+    /// The maximum linear velocity allowed for a body to be marked as sleeping.
     pub linear: Scalar,
+    /// The maximum angular velocity allowed for a body to be marked as sleeping.
     pub angular: Scalar,
 }
 
