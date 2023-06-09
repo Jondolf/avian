@@ -44,10 +44,11 @@ fn setup(
             ..default()
         })
         .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -5.0, 0.0)))
-        .insert(ColliderBundle::new(
-            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
-            1.0,
-        ));
+        .insert(ColliderBundle::new(&Shape::cuboid(
+            floor_size.x * 0.5,
+            floor_size.y * 0.5,
+            floor_size.z * 0.5,
+        )));
 
     let radius = 0.5;
     let count_x = 1;
@@ -73,7 +74,7 @@ fn setup(
                         ..default()
                     })
                     .insert(RigidBodyBundle::new_dynamic().with_pos(pos))
-                    .insert(ColliderBundle::new(&Shape::ball(radius), 1.0))
+                    .insert(ColliderBundle::new(&Shape::ball(radius)))
                     .insert(Player)
                     .insert(RollAcceleration(Vec3::splat(0.5)))
                     .insert(MaxAngularVelocity(Vec3::new(30.0, 30.0, 30.0)));
