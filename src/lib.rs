@@ -86,21 +86,21 @@ pub struct PhysicsPlugins;
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
-        let builder = PluginGroupBuilder::start::<Self>()
+        let builder = PluginGroupBuilder::start::<Self>();
+
+        #[cfg(feature = "debug-render-aabbs")]
+        {
+            builder.add(DebugLinesPlugin::default());
+        }
+
+        builder
             .add(PhysicsSetupPlugin)
             .add(PreparePlugin)
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
-            .add(SyncPlugin);
-
-        #[cfg(feature = "debug-render-aabbs")]
-        {
-            app.add(DebugLinesPlugin::default());
-        }
-
-        builder
+            .add(SyncPlugin)
     }
 }
 
