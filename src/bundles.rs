@@ -188,16 +188,22 @@ pub struct ColliderBundle {
 }
 
 impl ColliderBundle {
-    /// Creates a new [`ColliderBundle`] from a given [`Shape`] and density.
-    pub fn new(shape: &Shape, density: Scalar) -> Self {
-        let aabb = ColliderAabb::from_shape(shape);
-        let mass_props = ColliderMassProperties::from_shape_and_density(shape, density);
-
+    /// Creates a new [`ColliderBundle`] from a given [`Shape`] with a default density of 1.
+    pub fn new(shape: &Shape) -> Self {
         Self {
             collider_shape: ColliderShape(shape.to_owned()),
-            collider_aabb: aabb,
-            mass_props,
+            collider_aabb: ColliderAabb::from_shape(shape),
+            mass_props: ColliderMassProperties::from_shape_and_density(shape, 1.0),
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
+        }
+    }
+    /// Sets the collider's mass properties computed from a given density.
+    pub fn with_density(self, density: Scalar) -> Self {
+        let shape = &self.collider_shape;
+        Self {
+            mass_props: ColliderMassProperties::from_shape_and_density(shape, density),
+            prev_mass_props: PrevColliderMassProperties(self.mass_props),
+            ..self
         }
     }
 }
