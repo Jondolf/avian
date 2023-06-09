@@ -55,16 +55,23 @@ impl RigidBody {
 }
 
 /// Indicates that a body is not simulated by the physics engine until woken up again.
-/// This is done to improve performance and help prevent small jitter that is typically present in collisions.
+/// This is done to improve performance and to help prevent small jitter that is typically present in collisions.
 ///
-/// Bodies are deactivated when their linear and angular velocity is below the [`SleepingThreshold`] for a time
-/// indicated by [`DeactivationTime`]. Sleeping bodies are woken up when an active body interacts with them,
-/// gravity changes, or the body's position, rotation, velocity, or external forces are changed.
+/// Bodies are marked as sleeping when their linear and angular velocity is below the [`SleepingThreshold`] for a time
+/// indicated by [`DeactivationTime`]. A sleeping body is woken up when an active body interacts with it through
+/// collisions or other constraints, or when gravity changes, or when the body's
+/// position, rotation, velocity, or external forces are modified.
+///
+/// Note that sleeping can cause unrealistic behaviour in some cases.
+/// For example, removing the floor under sleeping bodies can leave them floating in the air.
+/// Sleeping can be disabled for specific entities with the [`SleepingDisabled`] component,
+/// or for all entities by setting the [`SleepingThreshold`] to a negative value.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
 #[reflect(Component)]
 pub struct Sleeping;
 
-/// How long the velocity of the body has been below the [`SleepingThreshold`].
+/// How long the velocity of the body has been below the [`SleepingThreshold`],
+/// i.e. how long the body has been able to sleep.
 ///
 /// See [`Sleeping`] for further information.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]

@@ -1,4 +1,4 @@
-//! The XPBD solver is reponsible for constraint projection, velocity updates, and velocity corrections. See [`SolverPlugin`].
+//! The XPBD solver is responsible for constraint projection, velocity updates, and velocity corrections. See [`SolverPlugin`].
 
 use crate::{
     collision::*,

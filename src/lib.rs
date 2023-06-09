@@ -85,6 +85,7 @@ struct FixedUpdateSet;
 ///         - Constraint projection ([`SolverPlugin`], [`SubsteppingSet::SolvePos`])
 ///         - Velocity updates ([`SolverPlugin`], [`SubsteppingSet::UpdateVel`])
 ///         - Velocity solve ([`SolverPlugin`], [`SubsteppingSet::SolveVel`])
+///     - Control physics sleeping ([`SleepingPlugin`], [`PhysicsSet::Sleeping`])
 ///     - Synchronize physics with Bevy ([`SyncPlugin`], [`PhysicsSet::Sync`])
 pub struct XpbdPlugin;
 
