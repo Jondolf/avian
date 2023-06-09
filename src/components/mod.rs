@@ -275,6 +275,15 @@ impl Default for Restitution {
     }
 }
 
+impl From<Scalar> for Restitution {
+    fn from(coefficient: Scalar) -> Self {
+        Self {
+            coefficient,
+            ..default()
+        }
+    }
+}
+
 /// Friction prevents relative tangential movement at contact points.
 ///
 /// For surfaces that are at rest relative to each other, static friction is used. Once it is overcome, the bodies start sliding relative to each other, and dynamic friction is applied instead.
@@ -347,6 +356,16 @@ impl Default for Friction {
             dynamic_coefficient: 0.3,
             static_coefficient: 0.3,
             combine_rule: CoefficientCombine::default(),
+        }
+    }
+}
+
+impl From<Scalar> for Friction {
+    fn from(coefficient: Scalar) -> Self {
+        Self {
+            dynamic_coefficient: coefficient,
+            static_coefficient: coefficient,
+            ..default()
         }
     }
 }

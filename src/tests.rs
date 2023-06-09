@@ -45,10 +45,11 @@ fn setup_cubes_simulation(mut commands: Commands) {
     let floor_size = Vector::new(80.0, 1.0, 80.0);
     commands.spawn((
         RigidBodyBundle::new_static().with_pos(Vector::new(0.0, -1.0, 0.0)),
-        ColliderBundle::new(
-            &Shape::cuboid(floor_size.x * 0.5, floor_size.y * 0.5, floor_size.z * 0.5),
-            1.0,
-        ),
+        ColliderBundle::new(&Shape::cuboid(
+            floor_size.x * 0.5,
+            floor_size.y * 0.5,
+            floor_size.z * 0.5,
+        )),
     ));
 
     let radius = 1.0;
@@ -66,7 +67,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                 commands.spawn((
                     SpatialBundle::default(),
                     RigidBodyBundle::new_dynamic().with_pos(pos + Vector::Y * 5.0),
-                    ColliderBundle::new(&Shape::cuboid(radius, radius, radius), 1.0),
+                    ColliderBundle::new(&Shape::cuboid(radius, radius, radius)),
                     Id(next_id),
                 ));
                 next_id += 1;
