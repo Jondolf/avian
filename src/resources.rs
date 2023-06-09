@@ -57,6 +57,43 @@ impl Default for NumPosIters {
     }
 }
 
+/// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
+///
+/// Setting a negative sleeping threshold disables sleeping entirely.
+///
+/// See [`Sleeping`] for further information about sleeping.
+#[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[reflect(Resource)]
+pub struct SleepingThreshold {
+    /// The maximum linear velocity allowed for a body to be marked as sleeping.
+    pub linear: Scalar,
+    /// The maximum angular velocity allowed for a body to be marked as sleeping.
+    pub angular: Scalar,
+}
+
+impl Default for SleepingThreshold {
+    fn default() -> Self {
+        Self {
+            linear: 0.1,
+            angular: 0.2,
+        }
+    }
+}
+
+/// How long in seconds the linear and angular velocity of a body need to be below
+/// the [`SleepingThreshold`] before the body is deactivated. Defaults to 1 second.
+///
+/// See [`Sleeping`] for further information about sleeping.
+#[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[reflect(Resource)]
+pub struct DeactivationTime(pub Scalar);
+
+impl Default for DeactivationTime {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
 /// The global gravitational acceleration. This is applied to dynamic bodies in the integration step.
 ///
 /// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational acceleration near Earth's surface.

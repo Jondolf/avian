@@ -85,6 +85,7 @@ struct FixedUpdateSet;
 ///         - Constraint projection ([`SolverPlugin`], [`SubsteppingSet::SolvePos`])
 ///         - Velocity updates ([`SolverPlugin`], [`SubsteppingSet::UpdateVel`])
 ///         - Velocity solve ([`SolverPlugin`], [`SubsteppingSet::SolveVel`])
+///     - Control physics sleeping ([`SleepingPlugin`], [`PhysicsSet::Sleeping`])
 ///     - Synchronize physics with Bevy ([`SyncPlugin`], [`PhysicsSet::Sync`])
 pub struct XpbdPlugin;
 
@@ -105,6 +106,8 @@ impl Plugin for XpbdPlugin {
             .init_resource::<SubDeltaTime>()
             .init_resource::<NumSubsteps>()
             .init_resource::<NumPosIters>()
+            .init_resource::<SleepingThreshold>()
+            .init_resource::<DeactivationTime>()
             .init_resource::<XpbdLoop>()
             .init_resource::<Gravity>()
             .register_type::<PhysicsTimestep>()
@@ -112,9 +115,14 @@ impl Plugin for XpbdPlugin {
             .register_type::<SubDeltaTime>()
             .register_type::<NumSubsteps>()
             .register_type::<NumPosIters>()
+            .register_type::<SleepingThreshold>()
+            .register_type::<DeactivationTime>()
             .register_type::<XpbdLoop>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
+            .register_type::<Sleeping>()
+            .register_type::<SleepingDisabled>()
+            .register_type::<TimeSleeping>()
             .register_type::<Pos>()
             .register_type::<Rot>()
             .register_type::<PrevPos>()
@@ -145,6 +153,7 @@ impl Plugin for XpbdPlugin {
                 PhysicsSet::Prepare,
                 PhysicsSet::BroadPhase,
                 PhysicsSet::Substeps,
+                PhysicsSet::Sleeping,
                 PhysicsSet::Sync,
             )
                 .chain(),
@@ -180,6 +189,7 @@ impl Plugin for XpbdPlugin {
             .add_plugin(BroadPhasePlugin)
             .add_plugin(IntegratorPlugin)
             .add_plugin(SolverPlugin)
+            .add_plugin(SleepingPlugin)
             .add_plugin(SyncPlugin);
 
         #[cfg(feature = "debug-render-aabbs")]
