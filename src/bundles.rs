@@ -24,7 +24,7 @@ use bevy::prelude::*;
 ///         .with_rot(Quat::from_rotation_x(2.1))
 ///         .with_lin_vel(Vec3::new(0.0, 4.5, 0.0))
 ///         .with_ang_vel(Vec3::new(2.5, 3.4, 1.6))
-///         .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+///         .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
 /// );
 /// ```
 #[derive(Bundle, Default)]
@@ -107,10 +107,56 @@ impl RigidBodyBundle {
         Self { ang_vel, ..self }
     }
 
+    /// Sets the restitution of a rigid body. See [`Restitution`].
+    pub fn with_restitution(self, restitution: impl Into<Restitution>) -> Self {
+        let restitution = restitution.into();
+        Self {
+            restitution,
+            ..self
+        }
+    }
+
+    /// Sets the friction of a rigid body. See [`Friction`].
+    pub fn with_friction(self, friction: impl Into<Friction>) -> Self {
+        let friction = friction.into();
+        Self { friction, ..self }
+    }
+
+    /// Sets the mass of a rigid body. See [`Mass`].
+    pub fn with_mass(self, mass: impl Into<Mass>) -> Self {
+        let mass = mass.into();
+        let inv_mass = InvMass(1.0 / mass.0);
+        Self {
+            mass,
+            inv_mass,
+            ..self
+        }
+    }
+
+    /// Sets the moment of inertia of a rigid body. See [`Inertia`].
+    pub fn with_inertia(self, inertia: impl Into<Inertia>) -> Self {
+        let inertia = inertia.into();
+        let inv_inertia = inertia.inverse();
+        Self {
+            inertia,
+            inv_inertia,
+            ..self
+        }
+    }
+
+    /// Sets the local center of mass of a rigid body. See [`LocalCom`].
+    pub fn with_local_center_of_mass(self, local_center_of_mass: impl Into<LocalCom>) -> Self {
+        let local_center_of_mass = local_center_of_mass.into();
+        Self {
+            local_center_of_mass,
+            ..self
+        }
+    }
+
     /// Sets the mass properties of a rigid body by computing the [`ColliderMassProperties`] that a given [`ColliderShape`] would have with a given density.
     ///
     /// For the affected mass properties, see [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`].
-    pub fn with_mass_props_from_shape(self, shape: &Shape, density: Scalar) -> Self {
+    pub fn with_computed_mass_props(self, shape: &Shape, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
             inv_mass,
@@ -142,16 +188,22 @@ pub struct ColliderBundle {
 }
 
 impl ColliderBundle {
-    /// Creates a new [`ColliderBundle`] from a given [`Shape`] and density.
-    pub fn new(shape: &Shape, density: Scalar) -> Self {
-        let aabb = ColliderAabb::from_shape(shape);
-        let mass_props = ColliderMassProperties::from_shape_and_density(shape, density);
-
+    /// Creates a new [`ColliderBundle`] from a given [`Shape`] with a default density of 1.
+    pub fn new(shape: &Shape) -> Self {
         Self {
             collider_shape: ColliderShape(shape.to_owned()),
-            collider_aabb: aabb,
-            mass_props,
+            collider_aabb: ColliderAabb::from_shape(shape),
+            mass_props: ColliderMassProperties::from_shape_and_density(shape, 1.0),
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
+        }
+    }
+    /// Sets the collider's mass properties computed from a given density.
+    pub fn with_density(self, density: Scalar) -> Self {
+        let shape = &self.collider_shape;
+        Self {
+            mass_props: ColliderMassProperties::from_shape_and_density(shape, density),
+            prev_mass_props: PrevColliderMassProperties(self.mass_props),
+            ..self
         }
     }
 }

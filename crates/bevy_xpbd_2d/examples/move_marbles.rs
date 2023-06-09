@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, -7.5)),
-        ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0),
+        ColliderBundle::new(&Shape::cuboid(10.0, 0.5)),
     ));
 
     let _ceiling = commands.spawn((
@@ -62,7 +62,7 @@ fn setup(
             ..default()
         },
         RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 7.5)),
-        ColliderBundle::new(&Shape::cuboid(10.0, 0.5), 1.0),
+        ColliderBundle::new(&Shape::cuboid(10.0, 0.5)),
     ));
 
     let _left_wall = commands.spawn((
@@ -73,7 +73,7 @@ fn setup(
             ..default()
         },
         RigidBodyBundle::new_static().with_pos(Vec2::new(-9.5, 0.0)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0),
+        ColliderBundle::new(&Shape::cuboid(0.5, 10.0)),
     ));
 
     let _right_wall = commands.spawn((
@@ -84,7 +84,7 @@ fn setup(
             ..default()
         },
         RigidBodyBundle::new_static().with_pos(Vec2::new(9.5, 0.0)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 10.0), 1.0),
+        ColliderBundle::new(&Shape::cuboid(0.5, 10.0)),
     ));
 
     let radius = 0.15;
@@ -107,7 +107,7 @@ fn setup(
                     ..default()
                 },
                 RigidBodyBundle::new_dynamic().with_pos(pos),
-                ColliderBundle::new(&Shape::ball(radius), 1.0),
+                ColliderBundle::new(&Shape::ball(radius)),
                 Player,
                 MoveAcceleration(0.5),
                 MaxVelocity(Vec2::new(30.0, 30.0)),

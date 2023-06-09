@@ -49,7 +49,7 @@ fn setup(
             ..default()
         },
         RigidBodyBundle::new_static(),
-        ColliderBundle::new(&Shape::cuboid(4.0, 0.001, 4.0), 1.0),
+        ColliderBundle::new(&Shape::cuboid(4.0, 0.001, 4.0)),
     ));
     // Cube
     commands.spawn((
@@ -61,7 +61,7 @@ fn setup(
         RigidBodyBundle::new_dynamic()
             .with_pos(Vec3::Y * 4.0)
             .with_ang_vel(Vec3::new(2.5, 3.4, 1.6)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+        ColliderBundle::new(&Shape::cuboid(0.5, 0.5, 0.5)),
     ));
     // Light
     commands.spawn(PointLightBundle {

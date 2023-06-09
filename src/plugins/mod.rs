@@ -21,6 +21,16 @@ use crate::prelude::*; // For doc comments
 use bevy::prelude::*;
 
 /// The main steps in the physics simulation loop.
+///
+/// 1. Prepare
+/// 2. Broad phase
+/// 3. Substeps
+///     1. Integrate
+///     2. Solve positional and angular constraints
+///     3. Update velocities
+///     4. Solve velocity constraints (dynamic friction and restitution)
+/// 4. Sleeping
+/// 5. Sync data
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
@@ -38,6 +48,11 @@ pub enum PhysicsSet {
 }
 
 /// The steps in the inner substepping loop.
+///
+/// 1. Integrate
+/// 2. Solve positional and angular constraints
+/// 3. Update velocities
+/// 4. Solve velocity constraints (dynamic friction and restitution)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubsteppingSet {
     /// In the integration step, the position and velocity of each particle and body is explicitly integrated, taking only external forces like gravity (and forces applied by the user) into account.
