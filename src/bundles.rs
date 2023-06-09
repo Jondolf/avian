@@ -24,7 +24,7 @@ use bevy::prelude::*;
 ///         .with_rot(Quat::from_rotation_x(2.1))
 ///         .with_lin_vel(Vec3::new(0.0, 4.5, 0.0))
 ///         .with_ang_vel(Vec3::new(2.5, 3.4, 1.6))
-///         .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+///         .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
 /// );
 /// ```
 #[derive(Bundle, Default)]
@@ -156,7 +156,7 @@ impl RigidBodyBundle {
     /// Sets the mass properties of a rigid body by computing the [`ColliderMassProperties`] that a given [`ColliderShape`] would have with a given density.
     ///
     /// For the affected mass properties, see [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`].
-    pub fn with_mass_props_from_shape(self, shape: &Shape, density: Scalar) -> Self {
+    pub fn with_computed_mass_props(self, shape: &Shape, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
             inv_mass,

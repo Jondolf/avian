@@ -50,7 +50,7 @@ fn setup(
         .insert(
             RigidBodyBundle::new_dynamic()
                 .with_pos(Vec3::X * 1.5)
-                .with_mass_props_from_shape(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+                .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
         )
         .id();
 
