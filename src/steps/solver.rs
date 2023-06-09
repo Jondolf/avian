@@ -114,6 +114,14 @@ fn penetration_constraints(
             [(mut body1, collider_shape1, sleeping1), (mut body2, collider_shape2, sleeping2)],
         ) = bodies.get_many_mut([*ent1, *ent2])
         {
+            let inactive1 = body1.rb.is_static() || sleeping1.is_some();
+            let inactive2 = body2.rb.is_static() || sleeping2.is_some();
+
+            // No collision if one of the bodies is static and the other one is sleeping.
+            if inactive1 && inactive2 {
+                continue;
+            }
+
             if let Some(collision) = get_collision(
                 *ent1,
                 *ent2,
@@ -126,13 +134,11 @@ fn penetration_constraints(
                 &collider_shape1.0,
                 &collider_shape2.0,
             ) {
-                // If neither of the bodies is static and one of the bodies is sleeping, wake up the body.
-                if !body1.rb.is_static() && !body2.rb.is_static() {
-                    if sleeping1.is_some() {
-                        commands.entity(*ent1).remove::<Sleeping>();
-                    } else if sleeping2.is_some() {
-                        commands.entity(*ent2).remove::<Sleeping>();
-                    }
+                // When an active body collides with a sleeping body, wake up the sleeping body.
+                if sleeping1.is_some() {
+                    commands.entity(*ent1).remove::<Sleeping>();
+                } else if sleeping2.is_some() {
+                    commands.entity(*ent2).remove::<Sleeping>();
                 }
 
                 let mut constraint = PenetrationConstraint::new(*ent1, *ent2, collision);
@@ -157,19 +163,23 @@ fn joint_constraints<T: Joint>(
             if let Ok([(mut body1, sleeping1), (mut body2, sleeping2)]) =
                 bodies.get_many_mut(joint.entities())
             {
-                // No need to solve constraints if neither of the bodies is dynamic
-                if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+                let neither_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
+                let inactive1 = body1.rb.is_static() || sleeping1.is_some();
+                let inactive2 = body2.rb.is_static() || sleeping2.is_some();
+
+                // No joint constraint solving if neither of the bodies is dynamic,
+                // or if one of the bodies is static and the other one is sleeping.
+                if neither_dynamic || (inactive1 && inactive2) {
                     continue;
                 }
 
-                // If neither of the bodies is static and one of the bodies is sleeping, wake up the body.
-                if !body1.rb.is_static() && !body2.rb.is_static() {
-                    let [ent1, ent2] = joint.entities();
-                    if sleeping1.is_some() {
-                        commands.entity(ent1).remove::<Sleeping>();
-                    } else if sleeping2.is_some() {
-                        commands.entity(ent2).remove::<Sleeping>();
-                    }
+                let [ent1, ent2] = joint.entities();
+
+                // When an active body interacts with a sleeping body, wake up the sleeping body.
+                if sleeping1.is_some() {
+                    commands.entity(ent1).remove::<Sleeping>();
+                } else if sleeping2.is_some() {
+                    commands.entity(ent2).remove::<Sleeping>();
                 }
 
                 joint.constrain(&mut body1, &mut body2, sub_dt.0);
