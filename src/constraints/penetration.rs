@@ -27,6 +27,24 @@ pub struct PenetrationConstraint {
     pub static_friction_force: Vector,
 }
 
+impl XpbdConstraint<2> for PenetrationConstraint {
+    fn entities(&self) -> [Entity; 2] {
+        [self.entity1, self.entity2]
+    }
+
+    fn clear_lagrange_multipliers(&mut self) {
+        self.normal_lagrange = 0.0;
+        self.tangent_lagrange = 0.0;
+    }
+
+    /// Solves overlap between two bodies.
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+        let [body1, body2] = bodies;
+        self.solve_contact(body1, body2, dt);
+        self.solve_friction(body1, body2, dt);
+    }
+}
+
 impl PenetrationConstraint {
     pub fn new(entity1: Entity, entity2: Entity, collision_data: Collision) -> Self {
         Self {
@@ -39,18 +57,6 @@ impl PenetrationConstraint {
             normal_force: Vector::ZERO,
             static_friction_force: Vector::ZERO,
         }
-    }
-
-    /// Solves overlap between two bodies according to their masses
-    #[allow(clippy::too_many_arguments)]
-    pub fn solve(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        dt: Scalar,
-    ) {
-        self.solve_contact(body1, body2, dt);
-        self.solve_friction(body1, body2, dt);
     }
 
     /// Solves a non-penetration constraint between two bodies.
@@ -156,13 +162,6 @@ impl PenetrationConstraint {
             // Update static friction force using the equation f = lambda * n / h^2
             self.static_friction_force = self.tangent_lagrange * tangent / dt.powi(2);
         }
-    }
-}
-
-impl XpbdConstraint for PenetrationConstraint {
-    fn clear_lagrange_multipliers(&mut self) {
-        self.normal_lagrange = 0.0;
-        self.tangent_lagrange = 0.0;
     }
 }
 

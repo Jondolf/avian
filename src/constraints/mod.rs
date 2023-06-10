@@ -11,7 +11,13 @@ pub use position_constraint::PositionConstraint;
 
 use crate::prelude::*;
 
-pub trait XpbdConstraint {
+pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
+    /// The entities participating in the constraint.
+    fn entities(&self) -> [Entity; ENTITY_COUNT];
+
+    /// Solves the constraint.
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
+
     /// Computes how much a constraint's Lagrange multiplier changes when projecting the constraint for all participating particles.
     ///
     /// `c` is a scalar value returned by the constraint function. When it is zero, the constraint is satisfied.
@@ -43,6 +49,6 @@ pub trait XpbdConstraint {
         (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
     }
 
-    /// Sets the constraint's lagrange multipliers to 0.
+    /// Sets the constraint's Lagrange multipliers to 0.
     fn clear_lagrange_multipliers(&mut self);
 }

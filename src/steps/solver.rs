@@ -44,11 +44,10 @@ impl Plugin for SolverPlugin {
 
         substeps.add_systems(
             (
-                clear_penetration_constraint_lagrange,
-                clear_joint_lagrange::<FixedJoint>,
-                clear_joint_lagrange::<RevoluteJoint>,
-                clear_joint_lagrange::<SphericalJoint>,
-                clear_joint_lagrange::<PrismaticJoint>,
+                clear_constraint_lagrange::<FixedJoint, 2>,
+                clear_constraint_lagrange::<RevoluteJoint, 2>,
+                clear_constraint_lagrange::<SphericalJoint, 2>,
+                clear_constraint_lagrange::<PrismaticJoint, 2>,
             )
                 .before(SubsteppingSet::SolvePos),
         );
@@ -56,10 +55,10 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(
             (
                 penetration_constraints,
-                joint_constraints::<FixedJoint>,
-                joint_constraints::<RevoluteJoint>,
-                joint_constraints::<SphericalJoint>,
-                joint_constraints::<PrismaticJoint>,
+                solve_constraint::<FixedJoint, 2>,
+                solve_constraint::<RevoluteJoint, 2>,
+                solve_constraint::<SphericalJoint, 2>,
+                solve_constraint::<PrismaticJoint, 2>,
             )
                 .chain()
                 .in_set(SubsteppingSet::SolvePos),
@@ -81,19 +80,41 @@ impl Plugin for SolverPlugin {
     }
 }
 
+/// Helpers for configuring the constraints of the XPBD solver. See [`XpbdConstraint`] and [`SolverPlugin`].
+pub trait ConstraintExt {
+    /// Adds a constraint to the XPBD solver. See [`XpbdConstraint`] and [`SolverPlugin`].
+    fn add_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
+        &mut self,
+    ) -> &mut Self;
+}
+
+impl ConstraintExt for App {
+    fn add_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
+        &mut self,
+    ) -> &mut Self {
+        let substeps = self
+            .get_schedule_mut(XpbdSubstepSchedule)
+            .expect("add XpbdSubstepSchedule first");
+
+        substeps
+            .add_system(
+                clear_constraint_lagrange::<C, ENTITY_COUNT>.before(SubsteppingSet::SolvePos),
+            )
+            .add_system(solve_constraint::<C, ENTITY_COUNT>.in_set(SubsteppingSet::SolvePos));
+        self
+    }
+}
+
 /// Stores penetration constraints for colliding entity pairs.
 #[derive(Resource, Debug, Default)]
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
-fn clear_penetration_constraint_lagrange(
-    mut penetration_constraints: ResMut<PenetrationConstraints>,
+fn clear_constraint_lagrange<
+    C: XpbdConstraint<ENTITY_COUNT> + Component,
+    const ENTITY_COUNT: usize,
+>(
+    mut joints: Query<&mut C>,
 ) {
-    for constraint in &mut penetration_constraints.0 {
-        constraint.clear_lagrange_multipliers();
-    }
-}
-
-fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
     for mut joint in &mut joints {
         joint.clear_lagrange_multipliers();
     }
@@ -143,7 +164,7 @@ fn penetration_constraints(
 
                 let mut constraint: PenetrationConstraint =
                     PenetrationConstraint::new(*ent1, *ent2, collision);
-                constraint.solve(&mut body1, &mut body2, sub_dt.0);
+                constraint.solve([&mut body1, &mut body2], sub_dt.0);
                 penetration_constraints.0.push(constraint);
             }
         }
@@ -151,39 +172,44 @@ fn penetration_constraints(
 }
 
 /// Iterates through all joints and solves the constraints.
-fn joint_constraints<T: Joint>(
+fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
-    mut joints: Query<&mut T, Without<Pos>>,
+    mut constraints: Query<&mut C, Without<RigidBody>>,
     num_pos_iters: Res<NumPosIters>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     for _j in 0..num_pos_iters.0 {
-        for mut joint in &mut joints {
-            // Get components for entity a and b
-            if let Ok([(mut body1, sleeping1), (mut body2, sleeping2)]) =
-                bodies.get_many_mut(joint.entities())
-            {
-                let neither_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
-                let inactive1 = body1.rb.is_static() || sleeping1.is_some();
-                let inactive2 = body2.rb.is_static() || sleeping2.is_some();
+        for mut constraint in &mut constraints {
+            // Get components for entities
+            if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+                let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+                let all_inactive = bodies
+                    .iter()
+                    .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
 
-                // No joint constraint solving if neither of the bodies is dynamic,
-                // or if one of the bodies is static and the other one is sleeping.
-                if neither_dynamic || (inactive1 && inactive2) {
+                // No constraint solving if none of the bodies is dynamic,
+                // or if all of the bodies are either static or sleeping
+                if none_dynamic || all_inactive {
                     continue;
                 }
 
-                let [ent1, ent2] = joint.entities();
-
-                // When an active body interacts with a sleeping body, wake up the sleeping body.
-                if sleeping1.is_some() {
-                    commands.entity(ent1).remove::<Sleeping>();
-                } else if sleeping2.is_some() {
-                    commands.entity(ent2).remove::<Sleeping>();
+                // At least one of the participating bodies is active, so wake up any sleeping bodies
+                for (body, sleeping) in &bodies {
+                    if sleeping.is_some() {
+                        commands.entity(body.entity).remove::<Sleeping>();
+                    }
                 }
 
-                joint.solve(&mut body1, &mut body2, sub_dt.0);
+                // Get the bodies as an array and solve the constraint
+                if let Ok(bodies) = bodies
+                    .iter_mut()
+                    .map(|(ref mut body, _)| body)
+                    .collect::<Vec<&mut RigidBodyQueryItem>>()
+                    .try_into()
+                {
+                    constraint.solve(bodies, sub_dt.0);
+                }
             }
         }
     }

@@ -44,6 +44,42 @@ pub struct SphericalJoint {
     pub twist_torque: Torque,
 }
 
+impl XpbdConstraint<2> for SphericalJoint {
+    fn entities(&self) -> [Entity; 2] {
+        [self.entity1, self.entity2]
+    }
+
+    fn clear_lagrange_multipliers(&mut self) {
+        self.pos_lagrange = 0.0;
+        self.swing_lagrange = 0.0;
+        self.twist_lagrange = 0.0;
+    }
+
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+        let [body1, body2] = bodies;
+        let compliance = self.compliance;
+
+        // Align positions
+        let mut lagrange = self.pos_lagrange;
+        self.force = self.align_position(
+            body1,
+            body2,
+            self.local_anchor1,
+            self.local_anchor2,
+            &mut lagrange,
+            compliance,
+            dt,
+        );
+        self.pos_lagrange = lagrange;
+
+        // Apply swing limits
+        self.swing_torque = self.apply_swing_limits(body1, body2, dt);
+
+        // Apply twist limits
+        self.twist_torque = self.apply_twist_limits(body1, body2, dt);
+    }
+}
+
 impl Joint for SphericalJoint {
     fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
         Self {
@@ -101,43 +137,12 @@ impl Joint for SphericalJoint {
         }
     }
 
-    fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
-    }
-
     fn damping_lin(&self) -> Scalar {
         self.damping_lin
     }
 
     fn damping_ang(&self) -> Scalar {
         self.damping_ang
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn solve(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        dt: Scalar,
-    ) {
-        // Align positions
-        let mut lagrange = self.pos_lagrange;
-        self.force = self.align_position(
-            body1,
-            body2,
-            self.local_anchor1,
-            self.local_anchor2,
-            &mut lagrange,
-            self.compliance,
-            dt,
-        );
-        self.pos_lagrange = lagrange;
-
-        // Apply swing limits
-        self.swing_torque = self.apply_swing_limits(body1, body2, dt);
-
-        // Apply twist limits
-        self.twist_torque = self.apply_twist_limits(body1, body2, dt);
     }
 }
 
@@ -236,14 +241,6 @@ impl SphericalJoint {
             }
         }
         Torque::ZERO
-    }
-}
-
-impl XpbdConstraint for SphericalJoint {
-    fn clear_lagrange_multipliers(&mut self) {
-        self.pos_lagrange = 0.0;
-        self.swing_lagrange = 0.0;
-        self.twist_lagrange = 0.0;
     }
 }
 

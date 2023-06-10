@@ -30,17 +30,11 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Sets the angular velocity damping caused by the joint.
     fn with_ang_vel_damping(self, damping: Scalar) -> Self;
 
-    /// Returns the two entities constrained by the joint.
-    fn entities(&self) -> [Entity; 2];
-
     /// Returns the linear velocity damping of the joint.
     fn damping_lin(&self) -> Scalar;
 
     /// Returns the angular velocity damping of the joint.
     fn damping_ang(&self) -> Scalar;
-
-    /// Applies the positional and angular corrections caused by the joint.
-    fn solve(&mut self, body1: &mut RigidBodyQueryItem, body2: &mut RigidBodyQueryItem, dt: Scalar);
 
     /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
     ///

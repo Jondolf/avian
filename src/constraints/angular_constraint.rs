@@ -3,7 +3,7 @@ use crate::prelude::*;
 /// Angular constraints apply an angular correction of a given rotation angle around a given axis.
 ///
 /// The constraint functions are based on equations 11-16 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
-pub trait AngularConstraint: XpbdConstraint {
+pub trait AngularConstraint: XpbdConstraint<2> {
     /// Applies angular constraints for interactions between two bodies.
     ///
     /// Here in 2D, `axis` is a unit vector with the Z coordinate set to 1 or -1. It controls if the body should rotate counterclockwise or clockwise.

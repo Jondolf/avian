@@ -3,7 +3,7 @@ use crate::prelude::*;
 /// Positional constraints apply a position correction with a given direction and magnitude at the local contact points `r1` and  `r2`.
 ///
 /// The constraint functions are based on equations 2-9 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
-pub trait PositionConstraint: XpbdConstraint {
+pub trait PositionConstraint: XpbdConstraint<2> {
     /// Applies a positional correction to two bodies.
     ///
     /// Returns the positional impulse that is applied proportional to the inverse masses of the bodies.

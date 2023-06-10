@@ -33,6 +33,41 @@ pub struct FixedJoint {
     pub align_torque: Torque,
 }
 
+impl XpbdConstraint<2> for FixedJoint {
+    fn entities(&self) -> [Entity; 2] {
+        [self.entity1, self.entity2]
+    }
+
+    fn clear_lagrange_multipliers(&mut self) {
+        self.pos_lagrange = 0.0;
+        self.align_lagrange = 0.0;
+    }
+
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+        let [body1, body2] = bodies;
+        let compliance = self.compliance;
+
+        // Align orientation
+        let dq = self.get_delta_q(&body1.rot, &body2.rot);
+        let mut lagrange = self.align_lagrange;
+        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_lagrange = lagrange;
+
+        // Align position of local attachment points
+        let mut lagrange = self.pos_lagrange;
+        self.force = self.align_position(
+            body1,
+            body2,
+            self.local_anchor1,
+            self.local_anchor2,
+            &mut lagrange,
+            compliance,
+            dt,
+        );
+        self.pos_lagrange = lagrange;
+    }
+}
+
 impl Joint for FixedJoint {
     fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
         Self {
@@ -81,44 +116,12 @@ impl Joint for FixedJoint {
         }
     }
 
-    fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
-    }
-
     fn damping_lin(&self) -> Scalar {
         self.damping_lin
     }
 
     fn damping_ang(&self) -> Scalar {
         self.damping_ang
-    }
-
-    fn solve(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        dt: Scalar,
-    ) {
-        let compliance = self.compliance;
-
-        // Align orientation
-        let dq = self.get_delta_q(&body1.rot, &body2.rot);
-        let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
-        self.align_lagrange = lagrange;
-
-        // Align position of local attachment points
-        let mut lagrange = self.pos_lagrange;
-        self.force = self.align_position(
-            body1,
-            body2,
-            self.local_anchor1,
-            self.local_anchor2,
-            &mut lagrange,
-            compliance,
-            dt,
-        );
-        self.pos_lagrange = lagrange;
     }
 }
 
@@ -131,13 +134,6 @@ impl FixedJoint {
     #[cfg(feature = "3d")]
     fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
         2.0 * (rot1.0 * rot2.inverse()).xyz()
-    }
-}
-
-impl XpbdConstraint for FixedJoint {
-    fn clear_lagrange_multipliers(&mut self) {
-        self.pos_lagrange = 0.0;
-        self.align_lagrange = 0.0;
     }
 }
 
