@@ -141,8 +141,9 @@ fn penetration_constraints(
                     commands.entity(*ent2).remove::<Sleeping>();
                 }
 
-                let mut constraint = PenetrationConstraint::new(*ent1, *ent2, collision);
-                constraint.constrain(&mut body1, &mut body2, sub_dt.0);
+                let mut constraint: PenetrationConstraint =
+                    PenetrationConstraint::new(*ent1, *ent2, collision);
+                constraint.solve(&mut body1, &mut body2, sub_dt.0);
                 penetration_constraints.0.push(constraint);
             }
         }
@@ -182,7 +183,7 @@ fn joint_constraints<T: Joint>(
                     commands.entity(ent2).remove::<Sleeping>();
                 }
 
-                joint.constrain(&mut body1, &mut body2, sub_dt.0);
+                joint.solve(&mut body1, &mut body2, sub_dt.0);
             }
         }
     }
@@ -302,20 +303,8 @@ fn solve_vel(
             let inv_inertia2 = body2.world_inv_inertia().0;
 
             // Compute generalized inverse masses
-            let w1 = PenetrationConstraint::get_generalized_inverse_mass(
-                &body1.rb,
-                body1.inv_mass.0,
-                inv_inertia1,
-                r1,
-                normal,
-            );
-            let w2 = PenetrationConstraint::get_generalized_inverse_mass(
-                &body2.rb,
-                body2.inv_mass.0,
-                inv_inertia2,
-                r2,
-                normal,
-            );
+            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
+            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
 
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(

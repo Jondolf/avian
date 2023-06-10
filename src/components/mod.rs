@@ -184,6 +184,14 @@ pub(crate) type Torque = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type Torque = Vector;
 
+pub(crate) trait FloatZero {
+    const ZERO: Self;
+}
+
+impl FloatZero for Scalar {
+    const ZERO: Self = 0.0;
+}
+
 /// An external torque applied to a body during the integration step. It persists during the simulation, so it must be cleared manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]

@@ -114,55 +114,30 @@ impl Joint for SphericalJoint {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn constrain(
+    fn solve(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
+        dt: Scalar,
     ) {
-        let world_r1 = body1.rot.rotate(self.local_anchor1);
-        let world_r2 = body2.rot.rotate(self.local_anchor2);
+        // Align positions
+        let mut lagrange = self.pos_lagrange;
+        self.force = self.align_position(
+            body1,
+            body2,
+            self.local_anchor1,
+            self.local_anchor2,
+            &mut lagrange,
+            self.compliance,
+            dt,
+        );
+        self.pos_lagrange = lagrange;
 
-        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
-        let magnitude = delta_x.length();
+        // Apply swing limits
+        self.swing_torque = self.apply_swing_limits(body1, body2, dt);
 
-        if magnitude > Scalar::EPSILON {
-            let dir = delta_x / magnitude;
-
-            let inv_inertia1 = body1.world_inv_inertia();
-            let inv_inertia2 = body2.world_inv_inertia();
-
-            let delta_lagrange = Self::get_delta_pos_lagrange(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                self.pos_lagrange,
-                dir,
-                magnitude,
-                world_r1,
-                world_r2,
-                self.compliance,
-                sub_dt,
-            );
-
-            self.pos_lagrange += delta_lagrange;
-
-            Self::apply_pos_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_lagrange,
-                dir,
-                world_r1,
-                world_r2,
-            );
-
-            self.update_force(dir, sub_dt);
-        }
-
-        self.apply_angle_limits(body1, body2, sub_dt);
+        // Apply twist limits
+        self.twist_torque = self.apply_twist_limits(body1, body2, dt);
     }
 }
 
@@ -184,17 +159,13 @@ impl SphericalJoint {
         }
     }
 
-    /// Applies angle limits to limit the relative rotation of the bodies around the `swing_axis` and `twist_axis`.
-    fn apply_angle_limits(
+    /// Applies angle limits to limit the relative rotation of the bodies around the `swing_axis`.
+    fn apply_swing_limits(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
-    ) {
-        if self.swing_limit.is_none() && self.twist_limit.is_none() {
-            return;
-        }
-
+        dt: Scalar,
+    ) -> Torque {
         if let Some(swing_limit) = self.swing_limit {
             let a1 = body1.rot.rotate_vec3(self.swing_axis);
             let a2 = body2.rot.rotate_vec3(self.swing_axis);
@@ -202,49 +173,30 @@ impl SphericalJoint {
             let n = a1.cross(a2);
             let n_magnitude = n.length();
 
-            if n_magnitude > Scalar::EPSILON {
-                let n = n / n_magnitude;
+            if n_magnitude <= Scalar::EPSILON {
+                return Torque::ZERO;
+            }
 
-                if let Some(delta_q) =
-                    Self::limit_angle(n, a1, a2, swing_limit.min, swing_limit.max, PI)
-                {
-                    let angle = delta_q.length();
+            let n = n / n_magnitude;
 
-                    if angle > Scalar::EPSILON {
-                        let axis = delta_q / angle;
-
-                        let inv_inertia1 = body1.world_inv_inertia();
-                        let inv_inertia2 = body2.world_inv_inertia();
-
-                        let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                            &body1.rb,
-                            &body2.rb,
-                            inv_inertia1,
-                            inv_inertia2,
-                            self.swing_lagrange,
-                            axis,
-                            angle,
-                            self.compliance,
-                            sub_dt,
-                        );
-
-                        self.swing_lagrange += delta_ang_lagrange;
-
-                        Self::apply_ang_constraint(
-                            body1,
-                            body2,
-                            inv_inertia1,
-                            inv_inertia2,
-                            delta_ang_lagrange,
-                            axis,
-                        );
-
-                        self.update_swing_torque(axis, sub_dt);
-                    }
-                }
+            if let Some(dq) = self.limit_angle(n, a1, a2, swing_limit.min, swing_limit.max, PI) {
+                let mut lagrange = self.swing_lagrange;
+                let torque =
+                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                self.swing_lagrange = lagrange;
+                return torque;
             }
         }
+        Torque::ZERO
+    }
 
+    /// Applies angle limits to limit the relative rotation of the bodies around the `twist_axis`.
+    fn apply_twist_limits(
+        &mut self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        dt: Scalar,
+    ) -> Torque {
         if let Some(twist_limit) = self.twist_limit {
             let a1 = body1.rot.rotate_vec3(self.swing_axis);
             let a2 = body2.rot.rotate_vec3(self.swing_axis);
@@ -255,98 +207,41 @@ impl SphericalJoint {
             let n = a1 + a2;
             let n_magnitude = n.length();
 
-            if n_magnitude > Scalar::EPSILON {
-                let n = n / n_magnitude;
+            if n_magnitude <= Scalar::EPSILON {
+                return Torque::ZERO;
+            }
 
-                let n1 = b1 - n.dot(b1) * n;
-                let n2 = b2 - n.dot(b2) * n;
-                let n1_magnitude = n1.length();
-                let n2_magnitude = n2.length();
+            let n = n / n_magnitude;
 
-                if n1_magnitude > Scalar::EPSILON && n2_magnitude > Scalar::EPSILON {
-                    let n1 = n1 / n1_magnitude;
-                    let n2 = n2 / n2_magnitude;
+            let n1 = b1 - n.dot(b1) * n;
+            let n2 = b2 - n.dot(b2) * n;
+            let n1_magnitude = n1.length();
+            let n2_magnitude = n2.length();
 
-                    let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { sub_dt };
+            if n1_magnitude <= Scalar::EPSILON || n2_magnitude <= Scalar::EPSILON {
+                return Torque::ZERO;
+            }
 
-                    if let Some(delta_q) = Self::limit_angle(
-                        n,
-                        n1,
-                        n2,
-                        twist_limit.min,
-                        twist_limit.max,
-                        max_correction,
-                    ) {
-                        let angle = delta_q.length();
+            let n1 = n1 / n1_magnitude;
+            let n2 = n2 / n2_magnitude;
 
-                        if angle > Scalar::EPSILON {
-                            let axis = delta_q / angle;
+            let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
 
-                            let inv_inertia1 = body1.world_inv_inertia();
-                            let inv_inertia2 = body2.world_inv_inertia();
-
-                            let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                                &body1.rb,
-                                &body2.rb,
-                                inv_inertia1,
-                                inv_inertia2,
-                                self.twist_lagrange,
-                                axis,
-                                angle,
-                                self.compliance,
-                                sub_dt,
-                            );
-
-                            self.twist_lagrange += delta_ang_lagrange;
-
-                            Self::apply_ang_constraint(
-                                body1,
-                                body2,
-                                inv_inertia1,
-                                inv_inertia2,
-                                delta_ang_lagrange,
-                                axis,
-                            );
-
-                            self.update_twist_torque(axis, sub_dt);
-                        }
-                    }
-                }
+            if let Some(dq) =
+                self.limit_angle(n, n1, n2, twist_limit.min, twist_limit.max, max_correction)
+            {
+                let mut lagrange = self.twist_lagrange;
+                let torque =
+                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                self.twist_lagrange = lagrange;
+                return torque;
             }
         }
-    }
-
-    fn update_force(&mut self, dir: Vector, sub_dt: Scalar) {
-        // Eq (10)
-        self.force = self.pos_lagrange * dir / sub_dt.powi(2);
-    }
-
-    fn update_swing_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
-        // Eq (17)
-        #[cfg(feature = "2d")]
-        {
-            self.swing_torque = self.swing_lagrange * axis.z / sub_dt.powi(2);
-        }
-        #[cfg(feature = "3d")]
-        {
-            self.swing_torque = self.swing_lagrange * axis / sub_dt.powi(2);
-        }
-    }
-
-    fn update_twist_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
-        // Eq (17)
-        #[cfg(feature = "2d")]
-        {
-            self.twist_torque = self.twist_lagrange * axis.z / sub_dt.powi(2);
-        }
-        #[cfg(feature = "3d")]
-        {
-            self.twist_torque = self.twist_lagrange * axis / sub_dt.powi(2);
-        }
+        Torque::ZERO
     }
 }
 
-impl Constraint for SphericalJoint {
+impl XpbdConstraint for SphericalJoint {
     fn clear_lagrange_multipliers(&mut self) {
         self.pos_lagrange = 0.0;
         self.swing_lagrange = 0.0;

@@ -113,91 +113,35 @@ impl Joint for RevoluteJoint {
         self.damping_ang
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn constrain(
+    fn solve(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
+        dt: Scalar,
     ) {
-        let delta_q = self.get_delta_q(&body1.rot, &body2.rot);
-        let angle = delta_q.length();
+        let compliance = self.compliance;
 
-        if angle > Scalar::EPSILON {
-            let axis = delta_q / angle;
+        // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
+        let dq = self.get_delta_q(&body1.rot, &body2.rot);
+        let mut lagrange = self.align_lagrange;
+        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_lagrange = lagrange;
 
-            let inv_inertia1 = body1.world_inv_inertia();
-            let inv_inertia2 = body2.world_inv_inertia();
+        // Align positions
+        let mut lagrange = self.pos_lagrange;
+        self.force = self.align_position(
+            body1,
+            body2,
+            self.local_anchor1,
+            self.local_anchor2,
+            &mut lagrange,
+            compliance,
+            dt,
+        );
+        self.pos_lagrange = lagrange;
 
-            let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                &body1.rb,
-                &body2.rb,
-                inv_inertia1,
-                inv_inertia2,
-                self.align_lagrange,
-                axis,
-                angle,
-                self.compliance,
-                sub_dt,
-            );
-
-            self.align_lagrange += delta_ang_lagrange;
-
-            Self::apply_ang_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_ang_lagrange,
-                axis,
-            );
-
-            self.update_align_torque(axis, sub_dt);
-        }
-
-        let world_r1 = body1.rot.rotate(self.local_anchor1);
-        let world_r2 = body2.rot.rotate(self.local_anchor2);
-
-        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
-        let magnitude = delta_x.length();
-
-        if magnitude > Scalar::EPSILON {
-            let dir = delta_x / magnitude;
-
-            let inv_inertia1 = body1.world_inv_inertia();
-            let inv_inertia2 = body2.world_inv_inertia();
-
-            let delta_lagrange = Self::get_delta_pos_lagrange(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                self.pos_lagrange,
-                dir,
-                magnitude,
-                world_r1,
-                world_r2,
-                self.compliance,
-                sub_dt,
-            );
-
-            self.pos_lagrange += delta_lagrange;
-
-            Self::apply_pos_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_lagrange,
-                dir,
-                world_r1,
-                world_r2,
-            );
-
-            self.update_force(dir, sub_dt);
-        }
-
-        self.apply_angle_limits(body1, body2, sub_dt);
+        // Apply angle limits when rotating around the free axis
+        self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
     }
 }
 
@@ -231,8 +175,8 @@ impl RevoluteJoint {
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
-    ) {
+        dt: Scalar,
+    ) -> Torque {
         if let Some(angle_limit) = self.angle_limit {
             let limit_axis = Vector3::new(
                 self.aligned_axis.z,
@@ -243,77 +187,19 @@ impl RevoluteJoint {
             let a2 = body2.rot.rotate_vec3(limit_axis);
             let n = a1.cross(a2).normalize();
 
-            if let Some(delta_q) =
-                Self::limit_angle(n, a1, a2, angle_limit.min, angle_limit.max, PI)
-            {
-                let angle = delta_q.length();
-
-                if angle > Scalar::EPSILON {
-                    let axis = delta_q / angle;
-
-                    let inv_inertia1 = body1.world_inv_inertia();
-                    let inv_inertia2 = body2.world_inv_inertia();
-
-                    let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                        &body1.rb,
-                        &body2.rb,
-                        inv_inertia1,
-                        inv_inertia2,
-                        self.angle_limit_lagrange,
-                        axis,
-                        angle,
-                        self.compliance,
-                        sub_dt,
-                    );
-
-                    self.angle_limit_lagrange += delta_ang_lagrange;
-
-                    Self::apply_ang_constraint(
-                        body1,
-                        body2,
-                        inv_inertia1,
-                        inv_inertia2,
-                        delta_ang_lagrange,
-                        axis,
-                    );
-
-                    self.update_angle_limit_torque(axis, sub_dt);
-                }
+            if let Some(dq) = self.limit_angle(n, a1, a2, angle_limit.min, angle_limit.max, PI) {
+                let mut lagrange = self.angle_limit_lagrange;
+                let torque =
+                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                self.angle_limit_lagrange = lagrange;
+                return torque;
             }
         }
-    }
-
-    fn update_force(&mut self, dir: Vector, sub_dt: Scalar) {
-        // Eq (10)
-        self.force = self.pos_lagrange * dir / sub_dt.powi(2);
-    }
-
-    fn update_align_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
-        // Eq (17)
-        #[cfg(feature = "2d")]
-        {
-            self.align_torque = self.align_lagrange * axis.z / sub_dt.powi(2);
-        }
-        #[cfg(feature = "3d")]
-        {
-            self.align_torque = self.align_lagrange * axis / sub_dt.powi(2);
-        }
-    }
-
-    fn update_angle_limit_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
-        // Eq (17)
-        #[cfg(feature = "2d")]
-        {
-            self.angle_limit_torque = self.angle_limit_lagrange * axis.z / sub_dt.powi(2);
-        }
-        #[cfg(feature = "3d")]
-        {
-            self.angle_limit_torque = self.angle_limit_lagrange * axis / sub_dt.powi(2);
-        }
+        Torque::ZERO
     }
 }
 
-impl Constraint for RevoluteJoint {
+impl XpbdConstraint for RevoluteJoint {
     fn clear_lagrange_multipliers(&mut self) {
         self.pos_lagrange = 0.0;
         self.align_lagrange = 0.0;

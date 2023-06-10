@@ -93,89 +93,32 @@ impl Joint for FixedJoint {
         self.damping_ang
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn constrain(
+    fn solve(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
+        dt: Scalar,
     ) {
-        let delta_q = self.get_delta_q(&body1.rot, &body2.rot);
-        let angle = delta_q.length();
+        let compliance = self.compliance;
 
-        if angle > Scalar::EPSILON {
-            let axis = delta_q / angle;
+        // Align orientation
+        let dq = self.get_delta_q(&body1.rot, &body2.rot);
+        let mut lagrange = self.align_lagrange;
+        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_lagrange = lagrange;
 
-            let inv_inertia1 = body1.world_inv_inertia();
-            let inv_inertia2 = body2.world_inv_inertia();
-
-            let delta_ang_lagrange = Self::get_delta_ang_lagrange(
-                &body1.rb,
-                &body2.rb,
-                inv_inertia1,
-                inv_inertia2,
-                self.align_lagrange,
-                axis,
-                angle,
-                self.compliance,
-                sub_dt,
-            );
-
-            self.align_lagrange += delta_ang_lagrange;
-
-            Self::apply_ang_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_ang_lagrange,
-                -axis,
-            );
-
-            self.update_align_torque(axis, sub_dt);
-        }
-
-        let world_r1 = body1.rot.rotate(self.local_anchor1);
-        let world_r2 = body2.rot.rotate(self.local_anchor2);
-
-        let delta_x = self.limit_distance(0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
-        let magnitude = delta_x.length();
-
-        if magnitude > Scalar::EPSILON {
-            let dir = delta_x / magnitude;
-
-            let inv_inertia1 = body1.world_inv_inertia();
-            let inv_inertia2 = body2.world_inv_inertia();
-
-            let delta_lagrange = Self::get_delta_pos_lagrange(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                self.pos_lagrange,
-                dir,
-                magnitude,
-                world_r1,
-                world_r2,
-                self.compliance,
-                sub_dt,
-            );
-
-            self.pos_lagrange += delta_lagrange;
-
-            Self::apply_pos_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_lagrange,
-                dir,
-                world_r1,
-                world_r2,
-            );
-
-            self.update_force(dir, sub_dt);
-        }
+        // Align position of local attachment points
+        let mut lagrange = self.pos_lagrange;
+        self.force = self.align_position(
+            body1,
+            body2,
+            self.local_anchor1,
+            self.local_anchor2,
+            &mut lagrange,
+            compliance,
+            dt,
+        );
+        self.pos_lagrange = lagrange;
     }
 }
 
@@ -189,26 +132,9 @@ impl FixedJoint {
     fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
         2.0 * (rot1.0 * rot2.inverse()).xyz()
     }
-
-    fn update_force(&mut self, dir: Vector, sub_dt: Scalar) {
-        // Eq (10)
-        self.force = self.pos_lagrange * dir / sub_dt.powi(2);
-    }
-
-    fn update_align_torque(&mut self, axis: Vector3, sub_dt: Scalar) {
-        // Eq (17)
-        #[cfg(feature = "2d")]
-        {
-            self.align_torque = self.align_lagrange * axis.z / sub_dt.powi(2);
-        }
-        #[cfg(feature = "3d")]
-        {
-            self.align_torque = self.align_lagrange * axis / sub_dt.powi(2);
-        }
-    }
 }
 
-impl Constraint for FixedJoint {
+impl XpbdConstraint for FixedJoint {
     fn clear_lagrange_multipliers(&mut self) {
         self.pos_lagrange = 0.0;
         self.align_lagrange = 0.0;

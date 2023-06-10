@@ -40,17 +40,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     fn damping_ang(&self) -> Scalar;
 
     /// Applies the positional and angular corrections caused by the joint.
-    fn constrain(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
-    );
+    fn solve(&mut self, body1: &mut RigidBodyQueryItem, body2: &mut RigidBodyQueryItem, dt: Scalar);
 
     /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max`.
     #[allow(clippy::too_many_arguments)]
     fn limit_distance(
-        &mut self,
+        &self,
         min: Scalar,
         max: Scalar,
         r1: Vector,
@@ -80,7 +75,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max` along a given `axis`.
     #[allow(clippy::too_many_arguments)]
     fn limit_distance_along_axis(
-        &mut self,
+        &self,
         min: Scalar,
         max: Scalar,
         axis: Vector,
@@ -104,8 +99,9 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         }
     }
 
-    /// Returns the angular correction required to limit thw angle between the axes `n1` and `n2` to be in the interval between `alpha` and `beta` using the common rotation axis `n`.
+    /// Returns the angular correction required to limit the angle between the axes `n1` and `n2` to be in the interval between `alpha` and `beta` using the common rotation axis `n`.
     fn limit_angle(
+        &self,
         n: Vector3,
         n1: Vector3,
         n2: Vector3,
@@ -143,6 +139,103 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         }
 
         None
+    }
+
+    /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
+    ///
+    /// Returns the force exerted by the alignment.
+    #[allow(clippy::too_many_arguments)]
+    fn align_position(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        r1: Vector,
+        r2: Vector,
+        lagrange: &mut Scalar,
+        compliance: Scalar,
+        dt: Scalar,
+    ) -> Vector {
+        let world_r1 = body1.rot.rotate(r1);
+        let world_r2 = body2.rot.rotate(r2);
+
+        let delta_x =
+            Joint::limit_distance(self, 0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
+        let magnitude = delta_x.length();
+
+        if magnitude <= Scalar::EPSILON {
+            return Vector::ZERO;
+        }
+
+        let dir = delta_x / magnitude;
+
+        // Compute generalized inverse masses
+        let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
+        let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
+
+        // Constraint gradients and inverse masses
+        let gradients = [dir, -dir];
+        let w = [w1, w2];
+
+        // Compute Lagrange multiplier update
+        let delta_lagrange =
+            self.compute_lagrange_update(*lagrange, magnitude, &gradients, &w, compliance, dt);
+        *lagrange += delta_lagrange;
+
+        // Apply positional correction to align the positions of the bodies
+        self.apply_positional_correction(body1, body2, delta_lagrange, dir, world_r1, world_r2);
+
+        // Return constraint force
+        self.compute_force(*lagrange, dir, dt)
+    }
+
+    /// Applies an angular correction that aligns the orientation of the bodies.
+    ///
+    /// Returns the torque exerted by the alignment.
+    fn align_orientation(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        delta_q: Vector3,
+        lagrange: &mut Scalar,
+        compliance: Scalar,
+        dt: Scalar,
+    ) -> Torque {
+        let angle = delta_q.length();
+
+        if angle <= Scalar::EPSILON {
+            return Torque::ZERO;
+        }
+
+        let axis = delta_q / angle;
+
+        // Compute generalized inverse masses
+        let w1 = AngularConstraint::compute_generalized_inverse_mass(self, body1, axis);
+        let w2 = AngularConstraint::compute_generalized_inverse_mass(self, body2, axis);
+
+        // Constraint gradients and inverse masses
+        let gradients = {
+            #[cfg(feature = "2d")]
+            {
+                let axis_vec2 = axis.truncate();
+                [axis_vec2, -axis_vec2]
+            }
+            #[cfg(feature = "3d")]
+            {
+                [axis, -axis]
+            }
+        };
+        let w = [w1, w2];
+
+        // Compute Lagrange multiplier update
+        let delta_lagrange =
+            self.compute_lagrange_update(*lagrange, angle, &gradients, &w, compliance, dt);
+        *lagrange += delta_lagrange;
+
+        // Apply angular correction to aling the bodies
+        self.apply_angular_correction(body1, body2, delta_lagrange, -axis);
+
+        // Return constraint torque
+        self.compute_torque(*lagrange, axis, dt)
     }
 }
 

@@ -1,7 +1,6 @@
 //! Penetration constraint.
 
-use super::{Constraint, PositionConstraint};
-use crate::{collision::Collision, components::*, Scalar, Vector};
+use crate::prelude::{collision::Collision, *};
 
 use bevy::prelude::*;
 
@@ -19,11 +18,13 @@ pub struct PenetrationConstraint {
     /// Lagrange multiplier for the normal force.
     pub normal_lagrange: Scalar,
     /// Lagrange multiplier for the tangential force.
-    pub tangential_lagrange: Scalar,
+    pub tangent_lagrange: Scalar,
     /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
     /// Normal force acting along the constraint.
     pub normal_force: Vector,
+    /// Static friction force acting along this constraint.
+    pub static_friction_force: Vector,
 }
 
 impl PenetrationConstraint {
@@ -33,123 +34,135 @@ impl PenetrationConstraint {
             entity2,
             collision_data,
             normal_lagrange: 0.0,
-            tangential_lagrange: 0.0,
+            tangent_lagrange: 0.0,
             compliance: 0.0,
             normal_force: Vector::ZERO,
+            static_friction_force: Vector::ZERO,
         }
     }
 
     /// Solves overlap between two bodies according to their masses
     #[allow(clippy::too_many_arguments)]
-    pub fn constrain(
+    pub fn solve(
         &mut self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        sub_dt: Scalar,
+        dt: Scalar,
     ) {
-        // Compute collision positions on the two bodies.
-        // Subtracting the local center of mass from the position seems to be important for some shapes, although it's not shown in the paper. Something may be wrong elsewhere?
+        self.solve_contact(body1, body2, dt);
+        self.solve_friction(body1, body2, dt);
+    }
+
+    /// Solves a non-penetration constraint between two bodies.
+    fn solve_contact(
+        &mut self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        dt: Scalar,
+    ) {
+        // Shorter aliases
+        let normal = self.collision_data.normal;
+        let compliance = self.compliance;
+        let lagrange = self.normal_lagrange;
+        let r1 = self.collision_data.world_r1;
+        let r2 = self.collision_data.world_r2;
+
+        // Compute contact positions at the current state
         let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
         let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
 
-        let d = (p1 - p2).dot(self.collision_data.normal);
+        // Compute penetration depth
+        let penetration = (p1 - p2).dot(normal);
 
-        // Penetration under 0, skip collision
-        if d <= 0.0 {
+        // If penetration depth is under 0, skip the collision
+        if penetration <= 0.0 {
             return;
         }
 
-        let n = self.collision_data.normal;
+        // Compute generalized inverse masses
+        let w1 = self.compute_generalized_inverse_mass(body1, r1, normal);
+        let w2 = self.compute_generalized_inverse_mass(body2, r2, normal);
 
-        let inv_inertia1 = body1.world_inv_inertia();
-        let inv_inertia2 = body2.world_inv_inertia();
+        // Constraint gradients and inverse masses
+        let gradients = [normal, -normal];
+        let w = [w1, w2];
 
-        let delta_lagrange_n = Self::get_delta_pos_lagrange(
-            body1,
-            body2,
-            inv_inertia1,
-            inv_inertia2,
-            self.normal_lagrange,
-            n,
-            d,
-            self.collision_data.world_r1,
-            self.collision_data.world_r2,
-            self.compliance,
-            sub_dt,
-        );
+        // Compute Lagrange multiplier update
+        let delta_lagrange =
+            self.compute_lagrange_update(lagrange, penetration, &gradients, &w, compliance, dt);
+        self.normal_lagrange += delta_lagrange;
 
-        self.normal_lagrange += delta_lagrange_n;
+        // Apply positional correction to solve overlap
+        self.apply_positional_correction(body1, body2, delta_lagrange, normal, r1, r2);
 
-        Self::apply_pos_constraint(
-            body1,
-            body2,
-            inv_inertia1,
-            inv_inertia2,
-            delta_lagrange_n,
-            n,
-            self.collision_data.world_r1,
-            self.collision_data.world_r2,
-        );
-
-        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
-        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
-
-        let inv_inertia1 = body1.world_inv_inertia();
-        let inv_inertia2 = body2.world_inv_inertia();
-
-        let delta_lagrange_t = Self::get_delta_pos_lagrange(
-            body1,
-            body2,
-            inv_inertia1,
-            inv_inertia2,
-            self.tangential_lagrange,
-            n,
-            d,
-            self.collision_data.world_r1,
-            self.collision_data.world_r2,
-            self.compliance,
-            sub_dt,
-        );
-
-        let lagrange_n = self.normal_lagrange;
-        let lagrange_t = self.tangential_lagrange + delta_lagrange_t;
-        let coefficient = body1.friction.combine(*body2.friction).static_coefficient;
-
-        if lagrange_t > coefficient * lagrange_n {
-            let prev_p1 = body1.prev_pos.0 - body1.local_com.0
-                + body1.prev_rot.rotate(self.collision_data.local_r1);
-            let prev_p2 = body2.prev_pos.0 - body2.local_com.0
-                + body2.prev_rot.rotate(self.collision_data.local_r2);
-            let delta_p = (p1 - prev_p1) - (p2 - prev_p2);
-            let delta_p_t = delta_p - delta_p.dot(n) * n;
-
-            self.tangential_lagrange += delta_lagrange_t;
-
-            Self::apply_pos_constraint(
-                body1,
-                body2,
-                inv_inertia1,
-                inv_inertia2,
-                delta_lagrange_t,
-                delta_p_t.normalize_or_zero(),
-                self.collision_data.world_r1,
-                self.collision_data.world_r2,
-            );
-        }
-
-        self.update_normal_force(n, sub_dt);
+        // Update normal force using the equation f = lambda * n / h^2
+        self.normal_force = self.normal_lagrange * normal / dt.powi(2);
     }
 
-    fn update_normal_force(&mut self, normal: Vector, sub_dt: Scalar) {
-        // Equation 10
-        self.normal_force = self.normal_lagrange * normal / sub_dt.powi(2);
+    fn solve_friction(
+        &mut self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        dt: Scalar,
+    ) {
+        // Shorter aliases
+        let penetration = self.collision_data.penetration;
+        let normal = self.collision_data.normal;
+        let compliance = self.compliance;
+        let lagrange = self.tangent_lagrange;
+        let r1 = self.collision_data.world_r1;
+        let r2 = self.collision_data.world_r2;
+
+        // Compute contact positions at the current state and before substep integration
+        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
+        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
+        let prev_p1 = body1.prev_pos.0 - body1.local_com.0
+            + body1.prev_rot.rotate(self.collision_data.local_r1);
+        let prev_p2 = body2.prev_pos.0 - body2.local_com.0
+            + body2.prev_rot.rotate(self.collision_data.local_r2);
+
+        // Compute relative motion of the contact points and get the tangential component
+        let delta_p = (p1 - prev_p1) - (p2 - prev_p2);
+        let delta_p_tangent = delta_p - delta_p.dot(normal) * normal;
+
+        // Compute magnitude of relative tangential movement and get normalized tangent vector
+        let sliding_len = delta_p_tangent.length();
+        if sliding_len <= Scalar::EPSILON {
+            return;
+        }
+        let tangent = delta_p_tangent / sliding_len;
+
+        // Compute generalized inverse masses
+        let w1 = self.compute_generalized_inverse_mass(body1, r1, tangent);
+        let w2 = self.compute_generalized_inverse_mass(body2, r2, tangent);
+
+        // Constraint gradients and inverse masses
+        let gradients = [tangent, -tangent];
+        let w = [w1, w2];
+
+        // Compute combined friction coefficients
+        let static_coefficient = body1.friction.combine(*body2.friction).static_coefficient;
+
+        // Apply static friction if |delta_x_perp| < mu_s * d
+        if sliding_len < static_coefficient * penetration {
+            // Compute Lagrange multiplier update for static friction
+            let delta_lagrange =
+                self.compute_lagrange_update(lagrange, sliding_len, &gradients, &w, compliance, dt);
+            self.tangent_lagrange += delta_lagrange;
+
+            // Apply positional correction to handle static friction
+            self.apply_positional_correction(body1, body2, delta_lagrange, tangent, r1, r2);
+
+            // Update static friction force using the equation f = lambda * n / h^2
+            self.static_friction_force = self.tangent_lagrange * tangent / dt.powi(2);
+        }
     }
 }
 
-impl Constraint for PenetrationConstraint {
+impl XpbdConstraint for PenetrationConstraint {
     fn clear_lagrange_multipliers(&mut self) {
         self.normal_lagrange = 0.0;
-        self.tangential_lagrange = 0.0;
+        self.tangent_lagrange = 0.0;
     }
 }
 
