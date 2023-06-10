@@ -19,7 +19,7 @@ pub struct PrismaticJoint {
     /// A free axis that the attached bodies can translate along relative to each other.
     pub free_axis: Vector,
     /// The extents of the allowed relative translation along the free axis.
-    pub free_axis_limits: Option<JointLimit>,
+    pub free_axis_limits: Option<DistanceLimit>,
     /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
     /// Angular damping applied by the joint.
@@ -134,16 +134,22 @@ impl PrismaticJoint {
 
         let axis1 = body1.rot.rotate(self.free_axis);
         if let Some(limits) = self.free_axis_limits {
-            delta_x += self.limit_distance_along_axis(
-                limits.min, limits.max, axis1, world_r1, world_r2, &body1.pos, &body2.pos,
+            delta_x += limits.compute_correction_along_axis(
+                axis1,
+                body1.pos.0 + world_r1,
+                body2.pos.0 + world_r2,
             );
         }
+
+        let zero_distance_limit = DistanceLimit::ZERO;
 
         #[cfg(feature = "2d")]
         {
             let axis2 = Vector::new(axis1.y, -axis1.x);
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
+            delta_x += zero_distance_limit.compute_correction_along_axis(
+                axis2,
+                body1.pos.0 + world_r1,
+                body2.pos.0 + world_r2,
             );
         }
         #[cfg(feature = "3d")]
@@ -151,11 +157,15 @@ impl PrismaticJoint {
             let axis2 = axis1.cross(Vector::Y);
             let axis3 = axis1.cross(axis2);
 
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis2, world_r1, world_r2, &body1.pos, &body2.pos,
+            delta_x += zero_distance_limit.compute_correction_along_axis(
+                axis2,
+                body1.pos.0 + world_r1,
+                body2.pos.0 + world_r2,
             );
-            delta_x += self.limit_distance_along_axis(
-                0.0, 0.0, axis3, world_r1, world_r2, &body1.pos, &body2.pos,
+            delta_x += zero_distance_limit.compute_correction_along_axis(
+                axis3,
+                body1.pos.0 + world_r1,
+                body2.pos.0 + world_r2,
             );
         }
 
@@ -204,7 +214,7 @@ impl PrismaticJoint {
     /// Sets the translational limits along the joint's free axis.
     pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
-            free_axis_limits: Some(JointLimit::new(min, max)),
+            free_axis_limits: Some(DistanceLimit::new(min, max)),
             ..self
         }
     }

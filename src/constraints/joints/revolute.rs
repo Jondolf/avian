@@ -25,7 +25,7 @@ pub struct RevoluteJoint {
     #[cfg(feature = "3d")]
     pub aligned_axis: Vector,
     /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
-    pub angle_limit: Option<JointLimit>,
+    pub angle_limit: Option<AngleLimit>,
     /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
     /// Angular damping applied by the joint.
@@ -158,7 +158,7 @@ impl RevoluteJoint {
     /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
     pub fn with_angle_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
-            angle_limit: Some(JointLimit::new(min, max)),
+            angle_limit: Some(AngleLimit::new(min, max)),
             ..self
         }
     }
@@ -187,7 +187,7 @@ impl RevoluteJoint {
             let a2 = body2.rot.rotate_vec3(limit_axis);
             let n = a1.cross(a2).normalize();
 
-            if let Some(dq) = self.limit_angle(n, a1, a2, angle_limit.min, angle_limit.max, PI) {
+            if let Some(dq) = angle_limit.compute_correction(n, a1, a2, PI) {
                 let mut lagrange = self.angle_limit_lagrange;
                 let torque =
                     self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);

@@ -21,9 +21,9 @@ pub struct SphericalJoint {
     /// An axis that the attached bodies can twist around. This is normally the y-axis.
     pub twist_axis: Vector3,
     /// The extents of the allowed relative rotation of the bodies around the `swing_axis`.
-    pub swing_limit: Option<JointLimit>,
+    pub swing_limit: Option<AngleLimit>,
     /// The extents of the allowed relative rotation of the bodies around the `twist_axis`.
-    pub twist_limit: Option<JointLimit>,
+    pub twist_limit: Option<AngleLimit>,
     /// Linear damping applied by the joint.
     pub damping_lin: Scalar,
     /// Angular damping applied by the joint.
@@ -145,7 +145,7 @@ impl SphericalJoint {
     /// Sets the limits of the allowed relative rotation around the `swing_axis`.
     pub fn with_swing_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
-            swing_limit: Some(JointLimit::new(min, max)),
+            swing_limit: Some(AngleLimit::new(min, max)),
             ..self
         }
     }
@@ -154,7 +154,7 @@ impl SphericalJoint {
     #[cfg(feature = "3d")]
     pub fn with_twist_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
-            twist_limit: Some(JointLimit::new(min, max)),
+            twist_limit: Some(AngleLimit::new(min, max)),
             ..self
         }
     }
@@ -166,7 +166,7 @@ impl SphericalJoint {
         body2: &mut RigidBodyQueryItem,
         dt: Scalar,
     ) -> Torque {
-        if let Some(swing_limit) = self.swing_limit {
+        if let Some(joint_limit) = self.swing_limit {
             let a1 = body1.rot.rotate_vec3(self.swing_axis);
             let a2 = body2.rot.rotate_vec3(self.swing_axis);
 
@@ -179,7 +179,7 @@ impl SphericalJoint {
 
             let n = n / n_magnitude;
 
-            if let Some(dq) = self.limit_angle(n, a1, a2, swing_limit.min, swing_limit.max, PI) {
+            if let Some(dq) = joint_limit.compute_correction(n, a1, a2, PI) {
                 let mut lagrange = self.swing_lagrange;
                 let torque =
                     self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
@@ -197,7 +197,7 @@ impl SphericalJoint {
         body2: &mut RigidBodyQueryItem,
         dt: Scalar,
     ) -> Torque {
-        if let Some(twist_limit) = self.twist_limit {
+        if let Some(joint_limit) = self.twist_limit {
             let a1 = body1.rot.rotate_vec3(self.swing_axis);
             let a2 = body2.rot.rotate_vec3(self.swing_axis);
 
@@ -227,9 +227,7 @@ impl SphericalJoint {
 
             let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
 
-            if let Some(dq) =
-                self.limit_angle(n, n1, n2, twist_limit.min, twist_limit.max, max_correction)
-            {
+            if let Some(dq) = joint_limit.compute_correction(n, n1, n2, max_correction) {
                 let mut lagrange = self.twist_lagrange;
                 let torque =
                     self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);

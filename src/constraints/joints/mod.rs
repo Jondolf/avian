@@ -42,105 +42,6 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Applies the positional and angular corrections caused by the joint.
     fn solve(&mut self, body1: &mut RigidBodyQueryItem, body2: &mut RigidBodyQueryItem, dt: Scalar);
 
-    /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max`.
-    #[allow(clippy::too_many_arguments)]
-    fn limit_distance(
-        &self,
-        min: Scalar,
-        max: Scalar,
-        r1: Vector,
-        r2: Vector,
-        pos1: &Pos,
-        pos2: &Pos,
-    ) -> Vector {
-        let pos_offset = (pos2.0 + r2) - (pos1.0 + r1);
-        let distance = pos_offset.length();
-
-        if distance <= Scalar::EPSILON {
-            return Vector::ZERO;
-        }
-
-        // Equation 25
-        if distance < min {
-            // Separation distance lower limit
-            -pos_offset / distance * (distance - min)
-        } else if distance > max {
-            // Separation distance upper limit
-            -pos_offset / distance * (distance - max)
-        } else {
-            Vector::ZERO
-        }
-    }
-
-    /// Returns the positional correction required to limit the distance between two bodies to be between `min` and `max` along a given `axis`.
-    #[allow(clippy::too_many_arguments)]
-    fn limit_distance_along_axis(
-        &self,
-        min: Scalar,
-        max: Scalar,
-        axis: Vector,
-        r1: Vector,
-        r2: Vector,
-        pos1: &Pos,
-        pos2: &Pos,
-    ) -> Vector {
-        let pos_offset = (pos2.0 + r2) - (pos1.0 + r1);
-        let a = pos_offset.dot(axis);
-
-        // Equation 25
-        if a < min {
-            // Separation distance lower limit
-            -axis * (a - min)
-        } else if a > max {
-            // Separation distance upper limit
-            -axis * (a - max)
-        } else {
-            Vector::ZERO
-        }
-    }
-
-    /// Returns the angular correction required to limit the angle between the axes `n1` and `n2` to be in the interval between `alpha` and `beta` using the common rotation axis `n`.
-    fn limit_angle(
-        &self,
-        n: Vector3,
-        n1: Vector3,
-        n2: Vector3,
-        alpha: Scalar,
-        beta: Scalar,
-        max_correction: Scalar,
-    ) -> Option<Vector3> {
-        let mut phi = n1.cross(n2).dot(n).asin();
-
-        if n1.dot(n2) < 0.0 {
-            phi = PI - phi;
-        }
-
-        if phi > PI {
-            phi -= 2.0 * PI;
-        }
-
-        if phi < -PI {
-            phi += 2.0 * PI;
-        }
-
-        if phi < alpha || phi > beta {
-            phi = phi.clamp(alpha, beta);
-
-            let rot = Quaternion::from_axis_angle(n, phi);
-            let mut omega = rot.mul_vec3(n1).cross(n2);
-
-            phi = omega.length();
-
-            if phi > max_correction {
-                omega *= max_correction / phi;
-            }
-
-            return Some(omega);
-        }
-
-        None
-    }
-
     /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
     ///
     /// Returns the force exerted by the alignment.
@@ -158,8 +59,8 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let world_r1 = body1.rot.rotate(r1);
         let world_r2 = body2.rot.rotate(r2);
 
-        let delta_x =
-            Joint::limit_distance(self, 0.0, 0.0, world_r1, world_r2, &body1.pos, &body2.pos);
+        let delta_x = DistanceLimit::new(0.0, 0.0)
+            .compute_correction(body1.pos.0 + world_r1, body2.pos.0 + world_r2);
         let magnitude = delta_x.length();
 
         if magnitude <= Scalar::EPSILON {
@@ -239,16 +140,120 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     }
 }
 
-/// A joint limit between `min` and `max`. This can represent things like distance limits or angle limits.
+/// A limit that indicates that the distance between two points should be between `min` and `max`.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct JointLimit {
+pub struct DistanceLimit {
     pub min: Scalar,
     pub max: Scalar,
 }
 
-impl JointLimit {
-    /// Creates a new `JointLimit`.
+impl DistanceLimit {
+    /// A `DistanceLimit` with `min` and `max` set to zero.
+    pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
+
+    /// Creates a new `DistanceLimit`.
     pub fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
+    }
+
+    /// Returns the positional correction required to limit the distance between `p1` and `p2` to be
+    /// to be inside the distance limit.
+    pub fn compute_correction(&self, p1: Vector, p2: Vector) -> Vector {
+        let pos_offset = p2 - p1;
+        let distance = pos_offset.length();
+
+        if distance <= Scalar::EPSILON {
+            return Vector::ZERO;
+        }
+
+        // Equation 25
+        if distance < self.min {
+            // Separation distance lower limit
+            -pos_offset / distance * (distance - self.min)
+        } else if distance > self.max {
+            // Separation distance upper limit
+            -pos_offset / distance * (distance - self.max)
+        } else {
+            Vector::ZERO
+        }
+    }
+
+    /// Returns the positional correction required to limit the distance between `p1` and `p2`
+    /// to be inside the distance limit along a given `axis`.
+    fn compute_correction_along_axis(&self, p1: Vector, p2: Vector, axis: Vector) -> Vector {
+        let pos_offset = p2 - p1;
+        let a = pos_offset.dot(axis);
+
+        // Equation 25
+        if a < self.min {
+            // Separation distance lower limit
+            -axis * (a - self.min)
+        } else if a > self.max {
+            // Separation distance upper limit
+            -axis * (a - self.max)
+        } else {
+            Vector::ZERO
+        }
+    }
+}
+
+/// A limit that indicates that angles should be between `alpha` and `beta`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AngleLimit {
+    pub alpha: Scalar,
+    pub beta: Scalar,
+}
+
+impl AngleLimit {
+    /// An `AngleLimit` with `alpha` and `beta` set to zero.
+    pub const ZERO: Self = Self {
+        alpha: 0.0,
+        beta: 0.0,
+    };
+
+    /// Creates a new `AngleLimit`.
+    pub fn new(alpha: Scalar, beta: Scalar) -> Self {
+        Self { alpha, beta }
+    }
+
+    /// Returns the angular correction required to limit the angle between the axes `n1` and `n2`
+    /// to be inside the angle limits.
+    fn compute_correction(
+        &self,
+        n: Vector3,
+        n1: Vector3,
+        n2: Vector3,
+        max_correction: Scalar,
+    ) -> Option<Vector3> {
+        let mut phi = n1.cross(n2).dot(n).asin();
+
+        if n1.dot(n2) < 0.0 {
+            phi = PI - phi;
+        }
+
+        if phi > PI {
+            phi -= 2.0 * PI;
+        }
+
+        if phi < -PI {
+            phi += 2.0 * PI;
+        }
+
+        if phi < self.alpha || phi > self.beta {
+            phi = phi.clamp(self.alpha, self.beta);
+
+            let rot = Quaternion::from_axis_angle(n, phi);
+            let mut omega = rot.mul_vec3(n1).cross(n2);
+
+            phi = omega.length();
+
+            if phi > max_correction {
+                omega *= max_correction / phi;
+            }
+
+            return Some(omega);
+        }
+
+        None
     }
 }
