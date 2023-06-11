@@ -44,16 +44,6 @@ impl Plugin for SolverPlugin {
 
         substeps.add_systems(
             (
-                clear_constraint_lagrange::<FixedJoint, 2>,
-                clear_constraint_lagrange::<RevoluteJoint, 2>,
-                clear_constraint_lagrange::<SphericalJoint, 2>,
-                clear_constraint_lagrange::<PrismaticJoint, 2>,
-            )
-                .before(SubsteppingSet::SolvePos),
-        );
-
-        substeps.add_systems(
-            (
                 penetration_constraints,
                 solve_constraint::<FixedJoint, 2>,
                 solve_constraint::<RevoluteJoint, 2>,
@@ -80,45 +70,9 @@ impl Plugin for SolverPlugin {
     }
 }
 
-/// Helpers for configuring the constraints of the XPBD solver. See [`XpbdConstraint`] and [`SolverPlugin`].
-pub trait ConstraintExt {
-    /// Adds a constraint to the XPBD solver. See [`XpbdConstraint`] and [`SolverPlugin`].
-    fn add_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
-        &mut self,
-    ) -> &mut Self;
-}
-
-impl ConstraintExt for App {
-    fn add_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
-        &mut self,
-    ) -> &mut Self {
-        let substeps = self
-            .get_schedule_mut(XpbdSubstepSchedule)
-            .expect("add XpbdSubstepSchedule first");
-
-        substeps
-            .add_system(
-                clear_constraint_lagrange::<C, ENTITY_COUNT>.before(SubsteppingSet::SolvePos),
-            )
-            .add_system(solve_constraint::<C, ENTITY_COUNT>.in_set(SubsteppingSet::SolvePos));
-        self
-    }
-}
-
 /// Stores penetration constraints for colliding entity pairs.
 #[derive(Resource, Debug, Default)]
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
-
-fn clear_constraint_lagrange<
-    C: XpbdConstraint<ENTITY_COUNT> + Component,
-    const ENTITY_COUNT: usize,
->(
-    mut joints: Query<&mut C>,
-) {
-    for mut joint in &mut joints {
-        joint.clear_lagrange_multipliers();
-    }
-}
 
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 fn penetration_constraints(
@@ -179,6 +133,11 @@ fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_CO
     num_pos_iters: Res<NumPosIters>,
     sub_dt: Res<SubDeltaTime>,
 ) {
+    // Clear Lagrange multipliers
+    constraints
+        .iter_mut()
+        .for_each(|mut c| c.clear_lagrange_multipliers());
+
     for _j in 0..num_pos_iters.0 {
         for mut constraint in &mut constraints {
             // Get components for entities
