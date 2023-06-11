@@ -35,7 +35,8 @@ impl Plugin for SolverPlugin {
         substeps.configure_sets(
             (
                 SubsteppingSet::Integrate,
-                SubsteppingSet::SolvePos,
+                SubsteppingSet::SolveConstraints,
+                SubsteppingSet::SolveUserConstraints,
                 SubsteppingSet::UpdateVel,
                 SubsteppingSet::SolveVel,
             )
@@ -51,7 +52,7 @@ impl Plugin for SolverPlugin {
                 solve_constraint::<PrismaticJoint, 2>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolvePos),
+                .in_set(SubsteppingSet::SolveConstraints),
         );
 
         substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
@@ -125,7 +126,30 @@ fn penetration_constraints(
     }
 }
 
-/// Iterates through all joints and solves the constraints.
+/// Iterates through the constraints of a given type and solves them. Sleeping bodies are woken up when
+/// active bodies interact with them in a constraint.
+///
+/// Note that this system only works for constraints that are modeled as entities.
+/// If you store constraints in a resource, you must create your own system for solving them.
+///
+/// ## User constraints
+///
+/// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`XpbdSubstepSchedule`] and add this system into
+/// the [`SubsteppingSet::SolveUserConstraints`] set.
+/// You must provide the number of entities in the constraint using generics.
+///
+/// It should look something like this:
+///
+/// ```rust
+/// let substeps = app
+///     .get_schedule_mut(XpbdSubstepSchedule)
+///     .expect("add XpbdSubstepSchedule first");
+///
+/// substeps.add_system(
+///     solve_constraint::<YourConstraint, ENTITY_COUNT>
+///         .in_set(SubsteppingSet::SolveUserConstraints),
+/// );
+/// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,

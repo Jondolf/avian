@@ -17,7 +17,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         r1: Vector,
         r2: Vector,
     ) -> Vector {
-        if delta_lagrange >= -Scalar::EPSILON {
+        if delta_lagrange.abs() <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 

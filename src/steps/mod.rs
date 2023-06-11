@@ -55,8 +55,17 @@ pub enum PhysicsSet {
 pub enum SubsteppingSet {
     /// In the integration step, the position and velocity of each particle and body is explicitly integrated, taking only external forces like gravity (and forces applied by the user) into account.
     Integrate,
-    /// The position solving step iterates through constraints, and moves particles and bodies accordingly. This step is also responsible for narrow phase collision detection, as it creates non-penetration constraints for colliding bodies.
-    SolvePos,
+    /// The solver iterates through constraints and solves them.
+    /// This step is also responsible for narrow phase collision detection, as it creates a [`PenetrationConstraint`] for each contact.
+    ///
+    /// **Note**: If you want to create your own constraints, you should add them in [`SubsteppingSet::SolveUserConstraints`]
+    /// to avoid system order ambiguties.
+    SolveConstraints,
+    /// The position solver iterates through custom constraints created by the user and solves them.
+    ///
+    /// You can create new constraints by implementing [`XpbdConstraint`] for a component and adding
+    /// the constraint system to this set. See [`solve_constraint`].
+    SolveUserConstraints,
     /// In the velocity update step, new velocities are derived for all particles and bodies after the position solving step.
     UpdateVel,
     /// During the velocity solving step, a velocity update caused by properties like restitution and friction will be applied to all particles and bodies.

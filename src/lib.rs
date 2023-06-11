@@ -82,7 +82,7 @@ struct FixedUpdateSet;
 ///     - Broad phase ([`BroadPhasePlugin`], [`PhysicsSet::BroadPhase`])
 ///     - Substepping schedule ([`XpbdSubstepSchedule`], [`PhysicsSet::Substeps`])
 ///         - Integrate ([`IntegratorPlugin`], [`SubsteppingSet::Integrate`])
-///         - Constraint projection ([`SolverPlugin`], [`SubsteppingSet::SolvePos`])
+///         - Constraint projection ([`SolverPlugin`], [`SubsteppingSet::SolveConstraints`] and [`SubsteppingSet::SolveUserConstraints`])
 ///         - Velocity updates ([`SolverPlugin`], [`SubsteppingSet::UpdateVel`])
 ///         - Velocity solve ([`SolverPlugin`], [`SubsteppingSet::SolveVel`])
 ///     - Control physics sleeping ([`SleepingPlugin`], [`PhysicsSet::Sleeping`])

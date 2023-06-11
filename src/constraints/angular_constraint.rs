@@ -17,7 +17,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector3,
     ) -> Scalar {
-        if delta_lagrange >= -Scalar::EPSILON {
+        if delta_lagrange.abs() <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -53,7 +53,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
-        if delta_lagrange >= -Scalar::EPSILON {
+        if delta_lagrange.abs() <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
