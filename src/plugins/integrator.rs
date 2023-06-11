@@ -8,8 +8,8 @@ pub struct IntegratorPlugin;
 
 impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
-        app.get_schedule_mut(XpbdSubstepSchedule)
-            .expect("add XpbdSubstepSchedule first")
+        app.get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first")
             .add_systems((integrate_pos, integrate_rot).in_set(SubsteppingSet::Integrate));
     }
 }

@@ -10,14 +10,13 @@ pub struct BroadPhasePlugin;
 
 impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BroadCollisionPairs>()
-            .init_resource::<AabbIntervals>();
+        app.init_resource::<AabbIntervals>();
 
-        let xpbd_schedule = app
-            .get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first");
+        let physics_schedule = app
+            .get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first");
 
-        xpbd_schedule.add_systems(
+        physics_schedule.add_systems(
             (
                 remove_old_aabb_intervals,
                 update_aabb_intervals,
@@ -29,10 +28,6 @@ impl Plugin for BroadPhasePlugin {
         );
     }
 }
-
-/// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Resource, Default, Debug)]
-pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// The [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]

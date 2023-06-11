@@ -3,7 +3,6 @@
 use crate::{
     collision::*,
     prelude::*,
-    steps::broad_phase::BroadCollisionPairs,
     utils::{get_dynamic_friction, get_restitution},
 };
 use bevy::prelude::*;
@@ -29,8 +28,8 @@ impl Plugin for SolverPlugin {
         app.init_resource::<PenetrationConstraints>();
 
         let substeps = app
-            .get_schedule_mut(XpbdSubstepSchedule)
-            .expect("add XpbdSubstepSchedule first");
+            .get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first");
 
         substeps.configure_sets(
             (
