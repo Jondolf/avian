@@ -126,7 +126,7 @@ fn penetration_constraints(
 }
 
 /// Iterates through all joints and solves the constraints.
-fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
+pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,

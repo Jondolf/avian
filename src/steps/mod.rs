@@ -11,7 +11,7 @@ pub use broad_phase::BroadPhasePlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
 pub use sleeping::SleepingPlugin;
-pub use solver::SolverPlugin;
+pub use solver::{solve_constraint, SolverPlugin};
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
