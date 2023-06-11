@@ -55,7 +55,7 @@ fn setup(
         .id();
 
     commands.spawn(
-        RevoluteJoint::new_with_compliance(anchor, object, 0.0)
+        RevoluteJoint::new(anchor, object)
             .with_local_anchor_1(Vec3::Y * -0.5)
             .with_local_anchor_2(Vec3::Y * 0.5)
             .with_aligned_axis(Vec3::Z)

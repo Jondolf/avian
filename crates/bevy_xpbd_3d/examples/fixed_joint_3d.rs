@@ -54,9 +54,7 @@ fn setup(
         )
         .id();
 
-    commands.spawn(
-        FixedJoint::new_with_compliance(anchor, object, 0.0).with_local_anchor_1(Vec3::X * 1.5),
-    );
+    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vec3::X * 1.5));
 
     // Directional 'sun' light
     commands.spawn(DirectionalLightBundle {

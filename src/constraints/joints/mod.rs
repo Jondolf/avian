@@ -15,8 +15,11 @@ use bevy::prelude::*;
 
 /// Joints are constraints that attach pairs of bodies and restrict their relative positional and rotational degrees of freedom.
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    /// Creates a new joint with a given compliance (inverse of stiffness).
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self;
+    /// Creates a new joint between two entities.
+    fn new(entity1: Entity, entity2: Entity) -> Self;
+
+    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
+    fn with_compliance(self, compliance: Scalar) -> Self;
 
     /// Sets the attachment point on the first body.
     fn with_local_anchor_1(self, anchor: Vector) -> Self;

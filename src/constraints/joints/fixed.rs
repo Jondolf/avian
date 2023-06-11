@@ -69,7 +69,7 @@ impl XpbdConstraint<2> for FixedJoint {
 }
 
 impl Joint for FixedJoint {
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
+    fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
             entity1,
             entity2,
@@ -79,13 +79,17 @@ impl Joint for FixedJoint {
             damping_ang: 1.0,
             pos_lagrange: 0.0,
             align_lagrange: 0.0,
-            compliance,
+            compliance: 0.0,
             force: Vector::ZERO,
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
             align_torque: Vector::ZERO,
         }
+    }
+
+    fn with_compliance(self, compliance: Scalar) -> Self {
+        Self { compliance, ..self }
     }
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self {

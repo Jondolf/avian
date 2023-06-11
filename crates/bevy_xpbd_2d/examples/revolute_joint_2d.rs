@@ -56,7 +56,7 @@ fn setup(
         .id();
 
     commands.spawn(
-        RevoluteJoint::new_with_compliance(anchor, object, 0.0)
+        RevoluteJoint::new(anchor, object)
             .with_local_anchor_1(Vec2::Y * -0.5)
             .with_local_anchor_2(Vec2::Y * 0.5)
             .with_angle_limits(0.0, 0.5 * std::f32::consts::PI),

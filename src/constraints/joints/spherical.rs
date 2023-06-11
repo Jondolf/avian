@@ -81,7 +81,7 @@ impl XpbdConstraint<2> for SphericalJoint {
 }
 
 impl Joint for SphericalJoint {
-    fn new_with_compliance(entity1: Entity, entity2: Entity, compliance: Scalar) -> Self {
+    fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
             entity1,
             entity2,
@@ -96,7 +96,7 @@ impl Joint for SphericalJoint {
             pos_lagrange: 0.0,
             swing_lagrange: 0.0,
             twist_lagrange: 0.0,
-            compliance,
+            compliance: 0.0,
             force: Vector::ZERO,
             #[cfg(feature = "2d")]
             swing_torque: 0.0,
@@ -107,6 +107,10 @@ impl Joint for SphericalJoint {
             #[cfg(feature = "3d")]
             twist_torque: Vector::ZERO,
         }
+    }
+
+    fn with_compliance(self, compliance: Scalar) -> Self {
+        Self { compliance, ..self }
     }
 
     fn with_local_anchor_1(self, anchor: Vector) -> Self {
