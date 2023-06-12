@@ -24,8 +24,8 @@ macro_rules! setup_insta {
 fn create_app() -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.add_plugins(PhysicsPlugins);
     app.add_plugin(LogPlugin::default());
-    app.add_plugin(XpbdPlugin);
     app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }

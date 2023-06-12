@@ -3,6 +3,7 @@
 pub mod broad_phase;
 pub mod integrator;
 pub mod prepare;
+pub mod setup;
 pub mod sleeping;
 pub mod solver;
 pub mod sync;
@@ -10,12 +11,13 @@ pub mod sync;
 pub use broad_phase::BroadPhasePlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
+pub use setup::*;
 pub use sleeping::SleepingPlugin;
 pub use solver::{solve_constraint, SolverPlugin};
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
-use crate::prelude::{steps::broad_phase::BroadCollisionPairs, *}; // For doc comments
+use crate::prelude::*; // For doc comments
 use bevy::prelude::*;
 
 /// The main steps in the physics simulation loop.
@@ -37,7 +39,7 @@ pub enum PhysicsSet {
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`XpbdSubstepSchedule`].
+    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`SubstepSchedule`].
     Substeps,
     /// The sleeping step controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
     Sleeping,

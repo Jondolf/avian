@@ -1,6 +1,6 @@
 //! Synchronizes changes from the physics world to Bevy [`Transform`]s.
 
-use crate::{prelude::*, XpbdSchedule};
+use crate::{prelude::*, PhysicsSchedule};
 use bevy::prelude::*;
 
 /// Synchronizes changes from the physics world to Bevy [`Transform`]s.
@@ -8,8 +8,8 @@ pub struct SyncPlugin;
 
 impl Plugin for SyncPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first")
+        app.get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first")
             .add_system(sync_transforms.in_set(PhysicsSet::Sync));
     }
 }

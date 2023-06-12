@@ -12,8 +12,8 @@ pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first")
+        app.get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first")
             .add_systems(
                 (mark_sleeping_bodies, wake_up_bodies, gravity_wake_up_bodies)
                     .chain()

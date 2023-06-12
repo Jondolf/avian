@@ -8,8 +8,8 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.get_schedule_mut(XpbdSchedule)
-            .expect("add xpbd schedule first")
+        app.get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first")
             .add_systems(
                 (update_aabb, update_mass_props.after(update_aabb)).in_set(PhysicsSet::Prepare),
             );
