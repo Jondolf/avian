@@ -61,7 +61,7 @@ pub enum SubsteppingSet {
     /// This step is also responsible for narrow phase collision detection, as it creates a [`PenetrationConstraint`] for each contact.
     ///
     /// **Note**: If you want to create your own constraints, you should add them in [`SubsteppingSet::SolveUserConstraints`]
-    /// to avoid system order ambiguties.
+    /// to avoid system order ambiguities.
     SolveConstraints,
     /// The position solver iterates through custom constraints created by the user and solves them.
     ///
