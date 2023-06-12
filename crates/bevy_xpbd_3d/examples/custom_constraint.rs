@@ -6,13 +6,13 @@ fn main() {
 
     // Add plugins and startup system
     app.add_plugins(DefaultPlugins)
-        .add_plugin(XpbdPlugin)
+        .add_plugins(PhysicsPlugins)
         .add_startup_system(setup);
 
     // Get physics substep schedule and add our custom distance constraint
     let substeps = app
-        .get_schedule_mut(XpbdSubstepSchedule)
-        .expect("add XpbdSubstepSchedule first");
+        .get_schedule_mut(SubstepSchedule)
+        .expect("add SubstepSchedule first");
     substeps.add_system(
         solve_constraint::<CustomDistanceConstraint, 2>
             .in_set(SubsteppingSet::SolveUserConstraints),
