@@ -202,6 +202,14 @@ impl From<Rot> for Quaternion {
     }
 }
 
+#[cfg(feature = "2d")]
+impl From<Quaternion> for Rot {
+    fn from(quat: Quat) -> Self {
+        let angle = quat.to_euler(EulerRot::XYZ).2;
+        Rot::from_radians(angle)
+    }
+}
+
 #[cfg(feature = "3d")]
 impl From<Rot> for Matrix3x1<Scalar> {
     fn from(rot: Rot) -> Self {
