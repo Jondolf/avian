@@ -150,11 +150,11 @@ impl LocalCom {
 
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
 pub struct MassPropsBundle {
-    mass: Mass,
-    inv_mass: InvMass,
-    inertia: Inertia,
-    inv_inertia: InvInertia,
-    local_center_of_mass: LocalCom,
+    pub mass: Mass,
+    pub inv_mass: InvMass,
+    pub inertia: Inertia,
+    pub inv_inertia: InvInertia,
+    pub local_center_of_mass: LocalCom,
 }
 
 impl MassPropsBundle {
