@@ -7,7 +7,7 @@ pub use rotation::*;
 pub use world_queries::*;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 
@@ -582,6 +582,14 @@ impl Default for ColliderMassProperties {
 /// The previous [`ColliderMassProperties`].
 #[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
 pub(crate) struct PrevColliderMassProperties(pub ColliderMassProperties);
+
+/// Contains the entities that are colliding with an entity. These entities are added by the [`SolverPlugin`]
+/// when collisions are detected during the constraint solve.
+///
+/// This component must be added manually.
+#[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
+#[reflect(Component)]
+pub struct CollidingEntities(pub HashSet<Entity>);
 
 /// A physics shape used for things like colliders.
 pub type Shape = SharedShape;
