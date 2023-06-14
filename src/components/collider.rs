@@ -23,11 +23,18 @@ impl Default for Collider {
 }
 
 impl Collider {
-    /// Get the raw shape of the collider.
+    /// Gets the raw shape of the collider. The shapes are provided by [`parry`].
     pub fn get_shape(&self) -> &SharedShape {
         &self.0
     }
 
+    /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
+    ///
+    /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,
+    /// because convex shapes typically provide more reliable results.
+    ///
+    /// If you want to create a compound shape from a 3D triangle mesh or 2D polyline, consider using the
+    /// [`Collider::convex_decomposition`](#method.convex_decomposition) method.
     pub fn compound(shapes: Vec<(impl Into<Pos>, impl Into<Rot>, impl Into<Collider>)>) -> Self {
         let shapes = shapes
             .into_iter()
@@ -41,30 +48,36 @@ impl Collider {
         SharedShape::compound(shapes).into()
     }
 
+    /// Creates a collider with a ball shape defined by its radius.
     pub fn ball(radius: Scalar) -> Self {
         SharedShape::ball(radius).into()
     }
 
+    /// Creates a collider with a cuboid shape defined by its extents.
     #[cfg(feature = "2d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
     }
 
+    /// Creates a collider with a cuboid shape defined by its extents.
     #[cfg(feature = "3d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar, z_length: Scalar) -> Self {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
     }
 
+    /// Creates a collider with a cylinder shape defined by its height along the `Y` axis and its radius on the `XZ` plane.
     #[cfg(feature = "3d")]
     pub fn cylinder(height: Scalar, radius: Scalar) -> Self {
         SharedShape::cylinder(height * 0.5, radius).into()
     }
 
+    /// Creates a collider with a cone shape defined by its height along the `Y` axis and the radius of its base on the `XZ` plane.
     #[cfg(feature = "3d")]
     pub fn cone(height: Scalar, radius: Scalar) -> Self {
         SharedShape::cone(height * 0.5, radius).into()
     }
 
+    /// Creates a collider with a capsule shape defined by its height along the `Y` axis and its radius.
     pub fn capsule(height: Scalar, radius: Scalar) -> Self {
         SharedShape::capsule(
             (Vector::Y * height * 0.5).into(),
@@ -74,32 +87,39 @@ impl Collider {
         .into()
     }
 
+    /// Creates a collider with a capsule shape defined by its end points `a` and `b` and its radius.
     pub fn capsule_endpoints(a: Vector, b: Vector, radius: Scalar) -> Self {
         SharedShape::capsule(a.into(), b.into(), radius).into()
     }
 
+    /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape defined by the outward normal of its planar boundary.
     pub fn halfspace(outward_normal: Vector) -> Self {
         SharedShape::halfspace(nalgebra::Unit::new_normalize(outward_normal.into())).into()
     }
 
+    /// Creates a collider with a segment shape defined by its endpoints `a` and `b`.
     pub fn segment(a: Vector, b: Vector) -> Self {
         SharedShape::segment(a.into(), b.into()).into()
     }
 
+    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
     }
 
+    /// Creates a collider with a polyline shape defined by its vertices and optionally an index buffer.
     pub fn polyline(vertices: Vec<Vector>, indices: Option<Vec<[u32; 2]>>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         SharedShape::polyline(vertices, indices).into()
     }
 
+    /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers.
     pub fn trimesh(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         SharedShape::trimesh(vertices, indices).into()
     }
 
+    /// Creates a collider with a triangle mesh shape built from a given Bevy [`Mesh`].
     #[cfg(feature = "3d")]
     pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         use parry::shape::TriMeshFlags;
@@ -110,34 +130,66 @@ impl Collider {
         })
     }
 
+    /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
+    /// built from a given Bevy [`Mesh`].
     #[cfg(feature = "3d")]
     pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         let vertices_indices = extract_mesh_vertices_indices(mesh);
         vertices_indices.map(|(v, i)| SharedShape::convex_decomposition(&v, &i).into())
     }
 
+    /// Creates a collider shape with a compound shape obtained from the decomposition of a given polyline
+    /// defined by its vertex and index buffers.
     #[cfg(feature = "2d")]
     pub fn convex_decomposition(vertices: Vec<Vector>, indices: Vec<[u32; 2]>) -> Self {
         let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
         SharedShape::convex_decomposition(&vertices, &indices).into()
     }
 
+    /// Creates a collider shape with a compound shape obtained from the decomposition of a given trimesh
+    /// defined by its vertex and index buffers.
     #[cfg(feature = "3d")]
     pub fn convex_decomposition(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
         SharedShape::convex_decomposition(&vertices, &indices).into()
     }
 
+    /// Creates a collider with a [convex polygon](https://en.wikipedia.org/wiki/Convex_polygon) shape obtained after computing
+    /// the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of the given points.
+    #[cfg(feature = "2d")]
     pub fn convex_hull(points: Vec<Vector>) -> Option<Self> {
         let points = points.iter().map(|v| (*v).into()).collect::<Vec<_>>();
         SharedShape::convex_hull(&points).map(Into::into)
     }
 
+    /// Creates a collider with a [convex polyhedron](https://en.wikipedia.org/wiki/Convex_polytope) shape obtained after computing
+    /// the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of the given points.
+    #[cfg(feature = "3d")]
+    pub fn convex_hull(points: Vec<Vector>) -> Option<Self> {
+        let points = points.iter().map(|v| (*v).into()).collect::<Vec<_>>();
+        SharedShape::convex_hull(&points).map(Into::into)
+    }
+
+    /// Creates a collider with a heightfield shape.
+    ///
+    /// A 2D heightfield is a segment along the `X` axis, subdivided at regular intervals.
+    ///
+    /// `heights` is a vector indicating the altitude of each subdivision point, and `scale` is a scalar value
+    /// indicating the length of each subdivided segment along the `X` axis.
     #[cfg(feature = "2d")]
     pub fn heightfield(heights: Vec<Scalar>, scale: Scalar) -> Self {
         SharedShape::heightfield(heights.into(), Vector::splat(scale).into()).into()
     }
 
+    /// Creates a collider with a heightfield shape.
+    ///
+    /// A 3D heightfield is a rectangle on the `XZ` plane, subdivided in a grid pattern at regular intervals.
+    ///
+    /// `heights` is a matrix indicating the altitude of each subdivision point. The number of rows indicates
+    /// the number of subdivisions along the `X` axis, while the number of columns indicates the number of
+    /// subdivisions along the `Z` axis.
+    ///
+    /// `scale` indicates the size of each rectangle on the `XZ` plane.
     #[cfg(feature = "3d")]
     pub fn heightfield(heights: Vec<Vec<Scalar>>, scale: Vector) -> Self {
         let row_count = heights.len();
