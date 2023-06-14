@@ -5,28 +5,26 @@ use bevy::render::mesh::{Indices, VertexAttributeValues};
 use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 
-/// A physics shape used for things like colliders.
-pub type Shape = SharedShape;
-
 /// A collider used for collision detection.
 #[derive(Clone, Component, Deref, DerefMut, From)]
-pub struct Collider(Shape);
+pub struct Collider(SharedShape);
 
 impl Default for Collider {
     fn default() -> Self {
         #[cfg(feature = "2d")]
         {
-            Self(Shape::cuboid(0.5, 0.5))
+            Self(SharedShape::cuboid(0.5, 0.5))
         }
         #[cfg(feature = "3d")]
         {
-            Self(Shape::cuboid(0.5, 0.5, 0.5))
+            Self(SharedShape::cuboid(0.5, 0.5, 0.5))
         }
     }
 }
 
 impl Collider {
-    pub fn get_shape(&self) -> &Shape {
+    /// Get the raw shape of the collider.
+    pub fn get_shape(&self) -> &SharedShape {
         &self.0
     }
 
@@ -40,35 +38,35 @@ impl Collider {
                 )
             })
             .collect::<Vec<_>>();
-        Shape::compound(shapes).into()
+        SharedShape::compound(shapes).into()
     }
 
     pub fn ball(radius: Scalar) -> Self {
-        Shape::ball(radius).into()
+        SharedShape::ball(radius).into()
     }
 
     #[cfg(feature = "2d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
-        Shape::cuboid(x_length * 0.5, y_length * 0.5).into()
+        SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
     }
 
     #[cfg(feature = "3d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar, z_length: Scalar) -> Self {
-        Shape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
+        SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
     }
 
     #[cfg(feature = "3d")]
     pub fn cylinder(height: Scalar, radius: Scalar) -> Self {
-        Shape::cylinder(height * 0.5, radius).into()
+        SharedShape::cylinder(height * 0.5, radius).into()
     }
 
     #[cfg(feature = "3d")]
     pub fn cone(height: Scalar, radius: Scalar) -> Self {
-        Shape::cone(height * 0.5, radius).into()
+        SharedShape::cone(height * 0.5, radius).into()
     }
 
     pub fn capsule(height: Scalar, radius: Scalar) -> Self {
-        Shape::capsule(
+        SharedShape::capsule(
             (Vector::Y * height * 0.5).into(),
             (Vector::NEG_Y * height * 0.5).into(),
             radius,
@@ -77,7 +75,7 @@ impl Collider {
     }
 
     pub fn capsule_endpoints(a: Vector, b: Vector, radius: Scalar) -> Self {
-        Shape::capsule(a.into(), b.into(), radius).into()
+        SharedShape::capsule(a.into(), b.into(), radius).into()
     }
 
     pub fn halfspace(outward_normal: Vector) -> Self {
@@ -85,21 +83,21 @@ impl Collider {
     }
 
     pub fn segment(a: Vector, b: Vector) -> Self {
-        Shape::segment(a.into(), b.into()).into()
+        SharedShape::segment(a.into(), b.into()).into()
     }
 
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
-        Shape::triangle(a.into(), b.into(), c.into()).into()
+        SharedShape::triangle(a.into(), b.into(), c.into()).into()
     }
 
     pub fn polyline(vertices: Vec<Vector>, indices: Option<Vec<[u32; 2]>>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        Shape::polyline(vertices, indices).into()
+        SharedShape::polyline(vertices, indices).into()
     }
 
     pub fn trimesh(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        Shape::trimesh(vertices, indices).into()
+        SharedShape::trimesh(vertices, indices).into()
     }
 
     #[cfg(feature = "3d")]
@@ -108,36 +106,36 @@ impl Collider {
 
         let vertices_indices = extract_mesh_vertices_indices(mesh);
         vertices_indices.map(|(v, i)| {
-            Shape::trimesh_with_flags(v, i, TriMeshFlags::MERGE_DUPLICATE_VERTICES).into()
+            SharedShape::trimesh_with_flags(v, i, TriMeshFlags::MERGE_DUPLICATE_VERTICES).into()
         })
     }
 
     #[cfg(feature = "3d")]
     pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         let vertices_indices = extract_mesh_vertices_indices(mesh);
-        vertices_indices.map(|(v, i)| Shape::convex_decomposition(&v, &i).into())
+        vertices_indices.map(|(v, i)| SharedShape::convex_decomposition(&v, &i).into())
     }
 
     #[cfg(feature = "2d")]
     pub fn convex_decomposition(vertices: Vec<Vector>, indices: Vec<[u32; 2]>) -> Self {
         let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
-        Shape::convex_decomposition(&vertices, &indices).into()
+        SharedShape::convex_decomposition(&vertices, &indices).into()
     }
 
     #[cfg(feature = "3d")]
     pub fn convex_decomposition(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
-        Shape::convex_decomposition(&vertices, &indices).into()
+        SharedShape::convex_decomposition(&vertices, &indices).into()
     }
 
     pub fn convex_hull(points: Vec<Vector>) -> Option<Self> {
         let points = points.iter().map(|v| (*v).into()).collect::<Vec<_>>();
-        Shape::convex_hull(&points).map(Into::into)
+        SharedShape::convex_hull(&points).map(Into::into)
     }
 
     #[cfg(feature = "2d")]
     pub fn heightfield(heights: Vec<Scalar>, scale: Vector) -> Self {
-        Shape::heightfield(heights.into(), scale.into()).into()
+        SharedShape::heightfield(heights.into(), scale.into()).into()
     }
 
     #[cfg(feature = "3d")]
@@ -153,7 +151,7 @@ impl Collider {
             "Number of heights is not equal to row_count * column_count"
         );
         let heights = nalgebra::DMatrix::from_vec(row_count, column_count, heights);
-        Shape::heightfield(heights, scale.into()).into()
+        SharedShape::heightfield(heights, scale.into()).into()
     }
 }
 
@@ -196,7 +194,7 @@ pub struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
     /// Creates a new collider from a given [`Shape`] with a default density of 1.0.
-    pub fn from_shape(shape: &Shape) -> Self {
+    pub fn from_shape(shape: &SharedShape) -> Self {
         Self(shape.compute_local_aabb())
     }
 }

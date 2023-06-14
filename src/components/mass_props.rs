@@ -158,8 +158,8 @@ pub struct MassPropsBundle {
 }
 
 impl MassPropsBundle {
-    /// Computes the mass properties from a given shape and density.
-    pub fn new_computed(shape: &Shape, density: Scalar) -> Self {
+    /// Computes the mass properties from a given [`Collider`] and density.
+    pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
             inv_mass,
@@ -167,7 +167,7 @@ impl MassPropsBundle {
             inv_inertia,
             local_center_of_mass,
             ..
-        } = ColliderMassProperties::from_shape_and_density(shape, density);
+        } = ColliderMassProperties::new_computed(collider, density);
 
         Self {
             mass,
@@ -213,9 +213,9 @@ impl ColliderMassProperties {
 }
 
 impl ColliderMassProperties {
-    /// Computes mass properties for a given shape and density.
-    pub fn from_shape_and_density(shape: &Shape, density: Scalar) -> Self {
-        let props = shape.mass_properties(density);
+    /// Computes mass properties from a given [`Collider`] and density.
+    pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
+        let props = collider.mass_properties(density);
 
         Self {
             mass: Mass(props.mass()),

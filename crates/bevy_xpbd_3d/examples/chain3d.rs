@@ -138,7 +138,7 @@ fn create_chain(
                 },
                 RigidBody::Dynamic,
                 Pos(start_pos + delta_pos * i as f32),
-                MassPropsBundle::new_computed(&Shape::ball(node_size * 0.5), 1.0),
+                MassPropsBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
             ))
             .id();
 
