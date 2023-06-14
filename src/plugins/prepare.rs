@@ -9,12 +9,12 @@ pub struct PreparePlugin;
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.configure_set(ComponentInitSet.in_set(PhysicsSet::Prepare));
+        app.add_systems(
+            (init_rigid_bodies, init_mass_props, init_colliders).in_set(ComponentInitSet),
+        );
 
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_systems(
-                (init_rigid_bodies, init_mass_props, init_colliders).in_set(ComponentInitSet),
-            )
             .add_systems(
                 (update_aabb, update_mass_props)
                     .chain()
