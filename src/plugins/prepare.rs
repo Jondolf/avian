@@ -155,18 +155,16 @@ fn init_mass_props(
         let mut body = commands.entity(entity);
 
         if mass.is_none() {
-            body.insert(Mass::default());
-            body.insert(InvMass::default());
+            body.insert(Mass(inv_mass.map_or(0.0, |inv_mass| 1.0 / inv_mass.0)));
         }
         if inv_mass.is_none() {
-            body.insert(InvMass(1.0 / mass.cloned().unwrap_or_default().0));
+            body.insert(InvMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
         }
         if inertia.is_none() {
-            body.insert(Inertia::default());
-            body.insert(InvInertia::default());
+            body.insert(inv_inertia.map_or(Inertia::ZERO, |inv_inertia| inv_inertia.inverse()));
         }
         if inv_inertia.is_none() {
-            body.insert(inertia.cloned().unwrap_or_default().inverse());
+            body.insert(inertia.map_or(InvInertia::ZERO, |inertia| inertia.inverse()));
         }
         if local_com.is_none() {
             body.insert(LocalCom::default());
