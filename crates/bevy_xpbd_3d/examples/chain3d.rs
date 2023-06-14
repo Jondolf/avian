@@ -43,11 +43,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec3::NEG_Y * 18.0),
-        ColliderShape(Shape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )),
+        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
     // Rope

@@ -145,7 +145,7 @@ type MassPropComponents = (
     Option<&'static InvInertia>,
     Option<&'static LocalCom>,
 );
-type MassPropComponentsQueryFilter = Or<(Added<RigidBody>, Added<ColliderShape>)>;
+type MassPropComponentsQueryFilter = Or<(Added<RigidBody>, Added<Collider>)>;
 
 fn init_mass_props(
     mut commands: Commands,
@@ -174,16 +174,13 @@ fn init_mass_props(
 
 type ColliderComponents = (
     Entity,
-    &'static ColliderShape,
+    &'static Collider,
     Option<&'static ColliderAabb>,
     Option<&'static ColliderMassProperties>,
     Option<&'static PrevColliderMassProperties>,
 );
 
-fn init_colliders(
-    mut commands: Commands,
-    colliders: Query<ColliderComponents, Added<ColliderShape>>,
-) {
+fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, Added<Collider>>) {
     for (entity, shape, aabb, mass_props, prev_mass_props) in &colliders {
         let mut collider = commands.entity(entity);
 
@@ -210,7 +207,7 @@ fn update_aabb(
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.0;
 
-    for (mut collider, pos, rot, lin_vel, ang_vel) in &mut bodies {
+    for (mut collider_query, pos, rot, lin_vel, ang_vel) in &mut bodies {
         let lin_vel_len = lin_vel.map_or(0.0, |v| v.length());
 
         #[cfg(feature = "2d")]
@@ -218,15 +215,18 @@ fn update_aabb(
         #[cfg(feature = "3d")]
         let ang_vel_len = ang_vel.map_or(0.0, |v| v.length());
 
-        let computed_aabb = collider.shape.compute_aabb(&make_isometry(pos.0, rot));
+        let computed_aabb = collider_query
+            .collider
+            .get_shape()
+            .compute_aabb(&make_isometry(pos.0, rot));
         let half_extents = Vector::from(computed_aabb.half_extents());
 
         // Add a safety margin.
         let safety_margin = safety_margin_factor * (lin_vel_len + ang_vel_len);
         let extended_half_extents = half_extents + safety_margin;
 
-        collider.aabb.mins.coords = (pos.0 - extended_half_extents).into();
-        collider.aabb.maxs.coords = (pos.0 + extended_half_extents).into();
+        collider_query.aabb.mins.coords = (pos.0 - extended_half_extents).into();
+        collider_query.aabb.maxs.coords = (pos.0 + extended_half_extents).into();
     }
 }
 
@@ -235,7 +235,7 @@ type MassPropsChanged = Or<(
     Changed<InvMass>,
     Changed<Inertia>,
     Changed<InvInertia>,
-    Changed<ColliderShape>,
+    Changed<Collider>,
     Changed<ColliderMassProperties>,
 )>;
 
@@ -248,19 +248,19 @@ fn update_mass_props(mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), 
             mass_props.inv_mass.0 = 1.0 / mass_props.mass.0;
         }
 
-        if let Some(mut collider) = collider {
+        if let Some(mut collider_query) = collider {
             // Subtract previous collider mass props from the body's mass props
-            mass_props -= collider.prev_mass_props.0;
+            mass_props -= collider_query.prev_mass_props.0;
 
             // Update previous and current collider mass props
-            collider.prev_mass_props.0 = *collider.mass_props;
-            *collider.mass_props = ColliderMassProperties::from_shape_and_density(
-                &collider.shape.0,
-                collider.mass_props.density,
+            collider_query.prev_mass_props.0 = *collider_query.mass_props;
+            *collider_query.mass_props = ColliderMassProperties::from_shape_and_density(
+                collider_query.collider.get_shape(),
+                collider_query.mass_props.density,
             );
 
             // Add new collider mass props to the body's mass props
-            mass_props += *collider.mass_props;
+            mass_props += *collider_query.mass_props;
         }
 
         if mass_props.mass.0 < Scalar::EPSILON {
