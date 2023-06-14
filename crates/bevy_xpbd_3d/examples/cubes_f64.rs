@@ -38,7 +38,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(DVec3::NEG_Y),
-        ColliderShape(&Shape::cuboid(
+        ColliderShape(Shape::cuboid(
             floor_size.x * 0.5,
             floor_size.y * 0.5,
             floor_size.z * 0.5,
@@ -70,7 +70,7 @@ fn setup(
                     Player,
                     MoveAcceleration(0.1),
                     MaxLinearVelocity(DVec3::splat(30.0)),
-                ))
+                ));
             }
         }
     }
