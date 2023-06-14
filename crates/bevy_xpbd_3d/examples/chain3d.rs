@@ -34,26 +34,28 @@ fn setup(
     );
 
     let floor_size = Vec3::new(30.0, 1.0, 30.0);
-    let _floor = commands
-        .spawn(PbrBundle {
+    let _floor = commands.spawn((
+        PbrBundle {
             mesh: cube,
             material: white,
             transform: Transform::from_scale(floor_size),
             ..default()
-        })
-        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -18.0, 0.0)))
-        .insert(ColliderBundle::new(&Shape::cuboid(
+        },
+        RigidBody::Static,
+        Pos(Vec3::NEG_Y * 18.0),
+        ColliderShape(Shape::cuboid(
             floor_size.x * 0.5,
             floor_size.y * 0.5,
             floor_size.z * 0.5,
-        )));
+        )),
+    ));
 
     // Rope
     create_chain(
         &mut commands,
         sphere,
         blue,
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::ZERO,
         Vec3::Y,
         100,
         0.001,
@@ -66,7 +68,7 @@ fn setup(
         &mut commands,
         cube,
         blue,
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::ZERO,
         Vec3::Y,
         2,
         3.0,
@@ -82,7 +84,7 @@ fn setup(
             ..default()
         },
         transform: Transform {
-            translation: Vec3::new(0.0, 10.0, 0.0),
+            translation: Vec3::Y * 10.0,
             rotation: Quat::from_euler(
                 EulerRot::XYZ,
                 std::f32::consts::PI * 1.3,
@@ -95,7 +97,7 @@ fn setup(
     });
 
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -20.0))
+        transform: Transform::from_translation(Vec3::NEG_Z * 20.0)
             .looking_at(Vec3::Y * -10.0, Vec3::Y),
         ..default()
     });
@@ -114,39 +116,34 @@ fn create_chain(
     compliance: f32,
 ) {
     let mut prev = commands
-        .spawn(PbrBundle {
-            mesh: mesh.clone(),
-            material: material.clone(),
-            transform: Transform {
-                scale: Vec3::splat(node_size),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: mesh.clone(),
+                material: material.clone(),
+                transform: Transform::from_scale(Vec3::splat(node_size)),
                 ..default()
             },
-            ..default()
-        })
-        .insert(RigidBodyBundle::new_kinematic().with_pos(start_pos))
-        .insert(Player)
-        .insert(MoveSpeed(0.3))
+            RigidBody::Kinematic,
+            Pos(start_pos),
+            Player,
+            MoveSpeed(0.3),
+        ))
         .id();
 
     for i in 1..node_count {
         let delta_pos = -dir * (node_size + node_dist);
         let curr = commands
-            .spawn(PbrBundle {
-                mesh: mesh.clone(),
-                material: material.clone(),
-                transform: Transform {
-                    scale: Vec3::splat(node_size),
-                    translation: Vec3::ZERO,
+            .spawn((
+                PbrBundle {
+                    mesh: mesh.clone(),
+                    material: material.clone(),
+                    transform: Transform::from_scale(Vec3::splat(node_size)),
                     ..default()
                 },
-                ..default()
-            })
-            .insert(
-                RigidBodyBundle::new_dynamic()
-                    .with_pos(start_pos + delta_pos * i as f32)
-                    .with_computed_mass_props(&Shape::ball(node_size * 0.5), 1.0),
-            )
+                RigidBody::Dynamic,
+                Pos(start_pos + delta_pos * i as f32),
+                MassPropsBundle::new_computed(&Shape::ball(node_size * 0.5), 1.0),
+            ))
             .id();
 
         commands.spawn(
@@ -193,7 +190,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec3::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

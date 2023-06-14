@@ -33,8 +33,8 @@ fn setup(
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..default()
         },
-        RigidBodyBundle::new_static(),
-        ColliderBundle::new(&Shape::cuboid(4.0, 0.001, 4.0)),
+        RigidBody::Static,
+        ColliderShape(Shape::cuboid(4.0, 0.001, 4.0)),
     ));
     // Cube
     commands.spawn((
@@ -43,10 +43,10 @@ fn setup(
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
             ..default()
         },
-        RigidBodyBundle::new_dynamic()
-            .with_pos(Vec3::Y * 4.0)
-            .with_ang_vel(Vec3::new(2.5, 3.4, 1.6)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 0.5, 0.5)),
+        RigidBody::Dynamic,
+        Pos(Vec3::Y * 4.0),
+        AngVel(Vec3::new(2.5, 3.4, 1.6)),
+        ColliderShape(Shape::cuboid(0.5, 0.5, 0.5)),
     ));
     // Light
     commands.spawn(PointLightBundle {

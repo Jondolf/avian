@@ -21,37 +21,29 @@ fn setup(
     });
 
     let anchor = commands
-        .spawn(PbrBundle {
-            mesh: cube.clone(),
-            material: blue.clone(),
-            transform: Transform {
-                scale: Vec3::splat(1.0),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: cube.clone(),
+                material: blue.clone(),
                 ..default()
             },
-            ..default()
-        })
-        .insert(RigidBodyBundle::new_kinematic().with_pos(Vec3::new(0.0, 0.0, 0.0)))
-        .insert(Player)
-        .insert(MoveSpeed(0.3))
+            RigidBody::Kinematic,
+            Player,
+            MoveSpeed(0.3),
+        ))
         .id();
 
     let object = commands
-        .spawn(PbrBundle {
-            mesh: cube,
-            material: blue,
-            transform: Transform {
-                scale: Vec3::splat(1.0),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: cube,
+                material: blue,
                 ..default()
             },
-            ..default()
-        })
-        .insert(
-            RigidBodyBundle::new_dynamic()
-                .with_pos(Vec3::Y * -3.0)
-                .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
-        )
+            RigidBody::Dynamic,
+            Pos(Vec3::NEG_Y * 3.0),
+            MassPropsBundle::new_computed(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+        ))
         .id();
 
     commands.spawn(
@@ -123,7 +115,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec3::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
