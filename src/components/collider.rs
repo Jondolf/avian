@@ -134,23 +134,23 @@ impl Collider {
     }
 
     #[cfg(feature = "2d")]
-    pub fn heightfield(heights: Vec<Scalar>, scale: Vector) -> Self {
-        SharedShape::heightfield(heights.into(), scale.into()).into()
+    pub fn heightfield(heights: Vec<Scalar>, scale: Scalar) -> Self {
+        SharedShape::heightfield(heights.into(), Vector::splat(scale).into()).into()
     }
 
     #[cfg(feature = "3d")]
-    pub fn heightfield(
-        heights: Vec<Scalar>,
-        row_count: usize,
-        column_count: usize,
-        scale: Vector,
-    ) -> Self {
+    pub fn heightfield(heights: Vec<Vec<Scalar>>, scale: Vector) -> Self {
+        let row_count = heights.len();
+        let column_count = heights[0].len();
+        let data: Vec<Scalar> = heights.into_iter().flatten().collect();
+
         assert_eq!(
-            heights.len(),
+            data.len(),
             row_count * column_count,
-            "Number of heights is not equal to row_count * column_count"
+            "Each row in `heights` must have the same amount of points"
         );
-        let heights = nalgebra::DMatrix::from_vec(row_count, column_count, heights);
+
+        let heights = nalgebra::DMatrix::from_vec(row_count, column_count, data);
         SharedShape::heightfield(heights, scale.into()).into()
     }
 }
