@@ -1,5 +1,7 @@
 //! Collision data and helpers.
 
+use parry::shape::SharedShape;
+
 use crate::prelude::*;
 
 /// Data related to a collision between two bodies.
@@ -34,8 +36,8 @@ pub(crate) fn get_collision(
     local_com2: Vector,
     rot1: &Rot,
     rot2: &Rot,
-    shape1: &Shape,
-    shape2: &Shape,
+    shape1: &SharedShape,
+    shape2: &SharedShape,
 ) -> Option<Collision> {
     if let Ok(Some(collision)) = parry::query::contact(
         &utils::make_isometry(pos1, rot1),

@@ -43,11 +43,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec3::NEG_Y * 18.0),
-        ColliderShape(Shape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )),
+        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
     // Rope
@@ -142,7 +138,7 @@ fn create_chain(
                 },
                 RigidBody::Dynamic,
                 Pos(start_pos + delta_pos * i as f32),
-                MassPropsBundle::new_computed(&Shape::ball(node_size * 0.5), 1.0),
+                MassPropsBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
             ))
             .id();
 

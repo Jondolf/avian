@@ -46,11 +46,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
     commands.spawn((
         RigidBody::Static,
         Pos(Vector::NEG_Y),
-        ColliderShape(Shape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )),
+        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
     let radius = 1.0;
@@ -69,7 +65,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                     SpatialBundle::default(),
                     RigidBody::Dynamic,
                     Pos(pos + Vector::Y * 5.0),
-                    ColliderShape(Shape::cuboid(radius, radius, radius)),
+                    Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
                     Id(next_id),
                 ));
                 next_id += 1;

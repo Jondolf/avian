@@ -45,11 +45,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec3::NEG_Y * 5.0),
-        ColliderShape(Shape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )),
+        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
     let radius = 0.5;
@@ -73,7 +69,7 @@ fn setup(
                     },
                     RigidBody::Dynamic,
                     Pos(pos),
-                    ColliderShape(Shape::ball(radius)),
+                    Collider::ball(radius),
                     Player,
                     RollAcceleration(Vec3::splat(0.5)),
                     MaxAngularVelocity(Vec3::splat(30.0)),

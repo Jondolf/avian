@@ -1,9 +1,11 @@
 //! Components used for rigid bodies, colliders and mass properties.
 
+mod collider;
 mod mass_props;
 mod rotation;
 mod world_queries;
 
+pub use collider::*;
 pub use mass_props::*;
 pub use rotation::*;
 pub use world_queries::*;
@@ -11,7 +13,6 @@ pub use world_queries::*;
 use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
-use parry::{bounding_volume::Aabb, shape::SharedShape};
 
 /// The rigid body type. A rigid body can be either dynamic, kinematic or static.
 #[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
@@ -366,43 +367,6 @@ impl From<Scalar> for Friction {
             static_coefficient: coefficient,
             ..default()
         }
-    }
-}
-
-/// A physics shape used for things like colliders.
-pub type Shape = SharedShape;
-
-/// A component for the [`Shape`] used for a collider.
-#[derive(Clone, Component, Deref, DerefMut)]
-pub struct ColliderShape(pub Shape);
-
-impl Default for ColliderShape {
-    fn default() -> Self {
-        #[cfg(feature = "2d")]
-        {
-            Self(Shape::cuboid(0.5, 0.5))
-        }
-        #[cfg(feature = "3d")]
-        {
-            Self(Shape::cuboid(0.5, 0.5, 0.5))
-        }
-    }
-}
-
-/// The Axis-Aligned Bounding Box of a collider.
-#[derive(Clone, Copy, Component, Deref, DerefMut, PartialEq)]
-pub struct ColliderAabb(pub Aabb);
-
-impl ColliderAabb {
-    /// Creates a new collider from a given [`Shape`] with a default density of 1.0.
-    pub fn from_shape(shape: &Shape) -> Self {
-        Self(shape.compute_local_aabb())
-    }
-}
-
-impl Default for ColliderAabb {
-    fn default() -> Self {
-        ColliderAabb(Aabb::new_invalid())
     }
 }
 

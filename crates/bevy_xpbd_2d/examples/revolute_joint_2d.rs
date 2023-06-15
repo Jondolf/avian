@@ -43,7 +43,7 @@ fn setup(
             },
             RigidBody::Dynamic,
             Pos(Vec2::NEG_Y * 3.0),
-            MassPropsBundle::new_computed(&Shape::cuboid(0.5, 0.5), 1.0),
+            MassPropsBundle::new_computed(&Collider::cuboid(1.0, 1.0), 1.0),
         ))
         .id();
 

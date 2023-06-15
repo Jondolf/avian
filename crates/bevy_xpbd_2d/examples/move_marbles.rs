@@ -52,7 +52,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec2::NEG_Y * 7.5),
-        ColliderShape(Shape::cuboid(10.0, 0.5)),
+        Collider::cuboid(20.0, 1.0),
     ));
 
     let _ceiling = commands.spawn((
@@ -64,7 +64,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec2::Y * 7.5),
-        ColliderShape(Shape::cuboid(10.0, 0.5)),
+        Collider::cuboid(20.0, 1.0),
     ));
 
     let _left_wall = commands.spawn((
@@ -76,7 +76,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec2::NEG_X * 9.5),
-        ColliderShape(Shape::cuboid(0.5, 10.0)),
+        Collider::cuboid(1.0, 20.0),
     ));
 
     let _right_wall = commands.spawn((
@@ -88,7 +88,7 @@ fn setup(
         },
         RigidBody::Static,
         Pos(Vec2::X * 9.5),
-        ColliderShape(Shape::cuboid(0.5, 10.0)),
+        Collider::cuboid(1.0, 20.0),
     ));
 
     let radius = 0.15;
@@ -108,7 +108,7 @@ fn setup(
                 },
                 RigidBody::Dynamic,
                 Pos(pos),
-                ColliderShape(Shape::ball(radius)),
+                Collider::ball(radius),
                 Player,
                 MoveAcceleration(0.5),
                 MaxVelocity(Vec2::new(30.0, 30.0)),
