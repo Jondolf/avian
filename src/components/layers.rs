@@ -62,7 +62,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///     commands.spawn((
 ///         Collider::ball(0.5),
 ///         // Player collides with enemies and the ground, but not with other players
-///         CollisionLayers::new(&[Layer::Player], &[Layer::Enemy, Layer::Ground])
+///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
 ///     ));
 /// }
 /// ```
