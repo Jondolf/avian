@@ -183,6 +183,7 @@ impl RigidBodyBundle {
 pub struct ColliderBundle {
     pub collider_shape: ColliderShape,
     pub collider_aabb: ColliderAabb,
+    pub colliding_entities: CollidingEntities,
     pub mass_props: ColliderMassProperties,
     pub(crate) prev_mass_props: PrevColliderMassProperties,
 }
@@ -193,6 +194,7 @@ impl ColliderBundle {
         Self {
             collider_shape: ColliderShape(shape.to_owned()),
             collider_aabb: ColliderAabb::from_shape(shape),
+            colliding_entities: CollidingEntities::default(),
             mass_props: ColliderMassProperties::from_shape_and_density(shape, 1.0),
             prev_mass_props: PrevColliderMassProperties(ColliderMassProperties::ZERO),
         }

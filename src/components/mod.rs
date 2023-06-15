@@ -585,8 +585,6 @@ pub(crate) struct PrevColliderMassProperties(pub ColliderMassProperties);
 
 /// Contains the entities that are colliding with an entity. These entities are added by the [`SolverPlugin`]
 /// when collisions are detected during the constraint solve.
-///
-/// This component must be added manually.
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
