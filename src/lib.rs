@@ -41,6 +41,7 @@ pub mod resources;
 pub mod prelude {
     pub use crate::{
         bundles::*,
+        collision::*,
         components::*,
         constraints::{joints::*, *},
         math::*,
