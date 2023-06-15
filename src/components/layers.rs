@@ -47,9 +47,9 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// ## Example
 ///
-/// ```
+/// ```ignore
 /// use bevy::prelude::*;
-/// use bevy_xpbd::prelude::*;
+/// use bevy_xpbd::prelude::*; // 2D or 3D
 ///
 /// #[derive(PhysicsLayer)]
 /// enum Layer {
