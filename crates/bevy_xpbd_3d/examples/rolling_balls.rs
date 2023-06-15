@@ -36,19 +36,17 @@ fn setup(
     });
 
     let floor_size = Vec3::new(80.0, 1.0, 80.0);
-    let _floor = commands
-        .spawn(PbrBundle {
+    let _floor = commands.spawn((
+        PbrBundle {
             mesh: cube,
             material: white,
             transform: Transform::from_scale(floor_size),
             ..default()
-        })
-        .insert(RigidBodyBundle::new_static().with_pos(Vec3::new(0.0, -5.0, 0.0)))
-        .insert(ColliderBundle::new(&Shape::cuboid(
-            floor_size.x * 0.5,
-            floor_size.y * 0.5,
-            floor_size.z * 0.5,
-        )));
+        },
+        RigidBody::Static,
+        Pos(Vec3::NEG_Y * 5.0),
+        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
+    ));
 
     let radius = 0.5;
     let count_x = 1;
@@ -62,22 +60,20 @@ fn setup(
                     2.5 * radius * y as f32,
                     (z as f32 - count_z as f32 * 0.5) * 2.5 * radius,
                 );
-                commands
-                    .spawn(PbrBundle {
+                commands.spawn((
+                    PbrBundle {
                         mesh: ball.clone(),
                         material: blue.clone(),
-                        transform: Transform {
-                            scale: Vec3::splat(radius * 2.0),
-                            translation: pos,
-                            ..default()
-                        },
+                        transform: Transform::from_scale(Vec3::splat(radius * 2.0)),
                         ..default()
-                    })
-                    .insert(RigidBodyBundle::new_dynamic().with_pos(pos))
-                    .insert(ColliderBundle::new(&Shape::ball(radius)))
-                    .insert(Player)
-                    .insert(RollAcceleration(Vec3::splat(0.5)))
-                    .insert(MaxAngularVelocity(Vec3::new(30.0, 30.0, 30.0)));
+                    },
+                    RigidBody::Dynamic,
+                    Pos(pos),
+                    Collider::ball(radius),
+                    Player,
+                    RollAcceleration(Vec3::splat(0.5)),
+                    MaxAngularVelocity(Vec3::splat(30.0)),
+                ));
             }
         }
     }
@@ -138,7 +134,6 @@ fn main() {
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
         .insert_resource(NumSubsteps(6))
-        .insert_resource(Gravity(Vec3::Y * -9.81))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)

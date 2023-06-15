@@ -51,7 +51,7 @@ pub(crate) struct MassPropsQuery {
 #[derive(WorldQuery)]
 #[world_query(mutable)]
 pub(crate) struct ColliderQuery {
-    pub shape: &'static mut ColliderShape,
+    pub collider: &'static mut Collider,
     pub aabb: &'static mut ColliderAabb,
     pub mass_props: &'static mut ColliderMassProperties,
     pub prev_mass_props: &'static mut PrevColliderMassProperties,
