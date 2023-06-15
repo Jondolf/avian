@@ -138,7 +138,7 @@ fn penetration_constraints(
 ///
 /// It should look something like this:
 ///
-/// ```rust
+/// ```rust,ignore
 /// let substeps = app
 ///     .get_schedule_mut(XpbdSubstepSchedule)
 ///     .expect("add XpbdSubstepSchedule first");
