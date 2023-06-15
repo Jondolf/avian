@@ -29,19 +29,21 @@ fn setup(
     });
 
     let floor_size = DVec3::new(80.0, 1.0, 80.0);
-    let _floor = commands
-        .spawn(PbrBundle {
+    let _floor = commands.spawn((
+        PbrBundle {
             mesh: cube.clone(),
             material: white,
             transform: Transform::from_scale(floor_size.as_vec3()),
             ..default()
-        })
-        .insert(RigidBodyBundle::new_static().with_pos(DVec3::new(0.0, -1.0, 0.0)))
-        .insert(ColliderBundle::new(&Shape::cuboid(
+        },
+        RigidBody::Static,
+        Pos(DVec3::NEG_Y),
+        ColliderShape(Shape::cuboid(
             floor_size.x * 0.5,
             floor_size.y * 0.5,
             floor_size.z * 0.5,
-        )));
+        )),
+    ));
 
     let radius = 1.0;
     let count_x = 4;
@@ -55,21 +57,20 @@ fn setup(
                     10.0 * radius * y as f64,
                     (z as f64 - count_z as f64 * 0.5) * 2.1 * radius,
                 );
-                commands
-                    .spawn(PbrBundle {
+                commands.spawn((
+                    PbrBundle {
                         mesh: cube.clone(),
                         material: blue.clone(),
-                        transform: Transform {
-                            scale: Vec3::splat(radius as f32 * 2.0),
-                            ..default()
-                        },
+                        transform: Transform::from_scale(Vec3::splat(radius as f32 * 2.0)),
                         ..default()
-                    })
-                    .insert(RigidBodyBundle::new_dynamic().with_pos(pos + DVec3::Y * 5.0))
-                    .insert(ColliderBundle::new(&Shape::cuboid(radius, radius, radius)))
-                    .insert(Player)
-                    .insert(MoveAcceleration(0.1))
-                    .insert(MaxLinearVelocity(DVec3::new(30.0, 30.0, 30.0)));
+                    },
+                    RigidBody::Dynamic,
+                    Pos(pos + DVec3::Y * 5.0),
+                    ColliderShape(Shape::cuboid(radius, radius, radius)),
+                    Player,
+                    MoveAcceleration(0.1),
+                    MaxLinearVelocity(DVec3::splat(30.0)),
+                ));
             }
         }
     }
@@ -82,7 +83,7 @@ fn setup(
             ..default()
         },
         transform: Transform {
-            translation: Vec3::new(0.0, 10.0, 0.0),
+            translation: Vec3::Y * 10.0,
             rotation: Quat::from_euler(
                 EulerRot::XYZ,
                 std::f32::consts::PI * 1.3,
@@ -129,7 +130,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)

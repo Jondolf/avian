@@ -34,11 +34,11 @@ fn setup(
     create_chain(&mut commands, sphere, blue, 160, 0.0, 0.06, 0.0);
 
     // Pendulum
-    //create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
+    // create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
 
     commands
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
+            transform: Transform::from_translation(Vec3::Z * 100.0),
             projection: OrthographicProjection {
                 scale: 0.025,
                 ..default()
@@ -59,37 +59,31 @@ fn create_chain(
     compliance: f32,
 ) {
     let mut prev = commands
-        .spawn(PbrBundle {
-            mesh: mesh.clone(),
-            material: material.clone(),
-            transform: Transform {
-                scale: Vec3::splat(node_size),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: mesh.clone(),
+                material: material.clone(),
+                transform: Transform::from_scale(Vec3::splat(node_size)),
                 ..default()
             },
-            ..default()
-        })
-        .insert(RigidBodyBundle::new_kinematic())
-        .insert(FollowMouse)
+            RigidBody::Kinematic,
+            FollowMouse,
+        ))
         .id();
 
     for i in 1..node_count {
         let curr = commands
-            .spawn(PbrBundle {
-                mesh: mesh.clone(),
-                material: material.clone(),
-                transform: Transform {
-                    scale: Vec3::splat(node_size),
-                    translation: Vec3::ZERO,
+            .spawn((
+                PbrBundle {
+                    mesh: mesh.clone(),
+                    material: material.clone(),
+                    transform: Transform::from_scale(Vec3::splat(node_size)),
                     ..default()
                 },
-                ..default()
-            })
-            .insert(
-                RigidBodyBundle::new_dynamic()
-                    .with_pos(Vec2::Y * -(node_size + node_dist) * i as f32)
-                    .with_computed_mass_props(&Shape::ball(node_size * 0.5), 1.0),
-            )
+                RigidBody::Dynamic,
+                Pos(Vec2::Y * -(node_size + node_dist) * i as f32),
+                MassPropsBundle::new_computed(&Shape::ball(node_size * 0.5), 1.0),
+            ))
             .id();
 
         commands.spawn(
@@ -143,7 +137,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(15))
         .insert_resource(NumPosIters(6))
         .init_resource::<MouseWorldPos>()

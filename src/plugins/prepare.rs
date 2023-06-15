@@ -8,11 +8,194 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
+        app.configure_set(ComponentInitSet.in_set(PhysicsSet::Prepare));
+        app.add_systems(
+            (init_rigid_bodies, init_mass_props, init_colliders).in_set(ComponentInitSet),
+        );
+
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                (update_aabb, update_mass_props.after(update_aabb)).in_set(PhysicsSet::Prepare),
+                (update_aabb, update_mass_props)
+                    .chain()
+                    .after(ComponentInitSet)
+                    .in_set(PhysicsSet::Prepare),
             );
+    }
+}
+
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ComponentInitSet;
+
+type RigidBodyComponents = (
+    Entity,
+    // Use transform as default position and rotation if no components for them found
+    Option<&'static mut Transform>,
+    Option<&'static Pos>,
+    Option<&'static Rot>,
+    Option<&'static LinVel>,
+    Option<&'static AngVel>,
+    Option<&'static ExternalForce>,
+    Option<&'static ExternalTorque>,
+    Option<&'static Restitution>,
+    Option<&'static Friction>,
+    Option<&'static TimeSleeping>,
+);
+
+fn init_rigid_bodies(
+    mut commands: Commands,
+    mut bodies: Query<RigidBodyComponents, Added<RigidBody>>,
+) {
+    for (
+        entity,
+        mut transform,
+        pos,
+        rot,
+        lin_vel,
+        ang_vel,
+        force,
+        torque,
+        restitution,
+        friction,
+        time_sleeping,
+    ) in &mut bodies
+    {
+        let mut body = commands.entity(entity);
+
+        if let Some(pos) = pos {
+            body.insert(PrevPos(pos.0));
+
+            if let Some(ref mut transform) = transform {
+                #[cfg(feature = "2d")]
+                {
+                    transform.translation = pos.extend(0.0).as_vec3_f32();
+                }
+                #[cfg(feature = "3d")]
+                {
+                    transform.translation = pos.as_vec3_f32();
+                }
+            }
+        } else {
+            let translation;
+            #[cfg(feature = "2d")]
+            {
+                translation = transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(t.translation.x as Scalar, t.translation.y as Scalar)
+                });
+            }
+            #[cfg(feature = "3d")]
+            {
+                translation = transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(
+                        t.translation.x as Scalar,
+                        t.translation.y as Scalar,
+                        t.translation.z as Scalar,
+                    )
+                });
+            }
+
+            body.insert(Pos(translation));
+            body.insert(PrevPos(translation));
+        }
+
+        if let Some(rot) = rot {
+            body.insert(PrevRot(*rot));
+
+            if let Some(mut transform) = transform {
+                let q: Quaternion = (*rot).into();
+                transform.rotation = q.as_quat_f32();
+            }
+        } else {
+            let rotation = transform.map_or(Rot::default(), |t| t.rotation.into());
+            body.insert(rotation);
+            body.insert(PrevRot(rotation));
+        }
+
+        if lin_vel.is_none() {
+            body.insert(LinVel::default());
+        }
+        body.insert(PreSolveLinVel::default());
+        if ang_vel.is_none() {
+            body.insert(AngVel::default());
+        }
+        body.insert(PreSolveAngVel::default());
+        if force.is_none() {
+            body.insert(ExternalForce::default());
+        }
+        if torque.is_none() {
+            body.insert(ExternalTorque::default());
+        }
+        if restitution.is_none() {
+            body.insert(Restitution::default());
+        }
+        if friction.is_none() {
+            body.insert(Friction::default());
+        }
+        if time_sleeping.is_none() {
+            body.insert(TimeSleeping::default());
+        }
+    }
+}
+
+type MassPropComponents = (
+    Entity,
+    Option<&'static Mass>,
+    Option<&'static InvMass>,
+    Option<&'static Inertia>,
+    Option<&'static InvInertia>,
+    Option<&'static LocalCom>,
+);
+type MassPropComponentsQueryFilter = Or<(Added<RigidBody>, Added<ColliderShape>)>;
+
+fn init_mass_props(
+    mut commands: Commands,
+    mass_props: Query<MassPropComponents, MassPropComponentsQueryFilter>,
+) {
+    for (entity, mass, inv_mass, inertia, inv_inertia, local_com) in &mass_props {
+        let mut body = commands.entity(entity);
+
+        if mass.is_none() {
+            body.insert(Mass(inv_mass.map_or(0.0, |inv_mass| 1.0 / inv_mass.0)));
+        }
+        if inv_mass.is_none() {
+            body.insert(InvMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
+        }
+        if inertia.is_none() {
+            body.insert(inv_inertia.map_or(Inertia::ZERO, |inv_inertia| inv_inertia.inverse()));
+        }
+        if inv_inertia.is_none() {
+            body.insert(inertia.map_or(InvInertia::ZERO, |inertia| inertia.inverse()));
+        }
+        if local_com.is_none() {
+            body.insert(LocalCom::default());
+        }
+    }
+}
+
+type ColliderComponents = (
+    Entity,
+    &'static ColliderShape,
+    Option<&'static ColliderAabb>,
+    Option<&'static ColliderMassProperties>,
+    Option<&'static PrevColliderMassProperties>,
+);
+
+fn init_colliders(
+    mut commands: Commands,
+    colliders: Query<ColliderComponents, Added<ColliderShape>>,
+) {
+    for (entity, shape, aabb, mass_props, prev_mass_props) in &colliders {
+        let mut collider = commands.entity(entity);
+
+        if aabb.is_none() {
+            collider.insert(ColliderAabb::from_shape(shape));
+        }
+        if mass_props.is_none() {
+            collider.insert(ColliderMassProperties::from_shape_and_density(shape, 1.0));
+        }
+        if prev_mass_props.is_none() {
+            collider.insert(PrevColliderMassProperties(ColliderMassProperties::ZERO));
+        }
     }
 }
 
