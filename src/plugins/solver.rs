@@ -107,7 +107,7 @@ fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(
         RigidBodyQuery,
-        &ColliderShape,
+        &Collider,
         Option<&mut CollidingEntities>,
         Option<&Sleeping>,
     )>,
@@ -126,8 +126,8 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider_shape1, colliding_entities1, sleeping1) = bundle1;
-            let (mut body2, collider_shape2, colliding_entities2, sleeping2) = bundle2;
+            let (mut body1, collider1, colliding_entities1, sleeping1) = bundle1;
+            let (mut body2, collider2, colliding_entities2, sleeping2) = bundle2;
 
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
@@ -146,8 +146,8 @@ fn penetration_constraints(
                 body2.local_com.0,
                 &body1.rot,
                 &body2.rot,
-                &collider_shape1.0,
-                &collider_shape2.0,
+                collider1.get_shape(),
+                collider2.get_shape(),
             ) {
                 collision_events.push(Collision(contact));
 

@@ -29,7 +29,6 @@ pub extern crate parry3d as parry;
 #[cfg(all(feature = "3d", feature = "f64"))]
 pub extern crate parry3d_f64 as parry;
 
-pub mod bundles;
 pub mod collision;
 pub mod components;
 pub mod constraints;
@@ -40,7 +39,6 @@ pub mod resources;
 /// Reimports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
-        bundles::*,
         collision::*,
         components::*,
         constraints::{joints::*, *},

@@ -1,6 +1,6 @@
 //! Rotation components.
 
-use bevy::prelude::*;
+use bevy::{math::DQuat, prelude::*};
 
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
@@ -22,7 +22,7 @@ pub struct Rot {
 
 /// The rotation of a body represented as a [`Quat`].
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, derive_more::From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
 pub struct Rot(pub Quaternion);
 
@@ -199,6 +199,46 @@ impl From<Rot> for Quaternion {
 impl From<Rot> for Quaternion {
     fn from(rot: Rot) -> Self {
         rot.0
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Quat> for Rot {
+    fn from(quat: Quat) -> Self {
+        let angle = quat.to_euler(EulerRot::XYZ).2;
+        Self::from_radians(angle as Scalar)
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<DQuat> for Rot {
+    fn from(quat: DQuat) -> Self {
+        let angle = quat.to_euler(EulerRot::XYZ).2;
+        Self::from_radians(angle as Scalar)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl From<Quat> for Rot {
+    fn from(quat: Quat) -> Self {
+        Self(Quaternion::from_xyzw(
+            quat.x as Scalar,
+            quat.y as Scalar,
+            quat.z as Scalar,
+            quat.w as Scalar,
+        ))
+    }
+}
+
+#[cfg(feature = "3d")]
+impl From<DQuat> for Rot {
+    fn from(quat: DQuat) -> Self {
+        Self(Quaternion::from_xyzw(
+            quat.x as Scalar,
+            quat.y as Scalar,
+            quat.z as Scalar,
+            quat.w as Scalar,
+        ))
     }
 }
 

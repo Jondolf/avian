@@ -1,5 +1,7 @@
 //! Collision events, contact data and helpers.
 
+use parry::shape::SharedShape;
+
 use crate::prelude::*;
 
 /// An event that is sent for each contact pair during the narrow phase.
@@ -46,8 +48,8 @@ pub(crate) fn compute_contact(
     local_com2: Vector,
     rot1: &Rot,
     rot2: &Rot,
-    shape1: &Shape,
-    shape2: &Shape,
+    shape1: &SharedShape,
+    shape2: &SharedShape,
 ) -> Option<Contact> {
     if let Ok(Some(contact)) = parry::query::contact(
         &utils::make_isometry(pos1, rot1),
