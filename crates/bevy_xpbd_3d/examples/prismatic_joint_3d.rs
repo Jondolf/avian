@@ -21,37 +21,29 @@ fn setup(
     });
 
     let anchor = commands
-        .spawn(PbrBundle {
-            mesh: cube.clone(),
-            material: blue.clone(),
-            transform: Transform {
-                scale: Vec3::splat(1.0),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: cube.clone(),
+                material: blue.clone(),
                 ..default()
             },
-            ..default()
-        })
-        .insert(RigidBodyBundle::new_kinematic().with_pos(Vec3::new(0.0, 0.0, 0.0)))
-        .insert(Player)
-        .insert(MoveSpeed(0.3))
+            RigidBody::Kinematic,
+            Player,
+            MoveSpeed(0.3),
+        ))
         .id();
 
     let object = commands
-        .spawn(PbrBundle {
-            mesh: cube,
-            material: blue,
-            transform: Transform {
-                scale: Vec3::splat(1.0),
-                translation: Vec3::ZERO,
+        .spawn((
+            PbrBundle {
+                mesh: cube,
+                material: blue,
                 ..default()
             },
-            ..default()
-        })
-        .insert(
-            RigidBodyBundle::new_dynamic()
-                .with_pos(Vec3::X * 1.5)
-                .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
-        )
+            RigidBody::Dynamic,
+            Pos(Vec3::X * 1.5),
+            MassPropsBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
+        ))
         .id();
 
     commands.spawn(
@@ -69,7 +61,7 @@ fn setup(
             ..default()
         },
         transform: Transform {
-            translation: Vec3::new(0.0, 10.0, 0.0),
+            translation: Vec3::Y * 10.0,
             rotation: Quat::from_euler(
                 EulerRot::XYZ,
                 std::f32::consts::PI * 2.3,
@@ -82,8 +74,7 @@ fn setup(
     });
 
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0))
-            .looking_at(Vec3::Y * 0.0, Vec3::Y),
+        transform: Transform::from_translation(Vec3::Z * 10.0).looking_at(Vec3::Y * 0.0, Vec3::Y),
         ..default()
     });
 }
@@ -122,7 +113,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec3::Y * -9.81))
         .insert_resource(NumSubsteps(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

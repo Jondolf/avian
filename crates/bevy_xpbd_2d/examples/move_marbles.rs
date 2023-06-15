@@ -50,8 +50,9 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
-        RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, -7.5)),
-        ColliderBundle::new(&Shape::cuboid(10.0, 0.5)),
+        RigidBody::Static,
+        Pos(Vec2::NEG_Y * 7.5),
+        Collider::cuboid(20.0, 1.0),
     ));
 
     let _ceiling = commands.spawn((
@@ -61,8 +62,9 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
-        RigidBodyBundle::new_static().with_pos(Vec2::new(0.0, 7.5)),
-        ColliderBundle::new(&Shape::cuboid(10.0, 0.5)),
+        RigidBody::Static,
+        Pos(Vec2::Y * 7.5),
+        Collider::cuboid(20.0, 1.0),
     ));
 
     let _left_wall = commands.spawn((
@@ -72,8 +74,9 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         },
-        RigidBodyBundle::new_static().with_pos(Vec2::new(-9.5, 0.0)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 10.0)),
+        RigidBody::Static,
+        Pos(Vec2::NEG_X * 9.5),
+        Collider::cuboid(1.0, 20.0),
     ));
 
     let _right_wall = commands.spawn((
@@ -83,8 +86,9 @@ fn setup(
             transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
             ..default()
         },
-        RigidBodyBundle::new_static().with_pos(Vec2::new(9.5, 0.0)),
-        ColliderBundle::new(&Shape::cuboid(0.5, 10.0)),
+        RigidBody::Static,
+        Pos(Vec2::X * 9.5),
+        Collider::cuboid(1.0, 20.0),
     ));
 
     let radius = 0.15;
@@ -99,15 +103,12 @@ fn setup(
                 PbrBundle {
                     mesh: sphere.clone(),
                     material: blue.clone(),
-                    transform: Transform {
-                        scale: Vec3::splat(radius),
-                        translation: pos.extend(0.0),
-                        ..default()
-                    },
+                    transform: Transform::from_scale(Vec3::splat(radius)),
                     ..default()
                 },
-                RigidBodyBundle::new_dynamic().with_pos(pos),
-                ColliderBundle::new(&Shape::ball(radius)),
+                RigidBody::Dynamic,
+                Pos(pos),
+                Collider::ball(radius),
                 Player,
                 MoveAcceleration(0.5),
                 MaxVelocity(Vec2::new(30.0, 30.0)),
@@ -116,7 +117,7 @@ fn setup(
     }
 
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 100.0)),
+        transform: Transform::from_translation(Vec3::Z * 100.0),
         projection: OrthographicProjection {
             scale: 0.025,
             ..default()
@@ -165,7 +166,6 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(Gravity(Vec2::new(0.0, -9.81)))
         .insert_resource(NumSubsteps(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

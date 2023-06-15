@@ -77,7 +77,7 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(RigidBodyQuery, &ColliderShape, Option<&Sleeping>)>,
+    mut bodies: Query<(RigidBodyQuery, &Collider, Option<&Sleeping>)>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     sub_dt: Res<SubDeltaTime>,
@@ -85,9 +85,8 @@ fn penetration_constraints(
     penetration_constraints.0.clear();
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok(
-            [(mut body1, collider_shape1, sleeping1), (mut body2, collider_shape2, sleeping2)],
-        ) = bodies.get_many_mut([*ent1, *ent2])
+        if let Ok([(mut body1, collider1, sleeping1), (mut body2, collider2, sleeping2)]) =
+            bodies.get_many_mut([*ent1, *ent2])
         {
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
@@ -106,8 +105,8 @@ fn penetration_constraints(
                 body2.local_com.0,
                 &body1.rot,
                 &body2.rot,
-                &collider_shape1.0,
-                &collider_shape2.0,
+                collider1.get_shape(),
+                collider2.get_shape(),
             ) {
                 // When an active body collides with a sleeping body, wake up the sleeping body.
                 if sleeping1.is_some() {
