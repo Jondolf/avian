@@ -1,11 +1,13 @@
 //! Components used for rigid bodies, colliders and mass properties.
 
 mod collider;
+mod layers;
 mod mass_props;
 mod rotation;
 mod world_queries;
 
 pub use collider::*;
+pub use layers::*;
 pub use mass_props::*;
 pub use rotation::*;
 pub use world_queries::*;

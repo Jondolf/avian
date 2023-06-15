@@ -46,6 +46,7 @@ pub mod prelude {
         resources::*,
         *,
     };
+    pub use bevy_xpbd_derive::*;
 }
 pub use prelude::setup::{pause, resume};
 

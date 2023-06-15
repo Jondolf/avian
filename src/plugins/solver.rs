@@ -101,7 +101,12 @@ fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(RigidBodyQuery, &Collider, Option<&Sleeping>)>,
+    mut bodies: Query<(
+        RigidBodyQuery,
+        &Collider,
+        Option<&CollisionLayers>,
+        Option<&Sleeping>,
+    )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     sub_dt: Res<SubDeltaTime>,
@@ -109,9 +114,18 @@ fn penetration_constraints(
     penetration_constraints.0.clear();
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok([(mut body1, collider1, sleeping1), (mut body2, collider2, sleeping2)]) =
-            bodies.get_many_mut([*ent1, *ent2])
+        if let Ok(
+            [(mut body1, collider1, layers1, sleeping1), (mut body2, collider2, layers2, sleeping2)],
+        ) = bodies.get_many_mut([*ent1, *ent2])
         {
+            let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
+            let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
+
+            // Skip collision if collision layers are incompatible
+            if !layers1.interacts_with(layers2) {
+                continue;
+            }
+
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
 
