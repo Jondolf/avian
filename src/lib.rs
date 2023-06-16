@@ -72,7 +72,7 @@ use prelude::*;
 /// - [`SleepingPlugin`]
 /// - [`SyncPlugin`]
 ///
-/// Note that [`PhysicsSetupPlugin`] initializes all of the schedules, sets and resources required
+/// Note that the [`PhysicsSetupPlugin`] initializes all of the schedules, sets and resources required
 /// by the other plugins, so it is necessary.
 ///
 /// Other than that, you can disable and configure the plugins freely, and even plug in your own implementations.

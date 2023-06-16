@@ -6,6 +6,7 @@ use std::ops::{AddAssign, SubAssign};
 #[derive(WorldQuery)]
 #[world_query(mutable)]
 pub struct RigidBodyQuery {
+    pub entity: Entity,
     pub rb: &'static mut RigidBody,
     pub pos: &'static mut Pos,
     pub rot: &'static mut Rot,

@@ -48,7 +48,7 @@ fn setup(
         .id();
 
     commands.spawn(
-        PrismaticJoint::new_with_compliance(anchor, object, 0.0)
+        PrismaticJoint::new(anchor, object)
             .with_local_anchor_1(Vec2::X * 0.5)
             .with_free_axis(Vec2::X)
             .with_limits(1.0, 3.0),
