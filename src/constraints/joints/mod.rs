@@ -114,8 +114,10 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let gradients = {
             #[cfg(feature = "2d")]
             {
-                let axis_vec2 = axis.truncate();
-                [axis_vec2, -axis_vec2]
+                // `axis.z` controls if the body should rotate counterclockwise or clockwise.
+                // The gradient has to be a 2D vector, so we use the y axis instead.
+                // This should work similarly, as `axis.x` and `axis.y` are normally 0 in 2D.
+                [Vector::Y * axis.z, Vector::NEG_Y * axis.z]
             }
             #[cfg(feature = "3d")]
             {
