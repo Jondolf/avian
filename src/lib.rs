@@ -39,6 +39,7 @@ pub mod resources;
 /// Reimports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
+        collision::*,
         components::*,
         constraints::{joints::*, *},
         math::*,

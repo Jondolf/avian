@@ -68,7 +68,8 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<InvMass>()
             .register_type::<Inertia>()
             .register_type::<InvInertia>()
-            .register_type::<LocalCom>();
+            .register_type::<LocalCom>()
+            .register_type::<CollidingEntities>();
 
         let mut physics_schedule = Schedule::default();
 

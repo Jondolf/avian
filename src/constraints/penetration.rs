@@ -1,7 +1,6 @@
 //! Penetration constraint.
 
-use crate::prelude::{collision::Collision, *};
-
+use crate::prelude::*;
 use bevy::prelude::*;
 
 /// A constraint between two bodies that prevents overlap with a given compliance.
@@ -13,8 +12,8 @@ pub struct PenetrationConstraint {
     pub entity1: Entity,
     /// Second entity in the constraint.
     pub entity2: Entity,
-    /// Data associated with the collision.
-    pub collision_data: Collision,
+    /// Data associated with the contact.
+    pub contact: Contact,
     /// Lagrange multiplier for the normal force.
     pub normal_lagrange: Scalar,
     /// Lagrange multiplier for the tangential force.
@@ -46,11 +45,11 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 }
 
 impl PenetrationConstraint {
-    pub fn new(entity1: Entity, entity2: Entity, collision_data: Collision) -> Self {
+    pub fn new(entity1: Entity, entity2: Entity, contact: Contact) -> Self {
         Self {
             entity1,
             entity2,
-            collision_data,
+            contact,
             normal_lagrange: 0.0,
             tangent_lagrange: 0.0,
             compliance: 0.0,
@@ -67,15 +66,15 @@ impl PenetrationConstraint {
         dt: Scalar,
     ) {
         // Shorter aliases
-        let normal = self.collision_data.normal;
+        let normal = self.contact.normal;
         let compliance = self.compliance;
         let lagrange = self.normal_lagrange;
-        let r1 = self.collision_data.world_r1;
-        let r2 = self.collision_data.world_r2;
+        let r1 = self.contact.world_r1;
+        let r2 = self.contact.world_r2;
 
         // Compute contact positions at the current state
-        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
-        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
+        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.contact.local_r1);
+        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.contact.local_r2);
 
         // Compute penetration depth
         let penetration = (p1 - p2).dot(normal);
@@ -112,20 +111,20 @@ impl PenetrationConstraint {
         dt: Scalar,
     ) {
         // Shorter aliases
-        let penetration = self.collision_data.penetration;
-        let normal = self.collision_data.normal;
+        let penetration = self.contact.penetration;
+        let normal = self.contact.normal;
         let compliance = self.compliance;
         let lagrange = self.tangent_lagrange;
-        let r1 = self.collision_data.world_r1;
-        let r2 = self.collision_data.world_r2;
+        let r1 = self.contact.world_r1;
+        let r2 = self.contact.world_r2;
 
         // Compute contact positions at the current state and before substep integration
-        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.collision_data.local_r1);
-        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.collision_data.local_r2);
-        let prev_p1 = body1.prev_pos.0 - body1.local_com.0
-            + body1.prev_rot.rotate(self.collision_data.local_r1);
-        let prev_p2 = body2.prev_pos.0 - body2.local_com.0
-            + body2.prev_rot.rotate(self.collision_data.local_r2);
+        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.contact.local_r1);
+        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.contact.local_r2);
+        let prev_p1 =
+            body1.prev_pos.0 - body1.local_com.0 + body1.prev_rot.rotate(self.contact.local_r1);
+        let prev_p2 =
+            body2.prev_pos.0 - body2.local_com.0 + body2.prev_rot.rotate(self.contact.local_r2);
 
         // Compute relative motion of the contact points and get the tangential component
         let delta_p = (p1 - prev_p1) - (p2 - prev_p2);
