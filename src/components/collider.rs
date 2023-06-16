@@ -1,7 +1,7 @@
 use crate::prelude::*;
-use bevy::prelude::*;
 #[cfg(feature = "3d")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
+use bevy::{prelude::*, utils::HashSet};
 use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 
@@ -257,71 +257,8 @@ impl Default for ColliderAabb {
     }
 }
 
-/// The mass properties derived from a given collider shape and density.
-///
-/// These will be added to the body's actual [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`] components.
-///
-/// You should generally not create or modify this directly. Instead, you can generate this automatically using a given collider shape and density with the associated `from_shape_and_density` method.
-#[derive(Reflect, Clone, Copy, Component, PartialEq)]
+/// Contains the entities that are colliding with an entity. These entities are added by the [`SolverPlugin`]
+/// when collisions are detected during the constraint solve.
+#[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[reflect(Component)]
-pub struct ColliderMassProperties {
-    /// Mass given by collider.
-    pub mass: Mass,
-    /// Inverse mass given by collider.
-    pub inv_mass: InvMass,
-    /// Inertia given by collider.
-    pub inertia: Inertia,
-    /// Inverse inertia given by collider.
-    pub inv_inertia: InvInertia,
-    /// Local center of mass given by collider.
-    pub local_center_of_mass: LocalCom,
-    /// Density used for calculating other mass properties.
-    pub density: Scalar,
-}
-
-impl ColliderMassProperties {
-    pub const ZERO: Self = Self {
-        mass: Mass::ZERO,
-        inv_mass: InvMass(Scalar::INFINITY),
-        inertia: Inertia::ZERO,
-        inv_inertia: InvInertia::ZERO,
-        local_center_of_mass: LocalCom::ZERO,
-        density: 0.0,
-    };
-}
-
-impl ColliderMassProperties {
-    /// Computes mass properties for a given shape and density.
-    pub fn from_shape_and_density(shape: &SharedShape, density: Scalar) -> Self {
-        let props = shape.mass_properties(density);
-
-        Self {
-            mass: Mass(props.mass()),
-            inv_mass: InvMass(props.inv_mass),
-
-            #[cfg(feature = "2d")]
-            inertia: Inertia(props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inertia: Inertia(props.reconstruct_inertia_matrix().into()),
-
-            #[cfg(feature = "2d")]
-            inv_inertia: InvInertia(1.0 / props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inv_inertia: InvInertia(props.reconstruct_inverse_inertia_matrix().into()),
-
-            local_center_of_mass: LocalCom(props.local_com.into()),
-
-            density,
-        }
-    }
-}
-
-impl Default for ColliderMassProperties {
-    fn default() -> Self {
-        Self::ZERO
-    }
-}
-
-/// The previous [`ColliderMassProperties`].
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
-pub(crate) struct PrevColliderMassProperties(pub ColliderMassProperties);
+pub struct CollidingEntities(pub HashSet<Entity>);

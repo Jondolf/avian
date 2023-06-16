@@ -31,10 +31,10 @@ fn setup(
     });
 
     // Rope
-    create_chain(&mut commands, sphere, blue, 160, 0.0, 0.06, 0.0);
+    create_chain(&mut commands, sphere, blue, 160, 0.0, 0.06);
 
     // Pendulum
-    // create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0, 0.0);
+    // create_chain(&mut commands, sphere, blue, 4, 1.0, 1.0);
 
     commands
         .spawn(Camera3dBundle {
@@ -56,7 +56,6 @@ fn create_chain(
     node_count: usize,
     node_dist: f32,
     node_size: f32,
-    compliance: f32,
 ) {
     let mut prev = commands
         .spawn((
@@ -87,8 +86,7 @@ fn create_chain(
             .id();
 
         commands.spawn(
-            SphericalJoint::new_with_compliance(prev, curr, compliance)
-                .with_local_anchor_2(Vec2::Y * (node_size + node_dist)),
+            SphericalJoint::new(prev, curr).with_local_anchor_2(Vec2::Y * (node_size + node_dist)),
         );
 
         prev = curr;

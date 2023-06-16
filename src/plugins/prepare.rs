@@ -176,22 +176,26 @@ type ColliderComponents = (
     Entity,
     &'static Collider,
     Option<&'static ColliderAabb>,
+    Option<&'static CollidingEntities>,
     Option<&'static ColliderMassProperties>,
     Option<&'static PrevColliderMassProperties>,
 );
 
 fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, Added<Collider>>) {
-    for (entity, shape, aabb, mass_props, prev_mass_props) in &colliders {
-        let mut collider = commands.entity(entity);
+    for (entity, collider, aabb, colliding_entities, mass_props, prev_mass_props) in &colliders {
+        let mut entity_commands = commands.entity(entity);
 
         if aabb.is_none() {
-            collider.insert(ColliderAabb::from_shape(shape));
+            entity_commands.insert(ColliderAabb::from_shape(collider.get_shape()));
+        }
+        if colliding_entities.is_none() {
+            entity_commands.insert(CollidingEntities::default());
         }
         if mass_props.is_none() {
-            collider.insert(ColliderMassProperties::from_shape_and_density(shape, 1.0));
+            entity_commands.insert(ColliderMassProperties::new_computed(collider, 1.0));
         }
         if prev_mass_props.is_none() {
-            collider.insert(PrevColliderMassProperties(ColliderMassProperties::ZERO));
+            entity_commands.insert(PrevColliderMassProperties(ColliderMassProperties::ZERO));
         }
     }
 }
@@ -254,8 +258,8 @@ fn update_mass_props(mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), 
 
             // Update previous and current collider mass props
             collider_query.prev_mass_props.0 = *collider_query.mass_props;
-            *collider_query.mass_props = ColliderMassProperties::from_shape_and_density(
-                collider_query.collider.get_shape(),
+            *collider_query.mass_props = ColliderMassProperties::new_computed(
+                &collider_query.collider,
                 collider_query.mass_props.density,
             );
 

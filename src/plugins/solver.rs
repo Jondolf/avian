@@ -25,7 +25,10 @@ pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PenetrationConstraints>();
+        app.init_resource::<PenetrationConstraints>()
+            .add_event::<Collision>()
+            .add_event::<CollisionStarted>()
+            .add_event::<CollisionEnded>();
 
         let substeps = app
             .get_schedule_mut(SubstepSchedule)
@@ -34,7 +37,8 @@ impl Plugin for SolverPlugin {
         substeps.configure_sets(
             (
                 SubsteppingSet::Integrate,
-                SubsteppingSet::SolvePos,
+                SubsteppingSet::SolveConstraints,
+                SubsteppingSet::SolveUserConstraints,
                 SubsteppingSet::UpdateVel,
                 SubsteppingSet::SolveVel,
             )
@@ -43,25 +47,14 @@ impl Plugin for SolverPlugin {
 
         substeps.add_systems(
             (
-                clear_penetration_constraint_lagrange,
-                clear_joint_lagrange::<FixedJoint>,
-                clear_joint_lagrange::<RevoluteJoint>,
-                clear_joint_lagrange::<SphericalJoint>,
-                clear_joint_lagrange::<PrismaticJoint>,
-            )
-                .before(SubsteppingSet::SolvePos),
-        );
-
-        substeps.add_systems(
-            (
                 penetration_constraints,
-                joint_constraints::<FixedJoint>,
-                joint_constraints::<RevoluteJoint>,
-                joint_constraints::<SphericalJoint>,
-                joint_constraints::<PrismaticJoint>,
+                solve_constraint::<FixedJoint, 2>,
+                solve_constraint::<RevoluteJoint, 2>,
+                solve_constraint::<SphericalJoint, 2>,
+                solve_constraint::<PrismaticJoint, 2>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolvePos),
+                .in_set(SubsteppingSet::SolveConstraints),
         );
 
         substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
@@ -84,40 +77,35 @@ impl Plugin for SolverPlugin {
 #[derive(Resource, Debug, Default)]
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
-fn clear_penetration_constraint_lagrange(
-    mut penetration_constraints: ResMut<PenetrationConstraints>,
-) {
-    for constraint in &mut penetration_constraints.0 {
-        constraint.clear_lagrange_multipliers();
-    }
-}
-
-fn clear_joint_lagrange<T: Joint>(mut joints: Query<&mut T>) {
-    for mut joint in &mut joints {
-        joint.clear_lagrange_multipliers();
-    }
-}
-
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
+#[allow(clippy::too_many_arguments)]
 fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(
         RigidBodyQuery,
         &Collider,
         Option<&CollisionLayers>,
+        Option<&mut CollidingEntities>,
         Option<&Sleeping>,
     )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
+    mut collision_ev_writer: EventWriter<Collision>,
+    mut collision_started_ev_writer: EventWriter<CollisionStarted>,
+    mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
     sub_dt: Res<SubDeltaTime>,
 ) {
+    let mut collision_events = Vec::with_capacity(broad_collision_pairs.0.len());
+    let mut started_collisions = Vec::new();
+    let mut ended_collisions = Vec::new();
+
     penetration_constraints.0.clear();
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok(
-            [(mut body1, collider1, layers1, sleeping1), (mut body2, collider2, layers2, sleeping2)],
-        ) = bodies.get_many_mut([*ent1, *ent2])
-        {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
+            let (mut body1, collider1, layers1, colliding_entities1, sleeping1) = bundle1;
+            let (mut body2, collider2, layers2, colliding_entities2, sleeping2) = bundle2;
+          
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
 
@@ -134,7 +122,7 @@ fn penetration_constraints(
                 continue;
             }
 
-            if let Some(collision) = get_collision(
+            if let Some(contact) = compute_contact(
                 *ent1,
                 *ent2,
                 body1.pos.0,
@@ -146,6 +134,23 @@ fn penetration_constraints(
                 collider1.get_shape(),
                 collider2.get_shape(),
             ) {
+                collision_events.push(Collision(contact));
+
+                let mut collision_started_1 = false;
+                let mut collision_started_2 = false;
+
+                // Add entity to set of colliding entities
+                if let Some(mut entities) = colliding_entities1 {
+                    collision_started_1 = entities.insert(*ent2);
+                }
+                if let Some(mut entities) = colliding_entities2 {
+                    collision_started_2 = entities.insert(*ent1);
+                }
+
+                if collision_started_1 || collision_started_2 {
+                    started_collisions.push(CollisionStarted(*ent1, *ent2));
+                }
+
                 // When an active body collides with a sleeping body, wake up the sleeping body.
                 if sleeping1.is_some() {
                     commands.entity(*ent1).remove::<Sleeping>();
@@ -153,48 +158,100 @@ fn penetration_constraints(
                     commands.entity(*ent2).remove::<Sleeping>();
                 }
 
-                let mut constraint = PenetrationConstraint::new(*ent1, *ent2, collision);
-                constraint.constrain(&mut body1, &mut body2, sub_dt.0);
+                let mut constraint = PenetrationConstraint::new(*ent1, *ent2, contact);
+                constraint.solve([&mut body1, &mut body2], sub_dt.0);
                 penetration_constraints.0.push(constraint);
+            } else {
+                let mut collision_ended_1 = false;
+                let mut collision_ended_2 = false;
+
+                // Remove entity from set of colliding entities
+                if let Some(mut entities) = colliding_entities1 {
+                    collision_ended_1 = entities.remove(ent2);
+                }
+                if let Some(mut entities) = colliding_entities2 {
+                    collision_ended_2 = entities.remove(ent1);
+                }
+
+                if collision_ended_1 || collision_ended_2 {
+                    ended_collisions.push(CollisionEnded(*ent1, *ent2));
+                }
             }
         }
     }
+
+    collision_ev_writer.send_batch(collision_events);
+    collision_started_ev_writer.send_batch(started_collisions);
+    collision_ended_ev_writer.send_batch(ended_collisions);
 }
 
-/// Iterates through all joints and solves the constraints.
-fn joint_constraints<T: Joint>(
+/// Iterates through the constraints of a given type and solves them. Sleeping bodies are woken up when
+/// active bodies interact with them in a constraint.
+///
+/// Note that this system only works for constraints that are modeled as entities.
+/// If you store constraints in a resource, you must create your own system for solving them.
+///
+/// ## User constraints
+///
+/// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
+/// the [`SubsteppingSet::SolveUserConstraints`] set.
+/// You must provide the number of entities in the constraint using generics.
+///
+/// It should look something like this:
+///
+/// ```ignore
+/// let substeps = app
+///     .get_schedule_mut(SubstepSchedule)
+///     .expect("add SubstepSchedule first");
+///
+/// substeps.add_system(
+///     solve_constraint::<YourConstraint, ENTITY_COUNT>
+///         .in_set(SubsteppingSet::SolveUserConstraints),
+/// );
+/// ```
+pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
-    mut joints: Query<&mut T, Without<Pos>>,
+    mut constraints: Query<&mut C, Without<RigidBody>>,
     num_pos_iters: Res<NumPosIters>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for _j in 0..num_pos_iters.0 {
-        for mut joint in &mut joints {
-            // Get components for entity a and b
-            if let Ok([(mut body1, sleeping1), (mut body2, sleeping2)]) =
-                bodies.get_many_mut(joint.entities())
-            {
-                let neither_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
-                let inactive1 = body1.rb.is_static() || sleeping1.is_some();
-                let inactive2 = body2.rb.is_static() || sleeping2.is_some();
+    // Clear Lagrange multipliers
+    constraints
+        .iter_mut()
+        .for_each(|mut c| c.clear_lagrange_multipliers());
 
-                // No joint constraint solving if neither of the bodies is dynamic,
-                // or if one of the bodies is static and the other one is sleeping.
-                if neither_dynamic || (inactive1 && inactive2) {
+    for _j in 0..num_pos_iters.0 {
+        for mut constraint in &mut constraints {
+            // Get components for entities
+            if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+                let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+                let all_inactive = bodies
+                    .iter()
+                    .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
+
+                // No constraint solving if none of the bodies is dynamic,
+                // or if all of the bodies are either static or sleeping
+                if none_dynamic || all_inactive {
                     continue;
                 }
 
-                let [ent1, ent2] = joint.entities();
-
-                // When an active body interacts with a sleeping body, wake up the sleeping body.
-                if sleeping1.is_some() {
-                    commands.entity(ent1).remove::<Sleeping>();
-                } else if sleeping2.is_some() {
-                    commands.entity(ent2).remove::<Sleeping>();
+                // At least one of the participating bodies is active, so wake up any sleeping bodies
+                for (body, sleeping) in &bodies {
+                    if sleeping.is_some() {
+                        commands.entity(body.entity).remove::<Sleeping>();
+                    }
                 }
 
-                joint.constrain(&mut body1, &mut body2, sub_dt.0);
+                // Get the bodies as an array and solve the constraint
+                if let Ok(bodies) = bodies
+                    .iter_mut()
+                    .map(|(ref mut body, _)| body)
+                    .collect::<Vec<&mut RigidBodyQueryItem>>()
+                    .try_into()
+                {
+                    constraint.solve(bodies, sub_dt.0);
+                }
             }
         }
     }
@@ -281,14 +338,14 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let Collision {
+        let Contact {
             entity1,
             entity2,
             world_r1: r1,
             world_r2: r2,
             normal,
             ..
-        } = constraint.collision_data;
+        } = constraint.contact;
 
         if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
@@ -314,20 +371,8 @@ fn solve_vel(
             let inv_inertia2 = body2.world_inv_inertia().0;
 
             // Compute generalized inverse masses
-            let w1 = PenetrationConstraint::get_generalized_inverse_mass(
-                &body1.rb,
-                body1.inv_mass.0,
-                inv_inertia1,
-                r1,
-                normal,
-            );
-            let w2 = PenetrationConstraint::get_generalized_inverse_mass(
-                &body2.rb,
-                body2.inv_mass.0,
-                inv_inertia2,
-                r2,
-                normal,
-            );
+            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
+            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
 
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(

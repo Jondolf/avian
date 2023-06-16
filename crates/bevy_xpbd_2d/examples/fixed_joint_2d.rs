@@ -47,9 +47,7 @@ fn setup(
         ))
         .id();
 
-    commands.spawn(
-        FixedJoint::new_with_compliance(anchor, object, 0.0).with_local_anchor_1(Vec2::X * 1.5),
-    );
+    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vec2::X * 1.5));
 
     commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(Vec3::Z * 100.0),

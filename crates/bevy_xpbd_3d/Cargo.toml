@@ -66,3 +66,7 @@ required-features = ["3d", "f32"]
 [[example]]
 name = "custom_broad_phase"
 required-features = ["3d", "f32"]
+
+[[example]]
+name = "custom_constraint"
+required-features = ["3d", "f32"]

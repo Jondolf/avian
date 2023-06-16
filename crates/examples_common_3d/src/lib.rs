@@ -12,8 +12,8 @@ impl Plugin for XpbdExamplePlugin {
             .add_plugin(WorldInspectorPlugin::default())
             .add_plugin(FrameTimeDiagnosticsPlugin)
             .add_state::<AppState>()
-            .add_system(pause.in_schedule(OnEnter(AppState::Paused)))
-            .add_system(resume.in_schedule(OnExit(AppState::Paused)))
+            .add_system(bevy_xpbd_3d::pause.in_schedule(OnEnter(AppState::Paused)))
+            .add_system(bevy_xpbd_3d::resume.in_schedule(OnExit(AppState::Paused)))
             .add_system(pause_button)
             .add_system(step_button.run_if(in_state(AppState::Paused)));
     }

@@ -56,7 +56,6 @@ fn setup(
         100,
         0.001,
         0.075,
-        0.0,
     );
 
     // Pendulum
@@ -69,7 +68,6 @@ fn setup(
         2,
         3.0,
         1.0,
-        0.0,
     );*/
 
     // Directional 'sun' light
@@ -109,7 +107,6 @@ fn create_chain(
     node_count: usize,
     node_dist: f32,
     node_size: f32,
-    compliance: f32,
 ) {
     let mut prev = commands
         .spawn((
@@ -143,7 +140,7 @@ fn create_chain(
             .id();
 
         commands.spawn(
-            SphericalJoint::new_with_compliance(prev, curr, compliance)
+            SphericalJoint::new(prev, curr)
                 .with_local_anchor_1(0.5 * delta_pos)
                 .with_local_anchor_2(-0.5 * delta_pos),
         );
