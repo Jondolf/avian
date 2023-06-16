@@ -96,15 +96,13 @@ fn setup(
     };
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length
-    let static_cube = commands
-        .spawn((cube_mesh.clone(), RigidBodyBundle::new_static()))
-        .id();
+    let static_cube = commands.spawn((cube_mesh.clone(), RigidBody::Static)).id();
     let dynamic_cube = commands
         .spawn((
             cube_mesh,
-            RigidBodyBundle::new_dynamic()
-                .with_pos(Vec3::new(3.0, 3.5, 0.0))
-                .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+            RigidBody::Dynamic,
+            Pos(Vec3::new(3.0, 3.5, 0.0)),
+            MassPropsBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
 
