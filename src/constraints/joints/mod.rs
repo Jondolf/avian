@@ -130,7 +130,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         *lagrange += delta_lagrange;
 
         // Apply angular correction to aling the bodies
-        self.apply_angular_correction(body1, body2, delta_lagrange, -axis);
+        self.apply_angular_correction(body1, body2, delta_lagrange, axis);
 
         // Return constraint torque
         self.compute_torque(*lagrange, axis, dt)
