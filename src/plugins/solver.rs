@@ -79,6 +79,7 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(
@@ -105,7 +106,7 @@ fn penetration_constraints(
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
             let (mut body1, collider1, layers1, colliding_entities1, sleeping1) = bundle1;
             let (mut body2, collider2, layers2, colliding_entities2, sleeping2) = bundle2;
-          
+
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
 
