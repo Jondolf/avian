@@ -14,7 +14,63 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
 
-/// The rigid body type. A rigid body can be either dynamic, kinematic or static.
+/// A non-deformable body used for the simulation of most physics objects.
+///
+/// A rigid body can be either dynamic, kinematic or static.
+///
+/// - **Dynamic bodies** are similar to real life objects and are affected by forces and contacts.
+/// - **Kinematic bodies** can only be moved programmatically, which is useful for things like character controllers and moving platforms.
+/// - **Static bodies** can not move, so they can be good for objects in the environment like the ground and walls.
+///
+/// ## Creation
+///
+/// Creating a rigid body is as simple as adding the [`RigidBody`] component:
+///
+/// ```
+/// commands.spawn(RigidBody::Dynamic);
+/// ```
+///
+/// Bevy XPBD will automatically add any missing components, like the following:
+///
+/// - [`Pos`]
+/// - [`Rot`]
+/// - [`LinVel`]
+/// - [`AngVel`]
+/// - [`ExternalForce`]
+/// - [`ExternalTorque`]
+/// - [`Friction`]
+/// - [`Restitution`]
+/// - [`Mass`]
+/// - [`Inertia`]
+/// - [`LocalCom`]
+///
+/// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
+///
+/// Note that by default, rigid bodies don't have any mass, so dynamic bodies will gain infinite velocity upon any interaction.
+/// See the [section below](#adding-mass-properties] for how to add mass properties.
+///
+/// ## Adding mass properties
+///
+/// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](collider), since colliders
+/// by default have [their own mass properties](ColliderMassProperties) that are added to the body's own mass properties.
+///
+/// ```
+/// // The mass properties will be computed from a ball shape with a radius of 0.5 and a density of 1.
+/// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// ```
+///
+/// If you don't want to add a collider, you can instead add a [`MassPropsBundle`] with the mass properties computed from a collider
+/// shape using the [`MassPropsBundle::new_computed`](MassPropsBundle#method.new_computed) method.
+///
+/// ```
+/// // This is equivalent to the earlier approach, but no collider will be added.
+/// commands.spawn((RigidBody::Dynamic, MassPropsBundle::new_computed(&Collider::ball(0.5), 1.0)));
+/// ```
+///
+/// If you want, you can also define the mass properties explicitly by adding the components manually.
+/// Note that the mass properties of colliders are added on top of the existing mass properties, so if you
+/// want to define the body's mass properties explicitly, you might want to add
+/// [`ColliderMassProperties::ZERO`](ColliderMassProperties#associatedconstant.ZERO) to the colliders.
 #[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
