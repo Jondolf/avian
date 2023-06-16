@@ -132,16 +132,16 @@ fn penetration_constraints(
 ///
 /// ## User constraints
 ///
-/// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`XpbdSubstepSchedule`] and add this system into
+/// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
 /// the [`SubsteppingSet::SolveUserConstraints`] set.
 /// You must provide the number of entities in the constraint using generics.
 ///
 /// It should look something like this:
 ///
-/// ```rust,ignore
+/// ```ignore
 /// let substeps = app
-///     .get_schedule_mut(XpbdSubstepSchedule)
-///     .expect("add XpbdSubstepSchedule first");
+///     .get_schedule_mut(SubstepSchedule)
+///     .expect("add SubstepSchedule first");
 ///
 /// substeps.add_system(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
