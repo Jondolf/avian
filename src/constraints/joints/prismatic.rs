@@ -142,9 +142,9 @@ impl PrismaticJoint {
         let axis1 = body1.rot.rotate(self.free_axis);
         if let Some(limits) = self.free_axis_limits {
             delta_x += limits.compute_correction_along_axis(
-                axis1,
                 body1.pos.0 + world_r1,
                 body2.pos.0 + world_r2,
+                axis1,
             );
         }
 
@@ -154,9 +154,9 @@ impl PrismaticJoint {
         {
             let axis2 = Vector::new(axis1.y, -axis1.x);
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                axis2,
                 body1.pos.0 + world_r1,
                 body2.pos.0 + world_r2,
+                axis2,
             );
         }
         #[cfg(feature = "3d")]
@@ -165,14 +165,14 @@ impl PrismaticJoint {
             let axis3 = axis1.cross(axis2);
 
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                axis2,
                 body1.pos.0 + world_r1,
                 body2.pos.0 + world_r2,
+                axis2,
             );
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                axis3,
                 body1.pos.0 + world_r1,
                 body2.pos.0 + world_r2,
+                axis3,
             );
         }
 
