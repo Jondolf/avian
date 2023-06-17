@@ -129,12 +129,10 @@ fn penetration_constraints(
                 *ent2,
                 body1.position.0,
                 body2.position.0,
-                body1.center_of_mass.0,
-                body2.center_of_mass.0,
                 &body1.rotation,
                 &body2.rotation,
-                collider1.get_shape(),
-                collider2.get_shape(),
+                collider1,
+                collider2,
             ) {
                 collision_events.push(Collision(contact));
 
@@ -162,7 +160,7 @@ fn penetration_constraints(
 
                 // Create and solve constraint if both colliders are solid
                 if sensor1.is_none() && sensor2.is_none() {
-                    let mut constraint = PenetrationConstraint::new(*ent1, *ent2, contact);
+                    let mut constraint = PenetrationConstraint::new(&body1, &body2, contact);
                     constraint.solve([&mut body1, &mut body2], sub_dt.0);
                     penetration_constraints.0.push(constraint);
                 }
@@ -364,8 +362,6 @@ fn solve_vel(
         let Contact {
             entity1,
             entity2,
-            world_r1: r1,
-            world_r2: r2,
             normal,
             ..
         } = constraint.contact;
@@ -379,21 +375,27 @@ fn solve_vel(
             let pre_solve_contact_vel1 = compute_contact_vel(
                 body1.pre_solve_linear_velocity.0,
                 body1.pre_solve_angular_velocity.0,
-                r1,
+                constraint.world_r1,
             );
             let pre_solve_contact_vel2 = compute_contact_vel(
                 body2.pre_solve_linear_velocity.0,
                 body2.pre_solve_angular_velocity.0,
-                r2,
+                constraint.world_r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 =
-                compute_contact_vel(body1.linear_velocity.0, body1.angular_velocity.0, r1);
-            let contact_vel2 =
-                compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
+            let contact_vel1 = compute_contact_vel(
+                body1.linear_velocity.0,
+                body1.angular_velocity.0,
+                constraint.world_r1,
+            );
+            let contact_vel2 = compute_contact_vel(
+                body2.linear_velocity.0,
+                body2.angular_velocity.0,
+                constraint.world_r2,
+            );
             let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
@@ -402,8 +404,10 @@ fn solve_vel(
             let inv_inertia2 = body2.world_inv_inertia().0;
 
             // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
-            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
+            let w1 =
+                constraint.compute_generalized_inverse_mass(&body1, constraint.world_r1, normal);
+            let w2 =
+                constraint.compute_generalized_inverse_mass(&body2, constraint.world_r2, normal);
 
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(
@@ -429,11 +433,13 @@ fn solve_vel(
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p / body1.mass.0;
-                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
+                body1.angular_velocity.0 +=
+                    compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
             }
             if body2.rb.is_dynamic() {
                 body2.linear_velocity.0 -= p / body2.mass.0;
-                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
+                body2.angular_velocity.0 -=
+                    compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
             }
         }
     }
