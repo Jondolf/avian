@@ -47,7 +47,7 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
         let [r1, r2] = [Vector::ZERO, Vector::ZERO];
 
         // Compute the positional difference
-        let delta_x = body1.pos.0 - body2.pos.0;
+        let delta_x = body1.position.0 - body2.position.0;
 
         // The current separation distance
         let length = delta_x.length();

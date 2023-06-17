@@ -8,14 +8,14 @@ use std::ops::{AddAssign, SubAssign};
 pub struct RigidBodyQuery {
     pub entity: Entity,
     pub rb: &'static mut RigidBody,
-    pub pos: &'static mut Position,
-    pub rot: &'static mut Rotation,
-    pub prev_pos: &'static mut PreviousPosition,
-    pub prev_rot: &'static mut PreviousRotation,
-    pub lin_vel: &'static mut LinearVelocity,
-    pub pre_solve_lin_vel: &'static mut PreSolveLinearVelocity,
-    pub ang_vel: &'static mut AngularVelocity,
-    pub pre_solve_ang_vel: &'static mut PreSolveAngularVelocity,
+    pub position: &'static mut Position,
+    pub rotation: &'static mut Rotation,
+    pub previous_position: &'static mut PreviousPosition,
+    pub previous_rotation: &'static mut PreviousRotation,
+    pub linear_velocity: &'static mut LinearVelocity,
+    pub pre_solve_linear_velocity: &'static mut PreSolveLinearVelocity,
+    pub angular_velocity: &'static mut AngularVelocity,
+    pub pre_solve_angular_velocity: &'static mut PreSolveAngularVelocity,
     pub mass: &'static mut Mass,
     pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,
@@ -35,13 +35,13 @@ impl<'w> RigidBodyQueryItem<'w> {
     // Computes the world-space inverse inertia tensor.
     #[cfg(feature = "3d")]
     pub fn world_inv_inertia(&self) -> InverseInertia {
-        self.inverse_inertia.rotated(&self.rot)
+        self.inverse_inertia.rotated(&self.rotation)
     }
 }
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub(crate) struct MassPropsQuery {
+pub(crate) struct MassPropertiesQuery {
     pub mass: &'static mut Mass,
     pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,
@@ -58,7 +58,7 @@ pub(crate) struct ColliderQuery {
     pub previous_mass_properties: &'static mut PreviousColliderMassProperties,
 }
 
-impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
+impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 += rhs.mass.0;
         self.inverse_mass.0 = 1.0 / self.mass.0;
@@ -68,7 +68,7 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
     }
 }
 
-impl<'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
+impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 -= rhs.mass.0;
         self.inverse_mass.0 = 1.0 / self.mass.0;

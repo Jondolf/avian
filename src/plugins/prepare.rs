@@ -258,7 +258,7 @@ fn update_aabb(
     }
 }
 
-type MassPropsChanged = Or<(
+type MassPropertiesChanged = Or<(
     Changed<Mass>,
     Changed<InverseMass>,
     Changed<Inertia>,
@@ -271,7 +271,7 @@ type MassPropsChanged = Or<(
 ///
 /// Also updates the collider's mass properties if the body has a collider.
 fn update_mass_properties(
-    mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), MassPropsChanged>,
+    mut bodies: Query<(MassPropertiesQuery, Option<ColliderQuery>), MassPropertiesChanged>,
 ) {
     for (mut mass_properties, collider) in &mut bodies {
         if mass_properties.mass.is_changed() && mass_properties.mass.0 >= Scalar::EPSILON {

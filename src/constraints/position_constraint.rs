@@ -23,20 +23,20 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
         // Compute positional impulse
         let p = delta_lagrange * direction;
-        let rot1 = *body1.rot;
-        let rot2 = *body2.rot;
+        let rot1 = *body1.rotation;
+        let rot2 = *body2.rotation;
 
         let inv_inertia1 = body1.world_inv_inertia().0;
         let inv_inertia2 = body2.world_inv_inertia().0;
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() {
-            body1.pos.0 += p * body1.inverse_mass.0;
-            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1, r1, p);
+            body1.position.0 += p * body1.inverse_mass.0;
+            *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, r1, p);
         }
         if body2.rb.is_dynamic() {
-            body2.pos.0 -= p * body2.inverse_mass.0;
-            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2, r2, p);
+            body2.position.0 -= p * body2.inverse_mass.0;
+            *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, r2, p);
         }
 
         p

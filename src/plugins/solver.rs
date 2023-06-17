@@ -126,12 +126,12 @@ fn penetration_constraints(
             if let Some(contact) = compute_contact(
                 *ent1,
                 *ent2,
-                body1.pos.0,
-                body2.pos.0,
+                body1.position.0,
+                body2.position.0,
                 body1.center_of_mass.0,
                 body2.center_of_mass.0,
-                &body1.rot,
-                &body2.rot,
+                &body1.rotation,
+                &body2.rotation,
                 collider1.get_shape(),
                 collider2.get_shape(),
             ) {
@@ -372,16 +372,24 @@ fn solve_vel(
             }
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
-            let pre_solve_contact_vel1 =
-                compute_contact_vel(body1.pre_solve_lin_vel.0, body1.pre_solve_ang_vel.0, r1);
-            let pre_solve_contact_vel2 =
-                compute_contact_vel(body2.pre_solve_lin_vel.0, body2.pre_solve_ang_vel.0, r2);
+            let pre_solve_contact_vel1 = compute_contact_vel(
+                body1.pre_solve_linear_velocity.0,
+                body1.pre_solve_angular_velocity.0,
+                r1,
+            );
+            let pre_solve_contact_vel2 = compute_contact_vel(
+                body2.pre_solve_linear_velocity.0,
+                body2.pre_solve_angular_velocity.0,
+                r2,
+            );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 = compute_contact_vel(body1.lin_vel.0, body1.ang_vel.0, r1);
-            let contact_vel2 = compute_contact_vel(body2.lin_vel.0, body2.ang_vel.0, r2);
+            let contact_vel1 =
+                compute_contact_vel(body1.linear_velocity.0, body1.angular_velocity.0, r1);
+            let contact_vel2 =
+                compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
@@ -416,12 +424,12 @@ fn solve_vel(
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
-                body1.lin_vel.0 += p / body1.mass.0;
-                body1.ang_vel.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
+                body1.linear_velocity.0 += p / body1.mass.0;
+                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
             }
             if body2.rb.is_dynamic() {
-                body2.lin_vel.0 -= p / body2.mass.0;
-                body2.ang_vel.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
+                body2.linear_velocity.0 -= p / body2.mass.0;
+                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
             }
         }
     }
@@ -446,7 +454,8 @@ fn joint_damping<T: Joint>(
             [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2)],
         ) = bodies.get_many_mut(joint.entities())
         {
-            let delta_omega = (ang_vel2.0 - ang_vel1.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
+            let delta_omega =
+                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * sub_dt.0).min(1.0);
 
             if rb1.is_dynamic() {
                 ang_vel1.0 += delta_omega;
@@ -455,7 +464,7 @@ fn joint_damping<T: Joint>(
                 ang_vel2.0 -= delta_omega;
             }
 
-            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
+            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * sub_dt.0).min(1.0);
 
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };

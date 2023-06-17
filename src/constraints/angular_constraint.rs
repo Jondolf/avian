@@ -25,18 +25,18 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
         let p = -delta_lagrange * axis.z;
 
-        let rot1 = *body1.rot;
-        let rot2 = *body2.rot;
+        let rot1 = *body1.rotation;
+        let rot2 = *body2.rotation;
 
         let inv_inertia1 = body1.world_inv_inertia().0;
         let inv_inertia2 = body2.world_inv_inertia().0;
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1, p);
+            *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, p);
         }
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2, p);
+            *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, p);
         }
 
         p
@@ -60,18 +60,18 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Compute angular impulse
         let p = -delta_lagrange * axis;
 
-        let rot1 = *body1.rot;
-        let rot2 = *body2.rot;
+        let rot1 = *body1.rotation;
+        let rot2 = *body2.rotation;
 
         let inv_inertia1 = body1.world_inv_inertia().0;
         let inv_inertia2 = body2.world_inv_inertia().0;
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1, p);
+            *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, p);
         }
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2, p);
+            *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, p);
         }
 
         p
