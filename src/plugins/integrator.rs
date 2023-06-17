@@ -100,11 +100,11 @@ fn integrate_rot(
         if rb.is_dynamic() {
             let delta_ang_vel = sub_dt.0
                 * inverse_inertia.rotated(&rot).0
-                * (external_torque.0 - ang_vel.cross(inertia.rotated(&rot).0 * ang_vel.0));
+                * (external_torque.0 - ang_vel.0.cross(inertia.rotated(&rot).0 * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }
 
-        let q = Quaternion::from_vec4(ang_vel.extend(0.0)) * rot.0;
+        let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
         let (x, y, z, w) = (
             rot.x + sub_dt.0 * 0.5 * q.x,
             rot.y + sub_dt.0 * 0.5 * q.y,

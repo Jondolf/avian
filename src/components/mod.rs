@@ -139,7 +139,7 @@ pub struct PreSolveLinearVelocity(pub Vector);
 
 /// The angular velocity of a body in radians. Positive values will result in counter-clockwise rotation.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngularVelocity(pub Scalar);
 
@@ -165,7 +165,7 @@ impl From<Vec3> for AngularVelocity {
 
 /// The angular velocity of a body in radians before the velocity solve is performed. Positive values will result in counter-clockwise rotation.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreSolveAngularVelocity(pub Scalar);
 
