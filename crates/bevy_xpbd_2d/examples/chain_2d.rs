@@ -41,7 +41,7 @@ fn setup(
             .id();
 
         commands.spawn(
-            SphericalJoint::new(previous_particle, current_particle)
+            RevoluteJoint::new(previous_particle, current_particle)
                 .with_local_anchor_2(Vector::Y * (particle_radius * 2.0 + 1.0))
                 .with_compliance(0.0000001),
         );
