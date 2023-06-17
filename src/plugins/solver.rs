@@ -85,6 +85,7 @@ fn penetration_constraints(
     mut bodies: Query<(
         RigidBodyQuery,
         &Collider,
+        Option<&Sensor>,
         Option<&CollisionLayers>,
         Option<&mut CollidingEntities>,
         Option<&Sleeping>,
@@ -104,8 +105,8 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, layers1, colliding_entities1, sleeping1) = bundle1;
-            let (mut body2, collider2, layers2, colliding_entities2, sleeping2) = bundle2;
+            let (mut body1, collider1, sensor1, layers1, colliding_entities1, sleeping1) = bundle1;
+            let (mut body2, collider2, sensor2, layers2, colliding_entities2, sleeping2) = bundle2;
 
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
@@ -152,16 +153,19 @@ fn penetration_constraints(
                     started_collisions.push(CollisionStarted(*ent1, *ent2));
                 }
 
-                // When an active body collides with a sleeping body, wake up the sleeping body.
+                // When an active body collides with a sleeping body, wake up the sleeping body
                 if sleeping1.is_some() {
                     commands.entity(*ent1).remove::<Sleeping>();
                 } else if sleeping2.is_some() {
                     commands.entity(*ent2).remove::<Sleeping>();
                 }
 
-                let mut constraint = PenetrationConstraint::new(*ent1, *ent2, contact);
-                constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                penetration_constraints.0.push(constraint);
+                // Create and solve constraint if both colliders are solid
+                if sensor1.is_none() && sensor2.is_none() {
+                    let mut constraint = PenetrationConstraint::new(*ent1, *ent2, contact);
+                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                    penetration_constraints.0.push(constraint);
+                }
             } else {
                 let mut collision_ended_1 = false;
                 let mut collision_ended_2 = false;

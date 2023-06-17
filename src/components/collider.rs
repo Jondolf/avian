@@ -246,6 +246,11 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
+/// Marks a [`Collider`] as a sensor collider. Sensor colliders send collision events but
+/// don't cause a collision response. This is often used to detect when something enters or leaves an area.
+#[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
+pub struct Sensor;
+
 /// The Axis-Aligned Bounding Box of a collider.
 #[derive(Clone, Copy, Component, Deref, DerefMut, PartialEq)]
 pub struct ColliderAabb(pub Aabb);
