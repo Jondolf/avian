@@ -31,6 +31,7 @@ type RigidBodyComponents = (
     Entity,
     // Use transform as default position and rotation if no components for them found
     Option<&'static mut Transform>,
+    Option<&'static GlobalTransform>,
     Option<&'static Pos>,
     Option<&'static Rot>,
     Option<&'static LinVel>,
@@ -49,6 +50,7 @@ fn init_rigid_bodies(
     for (
         entity,
         mut transform,
+        global_transform,
         pos,
         rot,
         lin_vel,
@@ -79,17 +81,17 @@ fn init_rigid_bodies(
             let translation;
             #[cfg(feature = "2d")]
             {
-                translation = transform.as_ref().map_or(Vector::ZERO, |t| {
-                    Vector::new(t.translation.x as Scalar, t.translation.y as Scalar)
+                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
                 });
             }
             #[cfg(feature = "3d")]
             {
-                translation = transform.as_ref().map_or(Vector::ZERO, |t| {
+                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
                     Vector::new(
-                        t.translation.x as Scalar,
-                        t.translation.y as Scalar,
-                        t.translation.z as Scalar,
+                        t.translation().x as Scalar,
+                        t.translation().y as Scalar,
+                        t.translation().z as Scalar,
                     )
                 });
             }
@@ -106,7 +108,8 @@ fn init_rigid_bodies(
                 transform.rotation = q.as_quat_f32();
             }
         } else {
-            let rotation = transform.map_or(Rot::default(), |t| t.rotation.into());
+            let rotation =
+                global_transform.map_or(Rot::default(), |t| t.compute_transform().rotation.into());
             body.insert(rotation);
             body.insert(PrevRot(rotation));
         }
