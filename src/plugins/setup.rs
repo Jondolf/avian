@@ -114,11 +114,6 @@ impl Plugin for PhysicsSetupPlugin {
                 .in_set(PhysicsSet::Substeps)
                 .in_schedule(PhysicsSchedule),
         );
-
-        #[cfg(feature = "debug-render-aabbs")]
-        {
-            app.add_system(draw_aabbs);
-        }
     }
 }
 
