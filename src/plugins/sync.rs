@@ -14,22 +14,88 @@ impl Plugin for SyncPlugin {
     }
 }
 
+type RigidBodyParentComponents = (
+    &'static GlobalTransform,
+    Option<&'static Pos>,
+    Option<&'static Rot>,
+);
+
 /// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy [`Transform`]s.
 #[cfg(feature = "2d")]
-fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.extend(0.0).as_vec3_f32();
+fn sync_transforms(
+    mut bodies: Query<(&mut Transform, &Pos, &Rot, Option<&Parent>)>,
+    parents: Query<RigidBodyParentComponents, With<Children>>,
+) {
+    for (mut transform, pos, rot, parent) in &mut bodies {
+        if let Some(parent) = parent {
+            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
+                // Compute the global transform of the parent using its Pos and Rot
+                let parent_transform = parent_transform.compute_transform();
+                let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| {
+                    pos.extend(0.0).as_vec3_f32()
+                });
+                let parent_rot = parent_rot.map_or(parent_transform.rotation, |rot| {
+                    Quaternion::from(*rot).as_quat_f32()
+                });
+                let parent_scale = parent_transform.scale;
+                let parent_transform = Transform::from_translation(parent_pos)
+                    .with_rotation(parent_rot)
+                    .with_scale(parent_scale);
 
-        let q: Quaternion = (*rot).into();
-        transform.rotation = q.as_quat_f32();
+                // The new local transform of the child body,
+                // computed from the its global transform and its parents global transform
+                let new_transform = GlobalTransform::from(
+                    Transform::from_translation(pos.extend(0.0).as_vec3_f32())
+                        .with_rotation(Quaternion::from(*rot).as_quat_f32()),
+                )
+                .reparented_to(&GlobalTransform::from(parent_transform));
+
+                transform.translation = new_transform.translation;
+                transform.rotation = new_transform.rotation;
+            }
+        } else {
+            transform.translation = pos.extend(0.0).as_vec3_f32();
+            transform.rotation = Quaternion::from(*rot).as_quat_f32();
+        }
     }
 }
 
 /// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy's [`Transform`]s.
+///
+/// Nested rigid bodies move independently of each other, so the [`Transform`]s of child entities are updated
+/// based on their own and their parent's [`Pos`] and [`Rot`].
 #[cfg(feature = "3d")]
-fn sync_transforms(mut bodies: Query<(&mut Transform, &Pos, &Rot)>) {
-    for (mut transform, pos, rot) in &mut bodies {
-        transform.translation = pos.0.as_vec3_f32();
-        transform.rotation = rot.0.as_quat_f32();
+fn sync_transforms(
+    mut bodies: Query<(&mut Transform, &Pos, &Rot, Option<&Parent>)>,
+    parents: Query<RigidBodyParentComponents, With<Children>>,
+) {
+    for (mut transform, pos, rot, parent) in &mut bodies {
+        if let Some(parent) = parent {
+            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
+                // Compute the global transform of the parent using its Pos and Rot
+                let parent_transform = parent_transform.compute_transform();
+                let parent_pos =
+                    parent_pos.map_or(parent_transform.translation, |pos| pos.as_vec3_f32());
+                let parent_rot =
+                    parent_rot.map_or(parent_transform.rotation, |rot| rot.as_quat_f32());
+                let parent_scale = parent_transform.scale;
+                let parent_transform = Transform::from_translation(parent_pos)
+                    .with_rotation(parent_rot)
+                    .with_scale(parent_scale);
+
+                // The new local transform of the child body,
+                // computed from the its global transform and its parents global transform
+                let new_transform = GlobalTransform::from(
+                    Transform::from_translation(pos.as_vec3_f32()).with_rotation(rot.as_quat_f32()),
+                )
+                .reparented_to(&GlobalTransform::from(parent_transform));
+
+                transform.translation = new_transform.translation;
+                transform.rotation = new_transform.rotation;
+            }
+        } else {
+            transform.translation = pos.as_vec3_f32();
+            transform.rotation = rot.as_quat_f32();
+        }
     }
 }
