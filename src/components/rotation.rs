@@ -70,7 +70,7 @@ impl Rotation {
         Self::from_radians(degrees.to_radians())
     }
 
-    /// Returns the rotation in radians..
+    /// Returns the rotation in radians.
     pub fn as_radians(&self) -> Scalar {
         Scalar::atan2(self.sin(), self.cos())
     }
