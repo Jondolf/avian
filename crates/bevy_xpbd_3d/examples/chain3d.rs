@@ -42,7 +42,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec3::NEG_Y * 18.0),
+        Position(Vec3::NEG_Y * 18.0),
         Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
@@ -117,7 +117,7 @@ fn create_chain(
                 ..default()
             },
             RigidBody::Kinematic,
-            Pos(start_pos),
+            Position(start_pos),
             Player,
             MoveSpeed(0.3),
         ))
@@ -134,8 +134,8 @@ fn create_chain(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Pos(start_pos + delta_pos * i as f32),
-                MassPropsBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
+                Position(start_pos + delta_pos * i as f32),
+                MassPropertiesBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
             ))
             .id();
 
@@ -151,7 +151,7 @@ fn create_chain(
 
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut LinVel, &MoveSpeed), With<Player>>,
+    mut query: Query<(&mut LinearVelocity, &MoveSpeed), With<Player>>,
 ) {
     for (mut vel, move_speed) in &mut query {
         vel.0 *= 0.95;
@@ -183,7 +183,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(50))
+        .insert_resource(SubstepCount(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)

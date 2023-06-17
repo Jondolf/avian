@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::NEG_Y * 7.5),
+        Position(Vec2::NEG_Y * 7.5),
         Collider::cuboid(20.0, 1.0),
     ));
 
@@ -63,7 +63,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::Y * 7.5),
+        Position(Vec2::Y * 7.5),
         Collider::cuboid(20.0, 1.0),
     ));
 
@@ -75,7 +75,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::NEG_X * 9.5),
+        Position(Vec2::NEG_X * 9.5),
         Collider::cuboid(1.0, 20.0),
     ));
 
@@ -87,7 +87,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::X * 9.5),
+        Position(Vec2::X * 9.5),
         Collider::cuboid(1.0, 20.0),
     ));
 
@@ -107,7 +107,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Pos(pos),
+                Position(pos),
                 Collider::ball(radius),
                 Player,
                 MoveAcceleration(0.5),
@@ -144,7 +144,7 @@ fn handle_input(keyboard_input: Res<Input<KeyCode>>, mut ev_movement: EventWrite
 
 fn player_movement(
     mut ev_movement: EventReader<MovementEvent>,
-    mut query: Query<(&mut LinVel, &MaxVelocity, &MoveAcceleration), With<Player>>,
+    mut query: Query<(&mut LinearVelocity, &MaxVelocity, &MoveAcceleration), With<Player>>,
 ) {
     for ev in ev_movement.iter() {
         for (mut vel, max_vel, move_acceleration) in &mut query {
@@ -166,7 +166,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(6))
+        .insert_resource(SubstepCount(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_event::<MovementEvent>()

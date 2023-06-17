@@ -35,7 +35,13 @@ impl Collider {
     ///
     /// If you want to create a compound shape from a 3D triangle mesh or 2D polyline, consider using the
     /// [`Collider::convex_decomposition`](#method.convex_decomposition) method.
-    pub fn compound(shapes: Vec<(impl Into<Pos>, impl Into<Rot>, impl Into<Collider>)>) -> Self {
+    pub fn compound(
+        shapes: Vec<(
+            impl Into<Position>,
+            impl Into<Rotation>,
+            impl Into<Collider>,
+        )>,
+    ) -> Self {
         let shapes = shapes
             .into_iter()
             .map(|(p, r, c)| {

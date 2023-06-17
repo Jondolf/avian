@@ -37,7 +37,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec3::NEG_Y),
+        Position(Vec3::NEG_Y),
         Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
@@ -61,7 +61,7 @@ fn setup(
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Pos(pos + Vec3::Y * 5.0),
+                    Position(pos + Vec3::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
                     Player,
                     MoveAcceleration(0.1),
@@ -100,7 +100,7 @@ fn setup(
 
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut LinVel, &MaxLinearVelocity, &MoveAcceleration), With<Player>>,
+    mut query: Query<(&mut LinearVelocity, &MaxLinearVelocity, &MoveAcceleration), With<Player>>,
 ) {
     for (mut lin_vel, max_vel, move_acceleration) in &mut query {
         if keyboard_input.pressed(KeyCode::Up) {

@@ -25,18 +25,18 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
         let p = -delta_lagrange * axis.z;
 
-        let rot1 = *body1.rot;
-        let rot2 = *body2.rot;
+        let rot1 = *body1.rotation;
+        let rot2 = *body2.rotation;
 
         let inv_inertia1 = body1.world_inv_inertia().0;
         let inv_inertia2 = body2.world_inv_inertia().0;
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1, p);
+            *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, p);
         }
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2, p);
+            *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, p);
         }
 
         p
@@ -60,18 +60,18 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Compute angular impulse
         let p = -delta_lagrange * axis;
 
-        let rot1 = *body1.rot;
-        let rot2 = *body2.rot;
+        let rot1 = *body1.rotation;
+        let rot2 = *body2.rotation;
 
         let inv_inertia1 = body1.world_inv_inertia().0;
         let inv_inertia2 = body2.world_inv_inertia().0;
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
-            *body1.rot += Self::get_delta_rot(rot1, inv_inertia1, p);
+            *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, p);
         }
         if body2.rb.is_dynamic() {
-            *body2.rot -= Self::get_delta_rot(rot2, inv_inertia2, p);
+            *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, p);
         }
 
         p
@@ -80,7 +80,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "2d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector3) -> Scalar {
         if body.rb.is_dynamic() {
-            axis.dot(body.inv_inertia.0 * axis)
+            axis.dot(body.inverse_inertia.0 * axis)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -98,15 +98,15 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rot, inv_inertia: Scalar, p: Scalar) -> Rot {
+    fn get_delta_rot(_rot: Rotation, inverse_inertia: Scalar, p: Scalar) -> Rotation {
         // Equation 8/9 but in 2D
-        Rot::from_radians(inv_inertia * p)
+        Rotation::from_radians(inverse_inertia * p)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, p: Vector) -> Rot {
+    fn get_delta_rot(rot: Rotation, inverse_inertia: Matrix3, p: Vector) -> Rotation {
         // Equation 8/9
-        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
+        Rotation(Quaternion::from_vec4(0.5 * (inverse_inertia * p).extend(0.0)) * rot.0)
     }
 
     /// Computes the torque acting along the constraint using the equation tau = lambda * n / h^2

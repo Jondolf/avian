@@ -45,7 +45,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
     let floor_size = Vector::new(80.0, 1.0, 80.0);
     commands.spawn((
         RigidBody::Static,
-        Pos(Vector::NEG_Y),
+        Position(Vector::NEG_Y),
         Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
@@ -64,7 +64,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                 commands.spawn((
                     SpatialBundle::default(),
                     RigidBody::Dynamic,
-                    Pos(pos + Vector::Y * 5.0),
+                    Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
                     Id(next_id),
                 ));
@@ -97,7 +97,7 @@ fn body_with_velocity_moves() {
         commands.spawn((
             SpatialBundle::default(),
             RigidBody::Dynamic,
-            LinVel(Vector::X),
+            LinearVelocity(Vector::X),
         ));
     });
 

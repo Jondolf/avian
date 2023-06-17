@@ -80,8 +80,8 @@ fn create_chain(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Pos(Vec2::Y * -(node_size + node_dist) * i as f32),
-                MassPropsBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
+                Position(Vec2::Y * -(node_size + node_dist) * i as f32),
+                MassPropertiesBundle::new_computed(&Collider::ball(node_size * 0.5), 1.0),
             ))
             .id();
 
@@ -119,7 +119,7 @@ fn mouse_position(
 fn follow_mouse(
     mouse_pos: Res<MouseWorldPos>,
     buttons: Res<Input<MouseButton>>,
-    mut query: Query<&mut Pos, With<FollowMouse>>,
+    mut query: Query<&mut Position, With<FollowMouse>>,
 ) {
     for mut pos in &mut query {
         if buttons.pressed(MouseButton::Left) {
@@ -135,8 +135,8 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(15))
-        .insert_resource(NumPosIters(6))
+        .insert_resource(SubstepCount(15))
+        .insert_resource(IterationCount(6))
         .init_resource::<MouseWorldPos>()
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)

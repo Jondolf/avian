@@ -46,8 +46,8 @@ pub(crate) fn compute_contact(
     pos2: Vector,
     local_com1: Vector,
     local_com2: Vector,
-    rot1: &Rot,
-    rot2: &Rot,
+    rot1: &Rotation,
+    rot2: &Rotation,
     shape1: &SharedShape,
     shape2: &SharedShape,
 ) -> Option<Contact> {
@@ -64,8 +64,8 @@ pub(crate) fn compute_contact(
         return Some(Contact {
             entity1: ent1,
             entity2: ent2,
-            local_r1: rot1.inv().rotate(world_r1),
-            local_r2: rot2.inv().rotate(world_r2),
+            local_r1: rot1.inverse().rotate(world_r1),
+            local_r2: rot2.inverse().rotate(world_r2),
             world_r1,
             world_r2,
             normal: contact.normal1.into(),

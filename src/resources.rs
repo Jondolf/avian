@@ -30,7 +30,7 @@ impl Default for PhysicsTimestep {
 #[reflect(Resource)]
 pub struct DeltaTime(pub Scalar);
 
-/// How much time the previous physics substep took. This depends on the [`DeltaTime`] and [`NumSubsteps`] resources.
+/// How much time the previous physics substep took. This depends on the [`DeltaTime`] and [`SubstepCount`] resources.
 #[derive(Reflect, Resource, Default)]
 #[reflect(Resource)]
 pub struct SubDeltaTime(pub Scalar);
@@ -38,20 +38,20 @@ pub struct SubDeltaTime(pub Scalar);
 /// The number of substeps used in XPBD simulation. A higher number of substeps reduces the value of [`SubDeltaTime`], which results in a more accurate simulation at the cost of performance.
 #[derive(Reflect, Resource, Clone, Copy)]
 #[reflect(Resource)]
-pub struct NumSubsteps(pub u32);
+pub struct SubstepCount(pub u32);
 
-impl Default for NumSubsteps {
+impl Default for SubstepCount {
     fn default() -> Self {
         Self(8)
     }
 }
 
-/// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`NumSubsteps`] instead, as substepping can provide better convergence, accuracy and energy conservation.
+/// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`SubstepCount`] instead, as substepping can provide better convergence, accuracy and energy conservation.
 #[derive(Reflect, Resource)]
 #[reflect(Resource)]
-pub struct NumPosIters(pub u32);
+pub struct IterationCount(pub u32);
 
-impl Default for NumPosIters {
+impl Default for IterationCount {
     fn default() -> Self {
         Self(4)
     }

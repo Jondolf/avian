@@ -42,8 +42,8 @@ fn setup(
                 ..default()
             },
             RigidBody::Dynamic,
-            Pos(Vec2::X * 1.5),
-            MassPropsBundle::new_computed(&Collider::cuboid(1.0, 1.0), 1.0),
+            Position(Vec2::X * 1.5),
+            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0), 1.0),
         ))
         .id();
 
@@ -67,7 +67,7 @@ fn setup(
 
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut LinVel, &MoveSpeed), With<Player>>,
+    mut query: Query<(&mut LinearVelocity, &MoveSpeed), With<Player>>,
 ) {
     for (mut vel, move_speed) in &mut query {
         vel.0 *= 0.95;
@@ -93,7 +93,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(50))
+        .insert_resource(SubstepCount(50))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)

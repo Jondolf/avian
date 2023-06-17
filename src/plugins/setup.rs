@@ -19,7 +19,7 @@ use crate::prelude::*;
 /// 4. [`PhysicsSet::Sleeping`],
 /// 5. [`PhysicsSet::Sync`],
 ///
-/// The [`SubstepSchedule`] handles physics substepping. It is run [`NumSubsteps`] times in [`PhysicsSet::Substeps`],
+/// The [`SubstepSchedule`] handles physics substepping. It is run [`SubstepCount`] times in [`PhysicsSet::Substeps`],
 /// and it typically handles things like collision detection and constraint solving.
 ///
 /// Substepping sets are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
@@ -31,8 +31,8 @@ impl Plugin for PhysicsSetupPlugin {
         app.init_resource::<PhysicsTimestep>()
             .init_resource::<DeltaTime>()
             .init_resource::<SubDeltaTime>()
-            .init_resource::<NumSubsteps>()
-            .init_resource::<NumPosIters>()
+            .init_resource::<SubstepCount>()
+            .init_resource::<IterationCount>()
             .init_resource::<BroadCollisionPairs>()
             .init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
@@ -41,8 +41,8 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PhysicsTimestep>()
             .register_type::<DeltaTime>()
             .register_type::<SubDeltaTime>()
-            .register_type::<NumSubsteps>()
-            .register_type::<NumPosIters>()
+            .register_type::<SubstepCount>()
+            .register_type::<IterationCount>()
             .register_type::<BroadCollisionPairs>()
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
@@ -52,23 +52,23 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Sleeping>()
             .register_type::<SleepingDisabled>()
             .register_type::<TimeSleeping>()
-            .register_type::<Pos>()
-            .register_type::<Rot>()
-            .register_type::<PrevPos>()
-            .register_type::<PrevRot>()
-            .register_type::<LinVel>()
-            .register_type::<AngVel>()
-            .register_type::<PreSolveLinVel>()
-            .register_type::<PreSolveAngVel>()
+            .register_type::<Position>()
+            .register_type::<Rotation>()
+            .register_type::<PreviousPosition>()
+            .register_type::<PreviousRotation>()
+            .register_type::<LinearVelocity>()
+            .register_type::<AngularVelocity>()
+            .register_type::<PreSolveLinearVelocity>()
+            .register_type::<PreSolveAngularVelocity>()
             .register_type::<Restitution>()
             .register_type::<Friction>()
             .register_type::<ExternalForce>()
             .register_type::<ExternalTorque>()
             .register_type::<Mass>()
-            .register_type::<InvMass>()
+            .register_type::<InverseMass>()
             .register_type::<Inertia>()
-            .register_type::<InvInertia>()
-            .register_type::<LocalCom>()
+            .register_type::<InverseInertia>()
+            .register_type::<CenterOfMass>()
             .register_type::<CollidingEntities>();
 
         let mut physics_schedule = Schedule::default();
@@ -126,7 +126,7 @@ impl Plugin for PhysicsSetupPlugin {
 pub struct PhysicsSchedule;
 
 /// The substepping schedule. The number of substeps per physics step is
-/// configured through the [`NumSubsteps`] resource.
+/// configured through the [`SubstepCount`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 
@@ -211,7 +211,7 @@ fn run_physics_schedule(world: &mut World) {
 
 /// Runs the [`SubstepSchedule`].
 fn run_substep_schedule(world: &mut World) {
-    let NumSubsteps(substeps) = *world.resource::<NumSubsteps>();
+    let SubstepCount(substeps) = *world.resource::<SubstepCount>();
     let dt = world.resource::<DeltaTime>().0;
 
     // Update `SubDeltaTime`

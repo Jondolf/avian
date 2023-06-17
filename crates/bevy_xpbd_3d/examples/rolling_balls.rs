@@ -44,7 +44,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec3::NEG_Y * 5.0),
+        Position(Vec3::NEG_Y * 5.0),
         Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
@@ -68,7 +68,7 @@ fn setup(
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Pos(pos),
+                    Position(pos),
                     Collider::ball(radius),
                     Player,
                     RollAcceleration(Vec3::splat(0.5)),
@@ -107,7 +107,7 @@ fn setup(
 
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut AngVel, &MaxAngularVelocity, &RollAcceleration), With<Player>>,
+    mut query: Query<(&mut AngularVelocity, &MaxAngularVelocity, &RollAcceleration), With<Player>>,
 ) {
     for (mut ang_vel, max_ang_vel, move_acceleration) in &mut query {
         if keyboard_input.pressed(KeyCode::Up) {
@@ -133,7 +133,7 @@ fn main() {
     App::new()
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(6))
+        .insert_resource(SubstepCount(6))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
         .add_startup_system(setup)

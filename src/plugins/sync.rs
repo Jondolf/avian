@@ -16,20 +16,20 @@ impl Plugin for SyncPlugin {
 
 type RigidBodyParentComponents = (
     &'static GlobalTransform,
-    Option<&'static Pos>,
-    Option<&'static Rot>,
+    Option<&'static Position>,
+    Option<&'static Rotation>,
 );
 
-/// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy [`Transform`]s.
+/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy [`Transform`]s.
 #[cfg(feature = "2d")]
 fn sync_transforms(
-    mut bodies: Query<(&mut Transform, &Pos, &Rot, Option<&Parent>)>,
+    mut bodies: Query<(&mut Transform, &Position, &Rotation, Option<&Parent>)>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut bodies {
         if let Some(parent) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
-                // Compute the global transform of the parent using its Pos and Rot
+                // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
                 let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| {
                     pos.extend(0.0).as_vec3_f32()
@@ -60,19 +60,19 @@ fn sync_transforms(
     }
 }
 
-/// Copies [`Pos`] and [`Rot`] values from the physics world to Bevy's [`Transform`]s.
+/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy's [`Transform`]s.
 ///
 /// Nested rigid bodies move independently of each other, so the [`Transform`]s of child entities are updated
-/// based on their own and their parent's [`Pos`] and [`Rot`].
+/// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
 fn sync_transforms(
-    mut bodies: Query<(&mut Transform, &Pos, &Rot, Option<&Parent>)>,
+    mut bodies: Query<(&mut Transform, &Position, &Rotation, Option<&Parent>)>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut bodies {
         if let Some(parent) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
-                // Compute the global transform of the parent using its Pos and Rot
+                // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
                 let parent_pos =
                     parent_pos.map_or(parent_transform.translation, |pos| pos.as_vec3_f32());

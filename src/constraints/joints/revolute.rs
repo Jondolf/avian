@@ -27,11 +27,11 @@ pub struct RevoluteJoint {
     /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit: Option<AngleLimit>,
     /// Linear damping applied by the joint.
-    pub damping_lin: Scalar,
+    pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
-    pub damping_ang: Scalar,
+    pub damping_angular: Scalar,
     /// Lagrange multiplier for the positional correction.
-    pub pos_lagrange: Scalar,
+    pub position_lagrange: Scalar,
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub align_lagrange: Scalar,
     /// Lagrange multiplier for the angular correction caused by the angle limits.
@@ -52,7 +52,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
     }
 
     fn clear_lagrange_multipliers(&mut self) {
-        self.pos_lagrange = 0.0;
+        self.position_lagrange = 0.0;
         self.align_lagrange = 0.0;
         self.angle_limit_lagrange = 0.0;
     }
@@ -62,13 +62,13 @@ impl XpbdConstraint<2> for RevoluteJoint {
         let compliance = self.compliance;
 
         // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
-        let dq = self.get_delta_q(&body1.rot, &body2.rot);
+        let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
         let mut lagrange = self.align_lagrange;
         self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
         self.align_lagrange = lagrange;
 
         // Align positions
-        let mut lagrange = self.pos_lagrange;
+        let mut lagrange = self.position_lagrange;
         self.force = self.align_position(
             body1,
             body2,
@@ -78,7 +78,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
             compliance,
             dt,
         );
-        self.pos_lagrange = lagrange;
+        self.position_lagrange = lagrange;
 
         // Apply angle limits when rotating around the free axis
         self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
@@ -94,9 +94,9 @@ impl Joint for RevoluteJoint {
             local_anchor2: Vector::ZERO,
             aligned_axis: Vector3::Z,
             angle_limit: None,
-            damping_lin: 1.0,
-            damping_ang: 1.0,
-            pos_lagrange: 0.0,
+            damping_linear: 1.0,
+            damping_angular: 1.0,
+            position_lagrange: 0.0,
             align_lagrange: 0.0,
             angle_limit_lagrange: 0.0,
             compliance: 0.0,
@@ -132,24 +132,24 @@ impl Joint for RevoluteJoint {
 
     fn with_lin_vel_damping(self, damping: Scalar) -> Self {
         Self {
-            damping_lin: damping,
+            damping_linear: damping,
             ..self
         }
     }
 
     fn with_ang_vel_damping(self, damping: Scalar) -> Self {
         Self {
-            damping_ang: damping,
+            damping_angular: damping,
             ..self
         }
     }
 
-    fn damping_lin(&self) -> Scalar {
-        self.damping_lin
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
     }
 
-    fn damping_ang(&self) -> Scalar {
-        self.damping_ang
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
     }
 }
 
@@ -171,7 +171,7 @@ impl RevoluteJoint {
         }
     }
 
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector3 {
+    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
         let a1 = rot1.rotate_vec3(self.aligned_axis);
         let a2 = rot2.rotate_vec3(self.aligned_axis);
         a1.cross(a2)
@@ -191,8 +191,8 @@ impl RevoluteJoint {
                 self.aligned_axis.x,
                 self.aligned_axis.y,
             );
-            let a1 = body1.rot.rotate_vec3(limit_axis);
-            let a2 = body2.rot.rotate_vec3(limit_axis);
+            let a1 = body1.rotation.rotate_vec3(limit_axis);
+            let a2 = body2.rotation.rotate_vec3(limit_axis);
             let n = a1.cross(a2).normalize();
 
             if let Some(dq) = angle_limit.compute_correction(n, a1, a2, PI) {
