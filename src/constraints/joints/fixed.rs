@@ -131,13 +131,13 @@ impl Joint for FixedJoint {
 
 impl FixedJoint {
     #[cfg(feature = "2d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector3 {
-        rot1.mul(rot2.inv()).as_radians() * Vector3::Z
+    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
+        rot1.mul(rot2.inverse()).as_radians() * Vector3::Z
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector {
-        2.0 * (rot1.0 * rot2.inverse()).xyz()
+    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
+        2.0 * (rot1.0 * rot2.inverse().0).xyz()
     }
 }
 

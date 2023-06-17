@@ -36,11 +36,11 @@ impl Plugin for SolverPlugin {
 
         substeps.configure_sets(
             (
-                SubsteppingSet::Integrate,
-                SubsteppingSet::SolveConstraints,
-                SubsteppingSet::SolveUserConstraints,
-                SubsteppingSet::UpdateVel,
-                SubsteppingSet::SolveVel,
+                SubstepSet::Integrate,
+                SubstepSet::SolveConstraints,
+                SubstepSet::SolveUserConstraints,
+                SubstepSet::UpdateVel,
+                SubstepSet::SolveVel,
             )
                 .chain(),
         );
@@ -54,10 +54,10 @@ impl Plugin for SolverPlugin {
                 solve_constraint::<PrismaticJoint, 2>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolveConstraints),
+                .in_set(SubstepSet::SolveConstraints),
         );
 
-        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
+        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubstepSet::UpdateVel));
 
         substeps.add_systems(
             (
@@ -68,7 +68,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<PrismaticJoint>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolveVel),
+                .in_set(SubstepSet::SolveVel),
         );
     }
 }
@@ -128,8 +128,8 @@ fn penetration_constraints(
                 *ent2,
                 body1.pos.0,
                 body2.pos.0,
-                body1.local_com.0,
-                body2.local_com.0,
+                body1.center_of_mass.0,
+                body2.center_of_mass.0,
                 &body1.rot,
                 &body2.rot,
                 collider1.get_shape(),
@@ -195,7 +195,7 @@ fn penetration_constraints(
 /// ## User constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
-/// the [`SubsteppingSet::SolveUserConstraints`] set.
+/// the [`SubstepSet::SolveUserConstraints`] set.
 /// You must provide the number of entities in the constraint using generics.
 ///
 /// It should look something like this:
@@ -207,14 +207,14 @@ fn penetration_constraints(
 ///
 /// substeps.add_system(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
-///         .in_set(SubsteppingSet::SolveUserConstraints),
+///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    num_pos_iters: Res<NumPosIters>,
+    num_pos_iters: Res<IterationCount>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     // Clear Lagrange multipliers
@@ -261,7 +261,13 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
 fn update_lin_vel(
     mut bodies: Query<
-        (&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel),
+        (
+            &RigidBody,
+            &Position,
+            &PreviousPosition,
+            &mut LinearVelocity,
+            &mut PreSolveLinearVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -284,7 +290,13 @@ fn update_lin_vel(
 #[cfg(feature = "2d")]
 fn update_ang_vel(
     mut bodies: Query<
-        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        (
+            &RigidBody,
+            &Rotation,
+            &PreviousRotation,
+            &mut AngularVelocity,
+            &mut PreSolveAngularVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -298,7 +310,7 @@ fn update_ang_vel(
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
-        ang_vel.0 = (rot.mul(prev_rot.inv())).as_radians() / sub_dt.0;
+        ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
     }
 }
 
@@ -306,7 +318,13 @@ fn update_ang_vel(
 #[cfg(feature = "3d")]
 fn update_ang_vel(
     mut bodies: Query<
-        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        (
+            &RigidBody,
+            &Rotation,
+            &PreviousRotation,
+            &mut AngularVelocity,
+            &mut PreSolveAngularVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -321,7 +339,7 @@ fn update_ang_vel(
 
         pre_solve_ang_vel.0 = ang_vel.0;
 
-        let delta_rot = rot.mul_quat(prev_rot.inverse());
+        let delta_rot = rot.mul_quat(prev_rot.inverse().0);
         ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
 
         if delta_rot.w < 0.0 {
@@ -411,7 +429,15 @@ fn solve_vel(
 
 /// Applies velocity corrections caused by joint damping.
 fn joint_damping<T: Joint>(
-    mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &InvMass), Without<Sleeping>>,
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &InverseMass,
+        ),
+        Without<Sleeping>,
+    >,
     joints: Query<&T, Without<RigidBody>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
@@ -461,11 +487,11 @@ fn compute_contact_vel(lin_vel: Vector, ang_vel: Vector, r: Vector) -> Vector {
 }
 
 #[cfg(feature = "2d")]
-fn compute_delta_ang_vel(inv_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
-    inv_inertia * r.perp_dot(p)
+fn compute_delta_ang_vel(inverse_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
+    inverse_inertia * r.perp_dot(p)
 }
 
 #[cfg(feature = "3d")]
-fn compute_delta_ang_vel(inv_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
-    inv_inertia * r.cross(p)
+fn compute_delta_ang_vel(inverse_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
+    inverse_inertia * r.cross(p)
 }

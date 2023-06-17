@@ -73,8 +73,8 @@ impl PenetrationConstraint {
         let r2 = self.contact.world_r2;
 
         // Compute contact positions at the current state
-        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.contact.local_r1);
-        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.contact.local_r2);
+        let p1 = body1.pos.0 - body1.center_of_mass.0 + body1.rot.rotate(self.contact.local_r1);
+        let p2 = body2.pos.0 - body2.center_of_mass.0 + body2.rot.rotate(self.contact.local_r2);
 
         // Compute penetration depth
         let penetration = (p1 - p2).dot(normal);
@@ -119,12 +119,12 @@ impl PenetrationConstraint {
         let r2 = self.contact.world_r2;
 
         // Compute contact positions at the current state and before substep integration
-        let p1 = body1.pos.0 - body1.local_com.0 + body1.rot.rotate(self.contact.local_r1);
-        let p2 = body2.pos.0 - body2.local_com.0 + body2.rot.rotate(self.contact.local_r2);
-        let prev_p1 =
-            body1.prev_pos.0 - body1.local_com.0 + body1.prev_rot.rotate(self.contact.local_r1);
-        let prev_p2 =
-            body2.prev_pos.0 - body2.local_com.0 + body2.prev_rot.rotate(self.contact.local_r2);
+        let p1 = body1.pos.0 - body1.center_of_mass.0 + body1.rot.rotate(self.contact.local_r1);
+        let p2 = body2.pos.0 - body2.center_of_mass.0 + body2.rot.rotate(self.contact.local_r2);
+        let prev_p1 = body1.prev_pos.0 - body1.center_of_mass.0
+            + body1.prev_rot.rotate(self.contact.local_r1);
+        let prev_p2 = body2.prev_pos.0 - body2.center_of_mass.0
+            + body2.prev_rot.rotate(self.contact.local_r2);
 
         // Compute relative motion of the contact points and get the tangential component
         let delta_p = (p1 - prev_p1) - (p2 - prev_p2);

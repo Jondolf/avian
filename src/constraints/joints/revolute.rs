@@ -171,7 +171,7 @@ impl RevoluteJoint {
         }
     }
 
-    fn get_delta_q(&self, rot1: &Rot, rot2: &Rot) -> Vector3 {
+    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
         let a1 = rot1.rotate_vec3(self.aligned_axis);
         let a2 = rot2.rotate_vec3(self.aligned_axis);
         a1.cross(a2)

@@ -16,9 +16,9 @@ impl Mass {
 /// The inverse mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct InvMass(pub Scalar);
+pub struct InverseMass(pub Scalar);
 
-impl InvMass {
+impl InverseMass {
     pub const ZERO: Self = Self(0.0);
 }
 
@@ -55,26 +55,26 @@ impl Inertia {
     /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.
     #[cfg(feature = "2d")]
     #[allow(dead_code)]
-    pub(crate) fn rotated(&self, _rot: &Rot) -> Self {
+    pub(crate) fn rotated(&self, _rot: &Rotation) -> Self {
         *self
     }
 
     /// Returns the inertia tensor's world-space version that takes the body's orientation into account.
     #[cfg(feature = "3d")]
-    pub fn rotated(&self, rot: &Rot) -> Self {
+    pub fn rotated(&self, rot: &Rotation) -> Self {
         Self(get_rotated_inertia_tensor(self.0, rot.0))
     }
 
     /// Returns the inverted moment of inertia.
     #[cfg(feature = "2d")]
-    pub fn inverse(&self) -> InvInertia {
-        InvInertia(1.0 / self.0)
+    pub fn inverse(&self) -> InverseInertia {
+        InverseInertia(1.0 / self.0)
     }
 
     /// Returns the inverted moment of inertia.
     #[cfg(feature = "3d")]
-    pub fn inverse(&self) -> InvInertia {
-        InvInertia(self.0.inverse())
+    pub fn inverse(&self) -> InverseInertia {
+        InverseInertia(self.0.inverse())
     }
 }
 
@@ -82,7 +82,7 @@ impl Inertia {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct InvInertia(pub Scalar);
+pub struct InverseInertia(pub Scalar);
 
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix.
 /// This represents the inverse of the torque needed for a desired angular acceleration along different axes.
@@ -93,16 +93,16 @@ pub struct InvInertia(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct InvInertia(pub Matrix3);
+pub struct InverseInertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
-impl Default for InvInertia {
+impl Default for InverseInertia {
     fn default() -> Self {
-        InvInertia(Matrix3::ZERO)
+        InverseInertia(Matrix3::ZERO)
     }
 }
 
-impl InvInertia {
+impl InverseInertia {
     #[cfg(feature = "2d")]
     pub const ZERO: Self = Self(0.0);
     #[cfg(feature = "3d")]
@@ -110,13 +110,13 @@ impl InvInertia {
 
     /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.
     #[cfg(feature = "2d")]
-    pub fn rotated(&self, _rot: &Rot) -> Self {
+    pub fn rotated(&self, _rot: &Rotation) -> Self {
         *self
     }
 
     /// Returns the inertia tensor's world-space version that takes the body's orientation into account.
     #[cfg(feature = "3d")]
-    pub fn rotated(&self, rot: &Rot) -> Self {
+    pub fn rotated(&self, rot: &Rotation) -> Self {
         Self(get_rotated_inertia_tensor(self.0, rot.0))
     }
 
@@ -133,7 +133,7 @@ impl InvInertia {
     }
 }
 
-impl From<Inertia> for InvInertia {
+impl From<Inertia> for InverseInertia {
     fn from(inertia: Inertia) -> Self {
         inertia.inverse()
     }
@@ -142,46 +142,46 @@ impl From<Inertia> for InvInertia {
 /// The local center of mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct LocalCom(pub Vector);
+pub struct CenterOfMass(pub Vector);
 
-impl LocalCom {
+impl CenterOfMass {
     pub const ZERO: Self = Self(Vector::ZERO);
 }
 
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
-pub struct MassPropsBundle {
+pub struct MassPropertiesBundle {
     pub mass: Mass,
-    pub inv_mass: InvMass,
+    pub inverse_mass: InverseMass,
     pub inertia: Inertia,
-    pub inv_inertia: InvInertia,
-    pub local_center_of_mass: LocalCom,
+    pub inverse_inertia: InverseInertia,
+    pub center_of_mass: CenterOfMass,
 }
 
-impl MassPropsBundle {
+impl MassPropertiesBundle {
     /// Computes the mass properties from a given [`Collider`] and density.
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
-            inv_mass,
+            inverse_mass,
             inertia,
-            inv_inertia,
-            local_center_of_mass,
+            inverse_inertia,
+            center_of_mass,
             ..
         } = ColliderMassProperties::new_computed(collider, density);
 
         Self {
             mass,
-            inv_mass,
+            inverse_mass,
             inertia,
-            inv_inertia,
-            local_center_of_mass,
+            inverse_inertia,
+            center_of_mass,
         }
     }
 }
 
 /// The mass properties derived from a given collider shape and density.
 ///
-/// These will be added to the body's actual [`Mass`], [`InvMass`], [`Inertia`], [`InvInertia`] and [`LocalCom`] components.
+/// These will be added to the body's actual [`Mass`], [`InverseMass`], [`Inertia`], [`InverseInertia`] and [`CenterOfMass`] components.
 ///
 /// You should generally not create or modify this directly. Instead, you can generate this automatically using a given collider shape and density with the associated `from_shape_and_density` method.
 #[derive(Reflect, Clone, Copy, Component, PartialEq)]
@@ -190,13 +190,13 @@ pub struct ColliderMassProperties {
     /// Mass given by collider.
     pub mass: Mass,
     /// Inverse mass given by collider.
-    pub inv_mass: InvMass,
+    pub inverse_mass: InverseMass,
     /// Inertia given by collider.
     pub inertia: Inertia,
     /// Inverse inertia given by collider.
-    pub inv_inertia: InvInertia,
+    pub inverse_inertia: InverseInertia,
     /// Local center of mass given by collider.
-    pub local_center_of_mass: LocalCom,
+    pub center_of_mass: CenterOfMass,
     /// Density used for calculating other mass properties.
     pub density: Scalar,
 }
@@ -204,10 +204,10 @@ pub struct ColliderMassProperties {
 impl ColliderMassProperties {
     pub const ZERO: Self = Self {
         mass: Mass::ZERO,
-        inv_mass: InvMass(Scalar::INFINITY),
+        inverse_mass: InverseMass(Scalar::INFINITY),
         inertia: Inertia::ZERO,
-        inv_inertia: InvInertia::ZERO,
-        local_center_of_mass: LocalCom::ZERO,
+        inverse_inertia: InverseInertia::ZERO,
+        center_of_mass: CenterOfMass::ZERO,
         density: 0.0,
     };
 }
@@ -219,7 +219,7 @@ impl ColliderMassProperties {
 
         Self {
             mass: Mass(props.mass()),
-            inv_mass: InvMass(props.inv_mass),
+            inverse_mass: InverseMass(props.inv_mass),
 
             #[cfg(feature = "2d")]
             inertia: Inertia(props.principal_inertia()),
@@ -227,11 +227,11 @@ impl ColliderMassProperties {
             inertia: Inertia(props.reconstruct_inertia_matrix().into()),
 
             #[cfg(feature = "2d")]
-            inv_inertia: InvInertia(1.0 / props.principal_inertia()),
+            inverse_inertia: InverseInertia(1.0 / props.principal_inertia()),
             #[cfg(feature = "3d")]
-            inv_inertia: InvInertia(props.reconstruct_inverse_inertia_matrix().into()),
+            inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
 
-            local_center_of_mass: LocalCom(props.local_com.into()),
+            center_of_mass: CenterOfMass(props.local_com.into()),
 
             density,
         }
@@ -246,4 +246,4 @@ impl Default for ColliderMassProperties {
 
 /// The previous [`ColliderMassProperties`].
 #[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
-pub(crate) struct PrevColliderMassProperties(pub ColliderMassProperties);
+pub(crate) struct PreviousColliderMassProperties(pub ColliderMassProperties);

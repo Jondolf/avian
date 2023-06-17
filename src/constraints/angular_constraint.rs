@@ -80,7 +80,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "2d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector3) -> Scalar {
         if body.rb.is_dynamic() {
-            axis.dot(body.inv_inertia.0 * axis)
+            axis.dot(body.inverse_inertia.0 * axis)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -98,15 +98,15 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rot, inv_inertia: Scalar, p: Scalar) -> Rot {
+    fn get_delta_rot(_rot: Rotation, inverse_inertia: Scalar, p: Scalar) -> Rotation {
         // Equation 8/9 but in 2D
-        Rot::from_radians(inv_inertia * p)
+        Rotation::from_radians(inverse_inertia * p)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rot, inv_inertia: Matrix3, p: Vector) -> Rot {
+    fn get_delta_rot(rot: Rotation, inverse_inertia: Matrix3, p: Vector) -> Rotation {
         // Equation 8/9
-        Rot(Quaternion::from_vec4(0.5 * (inv_inertia * p).extend(0.0)) * rot.0)
+        Rotation(Quaternion::from_vec4(0.5 * (inverse_inertia * p).extend(0.0)) * rot.0)
     }
 
     /// Computes the torque acting along the constraint using the equation tau = lambda * n / h^2

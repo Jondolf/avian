@@ -10,13 +10,13 @@ impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.configure_set(ComponentInitSet.in_set(PhysicsSet::Prepare));
         app.add_systems(
-            (init_rigid_bodies, init_mass_props, init_colliders).in_set(ComponentInitSet),
+            (init_rigid_bodies, init_mass_properties, init_colliders).in_set(ComponentInitSet),
         );
 
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                (update_aabb, update_mass_props)
+                (update_aabb, update_mass_properties)
                     .chain()
                     .after(ComponentInitSet)
                     .in_set(PhysicsSet::Prepare),
@@ -32,10 +32,10 @@ type RigidBodyComponents = (
     // Use transform as default position and rotation if no components for them found
     Option<&'static mut Transform>,
     Option<&'static GlobalTransform>,
-    Option<&'static Pos>,
-    Option<&'static Rot>,
-    Option<&'static LinVel>,
-    Option<&'static AngVel>,
+    Option<&'static Position>,
+    Option<&'static Rotation>,
+    Option<&'static LinearVelocity>,
+    Option<&'static AngularVelocity>,
     Option<&'static ExternalForce>,
     Option<&'static ExternalTorque>,
     Option<&'static Restitution>,
@@ -65,7 +65,7 @@ fn init_rigid_bodies(
         let mut body = commands.entity(entity);
 
         if let Some(pos) = pos {
-            body.insert(PrevPos(pos.0));
+            body.insert(PreviousPosition(pos.0));
 
             if let Some(ref mut transform) = transform {
                 #[cfg(feature = "2d")]
@@ -96,32 +96,33 @@ fn init_rigid_bodies(
                 });
             }
 
-            body.insert(Pos(translation));
-            body.insert(PrevPos(translation));
+            body.insert(Position(translation));
+            body.insert(PreviousPosition(translation));
         }
 
         if let Some(rot) = rot {
-            body.insert(PrevRot(*rot));
+            body.insert(PreviousRotation(*rot));
 
             if let Some(mut transform) = transform {
                 let q: Quaternion = (*rot).into();
                 transform.rotation = q.as_quat_f32();
             }
         } else {
-            let rotation =
-                global_transform.map_or(Rot::default(), |t| t.compute_transform().rotation.into());
+            let rotation = global_transform.map_or(Rotation::default(), |t| {
+                t.compute_transform().rotation.into()
+            });
             body.insert(rotation);
-            body.insert(PrevRot(rotation));
+            body.insert(PreviousRotation(rotation));
         }
 
         if lin_vel.is_none() {
-            body.insert(LinVel::default());
+            body.insert(LinearVelocity::default());
         }
-        body.insert(PreSolveLinVel::default());
+        body.insert(PreSolveLinearVelocity::default());
         if ang_vel.is_none() {
-            body.insert(AngVel::default());
+            body.insert(AngularVelocity::default());
         }
-        body.insert(PreSolveAngVel::default());
+        body.insert(PreSolveAngularVelocity::default());
         if force.is_none() {
             body.insert(ExternalForce::default());
         }
@@ -143,34 +144,38 @@ fn init_rigid_bodies(
 type MassPropComponents = (
     Entity,
     Option<&'static Mass>,
-    Option<&'static InvMass>,
+    Option<&'static InverseMass>,
     Option<&'static Inertia>,
-    Option<&'static InvInertia>,
-    Option<&'static LocalCom>,
+    Option<&'static InverseInertia>,
+    Option<&'static CenterOfMass>,
 );
 type MassPropComponentsQueryFilter = Or<(Added<RigidBody>, Added<Collider>)>;
 
-fn init_mass_props(
+fn init_mass_properties(
     mut commands: Commands,
-    mass_props: Query<MassPropComponents, MassPropComponentsQueryFilter>,
+    mass_properties: Query<MassPropComponents, MassPropComponentsQueryFilter>,
 ) {
-    for (entity, mass, inv_mass, inertia, inv_inertia, local_com) in &mass_props {
+    for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
         let mut body = commands.entity(entity);
 
         if mass.is_none() {
-            body.insert(Mass(inv_mass.map_or(0.0, |inv_mass| 1.0 / inv_mass.0)));
+            body.insert(Mass(
+                inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
+            ));
         }
-        if inv_mass.is_none() {
-            body.insert(InvMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
+        if inverse_mass.is_none() {
+            body.insert(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
         }
         if inertia.is_none() {
-            body.insert(inv_inertia.map_or(Inertia::ZERO, |inv_inertia| inv_inertia.inverse()));
+            body.insert(
+                inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
+            );
         }
-        if inv_inertia.is_none() {
-            body.insert(inertia.map_or(InvInertia::ZERO, |inertia| inertia.inverse()));
+        if inverse_inertia.is_none() {
+            body.insert(inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()));
         }
-        if local_com.is_none() {
-            body.insert(LocalCom::default());
+        if center_of_mass.is_none() {
+            body.insert(CenterOfMass::default());
         }
     }
 }
@@ -181,11 +186,13 @@ type ColliderComponents = (
     Option<&'static ColliderAabb>,
     Option<&'static CollidingEntities>,
     Option<&'static ColliderMassProperties>,
-    Option<&'static PrevColliderMassProperties>,
+    Option<&'static PreviousColliderMassProperties>,
 );
 
 fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, Added<Collider>>) {
-    for (entity, collider, aabb, colliding_entities, mass_props, prev_mass_props) in &colliders {
+    for (entity, collider, aabb, colliding_entities, mass_properties, previous_mass_properties) in
+        &colliders
+    {
         let mut entity_commands = commands.entity(entity);
 
         if aabb.is_none() {
@@ -194,21 +201,35 @@ fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, A
         if colliding_entities.is_none() {
             entity_commands.insert(CollidingEntities::default());
         }
-        if mass_props.is_none() {
+        if mass_properties.is_none() {
             entity_commands.insert(ColliderMassProperties::new_computed(collider, 1.0));
         }
-        if prev_mass_props.is_none() {
-            entity_commands.insert(PrevColliderMassProperties(ColliderMassProperties::ZERO));
+        if previous_mass_properties.is_none() {
+            entity_commands.insert(PreviousColliderMassProperties(ColliderMassProperties::ZERO));
         }
     }
 }
 
-type AABBChanged = Or<(Changed<Pos>, Changed<Rot>, Changed<LinVel>, Changed<AngVel>)>;
+type AABBChanged = Or<(
+    Changed<Position>,
+    Changed<Rotation>,
+    Changed<LinearVelocity>,
+    Changed<AngularVelocity>,
+)>;
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
 fn update_aabb(
-    mut bodies: Query<(ColliderQuery, &Pos, &Rot, Option<&LinVel>, Option<&AngVel>), AABBChanged>,
+    mut bodies: Query<
+        (
+            ColliderQuery,
+            &Position,
+            &Rotation,
+            Option<&LinearVelocity>,
+            Option<&AngularVelocity>,
+        ),
+        AABBChanged,
+    >,
     dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
@@ -239,9 +260,9 @@ fn update_aabb(
 
 type MassPropsChanged = Or<(
     Changed<Mass>,
-    Changed<InvMass>,
+    Changed<InverseMass>,
     Changed<Inertia>,
-    Changed<InvInertia>,
+    Changed<InverseInertia>,
     Changed<Collider>,
     Changed<ColliderMassProperties>,
 )>;
@@ -249,32 +270,34 @@ type MassPropsChanged = Or<(
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_props(mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), MassPropsChanged>) {
-    for (mut mass_props, collider) in &mut bodies {
-        if mass_props.mass.is_changed() && mass_props.mass.0 >= Scalar::EPSILON {
-            mass_props.inv_mass.0 = 1.0 / mass_props.mass.0;
+fn update_mass_properties(
+    mut bodies: Query<(MassPropsQuery, Option<ColliderQuery>), MassPropsChanged>,
+) {
+    for (mut mass_properties, collider) in &mut bodies {
+        if mass_properties.mass.is_changed() && mass_properties.mass.0 >= Scalar::EPSILON {
+            mass_properties.inverse_mass.0 = 1.0 / mass_properties.mass.0;
         }
 
         if let Some(mut collider_query) = collider {
             // Subtract previous collider mass props from the body's mass props
-            mass_props -= collider_query.prev_mass_props.0;
+            mass_properties -= collider_query.previous_mass_properties.0;
 
             // Update previous and current collider mass props
-            collider_query.prev_mass_props.0 = *collider_query.mass_props;
-            *collider_query.mass_props = ColliderMassProperties::new_computed(
+            collider_query.previous_mass_properties.0 = *collider_query.mass_properties;
+            *collider_query.mass_properties = ColliderMassProperties::new_computed(
                 &collider_query.collider,
-                collider_query.mass_props.density,
+                collider_query.mass_properties.density,
             );
 
             // Add new collider mass props to the body's mass props
-            mass_props += *collider_query.mass_props;
+            mass_properties += *collider_query.mass_properties;
         }
 
-        if mass_props.mass.0 < Scalar::EPSILON {
-            mass_props.mass.0 = Scalar::EPSILON;
+        if mass_properties.mass.0 < Scalar::EPSILON {
+            mass_properties.mass.0 = Scalar::EPSILON;
         }
-        if mass_props.inv_mass.0 < Scalar::EPSILON {
-            mass_props.inv_mass.0 = Scalar::EPSILON;
+        if mass_properties.inverse_mass.0 < Scalar::EPSILON {
+            mass_properties.inverse_mass.0 = Scalar::EPSILON;
         }
     }
 }

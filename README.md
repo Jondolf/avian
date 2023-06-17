@@ -59,8 +59,8 @@ fn setup(
             ..default()
         },
         RigidBody::Dynamic,
-        Pos(Vec3::Y * 4.0),
-        AngVel(Vec3::new(2.5, 3.4, 1.6)),
+        Position(Vec3::Y * 4.0),
+        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
     // Light

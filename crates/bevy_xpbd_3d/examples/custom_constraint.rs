@@ -14,8 +14,7 @@ fn main() {
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_system(
-        solve_constraint::<CustomDistanceConstraint, 2>
-            .in_set(SubsteppingSet::SolveUserConstraints),
+        solve_constraint::<CustomDistanceConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
     );
 
     // Run the app
@@ -101,8 +100,8 @@ fn setup(
         .spawn((
             cube_mesh,
             RigidBody::Dynamic,
-            Pos(Vec3::new(3.0, 3.5, 0.0)),
-            MassPropsBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
+            Position(Vec3::new(3.0, 3.5, 0.0)),
+            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
 

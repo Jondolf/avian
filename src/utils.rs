@@ -3,12 +3,12 @@
 use crate::prelude::*;
 
 #[cfg(feature = "2d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<Scalar> {
+pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
     Isometry::<Scalar>::new(pos.into(), (*rot).into())
 }
 
 #[cfg(feature = "3d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rot) -> Isometry<Scalar> {
+pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
     Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
 }
 

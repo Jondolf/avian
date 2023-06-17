@@ -2,13 +2,13 @@
 
 mod collider;
 mod layers;
-mod mass_props;
+mod mass_properties;
 mod rotation;
 mod world_queries;
 
 pub use collider::*;
 pub use layers::*;
-pub use mass_props::*;
+pub use mass_properties::*;
 pub use rotation::*;
 pub use world_queries::*;
 
@@ -22,7 +22,7 @@ use derive_more::From;
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     ///
-    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinVel`] or [`AngVel`] components. Directly changing the [`Pos`] or [`Rot`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
+    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinearVelocity`] or [`AngularVelocity`] components. Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
     #[default]
     Dynamic,
 
@@ -35,7 +35,7 @@ pub enum RigidBody {
 
     /// Kinematic bodies are bodies that are not affected by any external forces or collisions. They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
     ///
-    /// Unlike static bodies, the [`Pos`], [`LinVel`] and [`AngVel`] components will move kinematic bodies as expected. These components will never be altered by the physics engine, so you can kinematic bodies freely.
+    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected. These components will never be altered by the physics engine, so you can kinematic bodies freely.
     Kinematic,
 }
 
@@ -88,17 +88,17 @@ pub struct SleepingDisabled;
 /// The position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct Pos(pub Vector);
+pub struct Position(pub Vector);
 
 #[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for Pos {
+impl From<Vec2> for Position {
     fn from(value: Vec2) -> Self {
         value.as_dvec2().into()
     }
 }
 
 #[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for Pos {
+impl From<Vec3> for Position {
     fn from(value: Vec3) -> Self {
         value.as_dvec3().into()
     }
@@ -107,26 +107,26 @@ impl From<Vec3> for Pos {
 /// The previous position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PrevPos(pub Vector);
+pub struct PreviousPosition(pub Vector);
 
 /// The linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct LinVel(pub Vector);
+pub struct LinearVelocity(pub Vector);
 
-impl LinVel {
-    pub const ZERO: LinVel = LinVel(Vector::ZERO);
+impl LinearVelocity {
+    pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
 #[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for LinVel {
+impl From<Vec2> for LinearVelocity {
     fn from(value: Vec2) -> Self {
         value.as_dvec2().into()
     }
 }
 
 #[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for LinVel {
+impl From<Vec3> for LinearVelocity {
     fn from(value: Vec3) -> Self {
         value.as_dvec3().into()
     }
@@ -135,29 +135,29 @@ impl From<Vec3> for LinVel {
 /// The linear velocity of a body before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveLinVel(pub Vector);
+pub struct PreSolveLinearVelocity(pub Vector);
 
 /// The angular velocity of a body in radians. Positive values will result in counter-clockwise rotation.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct AngVel(pub Scalar);
+pub struct AngularVelocity(pub Scalar);
 
 /// The angular velocity of a body in radians.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct AngVel(pub Vector);
+pub struct AngularVelocity(pub Vector);
 
-impl AngVel {
+impl AngularVelocity {
     #[cfg(feature = "2d")]
-    pub const ZERO: AngVel = AngVel(0.0);
+    pub const ZERO: AngularVelocity = AngularVelocity(0.0);
     #[cfg(feature = "3d")]
-    pub const ZERO: AngVel = AngVel(Vector::ZERO);
+    pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
 }
 
 #[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for AngVel {
+impl From<Vec3> for AngularVelocity {
     fn from(value: Vec3) -> Self {
         value.as_dvec3().into()
     }
@@ -167,13 +167,13 @@ impl From<Vec3> for AngVel {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngVel(pub Scalar);
+pub struct PreSolveAngularVelocity(pub Scalar);
 
 /// The angular velocity of a body in radians before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngVel(pub Vector);
+pub struct PreSolveAngularVelocity(pub Vector);
 
 /// An external force applied to a body during the integration step. It persists during the simulation, so it must be cleared manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]

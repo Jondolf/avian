@@ -8,19 +8,19 @@ use std::ops::{AddAssign, SubAssign};
 pub struct RigidBodyQuery {
     pub entity: Entity,
     pub rb: &'static mut RigidBody,
-    pub pos: &'static mut Pos,
-    pub rot: &'static mut Rot,
-    pub prev_pos: &'static mut PrevPos,
-    pub prev_rot: &'static mut PrevRot,
-    pub lin_vel: &'static mut LinVel,
-    pub pre_solve_lin_vel: &'static mut PreSolveLinVel,
-    pub ang_vel: &'static mut AngVel,
-    pub pre_solve_ang_vel: &'static mut PreSolveAngVel,
+    pub pos: &'static mut Position,
+    pub rot: &'static mut Rotation,
+    pub prev_pos: &'static mut PreviousPosition,
+    pub prev_rot: &'static mut PreviousRotation,
+    pub lin_vel: &'static mut LinearVelocity,
+    pub pre_solve_lin_vel: &'static mut PreSolveLinearVelocity,
+    pub ang_vel: &'static mut AngularVelocity,
+    pub pre_solve_ang_vel: &'static mut PreSolveAngularVelocity,
     pub mass: &'static mut Mass,
-    pub inv_mass: &'static mut InvMass,
+    pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,
-    pub inv_inertia: &'static mut InvInertia,
-    pub local_com: &'static mut LocalCom,
+    pub inverse_inertia: &'static mut InverseInertia,
+    pub center_of_mass: &'static mut CenterOfMass,
     pub friction: &'static mut Friction,
     pub restitution: &'static mut Restitution,
 }
@@ -28,14 +28,14 @@ pub struct RigidBodyQuery {
 impl<'w> RigidBodyQueryItem<'w> {
     /// Computes the world-space inverse inertia (does nothing in 2D).
     #[cfg(feature = "2d")]
-    pub(crate) fn world_inv_inertia(&self) -> InvInertia {
-        *self.inv_inertia
+    pub(crate) fn world_inv_inertia(&self) -> InverseInertia {
+        *self.inverse_inertia
     }
 
     // Computes the world-space inverse inertia tensor.
     #[cfg(feature = "3d")]
-    pub fn world_inv_inertia(&self) -> InvInertia {
-        self.inv_inertia.rotated(&self.rot)
+    pub fn world_inv_inertia(&self) -> InverseInertia {
+        self.inverse_inertia.rotated(&self.rot)
     }
 }
 
@@ -43,10 +43,10 @@ impl<'w> RigidBodyQueryItem<'w> {
 #[world_query(mutable)]
 pub(crate) struct MassPropsQuery {
     pub mass: &'static mut Mass,
-    pub inv_mass: &'static mut InvMass,
+    pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,
-    pub inv_inertia: &'static mut InvInertia,
-    pub local_com: &'static mut LocalCom,
+    pub inverse_inertia: &'static mut InverseInertia,
+    pub center_of_mass: &'static mut CenterOfMass,
 }
 
 #[derive(WorldQuery)]
@@ -54,26 +54,26 @@ pub(crate) struct MassPropsQuery {
 pub(crate) struct ColliderQuery {
     pub collider: &'static mut Collider,
     pub aabb: &'static mut ColliderAabb,
-    pub mass_props: &'static mut ColliderMassProperties,
-    pub prev_mass_props: &'static mut PrevColliderMassProperties,
+    pub mass_properties: &'static mut ColliderMassProperties,
+    pub previous_mass_properties: &'static mut PreviousColliderMassProperties,
 }
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 += rhs.mass.0;
-        self.inv_mass.0 = 1.0 / self.mass.0;
+        self.inverse_mass.0 = 1.0 / self.mass.0;
         self.inertia.0 += rhs.inertia.0;
-        self.inv_inertia.0 = self.inertia.inverse().0;
-        self.local_com.0 += rhs.local_center_of_mass.0;
+        self.inverse_inertia.0 = self.inertia.inverse().0;
+        self.center_of_mass.0 += rhs.center_of_mass.0;
     }
 }
 
 impl<'w> SubAssign<ColliderMassProperties> for MassPropsQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         self.mass.0 -= rhs.mass.0;
-        self.inv_mass.0 = 1.0 / self.mass.0;
+        self.inverse_mass.0 = 1.0 / self.mass.0;
         self.inertia.0 -= rhs.inertia.0;
-        self.inv_inertia.0 = self.inertia.inverse().0;
-        self.local_com.0 -= rhs.local_center_of_mass.0;
+        self.inverse_inertia.0 = self.inertia.inverse().0;
+        self.center_of_mass.0 -= rhs.center_of_mass.0;
     }
 }

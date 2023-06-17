@@ -25,8 +25,8 @@ impl Plugin for SleepingPlugin {
 type SleepingQueryComponents = (
     Entity,
     &'static RigidBody,
-    &'static mut LinVel,
-    &'static mut AngVel,
+    &'static mut LinearVelocity,
+    &'static mut AngularVelocity,
     &'static mut TimeSleeping,
 );
 
@@ -67,17 +67,17 @@ fn mark_sleeping_bodies(
         // If the body has been still for long enough, set it to sleep and reset velocities.
         if time_sleeping.0 > deactivation_time.0 {
             commands.entity(entity).insert(Sleeping);
-            *lin_vel = LinVel::ZERO;
-            *ang_vel = AngVel::ZERO;
+            *lin_vel = LinearVelocity::ZERO;
+            *ang_vel = AngularVelocity::ZERO;
         }
     }
 }
 
 type BodyWokeUpFilter = Or<(
-    Changed<Pos>,
-    Changed<Rot>,
-    Changed<LinVel>,
-    Changed<AngVel>,
+    Changed<Position>,
+    Changed<Rotation>,
+    Changed<LinearVelocity>,
+    Changed<AngularVelocity>,
     Changed<ExternalForce>,
     Changed<ExternalTorque>,
 )>;

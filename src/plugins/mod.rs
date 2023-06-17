@@ -39,7 +39,7 @@ pub enum PhysicsSet {
     ///
     /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step. See [`SubsteppingSet`] and [`SubstepSchedule`].
+    /// Substepping is an inner loop inside a physics step. See [`SubstepSet`] and [`SubstepSchedule`].
     Substeps,
     /// The sleeping step controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
     Sleeping,
@@ -54,13 +54,13 @@ pub enum PhysicsSet {
 /// 3. Update velocities
 /// 4. Solve velocity constraints (dynamic friction and restitution)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SubsteppingSet {
+pub enum SubstepSet {
     /// In the integration step, the position and velocity of each particle and body is explicitly integrated, taking only external forces like gravity (and forces applied by the user) into account.
     Integrate,
     /// The solver iterates through constraints and solves them.
     /// This step is also responsible for narrow phase collision detection, as it creates a [`PenetrationConstraint`] for each contact.
     ///
-    /// **Note**: If you want to create your own constraints, you should add them in [`SubsteppingSet::SolveUserConstraints`]
+    /// **Note**: If you want to create your own constraints, you should add them in [`SubstepSet::SolveUserConstraints`]
     /// to avoid system order ambiguities.
     SolveConstraints,
     /// The position solver iterates through custom constraints created by the user and solves them.
