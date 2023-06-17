@@ -130,14 +130,14 @@ impl Joint for RevoluteJoint {
         }
     }
 
-    fn with_lin_vel_damping(self, damping: Scalar) -> Self {
+    fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
             damping_linear: damping,
             ..self
         }
     }
 
-    fn with_ang_vel_damping(self, damping: Scalar) -> Self {
+    fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
             damping_angular: damping,
             ..self
