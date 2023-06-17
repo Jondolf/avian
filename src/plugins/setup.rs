@@ -69,6 +69,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>();
 
         let mut physics_schedule = Schedule::default();
