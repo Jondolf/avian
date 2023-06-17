@@ -70,11 +70,11 @@ fn init_rigid_bodies(
             if let Some(ref mut transform) = transform {
                 #[cfg(feature = "2d")]
                 {
-                    transform.translation = pos.extend(0.0).as_vec3_f32();
+                    transform.translation = pos.extend(0.0).as_f32();
                 }
                 #[cfg(feature = "3d")]
                 {
-                    transform.translation = pos.as_vec3_f32();
+                    transform.translation = pos.as_f32();
                 }
             }
         } else {
@@ -105,7 +105,7 @@ fn init_rigid_bodies(
 
             if let Some(mut transform) = transform {
                 let q: Quaternion = (*rot).into();
-                transform.rotation = q.as_quat_f32();
+                transform.rotation = q.as_f32();
             }
         } else {
             let rotation = global_transform.map_or(Rotation::default(), |t| {

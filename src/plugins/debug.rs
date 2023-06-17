@@ -53,8 +53,8 @@ fn debug_render_aabbs(aabbs: Query<&ColliderAabb>, mut shapes: ResMut<DebugShape
     #[cfg(feature = "3d")]
     for aabb in aabbs.iter() {
         shapes.cuboid().min_max(
-            Vector::from(aabb.mins).as_vec3_f32(),
-            Vector::from(aabb.maxs).as_vec3_f32(),
+            Vector::from(aabb.mins).as_f32(),
+            Vector::from(aabb.maxs).as_f32(),
         );
     }
 }
@@ -63,8 +63,8 @@ fn debug_render_aabbs(aabbs: Query<&ColliderAabb>, mut shapes: ResMut<DebugShape
 fn debug_render_contacts(mut collisions: EventReader<Collision>, mut lines: ResMut<DebugLines>) {
     #[cfg(feature = "2d")]
     for Collision(contact) in collisions.iter() {
-        let p1 = contact.point1.extend(0.0).as_vec3_f32();
-        let p2 = contact.point2.extend(0.0).as_vec3_f32();
+        let p1 = contact.point1.extend(0.0).as_f32();
+        let p2 = contact.point2.extend(0.0).as_f32();
 
         lines.line_colored(p1 - Vec3::X * 0.3, p1 + Vec3::X * 0.3, 0.01, Color::CYAN);
         lines.line_colored(p1 - Vec3::Y * 0.3, p1 + Vec3::Y * 0.3, 0.01, Color::CYAN);
@@ -74,8 +74,8 @@ fn debug_render_contacts(mut collisions: EventReader<Collision>, mut lines: ResM
     }
     #[cfg(feature = "3d")]
     for Collision(contact) in collisions.iter() {
-        let p1 = contact.point1.as_vec3_f32();
-        let p2 = contact.point2.as_vec3_f32();
+        let p1 = contact.point1.as_f32();
+        let p2 = contact.point2.as_f32();
 
         lines.line_colored(p1 - Vec3::X * 0.3, p1 + Vec3::X * 0.3, 0.01, Color::CYAN);
         lines.line_colored(p1 - Vec3::Y * 0.3, p1 + Vec3::Y * 0.3, 0.01, Color::CYAN);
