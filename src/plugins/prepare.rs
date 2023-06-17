@@ -239,9 +239,9 @@ fn update_aabb(
         let lin_vel_len = lin_vel.map_or(0.0, |v| v.length());
 
         #[cfg(feature = "2d")]
-        let ang_vel_len = ang_vel.map_or(0.0, |v| v.abs());
+        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.abs());
         #[cfg(feature = "3d")]
-        let ang_vel_len = ang_vel.map_or(0.0, |v| v.length());
+        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.length());
 
         let computed_aabb = collider_query
             .collider
