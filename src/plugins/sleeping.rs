@@ -48,9 +48,9 @@ fn mark_sleeping_bodies(
         let lin_vel_sq = lin_vel.length_squared();
 
         #[cfg(feature = "2d")]
-        let ang_vel_sq = ang_vel.powi(2);
+        let ang_vel_sq = ang_vel.0.powi(2);
         #[cfg(feature = "3d")]
-        let ang_vel_sq = ang_vel.dot(ang_vel.0);
+        let ang_vel_sq = ang_vel.0.dot(ang_vel.0);
 
         // Negative thresholds indicate that sleeping is disabled.
         let lin_sleeping_threshold_sq = sleep_threshold.linear * sleep_threshold.linear.abs();
