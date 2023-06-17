@@ -36,8 +36,8 @@ insta = "1.0"
 itertools = "0.10"
 
 [[example]]
-name = "chain2d"
-required-features = ["2d", "f32"]
+name = "chain_2d"
+required-features = ["2d"]
 
 [[example]]
 name = "fixed_joint_2d"
