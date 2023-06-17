@@ -89,20 +89,25 @@ To see more complete examples of the various features of Bevy XPBD, check out th
 
 - 2D and 3D support
 - Dynamic, kinematic and static rigid bodies
-- Collision detection via [parry](https://parry.rs)
+- Collision detection powered by [parry](https://parry.rs)
+  - Collision events
+  - Collision layers
+  - Sensor colliders
 - Basic joints
   - Revolute joint (or hinge joint), optional angle limits
   - Spherical joint, optional swing and twist angle limits
   - Prismatic joint, one free translational axis with optional limits
   - Fixed joint
 - Joint damping
+- Modular plugin architecture
+- Support for custom constraints
 - Gravity
 - External forces
 - Restitution
 - Friction
 - Substepping
 - Configurable timesteps
-- Determinism
+- Sleeping
 - Choose between `f32` and `f64`
 
 ## Future features
@@ -114,10 +119,8 @@ To see more complete examples of the various features of Bevy XPBD, check out th
 - Spatial queries
 - Continuous collision detection
 - Multiple colliders per body
-- Sensor colliders
-- Access, filter and modify contact data
 - Debug render colliders, joints, contacts etc.
-- Performance optimization (sleeping, multithreading...)
+- Performance optimization (better broad phase, parallel solver...)
 - Soft bodies
   - Cloth
   - Deformable solids
