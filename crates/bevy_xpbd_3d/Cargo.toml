@@ -41,11 +41,7 @@ required-features = ["3d"]
 
 [[example]]
 name = "cubes"
-required-features = ["3d", "f32"]
-
-[[example]]
-name = "cubes_f64"
-required-features = ["3d", "f64"]
+required-features = ["3d"]
 
 [[example]]
 name = "fixed_joint_3d"
