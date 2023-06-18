@@ -16,5 +16,4 @@ bevy = { version = "0.10.1", default-features = false, features = [
     "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
 bevy_screen_diagnostics = "0.2"
-bevy-inspector-egui = "0.18"
 bevy_xpbd_3d = { path = "../bevy_xpbd_3d", default-features = false }
