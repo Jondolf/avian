@@ -3,23 +3,34 @@
 //! **Bevy XPBD** is a 2D and 3D physics engine based on [*Extended Position Based Dynamics* (XPBD)](#What_is_XPBD?)
 //! for the [Bevy game engine](https://bevyengine.org/).
 //!
+//! ## Design
+//!
+//! Below are some of the core design principles used in Bevy XPBD.
+//!
+//! - Made with Bevy, for Bevy.
+//! - Use the ECS as much as possible. A Bevy physics engine shouldn't need to maintain a separate physics world.
+//! - Provide an ergonomic and familiar API. Creating and using [rigid bodies](RigidBody) and [colliders](Collider) shouldn't be hard.
+//! - Use a highly modular [plugin architecture](plugins). Many large projects require custom-made solutions, so users should be able to
+//! replace parts of the engine with their own implementations.
+//!
 //! ## Features
 //!
 //! Below are some of the features of Bevy XPBD.
 //!
-//! - 2D and 3D support with `bevy_xpbd_2d` and `bevy_xpbd_3d`
 //! - Dynamic, kinematic and static [rigid bodies](RigidBody)
-//! - [Gravity](Gravity)
-//! - [External forces](ExternalForce) and [torque](ExternalTorque)
 //! - [Colliders](Collider) powered by [parry](parry)
+//!     - Collision events: [`Collision`], [`CollisionStarted`], [`CollisionEnded`]
+//!     - Access to [colliding entities](CollidingEntities)
+//!     - [Sensor colliders](Sensor)
+//!     - [Collision layers](CollisionLayers)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
-//! - Configurable [timesteps](PhysicsTimestep)
-//! - Highly modular [plugin architecture](plugins)
-//! - Choose number precision with the `f32`/`f64` feature (`f32` by default)
-//! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
+//! - External [forces](ExternalForce) and [torque](ExternalTorque)
+//! - [Gravity](Gravity)
 //! - [Joints](joints)
-//! - [Substepping](constraints#substepping)
-//! - Automatically deactivating bodies with [sleeping](sleeping) to improve performance
+//! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
+//! - Automatically deactivating bodies with [sleeping](sleeping)
+//! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
+//! - `f32`/`f64` precision (`f32` by default)
 //!
 //! ## Getting started
 //!
@@ -58,6 +69,8 @@
 //! - `f32` enables using `f32` numbers. Incompatible with `f64`.
 //! - `f64` enables using `f64` numbers. Recommended when encountering stability problems, especially with
 //! small timesteps. Incompatible with `f32`.
+//! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and events like [AABBs](ColliderAabb)
+//! and [contacts](Contact).
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
@@ -68,7 +81,7 @@
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
 //! the [`PhysicsPlugins`] plugin group.
 //!
-//! ```
+//! ```ignore
 //! use bevy::prelude::*;
 //! use bevy_xpbd_3d::prelude::*;
 //!
@@ -84,7 +97,7 @@
 //! For example, adding a [rigid body](RigidBody) with a [collider](Collider) is as simple as spawning an entity
 //! with the [`RigidBody`] and [`Collider`] components:
 //!
-//! ```
+//! ```ignore
 //! commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
 //! ```
 //!
@@ -106,14 +119,29 @@
 //! cargo run --example cubes
 //! ```
 //!
+//! Note that the examples support both f32 and f64 precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
+//! In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
+//!
+//! By default the examples use `f64`, so if you want to run the `f32` versions, you need to disable the default features and manually choose
+//! the dimension and precision:
+//!
+//! ```bash
+//! cargo run --example cubes --no-default-features --features 3d,f32
+//! ```
+//!
 //! ### Common tasks
 //!
 //! - [Create a rigid body](RigidBody)
 //! - [Add a collider](Collider)
+//! - [Listen to collision events](Collider#collision-events)
+//! - [Definen collision layers](CollisionLayers)
 //! - [Define mass properties](RigidBody#mass-properties)
 //! - [Use joints](joints)
 //! - [Configure gravity](Gravity)
+//! - [Configure restitution](Restitution)
+//! - [Configure friction](Friction)
 //! - [Configure the physics timestep](PhysicsTimestep)
+//! - [Configure the substep count](SubstepCount)
 //! - [Create custom constraints](constraints)
 //! - [Replace built-in plugins with custom plugins](plugins#custom-plugins)
 //!
@@ -133,7 +161,7 @@
 //! ```
 //! while simulating:
 //!     // Substep size
-//!     h = ∆t / numSubsteps
+//!     h = ∆t / substep_count
 //!
 //!     // Broad phase
 //!     collect_collision_pairs()
@@ -197,13 +225,24 @@
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
+//! License
+//!
+//! Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
+//!
+//! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/bevy_xpbd/LICENSE-MIT)
+//! or http://opensource.org/licenses/MIT)
+//! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/Jondolf/bevy_xpbd/LICENSE-APACHE)
+//! or http://www.apache.org/licenses/LICENSE-2.0)
+//!
+//! at your option.
+//!
 //! [^1]: [`PhysicsSchedule`]
 //!
 //! [^2]: [`SubstepSchedule`]
 //!
 //! [^3]: [`PhysicsSet`]
 //!
-//! [^4]: [`SubsteppingSet`]
+//! [^4]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(missing_docs)]
