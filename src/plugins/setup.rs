@@ -5,7 +5,7 @@ use crate::prelude::*;
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
 /// This plugin does *not* initialize any other plugins or physics systems.
-/// For that, add the plugins in [`PhysicsPlugins`], or even create your own plugins using
+/// For that, add the plugins in [`PhysicsPlugins`], or even [create your own plugins](PhysicsPlugins#custom-plugins) using
 /// the schedules and sets provided by this setup plugin.
 ///
 /// ## Schedules and sets
@@ -118,11 +118,13 @@ impl Plugin for PhysicsSetupPlugin {
 }
 
 /// The high-level physics schedule that runs once per physics frame.
+/// See [`PhysicsSet`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
 /// The substepping schedule. The number of substeps per physics step is
 /// configured through the [`SubstepCount`] resource.
+/// See [`SubstepSet`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 

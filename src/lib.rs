@@ -143,7 +143,7 @@
 //! - [Configure the physics timestep](PhysicsTimestep)
 //! - [Configure the substep count](SubstepCount)
 //! - [Create custom constraints](constraints#custom-constraints)
-//! - [Replace built-in plugins with custom plugins](plugins#custom-plugins)
+//! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
 //!
 //! ## What is XPBD?
 //!
@@ -201,13 +201,13 @@
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
 //! the Bevy schedules[^1][^2] and sets[^3][^4], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
-//! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](plugins).
+//! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
 //!
 //! - [XPBD integration step](integrator)
 //! - [Constraints and how to create them](constraints)
-//! - [Schedules and sets used for the simulation loop](PhysicsSetupPlugin)
+//! - [Schedules and sets used for the simulation loop](PhysicsSetupPlugin#schedules-and-sets)
 //!
 //! ### Learning resources
 //!
