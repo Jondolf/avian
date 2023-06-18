@@ -41,7 +41,7 @@ required-features = ["2d"]
 
 [[example]]
 name = "fixed_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]
 
 [[example]]
 name = "move_marbles"
@@ -49,8 +49,8 @@ required-features = ["2d", "f32"]
 
 [[example]]
 name = "prismatic_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]
 
 [[example]]
 name = "revolute_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]

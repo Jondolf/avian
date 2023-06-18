@@ -79,12 +79,11 @@ fn main() {
     console_error_panic_hook::set_once();
 
     App::new()
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
-        .insert_resource(SubstepCount(50))
-        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_plugins(DefaultPlugins)
         .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(SubstepCount(50))
+        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_startup_system(setup)
         .add_system(follow_mouse)
         .run();
