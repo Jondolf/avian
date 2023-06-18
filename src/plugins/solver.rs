@@ -403,12 +403,6 @@ fn solve_vel(
             let inv_inertia1 = body1.world_inv_inertia().0;
             let inv_inertia2 = body2.world_inv_inertia().0;
 
-            // Compute generalized inverse masses
-            let w1 =
-                constraint.compute_generalized_inverse_mass(&body1, constraint.world_r1, normal);
-            let w2 =
-                constraint.compute_generalized_inverse_mass(&body2, constraint.world_r2, normal);
-
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(
                 tangent_vel,
@@ -428,6 +422,25 @@ fn solve_vel(
             );
 
             let delta_v = friction_impulse + restitution_impulse;
+            let delta_v_length = delta_v.length();
+
+            if delta_v_length <= Scalar::EPSILON {
+                continue;
+            }
+
+            let delta_v_dir = delta_v / delta_v_length;
+
+            // Compute generalized inverse masses
+            let w1 = constraint.compute_generalized_inverse_mass(
+                &body1,
+                constraint.world_r1,
+                delta_v_dir,
+            );
+            let w2 = constraint.compute_generalized_inverse_mass(
+                &body2,
+                constraint.world_r2,
+                delta_v_dir,
+            );
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
