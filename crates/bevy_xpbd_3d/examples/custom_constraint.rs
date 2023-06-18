@@ -14,8 +14,7 @@ fn main() {
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_system(
-        solve_constraint::<CustomDistanceConstraint, 2>
-            .in_set(SubsteppingSet::SolveUserConstraints),
+        solve_constraint::<CustomDistanceConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
     );
 
     // Run the app
@@ -27,9 +26,9 @@ fn main() {
 struct CustomDistanceConstraint {
     entity1: Entity,
     entity2: Entity,
-    rest_length: f32,
-    lagrange: f32,
-    compliance: f32,
+    rest_length: Scalar,
+    lagrange: Scalar,
+    compliance: Scalar,
 }
 
 impl PositionConstraint for CustomDistanceConstraint {}
@@ -48,7 +47,7 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
         let [r1, r2] = [Vector::ZERO, Vector::ZERO];
 
         // Compute the positional difference
-        let delta_x = body1.pos.0 - body2.pos.0;
+        let delta_x = body1.position.0 - body2.position.0;
 
         // The current separation distance
         let length = delta_x.length();
@@ -96,15 +95,13 @@ fn setup(
     };
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length
-    let static_cube = commands
-        .spawn((cube_mesh.clone(), RigidBodyBundle::new_static()))
-        .id();
+    let static_cube = commands.spawn((cube_mesh.clone(), RigidBody::Static)).id();
     let dynamic_cube = commands
         .spawn((
             cube_mesh,
-            RigidBodyBundle::new_dynamic()
-                .with_pos(Vec3::new(3.0, 3.5, 0.0))
-                .with_computed_mass_props(&Shape::cuboid(0.5, 0.5, 0.5), 1.0),
+            RigidBody::Dynamic,
+            Position(Vector::new(3.0, 3.5, 0.0)),
+            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
 

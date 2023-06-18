@@ -1,134 +1,105 @@
+#![allow(clippy::unnecessary_cast)]
+
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(Msaa::Sample4)
+        .add_startup_system(setup)
+        .add_system(movement)
+        .run();
+}
+
 #[derive(Component)]
-struct Player;
-
-#[derive(Component, Deref, DerefMut)]
-pub struct MoveAcceleration(pub f32);
-
-#[derive(Component, Deref, DerefMut)]
-pub struct MaxLinearVelocity(pub Vec3);
+struct Cube;
 
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
 
-    let white = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.8, 1.0),
-        ..default()
-    });
-
-    let blue = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.6, 0.8),
-        ..default()
-    });
-
-    let floor_size = Vec3::new(80.0, 1.0, 80.0);
-    let _floor = commands.spawn((
+    // Ground
+    commands.spawn((
         PbrBundle {
-            mesh: cube.clone(),
-            material: white,
-            transform: Transform::from_scale(floor_size),
+            mesh: cube_mesh.clone(),
+            material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
+            transform: Transform::from_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec3::NEG_Y),
-        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
+        Position(Vector::NEG_Y * 2.0),
+        Collider::cuboid(100.0, 1.0, 100.0),
     ));
 
-    let radius = 1.0;
-    let count_x = 4;
-    let count_y = 4;
-    let count_z = 4;
-    for y in 0..count_y {
-        for x in 0..count_x {
-            for z in 0..count_z {
-                let pos = Vec3::new(
-                    (x as f32 - count_x as f32 * 0.5) * 2.1 * radius,
-                    10.0 * radius * y as f32,
-                    (z as f32 - count_z as f32 * 0.5) * 2.1 * radius,
+    let cube_size = 2.0;
+
+    // Spawn cube stacks
+    for x in -2..2 {
+        for y in -2..2 {
+            for z in -2..2 {
+                let pos = Vector::new(
+                    x as Scalar * (cube_size + 0.1),
+                    y as Scalar * (cube_size + 0.1),
+                    z as Scalar * (cube_size + 0.1),
                 );
                 commands.spawn((
                     PbrBundle {
-                        mesh: cube.clone(),
-                        material: blue.clone(),
-                        transform: Transform::from_scale(Vec3::splat(radius * 2.0)),
+                        mesh: cube_mesh.clone(),
+                        material: materials.add(Color::rgb(0.2, 0.7, 0.9).into()),
+                        transform: Transform::from_scale(Vec3::splat(cube_size as f32)),
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Pos(pos + Vec3::Y * 5.0),
-                    Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
-                    Player,
-                    MoveAcceleration(0.1),
-                    MaxLinearVelocity(Vec3::splat(30.0)),
+                    Position(pos + Vector::Y * 5.0),
+                    Collider::cuboid(cube_size, cube_size, cube_size),
+                    Cube,
                 ));
             }
         }
     }
 
-    // Directional 'sun' light
+    // Directional light
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             illuminance: 20_000.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform {
-            translation: Vec3::Y * 10.0,
-            rotation: Quat::from_euler(
-                EulerRot::XYZ,
-                std::f32::consts::PI * 1.3,
-                std::f32::consts::PI * 1.85,
-                0.0,
-            ),
-            ..default()
-        },
+        transform: Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
         ..default()
     });
 
+    // Camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 15.0, -50.0))
-            .looking_at(Vec3::Y * 10.0, Vec3::Y),
+        transform: Transform::from_translation(Vec3::new(0.0, 12.0, 40.0))
+            .looking_at(Vec3::Y * 5.0, Vec3::Y),
         ..default()
     });
 }
 
-fn player_movement(
+fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut LinVel, &MaxLinearVelocity, &MoveAcceleration), With<Player>>,
+    mut query: Query<&mut LinearVelocity, With<Cube>>,
 ) {
-    for (mut lin_vel, max_vel, move_acceleration) in &mut query {
+    for mut lin_vel in &mut query {
         if keyboard_input.pressed(KeyCode::Up) {
-            lin_vel.z += move_acceleration.0;
+            lin_vel.z -= 0.15;
         }
         if keyboard_input.pressed(KeyCode::Down) {
-            lin_vel.z -= move_acceleration.0;
+            lin_vel.z += 0.15;
         }
         if keyboard_input.pressed(KeyCode::Left) {
-            lin_vel.x += move_acceleration.0;
+            lin_vel.x -= 0.15;
         }
         if keyboard_input.pressed(KeyCode::Right) {
-            lin_vel.x -= move_acceleration.0;
+            lin_vel.x += 0.15;
         }
-        lin_vel.0 = lin_vel.0.clamp(-max_vel.0, max_vel.0);
     }
-}
-
-fn main() {
-    #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
-
-    App::new()
-        .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa::Sample4)
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .add_startup_system(setup)
-        .add_system(player_movement)
-        .run();
 }

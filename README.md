@@ -59,8 +59,8 @@ fn setup(
             ..default()
         },
         RigidBody::Dynamic,
-        Pos(Vec3::Y * 4.0),
-        AngVel(Vec3::new(2.5, 3.4, 1.6)),
+        Position(Vec3::Y * 4.0),
+        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
     // Light
@@ -83,26 +83,43 @@ fn setup(
 
 https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4
 
-To see more complete examples of the various features of Bevy XPBD, check out the 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crates/bevy_xpbd_2d/examples) and [/crates/bevy_xpbd_3d/examples](/crates/bevy_xpbd_3d/examples) respectively.
+## More examples
+
+You can find lots of 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crates/bevy_xpbd_2d/examples) and [/crates/bevy_xpbd_3d/examples](/crates/bevy_xpbd_3d/examples) respectively.
+
+The examples support both `f32` and `f64` precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
+In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
+
+By default the examples use `f64`. To run the `f32` versions, you need to disable default features and manually choose the dimension
+and precision:
+
+```
+cargo run --example cubes --no-default-features --features 3d,f32
+```
 
 ## Current features
 
 - 2D and 3D support
 - Dynamic, kinematic and static rigid bodies
-- Collision detection via [parry](https://parry.rs)
+- Collision detection powered by [parry](https://parry.rs)
+  - Collision events
+  - Collision layers
+  - Sensor colliders
 - Basic joints
   - Revolute joint (or hinge joint), optional angle limits
   - Spherical joint, optional swing and twist angle limits
   - Prismatic joint, one free translational axis with optional limits
   - Fixed joint
 - Joint damping
+- Modular plugin architecture
+- Support for custom constraints
 - Gravity
 - External forces
 - Restitution
 - Friction
 - Substepping
 - Configurable timesteps
-- Determinism
+- Sleeping
 - Choose between `f32` and `f64`
 
 ## Future features
@@ -114,10 +131,8 @@ To see more complete examples of the various features of Bevy XPBD, check out th
 - Spatial queries
 - Continuous collision detection
 - Multiple colliders per body
-- Sensor colliders
-- Access, filter and modify contact data
 - Debug render colliders, joints, contacts etc.
-- Performance optimization (sleeping, multithreading...)
+- Performance optimization (better broad phase, parallel solver...)
 - Soft bodies
   - Cloth
   - Deformable solids

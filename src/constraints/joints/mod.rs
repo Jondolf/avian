@@ -28,16 +28,16 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     fn with_local_anchor_2(self, anchor: Vector) -> Self;
 
     /// Sets the linear velocity damping caused by the joint.
-    fn with_lin_vel_damping(self, damping: Scalar) -> Self;
+    fn with_linear_velocity_damping(self, damping: Scalar) -> Self;
 
     /// Sets the angular velocity damping caused by the joint.
-    fn with_ang_vel_damping(self, damping: Scalar) -> Self;
+    fn with_angular_velocity_damping(self, damping: Scalar) -> Self;
 
     /// Returns the linear velocity damping of the joint.
-    fn damping_lin(&self) -> Scalar;
+    fn damping_linear(&self) -> Scalar;
 
     /// Returns the angular velocity damping of the joint.
-    fn damping_ang(&self) -> Scalar;
+    fn damping_angular(&self) -> Scalar;
 
     /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
     ///
@@ -53,11 +53,11 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         compliance: Scalar,
         dt: Scalar,
     ) -> Vector {
-        let world_r1 = body1.rot.rotate(r1);
-        let world_r2 = body2.rot.rotate(r2);
+        let world_r1 = body1.rotation.rotate(r1);
+        let world_r2 = body2.rotation.rotate(r2);
 
         let delta_x = DistanceLimit::new(0.0, 0.0)
-            .compute_correction(body1.pos.0 + world_r1, body2.pos.0 + world_r2);
+            .compute_correction(body1.position.0 + world_r1, body2.position.0 + world_r2);
         let magnitude = delta_x.length();
 
         if magnitude <= Scalar::EPSILON {
@@ -114,8 +114,10 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let gradients = {
             #[cfg(feature = "2d")]
             {
-                let axis_vec2 = axis.truncate();
-                [axis_vec2, -axis_vec2]
+                // `axis.z` controls if the body should rotate counterclockwise or clockwise.
+                // The gradient has to be a 2D vector, so we use the y axis instead.
+                // This should work similarly, as `axis.x` and `axis.y` are normally 0 in 2D.
+                [Vector::Y * axis.z, Vector::NEG_Y * axis.z]
             }
             #[cfg(feature = "3d")]
             {
@@ -130,7 +132,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         *lagrange += delta_lagrange;
 
         // Apply angular correction to aling the bodies
-        self.apply_angular_correction(body1, body2, delta_lagrange, -axis);
+        self.apply_angular_correction(body1, body2, delta_lagrange, axis);
 
         // Return constraint torque
         self.compute_torque(*lagrange, axis, dt)

@@ -25,7 +25,10 @@ pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PenetrationConstraints>();
+        app.init_resource::<PenetrationConstraints>()
+            .add_event::<Collision>()
+            .add_event::<CollisionStarted>()
+            .add_event::<CollisionEnded>();
 
         let substeps = app
             .get_schedule_mut(SubstepSchedule)
@@ -33,11 +36,11 @@ impl Plugin for SolverPlugin {
 
         substeps.configure_sets(
             (
-                SubsteppingSet::Integrate,
-                SubsteppingSet::SolveConstraints,
-                SubsteppingSet::SolveUserConstraints,
-                SubsteppingSet::UpdateVel,
-                SubsteppingSet::SolveVel,
+                SubstepSet::Integrate,
+                SubstepSet::SolveConstraints,
+                SubstepSet::SolveUserConstraints,
+                SubstepSet::UpdateVel,
+                SubstepSet::SolveVel,
             )
                 .chain(),
         );
@@ -51,10 +54,10 @@ impl Plugin for SolverPlugin {
                 solve_constraint::<PrismaticJoint, 2>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolveConstraints),
+                .in_set(SubstepSet::SolveConstraints),
         );
 
-        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubsteppingSet::UpdateVel));
+        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubstepSet::UpdateVel));
 
         substeps.add_systems(
             (
@@ -65,7 +68,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<PrismaticJoint>,
             )
                 .chain()
-                .in_set(SubsteppingSet::SolveVel),
+                .in_set(SubstepSet::SolveVel),
         );
     }
 }
@@ -75,19 +78,44 @@ impl Plugin for SolverPlugin {
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(RigidBodyQuery, &Collider, Option<&Sleeping>)>,
+    mut bodies: Query<(
+        RigidBodyQuery,
+        &Collider,
+        Option<&Sensor>,
+        Option<&CollisionLayers>,
+        Option<&mut CollidingEntities>,
+        Option<&Sleeping>,
+    )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
+    mut collision_ev_writer: EventWriter<Collision>,
+    mut collision_started_ev_writer: EventWriter<CollisionStarted>,
+    mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
     sub_dt: Res<SubDeltaTime>,
 ) {
+    let mut collision_events = Vec::with_capacity(broad_collision_pairs.0.len());
+    let mut started_collisions = Vec::new();
+    let mut ended_collisions = Vec::new();
+
     penetration_constraints.0.clear();
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok([(mut body1, collider1, sleeping1), (mut body2, collider2, sleeping2)]) =
-            bodies.get_many_mut([*ent1, *ent2])
-        {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
+            let (mut body1, collider1, sensor1, layers1, colliding_entities1, sleeping1) = bundle1;
+            let (mut body2, collider2, sensor2, layers2, colliding_entities2, sleeping2) = bundle2;
+
+            let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
+            let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
+
+            // Skip collision if collision layers are incompatible
+            if !layers1.interacts_with(layers2) {
+                continue;
+            }
+
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
 
@@ -96,32 +124,68 @@ fn penetration_constraints(
                 continue;
             }
 
-            if let Some(collision) = get_collision(
+            if let Some(contact) = compute_contact(
                 *ent1,
                 *ent2,
-                body1.pos.0,
-                body2.pos.0,
-                body1.local_com.0,
-                body2.local_com.0,
-                &body1.rot,
-                &body2.rot,
-                collider1.get_shape(),
-                collider2.get_shape(),
+                body1.position.0,
+                body2.position.0,
+                &body1.rotation,
+                &body2.rotation,
+                collider1,
+                collider2,
             ) {
-                // When an active body collides with a sleeping body, wake up the sleeping body.
+                collision_events.push(Collision(contact));
+
+                let mut collision_started_1 = false;
+                let mut collision_started_2 = false;
+
+                // Add entity to set of colliding entities
+                if let Some(mut entities) = colliding_entities1 {
+                    collision_started_1 = entities.insert(*ent2);
+                }
+                if let Some(mut entities) = colliding_entities2 {
+                    collision_started_2 = entities.insert(*ent1);
+                }
+
+                if collision_started_1 || collision_started_2 {
+                    started_collisions.push(CollisionStarted(*ent1, *ent2));
+                }
+
+                // When an active body collides with a sleeping body, wake up the sleeping body
                 if sleeping1.is_some() {
                     commands.entity(*ent1).remove::<Sleeping>();
                 } else if sleeping2.is_some() {
                     commands.entity(*ent2).remove::<Sleeping>();
                 }
 
-                let mut constraint: PenetrationConstraint =
-                    PenetrationConstraint::new(*ent1, *ent2, collision);
-                constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                penetration_constraints.0.push(constraint);
+                // Create and solve constraint if both colliders are solid
+                if sensor1.is_none() && sensor2.is_none() {
+                    let mut constraint = PenetrationConstraint::new(&body1, &body2, contact);
+                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                    penetration_constraints.0.push(constraint);
+                }
+            } else {
+                let mut collision_ended_1 = false;
+                let mut collision_ended_2 = false;
+
+                // Remove entity from set of colliding entities
+                if let Some(mut entities) = colliding_entities1 {
+                    collision_ended_1 = entities.remove(ent2);
+                }
+                if let Some(mut entities) = colliding_entities2 {
+                    collision_ended_2 = entities.remove(ent1);
+                }
+
+                if collision_ended_1 || collision_ended_2 {
+                    ended_collisions.push(CollisionEnded(*ent1, *ent2));
+                }
             }
         }
     }
+
+    collision_ev_writer.send_batch(collision_events);
+    collision_started_ev_writer.send_batch(started_collisions);
+    collision_ended_ev_writer.send_batch(ended_collisions);
 }
 
 /// Iterates through the constraints of a given type and solves them. Sleeping bodies are woken up when
@@ -133,26 +197,26 @@ fn penetration_constraints(
 /// ## User constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
-/// the [`SubsteppingSet::SolveUserConstraints`] set.
+/// the [`SubstepSet::SolveUserConstraints`] set.
 /// You must provide the number of entities in the constraint using generics.
 ///
 /// It should look something like this:
 ///
-/// ```rust,ignore
+/// ```ignore
 /// let substeps = app
 ///     .get_schedule_mut(SubstepSchedule)
 ///     .expect("add SubstepSchedule first");
 ///
 /// substeps.add_system(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
-///         .in_set(SubsteppingSet::SolveUserConstraints),
+///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    num_pos_iters: Res<NumPosIters>,
+    num_pos_iters: Res<IterationCount>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     // Clear Lagrange multipliers
@@ -199,7 +263,13 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
 fn update_lin_vel(
     mut bodies: Query<
-        (&RigidBody, &Pos, &PrevPos, &mut LinVel, &mut PreSolveLinVel),
+        (
+            &RigidBody,
+            &Position,
+            &PreviousPosition,
+            &mut LinearVelocity,
+            &mut PreSolveLinearVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -222,7 +292,13 @@ fn update_lin_vel(
 #[cfg(feature = "2d")]
 fn update_ang_vel(
     mut bodies: Query<
-        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        (
+            &RigidBody,
+            &Rotation,
+            &PreviousRotation,
+            &mut AngularVelocity,
+            &mut PreSolveAngularVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -236,7 +312,7 @@ fn update_ang_vel(
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
-        ang_vel.0 = (rot.mul(prev_rot.inv())).as_radians() / sub_dt.0;
+        ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
     }
 }
 
@@ -244,7 +320,13 @@ fn update_ang_vel(
 #[cfg(feature = "3d")]
 fn update_ang_vel(
     mut bodies: Query<
-        (&RigidBody, &Rot, &PrevRot, &mut AngVel, &mut PreSolveAngVel),
+        (
+            &RigidBody,
+            &Rotation,
+            &PreviousRotation,
+            &mut AngularVelocity,
+            &mut PreSolveAngularVelocity,
+        ),
         Without<Sleeping>,
     >,
     sub_dt: Res<SubDeltaTime>,
@@ -259,7 +341,7 @@ fn update_ang_vel(
 
         pre_solve_ang_vel.0 = ang_vel.0;
 
-        let delta_rot = rot.mul_quat(prev_rot.inverse());
+        let delta_rot = rot.mul_quat(prev_rot.inverse().0);
         ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
 
         if delta_rot.w < 0.0 {
@@ -277,14 +359,12 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let Collision {
+        let Contact {
             entity1,
             entity2,
-            world_r1: r1,
-            world_r2: r2,
             normal,
             ..
-        } = constraint.collision_data;
+        } = constraint.contact;
 
         if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
@@ -292,26 +372,36 @@ fn solve_vel(
             }
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
-            let pre_solve_contact_vel1 =
-                compute_contact_vel(body1.pre_solve_lin_vel.0, body1.pre_solve_ang_vel.0, r1);
-            let pre_solve_contact_vel2 =
-                compute_contact_vel(body2.pre_solve_lin_vel.0, body2.pre_solve_ang_vel.0, r2);
+            let pre_solve_contact_vel1 = compute_contact_vel(
+                body1.pre_solve_linear_velocity.0,
+                body1.pre_solve_angular_velocity.0,
+                constraint.world_r1,
+            );
+            let pre_solve_contact_vel2 = compute_contact_vel(
+                body2.pre_solve_linear_velocity.0,
+                body2.pre_solve_angular_velocity.0,
+                constraint.world_r2,
+            );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 = compute_contact_vel(body1.lin_vel.0, body1.ang_vel.0, r1);
-            let contact_vel2 = compute_contact_vel(body2.lin_vel.0, body2.ang_vel.0, r2);
+            let contact_vel1 = compute_contact_vel(
+                body1.linear_velocity.0,
+                body1.angular_velocity.0,
+                constraint.world_r1,
+            );
+            let contact_vel2 = compute_contact_vel(
+                body2.linear_velocity.0,
+                body2.angular_velocity.0,
+                constraint.world_r2,
+            );
             let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
 
             let inv_inertia1 = body1.world_inv_inertia().0;
             let inv_inertia2 = body2.world_inv_inertia().0;
-
-            // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
-            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
 
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(
@@ -332,16 +422,37 @@ fn solve_vel(
             );
 
             let delta_v = friction_impulse + restitution_impulse;
+            let delta_v_length = delta_v.length();
+
+            if delta_v_length <= Scalar::EPSILON {
+                continue;
+            }
+
+            let delta_v_dir = delta_v / delta_v_length;
+
+            // Compute generalized inverse masses
+            let w1 = constraint.compute_generalized_inverse_mass(
+                &body1,
+                constraint.world_r1,
+                delta_v_dir,
+            );
+            let w2 = constraint.compute_generalized_inverse_mass(
+                &body2,
+                constraint.world_r2,
+                delta_v_dir,
+            );
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
-                body1.lin_vel.0 += p / body1.mass.0;
-                body1.ang_vel.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
+                body1.linear_velocity.0 += p / body1.mass.0;
+                body1.angular_velocity.0 +=
+                    compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
             }
             if body2.rb.is_dynamic() {
-                body2.lin_vel.0 -= p / body2.mass.0;
-                body2.ang_vel.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
+                body2.linear_velocity.0 -= p / body2.mass.0;
+                body2.angular_velocity.0 -=
+                    compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
             }
         }
     }
@@ -349,7 +460,15 @@ fn solve_vel(
 
 /// Applies velocity corrections caused by joint damping.
 fn joint_damping<T: Joint>(
-    mut bodies: Query<(&RigidBody, &mut LinVel, &mut AngVel, &InvMass), Without<Sleeping>>,
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &InverseMass,
+        ),
+        Without<Sleeping>,
+    >,
     joints: Query<&T, Without<RigidBody>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
@@ -358,7 +477,8 @@ fn joint_damping<T: Joint>(
             [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2)],
         ) = bodies.get_many_mut(joint.entities())
         {
-            let delta_omega = (ang_vel2.0 - ang_vel1.0) * (joint.damping_ang() * sub_dt.0).min(1.0);
+            let delta_omega =
+                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * sub_dt.0).min(1.0);
 
             if rb1.is_dynamic() {
                 ang_vel1.0 += delta_omega;
@@ -367,7 +487,7 @@ fn joint_damping<T: Joint>(
                 ang_vel2.0 -= delta_omega;
             }
 
-            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_lin() * sub_dt.0).min(1.0);
+            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * sub_dt.0).min(1.0);
 
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
@@ -399,11 +519,11 @@ fn compute_contact_vel(lin_vel: Vector, ang_vel: Vector, r: Vector) -> Vector {
 }
 
 #[cfg(feature = "2d")]
-fn compute_delta_ang_vel(inv_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
-    inv_inertia * r.perp_dot(p)
+fn compute_delta_ang_vel(inverse_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
+    inverse_inertia * r.perp_dot(p)
 }
 
 #[cfg(feature = "3d")]
-fn compute_delta_ang_vel(inv_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
-    inv_inertia * r.cross(p)
+fn compute_delta_ang_vel(inverse_inertia: Matrix3, r: Vector, p: Vector) -> Vector {
+    inverse_inertia * r.cross(p)
 }

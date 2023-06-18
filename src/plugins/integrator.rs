@@ -10,15 +10,15 @@ impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first")
-            .add_systems((integrate_pos, integrate_rot).in_set(SubsteppingSet::Integrate));
+            .add_systems((integrate_pos, integrate_rot).in_set(SubstepSet::Integrate));
     }
 }
 
 type PosIntegrationComponents = (
     &'static RigidBody,
-    &'static mut Pos,
-    &'static mut PrevPos,
-    &'static mut LinVel,
+    &'static mut Position,
+    &'static mut PreviousPosition,
+    &'static mut LinearVelocity,
     &'static ExternalForce,
     &'static Mass,
 );
@@ -49,12 +49,12 @@ fn integrate_pos(
 
 type RotIntegrationComponents = (
     &'static RigidBody,
-    &'static mut Rot,
-    &'static mut PrevRot,
-    &'static mut AngVel,
+    &'static mut Rotation,
+    &'static mut PreviousRotation,
+    &'static mut AngularVelocity,
     &'static ExternalTorque,
     &'static Inertia,
-    &'static InvInertia,
+    &'static InverseInertia,
 );
 
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account. This acts as a prediction for the next rotations of the bodies.
@@ -63,7 +63,7 @@ fn integrate_rot(
     mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, _inertia, inv_inertia) in
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, _inertia, inverse_inertia) in
         &mut bodies
     {
         prev_rot.0 = *rot;
@@ -74,10 +74,10 @@ fn integrate_rot(
 
         // Apply external torque
         if rb.is_dynamic() {
-            ang_vel.0 += sub_dt.0 * inv_inertia.0 * external_torque.0;
+            ang_vel.0 += sub_dt.0 * inverse_inertia.0 * external_torque.0;
         }
 
-        *rot += Rot::from_radians(sub_dt.0 * ang_vel.0);
+        *rot += Rotation::from_radians(sub_dt.0 * ang_vel.0);
     }
 }
 
@@ -87,7 +87,7 @@ fn integrate_rot(
     mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inv_inertia) in
+    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inverse_inertia) in
         &mut bodies
     {
         prev_rot.0 = *rot;
@@ -99,12 +99,12 @@ fn integrate_rot(
         // Apply external torque
         if rb.is_dynamic() {
             let delta_ang_vel = sub_dt.0
-                * inv_inertia.rotated(&rot).0
-                * (external_torque.0 - ang_vel.cross(inertia.rotated(&rot).0 * ang_vel.0));
+                * inverse_inertia.rotated(&rot).0
+                * (external_torque.0 - ang_vel.0.cross(inertia.rotated(&rot).0 * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }
 
-        let q = Quaternion::from_vec4(ang_vel.extend(0.0)) * rot.0;
+        let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
         let (x, y, z, w) = (
             rot.x + sub_dt.0 * 0.5 * q.x,
             rot.y + sub_dt.0 * 0.5 * q.y,

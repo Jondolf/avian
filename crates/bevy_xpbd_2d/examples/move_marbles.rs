@@ -1,177 +1,125 @@
-use bevy::prelude::*;
+#![allow(clippy::unnecessary_cast)]
+
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
-#[derive(Component)]
-struct Player;
-
-#[derive(Component, Deref, DerefMut)]
-pub struct MoveAcceleration(pub f32);
-
-#[derive(Component, Deref, DerefMut)]
-pub struct MaxVelocity(pub Vec2);
-
-pub enum MovementEvent {
-    Up,
-    Down,
-    Left,
-    Right,
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(SubstepCount(6))
+        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
+        .add_startup_system(setup)
+        .add_system(movement)
+        .run();
 }
+
+#[derive(Component)]
+struct Marble;
 
 fn setup(
     mut commands: Commands,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let sphere = meshes.add(
-        Mesh::try_from(shape::Icosphere {
-            radius: 1.0,
-            subdivisions: 4,
-        })
-        .unwrap(),
-    );
+    commands.spawn(Camera2dBundle::default());
 
-    let white = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.8, 0.8, 1.0),
-        unlit: true,
+    let square_sprite = Sprite {
+        color: Color::rgb(0.7, 0.7, 0.8),
+        custom_size: Some(Vec2::splat(50.0)),
         ..default()
-    });
+    };
 
-    let blue = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.6, 0.8),
-        unlit: true,
-        ..default()
-    });
-
-    let _floor = commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
-            material: white.clone(),
+    // Ceiling
+    commands.spawn((
+        SpriteBundle {
+            sprite: square_sprite.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::NEG_Y * 7.5),
-        Collider::cuboid(20.0, 1.0),
+        Position(Vector::Y * 50.0 * 6.0),
+        Collider::cuboid(50.0 * 20.0, 50.0),
     ));
-
-    let _ceiling = commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
-            material: white.clone(),
+    // Floor
+    commands.spawn((
+        SpriteBundle {
+            sprite: square_sprite.clone(),
             transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::Y * 7.5),
-        Collider::cuboid(20.0, 1.0),
+        Position(Vector::NEG_Y * 50.0 * 6.0),
+        Collider::cuboid(50.0 * 20.0, 50.0),
     ));
-
-    let _left_wall = commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
-            material: white.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
+    // Left wall
+    commands.spawn((
+        SpriteBundle {
+            sprite: square_sprite.clone(),
+            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::NEG_X * 9.5),
-        Collider::cuboid(1.0, 20.0),
+        Position(Vector::NEG_X * 50.0 * 9.5),
+        Collider::cuboid(50.0, 50.0 * 12.5),
     ));
-
-    let _right_wall = commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::ONE))),
-            material: white,
-            transform: Transform::from_scale(Vec3::new(1.0, 15.0, 1.0)),
+    // Right wall
+    commands.spawn((
+        SpriteBundle {
+            sprite: square_sprite,
+            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Pos(Vec2::X * 9.5),
-        Collider::cuboid(1.0, 20.0),
+        Position(Vector::X * 50.0 * 9.5),
+        Collider::cuboid(50.0, 50.0 * 12.5),
     ));
 
-    let radius = 0.15;
-    let stacks = 25;
-    for i in 0..25 {
-        for j in 0..stacks {
-            let pos = Vec2::new(
-                (j as f32 - stacks as f32 * 0.5) * 2.5 * radius,
-                2.0 * radius * i as f32 - 2.0,
+    let marble_radius = 7.5;
+    let marble_mesh = MaterialMesh2dBundle {
+        mesh: meshes
+            .add(shape::Circle::new(marble_radius as f32).into())
+            .into(),
+        material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
+        ..default()
+    };
+
+    // Spawn stacks of marbles
+    for x in -12..12 {
+        for y in -10..10 {
+            let position = Vector::new(
+                x as Scalar * (2.5 * marble_radius),
+                y as Scalar * (2.5 * marble_radius),
             );
             commands.spawn((
-                PbrBundle {
-                    mesh: sphere.clone(),
-                    material: blue.clone(),
-                    transform: Transform::from_scale(Vec3::splat(radius)),
-                    ..default()
-                },
+                marble_mesh.clone(),
                 RigidBody::Dynamic,
-                Pos(pos),
-                Collider::ball(radius),
-                Player,
-                MoveAcceleration(0.5),
-                MaxVelocity(Vec2::new(30.0, 30.0)),
+                Position(position),
+                Collider::ball(marble_radius),
+                Marble,
             ));
         }
     }
-
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::Z * 100.0),
-        projection: OrthographicProjection {
-            scale: 0.025,
-            ..default()
-        }
-        .into(),
-        ..default()
-    });
 }
 
-fn handle_input(keyboard_input: Res<Input<KeyCode>>, mut ev_movement: EventWriter<MovementEvent>) {
-    if keyboard_input.pressed(KeyCode::Up) {
-        ev_movement.send(MovementEvent::Up);
-    }
-    if keyboard_input.pressed(KeyCode::Down) {
-        ev_movement.send(MovementEvent::Down);
-    }
-    if keyboard_input.pressed(KeyCode::Left) {
-        ev_movement.send(MovementEvent::Left);
-    }
-    if keyboard_input.pressed(KeyCode::Right) {
-        ev_movement.send(MovementEvent::Right);
-    }
-}
-
-fn player_movement(
-    mut ev_movement: EventReader<MovementEvent>,
-    mut query: Query<(&mut LinVel, &MaxVelocity, &MoveAcceleration), With<Player>>,
+fn movement(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut marbles: Query<&mut LinearVelocity, With<Marble>>,
 ) {
-    for ev in ev_movement.iter() {
-        for (mut vel, max_vel, move_acceleration) in &mut query {
-            match ev {
-                MovementEvent::Up => vel.y += move_acceleration.0,
-                MovementEvent::Down => vel.y -= move_acceleration.0,
-                MovementEvent::Left => vel.x -= move_acceleration.0,
-                MovementEvent::Right => vel.x += move_acceleration.0,
-            }
-            vel.0 = vel.0.clamp(-max_vel.0, max_vel.0);
+    for mut linear_velocity in &mut marbles {
+        if keyboard_input.pressed(KeyCode::Up) {
+            linear_velocity.y += 50.0;
+        }
+        if keyboard_input.pressed(KeyCode::Down) {
+            linear_velocity.y -= 10.0;
+        }
+        if keyboard_input.pressed(KeyCode::Left) {
+            linear_velocity.x -= 10.0;
+        }
+        if keyboard_input.pressed(KeyCode::Right) {
+            linear_velocity.x += 10.0;
         }
     }
-}
-
-fn main() {
-    #[cfg(target_arch = "wasm32")]
-    console_error_panic_hook::set_once();
-
-    App::new()
-        .insert_resource(ClearColor(Color::BLACK))
-        .insert_resource(Msaa::Sample4)
-        .insert_resource(NumSubsteps(6))
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .add_event::<MovementEvent>()
-        .add_startup_system(setup)
-        .add_system(handle_input)
-        .add_system(player_movement)
-        .run();
 }

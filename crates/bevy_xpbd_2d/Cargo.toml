@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "2d", "f32", "simd" ]
+default = [ "2d", "f64", "simd" ]
 2d = []
 f32 = [ "dep:parry2d" ]
 f64 = [ "dep:parry2d-f64" ]
-debug-render-aabbs = [ "dep:bevy_prototype_debug_lines" ]
+debug-plugin = [ "dep:bevy_prototype_debug_lines" ]
 simd = [ "parry2d?/simd-stable", "parry2d-f64?/simd-stable" ]
-enhanced_determinism = [ "parry2d?/enhanced-determinism", "parry2d-f64?/enhanced-determinism" ]
+enhanced-determinism = [ "parry2d?/enhanced-determinism", "parry2d-f64?/enhanced-determinism" ]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -18,13 +18,12 @@ path = "../../src/lib.rs"
 required-features = [ "2d" ]
 
 [dependencies]
+bevy_xpbd_derive = { path = "../bevy_xpbd_derive" }
 bevy = { version = "0.10.1", default-features = false }
 bevy_prototype_debug_lines = { version = "0.10.1", optional = true }
 parry2d = { version = "0.13.1", optional = true }
 parry2d-f64 = { version = "0.13.1", optional = true }
 nalgebra = { version = "0.32.2", features = [ "convert-glam023" ] }
-console_error_panic_hook = "0.1.7"
-web-sys = "0.3.59"
 derive_more = "0.99"
 
 [dev-dependencies]
@@ -35,21 +34,25 @@ insta = "1.0"
 itertools = "0.10"
 
 [[example]]
-name = "chain2d"
-required-features = ["2d", "f32"]
+name = "chain_2d"
+required-features = ["2d"]
+
+[[example]]
+name = "collision_layers"
+required-features = ["2d"]
 
 [[example]]
 name = "fixed_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]
 
 [[example]]
 name = "move_marbles"
-required-features = ["2d", "f32"]
+required-features = ["2d"]
 
 [[example]]
 name = "prismatic_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]
 
 [[example]]
 name = "revolute_joint_2d"
-required-features = ["2d", "f32"]
+required-features = ["2d"]

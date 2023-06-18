@@ -25,11 +25,11 @@ pub struct SphericalJoint {
     /// The extents of the allowed relative rotation of the bodies around the `twist_axis`.
     pub twist_limit: Option<AngleLimit>,
     /// Linear damping applied by the joint.
-    pub damping_lin: Scalar,
+    pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
-    pub damping_ang: Scalar,
+    pub damping_angular: Scalar,
     /// Lagrange multiplier for the positional correction.
-    pub pos_lagrange: Scalar,
+    pub position_lagrange: Scalar,
     /// Lagrange multiplier for the angular correction caused by the swing limits.
     pub swing_lagrange: Scalar,
     /// Lagrange multiplier for the angular correction caused by the twist limits.
@@ -50,7 +50,7 @@ impl XpbdConstraint<2> for SphericalJoint {
     }
 
     fn clear_lagrange_multipliers(&mut self) {
-        self.pos_lagrange = 0.0;
+        self.position_lagrange = 0.0;
         self.swing_lagrange = 0.0;
         self.twist_lagrange = 0.0;
     }
@@ -60,7 +60,7 @@ impl XpbdConstraint<2> for SphericalJoint {
         let compliance = self.compliance;
 
         // Align positions
-        let mut lagrange = self.pos_lagrange;
+        let mut lagrange = self.position_lagrange;
         self.force = self.align_position(
             body1,
             body2,
@@ -70,7 +70,7 @@ impl XpbdConstraint<2> for SphericalJoint {
             compliance,
             dt,
         );
-        self.pos_lagrange = lagrange;
+        self.position_lagrange = lagrange;
 
         // Apply swing limits
         self.swing_torque = self.apply_swing_limits(body1, body2, dt);
@@ -91,9 +91,9 @@ impl Joint for SphericalJoint {
             twist_axis: Vector3::Y,
             swing_limit: None,
             twist_limit: None,
-            damping_lin: 1.0,
-            damping_ang: 1.0,
-            pos_lagrange: 0.0,
+            damping_linear: 1.0,
+            damping_angular: 1.0,
+            position_lagrange: 0.0,
             swing_lagrange: 0.0,
             twist_lagrange: 0.0,
             compliance: 0.0,
@@ -127,26 +127,26 @@ impl Joint for SphericalJoint {
         }
     }
 
-    fn with_lin_vel_damping(self, damping: Scalar) -> Self {
+    fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
-            damping_lin: damping,
+            damping_linear: damping,
             ..self
         }
     }
 
-    fn with_ang_vel_damping(self, damping: Scalar) -> Self {
+    fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
-            damping_ang: damping,
+            damping_angular: damping,
             ..self
         }
     }
 
-    fn damping_lin(&self) -> Scalar {
-        self.damping_lin
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
     }
 
-    fn damping_ang(&self) -> Scalar {
-        self.damping_ang
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
     }
 }
 
@@ -176,8 +176,8 @@ impl SphericalJoint {
         dt: Scalar,
     ) -> Torque {
         if let Some(joint_limit) = self.swing_limit {
-            let a1 = body1.rot.rotate_vec3(self.swing_axis);
-            let a2 = body2.rot.rotate_vec3(self.swing_axis);
+            let a1 = body1.rotation.rotate_vec3(self.swing_axis);
+            let a2 = body2.rotation.rotate_vec3(self.swing_axis);
 
             let n = a1.cross(a2);
             let n_magnitude = n.length();
@@ -207,11 +207,11 @@ impl SphericalJoint {
         dt: Scalar,
     ) -> Torque {
         if let Some(joint_limit) = self.twist_limit {
-            let a1 = body1.rot.rotate_vec3(self.swing_axis);
-            let a2 = body2.rot.rotate_vec3(self.swing_axis);
+            let a1 = body1.rotation.rotate_vec3(self.swing_axis);
+            let a2 = body2.rotation.rotate_vec3(self.swing_axis);
 
-            let b1 = body1.rot.rotate_vec3(self.twist_axis);
-            let b2 = body2.rot.rotate_vec3(self.twist_axis);
+            let b1 = body1.rotation.rotate_vec3(self.twist_axis);
+            let b2 = body2.rotation.rotate_vec3(self.twist_axis);
 
             let n = a1 + a2;
             let n_magnitude = n.length();
