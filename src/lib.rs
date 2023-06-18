@@ -1,6 +1,6 @@
 //! # Bevy XPBD
 //!
-//! **Bevy XPBD** is a 2D and 3D physics engine based on [*Extended Position Based Dynamics* (XPBD)](#What_is_XPBD?)
+//! **Bevy XPBD** is a 2D and 3D physics engine based on [*Extended Position Based Dynamics* (XPBD)](#what-is-xpbd)
 //! for the [Bevy game engine](https://bevyengine.org/).
 //!
 //! ## Design
@@ -142,7 +142,7 @@
 //! - [Configure friction](Friction)
 //! - [Configure the physics timestep](PhysicsTimestep)
 //! - [Configure the substep count](SubstepCount)
-//! - [Create custom constraints](constraints)
+//! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](plugins#custom-plugins)
 //!
 //! ## What is XPBD?

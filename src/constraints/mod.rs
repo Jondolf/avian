@@ -58,7 +58,7 @@
 //! some of the background work for you.
 //!
 //! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the
-//! [substepping schedule's](SubstepSchedule) [`SubsteppingSet::SolveUserConstraints`] set. It should look like this:
+//! [substepping schedule's](SubstepSchedule) [`SubstepSet::SolveUserConstraints`] set. It should look like this:
 //!
 //! ```ignore
 //! // Get substep schedule
@@ -68,7 +68,7 @@
 //!
 //! // Add custom constraint
 //! substeps.add_system(
-//!     solve_constraint::<CustomConstraint, 2>.in_set(SubsteppingSet::SolveUserConstraints),
+//!     solve_constraint::<CustomConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
 //! );
 //! ```
 //!
@@ -80,9 +80,9 @@
 //! In this section, you can learn some of the theory behind how constraints work. Understanding the theory and maths isn't
 //! important for using constraints, but it can be useful if you want to [create your own constraints](#custom-constraints).
 //!
-//! **Note**: In the following theory, I primarily use the word "particle", but the same logic applies to normal
+//! **Note**: In the following theory, primarily the word "particle" is used, but the same logic applies to normal
 //! [rigid bodies](RigidBody) as well. However, unlike particles, rigid bodies can also have angular quantities such as
-//! [rotation](Rot) and [angular inertia](Inertia), so constraints can also affect their orientation. This is explained
+//! [rotation](Rotation) and [angular inertia](Inertia), so constraints can also affect their orientation. This is explained
 //! in more detail [at the end](#rigid-body-constraints).
 //!
 //! ### Constraint functions
@@ -102,9 +102,9 @@
 //!
 //! ### Constraint gradients
 //!
-//! To know what direction the constraint should move the particles, they use a *constraint gradient* `▽C(x)`.
-//! It is a vector that point in the direction in which the constraint function value `C` increases the most.
-//! The length of the gradient indicates how much `C` changes when moving a body by one unit. This is often equal to one.
+//! To know what directions the particles should be moved towards, constraints compute a *constraint gradient* `▽C(x)`
+//! for each particle. It is a vector that points in the direction in which the constraint function value `C` increases the most.
+//! The length of the gradient indicates how much `C` changes when moving the particle by one unit. This is often equal to one.
 //!
 //! In a case where two particles are being constrained by a distance constraint, and the particles are outside of the
 //! rest distance, the gradient vector would point away from the other particle, because it would increase the distance
@@ -142,24 +142,47 @@
 //! Δx_i = Δλ * w_i * ▽C_i
 //! ```
 //!
-//! In other words, we typically move the particle along the gradient by `λ` proportional to the particle's inverse mass.
+//! In other words, we typically move the particle along the gradient by `Δλ` proportional to the particle's inverse mass.
 //!
 //! ### Rigid body constraints
 //!
-//! Unlike particles, [rigid bodies](RigidBody) also have angular quantities like [rotation](Rot),
-//! [angular velocity](AngVel) and [angular inertia](Inertia). In addition, constraints can be applied at specific
-//! points in the body, like contact positions or joint attachment positions, which also affects the orientation.
+//! Unlike particles, [rigid bodies](RigidBody) also have angular quantities like [rotation](Rotation),
+//! [angular velocity](AngularVelocity) and [angular inertia](Inertia). In addition, constraints can be applied at specific
+//! points in the body, like [contact positions](Contact) or joint attachment positions, which also affects the orientation.
 //!
-//! If the constraint function's value is the rotation angle and the gradient vector is the rotation axis,
-//! we can compute the angular correction for a given body like this:
+//! When the constraint is not applied at the center of mass, the inverse mass in the computation of `Δλ` must
+//! be replaced with a *generalized inverse mass* that is essentially the effective mass when applying the constraint
+//! at some specified position.
+//!
+//! For a positional constraint applied at position `r_i`, the generalized inverse mass computation for body `i` looks like this:
+//!
+//! ```text
+//! w_i = 1 / m_i + (r_i x ▽C_i)^T * I_i^-1 * (r_i x ▽C_i)
+//! ```
+//!
+//! where `m_i` is the [mass](Mass) of body `i`, `I_i^-1` is the [inverse inertia tensor](InverseInertia), and `^T` refers to the
+//! transpose of a vector. Note that the value of the inertia tensor depends on the orientation of the body, so it should be
+//! recomputed each time the constraint is solved.
+//!
+//! For an angular constraint where the gradient vector is the rotation axis, the generalized inverse mass computation instead
+//! looks like this:
+//!
+//! ```text
+//! w_i = ▽C_i^T * I_i^-1 * ▽C_i
+//! ```
+//!
+//! Once we have computed the Lagrange multiplier update, we can apply the positional correction as shown in the
+//! [previous section](#solving-constraints).
+//!
+//! However, angular constraints are handled differently. If the constraint function's value is the rotation angle and
+//! the gradient vector is the rotation axis, we can compute the angular correction for a given body like this:
 //!
 //! ```text
 //! Δq_i = 0.5 * [I_i^-1 * (r_i x (Δλ * ▽C_i)), 0] * q_i
 //! ```
 //!
-//! where `q_i` is the rotation of body `i`, `I_i^-1` is the inverse inertia tensor, and `r_i` is a vector pointing
-//! from the body's center of mass to some attachment position. Note that the value of the
-//! inertia tensor depends on the orientation of the body, so it should be recomputed each time the constraint is solved.
+//! where `q_i` is the [rotation](Rotation) of body `i` and `r_i` is a vector pointing from the body's center of mass to some
+//! attachment position.
 
 pub mod joints;
 pub mod penetration;
