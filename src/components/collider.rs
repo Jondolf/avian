@@ -6,6 +6,55 @@ use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 
 /// A collider used for collision detection.
+///
+/// By default, colliders generate [collision events](#collision-events) and cause a collision response for
+/// [rigid bodies](RigidBody). If you only want collision events, you can add a [`Sensor`] component.
+///
+/// ## Creation
+///
+/// `Collider` has tons of methods for creating colliders of various shapes.
+/// For example, to add a ball collider to a [rigid body](RigidBody), use [`Collider::ball`](#method.ball):
+///
+/// ```ignore
+/// command.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// ```
+///
+/// In addition, Bevy XPBD will automatically add some other components, like the following:
+///
+/// - [`ColliderAabb`]
+/// - [`CollidingEntities`]
+/// - [`ColliderMassProperties`]
+///
+/// ## Collision layers
+///
+/// You can use collsion layers to configure which entities can collide with each other.
+///
+/// See [`CollisionLayers`] for more information and examples.
+///
+/// ## Collision events
+///
+/// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
+/// You can listen to these events as you normally would.
+///
+/// For example, you could read [contacts](Contact) like this:
+///
+/// ```ignore
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn my_system(mut collision_event_reader: EventReader<Collision>) {
+///     for Collision(contact) in collision_event_reader.iter() {
+///         println!("{} and {} are colliding", contact.entity1, contact.entity2);
+///     }
+/// }
+/// ```
+///
+/// ## Advanced usage
+///
+/// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
+/// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
+///
+/// To get a reference to the internal [`SharedShape`], you can use the [`get_shape`](#method.get_shape) method.
 #[derive(Clone, Component, Deref, DerefMut, From)]
 pub struct Collider(SharedShape);
 
