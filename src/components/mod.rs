@@ -53,7 +53,7 @@ use derive_more::From;
 ///
 /// ## Adding mass properties
 ///
-/// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](collider), since colliders
+/// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](Collider), since colliders
 /// by default have [their own mass properties](ColliderMassProperties) that are added to the body's own mass properties.
 ///
 /// ```ignore
@@ -61,8 +61,8 @@ use derive_more::From;
 /// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
 /// ```
 ///
-/// If you don't want to add a collider, you can instead add a [`MassPropsBundle`] with the mass properties computed from a collider
-/// shape using the [`MassPropsBundle::new_computed`](MassPropsBundle#method.new_computed) method.
+/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`] with the mass properties computed from a collider
+/// shape using the [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
 ///
 /// ```ignore
 /// // This is equivalent to the earlier approach, but no collider will be added.

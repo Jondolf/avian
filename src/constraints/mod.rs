@@ -3,7 +3,7 @@
 //! # Constraints
 //!
 //! **Constraints** are a way to model physical relationships between entities. They are an integral part of XPBD, and they can be used
-//! for things like [contact resolution](penetration::PenetrationConstraint), [joints], soft bodies, and much more.
+//! for things like [contact resolution](PenetrationConstraint), [joints], soft bodies, and much more.
 //!
 //! At its core, a constraint is just a rule that is enforced by moving the participating entities in a way that satisfies that rule.
 //! For example, a distance constraint is satisfied when the distance between two entities is equal to the desired distance.
@@ -14,7 +14,7 @@
 //!
 //! Below are the currently implemented constraints.
 //!
-//! - [`PenetrationConstraint`](penetration::PenetrationConstraint)
+//! - [`PenetrationConstraint`](PenetrationConstraint)
 //! - [Joints](joints)
 //!     - [`FixedJoint`]
 //!     - [`SphericalJoint`]
@@ -191,6 +191,8 @@ mod angular_constraint;
 mod position_constraint;
 
 pub use angular_constraint::AngularConstraint;
+pub use joints::*;
+pub use penetration::*;
 pub use position_constraint::PositionConstraint;
 
 use crate::prelude::*;

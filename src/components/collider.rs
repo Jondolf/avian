@@ -305,7 +305,7 @@ pub struct Sensor;
 pub struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
-    /// Creates a new collider from a given [`Shape`] with a default density of 1.0.
+    /// Creates a new collider from a given [`SharedShape`] with a default density of 1.0.
     pub fn from_shape(shape: &SharedShape) -> Self {
         Self(shape.compute_local_aabb())
     }

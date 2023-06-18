@@ -195,8 +195,8 @@
 //!         solve_velocities(particles and bodies)
 //! ```
 //!
-//! where `h` is the [substep size](SubDeltaTime), `q` is the [rotation](Rot) as a quaternion,
-//! `ω` is the [angular velocity](AngVel), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
+//! where `h` is the [substep size](SubDeltaTime), `q` is the [rotation](Rotation) as a quaternion,
+//! `ω` is the [angular velocity](AngularVelocity), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
@@ -230,9 +230,9 @@
 //! Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
 //!
 //! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/bevy_xpbd/LICENSE-MIT)
-//! or http://opensource.org/licenses/MIT)
+//! or <http://opensource.org/licenses/MIT>)
 //! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/Jondolf/bevy_xpbd/LICENSE-APACHE)
-//! or http://www.apache.org/licenses/LICENSE-2.0)
+//! or <http://www.apache.org/licenses/LICENSE-2.0>)
 //!
 //! at your option.
 //!
