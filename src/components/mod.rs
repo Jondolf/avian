@@ -28,23 +28,23 @@ use derive_more::From;
 ///
 /// Creating a rigid body is as simple as adding the [`RigidBody`] component:
 ///
-/// ```
+/// ```ignore
 /// commands.spawn(RigidBody::Dynamic);
 /// ```
 ///
 /// Bevy XPBD will automatically add any missing components, like the following:
 ///
-/// - [`Pos`]
-/// - [`Rot`]
-/// - [`LinVel`]
-/// - [`AngVel`]
+/// - [`Position`]
+/// - [`Rotation`]
+/// - [`LinearVelocity`]
+/// - [`AngularVelocity`]
 /// - [`ExternalForce`]
 /// - [`ExternalTorque`]
 /// - [`Friction`]
 /// - [`Restitution`]
 /// - [`Mass`]
 /// - [`Inertia`]
-/// - [`LocalCom`]
+/// - [`CenterOfMass`]
 ///
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
 ///
@@ -56,7 +56,7 @@ use derive_more::From;
 /// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](collider), since colliders
 /// by default have [their own mass properties](ColliderMassProperties) that are added to the body's own mass properties.
 ///
-/// ```
+/// ```ignore
 /// // The mass properties will be computed from a ball shape with a radius of 0.5 and a density of 1.
 /// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
 /// ```
@@ -64,9 +64,9 @@ use derive_more::From;
 /// If you don't want to add a collider, you can instead add a [`MassPropsBundle`] with the mass properties computed from a collider
 /// shape using the [`MassPropsBundle::new_computed`](MassPropsBundle#method.new_computed) method.
 ///
-/// ```
+/// ```ignore
 /// // This is equivalent to the earlier approach, but no collider will be added.
-/// commands.spawn((RigidBody::Dynamic, MassPropsBundle::new_computed(&Collider::ball(0.5), 1.0)));
+/// commands.spawn((RigidBody::Dynamic, MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0)));
 /// ```
 ///
 /// If you want, you can also define the mass properties explicitly by adding the components manually.
