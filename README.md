@@ -83,7 +83,19 @@ fn setup(
 
 https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4
 
-To see more complete examples of the various features of Bevy XPBD, check out the 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crates/bevy_xpbd_2d/examples) and [/crates/bevy_xpbd_3d/examples](/crates/bevy_xpbd_3d/examples) respectively.
+## More examples
+
+You can find lots of 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crates/bevy_xpbd_2d/examples) and [/crates/bevy_xpbd_3d/examples](/crates/bevy_xpbd_3d/examples) respectively.
+
+The examples support both `f32` and `f64` precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
+In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
+
+By default the examples use `f64`. To run the `f32` versions, you need to disable default features and manually choose the dimension
+and precision:
+
+```
+cargo run --example cubes --no-default-features --features 3d,f32
+```
 
 ## Current features
 
