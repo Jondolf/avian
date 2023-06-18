@@ -228,7 +228,7 @@ impl PrismaticJoint {
 
     #[cfg(feature = "2d")]
     fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
-        rot1.mul(rot2.inverse()).as_radians() * Vector3::Z
+        (*rot2 - *rot1).as_radians() * Vector3::Z
     }
 
     #[cfg(feature = "3d")]
