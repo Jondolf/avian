@@ -2,6 +2,17 @@ use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(Msaa::Sample4)
+        .insert_resource(SubstepCount(50))
+        .add_startup_system(setup)
+        .run();
+}
+
 fn setup(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -55,15 +66,4 @@ fn setup(
         transform: Transform::from_translation(Vec3::Z * 10.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..default()
     });
-}
-
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
-        .insert_resource(SubstepCount(50))
-        .add_startup_system(setup)
-        .run();
 }

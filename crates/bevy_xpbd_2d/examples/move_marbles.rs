@@ -4,6 +4,18 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(SubstepCount(6))
+        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
+        .add_startup_system(setup)
+        .add_system(movement)
+        .run();
+}
+
 #[derive(Component)]
 struct Marble;
 
@@ -110,16 +122,4 @@ fn movement(
             linear_velocity.x += 10.0;
         }
     }
-}
-
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(SubstepCount(6))
-        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
-        .add_startup_system(setup)
-        .add_system(movement)
-        .run();
 }

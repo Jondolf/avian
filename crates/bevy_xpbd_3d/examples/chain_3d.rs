@@ -4,6 +4,23 @@ use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(Msaa::Sample4)
+        .insert_resource(AmbientLight {
+            brightness: 2.0,
+            ..default()
+        })
+        .insert_resource(SubstepCount(80))
+        .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 2.0))
+        .add_startup_system(setup)
+        .add_system(movement)
+        .run();
+}
+
 #[derive(Component)]
 struct Controllable;
 
@@ -78,21 +95,4 @@ fn movement(
         }
         linear_velocity.0 *= 0.9;
     }
-}
-
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
-        .insert_resource(AmbientLight {
-            brightness: 2.0,
-            ..default()
-        })
-        .insert_resource(SubstepCount(80))
-        .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 2.0))
-        .add_startup_system(setup)
-        .add_system(movement)
-        .run();
 }

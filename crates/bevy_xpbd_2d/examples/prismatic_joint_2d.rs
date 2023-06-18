@@ -2,6 +2,17 @@ use bevy::prelude::*;
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(SubstepCount(50))
+        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
+        .add_startup_system(setup)
+        .run();
+}
+
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
@@ -33,15 +44,4 @@ fn setup(mut commands: Commands) {
             .with_free_axis(Vector::X)
             .with_limits(25.0, 100.0),
     );
-}
-
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(SubstepCount(50))
-        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
-        .add_startup_system(setup)
-        .run();
 }

@@ -4,6 +4,18 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::XpbdExamplePlugin;
 
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(XpbdExamplePlugin)
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(SubstepCount(50))
+        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
+        .add_startup_system(setup)
+        .add_system(follow_mouse)
+        .run();
+}
+
 #[derive(Component)]
 struct FollowMouse;
 
@@ -72,16 +84,4 @@ fn follow_mouse(
             follower_position.0 = world_pos.truncate().adjust_precision();
         }
     }
-}
-
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .insert_resource(SubstepCount(50))
-        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
-        .add_startup_system(setup)
-        .add_system(follow_mouse)
-        .run();
 }
