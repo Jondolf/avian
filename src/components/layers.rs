@@ -32,7 +32,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Colliders without this component can be considered as having all groups and masks, and they can
 /// interact with everything that belongs on any layer.
 ///
-/// ## Creating [`CollisionLayers`]
+/// ## Creation
 ///
 /// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`](#method.new) method
 /// that takes in a list of groups and masks. Additional groups and masks can be added and removed by calling methods like

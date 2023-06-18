@@ -134,7 +134,7 @@
 //! - [Create a rigid body](RigidBody)
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
-//! - [Definen collision layers](CollisionLayers)
+//! - [Define collision layers](CollisionLayers#creation)
 //! - [Define mass properties](RigidBody#mass-properties)
 //! - [Use joints](joints)
 //! - [Configure gravity](Gravity)
