@@ -36,8 +36,8 @@ insta = "1.0"
 itertools = "0.10"
 
 [[example]]
-name = "chain3d"
-required-features = ["3d", "f32"]
+name = "chain_3d"
+required-features = ["3d"]
 
 [[example]]
 name = "cubes"
