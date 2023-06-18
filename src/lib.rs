@@ -135,7 +135,7 @@
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Define mass properties](RigidBody#mass-properties)
+//! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Use joints](joints)
 //! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
@@ -144,6 +144,51 @@
 //! - [Configure the substep count](SubstepCount)
 //! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
+//!
+//! ## Troubleshooting
+//!
+//! ### Nothing is happening!
+//!
+//! Make sure you have added the [`PhysicsPlugins`] plugin group and you have given your rigid bodies
+//! a [`RigidBody`] component. See the [getting started](#getting-started) section.
+//!
+//! ### Why is everything moving so slowly?
+//!
+//! If your application is in 2D, you might be using pixels as length units. This will require you to use
+//! larger velocities and forces than you would in 3D. Make sure you set [`Gravity`] to some larger value
+//! as well, because its magnitude is 9.81 by default, which is tiny in pixels.
+//!
+//! Bevy XPBD doesn't have a "physics scale" yet, but it will most likely be added in the future
+//! so that it's possible to define some kind of pixels per meter configuration.
+//!
+//! ### Why did my rigid body suddenly vanish?
+//!
+//! Make sure to [give your rigid bodies some mass](RigidBody#adding-mass-properties), either by adding a [`Collider`]
+//! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
+//! instantly give them infinite velocity.
+//!
+//! ### Why is performance so bad?
+//!
+//! Make sure you are building your project in release mode using `cargo build --release`.
+//!
+//! You can further optimize builds by setting the number of codegen units in your `Cargo.toml` to 1,
+//! although this will also increase compile times.
+//!
+//! ```toml
+//! [profile.release]
+//! codegen-units = 1
+//! ```
+//!
+//! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
+//! This will be addressed in future releases.
+//!
+//! ### Something else?
+//!
+//! Physics engines are very large and Bevy XPBD is very young, so stability issues and bugs are to be expected.
+//!
+//! If you encounter issues, please consider first taking a look at the
+//! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
+//! [open a new issue](https://github.com/Jondolf/bevy_xpbd/issues/new) if there already isn't one regarding your problem.
 //!
 //! ## What is XPBD?
 //!
@@ -225,9 +270,9 @@
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
-//! License
+//! ## License
 //!
-//! Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
+//! Bevy XPBD is free and open source. All code in the Bevy XPBD repository is dual-licensed under either:
 //!
 //! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/bevy_xpbd/LICENSE-MIT)
 //! or <http://opensource.org/licenses/MIT>)
@@ -272,7 +317,7 @@ pub mod math;
 pub mod plugins;
 pub mod resources;
 
-/// Reimports common components, bundles, resources, plugins and types.
+/// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
         collision::*,
