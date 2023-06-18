@@ -279,11 +279,38 @@ pub enum CoefficientCombine {
     Max = 4,
 }
 
-/// Restitution controls how elastic or bouncy a body is.
+/// Controls how elastic or bouncy an entity is when colliding with other entities.
 ///
-/// 0.0: perfectly inelastic\
-/// 1.0: perfectly elastic\
-/// 2.0: kinetic energy is doubled
+/// 0.0: Perfectly inelastic\
+/// 1.0: Perfectly elastic\
+/// 2.0: Kinetic energy is doubled
+///
+/// ## Example
+///
+/// Create a new [`Restitution`] component with a restitution coefficient of 0.4:
+///
+/// ```ignore
+/// Restitution::new(0.4)
+/// ```
+///
+/// Configure how two restitution coefficients are combined with [`CoefficientCombine`]:
+///
+/// ```ignore
+/// Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// ```
+///
+/// Combine the properties of two [`Restitution`] components:
+///
+/// ```ignore
+/// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
+/// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
+///
+/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
+/// assert_eq!(
+///     first.combine(second),
+///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// );
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Restitution {
@@ -294,12 +321,13 @@ pub struct Restitution {
 }
 
 impl Restitution {
+    /// Zero restitution and [`CoefficientCombine::Average`].
     pub const ZERO: Self = Self {
         coefficient: 0.0,
         combine_rule: CoefficientCombine::Average,
     };
 
-    /// Creates a new `Restitution` component with the given restitution coefficient.
+    /// Creates a new [`Restitution`] component with the given restitution coefficient.
     pub fn new(coefficient: Scalar) -> Self {
         Self {
             coefficient,
@@ -315,7 +343,7 @@ impl Restitution {
         }
     }
 
-    /// Combines the properties of two `Restitution` components.
+    /// Combines the properties of two [`Restitution`] components.
     pub fn combine(&self, other: Self) -> Self {
         // Choose rule with higher priority
         let rule = self.combine_rule.max(other.combine_rule);
@@ -350,12 +378,49 @@ impl From<Scalar> for Restitution {
     }
 }
 
-/// Friction prevents relative tangential movement at contact points.
+/// Controls how strongly the material of an entity prevents relative tangential movement at contact points.
 ///
-/// For surfaces that are at rest relative to each other, static friction is used. Once it is overcome, the bodies start sliding relative to each other, and dynamic friction is applied instead.
+/// For surfaces that are at rest relative to each other, static friction is used.
+/// Once the static friction is overcome, the bodies will start sliding relative to each other, and dynamic friction is applied instead.
 ///
-/// 0.0: no friction at all, the body slides indefinitely\
-/// 1.0: high friction\
+/// 0.0: No friction at all, the body slides indefinitely\
+/// 1.0: High friction\
+///
+/// ## Example
+///
+/// Create a new [`Friction`] component with dynamic and static friction coefficients of 0.4:
+///
+/// ```ignore
+/// Friction::new(0.4)
+/// ```
+///
+/// Set the other friction coefficient:
+///
+/// ```ignore
+/// // 0.4 static and 0.6 dynamic
+/// Friction::new(0.4).with_dynamic_coefficient(0.6)
+/// // 0.4 dynamic and 0.6 static
+/// Friction::new(0.4).with_static_coefficient(0.6)
+/// ```
+///
+/// Configure how the friction coefficients of two [`Friction`] components are combined with [`CoefficientCombine`]:
+///
+/// ```ignore
+/// Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// ```
+///
+/// Combine the properties of two [`Friction`] components:
+///
+/// ```ignore
+/// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
+/// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
+///
+/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
+/// assert_eq!(
+///     first.combine(second),
+///     Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// );
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Friction {
@@ -368,6 +433,7 @@ pub struct Friction {
 }
 
 impl Friction {
+    /// Zero dynamic and static friction and [`CoefficientCombine::Average`].
     pub const ZERO: Self = Self {
         dynamic_coefficient: 0.0,
         static_coefficient: 0.0,
@@ -387,6 +453,22 @@ impl Friction {
     pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
         Self {
             combine_rule,
+            ..*self
+        }
+    }
+
+    /// Sets the coefficient of dynamic friction.
+    pub fn with_dynamic_coefficient(&self, coefficient: Scalar) -> Self {
+        Self {
+            dynamic_coefficient: coefficient,
+            ..*self
+        }
+    }
+
+    /// Sets the coefficient of static friction.
+    pub fn with_static_coefficient(&self, coefficient: Scalar) -> Self {
+        Self {
+            static_coefficient: coefficient,
             ..*self
         }
     }
