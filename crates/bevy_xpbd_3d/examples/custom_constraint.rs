@@ -26,9 +26,9 @@ fn main() {
 struct CustomDistanceConstraint {
     entity1: Entity,
     entity2: Entity,
-    rest_length: f32,
-    lagrange: f32,
-    compliance: f32,
+    rest_length: Scalar,
+    lagrange: Scalar,
+    compliance: Scalar,
 }
 
 impl PositionConstraint for CustomDistanceConstraint {}
@@ -100,7 +100,7 @@ fn setup(
         .spawn((
             cube_mesh,
             RigidBody::Dynamic,
-            Position(Vec3::new(3.0, 3.5, 0.0)),
+            Position(Vector::new(3.0, 3.5, 0.0)),
             MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();

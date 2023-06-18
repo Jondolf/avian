@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d", "f32", "simd" ]
+default = [ "3d", "f64", "simd" ]
 3d = []
 f32 = [ "dep:parry3d" ]
 f64 = [ "dep:parry3d-f64" ]
@@ -45,20 +45,20 @@ required-features = ["3d"]
 
 [[example]]
 name = "fixed_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "prismatic_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "revolute_joint_3d"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "custom_broad_phase"
-required-features = ["3d", "f32"]
+required-features = ["3d"]
 
 [[example]]
 name = "custom_constraint"
-required-features = ["3d", "f32"]
+required-features = ["3d"]

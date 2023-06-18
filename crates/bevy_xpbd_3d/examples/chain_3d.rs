@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
@@ -15,7 +17,7 @@ fn setup(
     let particle_mesh = PbrBundle {
         mesh: meshes.add(
             Mesh::try_from(shape::Icosphere {
-                radius: particle_radius,
+                radius: particle_radius as f32,
                 ..default()
             })
             .unwrap(),

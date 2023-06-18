@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
@@ -21,7 +23,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Position(Vec3::NEG_Y * 2.0),
+        Position(Vector::NEG_Y * 2.0),
         Collider::cuboid(100.0, 1.0, 100.0),
     ));
 
@@ -40,11 +42,11 @@ fn setup(
                     PbrBundle {
                         mesh: cube_mesh.clone(),
                         material: materials.add(Color::rgb(0.2, 0.7, 0.9).into()),
-                        transform: Transform::from_scale(Vec3::splat(cube_size)),
+                        transform: Transform::from_scale(Vec3::splat(cube_size as f32)),
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Position(pos + Vec3::Y * 5.0),
+                    Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(cube_size, cube_size, cube_size),
                     Cube,
                 ));
