@@ -167,17 +167,27 @@ impl PluginGroup for PhysicsPlugins {
 /// 5. Sync data
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
-    /// In the preparation step, necessary preparations and updates will be run before the rest of the physics simulation loop.
-    Prepare,
-    /// During the broad phase, potential collisions will be collected into the [`BroadCollisionPairs`] resource using simple AABB intersection checks.
+    /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+    /// updating several components.
     ///
-    /// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
+    /// See [`PreparePlugin`].
+    Prepare,
+    /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+    /// [AABB](ColliderAabb) intersection tests.
+    ///
+    /// See [`BroadPhasePlugin`].
     BroadPhase,
-    /// Substepping is an inner loop inside a physics step. See [`SubstepSet`] and [`SubstepSchedule`].
+    /// Responsible for substepping, which is an inner loop inside a physics step.
+    ///
+    /// See [`SubstepSet`] and [`SubstepSchedule`].
     Substeps,
-    /// The sleeping step controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
+    /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
+    ///
+    /// See [`SleepingPlugin`].
     Sleeping,
-    /// In the sync step, Bevy [`Transform`]s are synchronized with the physics world.
+    /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+    ///
+    /// See [`SyncPlugin`].
     Sync,
 }
 
@@ -189,21 +199,35 @@ pub enum PhysicsSet {
 /// 4. Solve velocity constraints (dynamic friction and restitution)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSet {
-    /// In the integration step, the position and velocity of each particle and body is explicitly integrated, taking only external forces like gravity (and forces applied by the user) into account.
+    /// Responsible for integrating Newton's 2nd law of motion,
+    /// applying forces and moving entities according to their velocities.
+    ///
+    /// See [`IntegratorPlugin`].
     Integrate,
-    /// The solver iterates through constraints and solves them.
-    /// This step is also responsible for narrow phase collision detection, as it creates a [`PenetrationConstraint`] for each contact.
+    /// The [solver] iterates through [constraints] and solves them.
+    /// This step is also responsible for narrow phase collision detection,
+    /// as it creates a [`PenetrationConstraint`] for each contact.
     ///
-    /// **Note**: If you want to create your own constraints, you should add them in [`SubstepSet::SolveUserConstraints`]
+    /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
+    /// you should add them in [`SubstepSet::SolveUserConstraints`]
     /// to avoid system order ambiguities.
-    SolveConstraints,
-    /// The position solver iterates through custom constraints created by the user and solves them.
     ///
-    /// You can create new constraints by implementing [`XpbdConstraint`] for a component and adding
-    /// the constraint system to this set. See [`solve_constraint`].
+    /// See [`SolverPlugin`].
+    SolveConstraints,
+    /// The [solver] iterates through custom [constraints] created by the user and solves them.
+    ///
+    /// You can [create new constraints](constraints#custom-constraints) by implementing [`XpbdConstraint`]
+    /// for a component and adding the [constraint system](solve_constraint) to this set.
+    ///
+    /// See [`SolverPlugin`].
     SolveUserConstraints,
-    /// In the velocity update step, new velocities are derived for all particles and bodies after the position solving step.
+    /// Responsible for updating velocities after [constraint](constraints) solving.
+    ///
+    /// See [`SolverPlugin`].
     UpdateVelocities,
-    /// During the velocity solving step, a velocity update caused by properties like restitution and friction will be applied to all particles and bodies.
+    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
+    /// substepping loop.
+    ///
+    /// See [`SolverPlugin`].
     SolveVelocities,
 }

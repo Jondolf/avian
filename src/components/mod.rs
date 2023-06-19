@@ -57,7 +57,7 @@ use derive_more::From;
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
 ///
 /// Note that by default, rigid bodies don't have any mass, so dynamic bodies will gain infinite velocity upon any interaction.
-/// See the [section below](#adding-mass-properties] for how to add mass properties.
+/// See the [section below](#adding-mass-properties) for how to add mass properties.
 ///
 /// ## Adding mass properties
 ///
@@ -86,11 +86,13 @@ use derive_more::From;
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     ///
-    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinearVelocity`] or [`AngularVelocity`] components. Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
+    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`ExternalTorque`], [`LinearVelocity`] and [`AngularVelocity`] components.
+    /// Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
     #[default]
     Dynamic,
 
-    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia. The only way to move a static body is to manually change its position.
+    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia.
+    /// The only way to move a static body is to manually change its position.
     ///
     /// Collisions with static bodies will affect dynamic bodies, but not other static bodies or kinematic bodies.
     ///
@@ -99,7 +101,8 @@ pub enum RigidBody {
 
     /// Kinematic bodies are bodies that are not affected by any external forces or collisions. They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
     ///
-    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected. These components will never be altered by the physics engine, so you can kinematic bodies freely.
+    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected.
+    /// These components will never be altered by the physics engine, so you can move kinematic bodies freely.
     Kinematic,
 }
 
