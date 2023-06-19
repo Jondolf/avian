@@ -136,7 +136,7 @@
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
 //! - [Define mass properties](RigidBody#adding-mass-properties)
-//! - [Use joints](joints)
+//! - [Use joints](joints#using-joints)
 //! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
 //! - [Configure friction](Friction)
@@ -172,7 +172,7 @@
 //! Make sure you are building your project in release mode using `cargo build --release`.
 //!
 //! You can further optimize builds by setting the number of codegen units in your `Cargo.toml` to 1,
-//! although this will also increase compile times.
+//! although this will also increase build times.
 //!
 //! ```toml
 //! [profile.release]

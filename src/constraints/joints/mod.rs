@@ -1,4 +1,86 @@
-//! General joint logic and different types of built-in joints.
+//! Contains joints.
+//!
+//! **Joints** are a way to connect entities in a way that restricts their movement relative to each other.
+//! They act as [constraints] that restrict different *Degrees Of Freedom* depending on the joint type.
+//!
+//! ## Degrees Of Freedom (DOF)
+//!
+//! In 3D, entities can normally translate and rotate along the `X`, `Y` and `Z` axes.
+//! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
+//!
+//! Joints reduce the number of DOF that entities have. For example, [revolute joints](RevoluteJoint)
+//! only allow rotation around one axis.
+//!
+//! Below is a table containing the joints that are currently implemented.
+//!
+//! | Joint              | Allowed 2D DOF | Allowed 3D DOF |
+//! | ------------------ | -------------- | -------------- |
+//! | [`FixedJoint`]     | None           | None           |
+//! | [`PrismaticJoint`] | 1 Translation  | 1 Translation  |
+//! | [`RevoluteJoint`]  | 1 Rotation     | 1 Rotation     |
+//! | [`SphericalJoint`] | 1 Rotation     | 3 Rotations    |
+//!
+//! ## Using joints
+//!
+//! In Bevy XPBD, joints are modeled as components. You can create a joint by simply spawning
+//! an entity and adding the joint component you want, giving the connected entities as arguments
+//! to the `new` method.
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
+//! # use bevy_xpbd_3d::prelude::*;
+//! #
+//! fn setup(mut commands: Commands) {
+//!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+//!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+//!     
+//!     // Connect the bodies with a fixed joint
+//!     commands.spawn(FixedJoint::new(entity1, entity2));
+//! }
+//! ```
+//!
+//! ### Stiffness
+//!
+//! You can control the stiffness of a joint with the `with_compliance` method.
+//! *Compliance* refers to the inverse of stiffness, so using a compliance of 0 corresponds to
+//! infinite stiffness.
+//!
+//! ### Attachment positions
+//!
+//! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
+//!
+//! You can use `with_local_anchor_1` and `with_local_anchor_2` to set the attachment positions on the first
+//! and second entity respectively.
+//!
+//! ### Damping
+//!
+//! You can configure the linear and angular damping caused by joints using the `with_linear_velocity_damping` and
+//! `with_angular_velocity_damping` methods. Increasing the damping values will cause the velocities
+//! of the connected entities to decrease faster.
+//!
+//! ### Other configuration
+//!
+//! Different joints may have different configuration options. Many joints allow you to change the axis of allowed
+//! translation or rotation, and they may have distance or angle limits along these axes.
+//!
+//! Take a look at the documentation and methods of each joint to see all of the configuration options.
+//!
+//! ## Custom joints
+//!
+//! Joints are [constraints] that implement [`Joint`] and [`XpbdConstraint`].
+//!
+//! The process of creating a joint is essentially the same as [creating a constraint](constraints#custom-constraints),
+//! except you should also implement the [`Joint`] trait's methods. The trait has some useful helper methods
+//! like `align_position` and `align_orientation` to reduce some common boilerplate.
+//!
+//! Many joints also have joint limits. You can use [`DistanceLimit`] and [`AngleLimit`] to help store these limits
+//! and to compute the current distance from the specified limits.
+//!
+//! [See the code implementations](https://github.com/Jondolf/bevy_xpbd/tree/main/src/constraints/joints)
+//! of the implemented joints to get a better idea of how to create joints.
 
 mod fixed;
 mod prismatic;
@@ -13,7 +95,7 @@ pub use spherical::*;
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Joints are constraints that attach pairs of bodies and restrict their relative positional and rotational degrees of freedom.
+/// A trait for [joints].
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Creates a new joint between two entities.
     fn new(entity1: Entity, entity2: Entity) -> Self;
