@@ -1,8 +1,6 @@
 use crate::prelude::*;
 
-/// Angular constraints apply an angular correction of a given rotation angle around a given axis.
-///
-/// The constraint functions are based on equations 11-16 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
+/// An angular constraint applies an angular correction around a given axis.
 pub trait AngularConstraint: XpbdConstraint<2> {
     /// Applies angular constraints for interactions between two bodies.
     ///
@@ -77,6 +75,11 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         p
     }
 
+    /// Computes the generalized inverse mass of a body when applying an angular correction
+    /// around `axis`.
+    ///
+    /// In 2D, `axis` should only have the z axis set to either -1 or 1 to indicate counterclockwise or
+    /// clockwise rotation.
     #[cfg(feature = "2d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector3) -> Scalar {
         if body.rb.is_dynamic() {
@@ -87,6 +90,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         }
     }
 
+    /// Computes the generalized inverse mass of a body when applying an angular correction
+    /// around `axis`.
     #[cfg(feature = "3d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector) -> Scalar {
         if body.rb.is_dynamic() {
@@ -97,12 +102,14 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         }
     }
 
+    /// Computes the update in rotation when applying an angular correction `p`.
     #[cfg(feature = "2d")]
     fn get_delta_rot(_rot: Rotation, inverse_inertia: Scalar, p: Scalar) -> Rotation {
         // Equation 8/9 but in 2D
         Rotation::from_radians(inverse_inertia * p)
     }
 
+    /// Computes the update in rotation when applying an angular correction `p`.
     #[cfg(feature = "3d")]
     fn get_delta_rot(rot: Rotation, inverse_inertia: Matrix3, p: Vector) -> Rotation {
         // Equation 8/9

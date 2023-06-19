@@ -5,6 +5,27 @@ use bevy::prelude::Resource;
 use crate::prelude::*;
 
 /// Configures how many times per second the physics simulation is run.
+///
+/// ## Example
+///
+/// You can change the timestep by inserting the [`PhysicsTimestep`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         // Use a 120 Hz fixed timestep instead of the default 60 Hz
+///         .insert_resource(PhysicsTimestep::Fixed(1.0 / 120.0))
+///         .run();
+/// }
+/// ```
 #[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
 #[reflect(Resource)]
 pub enum PhysicsTimestep {
@@ -35,7 +56,35 @@ pub struct DeltaTime(pub Scalar);
 #[reflect(Resource)]
 pub struct SubDeltaTime(pub Scalar);
 
-/// The number of substeps used in XPBD simulation. A higher number of substeps reduces the value of [`SubDeltaTime`], which results in a more accurate simulation at the cost of performance.
+/// The number of substeps used in the simulation.
+///
+/// A higher number of substeps reduces the value of [`SubDeltaTime`],
+/// which results in a more accurate simulation, but also reduces performance. The default
+/// substep count is currently 12.
+///
+/// If you use a very high substep count and encounter stability issues, consider enabling the `f64`
+/// feature as shown in the [getting started guide](crate#getting-started) to avoid floating point
+/// precision problems.
+///
+/// ## Example
+///
+/// You can change the number of substeps by inserting the [`SubstepCount`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         .insert_resource(SubstepCount(30))
+///         .run();
+/// }
+/// ```
 #[derive(Reflect, Resource, Clone, Copy)]
 #[reflect(Resource)]
 pub struct SubstepCount(pub u32);
@@ -99,9 +148,38 @@ impl Default for DeactivationTime {
     }
 }
 
-/// The global gravitational acceleration. This is applied to dynamic bodies in the integration step.
+/// A resource for the global gravitational acceleration.
 ///
-/// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational acceleration near Earth's surface.
+/// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational
+/// acceleration near Earth's surface.
+///
+/// Note that if you are using pixels as length units in 2D, this gravity will be tiny. You should
+/// modify the gravity to fit your application.
+///
+/// ## Example
+///
+/// You can change gravity by simply inserting the [`Gravity`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
+///         .run();
+/// }
+/// # #[cfg(not(all(feature = "3d", feature = "f32")))]
+/// # fn main() {}
+/// ```
+///
+/// You can also modify gravity while the app is running.
 #[derive(Reflect, Resource, Debug)]
 #[reflect(Resource)]
 pub struct Gravity(pub Vector);
@@ -113,5 +191,6 @@ impl Default for Gravity {
 }
 
 impl Gravity {
+    /// Zero gravity.
     pub const ZERO: Gravity = Gravity(Vector::ZERO);
 }

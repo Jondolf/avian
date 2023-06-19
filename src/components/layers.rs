@@ -5,7 +5,9 @@ use bevy::prelude::*;
 ///
 /// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
 pub trait PhysicsLayer: Sized {
+    /// Converts the layer to a bitmask.
     fn to_bits(&self) -> u32;
+    /// Creates a layer bitmask with all bits set to 1.
     fn all_bits() -> u32;
 }
 
@@ -32,7 +34,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Colliders without this component can be considered as having all groups and masks, and they can
 /// interact with everything that belongs on any layer.
 ///
-/// ## Creating [`CollisionLayers`]
+/// ## Creation
 ///
 /// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`](#method.new) method
 /// that takes in a list of groups and masks. Additional groups and masks can be added and removed by calling methods like
@@ -47,9 +49,12 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// ## Example
 ///
-/// ```ignore
+/// ```
 /// use bevy::prelude::*;
-/// use bevy_xpbd::prelude::*; // 2D or 3D
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
 ///
 /// #[derive(PhysicsLayer)]
 /// enum Layer {

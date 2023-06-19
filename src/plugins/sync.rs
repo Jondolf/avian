@@ -1,9 +1,16 @@
-//! Synchronizes changes from the physics world to Bevy [`Transform`]s.
+//! Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+//!
+//! See [`SyncPlugin`].
 
 use crate::{prelude::*, PhysicsSchedule};
 use bevy::prelude::*;
 
-/// Synchronizes changes from the physics world to Bevy [`Transform`]s.
+/// Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+///
+/// Currently, the transforms of nested bodies are updated to reflect their global positions.
+/// This means that nested [rigid bodies](RigidBody) can behave independently regardless of the hierarchy.
+///
+/// The synchronization systems run in [`PhysicsSet::Sync`].
 pub struct SyncPlugin;
 
 impl Plugin for SyncPlugin {

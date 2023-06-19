@@ -11,16 +11,46 @@ use crate::prelude::*;
 
 /// The rotation of a body.
 ///
-/// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians. You should use the associated methods to create, access and modify rotations with normal radians or degrees.
+/// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians.
+/// You should use the associated methods to create, access and modify rotations with normal radians or degrees.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_2d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     // Spawn a dynamic rigid body rotated by 90 degrees
+///     commands.spawn((RigidBody::Dynamic, Rotation::from_degrees(90.0)));
+/// }
+/// ```
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug)]
 #[reflect(Component)]
 pub struct Rotation {
-    pub cos: Scalar,
-    pub sin: Scalar,
+    /// The cosine of the rotation angle in radians.
+    cos: Scalar,
+    /// The sine of the rotation angle in radians.
+    sin: Scalar,
 }
 
 /// The rotation of a body represented as a [`Quat`].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(feature = "f32")]
+/// fn setup(mut commands: Commands) {
+///     // Spawn a dynamic rigid body rotated by 1.5 radians around the x axis
+///     commands.spawn((RigidBody::Dynamic, Rotation(Quat::from_rotation_x(1.5))));
+/// }
+/// # #[cfg(not(feature = "f32"))]
+/// # fn setup() {}
+/// ```
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
 #[reflect(Component)]
@@ -45,6 +75,7 @@ impl Rotation {
 
 #[cfg(feature = "2d")]
 impl Rotation {
+    /// Zero rotation.
     pub const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
 
     /// Returns the cosine of the rotation in radians.

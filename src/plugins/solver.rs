@@ -1,4 +1,7 @@
-//! The XPBD solver is responsible for constraint projection, velocity updates, and velocity corrections. See [`SolverPlugin`].
+//! Solves positional and angular [constraints], updates velocities and solves velocity constraints
+//! (dynamic [friction](Friction), [restitution](Restitution) and [joint damping](joints#damping)).
+//!
+//! See [`SolverPlugin`].
 
 use crate::{
     collision::*,
@@ -8,19 +11,25 @@ use crate::{
 use bevy::prelude::*;
 use constraints::penetration::PenetrationConstraint;
 
-/// The `SolverPlugin` is reponsible for constraint projection, velocity updates, and velocity corrections caused by dynamic friction, restitution and damping.
+/// Solves positional and angular [constraints], updates velocities and solves velocity constraints
+/// (dynamic [friction](Friction) and [restitution](Restitution) and [joint damping](joints#damping)).
 ///
 /// ## Steps
 ///
 /// Below are the three main steps of the `SolverPlugin`.
 ///
-/// 1. **Constraint projection**: Constraints are handled by looping through them and applying positional and angular corrections to the bodies in order to satisfy the constraints.
+/// 1. **Constraint projection**: Constraints are handled by looping through them and applying positional and angular corrections
+/// to the bodies in order to satisfy the constraints. Runs in [`SubstepSet::SolveConstraints`] and [`SubstepSet::SolveUserConstraints`].
 ///
 /// 2. **Velocity update**: The velocities of bodies are updated based on positional and rotational changes from the last step.
+/// Runs in [`SubstepSet::UpdateVelocities`].
 ///
-/// 3. **Velocity solve**: Velocity corrections caused by dynamic friction, restitution and damping are applied.
+/// 3. **Velocity solve**: Velocity corrections caused by dynamic friction, restitution and joint damping are applied.
+/// Runs in [`SubstepSet::SolveVelocities`].
 ///
-/// In the case of collisions, [`PenetrationConstraint`]s are created for each contact pair. The constraints are resolved by moving the bodies so that they no longer penetrate. Then, the velocities are updated, and velocity corrections caused by dynamic friction and restitution are applied.
+/// In the case of collisions, [`PenetrationConstraint`]s are created for each contact pair.
+/// The constraints are resolved by moving the bodies so that they no longer penetrate.
+/// Then, the velocities are updated, and velocity corrections caused by dynamic friction and restitution are applied.
 pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
@@ -39,8 +48,8 @@ impl Plugin for SolverPlugin {
                 SubstepSet::Integrate,
                 SubstepSet::SolveConstraints,
                 SubstepSet::SolveUserConstraints,
-                SubstepSet::UpdateVel,
-                SubstepSet::SolveVel,
+                SubstepSet::UpdateVelocities,
+                SubstepSet::SolveVelocities,
             )
                 .chain(),
         );
@@ -57,7 +66,7 @@ impl Plugin for SolverPlugin {
                 .in_set(SubstepSet::SolveConstraints),
         );
 
-        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubstepSet::UpdateVel));
+        substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubstepSet::UpdateVelocities));
 
         substeps.add_systems(
             (
@@ -68,7 +77,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<PrismaticJoint>,
             )
                 .chain()
-                .in_set(SubstepSet::SolveVel),
+                .in_set(SubstepSet::SolveVelocities),
         );
     }
 }

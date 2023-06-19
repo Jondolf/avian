@@ -1,9 +1,18 @@
-//! The integrator explicitly integrates the positions and velocities of bodies. See [`IntegratorPlugin`].
+//! Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
+//!
+//! See [`IntegratorPlugin`].
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// The `IntegratorPlugin` explicitly integrates the positions and velocities of bodies taking only external forces like gravity into account. This acts as a prediction for the next positions and orientations of the bodies.
+/// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
+///
+/// This acts as a prediction for the next positions and orientations of the bodies. The [solver] corrects these predicted
+/// positions to follow the rules set by the [constraints].
+///
+/// The integration scheme used is very closely related to implicit Euler integration.
+///
+/// The integration systems run in [`SubstepSet::Integrate`].
 pub struct IntegratorPlugin;
 
 impl Plugin for IntegratorPlugin {

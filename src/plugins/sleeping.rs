@@ -1,13 +1,21 @@
-//! Controls when bodies are active. This improves performance and helps prevent jitter. See [`Sleeping`].
+//! Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
+//!
+//! See [`SleepingPlugin`].
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Controls when bodies are active. This improves performance and helps prevent jitter.
+/// Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
 ///
-/// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`] for a duration indicated by [`DeactivationTime`].
+/// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
+/// for a duration indicated by [`DeactivationTime`].
 ///
-/// Bodies are woken up when an active body or constraint interacts with them, or when gravity changes, or when the body's position, rotation, velocity, or external forces are changed.
+/// Bodies are woken up when an active body or constraint interacts with them, or when gravity changes,
+/// or when the body's position, rotation, velocity, or external forces are changed.
+///
+/// This plugin does *not* handle constraints waking up bodies. That is done by the [solver].
+///
+/// The sleeping systems run in [`PhysicsSet::Sleeping`].
 pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {

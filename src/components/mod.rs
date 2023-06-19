@@ -16,17 +16,83 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
 
-/// The rigid body type. A rigid body can be either dynamic, kinematic or static.
+/// A non-deformable body used for the simulation of most physics objects.
+///
+/// A rigid body can be either dynamic, kinematic or static.
+///
+/// - **Dynamic bodies** are similar to real life objects and are affected by forces and contacts.
+/// - **Kinematic bodies** can only be moved programmatically, which is useful for things like character controllers and moving platforms.
+/// - **Static bodies** can not move, so they can be good for objects in the environment like the ground and walls.
+///
+/// ## Creation
+///
+/// Creating a rigid body is as simple as adding the [`RigidBody`] component:
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn(RigidBody::Dynamic);
+/// }
+/// ```
+///
+/// Bevy XPBD will automatically add any missing components, like the following:
+///
+/// - [`Position`]
+/// - [`Rotation`]
+/// - [`LinearVelocity`]
+/// - [`AngularVelocity`]
+/// - [`ExternalForce`]
+/// - [`ExternalTorque`]
+/// - [`Friction`]
+/// - [`Restitution`]
+/// - [`Mass`]
+/// - [`Inertia`]
+/// - [`CenterOfMass`]
+///
+/// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
+///
+/// Note that by default, rigid bodies don't have any mass, so dynamic bodies will gain infinite velocity upon any interaction.
+/// See the [section below](#adding-mass-properties) for how to add mass properties.
+///
+/// ## Adding mass properties
+///
+/// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](Collider), since colliders
+/// by default have [their own mass properties](ColliderMassProperties) that are added to the body's own mass properties.
+///
+/// ```ignore
+/// // The mass properties will be computed from a ball shape with a radius of 0.5 and a density of 1.
+/// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// ```
+///
+/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`] with the mass properties computed from a collider
+/// shape using the [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
+///
+/// ```ignore
+/// // This is equivalent to the earlier approach, but no collider will be added.
+/// commands.spawn((RigidBody::Dynamic, MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0)));
+/// ```
+///
+/// If you want, you can also define the mass properties explicitly by adding the components manually.
+/// Note that the mass properties of colliders are added on top of the existing mass properties, so if you
+/// want to define the body's mass properties explicitly, you might want to add
+/// [`ColliderMassProperties::ZERO`](ColliderMassProperties#associatedconstant.ZERO) to the colliders.
 #[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     ///
-    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`LinearVelocity`] or [`AngularVelocity`] components. Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
+    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`ExternalTorque`], [`LinearVelocity`] and [`AngularVelocity`] components.
+    /// Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
     #[default]
     Dynamic,
 
-    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia. The only way to move a static body is to manually change its position.
+    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia.
+    /// The only way to move a static body is to manually change its position.
     ///
     /// Collisions with static bodies will affect dynamic bodies, but not other static bodies or kinematic bodies.
     ///
@@ -35,7 +101,8 @@ pub enum RigidBody {
 
     /// Kinematic bodies are bodies that are not affected by any external forces or collisions. They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
     ///
-    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected. These components will never be altered by the physics engine, so you can kinematic bodies freely.
+    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected.
+    /// These components will never be altered by the physics engine, so you can move kinematic bodies freely.
     Kinematic,
 }
 
@@ -90,20 +157,6 @@ pub struct SleepingDisabled;
 #[reflect(Component)]
 pub struct Position(pub Vector);
 
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for Position {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for Position {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
-
 /// The previous position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -115,21 +168,8 @@ pub struct PreviousPosition(pub Vector);
 pub struct LinearVelocity(pub Vector);
 
 impl LinearVelocity {
+    /// Zero linear velocity.
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
-}
-
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for LinearVelocity {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for LinearVelocity {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
 }
 
 /// The linear velocity of a body before the velocity solve is performed.
@@ -137,7 +177,7 @@ impl From<Vec3> for LinearVelocity {
 #[reflect(Component)]
 pub struct PreSolveLinearVelocity(pub Vector);
 
-/// The angular velocity of a body in radians. Positive values will result in counter-clockwise rotation.
+/// The angular velocity of a body in radians. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
@@ -150,17 +190,12 @@ pub struct AngularVelocity(pub Scalar);
 pub struct AngularVelocity(pub Vector);
 
 impl AngularVelocity {
+    /// Zero angular velocity.
     #[cfg(feature = "2d")]
     pub const ZERO: AngularVelocity = AngularVelocity(0.0);
+    /// Zero angular velocity.
     #[cfg(feature = "3d")]
     pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for AngularVelocity {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
 }
 
 /// The angular velocity of a body in radians before the velocity solve is performed. Positive values will result in counter-clockwise rotation.
@@ -199,13 +234,6 @@ impl FloatZero for Scalar {
 #[reflect(Component)]
 pub struct ExternalTorque(pub Torque);
 
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for ExternalTorque {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
-
 /// Determines how coefficients are combined. The default is `Average`.
 ///
 /// When combine rules clash with each other, the following priority order is used: `Max > Multiply > Min > Average`.
@@ -223,11 +251,43 @@ pub enum CoefficientCombine {
     Max = 4,
 }
 
-/// Restitution controls how elastic or bouncy a body is.
+/// Controls how elastic or bouncy an entity is when colliding with other entities.
 ///
-/// 0.0: perfectly inelastic\
-/// 1.0: perfectly elastic\
-/// 2.0: kinetic energy is doubled
+/// 0.0: Perfectly inelastic\
+/// 1.0: Perfectly elastic\
+/// 2.0: Kinetic energy is doubled
+///
+/// ## Example
+///
+/// Create a new [`Restitution`] component with a restitution coefficient of 0.4:
+///
+/// ```ignore
+/// Restitution::new(0.4)
+/// ```
+///
+/// Configure how two restitution coefficients are combined with [`CoefficientCombine`]:
+///
+/// ```ignore
+/// Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// ```
+///
+/// Combine the properties of two [`Restitution`] components:
+///
+/// ```
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
+/// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
+///
+/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
+/// assert_eq!(
+///     first.combine(second),
+///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// );
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Restitution {
@@ -238,12 +298,13 @@ pub struct Restitution {
 }
 
 impl Restitution {
+    /// Zero restitution and [`CoefficientCombine::Average`].
     pub const ZERO: Self = Self {
         coefficient: 0.0,
         combine_rule: CoefficientCombine::Average,
     };
 
-    /// Creates a new `Restitution` component with the given restitution coefficient.
+    /// Creates a new [`Restitution`] component with the given restitution coefficient.
     pub fn new(coefficient: Scalar) -> Self {
         Self {
             coefficient,
@@ -259,7 +320,7 @@ impl Restitution {
         }
     }
 
-    /// Combines the properties of two `Restitution` components.
+    /// Combines the properties of two [`Restitution`] components.
     pub fn combine(&self, other: Self) -> Self {
         // Choose rule with higher priority
         let rule = self.combine_rule.max(other.combine_rule);
@@ -294,12 +355,54 @@ impl From<Scalar> for Restitution {
     }
 }
 
-/// Friction prevents relative tangential movement at contact points.
+/// Controls how strongly the material of an entity prevents relative tangential movement at contact points.
 ///
-/// For surfaces that are at rest relative to each other, static friction is used. Once it is overcome, the bodies start sliding relative to each other, and dynamic friction is applied instead.
+/// For surfaces that are at rest relative to each other, static friction is used.
+/// Once the static friction is overcome, the bodies will start sliding relative to each other, and dynamic friction is applied instead.
 ///
-/// 0.0: no friction at all, the body slides indefinitely\
-/// 1.0: high friction\
+/// 0.0: No friction at all, the body slides indefinitely\
+/// 1.0: High friction\
+///
+/// ## Example
+///
+/// Create a new [`Friction`] component with dynamic and static friction coefficients of 0.4:
+///
+/// ```ignore
+/// Friction::new(0.4)
+/// ```
+///
+/// Set the other friction coefficient:
+///
+/// ```ignore
+/// // 0.4 static and 0.6 dynamic
+/// Friction::new(0.4).with_dynamic_coefficient(0.6)
+/// // 0.4 dynamic and 0.6 static
+/// Friction::new(0.4).with_static_coefficient(0.6)
+/// ```
+///
+/// Configure how the friction coefficients of two [`Friction`] components are combined with [`CoefficientCombine`]:
+///
+/// ```ignore
+/// Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// ```
+///
+/// Combine the properties of two [`Friction`] components:
+///
+/// ```
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
+/// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
+///
+/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
+/// assert_eq!(
+///     first.combine(second),
+///     Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
+/// );
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Friction {
@@ -312,6 +415,7 @@ pub struct Friction {
 }
 
 impl Friction {
+    /// Zero dynamic and static friction and [`CoefficientCombine::Average`].
     pub const ZERO: Self = Self {
         dynamic_coefficient: 0.0,
         static_coefficient: 0.0,
@@ -331,6 +435,22 @@ impl Friction {
     pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
         Self {
             combine_rule,
+            ..*self
+        }
+    }
+
+    /// Sets the coefficient of dynamic friction.
+    pub fn with_dynamic_coefficient(&self, coefficient: Scalar) -> Self {
+        Self {
+            dynamic_coefficient: coefficient,
+            ..*self
+        }
+    }
+
+    /// Sets the coefficient of static friction.
+    pub fn with_static_coefficient(&self, coefficient: Scalar) -> Self {
+        Self {
+            static_coefficient: coefficient,
             ..*self
         }
     }

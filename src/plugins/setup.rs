@@ -1,11 +1,13 @@
-//! Sets up the physics engine by initializing the necessary schedules, sets and resources. See [`PhysicsSetupPlugin`].
+//! Sets up the physics engine by initializing the necessary schedules, sets and resources.
+//!
+//! See [`PhysicsSetupPlugin`].
 
 use crate::prelude::*;
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
 /// This plugin does *not* initialize any other plugins or physics systems.
-/// For that, add the plugins in [`PhysicsPlugins`], or even create your own plugins using
+/// For that, add the plugins in [`PhysicsPlugins`], or even [create your own plugins](PhysicsPlugins#custom-plugins) using
 /// the schedules and sets provided by this setup plugin.
 ///
 /// ## Schedules and sets
@@ -22,7 +24,7 @@ use crate::prelude::*;
 /// The [`SubstepSchedule`] handles physics substepping. It is run [`SubstepCount`] times in [`PhysicsSet::Substeps`],
 /// and it typically handles things like collision detection and constraint solving.
 ///
-/// Substepping sets are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
+/// [Substepping sets](SubstepSet) are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
 pub struct PhysicsSetupPlugin;
 
 impl Plugin for PhysicsSetupPlugin {
@@ -118,11 +120,13 @@ impl Plugin for PhysicsSetupPlugin {
 }
 
 /// The high-level physics schedule that runs once per physics frame.
+/// See [`PhysicsSet`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
 /// The substepping schedule. The number of substeps per physics step is
 /// configured through the [`SubstepCount`] resource.
+/// See [`SubstepSet`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 

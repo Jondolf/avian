@@ -6,6 +6,66 @@ use derive_more::From;
 use parry::{bounding_volume::Aabb, shape::SharedShape};
 
 /// A collider used for collision detection.
+///
+/// By default, colliders generate [collision events](#collision-events) and cause a collision response for
+/// [rigid bodies](RigidBody). If you only want collision events, you can add a [`Sensor`] component.
+///
+/// ## Creation
+///
+/// `Collider` has tons of methods for creating colliders of various shapes.
+/// For example, to add a ball collider to a [rigid body](RigidBody), use [`Collider::ball`](#method.ball):
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// }
+/// ```
+///
+/// In addition, Bevy XPBD will automatically add some other components, like the following:
+///
+/// - [`ColliderAabb`]
+/// - [`CollidingEntities`]
+/// - [`ColliderMassProperties`]
+///
+/// ## Collision layers
+///
+/// You can use collsion layers to configure which entities can collide with each other.
+///
+/// See [`CollisionLayers`] for more information and examples.
+///
+/// ## Collision events
+///
+/// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
+/// You can listen to these events as you normally would.
+///
+/// For example, you could read [contacts](Contact) like this:
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn my_system(mut collision_event_reader: EventReader<Collision>) {
+///     for Collision(contact) in collision_event_reader.iter() {
+///         println!("{:?} and {:?} are colliding", contact.entity1, contact.entity2);
+///     }
+/// }
+/// ```
+///
+/// ## Advanced usage
+///
+/// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
+/// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
+///
+/// To get a reference to the internal [`SharedShape`], you can use the [`get_shape`](#method.get_shape) method.
 #[derive(Clone, Component, Deref, DerefMut, From)]
 pub struct Collider(SharedShape);
 
@@ -246,8 +306,25 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
-/// Marks a [`Collider`] as a sensor collider. Sensor colliders send collision events but
-/// don't cause a collision response. This is often used to detect when something enters or leaves an area.
+/// A component that marks a [`Collider`] as a sensor collider.
+///
+/// Sensor colliders send [collision events](Collider#collision-events) but don't cause a collision response.
+/// This is often used to detect when something enters or leaves an area.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     // Spawn a static ball that generates collision events but doesn't cause a collision response
+///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+/// }
+/// ```
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
 pub struct Sensor;
 
@@ -256,7 +333,7 @@ pub struct Sensor;
 pub struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
-    /// Creates a new collider from a given [`Shape`] with a default density of 1.0.
+    /// Creates a new collider from a given [`SharedShape`] with a default density of 1.0.
     pub fn from_shape(shape: &SharedShape) -> Self {
         Self(shape.compute_local_aabb())
     }
@@ -268,8 +345,29 @@ impl Default for ColliderAabb {
     }
 }
 
-/// Contains the entities that are colliding with an entity. These entities are added by the [`SolverPlugin`]
-/// when collisions are detected during the constraint solve.
+/// Contains the entities that are colliding with an entity.
+///
+/// This component is automatically added for all entities with a [`Collider`].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
+///     for (entity, colliding_entities) in &query {
+///         println!(
+///             "{:?} is colliding with the following entities: {:?}",
+///             entity,
+///             colliding_entities
+///         );
+///     }
+/// }
+/// ```
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
