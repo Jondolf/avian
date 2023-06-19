@@ -27,7 +27,7 @@ required-features = [ "2d" ]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.10.1", default-features = false }
+bevy = { version = "0.10.1", default-features = false, features = [ "bevy_render" ] }
 bevy_prototype_debug_lines = { version = "0.10.1", optional = true }
 parry2d = { version = "0.13.1", optional = true }
 parry2d-f64 = { version = "0.13.1", optional = true }
