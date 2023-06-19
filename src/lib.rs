@@ -7,11 +7,13 @@
 //!
 //! Below are some of the core design principles used in Bevy XPBD.
 //!
-//! - Made with Bevy, for Bevy.
-//! - Use the ECS as much as possible. A Bevy physics engine shouldn't need to maintain a separate physics world.
-//! - Provide an ergonomic and familiar API. Creating and using [rigid bodies](RigidBody) and [colliders](Collider) shouldn't be hard.
-//! - Use a highly modular [plugin architecture](plugins). Many large projects require custom-made solutions, so users should be able to
+//! - Made with Bevy, for Bevy. No wrappers around existing engines.
+//! - Provide an ergonomic and familiar API. Ergonomics is key for a good experience.
+//! - Utilize the ECS as much as possible. The engine should feel like a part of Bevy, and it shouldn't
+//! need to maintain a separate physics world.
+//! - Use highly modular [plugin architecture](plugins). Users should be able to
 //! replace parts of the engine with their own implementations.
+//! - Have good documentation. A physics engine is pointless if you don't know how to use it.
 //!
 //! ## Features
 //!
@@ -139,7 +141,7 @@
 //! the dimension and precision:
 //!
 //! ```bash
-//! cargo run --example cubes --no-default-features --features 3d,f32
+//! cargo run --example cubes --no-default-features --features "3d f32"
 //! ```
 //!
 //! ### Common tasks
@@ -160,7 +162,7 @@
 //!
 //! ## Troubleshooting
 //!
-//! ### Nothing is happening!
+//! ### Why is nothing happening?
 //!
 //! Make sure you have added the [`PhysicsPlugins`] plugin group and you have given your rigid bodies
 //! a [`RigidBody`] component. See the [getting started](#getting-started) section.
