@@ -22,7 +22,7 @@ use crate::prelude::*;
 /// The [`SubstepSchedule`] handles physics substepping. It is run [`SubstepCount`] times in [`PhysicsSet::Substeps`],
 /// and it typically handles things like collision detection and constraint solving.
 ///
-/// Substepping sets are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
+/// [Substepping sets](SubstepSet) are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
 pub struct PhysicsSetupPlugin;
 
 impl Plugin for PhysicsSetupPlugin {
