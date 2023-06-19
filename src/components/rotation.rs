@@ -22,7 +22,7 @@ use crate::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 90 degrees
-///     commands.spawn((RigidBody::Dynamic, Rotation::from_degrees(90)))
+///     commands.spawn((RigidBody::Dynamic, Rotation::from_degrees(90.0)));
 /// }
 /// ```
 #[cfg(feature = "2d")]
@@ -41,12 +41,15 @@ pub struct Rotation {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use bevy_xpbd_2d::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
 ///
+/// # #[cfg(feature = "f32")]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 1.5 radians around the x axis
-///     commands.spawn((RigidBody::Dynamic, Rotation::from_rotation_x(1.5)))
+///     commands.spawn((RigidBody::Dynamic, Rotation(Quat::from_rotation_x(1.5))));
 /// }
+/// # #[cfg(not(feature = "f32"))]
+/// # fn setup() {}
 /// ```
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
