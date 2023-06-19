@@ -157,20 +157,6 @@ pub struct SleepingDisabled;
 #[reflect(Component)]
 pub struct Position(pub Vector);
 
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for Position {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for Position {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
-
 /// The previous position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -186,26 +172,12 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
-#[cfg(all(feature = "2d", feature = "f64"))]
-impl From<Vec2> for LinearVelocity {
-    fn from(value: Vec2) -> Self {
-        value.as_dvec2().into()
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for LinearVelocity {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
-
 /// The linear velocity of a body before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreSolveLinearVelocity(pub Vector);
 
-/// The angular velocity of a body in radians. Positive values will result in counter-clockwise rotation.
+/// The angular velocity of a body in radians. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
@@ -224,13 +196,6 @@ impl AngularVelocity {
     /// Zero angular velocity.
     #[cfg(feature = "3d")]
     pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
-}
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for AngularVelocity {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
 }
 
 /// The angular velocity of a body in radians before the velocity solve is performed. Positive values will result in counter-clockwise rotation.
@@ -268,13 +233,6 @@ impl FloatZero for Scalar {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalTorque(pub Torque);
-
-#[cfg(all(feature = "3d", feature = "f64"))]
-impl From<Vec3> for ExternalTorque {
-    fn from(value: Vec3) -> Self {
-        value.as_dvec3().into()
-    }
-}
 
 /// Determines how coefficients are combined. The default is `Average`.
 ///
