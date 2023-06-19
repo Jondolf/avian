@@ -1,25 +1,66 @@
 # Bevy XPBD
 
-**Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD) for the [Bevy game engine](https://bevyengine.org/). The *Entity Component System* (ECS) is used heavily throughout the engine to enable enhanced parallellism, configurability and familiarity, while making the engine fit better into the Bevy ecosystem.
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
 
-XPBD is an improved variant of traditional *Position Based Dynamics* (PBD). It provides unconditionally stable, time step independent and physically accurate simulations that use simple constraint projection to handle things like contacts, joints, and interactions between rigid bodies, soft bodies and fluids.
+[![2D crates.io](https://img.shields.io/crates/v/bevy_xpbd_2d)](https://crates.io/crates/bevy_xpbd_2d)
+[![2D docs.rs](https://docs.rs/bevy_xpbd_2d/badge.svg)](https://docs.rs/bevy_xpbd_2d)
 
-The current supported version of Bevy is 0.10.1.
+[![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d)](https://crates.io/crates/bevy_xpbd_3d)
+[![3D docs.rs](https://docs.rs/bevy_xpbd_3d/badge.svg)](https://docs.rs/bevy_xpbd_3d)
 
-## Stability warning
+**Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD)
+for the [Bevy game engine](https://bevyengine.org/).
 
-Bevy XPBD is in early development, and it has not been released on [crates.io](https://crates.io) yet. There are several stability and performance issues, missing features, and a lack of proper documentation, so for the time being, I recommend using alternatives like [bevy_rapier](https://github.com/dimforge/bevy_rapier) for any serious projects.
+## Design
 
-That being said, I hope to release 0.1.0 in the not-so-distant future, and I plan to eventually reach feature parity with established physics engines. In the meantime, feel free to experiment with the engine, and consider opening issues or pull requests for any problems you may encounter.
+Below are some of the core design principles used in Bevy XPBD.
+
+- Made with Bevy, for Bevy. No wrappers around existing engines.
+- Provide an ergonomic and familiar API. Ergonomics is key for a good experience.
+- Utilize the ECS as much as possible. The engine should feel like a part of Bevy, and it shouldn't
+need to maintain a separate physics world.
+- Use a highly modular plugin architecture. Users should be able to
+replace parts of the engine with their own implementations.
+- Have good documentation. A physics engine is pointless if you don't know how to use it.
+
+## Features
+
+Below are some of the current features of Bevy XPBD.
+
+- Dynamic, kinematic and static rigid bodies
+- Colliders powered by [parry](https://parry.rs)
+    - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
+    - Access to colliding entities with `CollidingEntities`
+    - Sensor colliders
+    - Collision layers
+- Material properties like restitution and friction
+- External forces and torque
+- Gravity
+- Joints
+- Built-in constraints and support for custom constraints
+- Automatically deactivating bodies with `Sleeping`
+- Configurable timesteps and substepping
+- `f32`/`f64` precision (`f32` by default)
+
+## Documentation
+
+- [`bevy_xpbd_2d`](https://docs.rs/bevy_xpbd_2d)
+- [`bevy_xpbd_3d`](https://docs.rs/bevy_xpbd_3d)
 
 ## Usage example
 
-Bevy XPBD isn't available on [crates.io](https://crates.io) yet, so you will have to specify the dependency using the Git repository:
+For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
 
 ```toml
 [dependencies]
-bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd.git" }
-# ...other dependencies
+bevy_xpbd_2d = "0.1"
+```
+
+Similarly for a 3D game, add `bevy_xpbd_3d`:
+
+```toml
+[dependencies]
+bevy_xpbd_3d = "0.1"
 ```
 
 Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
@@ -90,37 +131,18 @@ You can find lots of 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crat
 The examples support both `f32` and `f64` precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
 In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
 
-By default the examples use `f64`. To run the `f32` versions, you need to disable default features and manually choose the dimension
+By default the examples use `f32`. To run the `f64` versions, you need to disable default features and manually choose the dimension
 and precision:
 
 ```
-cargo run --example cubes --no-default-features --features 3d,f32
+cargo run --example cubes --no-default-features --features "3d f64"
 ```
 
-## Current features
+## Supported Bevy versions
 
-- 2D and 3D support
-- Dynamic, kinematic and static rigid bodies
-- Collision detection powered by [parry](https://parry.rs)
-  - Collision events
-  - Collision layers
-  - Sensor colliders
-- Basic joints
-  - Revolute joint (or hinge joint), optional angle limits
-  - Spherical joint, optional swing and twist angle limits
-  - Prismatic joint, one free translational axis with optional limits
-  - Fixed joint
-- Joint damping
-- Modular plugin architecture
-- Support for custom constraints
-- Gravity
-- External forces
-- Restitution
-- Friction
-- Substepping
-- Configurable timesteps
-- Sleeping
-- Choose between `f32` and `f64`
+| Bevy | Bevy XPBD |
+| ---- | --------- |
+| 0.10 | 0.1       |
 
 ## Future features
 
@@ -131,21 +153,20 @@ cargo run --example cubes --no-default-features --features 3d,f32
 - Spatial queries
 - Continuous collision detection
 - Multiple colliders per body
-- Debug render colliders, joints, contacts etc.
+- Debug render colliders and joints
 - Performance optimization (better broad phase, parallel solver...)
 - Soft bodies
   - Cloth
   - Deformable solids
 - Maybe fluid simulation
 
-## Inspirations and resources
+## Contributing
 
-I recommend checking out [Johan Helsing's](https://github.com/johanhelsing) amazing (but incomplete) [tutorial series on XPBD in Bevy](https://johanhelsing.studio/posts/bevy-xpbd). He inspired and helped me build this engine, and the series serves as a great practical walkthrough of how to make a basic XPBD physics engine with Bevy's ECS.
+If you encounter any problems, feel free to open issues. Creating pull requests is encouraged
+as well, but especially for larger changes and additions it's better to open an issue first.
 
-To understand the algorithm better, it's also worth checking out some of the papers:
-
-  - Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*.
-  - Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*.
+You can also ask for help or ask questions on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph)
+where you can find me as `Jondolf`.
 
 ## License
 
@@ -153,3 +174,5 @@ Bevy XPBD is free and open source. All code in this repository is dual-licensed 
 
 - MIT License ([LICENSE-MIT](/LICENSE-MIT) or http://opensource.org/licenses/MIT)
 - Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option.
