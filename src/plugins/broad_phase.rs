@@ -1,11 +1,18 @@
-//! The broad phase is responsible for collecting potential collision pairs into the [`BroadCollisionPairs`] resource using simple AABB intersection checks. This reduces the number of required precise collision checks. See [`BroadPhasePlugin`].
+//! Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+//! [AABB](ColliderAabb) intersection checks.
+//!
+//! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
 use bevy::{prelude::*, utils::StableHashSet};
 
-/// The `BroadPhasePlugin` is responsible for collecting potential collision pairs into the [`BroadCollisionPairs`] resource using simple AABB intersection checks.
+/// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+/// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
+/// as the number of precise collision checks required is greatly reduced.
 ///
-/// The broad phase speeds up collision detection, as the number of accurate collision checks is greatly reduced.
+/// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
+///
+/// The broad phase systems run in [`PhysicsSet::BroadPhase`].
 pub struct BroadPhasePlugin;
 
 impl Plugin for BroadPhasePlugin {

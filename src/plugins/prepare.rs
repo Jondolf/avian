@@ -1,9 +1,20 @@
-//! Performs necessary preparations and updates at the start of each physics frame. See [`PreparePlugin`].
+//! Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
+//! and [colliders](Collider) and updates components.
+//!
+//! See [`PreparePlugin`].
 
 use crate::{prelude::*, utils::make_isometry};
 use bevy::prelude::*;
 
-/// Performs necessary preparations and updates at the start of each physics frame. For example, [`ColliderAabb`]s and mass properties are updated.
+/// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
+/// and [colliders](Collider) and updates components.
+///
+/// - Adds missing rigid body components for entities with a [`RigidBody`] component
+/// - Adds missing collider components for entities with a [`Collider`] component
+/// - Updates [AABBs](ColliderAabb)
+/// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
+///
+/// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {

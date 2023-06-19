@@ -56,7 +56,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
-/// - [`SyncPlugin`]: Synchronizes the engine's [`Position`] and [`Rotation`] with Bevy's [`Transform`]s.
+/// - [`SyncPlugin`]: Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
 ///
@@ -203,7 +203,7 @@ pub enum SubstepSet {
     /// the constraint system to this set. See [`solve_constraint`].
     SolveUserConstraints,
     /// In the velocity update step, new velocities are derived for all particles and bodies after the position solving step.
-    UpdateVel,
+    UpdateVelocities,
     /// During the velocity solving step, a velocity update caused by properties like restitution and friction will be applied to all particles and bodies.
-    SolveVel,
+    SolveVelocities,
 }

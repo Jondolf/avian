@@ -1,4 +1,6 @@
-//! Sets up the physics engine by initializing the necessary schedules, sets and resources. See [`PhysicsSetupPlugin`].
+//! Sets up the physics engine by initializing the necessary schedules, sets and resources.
+//!
+//! See [`PhysicsSetupPlugin`].
 
 use crate::prelude::*;
 

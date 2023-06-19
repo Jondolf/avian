@@ -1,4 +1,5 @@
 //! Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes.
+//!
 //! See [`PhysicsDebugPlugin`].
 
 use crate::prelude::*;
@@ -6,6 +7,8 @@ use bevy::prelude::*;
 use bevy_prototype_debug_lines::*;
 
 /// Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes.
+///
+/// You can configure what is rendered using the [`PhysicsDebugConfig`] resource.
 pub struct PhysicsDebugPlugin;
 
 impl Plugin for PhysicsDebugPlugin {
