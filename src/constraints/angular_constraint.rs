@@ -1,8 +1,6 @@
 use crate::prelude::*;
 
-/// Angular constraints apply an angular correction of a given rotation angle around a given axis.
-///
-/// The constraint functions are based on equations 11-16 in the paper [Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf).
+/// An angular constraint applies an angular correction around a given axis.
 pub trait AngularConstraint: XpbdConstraint<2> {
     /// Applies angular constraints for interactions between two bodies.
     ///

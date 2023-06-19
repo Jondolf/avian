@@ -57,7 +57,7 @@
 //! }
 //! ```
 //!
-//! Take a look at [`XpbdConstraint`] and the constraint [theory](#theory) to learn more about what to put in `solve`.
+//! Take a look at [`XpbdConstraint::solve`] and the constraint [theory](#theory) to learn more about what to put in `solve`.
 //!
 //! Next, we need to add a system that solves the constraint during each run of the [solver]. If your constraint is
 //! a component like most of Bevy XPBD's constraints, you can use the generic [`solve_constraint`] system that handles
@@ -80,6 +80,9 @@
 //!
 //! Now just spawn an instance of the constraint, give it the participating entities, and the constraint should be getting
 //! solved automatically according to the `solve` method!
+//!
+//! You can find a working example of a custom constraint
+//! [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
 //!
 //! ## Theory
 //!
@@ -116,9 +119,9 @@
 //! rest distance, the gradient vector would point away from the other particle, because it would increase the distance
 //! even further.
 //!
-//! ### Lagrange multiplier
+//! ### Lagrange multipliers
 //!
-//! In the context of constraints, the Lagrange multiplier `λ` corresponds to the signed magnitude of the constraint force.
+//! In the context of constraints, a Lagrange multiplier `λ` corresponds to the signed magnitude of the constraint force.
 //! It is a scalar value that is the same for all of the constraint's participating particles, and it is used for computing
 //! the correction that the constraint should apply to the particles along the gradients.
 //!
@@ -203,18 +206,41 @@ pub use position_constraint::PositionConstraint;
 
 use crate::prelude::*;
 
+/// A trait for all XPBD [constraints].
 pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     /// The entities participating in the constraint.
     fn entities(&self) -> [Entity; ENTITY_COUNT];
 
     /// Solves the constraint.
+    ///
+    /// There are two main steps to solving a constraint:
+    ///
+    /// 1. Compute the generalized inverse masses, [gradients](constraints#constraint-gradients)
+    /// and the [Lagrange multiplier](constraints#lagrange-multipliers) update.
+    /// 2. Apply corrections along the gradients using the Lagrange multiplier update.
+    ///
+    /// [`XpbdConstraint`] provides the [`compute_lagrange_update`](XpbdConstraint::compute_lagrange_update)
+    /// method for all constraints. It requires the gradients and inverse masses of the participating entities.
+    ///
+    /// For constraints between two bodies, you can implement [`PositionConstraint`]. and [`AngularConstraint`]
+    /// to get the associated `compute_generalized_inverse_mass`, `apply_positional_correction` and
+    /// `apply_angular_correction` methods. Otherwise you must implement the generalized inverse mass
+    /// computations and correction applying logic yourself.
+    ///
+    /// You can find a working example of a custom constraint
+    /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
 
-    /// Computes how much a constraint's Lagrange multiplier changes when projecting the constraint for all participating particles.
+    /// Computes how much a constraint's [Lagrange multiplier](constraints#lagrange-multipliers) changes when projecting
+    /// the constraint for all participating particles.
     ///
-    /// `c` is a scalar value returned by the constraint function. When it is zero, the constraint is satisfied.
+    /// `c` is a scalar value returned by the [constraint function](constraints#constraint-functions).
+    /// When it is zero, the constraint is satisfied.
     ///
-    /// Each particle should have a corresponding gradient in `gradients`. A gradient is a vector that refers to the direction in which `c` increases the most.
+    /// Each particle should have a corresponding [gradient](constraints#constraint-gradients) in `gradients`.
+    /// A gradient is a vector that refers to the direction in which `c` increases the most.
+    ///
+    /// See the [constraint theory](#theory) for more information.
     fn compute_lagrange_update(
         &self,
         lagrange: Scalar,
@@ -241,6 +267,6 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
         (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
     }
 
-    /// Sets the constraint's Lagrange multipliers to 0.
+    /// Sets the constraint's [Lagrange multipliers](constraints#lagrange-multipliers) to 0.
     fn clear_lagrange_multipliers(&mut self);
 }
