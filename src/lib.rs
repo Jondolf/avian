@@ -54,9 +54,9 @@
 //! bevy_xpbd_3d = "0.1"
 //! ```
 //!
-//! By default, Bevy XPBD uses `f32` numbers. If you encounter instability or use small [timesteps](PhysicsTimestep),
-//! you might want to use `f64` instead. You can change these kinds of features by disabling
-//! the default features and manually specifying the feature flags you want:
+//! By default, Bevy XPBD uses `f32` numbers. If you encounter instability or use a large number
+//! of [substeps](SubstepCount), you might want to use `f64` instead. You can change these kinds
+//! of features by disabling the default features and manually specifying the feature flags you want:
 //!
 //! ```toml
 //! [dependencies]
