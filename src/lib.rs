@@ -11,7 +11,7 @@
 //! - Provide an ergonomic and familiar API. Ergonomics is key for a good experience.
 //! - Utilize the ECS as much as possible. The engine should feel like a part of Bevy, and it shouldn't
 //! need to maintain a separate physics world.
-//! - Use highly modular [plugin architecture](plugins). Users should be able to
+//! - Use a highly modular [plugin architecture](plugins). Users should be able to
 //! replace parts of the engine with their own implementations.
 //! - Have good documentation. A physics engine is pointless if you don't know how to use it.
 //!
@@ -38,7 +38,7 @@
 //!
 //! This short guide should help you get started with Bevy XPBD.
 //!
-//! ### Adding the dependency
+//! ### Add the dependency
 //!
 //! For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
 //!
