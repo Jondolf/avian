@@ -72,7 +72,13 @@ use bevy::prelude::*;
 ///
 /// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
 ///
-/// ```ignore
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
 /// pub struct CustomBroadPhasePlugin;
 ///
 /// impl Plugin for CustomBroadPhasePlugin {
@@ -94,7 +100,18 @@ use bevy::prelude::*;
 ///
 /// Next, when creating your app, simply disable the default [`BroadPhasePlugin`] and add your custom plugin:
 ///
-/// ```ignore
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # struct CustomBroadPhasePlugin;
+/// # impl Plugin for CustomBroadPhasePlugin {
+/// #     fn build(&self, app: &mut App) {}
+/// # }
+/// #
 /// fn main() {
 ///     let mut app = App::new();
 ///

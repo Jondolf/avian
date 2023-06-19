@@ -31,7 +31,13 @@
 //! First, create a struct and implement the [`XpbdConstraint`] trait, giving the number of participating entities using generics.
 //! It should look similar to this:
 //!
-//! ```ignore
+//! ```
+//! use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
+//! use bevy_xpbd_3d::prelude::*;
+//!
 //! struct CustomConstraint {
 //!     entity1: Entity,
 //!     entity2: Entity,

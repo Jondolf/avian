@@ -81,15 +81,20 @@
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
 //! the [`PhysicsPlugins`] plugin group.
 //!
-//! ```ignore
+//! ```no_run
 //! use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
 //! use bevy_xpbd_3d::prelude::*;
 //!
-//! App::new()
-//!     .add_plugins(DefaultPlugins)
-//!     .add_plugins(PhysicsPlugins)
-//!     // ...your other plugins, systems and resources
-//!     .run();
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(PhysicsPlugins)
+//!         // ...your other plugins, systems and resources
+//!         .run();
+//! }
 //! ```
 //!
 //! Now you can use all of Bevy XPBD's [components] and [resources] to build whatever you want!
@@ -97,8 +102,16 @@
 //! For example, adding a [rigid body](RigidBody) with a [collider](Collider) is as simple as spawning an entity
 //! with the [`RigidBody`] and [`Collider`] components:
 //!
-//! ```ignore
-//! commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+//! ```
+//! # use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
+//! # use bevy_xpbd_3d::prelude::*;
+//! #
+//! fn setup(mut commands: Commands) {
+//!     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+//! }
 //! ```
 //!
 //! To learn more about using Bevy XPBD, consider taking a look at the official [examples](#examples) and
@@ -203,7 +216,7 @@
 //!
 //! Below is a high level overview of the XPBD simulation loop.
 //!
-//! ```
+//! ```ignore
 //! while simulating:
 //!     // Substep size
 //!     h = ∆t / substep_count

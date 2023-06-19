@@ -15,8 +15,16 @@ use parry::{bounding_volume::Aabb, shape::SharedShape};
 /// `Collider` has tons of methods for creating colliders of various shapes.
 /// For example, to add a ball collider to a [rigid body](RigidBody), use [`Collider::ball`](#method.ball):
 ///
-/// ```ignore
-/// command.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// }
 /// ```
 ///
 /// In addition, Bevy XPBD will automatically add some other components, like the following:
@@ -38,13 +46,16 @@ use parry::{bounding_volume::Aabb, shape::SharedShape};
 ///
 /// For example, you could read [contacts](Contact) like this:
 ///
-/// ```ignore
+/// ```
 /// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
 /// fn my_system(mut collision_event_reader: EventReader<Collision>) {
 ///     for Collision(contact) in collision_event_reader.iter() {
-///         println!("{} and {} are colliding", contact.entity1, contact.entity2);
+///         println!("{:?} and {:?} are colliding", contact.entity1, contact.entity2);
 ///     }
 /// }
 /// ```

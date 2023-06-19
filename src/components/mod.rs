@@ -28,8 +28,16 @@ use derive_more::From;
 ///
 /// Creating a rigid body is as simple as adding the [`RigidBody`] component:
 ///
-/// ```ignore
-/// commands.spawn(RigidBody::Dynamic);
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn(RigidBody::Dynamic);
+/// }
 /// ```
 ///
 /// Bevy XPBD will automatically add any missing components, like the following:
@@ -301,7 +309,12 @@ pub enum CoefficientCombine {
 ///
 /// Combine the properties of two [`Restitution`] components:
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
 /// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
 ///
@@ -411,7 +424,12 @@ impl From<Scalar> for Restitution {
 ///
 /// Combine the properties of two [`Friction`] components:
 ///
-/// ```ignore
+/// ```
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
 /// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
 ///

@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::prelude::*;
 use bevy::ecs::query::WorldQuery;
 use std::ops::{AddAssign, SubAssign};
@@ -32,7 +34,7 @@ impl<'w> RigidBodyQueryItem<'w> {
         *self.inverse_inertia
     }
 
-    // Computes the world-space inverse inertia tensor.
+    /// Computes the world-space inverse inertia tensor.
     #[cfg(feature = "3d")]
     pub fn world_inv_inertia(&self) -> InverseInertia {
         self.inverse_inertia.rotated(&self.rotation)
