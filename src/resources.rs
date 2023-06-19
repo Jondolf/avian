@@ -99,9 +99,38 @@ impl Default for DeactivationTime {
     }
 }
 
-/// The global gravitational acceleration. This is applied to dynamic bodies in the integration step.
+/// A resource for the global gravitational acceleration.
 ///
-/// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational acceleration near Earth's surface.
+/// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational
+/// acceleration near Earth's surface.
+///
+/// Note that if you are using pixels as length units in 2D, this gravity will be tiny. You should
+/// modify the gravity to fit your application.
+///
+/// ## Example
+///
+/// You can change gravity by simply inserting the [`Gravity`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
+///         .run();
+/// }
+/// # #[cfg(not(all(feature = "3d", feature = "f32")))]
+/// # fn main() {}
+/// ```
+///
+/// You can also modify gravity while the app is running.
 #[derive(Reflect, Resource, Debug)]
 #[reflect(Resource)]
 pub struct Gravity(pub Vector);
