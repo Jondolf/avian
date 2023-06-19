@@ -191,5 +191,6 @@ impl Default for Gravity {
 }
 
 impl Gravity {
+    /// Zero gravity.
     pub const ZERO: Gravity = Gravity(Vector::ZERO);
 }

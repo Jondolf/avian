@@ -15,13 +15,17 @@ use bevy::math::*;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
+    /// A math construct type with the desired precision.
     type Adjusted;
+    /// Adjusts the precision of [`self`] to [`Self::Adjusted`](#associatedtype.Adjusted).
     fn adjust_precision(&self) -> Self::Adjusted;
 }
 
 /// Adjust the precision down to `f32` regardless of compilation.
 pub trait AsF32 {
+    /// The `f32` version of a math construct.
     type F32;
+    /// Returns the `f32` version of this type.
     fn as_f32(&self) -> Self::F32;
 }
 

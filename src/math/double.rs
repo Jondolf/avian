@@ -1,17 +1,25 @@
 use super::AdjustPrecision;
 use bevy::math::*;
 
+/// The floating point number type used by Bevy XPBD.
 pub type Scalar = f64;
+/// The PI constant.
 pub const PI: Scalar = std::f64::consts::PI;
 
+/// The vector type used by Bevy XPBD.
 #[cfg(feature = "2d")]
 pub type Vector = DVec2;
+/// The vector type used by Bevy XPBD.
 #[cfg(feature = "3d")]
 pub type Vector = DVec3;
+/// The vector type used by Bevy XPBD. This is always a 2D vector regardless of the chosen dimension.
 pub type Vector2 = DVec2;
+/// The vector type used by Bevy XPBD. This is always a 3D vector regardless of the chosen dimension.
 pub type Vector3 = DVec3;
 
+/// The 3x3 matrix type used by Bevy XPBD.
 pub type Matrix3 = DMat3;
+/// The quaternion type used by Bevy XPBD.
 pub type Quaternion = DQuat;
 
 impl AdjustPrecision for f32 {

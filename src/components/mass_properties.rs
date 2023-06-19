@@ -10,6 +10,7 @@ use crate::utils::get_rotated_inertia_tensor;
 pub struct Mass(pub Scalar);
 
 impl Mass {
+    /// Zero mass.
     pub const ZERO: Self = Self(0.0);
 }
 
@@ -19,6 +20,7 @@ impl Mass {
 pub struct InverseMass(pub Scalar);
 
 impl InverseMass {
+    /// Zero inverse mass.
     pub const ZERO: Self = Self(0.0);
 }
 
@@ -47,8 +49,10 @@ impl Default for Inertia {
 }
 
 impl Inertia {
+    /// Zero angular inertia.
     #[cfg(feature = "2d")]
     pub const ZERO: Self = Self(0.0);
+    /// Zero angular inertia.
     #[cfg(feature = "3d")]
     pub const ZERO: Self = Self(Matrix3::ZERO);
 
@@ -103,8 +107,10 @@ impl Default for InverseInertia {
 }
 
 impl InverseInertia {
+    /// Zero inverse angular inertia.
     #[cfg(feature = "2d")]
     pub const ZERO: Self = Self(0.0);
+    /// Zero inverse angular inertia.
     #[cfg(feature = "3d")]
     pub const ZERO: Self = Self(Matrix3::ZERO);
 
@@ -145,9 +151,11 @@ impl From<Inertia> for InverseInertia {
 pub struct CenterOfMass(pub Vector);
 
 impl CenterOfMass {
+    /// A center of mass set at the local origin.
     pub const ZERO: Self = Self(Vector::ZERO);
 }
 
+#[allow(missing_docs)]
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
 pub struct MassPropertiesBundle {
     pub mass: Mass,
@@ -202,6 +210,7 @@ pub struct ColliderMassProperties {
 }
 
 impl ColliderMassProperties {
+    /// The collider has no mass.
     pub const ZERO: Self = Self {
         mass: Mass::ZERO,
         inverse_mass: InverseMass(Scalar::INFINITY),

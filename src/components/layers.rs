@@ -5,7 +5,9 @@ use bevy::prelude::*;
 ///
 /// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
 pub trait PhysicsLayer: Sized {
+    /// Converts the layer to a bitmask.
     fn to_bits(&self) -> u32;
+    /// Creates a layer bitmask with all bits set to 1.
     fn all_bits() -> u32;
 }
 

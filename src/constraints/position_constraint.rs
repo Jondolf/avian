@@ -42,6 +42,8 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         p
     }
 
+    /// Computes the generalized inverse mass of a body when applying a positional correction
+    /// at point `r` along the vector `n`.
     #[cfg(feature = "2d")]
     fn compute_generalized_inverse_mass(
         &self,
@@ -57,6 +59,8 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         }
     }
 
+    /// Computes the generalized inverse mass of a body when applying a positional correction
+    /// at point `r` along the vector `n`.
     #[cfg(feature = "3d")]
     fn compute_generalized_inverse_mass(
         &self,
@@ -78,12 +82,14 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         }
     }
 
+    /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "2d")]
     fn get_delta_rot(_rot: Rotation, inverse_inertia: Scalar, r: Vector, p: Vector) -> Rotation {
         // Equation 8/9 but in 2D
         Rotation::from_radians(inverse_inertia * r.perp_dot(p))
     }
 
+    /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "3d")]
     fn get_delta_rot(rot: Rotation, inverse_inertia: Matrix3, r: Vector, p: Vector) -> Rotation {
         // Equation 8/9

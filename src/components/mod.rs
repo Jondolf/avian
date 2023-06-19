@@ -179,6 +179,7 @@ pub struct PreviousPosition(pub Vector);
 pub struct LinearVelocity(pub Vector);
 
 impl LinearVelocity {
+    /// Zero linear velocity.
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
@@ -214,8 +215,10 @@ pub struct AngularVelocity(pub Scalar);
 pub struct AngularVelocity(pub Vector);
 
 impl AngularVelocity {
+    /// Zero angular velocity.
     #[cfg(feature = "2d")]
     pub const ZERO: AngularVelocity = AngularVelocity(0.0);
+    /// Zero angular velocity.
     #[cfg(feature = "3d")]
     pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
 }

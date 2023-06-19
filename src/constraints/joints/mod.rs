@@ -224,7 +224,9 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 /// A limit that indicates that the distance between two points should be between `min` and `max`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DistanceLimit {
+    /// The minimum distance between two points.
     pub min: Scalar,
+    /// The maximum distance between two points.
     pub max: Scalar,
 }
 
@@ -281,7 +283,9 @@ impl DistanceLimit {
 /// A limit that indicates that angles should be between `alpha` and `beta`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AngleLimit {
+    /// The minimum angle.
     pub alpha: Scalar,
+    /// The maximum angle.
     pub beta: Scalar,
 }
 
