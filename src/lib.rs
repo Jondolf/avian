@@ -28,7 +28,7 @@
 //! - [Gravity](Gravity)
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
-//! - Automatically deactivating bodies with [sleeping](sleeping)
+//! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
 //!

@@ -5,6 +5,27 @@ use bevy::prelude::Resource;
 use crate::prelude::*;
 
 /// Configures how many times per second the physics simulation is run.
+///
+/// ## Example
+///
+/// You can change the timestep by inserting the [`PhysicsTimestep`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         // Use a 120 Hz fixed timestep instead of the default 60 Hz
+///         .insert_resource(PhysicsTimestep::Fixed(1.0 / 120.0))
+///         .run();
+/// }
+/// ```
 #[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
 #[reflect(Resource)]
 pub enum PhysicsTimestep {
@@ -35,7 +56,35 @@ pub struct DeltaTime(pub Scalar);
 #[reflect(Resource)]
 pub struct SubDeltaTime(pub Scalar);
 
-/// The number of substeps used in XPBD simulation. A higher number of substeps reduces the value of [`SubDeltaTime`], which results in a more accurate simulation at the cost of performance.
+/// The number of substeps used in the simulation.
+///
+/// A higher number of substeps reduces the value of [`SubDeltaTime`],
+/// which results in a more accurate simulation, but also reduces performance. The default
+/// substep count is currently 12.
+///
+/// If you use a very high substep count and encounter stability issues, consider enabling the `f64`
+/// feature as shown in the [getting started guide](crate#getting-started) to avoid floating point
+/// precision problems.
+///
+/// ## Example
+///
+/// You can change the number of substeps by inserting the [`SubstepCount`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins(DefaultPlugins)
+///         .add_plugins(PhysicsPlugins)
+///         .insert_resource(SubstepCount(30))
+///         .run();
+/// }
+/// ```
 #[derive(Reflect, Resource, Clone, Copy)]
 #[reflect(Resource)]
 pub struct SubstepCount(pub u32);
