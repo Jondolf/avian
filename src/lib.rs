@@ -134,14 +134,14 @@
 //! cargo run --example cubes
 //! ```
 //!
-//! Note that the examples support both f32 and f64 precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
+//! Note that the examples support both `f32` and `f64` precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
 //! In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
 //!
-//! By default the examples use `f64`, so if you want to run the `f32` versions, you need to disable the default features and manually choose
+//! By default the examples use `f32`, so if you want to run the `f64` versions, you need to disable the default features and manually choose
 //! the dimension and precision:
 //!
 //! ```bash
-//! cargo run --example cubes --no-default-features --features "3d f32"
+//! cargo run --example cubes --no-default-features --features "3d f64"
 //! ```
 //!
 //! ### Common tasks

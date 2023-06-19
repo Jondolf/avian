@@ -2,9 +2,17 @@
 name = "bevy_xpbd_2d"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = [ "Joona Aalto <jondolf.dev@gmail.com>" ]
+description = "A physics engine based on Extended Position Based Dynamics for the Bevy game engine"
+documentation = "https://docs.rs/bevy_xpbd_2d"
+repository = "https://github.com/Jondolf/bevy_xpbd"
+readme = "README.md"
+keywords = [ "gamedev", "physics", "simulation", "xpbd", "bevy" ]
+categories = [ "game-development", "science", "simulation" ]
 
 [features]
-default = [ "2d", "f64", "simd" ]
+default = [ "2d", "f32", "simd" ]
 2d = []
 f32 = [ "dep:parry2d" ]
 f64 = [ "dep:parry2d-f64" ]
