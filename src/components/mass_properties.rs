@@ -155,6 +155,27 @@ impl CenterOfMass {
     pub const ZERO: Self = Self(Vector::ZERO);
 }
 
+/// A bundle containing mass properties.
+///
+/// ## Example
+///
+/// The easiest way to create a new bundle is to use the [new_computed](#method.new_computed) method
+/// that computes the mass properties based on a given [`Collider`] and density.
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0)
+///     ));
+/// }
+/// ```
 #[allow(missing_docs)]
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
 pub struct MassPropertiesBundle {
