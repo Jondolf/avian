@@ -306,8 +306,25 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
-/// Marks a [`Collider`] as a sensor collider. Sensor colliders send collision events but
-/// don't cause a collision response. This is often used to detect when something enters or leaves an area.
+/// A component that marks a [`Collider`] as a sensor collider.
+///
+/// Sensor colliders send [collision events](Collider#collision-events) but don't cause a collision response.
+/// This is often used to detect when something enters or leaves an area.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     // Spawn a static ball that generates collision events but doesn't cause a collision response
+///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+/// }
+/// ```
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
 pub struct Sensor;
 
@@ -328,8 +345,29 @@ impl Default for ColliderAabb {
     }
 }
 
-/// Contains the entities that are colliding with an entity. These entities are added by the [`SolverPlugin`]
-/// when collisions are detected during the constraint solve.
+/// Contains the entities that are colliding with an entity.
+///
+/// This component is automatically added for all entities with a [`Collider`].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
+///     for (entity, colliding_entities) in &query {
+///         println!(
+///             "{:?} is colliding with the following entities: {:?}",
+///             entity,
+///             colliding_entities
+///         );
+///     }
+/// }
+/// ```
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);

@@ -2,15 +2,15 @@
 
 use crate::prelude::*;
 
-/// An event that is sent for each contact pair during the narrow phase.
+/// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Collision(pub Contact);
 
-/// An event that is sent when two entities start colliding.
+/// A [collision event](Collider#collision-events) that is sent when two entities start colliding.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CollisionStarted(pub Entity, pub Entity);
 
-/// An event that is sent when two entities stop colliding.
+/// A [collision event](Collider#collision-events) that is sent when two entities stop colliding.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CollisionEnded(pub Entity, pub Entity);
 
