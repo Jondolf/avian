@@ -56,7 +56,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
-/// - [`SyncPlugin`]: Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+/// - [`SyncPlugin`]: Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
 ///
@@ -185,7 +185,7 @@ pub enum PhysicsSet {
     ///
     /// See [`SleepingPlugin`].
     Sleeping,
-    /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+    /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
     ///
     /// See [`SyncPlugin`].
     Sync,

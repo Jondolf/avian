@@ -1,11 +1,11 @@
-//! Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+//! Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
 //!
 //! See [`SyncPlugin`].
 
 use crate::{prelude::*, PhysicsSchedule};
 use bevy::prelude::*;
 
-/// Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's [`Transform`]s.
+/// Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
 ///
 /// Currently, the transforms of nested bodies are updated to reflect their global positions.
 /// This means that nested [rigid bodies](RigidBody) can behave independently regardless of the hierarchy.
@@ -27,7 +27,7 @@ type RigidBodyParentComponents = (
     Option<&'static Rotation>,
 );
 
-/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy [`Transform`]s.
+/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy `Transform`s.
 #[cfg(feature = "2d")]
 fn sync_transforms(
     mut bodies: Query<(&mut Transform, &Position, &Rotation, Option<&Parent>)>,
@@ -66,9 +66,9 @@ fn sync_transforms(
     }
 }
 
-/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy's [`Transform`]s.
+/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy's `Transform`s.
 ///
-/// Nested rigid bodies move independently of each other, so the [`Transform`]s of child entities are updated
+/// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
 fn sync_transforms(
