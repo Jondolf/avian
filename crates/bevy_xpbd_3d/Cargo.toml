@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = [ "3d", "f64", "simd" ]
+default = [ "3d", "f32", "simd" ]
 3d = []
 f32 = [ "dep:parry3d" ]
 f64 = [ "dep:parry3d-f64" ]
