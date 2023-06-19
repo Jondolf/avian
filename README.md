@@ -1,10 +1,8 @@
 # Bevy XPBD
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
-
 [![2D crates.io](https://img.shields.io/crates/v/bevy_xpbd_2d)](https://crates.io/crates/bevy_xpbd_2d)
 [![2D docs.rs](https://docs.rs/bevy_xpbd_2d/badge.svg)](https://docs.rs/bevy_xpbd_2d)
-
 [![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d)](https://crates.io/crates/bevy_xpbd_3d)
 [![3D docs.rs](https://docs.rs/bevy_xpbd_3d/badge.svg)](https://docs.rs/bevy_xpbd_3d)
 
@@ -15,13 +13,13 @@ for the [Bevy game engine](https://bevyengine.org/).
 
 Below are some of the core design principles used in Bevy XPBD.
 
-- Made with Bevy, for Bevy. No wrappers around existing engines.
-- Provide an ergonomic and familiar API. Ergonomics is key for a good experience.
-- Utilize the ECS as much as possible. The engine should feel like a part of Bevy, and it shouldn't
+- **Made with Bevy, for Bevy.** No wrappers around existing engines.
+- **Provide an ergonomic and familiar API.** Ergonomics is key for a good experience.
+- **Utilize the ECS as much as possible.** The engine should feel like a part of Bevy, and it shouldn't
 need to maintain a separate physics world.
-- Use a highly modular plugin architecture. Users should be able to
-replace parts of the engine with their own implementations.
-- Have good documentation. A physics engine is pointless if you don't know how to use it.
+- **Use a highly modular plugin architecture.** Users should be able to replace parts of the engine
+with their own implementations.
+- **Have good documentation.** A physics engine is pointless if you don't know how to use it.
 
 ## Features
 
