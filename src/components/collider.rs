@@ -185,7 +185,7 @@ impl Collider {
         SharedShape::trimesh(vertices, indices).into()
     }
 
-    /// Creates a collider with a triangle mesh shape built from a given Bevy [`Mesh`].
+    /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh`.
     #[cfg(feature = "3d")]
     pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         use parry::shape::TriMeshFlags;
@@ -197,7 +197,7 @@ impl Collider {
     }
 
     /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
-    /// built from a given Bevy [`Mesh`].
+    /// built from a given Bevy `Mesh`.
     #[cfg(feature = "3d")]
     pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         let vertices_indices = extract_mesh_vertices_indices(mesh);
