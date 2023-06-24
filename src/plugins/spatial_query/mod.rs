@@ -75,7 +75,7 @@ fn raycast(
                 &query_pipeline,
                 Scalar::MAX,
                 ray.max_hits,
-                true,
+                ray.solid,
             );
         }
     }

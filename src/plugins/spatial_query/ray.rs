@@ -76,6 +76,12 @@ pub struct RayCaster {
     /// The local direction of the ray. The global direction is computed by rotating the local direction
     /// by the global [`Rotation`] component of the ray entity or its parent.
     pub direction: Vector,
+    /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
+    ///
+    /// If `solid` is true, the intersection point will be the ray origin itself.\
+    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
+    /// point will be at the collider shape's boundary.
+    pub solid: bool,
     /// The maximum number of intersections allowed.
     ///
     /// When there are more intersections than `max_hits`, **some intersections will be missed**.
@@ -90,6 +96,7 @@ impl Default for RayCaster {
             enabled: true,
             origin: Vector::ZERO,
             direction: Vector::ZERO,
+            solid: true,
             max_hits: u32::MAX,
         }
     }
@@ -103,6 +110,16 @@ impl RayCaster {
             direction,
             ..default()
         }
+    }
+
+    /// Sets if the ray treats [colliders](Collider) as solid.
+    ///
+    /// If `solid` is true, the intersection point will be the ray origin itself.\
+    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
+    /// point will be at the collider shape's boundary.
+    pub fn with_solidness(mut self, solid: bool) -> Self {
+        self.solid = solid;
+        self
     }
 
     /// Sets the maximum amount of allowed hits.
