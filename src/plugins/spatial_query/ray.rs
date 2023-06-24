@@ -29,7 +29,6 @@ use parry::{
 /// To guarantee that the closest intersection is included, you should set `max_hits` to one or a value that
 /// is enough to contain all intersections.
 ///
-///
 /// ## Example
 ///
 /// ```
@@ -70,12 +69,18 @@ use parry::{
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
-    /// The local origin of the ray. The global origin is computed by adding the local origin
-    /// to the global [`Position`] component of the ray entity or its parent.
+    /// The local origin of the ray relative to the [`Position`] and [`Rotation`] of the ray entity or its parent.
+    ///
+    /// To get the global origin, use the `global_origin` method.
     pub origin: Vector,
-    /// The local direction of the ray. The global direction is computed by rotating the local direction
-    /// by the global [`Rotation`] component of the ray entity or its parent.
+    /// The global origin of the ray.
+    global_origin: Vector,
+    /// The local direction of the ray relative to the [`Rotation`] of the ray entity or its parent.
+    ///
+    /// To get the global direction, use the `global_direction` method.
     pub direction: Vector,
+    /// The global direction of the ray.
+    global_direction: Vector,
     /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
     ///
     /// If `solid` is true, the intersection point will be the ray origin itself.\
@@ -95,7 +100,9 @@ impl Default for RayCaster {
         Self {
             enabled: true,
             origin: Vector::ZERO,
+            global_origin: Vector::ZERO,
             direction: Vector::ZERO,
+            global_direction: Vector::ZERO,
             solid: true,
             max_hits: u32::MAX,
         }
@@ -138,6 +145,26 @@ impl RayCaster {
         self.enabled = false;
     }
 
+    /// Returns the global origin of the ray.
+    pub fn global_origin(&self) -> Vector {
+        self.global_origin
+    }
+
+    /// Returns the global direction of the ray.
+    pub fn global_direction(&self) -> Vector {
+        self.global_direction
+    }
+
+    /// Sets the global origin of the ray.
+    pub(crate) fn set_global_origin(&mut self, global_origin: Vector) {
+        self.global_origin = global_origin;
+    }
+
+    /// Sets the global direction of the ray.
+    pub(crate) fn set_global_direction(&mut self, global_direction: Vector) {
+        self.global_direction = global_direction;
+    }
+
     pub(crate) fn cast(
         &self,
         intersections: &mut RayIntersections,
@@ -150,7 +177,8 @@ impl RayCaster {
         intersections.count = 0;
         if max_hit_count == 1 {
             let pipeline_shape = query_pipeline.as_composite_shape(colliders);
-            let ray = parry::query::Ray::new(self.origin.into(), self.direction.into());
+            let ray =
+                parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
                 &pipeline_shape,
                 &ray,
@@ -173,10 +201,12 @@ impl RayCaster {
                 intersections.count = 1;
             }
         } else {
+            let ray =
+                parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
+
             let mut leaf_callback = &mut |entity_bits: &u64| {
                 let entity = Entity::from_bits(*entity_bits);
                 if let Some((iso, shape)) = colliders.get(&entity) {
-                    let ray = parry::query::Ray::new(self.origin.into(), self.direction.into());
                     if let Some(intersection) =
                         shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
                     {
@@ -202,7 +232,6 @@ impl RayCaster {
                 true
             };
 
-            let ray = parry::query::Ray::new(self.origin.into(), self.direction.into());
             let mut visitor =
                 RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
             query_pipeline.qbvh.traverse_depth_first(&mut visitor);

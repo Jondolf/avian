@@ -28,7 +28,7 @@ impl Plugin for SpatialQueryPlugin {
         physics_schedule
             .add_system(init_intersections.in_set(PhysicsSet::Prepare))
             .add_systems(
-                (update_query_pipeline, raycast)
+                (update_global_origins, update_query_pipeline, raycast)
                     .chain()
                     .in_set(PhysicsSet::SpatialQuery),
             );
@@ -46,6 +46,56 @@ fn init_intersections(mut commands: Commands, rays: Query<(Entity, &RayCaster), 
             vector: Vec::with_capacity(max_hits),
             count: 0,
         });
+    }
+}
+
+type RayCasterPositionQueryComponents = (
+    &'static mut RayCaster,
+    Option<&'static Position>,
+    Option<&'static Rotation>,
+    Option<&'static Parent>,
+);
+
+fn update_global_origins(
+    mut rays: Query<RayCasterPositionQueryComponents>,
+    parents: Query<(Option<&Position>, Option<&Rotation>), With<Children>>,
+) {
+    for (mut ray, position, rotation, parent) in &mut rays {
+        let origin = ray.origin;
+        let direction = ray.direction;
+
+        if let Some(position) = position {
+            ray.set_global_origin(position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)));
+        } else if parent.is_none() {
+            ray.set_global_origin(origin);
+        }
+
+        if let Some(rotation) = rotation {
+            let global_direction = rotation.rotate(ray.direction);
+            ray.set_global_direction(global_direction);
+        } else if parent.is_none() {
+            ray.set_global_direction(direction);
+        }
+
+        if let Some(parent) = parent {
+            if let Ok((parent_position, parent_rotation)) = parents.get(parent.get()) {
+                if position.is_none() {
+                    if let Some(position) = parent_position {
+                        let rotation = rotation.map_or(
+                            parent_rotation.map_or(Rotation::default(), |rot| *rot),
+                            |rot| *rot,
+                        );
+                        ray.set_global_origin(position.0 + rotation.rotate(origin));
+                    }
+                }
+                if rotation.is_none() {
+                    if let Some(rotation) = parent_rotation {
+                        let global_direction = rotation.rotate(ray.direction);
+                        ray.set_global_direction(global_direction);
+                    }
+                }
+            }
+        }
     }
 }
 
