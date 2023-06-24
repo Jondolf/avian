@@ -43,7 +43,9 @@ struct AabbIntervals(Vec<(Entity, ColliderAabb)>);
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 fn update_aabb_intervals(aabbs: Query<&ColliderAabb>, mut intervals: ResMut<AabbIntervals>) {
     for (ent, aabb) in intervals.0.iter_mut() {
-        *aabb = *aabbs.get(*ent).unwrap();
+        if let Ok(new_aabb) = aabbs.get(*ent) {
+            *aabb = *new_aabb;
+        }
     }
 }
 
