@@ -9,11 +9,15 @@ use parry::{
     utils::DefaultStorage,
 };
 
+/// A resource for the spatial query pipeline.
+///
+/// The pipeline maintains a quaternary bounding volume hierarchy `Qbvh` of the world's colliders
+/// as an acceleration structure for spatial queries.
 #[derive(Resource, Clone)]
 pub struct SpatialQueryPipeline {
-    pub qbvh: Qbvh<u64>,
-    pub dispatcher: Arc<dyn QueryDispatcher>,
-    pub workspace: QbvhUpdateWorkspace,
+    pub(crate) qbvh: Qbvh<u64>,
+    pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
+    pub(crate) workspace: QbvhUpdateWorkspace,
 }
 
 impl Default for SpatialQueryPipeline {
@@ -37,9 +41,9 @@ impl SpatialQueryPipeline {
         }
     }
 
-    pub(crate) fn update_incremental<'a>(
+    pub(crate) fn update_incremental(
         &mut self,
-        colliders: &HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape)>,
+        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
         modified: Vec<Entity>,
         removed: Vec<Entity>,
         refit_and_balance: bool,

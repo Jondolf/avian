@@ -81,15 +81,14 @@ fn raycast(
     }
 }
 
+type ColliderChangedFilter = (
+    Or<(Changed<Position>, Changed<Rotation>, Changed<Collider>)>,
+    With<Collider>,
+);
+
 fn update_query_pipeline(
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
-    changed_colliders: Query<
-        Entity,
-        (
-            Or<(Changed<Position>, Changed<Rotation>, Changed<Collider>)>,
-            With<Collider>,
-        ),
-    >,
+    changed_colliders: Query<Entity, ColliderChangedFilter>,
     mut removed: RemovedComponents<Collider>,
     mut query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
