@@ -4,7 +4,7 @@
 //! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::StableHashSet};
+use bevy::prelude::*;
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
@@ -25,7 +25,6 @@ impl Plugin for BroadPhasePlugin {
 
         physics_schedule.add_systems(
             (
-                remove_old_aabb_intervals,
                 update_aabb_intervals,
                 add_new_aabb_intervals,
                 collect_collision_pairs,
@@ -42,11 +41,14 @@ struct AabbIntervals(Vec<(Entity, ColliderAabb)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 fn update_aabb_intervals(aabbs: Query<&ColliderAabb>, mut intervals: ResMut<AabbIntervals>) {
-    for (ent, aabb) in intervals.0.iter_mut() {
-        if let Ok(new_aabb) = aabbs.get(*ent) {
+    intervals.0.retain_mut(|(entity, aabb)| {
+        if let Ok(new_aabb) = aabbs.get(*entity) {
             *aabb = *new_aabb;
+            true
+        } else {
+            false
         }
-    }
+    });
 }
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
@@ -56,15 +58,6 @@ fn add_new_aabb_intervals(
 ) {
     let aabbs = aabbs.iter().map(|(ent, aabb)| (ent, *aabb));
     intervals.0.extend(aabbs);
-}
-
-/// Removes old [`ColliderAabb`]s from [`AabbIntervals`].
-fn remove_old_aabb_intervals(
-    mut removals: RemovedComponents<ColliderAabb>,
-    mut intervals: ResMut<AabbIntervals>,
-) {
-    let removed = removals.iter().collect::<StableHashSet<Entity>>();
-    intervals.0.retain(|(ent, _)| !removed.contains(ent));
 }
 
 /// Collects bodies that are potentially colliding.
