@@ -3,10 +3,10 @@
 //! See [`SpatialQueryPlugin`].
 
 mod pipeline;
-mod ray;
+mod ray_caster;
 
 pub use pipeline::*;
-pub use ray::*;
+pub use ray_caster::*;
 
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
@@ -119,14 +119,7 @@ fn raycast(
 
     for (ray, mut intersections) in &mut rays {
         if ray.enabled {
-            ray.cast(
-                &mut intersections,
-                &colliders,
-                &query_pipeline,
-                Scalar::MAX,
-                ray.max_hits,
-                ray.solid,
-            );
+            ray.cast(&mut intersections, &colliders, &query_pipeline);
         }
     }
 }

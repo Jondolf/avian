@@ -84,18 +84,21 @@ pub struct RayCaster {
     pub direction: Vector,
     /// The global direction of the ray.
     global_direction: Vector,
-    /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
-    ///
-    /// If `solid` is true, the intersection point will be the ray origin itself.\
-    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
-    /// point will be at the collider shape's boundary.
-    pub solid: bool,
+    /// The maximum distance the ray can travel. By default this is infinite, so the ray will travel
+    /// until all intersections up to `max_hits` have been checked.
+    pub max_time_of_impact: Scalar,
     /// The maximum number of intersections allowed.
     ///
     /// When there are more intersections than `max_hits`, **some intersections will be missed**.
     /// To guarantee that the closest intersection is included, you should set `max_hits` to one or a value that
     /// is enough to contain all intersections.
     pub max_hits: u32,
+    /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
+    ///
+    /// If `solid` is true, the intersection point will be the ray origin itself.\
+    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
+    /// point will be at the collider shape's boundary.
+    pub solid: bool,
 }
 
 impl Default for RayCaster {
@@ -106,8 +109,9 @@ impl Default for RayCaster {
             global_origin: Vector::ZERO,
             direction: Vector::ZERO,
             global_direction: Vector::ZERO,
-            solid: true,
+            max_time_of_impact: Scalar::MAX,
             max_hits: u32::MAX,
+            solid: true,
         }
     }
 }
@@ -129,6 +133,12 @@ impl RayCaster {
     /// point will be at the collider shape's boundary.
     pub fn with_solidness(mut self, solid: bool) -> Self {
         self.solid = solid;
+        self
+    }
+
+    /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
+    pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
+        self.max_time_of_impact = max_time_of_impact;
         self
     }
 
@@ -173,20 +183,17 @@ impl RayCaster {
         intersections: &mut RayIntersections,
         colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
         query_pipeline: &SpatialQueryPipeline,
-        max_time_of_impact: Scalar,
-        max_hit_count: u32,
-        solid: bool,
     ) {
         intersections.count = 0;
-        if max_hit_count == 1 {
+        if self.max_hits == 1 {
             let pipeline_shape = query_pipeline.as_composite_shape(colliders);
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
                 &pipeline_shape,
                 &ray,
-                max_time_of_impact,
-                solid,
+                self.max_time_of_impact,
+                self.solid,
             );
 
             if let Some(intersection) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
@@ -210,9 +217,12 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_bits: &u64| {
                 let entity = Entity::from_bits(*entity_bits);
                 if let Some((iso, shape)) = colliders.get(&entity) {
-                    if let Some(intersection) =
-                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                    {
+                    if let Some(intersection) = shape.cast_ray_and_get_normal(
+                        iso,
+                        &ray,
+                        self.max_time_of_impact,
+                        self.solid,
+                    ) {
                         if (intersections.vector.len() as u32) < intersections.count + 1 {
                             intersections.vector.push(RayIntersection {
                                 entity,
@@ -229,14 +239,14 @@ impl RayCaster {
 
                         intersections.count += 1;
 
-                        return intersections.count < max_hit_count;
+                        return intersections.count < self.max_hits;
                     }
                 }
                 true
             };
 
             let mut visitor =
-                RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
+                RayIntersectionsVisitor::new(&ray, self.max_time_of_impact, &mut leaf_callback);
             query_pipeline.qbvh.traverse_depth_first(&mut visitor);
         }
     }
@@ -253,8 +263,8 @@ impl RayCaster {
 /// You can iterate the intersections in the order of time of impact with `iter_sorted`.
 /// Note that this will create and sort a new vector instead of the original one.
 ///
-/// **Note**: When there are more intersections than `max_hits` allows, some intersections
-/// will be missed. If you want to guarantee that the closest intersection is included, set `max_hits` to one.
+/// **Note**: When there are more intersections than `max_hits`, **some intersections
+/// will be missed**. If you want to guarantee that the closest intersection is included, set `max_hits` to one.
 ///
 /// ## Example
 ///
