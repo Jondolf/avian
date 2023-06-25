@@ -16,6 +16,9 @@ use parry::{
 /// and add them to the [`RayIntersections`] component. Each intersection has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
+/// [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
+/// on every frame, consider using the [`SpatialQuery`] system parameter.
+///
 /// ## Intersection count and order
 ///
 /// The results of a ray cast are in an arbitrary order by default. You can iterate over them in the order of
@@ -301,7 +304,7 @@ impl RayIntersections {
 }
 
 /// Data related to an intersection between a [ray](RayCaster) and a [collider](Collider).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct RayIntersection {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
