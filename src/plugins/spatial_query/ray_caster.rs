@@ -16,7 +16,7 @@ use parry::{
 /// and add them to the [`RayIntersections`] component. Each intersection has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
-/// [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
+/// The [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
 /// on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Intersection count and order
@@ -45,12 +45,6 @@ use parry::{
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a ray at the center going right
 ///     commands.spawn(RayCaster::new(Vec3::ZERO, Vec3::X));
-///     // ...spawn colliders and other things
-/// }
-/// # #[cfg(not(feature = "f32"))]
-/// fn setup(mut commands: Commands) {
-///     // Spawn a ray at the center going right
-///     commands.spawn(RayCaster::new(Vector::ZERO, Vector::X));
 ///     // ...spawn colliders and other things
 /// }
 ///

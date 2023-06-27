@@ -4,9 +4,11 @@
 
 mod pipeline;
 mod ray_caster;
+mod shape_caster;
 
 pub use pipeline::*;
 pub use ray_caster::*;
+pub use shape_caster::*;
 
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
@@ -26,16 +28,27 @@ impl Plugin for SpatialQueryPlugin {
             .expect("add PhysicsSchedule first");
 
         physics_schedule
-            .add_system(init_intersections.in_set(PhysicsSet::Prepare))
             .add_systems(
-                (update_global_origins, update_query_pipeline, raycast)
+                (init_ray_intersections, init_shape_intersection).in_set(PhysicsSet::Prepare),
+            )
+            .add_systems(
+                (
+                    update_ray_caster_positions,
+                    update_shape_caster_positions,
+                    update_query_pipeline,
+                    raycast,
+                    shapecast,
+                )
                     .chain()
                     .in_set(PhysicsSet::SpatialQuery),
             );
     }
 }
 
-fn init_intersections(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
+fn init_ray_intersections(
+    mut commands: Commands,
+    rays: Query<(Entity, &RayCaster), Added<RayCaster>>,
+) {
     for (entity, ray) in &rays {
         let max_hits = if ray.max_hits == u32::MAX {
             10
@@ -49,6 +62,17 @@ fn init_intersections(mut commands: Commands, rays: Query<(Entity, &RayCaster), 
     }
 }
 
+fn init_shape_intersection(
+    mut commands: Commands,
+    shape_casters: Query<Entity, Added<ShapeCaster>>,
+) {
+    for entity in &shape_casters {
+        commands
+            .entity(entity)
+            .insert(ShapeCasterIntersection(None));
+    }
+}
+
 type RayCasterPositionQueryComponents = (
     &'static mut RayCaster,
     Option<&'static Position>,
@@ -56,7 +80,7 @@ type RayCasterPositionQueryComponents = (
     Option<&'static Parent>,
 );
 
-fn update_global_origins(
+fn update_ray_caster_positions(
     mut rays: Query<RayCasterPositionQueryComponents>,
     parents: Query<(Option<&Position>, Option<&Rotation>), With<Children>>,
 ) {
@@ -99,6 +123,83 @@ fn update_global_origins(
     }
 }
 
+type ShapeCasterPositionQueryComponents = (
+    &'static mut ShapeCaster,
+    Option<&'static Position>,
+    Option<&'static Rotation>,
+    Option<&'static Parent>,
+);
+
+fn update_shape_caster_positions(
+    mut shape_casters: Query<ShapeCasterPositionQueryComponents>,
+    parents: Query<(Option<&Position>, Option<&Rotation>), With<Children>>,
+) {
+    for (mut shape_caster, position, rotation, parent) in &mut shape_casters {
+        let origin = shape_caster.origin;
+        let shape_rotation = shape_caster.shape_rotation;
+        let direction = shape_caster.direction;
+
+        if let Some(position) = position {
+            shape_caster
+                .set_global_origin(position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)));
+        } else if parent.is_none() {
+            shape_caster.set_global_origin(origin);
+        }
+
+        if let Some(rotation) = rotation {
+            let global_direction = rotation.rotate(shape_caster.direction);
+            shape_caster.set_global_direction(global_direction);
+            #[cfg(feature = "2d")]
+            {
+                shape_caster.set_global_shape_rotation(shape_rotation + rotation.as_radians());
+            }
+            #[cfg(feature = "3d")]
+            {
+                shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
+            }
+        } else if parent.is_none() {
+            shape_caster.set_global_direction(direction);
+            #[cfg(feature = "2d")]
+            {
+                shape_caster.set_global_shape_rotation(shape_rotation);
+            }
+            #[cfg(feature = "3d")]
+            {
+                shape_caster.set_global_shape_rotation(shape_rotation);
+            }
+        }
+
+        if let Some(parent) = parent {
+            if let Ok((parent_position, parent_rotation)) = parents.get(parent.get()) {
+                if position.is_none() {
+                    if let Some(position) = parent_position {
+                        let rotation = rotation.map_or(
+                            parent_rotation.map_or(Rotation::default(), |rot| *rot),
+                            |rot| *rot,
+                        );
+                        shape_caster.set_global_origin(position.0 + rotation.rotate(origin));
+                    }
+                }
+                if rotation.is_none() {
+                    if let Some(rotation) = parent_rotation {
+                        let global_direction = rotation.rotate(shape_caster.direction);
+                        shape_caster.set_global_direction(global_direction);
+                        #[cfg(feature = "2d")]
+                        {
+                            shape_caster
+                                .set_global_shape_rotation(shape_rotation + rotation.as_radians());
+                        }
+                        #[cfg(feature = "3d")]
+                        {
+                            shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn raycast(
     mut rays: Query<(&RayCaster, &mut RayIntersections), Without<Collider>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
@@ -120,6 +221,31 @@ fn raycast(
     for (ray, mut intersections) in &mut rays {
         if ray.enabled {
             ray.cast(&mut intersections, &colliders, &query_pipeline);
+        }
+    }
+}
+
+fn shapecast(
+    mut shape_casters: Query<(&ShapeCaster, &mut ShapeCasterIntersection), Without<Collider>>,
+    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+    query_pipeline: ResMut<SpatialQueryPipeline>,
+) {
+    let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
+        .iter()
+        .map(|(entity, position, rotation, collider)| {
+            (
+                entity,
+                (
+                    utils::make_isometry(position.0, rotation),
+                    &**collider.get_shape(),
+                ),
+            )
+        })
+        .collect();
+
+    for (shape_caster, mut intersection) in &mut shape_casters {
+        if shape_caster.enabled {
+            intersection.0 = shape_caster.cast(&colliders, &query_pipeline);
         }
     }
 }
