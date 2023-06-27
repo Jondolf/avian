@@ -392,7 +392,7 @@ fn solve_vel(
                 constraint.world_r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
-            let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
+            let pre_solve_normal_speed = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
             let contact_vel1 = compute_contact_vel(
@@ -406,53 +406,64 @@ fn solve_vel(
                 constraint.world_r2,
             );
             let relative_vel = contact_vel1 - contact_vel2;
-            let normal_vel = normal.dot(relative_vel);
-            let tangent_vel = relative_vel - normal * normal_vel;
-
+            let normal_speed = normal.dot(relative_vel);
+            let tangent_vel = relative_vel - normal * normal_speed;
+			let tangent_speed = tangent_vel.length();
             let inv_inertia1 = body1.world_inv_inertia().0;
             let inv_inertia2 = body2.world_inv_inertia().0;
 
-            // Compute dynamic friction
-            let friction_impulse = get_dynamic_friction(
-                tangent_vel,
-                body1.friction.combine(*body2.friction).dynamic_coefficient,
-                constraint.normal_lagrange,
-                sub_dt.0,
-            );
+			let mut p = Vector::ZERO;
 
             // Compute restitution
-            let restitution_impulse = get_restitution(
-                normal,
-                normal_vel,
-                pre_solve_normal_vel,
+            let restitution_speed = get_restitution(               
+                normal_speed,
+                pre_solve_normal_speed,
                 body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
+			if restitution_speed > Scalar::EPSILON
+			{					
+				let w1 = constraint.compute_generalized_inverse_mass(
+					&body1,
+					constraint.world_r1,
+					normal,
+				);
+				let w2 = constraint.compute_generalized_inverse_mass(
+					&body2,
+					constraint.world_r2,
+					normal,
+				);
+				
+				p += restitution_speed / (w1 + w2) * normal;
+			}
+			
+			// Compute dynamic friction
+			if tangent_speed > Scalar::EPSILON
+			{
+				let tangent_dir = tangent_vel / tangent_speed;
 
-            let delta_v = friction_impulse + restitution_impulse;
-            let delta_v_length = delta_v.length();
+				let w1 = constraint.compute_generalized_inverse_mass(
+					&body1,
+					constraint.world_r1,
+					tangent_dir,
+				);
+				let w2 = constraint.compute_generalized_inverse_mass(
+					&body2,
+					constraint.world_r2,
+					tangent_dir,
+				);				
 
-            if delta_v_length <= Scalar::EPSILON {
-                continue;
-            }
+				let friction_impulse = get_dynamic_friction(
+					tangent_speed,
+					w1 + w2,
+					body1.friction.combine(*body2.friction).dynamic_coefficient,
+					constraint.normal_lagrange,
+					sub_dt.0,
+				);
+				p += friction_impulse * tangent_dir;
+			}
 
-            let delta_v_dir = delta_v / delta_v_length;
-
-            // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(
-                &body1,
-                constraint.world_r1,
-                delta_v_dir,
-            );
-            let w2 = constraint.compute_generalized_inverse_mass(
-                &body2,
-                constraint.world_r2,
-                delta_v_dir,
-            );
-
-            // Compute velocity impulse and apply velocity updates (equation 33)
-            let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p / body1.mass.0;
                 body1.angular_velocity.0 +=
