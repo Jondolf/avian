@@ -12,7 +12,7 @@ keywords = [ "gamedev", "physics", "simulation", "xpbd", "bevy" ]
 categories = [ "game-development", "science", "simulation" ]
 
 [features]
-default = [ "3d", "f32", "simd" ]
+default = [ "3d", "f32" ]
 3d = []
 f32 = [ "dep:parry3d" ]
 f64 = [ "dep:parry3d-f64" ]
