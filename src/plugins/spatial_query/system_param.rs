@@ -4,6 +4,7 @@ use parry::query::{
     details::{
         RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
     },
+    point::PointCompositeShapeProjBestFirstVisitor,
     visitors::RayIntersectionsVisitor,
 };
 
@@ -260,4 +261,39 @@ impl<'w, 's> SpatialQuery<'w, 's> {
                 normal2: hit.normal2.into(),
             })
     }
+
+    /// Finds the projection of a given point on the closest collider.
+    pub fn project_point(
+        &self,
+        point: Vector,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Option<PointProjection> {
+        let point = point.into();
+        let colliders = self.get_collider_hash_map();
+        let pipeline_shape = self
+            .query_pipeline
+            .as_composite_shape(&colliders, query_filter);
+        let mut visitor =
+            PointCompositeShapeProjBestFirstVisitor::new(&pipeline_shape, &point, solid);
+
+        self.query_pipeline
+            .qbvh
+            .traverse_best_first(&mut visitor)
+            .map(|(_, (projection, entity_bits))| PointProjection {
+                entity: Entity::from_bits(entity_bits),
+                point: projection.point.into(),
+                is_inside: projection.is_inside,
+            })
+    }
+}
+
+/// The result of a point projection on a collider.
+pub struct PointProjection {
+    /// The entity of the collider that the point was projected onto.
+    pub entity: Entity,
+    /// The point where the point was projected.
+    pub point: Vector,
+    /// True if the point was inside of the collider.
+    pub is_inside: bool,
 }
