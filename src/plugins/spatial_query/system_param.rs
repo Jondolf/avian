@@ -37,8 +37,6 @@ type ShapeRotation = Quaternion;
 ///
 ///     println!("{:?}", hits);
 /// }
-/// # #[cfg(not(all(feature = "3d", feature = "f32")))]
-/// # fn print_hits() {}
 /// ```
 #[derive(SystemParam)]
 pub struct SpatialQuery<'w, 's> {
