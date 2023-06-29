@@ -26,11 +26,12 @@ type ShapeRotation = Quat;
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(spatial_query: SpatialQuery) {
 ///     let hits = spatial_query.ray_hits(
-///         Vec3::ZERO, // Origin
-///         Vec3::X,    // Direction
-///         100.0,      // Maximum time of impact (travel distance)
-///         20,         // Maximum number of hits
-///         true,       // Does the ray treat colliders as "solid"
+///         Vec3::ZERO,                    // Origin
+///         Vec3::X,                       // Direction
+///         100.0,                         // Maximum time of impact (travel distance)
+///         20,                            // Maximum number of hits
+///         true,                          // Does the ray treat colliders as "solid"
+///         SpatialQueryFilter::default(), // Query filter
 ///     );
 ///
 ///     println!("{:?}", hits);
@@ -40,7 +41,7 @@ type ShapeRotation = Quat;
 /// ```
 #[derive(SystemParam)]
 pub struct SpatialQuery<'w, 's> {
-    colliders: Query<
+    pub(crate) colliders: Query<
         'w,
         's,
         (
@@ -48,12 +49,31 @@ pub struct SpatialQuery<'w, 's> {
             &'static Position,
             &'static Rotation,
             &'static Collider,
+            Option<&'static CollisionLayers>,
         ),
     >,
-    query_pipeline: ResMut<'w, SpatialQueryPipeline>,
+    /// The [`SpatialQueryPipeline`].
+    pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
 
 impl<'w, 's> SpatialQuery<'w, 's> {
+    pub(crate) fn get_collider_hash_map(
+        &self,
+    ) -> HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape, CollisionLayers)> {
+        self.colliders
+            .iter()
+            .map(|(entity, position, rotation, collider, layers)| {
+                (
+                    entity,
+                    (
+                        utils::make_isometry(position.0, rotation),
+                        &**collider.get_shape(),
+                        layers.map_or(CollisionLayers::default(), |l| *l),
+                    ),
+                )
+            })
+            .collect()
+    }
     /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes the closest [hit](RayHitData)
     /// with a collider. If there are no hits, `None` is returned.
     ///
@@ -65,22 +85,12 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Vector,
         max_time_of_impact: f32,
         solid: bool,
+        query_filter: SpatialQueryFilter,
     ) -> Option<RayHitData> {
-        let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
-            .colliders
-            .iter()
-            .map(|(entity, position, rotation, collider)| {
-                (
-                    entity,
-                    (
-                        utils::make_isometry(position.0, rotation),
-                        &**collider.get_shape(),
-                    ),
-                )
-            })
-            .collect();
-
-        let pipeline_shape = self.query_pipeline.as_composite_shape(&colliders);
+        let colliders = self.get_collider_hash_map();
+        let pipeline_shape = self
+            .query_pipeline
+            .as_composite_shape(&colliders, query_filter);
         let ray = parry::query::Ray::new(origin.into(), direction.into());
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
@@ -113,38 +123,28 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         max_time_of_impact: f32,
         max_hits: u32,
         solid: bool,
+        query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
-        let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
-            .colliders
-            .iter()
-            .map(|(entity, position, rotation, collider)| {
-                (
-                    entity,
-                    (
-                        utils::make_isometry(position.0, rotation),
-                        &**collider.get_shape(),
-                    ),
-                )
-            })
-            .collect();
+        let colliders = self.get_collider_hash_map();
 
         let mut hits = Vec::with_capacity(max_hits.min(100) as usize);
-
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
         let mut leaf_callback = &mut |entity_bits: &u64| {
             let entity = Entity::from_bits(*entity_bits);
-            if let Some((iso, shape)) = colliders.get(&entity) {
-                if let Some(hit) =
-                    shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                {
-                    hits.push(RayHitData {
-                        entity,
-                        time_of_impact: hit.toi,
-                        normal: hit.normal.into(),
-                    });
+            if let Some((iso, shape, layers)) = colliders.get(&entity) {
+                if query_filter.test(entity, *layers) {
+                    if let Some(hit) =
+                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
+                    {
+                        hits.push(RayHitData {
+                            entity,
+                            time_of_impact: hit.toi,
+                            normal: hit.normal.into(),
+                        });
 
-                    return (hits.len() as u32) < max_hits;
+                        return (hits.len() as u32) < max_hits;
+                    }
                 }
             }
             true
@@ -170,40 +170,30 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Vector,
         max_time_of_impact: f32,
         solid: bool,
+        query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity, RayHitData) -> bool,
     ) -> Vec<RayHitData> {
-        let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
-            .colliders
-            .iter()
-            .map(|(entity, position, rotation, collider)| {
-                (
-                    entity,
-                    (
-                        utils::make_isometry(position.0, rotation),
-                        &**collider.get_shape(),
-                    ),
-                )
-            })
-            .collect();
+        let colliders = self.get_collider_hash_map();
 
         let mut hits = Vec::with_capacity(10);
-
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
         let mut leaf_callback = &mut |entity_bits: &u64| {
             let entity = Entity::from_bits(*entity_bits);
-            if let Some((iso, shape)) = colliders.get(&entity) {
-                if let Some(hit) =
-                    shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                {
-                    let hit = RayHitData {
-                        entity,
-                        time_of_impact: hit.toi,
-                        normal: hit.normal.into(),
-                    };
-                    hits.push(hit);
+            if let Some((iso, shape, layers)) = colliders.get(&entity) {
+                if query_filter.test(entity, *layers) {
+                    if let Some(hit) =
+                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
+                    {
+                        let hit = RayHitData {
+                            entity,
+                            time_of_impact: hit.toi,
+                            normal: hit.normal.into(),
+                        };
+                        hits.push(hit);
 
-                    return callback(entity, hit);
+                        return callback(entity, hit);
+                    }
                 }
             }
             true
@@ -221,6 +211,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// This should be used when you don't need to shape cast on every frame and want the result instantly.
     /// Otherwise, using [`ShapeCaster`] can be more convenient.
+    #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
         shape: &Collider,
@@ -229,21 +220,9 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Vector,
         max_time_of_impact: f32,
         ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
-        let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
-            .colliders
-            .iter()
-            .map(|(entity, position, rotation, collider)| {
-                (
-                    entity,
-                    (
-                        utils::make_isometry(position.0, rotation),
-                        &**collider.get_shape(),
-                    ),
-                )
-            })
-            .collect();
-
+        let colliders = self.get_collider_hash_map();
         let rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -256,7 +235,9 @@ impl<'w, 's> SpatialQuery<'w, 's> {
 
         let shape_isometry = utils::make_isometry(origin, &rotation);
         let shape_direction = direction.into();
-        let pipeline_shape = self.query_pipeline.as_composite_shape(&colliders);
+        let pipeline_shape = self
+            .query_pipeline
+            .as_composite_shape(&colliders, query_filter);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
             &*self.query_pipeline.dispatcher,
             &shape_isometry,

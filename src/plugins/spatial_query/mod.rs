@@ -3,11 +3,13 @@
 //! See [`SpatialQueryPlugin`].
 
 mod pipeline;
+mod query_filter;
 mod ray_caster;
 mod shape_caster;
 mod system_param;
 
 pub use pipeline::*;
+pub use query_filter::*;
 pub use ray_caster::*;
 pub use shape_caster::*;
 pub use system_param::*;
@@ -194,50 +196,24 @@ fn update_shape_caster_positions(
 
 fn raycast(
     mut rays: Query<(&RayCaster, &mut RayHits), Without<Collider>>,
-    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
-    query_pipeline: ResMut<SpatialQueryPipeline>,
+    spatial_query: SpatialQuery,
 ) {
-    let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
-        .iter()
-        .map(|(entity, position, rotation, collider)| {
-            (
-                entity,
-                (
-                    utils::make_isometry(position.0, rotation),
-                    &**collider.get_shape(),
-                ),
-            )
-        })
-        .collect();
-
+    let colliders = spatial_query.get_collider_hash_map();
     for (ray, mut hits) in &mut rays {
         if ray.enabled {
-            ray.cast(&mut hits, &colliders, &query_pipeline);
+            ray.cast(&mut hits, &colliders, &spatial_query.query_pipeline);
         }
     }
 }
 
 fn shapecast(
     mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit), Without<Collider>>,
-    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
-    query_pipeline: ResMut<SpatialQueryPipeline>,
+    spatial_query: SpatialQuery,
 ) {
-    let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
-        .iter()
-        .map(|(entity, position, rotation, collider)| {
-            (
-                entity,
-                (
-                    utils::make_isometry(position.0, rotation),
-                    &**collider.get_shape(),
-                ),
-            )
-        })
-        .collect();
-
+    let colliders = spatial_query.get_collider_hash_map();
     for (shape_caster, mut hit) in &mut shape_casters {
         if shape_caster.enabled {
-            hit.0 = shape_caster.cast(&colliders, &query_pipeline);
+            hit.0 = shape_caster.cast(&colliders, &spatial_query.query_pipeline);
         }
     }
 }

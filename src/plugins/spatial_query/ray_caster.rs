@@ -93,6 +93,8 @@ pub struct RayCaster {
     /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
     /// will be at the collider shape's boundary.
     pub solid: bool,
+    /// Rules that determine which colliders are taken into account in the query.
+    pub query_filter: SpatialQueryFilter,
 }
 
 impl Default for RayCaster {
@@ -106,6 +108,7 @@ impl Default for RayCaster {
             max_time_of_impact: Scalar::MAX,
             max_hits: u32::MAX,
             solid: true,
+            query_filter: SpatialQueryFilter::default(),
         }
     }
 }
@@ -142,6 +145,13 @@ impl RayCaster {
         self
     }
 
+    /// Sets the ray caster's [query filter](SpatialQueryFilter) that controls which colliders
+    /// should be included or excluded by ray casts.
+    pub fn with_query_filter(mut self, query_filter: SpatialQueryFilter) -> Self {
+        self.query_filter = query_filter;
+        self
+    }
+
     /// Enables the [`RayCaster`].
     pub fn enable(&mut self) {
         self.enabled = true;
@@ -175,12 +185,13 @@ impl RayCaster {
     pub(crate) fn cast(
         &self,
         hits: &mut RayHits,
-        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
+        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape, CollisionLayers)>,
         query_pipeline: &SpatialQueryPipeline,
     ) {
         hits.count = 0;
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(colliders);
+            let pipeline_shape =
+                query_pipeline.as_composite_shape(colliders, self.query_filter.clone());
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
@@ -210,30 +221,32 @@ impl RayCaster {
 
             let mut leaf_callback = &mut |entity_bits: &u64| {
                 let entity = Entity::from_bits(*entity_bits);
-                if let Some((iso, shape)) = colliders.get(&entity) {
-                    if let Some(hit) = shape.cast_ray_and_get_normal(
-                        iso,
-                        &ray,
-                        self.max_time_of_impact,
-                        self.solid,
-                    ) {
-                        if (hits.vector.len() as u32) < hits.count + 1 {
-                            hits.vector.push(RayHitData {
-                                entity,
-                                time_of_impact: hit.toi,
-                                normal: hit.normal.into(),
-                            });
-                        } else {
-                            hits.vector[hits.count as usize] = RayHitData {
-                                entity,
-                                time_of_impact: hit.toi,
-                                normal: hit.normal.into(),
-                            };
+                if let Some((iso, shape, layers)) = colliders.get(&entity) {
+                    if self.query_filter.test(entity, *layers) {
+                        if let Some(hit) = shape.cast_ray_and_get_normal(
+                            iso,
+                            &ray,
+                            self.max_time_of_impact,
+                            self.solid,
+                        ) {
+                            if (hits.vector.len() as u32) < hits.count + 1 {
+                                hits.vector.push(RayHitData {
+                                    entity,
+                                    time_of_impact: hit.toi,
+                                    normal: hit.normal.into(),
+                                });
+                            } else {
+                                hits.vector[hits.count as usize] = RayHitData {
+                                    entity,
+                                    time_of_impact: hit.toi,
+                                    normal: hit.normal.into(),
+                                };
+                            }
+
+                            hits.count += 1;
+
+                            return hits.count < self.max_hits;
                         }
-
-                        hits.count += 1;
-
-                        return hits.count < self.max_hits;
                     }
                 }
                 true

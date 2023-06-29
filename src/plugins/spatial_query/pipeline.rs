@@ -33,11 +33,13 @@ impl Default for SpatialQueryPipeline {
 impl SpatialQueryPipeline {
     pub(crate) fn as_composite_shape<'a>(
         &'a self,
-        colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape)>,
+        colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape, CollisionLayers)>,
+        query_filter: SpatialQueryFilter,
     ) -> QueryPipelineAsCompositeShape {
         QueryPipelineAsCompositeShape {
             pipeline: self,
             colliders,
+            query_filter,
         }
     }
 
@@ -68,8 +70,9 @@ impl SpatialQueryPipeline {
 }
 
 pub(crate) struct QueryPipelineAsCompositeShape<'a> {
-    colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape)>,
+    colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
+    query_filter: SpatialQueryFilter,
 }
 
 impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
@@ -82,8 +85,12 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
         shape_id: Self::PartId,
         mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
     ) {
-        if let Some((iso, shape)) = self.colliders.get(&Entity::from_bits(shape_id)) {
-            f(Some(iso), &**shape);
+        if let Some((entity, (iso, shape, layers))) =
+            self.colliders.get_key_value(&Entity::from_bits(shape_id))
+        {
+            if self.query_filter.test(*entity, *layers) {
+                f(Some(iso), &**shape);
+            }
         }
     }
 

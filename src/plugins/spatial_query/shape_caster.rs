@@ -27,13 +27,19 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a shape caster with a ball shape moving right starting from the origin
-///     commands.spawn(ShapeCaster::new(Collider::ball(0.5), Vec3::ZERO, Vec3::X));
-///     // ...spawn colliders and other things
+///     commands.spawn(ShapeCaster::new(
+///         Collider::ball(0.5),
+///         Vec3::ZERO,
+///         Quat::default(),
+///         Vec3::X
+///     ));
 /// }
 ///
 /// fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
 ///     for (shape_caster, hit) in &query {
-///         println!("Hit entity {:?}", hit.entity);
+///         if let Some(hit) = hit.0 {
+///             println!("Hit entity {:?}", hit.entity);
+///         }
 ///     }
 /// }
 /// ```
@@ -84,6 +90,8 @@ pub struct ShapeCaster {
     /// the shape cast will not stop immediately, and will instead continue until another hit.\
     /// If set to false, the shape cast will stop immediately and return the hit. This is the default.
     pub ignore_origin_penetration: bool,
+    /// Rules that determine which colliders are taken into account in the query.
+    pub query_filter: SpatialQueryFilter,
 }
 
 impl Default for ShapeCaster {
@@ -105,6 +113,7 @@ impl Default for ShapeCaster {
             global_direction: Vector::ZERO,
             max_time_of_impact: Scalar::MAX,
             ignore_origin_penetration: false,
+            query_filter: SpatialQueryFilter::default(),
         }
     }
 }
@@ -147,6 +156,13 @@ impl ShapeCaster {
     /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
     pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
         self.max_time_of_impact = max_time_of_impact;
+        self
+    }
+
+    /// Sets the shape caster's [query filter](SpatialQueryFilter) that controls which colliders
+    /// should be included or excluded by shape casts.
+    pub fn with_query_filter(mut self, query_filter: SpatialQueryFilter) -> Self {
+        self.query_filter = query_filter;
         self
     }
 
@@ -206,7 +222,7 @@ impl ShapeCaster {
 
     pub(crate) fn cast(
         &self,
-        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
+        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape, CollisionLayers)>,
         query_pipeline: &SpatialQueryPipeline,
     ) -> Option<ShapeHitData> {
         let shape_rotation: Rotation;
@@ -222,7 +238,8 @@ impl ShapeCaster {
         let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
         let shape_direction = self.global_direction().into();
 
-        let pipeline_shape = query_pipeline.as_composite_shape(colliders);
+        let pipeline_shape =
+            query_pipeline.as_composite_shape(colliders, self.query_filter.clone());
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
             &*query_pipeline.dispatcher,
             &shape_isometry,
@@ -262,7 +279,7 @@ impl ShapeCaster {
 ///
 /// fn print_hits(query: Query<&ShapeHit>) {
 ///     for hit in &query {
-///         if let Some(hit) = hit {
+///         if let Some(hit) = hit.0 {
 ///             println!(
 ///                 "Hit entity {:?} with time of impact {}",
 ///                 hit.entity,
