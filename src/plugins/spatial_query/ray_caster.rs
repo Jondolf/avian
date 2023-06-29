@@ -13,7 +13,7 @@ use parry::{
 /// between a ray and a set of colliders.
 ///
 /// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each intersection
-/// and add them to the [`RayIntersections`] component. Each intersection has a `time_of_impact` property
+/// and add them to the [`RayCastIntersections`] component. Each intersection has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
 /// The [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
@@ -22,7 +22,7 @@ use parry::{
 /// ## Intersection count and order
 ///
 /// The results of a ray cast are in an arbitrary order by default. You can iterate over them in the order of
-/// time of impact with the [`RayIntersections::iter_sorted`](RayIntersections#method.iter_sorted) method.
+/// time of impact with the [`RayCastIntersections::iter_sorted`](RayCastIntersections#method.iter_sorted) method.
 ///
 /// You can configure the maximum amount of intersections for a ray using `max_hits`. By default this is unbounded,
 /// so you will get all intersections. When the number or complexity of colliders is large, this can be very
@@ -48,7 +48,7 @@ use parry::{
 ///     // ...spawn colliders and other things
 /// }
 ///
-/// fn print_intersections(query: Query<(&RayCaster, &RayIntersections)>) {
+/// fn print_intersections(query: Query<(&RayCaster, &RayCastIntersections)>) {
 ///     for (ray, intersections) in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for intersection in intersections.iter_sorted() {
@@ -174,7 +174,7 @@ impl RayCaster {
 
     pub(crate) fn cast(
         &self,
-        intersections: &mut RayIntersections,
+        intersections: &mut RayCastIntersections,
         colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
         query_pipeline: &SpatialQueryPipeline,
     ) {
@@ -269,7 +269,7 @@ impl RayCaster {
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// fn print_intersections(query: Query<&RayIntersections, With<RayCaster>>) {
+/// fn print_intersections(query: Query<&RayCastIntersections, With<RayCaster>>) {
 ///     for intersections in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for intersection in intersections.iter_sorted() {
@@ -283,13 +283,13 @@ impl RayCaster {
 /// }
 /// ```
 #[derive(Component, Clone, Default)]
-pub struct RayIntersections {
+pub struct RayCastIntersections {
     pub(crate) vector: Vec<RayIntersection>,
     /// The number of intersections.
     pub count: u32,
 }
 
-impl RayIntersections {
+impl RayCastIntersections {
     /// Returns an iterator over the intersections in arbitrary order.
     ///
     /// If you want to get them sorted by time of impact, use `iter_sorted`.

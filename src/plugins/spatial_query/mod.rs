@@ -5,10 +5,12 @@
 mod pipeline;
 mod ray_caster;
 mod shape_caster;
+mod system_param;
 
 pub use pipeline::*;
 pub use ray_caster::*;
 pub use shape_caster::*;
+pub use system_param::*;
 
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
@@ -55,7 +57,7 @@ fn init_ray_intersections(
         } else {
             ray.max_hits as usize
         };
-        commands.entity(entity).insert(RayIntersections {
+        commands.entity(entity).insert(RayCastIntersections {
             vector: Vec::with_capacity(max_hits),
             count: 0,
         });
@@ -67,9 +69,7 @@ fn init_shape_intersection(
     shape_casters: Query<Entity, Added<ShapeCaster>>,
 ) {
     for entity in &shape_casters {
-        commands
-            .entity(entity)
-            .insert(ShapeCasterIntersection(None));
+        commands.entity(entity).insert(ShapeCastIntersection(None));
     }
 }
 
@@ -201,7 +201,7 @@ fn update_shape_caster_positions(
 }
 
 fn raycast(
-    mut rays: Query<(&RayCaster, &mut RayIntersections), Without<Collider>>,
+    mut rays: Query<(&RayCaster, &mut RayCastIntersections), Without<Collider>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
@@ -226,7 +226,7 @@ fn raycast(
 }
 
 fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeCasterIntersection), Without<Collider>>,
+    mut shape_casters: Query<(&ShapeCaster, &mut ShapeCastIntersection), Without<Collider>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {

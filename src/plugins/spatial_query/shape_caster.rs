@@ -210,7 +210,6 @@ impl ShapeCaster {
         query_pipeline: &SpatialQueryPipeline,
     ) -> Option<ShapeIntersection> {
         let shape_rotation: Rotation;
-
         #[cfg(feature = "2d")]
         {
             shape_rotation = Rotation::from_radians(self.global_shape_rotation());
@@ -219,6 +218,7 @@ impl ShapeCaster {
         {
             shape_rotation = Rotation::from(self.global_shape_rotation());
         }
+
         let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
         let shape_direction = self.global_direction().into();
 
@@ -272,7 +272,7 @@ impl ShapeCaster {
 /// }
 /// ```
 #[derive(Component, Clone, Copy, Debug)]
-pub struct ShapeCasterIntersection(pub Option<ShapeIntersection>);
+pub struct ShapeCastIntersection(pub Option<ShapeIntersection>);
 
 /// Data related to an intersection between a shape and a [collider](Collider) in a [shape cast](ShapeCaster).
 #[derive(Component, Clone, Copy, Debug)]
