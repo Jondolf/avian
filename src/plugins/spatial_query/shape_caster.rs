@@ -67,13 +67,13 @@ pub struct ShapeCaster {
     ///
     /// To get the global shape rotation, use the `global_shape_rotation` method.
     #[cfg(feature = "3d")]
-    pub shape_rotation: Quat,
+    pub shape_rotation: Quaternion,
     /// The global rotation of the shape.
     #[cfg(feature = "2d")]
     global_shape_rotation: Scalar,
     /// The global rotation of the shape.
     #[cfg(feature = "3d")]
-    global_shape_rotation: Quat,
+    global_shape_rotation: Quaternion,
     /// The local direction of the shape cast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
@@ -104,11 +104,11 @@ impl Default for ShapeCaster {
             #[cfg(feature = "2d")]
             shape_rotation: 0.0,
             #[cfg(feature = "3d")]
-            shape_rotation: Quat::IDENTITY,
+            shape_rotation: Quaternion::IDENTITY,
             #[cfg(feature = "2d")]
             global_shape_rotation: 0.0,
             #[cfg(feature = "3d")]
-            global_shape_rotation: Quat::IDENTITY,
+            global_shape_rotation: Quaternion::IDENTITY,
             direction: Vector::ZERO,
             global_direction: Vector::ZERO,
             max_time_of_impact: Scalar::MAX,
@@ -132,7 +132,12 @@ impl ShapeCaster {
     }
     #[cfg(feature = "3d")]
     /// Creates a new [`ShapeCaster`] with a given shape, origin, shape rotation and direction.
-    pub fn new(shape: Collider, origin: Vector, shape_rotation: Quat, direction: Vector) -> Self {
+    pub fn new(
+        shape: Collider,
+        origin: Vector,
+        shape_rotation: Quaternion,
+        direction: Vector,
+    ) -> Self {
         Self {
             shape,
             origin,
@@ -189,7 +194,7 @@ impl ShapeCaster {
 
     /// Returns the global rotation of the shape.
     #[cfg(feature = "3d")]
-    pub fn global_shape_rotation(&self) -> Quat {
+    pub fn global_shape_rotation(&self) -> Quaternion {
         self.global_shape_rotation
     }
 
@@ -211,7 +216,7 @@ impl ShapeCaster {
 
     /// Sets the global rotation of the shape.
     #[cfg(feature = "3d")]
-    pub fn set_global_shape_rotation(&mut self, global_rotation: Quat) {
+    pub fn set_global_shape_rotation(&mut self, global_rotation: Quaternion) {
         self.global_shape_rotation = global_rotation;
     }
 

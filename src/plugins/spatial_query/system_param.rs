@@ -11,7 +11,7 @@ use parry::query::{
 #[cfg(feature = "2d")]
 type ShapeRotation = Scalar;
 #[cfg(feature = "3d")]
-type ShapeRotation = Quat;
+type ShapeRotation = Quaternion;
 
 /// A system parameter for spatial queries that require more precise control.
 ///
@@ -84,7 +84,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         origin: Vector,
         direction: Vector,
-        max_time_of_impact: f32,
+        max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
     ) -> Option<RayHitData> {
@@ -121,7 +121,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         origin: Vector,
         direction: Vector,
-        max_time_of_impact: f32,
+        max_time_of_impact: Scalar,
         max_hits: u32,
         solid: bool,
         query_filter: SpatialQueryFilter,
@@ -169,7 +169,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         origin: Vector,
         direction: Vector,
-        max_time_of_impact: f32,
+        max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity, RayHitData) -> bool,
@@ -219,7 +219,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         origin: Vector,
         shape_rotation: ShapeRotation,
         direction: Vector,
-        max_time_of_impact: f32,
+        max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
