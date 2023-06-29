@@ -30,9 +30,7 @@ impl Plugin for SpatialQueryPlugin {
             .expect("add PhysicsSchedule first");
 
         physics_schedule
-            .add_systems(
-                (init_ray_intersections, init_shape_intersection).in_set(PhysicsSet::Prepare),
-            )
+            .add_systems((init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare))
             .add_systems(
                 (
                     update_ray_caster_positions,
@@ -47,29 +45,23 @@ impl Plugin for SpatialQueryPlugin {
     }
 }
 
-fn init_ray_intersections(
-    mut commands: Commands,
-    rays: Query<(Entity, &RayCaster), Added<RayCaster>>,
-) {
+fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
         let max_hits = if ray.max_hits == u32::MAX {
             10
         } else {
             ray.max_hits as usize
         };
-        commands.entity(entity).insert(RayCastIntersections {
+        commands.entity(entity).insert(RayHits {
             vector: Vec::with_capacity(max_hits),
             count: 0,
         });
     }
 }
 
-fn init_shape_intersection(
-    mut commands: Commands,
-    shape_casters: Query<Entity, Added<ShapeCaster>>,
-) {
+fn init_shape_hit(mut commands: Commands, shape_casters: Query<Entity, Added<ShapeCaster>>) {
     for entity in &shape_casters {
-        commands.entity(entity).insert(ShapeCastIntersection(None));
+        commands.entity(entity).insert(ShapeHit(None));
     }
 }
 
@@ -201,7 +193,7 @@ fn update_shape_caster_positions(
 }
 
 fn raycast(
-    mut rays: Query<(&RayCaster, &mut RayCastIntersections), Without<Collider>>,
+    mut rays: Query<(&RayCaster, &mut RayHits), Without<Collider>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
@@ -218,15 +210,15 @@ fn raycast(
         })
         .collect();
 
-    for (ray, mut intersections) in &mut rays {
+    for (ray, mut hits) in &mut rays {
         if ray.enabled {
-            ray.cast(&mut intersections, &colliders, &query_pipeline);
+            ray.cast(&mut hits, &colliders, &query_pipeline);
         }
     }
 }
 
 fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeCastIntersection), Without<Collider>>,
+    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit), Without<Collider>>,
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
     query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
@@ -243,9 +235,9 @@ fn shapecast(
         })
         .collect();
 
-    for (shape_caster, mut intersection) in &mut shape_casters {
+    for (shape_caster, mut hit) in &mut shape_casters {
         if shape_caster.enabled {
-            intersection.0 = shape_caster.cast(&colliders, &query_pipeline);
+            hit.0 = shape_caster.cast(&colliders, &query_pipeline);
         }
     }
 }

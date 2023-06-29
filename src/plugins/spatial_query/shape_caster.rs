@@ -5,13 +5,13 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 /// A component used for shape casting.
 ///
 /// **Shape casting** is a type of [spatial query](spatial_query) where a shape travels along a straight
-/// line and computes intersections with colliders. This is often used to determine how far an object can move
+/// line and computes hits with colliders. This is often used to determine how far an object can move
 /// in a direction before it hits something.
 ///
 /// Each shape cast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
-/// a local `direction`. The [`ShapeCaster`] will find the closest intersection as a [`ShapeIntersection`].
+/// a local `direction`. The [`ShapeCaster`] will find the closest hit as a [`ShapeHit`].
 ///
-/// The [`ShapeCaster`] is the easiest way to handle shape casting, but **it can only retrieve one intersection**.
+/// The [`ShapeCaster`] is the easiest way to handle shape casting.
 /// If you want more control and don't want to perform shape casts on every frame, consider using
 /// the [`SpatialQuery`] system parameter.
 ///
@@ -31,9 +31,9 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 ///     // ...spawn colliders and other things
 /// }
 ///
-/// fn print_intersections(query: Query<(&ShapeCaster, &ShapeIntersection)>) {
-///     for (shape_caster, intersection) in &query {
-///         println!("Hit entity {:?}", intersection.entity);
+/// fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
+///     for (shape_caster, hit) in &query {
+///         println!("Hit entity {:?}", hit.entity);
 ///     }
 /// }
 /// ```
@@ -75,14 +75,14 @@ pub struct ShapeCaster {
     /// The global direction of the shape cast.
     global_direction: Vector,
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
-    /// until an intersection is found.
+    /// until a hit is found.
     pub max_time_of_impact: Scalar,
     /// Controls how the shape cast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
     /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
-    /// the shape cast will not stop immediately, and will instead continue to find another intersection.\
-    /// If set to false, the shape cast will stop immediately and return the intersection. This is the default.
+    /// the shape cast will not stop immediately, and will instead continue until another hit.\
+    /// If set to false, the shape cast will stop immediately and return the hit. This is the default.
     pub ignore_origin_penetration: bool,
 }
 
@@ -137,8 +137,8 @@ impl ShapeCaster {
     /// at the shape origin.
     ///
     /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
-    /// the shape cast will not stop immediately, and will instead continue to find another intersection.\
-    /// If set to false, the shape cast will stop immediately and return the intersection. This is the default.
+    /// the shape cast will not stop immediately, and will instead continue until another hit.\
+    /// If set to false, the shape cast will stop immediately and return the hit. This is the default.
     pub fn with_ignore_origin_penetration(mut self, ignore: bool) -> Self {
         self.ignore_origin_penetration = ignore;
         self
@@ -208,7 +208,7 @@ impl ShapeCaster {
         &self,
         colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
         query_pipeline: &SpatialQueryPipeline,
-    ) -> Option<ShapeIntersection> {
+    ) -> Option<ShapeHitData> {
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -233,22 +233,23 @@ impl ShapeCaster {
             self.ignore_origin_penetration,
         );
 
-        query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-            |(_, (entity_bits, intersection))| ShapeIntersection {
+        query_pipeline
+            .qbvh
+            .traverse_best_first(&mut visitor)
+            .map(|(_, (entity_bits, hit))| ShapeHitData {
                 entity: Entity::from_bits(entity_bits),
-                time_of_impact: intersection.toi,
-                point1: intersection.witness1.into(),
-                point2: intersection.witness2.into(),
-                normal1: intersection.normal1.into(),
-                normal2: intersection.normal2.into(),
-            },
-        )
+                time_of_impact: hit.toi,
+                point1: hit.witness1.into(),
+                point2: hit.witness2.into(),
+                normal1: hit.normal1.into(),
+                normal2: hit.normal2.into(),
+            })
     }
 }
 
-/// A component for the closest intersection of a shape cast by a [`ShapeCaster`].
+/// A component for the closest hit of a shape cast by a [`ShapeCaster`].
 ///
-/// When there are no intersections, the value is `None`.
+/// When there are no hits, the value is `None`.
 ///
 /// ## Example
 ///
@@ -259,27 +260,27 @@ impl ShapeCaster {
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// fn print_intersections(query: Query<&ShapeCasterIntersection>) {
-///     for intersection in &query {
-///         if let Some(intersection) = intersection {
+/// fn print_hits(query: Query<&ShapeHit>) {
+///     for hit in &query {
+///         if let Some(hit) = hit {
 ///             println!(
 ///                 "Hit entity {:?} with time of impact {}",
-///                 intersection.entity,
-///                 intersection.time_of_impact,
+///                 hit.entity,
+///                 hit.time_of_impact,
 ///             );
 ///         }
 ///     }
 /// }
 /// ```
 #[derive(Component, Clone, Copy, Debug)]
-pub struct ShapeCastIntersection(pub Option<ShapeIntersection>);
+pub struct ShapeHit(pub Option<ShapeHitData>);
 
-/// Data related to an intersection between a shape and a [collider](Collider) in a [shape cast](ShapeCaster).
+/// Data related to a hit during a [shape cast](ShapeCaster).
 #[derive(Component, Clone, Copy, Debug)]
-pub struct ShapeIntersection {
+pub struct ShapeHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
-    /// How long the shape travelled before the intersection started,
+    /// How long the shape travelled before the initial hit,
     /// i.e. the distance between the origin and the point of intersection.
     pub time_of_impact: Scalar,
     /// The closest point on the cast shape, at the time of impact,

@@ -9,28 +9,28 @@ use parry::{
 
 /// A component used for ray casting.
 ///
-/// **Ray casting** is a type of [spatial query](spatial_query) that finds one or more intersections
+/// **Ray casting** is a type of [spatial query](spatial_query) that finds one or more hits
 /// between a ray and a set of colliders.
 ///
-/// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each intersection
-/// and add them to the [`RayCastIntersections`] component. Each intersection has a `time_of_impact` property
+/// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each hit
+/// and add them to the [`RayHits`] component. Each hit has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
 /// The [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
 /// on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Intersection count and order
+/// ## Hit count and order
 ///
 /// The results of a ray cast are in an arbitrary order by default. You can iterate over them in the order of
-/// time of impact with the [`RayCastIntersections::iter_sorted`](RayCastIntersections#method.iter_sorted) method.
+/// time of impact with the [`RayHits::iter_sorted`](RayHits#method.iter_sorted) method.
 ///
-/// You can configure the maximum amount of intersections for a ray using `max_hits`. By default this is unbounded,
-/// so you will get all intersections. When the number or complexity of colliders is large, this can be very
+/// You can configure the maximum amount of hits for a ray using `max_hits`. By default this is unbounded,
+/// so you will get all hits. When the number or complexity of colliders is large, this can be very
 /// expensive computationally. Set the value to whatever works best for your case.
 ///
-/// Note that when there are more intersections than `max_hits`, **some intersections will be missed**.
-/// To guarantee that the closest intersection is included, you should set `max_hits` to one or a value that
-/// is enough to contain all intersections.
+/// Note that when there are more hits than `max_hits`, **some hits will be missed**.
+/// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
+/// is enough to contain all hits.
 ///
 /// ## Example
 ///
@@ -48,15 +48,15 @@ use parry::{
 ///     // ...spawn colliders and other things
 /// }
 ///
-/// fn print_intersections(query: Query<(&RayCaster, &RayCastIntersections)>) {
-///     for (ray, intersections) in &query {
+/// fn print_hits(query: Query<(&RayCaster, &RayHits)>) {
+///     for (ray, hits) in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
-///         for intersection in intersections.iter_sorted() {
+///         for hit in hits.iter_sorted() {
 ///             println!(
 ///                 "Hit entity {:?} at {} with normal {}",
-///                 intersection.entity,
-///                 ray.origin + ray.direction * intersection.time_of_impact,
-///                 intersection.normal,
+///                 hit.entity,
+///                 ray.origin + ray.direction * hit.time_of_impact,
+///                 hit.normal,
 ///             );
 ///         }
 ///     }
@@ -79,19 +79,19 @@ pub struct RayCaster {
     /// The global direction of the ray.
     global_direction: Vector,
     /// The maximum distance the ray can travel. By default this is infinite, so the ray will travel
-    /// until all intersections up to `max_hits` have been checked.
+    /// until all hits up to `max_hits` have been checked.
     pub max_time_of_impact: Scalar,
-    /// The maximum number of intersections allowed.
+    /// The maximum number of hits allowed.
     ///
-    /// When there are more intersections than `max_hits`, **some intersections will be missed**.
-    /// To guarantee that the closest intersection is included, you should set `max_hits` to one or a value that
-    /// is enough to contain all intersections.
+    /// When there are more hits than `max_hits`, **some hits will be missed**.
+    /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
+    /// is enough to contain all hits.
     pub max_hits: u32,
     /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
     ///
-    /// If `solid` is true, the intersection point will be the ray origin itself.\
-    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
-    /// point will be at the collider shape's boundary.
+    /// If `solid` is true, the point of intersection will be the ray origin itself.\
+    /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
+    /// will be at the collider shape's boundary.
     pub solid: bool,
 }
 
@@ -122,9 +122,9 @@ impl RayCaster {
 
     /// Sets if the ray treats [colliders](Collider) as solid.
     ///
-    /// If `solid` is true, the intersection point will be the ray origin itself.\
-    /// If `solid` is false, the collider will be considered to have no interior, and the intersection
-    /// point will be at the collider shape's boundary.
+    /// If `solid` is true, the point of intersection will be the ray origin itself.\
+    /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
+    /// will be at the collider shape's boundary.
     pub fn with_solidness(mut self, solid: bool) -> Self {
         self.solid = solid;
         self
@@ -174,11 +174,11 @@ impl RayCaster {
 
     pub(crate) fn cast(
         &self,
-        intersections: &mut RayCastIntersections,
+        hits: &mut RayHits,
         colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
         query_pipeline: &SpatialQueryPipeline,
     ) {
-        intersections.count = 0;
+        hits.count = 0;
         if self.max_hits == 1 {
             let pipeline_shape = query_pipeline.as_composite_shape(colliders);
             let ray =
@@ -190,19 +190,19 @@ impl RayCaster {
                 self.solid,
             );
 
-            if let Some(intersection) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_bits, intersection))| RayIntersection {
+            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
+                |(_, (entity_bits, hit))| RayHitData {
                     entity: Entity::from_bits(entity_bits),
-                    time_of_impact: intersection.toi,
-                    normal: intersection.normal.into(),
+                    time_of_impact: hit.toi,
+                    normal: hit.normal.into(),
                 },
             ) {
-                if (intersections.vector.len() as u32) < intersections.count + 1 {
-                    intersections.vector.push(intersection);
+                if (hits.vector.len() as u32) < hits.count + 1 {
+                    hits.vector.push(hit);
                 } else {
-                    intersections.vector[0] = intersection;
+                    hits.vector[0] = hit;
                 }
-                intersections.count = 1;
+                hits.count = 1;
             }
         } else {
             let ray =
@@ -211,29 +211,29 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_bits: &u64| {
                 let entity = Entity::from_bits(*entity_bits);
                 if let Some((iso, shape)) = colliders.get(&entity) {
-                    if let Some(intersection) = shape.cast_ray_and_get_normal(
+                    if let Some(hit) = shape.cast_ray_and_get_normal(
                         iso,
                         &ray,
                         self.max_time_of_impact,
                         self.solid,
                     ) {
-                        if (intersections.vector.len() as u32) < intersections.count + 1 {
-                            intersections.vector.push(RayIntersection {
+                        if (hits.vector.len() as u32) < hits.count + 1 {
+                            hits.vector.push(RayHitData {
                                 entity,
-                                time_of_impact: intersection.toi,
-                                normal: intersection.normal.into(),
+                                time_of_impact: hit.toi,
+                                normal: hit.normal.into(),
                             });
                         } else {
-                            intersections.vector[intersections.count as usize] = RayIntersection {
+                            hits.vector[hits.count as usize] = RayHitData {
                                 entity,
-                                time_of_impact: intersection.toi,
-                                normal: intersection.normal.into(),
+                                time_of_impact: hit.toi,
+                                normal: hit.normal.into(),
                             };
                         }
 
-                        intersections.count += 1;
+                        hits.count += 1;
 
-                        return intersections.count < self.max_hits;
+                        return hits.count < self.max_hits;
                     }
                 }
                 true
@@ -246,19 +246,19 @@ impl RayCaster {
     }
 }
 
-/// Contains the intersections of a ray cast by a [`RayCaster`].
+/// Contains the hits of a ray cast by a [`RayCaster`].
 ///
-/// The maximum number of intersections depends on the value of `max_hits` in [`RayCaster`].
+/// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].
 ///
 /// ## Order
 ///
-/// By default, the order of the intersections is not guaranteed.
+/// By default, the order of the hits is not guaranteed.
 ///
-/// You can iterate the intersections in the order of time of impact with `iter_sorted`.
+/// You can iterate the hits in the order of time of impact with `iter_sorted`.
 /// Note that this will create and sort a new vector instead of the original one.
 ///
-/// **Note**: When there are more intersections than `max_hits`, **some intersections
-/// will be missed**. If you want to guarantee that the closest intersection is included, set `max_hits` to one.
+/// **Note**: When there are more hits than `max_hits`, **some hits
+/// will be missed**. If you want to guarantee that the closest hit is included, set `max_hits` to one.
 ///
 /// ## Example
 ///
@@ -269,47 +269,47 @@ impl RayCaster {
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// fn print_intersections(query: Query<&RayCastIntersections, With<RayCaster>>) {
-///     for intersections in &query {
+/// fn print_hits(query: Query<&RayHits, With<RayCaster>>) {
+///     for hits in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
-///         for intersection in intersections.iter_sorted() {
+///         for hit in hits.iter_sorted() {
 ///             println!(
 ///                 "Hit entity {:?} with time of impact {}",
-///                 intersection.entity,
-///                 intersection.time_of_impact,
+///                 hit.entity,
+///                 hit.time_of_impact,
 ///             );
 ///         }
 ///     }
 /// }
 /// ```
 #[derive(Component, Clone, Default)]
-pub struct RayCastIntersections {
-    pub(crate) vector: Vec<RayIntersection>,
-    /// The number of intersections.
+pub struct RayHits {
+    pub(crate) vector: Vec<RayHitData>,
+    /// The number of hits.
     pub count: u32,
 }
 
-impl RayCastIntersections {
-    /// Returns an iterator over the intersections in arbitrary order.
+impl RayHits {
+    /// Returns an iterator over the hits in arbitrary order.
     ///
     /// If you want to get them sorted by time of impact, use `iter_sorted`.
-    pub fn iter(&self) -> std::slice::Iter<RayIntersection> {
+    pub fn iter(&self) -> std::slice::Iter<RayHitData> {
         self.vector[0..self.count as usize].iter()
     }
 
-    /// Returns an iterator over the intersections, sorted in ascending order according to the time of impact.
+    /// Returns an iterator over the hits, sorted in ascending order according to the time of impact.
     ///
-    /// Note that this creates and sorts a new vector. If you don't need the intersections in order, use `iter`.
-    pub fn iter_sorted(&self) -> std::vec::IntoIter<RayIntersection> {
+    /// Note that this creates and sorts a new vector. If you don't need the hits in order, use `iter`.
+    pub fn iter_sorted(&self) -> std::vec::IntoIter<RayHitData> {
         let mut vector = self.vector[0..self.count as usize].to_vec();
         vector.sort_by(|a, b| a.time_of_impact.partial_cmp(&b.time_of_impact).unwrap());
         vector.into_iter()
     }
 }
 
-/// Data related to an intersection between a [ray](RayCaster) and a [collider](Collider).
+/// Data related to a hit during a [ray cast](RayCaster).
 #[derive(Clone, Copy, Debug)]
-pub struct RayIntersection {
+pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
     /// How long the ray travelled, i.e. the distance between the ray origin and the point of intersection.

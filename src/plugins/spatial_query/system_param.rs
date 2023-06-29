@@ -24,19 +24,19 @@ type ShapeRotation = Quat;
 /// use bevy_xpbd_3d::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
-/// fn print_intersections(spatial_query: SpatialQuery) {
-///     let intersections = spatial_query.ray_intersections(
+/// fn print_hits(spatial_query: SpatialQuery) {
+///     let hits = spatial_query.ray_hits(
 ///         Vec3::ZERO, // Origin
 ///         Vec3::X,    // Direction
 ///         100.0,      // Maximum time of impact (travel distance)
-///         20,         // Maximum number of intersections
-///         true,       // Is the ray solid
+///         20,         // Maximum number of hits
+///         true,       // Does the ray treat colliders as "solid"
 ///     );
 ///
-///     println!("{:?}", intersections);
+///     println!("{:?}", hits);
 /// }
 /// # #[cfg(not(all(feature = "3d", feature = "f32")))]
-/// # fn print_intersections() {}
+/// # fn print_hits() {}
 /// ```
 #[derive(SystemParam)]
 pub struct SpatialQuery<'w, 's> {
@@ -54,8 +54,8 @@ pub struct SpatialQuery<'w, 's> {
 }
 
 impl<'w, 's> SpatialQuery<'w, 's> {
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes the closest [intersection](RayIntersection)
-    /// with a collider. If there are no intersections, `None` is returned.
+    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes the closest [hit](RayHitData)
+    /// with a collider. If there are no hits, `None` is returned.
     ///
     /// This should be used when you don't need frequent ray casts and want the result instantly.
     /// Otherwise, using [`RayCaster`] is recommended.
@@ -65,7 +65,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Vector,
         max_time_of_impact: f32,
         solid: bool,
-    ) -> Option<RayIntersection> {
+    ) -> Option<RayHitData> {
         let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
             .colliders
             .iter()
@@ -92,28 +92,28 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, intersection))| RayIntersection {
+            .map(|(_, (entity_bits, hit))| RayHitData {
                 entity: Entity::from_bits(entity_bits),
-                time_of_impact: intersection.toi,
-                normal: intersection.normal.into(),
+                time_of_impact: hit.toi,
+                normal: hit.normal.into(),
             })
     }
 
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [intersections](RayIntersection)
+    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData)
     /// until `max_hits` is reached.
     ///
-    /// Note that the order of the results is not guaranteed, and if there are more intersections than `max_hits`, some intersections will be missed.
+    /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`, some hits will be missed.
     ///
     /// This should be used when you don't need frequent ray casts and want the result instantly.
     /// Otherwise, using [`RayCaster`] is recommended.
-    pub fn ray_intersections(
+    pub fn ray_hits(
         &self,
         origin: Vector,
         direction: Vector,
         max_time_of_impact: f32,
         max_hits: u32,
         solid: bool,
-    ) -> Vec<RayIntersection> {
+    ) -> Vec<RayHitData> {
         let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
             .colliders
             .iter()
@@ -128,23 +128,23 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
             .collect();
 
-        let mut intersections = Vec::with_capacity(max_hits.min(100) as usize);
+        let mut hits = Vec::with_capacity(max_hits.min(100) as usize);
 
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
         let mut leaf_callback = &mut |entity_bits: &u64| {
             let entity = Entity::from_bits(*entity_bits);
             if let Some((iso, shape)) = colliders.get(&entity) {
-                if let Some(intersection) =
+                if let Some(hit) =
                     shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
                 {
-                    intersections.push(RayIntersection {
+                    hits.push(RayHitData {
                         entity,
-                        time_of_impact: intersection.toi,
-                        normal: intersection.normal.into(),
+                        time_of_impact: hit.toi,
+                        normal: hit.normal.into(),
                     });
 
-                    return (intersections.len() as u32) < max_hits;
+                    return (hits.len() as u32) < max_hits;
                 }
             }
             true
@@ -154,24 +154,24 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
         self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
 
-        intersections
+        hits
     }
 
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [intersections](RayIntersection)
-    /// until the given `callback` returns false or all intersections have been computed.
+    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData)
+    /// until the given `callback` returns false or all hits have been computed.
     ///
-    /// Note that the order of the results is not guaranteed, and if there are more intersections than `max_hits`, some intersections will be missed.
+    /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`, some hits will be missed.
     ///
     /// This should be used when you don't need frequent ray casts and want the result instantly.
     /// Otherwise, using [`RayCaster`] is recommended.
-    pub fn ray_intersections_callback(
+    pub fn ray_hits_callback(
         &self,
         origin: Vector,
         direction: Vector,
         max_time_of_impact: f32,
         solid: bool,
-        mut callback: impl FnMut(Entity, RayIntersection) -> bool,
-    ) -> Vec<RayIntersection> {
+        mut callback: impl FnMut(Entity, RayHitData) -> bool,
+    ) -> Vec<RayHitData> {
         let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
             .colliders
             .iter()
@@ -186,24 +186,24 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
             .collect();
 
-        let mut intersections = Vec::with_capacity(10);
+        let mut hits = Vec::with_capacity(10);
 
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
         let mut leaf_callback = &mut |entity_bits: &u64| {
             let entity = Entity::from_bits(*entity_bits);
             if let Some((iso, shape)) = colliders.get(&entity) {
-                if let Some(intersection) =
+                if let Some(hit) =
                     shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
                 {
-                    let intersection = RayIntersection {
+                    let hit = RayHitData {
                         entity,
-                        time_of_impact: intersection.toi,
-                        normal: intersection.normal.into(),
+                        time_of_impact: hit.toi,
+                        normal: hit.normal.into(),
                     };
-                    intersections.push(intersection);
+                    hits.push(hit);
 
-                    return callback(entity, intersection);
+                    return callback(entity, hit);
                 }
             }
             true
@@ -213,11 +213,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
         self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
 
-        intersections
+        hits
     }
 
-    /// Casts a [shape](ShapeCaster) with a given rotation from `origin` in a given `direction` and computes the closest [intersection](ShapeIntersection).
-    /// with a collider. If there are no intersections, `None` is returned.
+    /// Casts a [shape](ShapeCaster) with a given rotation from `origin` in a given `direction` and computes the closest [hit](ShapeHit).
+    /// with a collider. If there are no hits, `None` is returned.
     ///
     /// This should be used when you don't need to shape cast on every frame and want the result instantly.
     /// Otherwise, using [`ShapeCaster`] can be more convenient.
@@ -229,7 +229,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Vector,
         max_time_of_impact: f32,
         ignore_origin_penetration: bool,
-    ) -> Option<ShapeIntersection> {
+    ) -> Option<ShapeHitData> {
         let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = self
             .colliders
             .iter()
@@ -270,13 +270,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, intersection))| ShapeIntersection {
+            .map(|(_, (entity_bits, hit))| ShapeHitData {
                 entity: Entity::from_bits(entity_bits),
-                time_of_impact: intersection.toi,
-                point1: intersection.witness1.into(),
-                point2: intersection.witness2.into(),
-                normal1: intersection.normal1.into(),
-                normal2: intersection.normal2.into(),
+                time_of_impact: hit.toi,
+                point1: hit.witness1.into(),
+                point2: hit.witness2.into(),
+                normal1: hit.normal1.into(),
+                normal2: hit.normal2.into(),
             })
     }
 }
