@@ -5,7 +5,7 @@ use parry::query::{
         RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
     },
     point::PointCompositeShapeProjBestFirstVisitor,
-    visitors::RayIntersectionsVisitor,
+    visitors::{PointIntersectionsVisitor, RayIntersectionsVisitor},
 };
 
 #[cfg(feature = "2d")]
@@ -75,9 +75,6 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
     /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes the closest [hit](RayHitData)
     /// with a collider. If there are no hits, `None` is returned.
-    ///
-    /// This should be used when you don't need frequent ray casts and want the result instantly.
-    /// Otherwise, using [`RayCaster`] is recommended.
     pub fn cast_ray(
         &self,
         origin: Vector,
@@ -112,9 +109,6 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`, some hits will be missed.
-    ///
-    /// This should be used when you don't need frequent ray casts and want the result instantly.
-    /// Otherwise, using [`RayCaster`] is recommended.
     pub fn ray_hits(
         &self,
         origin: Vector,
@@ -156,13 +150,10 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         hits
     }
 
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData)
-    /// until the given `callback` returns false or all hits have been computed.
+    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData), calling
+    /// `callback` for each of them. The ray cast stops when `callback` returns false or all hits have been found.
     ///
-    /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`, some hits will be missed.
-    ///
-    /// This should be used when you don't need frequent ray casts and want the result instantly.
-    /// Otherwise, using [`RayCaster`] is recommended.
+    /// Note that the order of the results is not guaranteed.
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
@@ -283,6 +274,67 @@ impl<'w, 's> SpatialQuery<'w, 's> {
                 point: projection.point.into(),
                 is_inside: projection.is_inside,
             })
+    }
+
+    /// Finds all entities with a collider that contains the given point.
+    pub fn point_intersections(
+        &self,
+        point: Vector,
+        query_filter: SpatialQueryFilter,
+    ) -> Vec<Entity> {
+        let point = point.into();
+
+        let mut intersections = vec![];
+
+        let mut leaf_callback = &mut |entity_bits: &u64| {
+            let entity = Entity::from_bits(*entity_bits);
+            if let Ok((entity, position, rotation, shape, layers)) = self.colliders.get(entity) {
+                let isometry = utils::make_isometry(position.0, rotation);
+                if query_filter.test(entity, layers.map_or(CollisionLayers::default(), |l| *l))
+                    && shape.contains_point(&isometry, &point)
+                {
+                    intersections.push(entity);
+                }
+            }
+            true
+        };
+
+        let mut visitor = PointIntersectionsVisitor::new(&point, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
+    }
+
+    /// Finds all entities with a collider that contains the given `point`, calling `callback` for each intersection.
+    /// The search stops when `callback` returns `false` or all intersections have been found.
+    pub fn point_intersections_callback(
+        &self,
+        point: Vector,
+        query_filter: SpatialQueryFilter,
+        mut callback: impl FnMut(Entity) -> bool,
+    ) -> Vec<Entity> {
+        let point = point.into();
+
+        let mut intersections = vec![];
+
+        let mut leaf_callback = &mut |entity_bits: &u64| {
+            let entity = Entity::from_bits(*entity_bits);
+            if let Ok((entity, position, rotation, shape, layers)) = self.colliders.get(entity) {
+                let isometry = utils::make_isometry(position.0, rotation);
+                if query_filter.test(entity, layers.map_or(CollisionLayers::default(), |l| *l))
+                    && shape.contains_point(&isometry, &point)
+                {
+                    intersections.push(entity);
+                    return callback(entity);
+                }
+            }
+            true
+        };
+
+        let mut visitor = PointIntersectionsVisitor::new(&point, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
     }
 }
 
