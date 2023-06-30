@@ -372,6 +372,114 @@ impl<'w, 's> SpatialQuery<'w, 's> {
 
         intersections
     }
+
+    /// Finds all entities with a [`Collider`] that is intersecting the given `shape` with a given position and rotation.
+    pub fn shape_intersections(
+        &self,
+        shape: &Collider,
+        shape_position: Vector,
+        shape_rotation: ShapeRotation,
+        query_filter: SpatialQueryFilter,
+    ) -> Vec<Entity> {
+        let colliders = self.get_collider_hash_map();
+        let rotation: Rotation;
+        #[cfg(feature = "2d")]
+        {
+            rotation = Rotation::from_radians(shape_rotation);
+        }
+        #[cfg(feature = "3d")]
+        {
+            rotation = Rotation::from(shape_rotation);
+        }
+
+        let shape_isometry = utils::make_isometry(shape_position, &rotation);
+        let inverse_shape_isometry = shape_isometry.inverse();
+
+        let dispatcher = &*self.query_pipeline.dispatcher;
+        let mut intersections = vec![];
+
+        let mut leaf_callback = &mut |entity_bits: &u64| {
+            let entity = Entity::from_bits(*entity_bits);
+
+            if let Some((collider_isometry, collider_shape, layers)) = colliders.get(&entity) {
+                if query_filter.test(entity, *layers) {
+                    let isometry = inverse_shape_isometry * collider_isometry;
+
+                    if dispatcher.intersection_test(
+                        &isometry,
+                        &**shape.get_shape(),
+                        &**collider_shape,
+                    ) == Ok(true)
+                    {
+                        intersections.push(entity);
+                    }
+                }
+            }
+            true
+        };
+
+        let shape_aabb = shape.compute_aabb(&shape_isometry);
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
+    }
+
+    /// Finds all entities with a [`Collider`] that is intersecting the given `shape` with a given position and rotation,
+    /// calling `callback` for each intersection. The search stops when `callback` returns `false` or all intersections
+    /// have been found.
+    pub fn shape_intersections_callback(
+        &self,
+        shape: &Collider,
+        shape_position: Vector,
+        shape_rotation: ShapeRotation,
+        query_filter: SpatialQueryFilter,
+        mut callback: impl FnMut(Entity) -> bool,
+    ) -> Vec<Entity> {
+        let colliders = self.get_collider_hash_map();
+        let rotation: Rotation;
+        #[cfg(feature = "2d")]
+        {
+            rotation = Rotation::from_radians(shape_rotation);
+        }
+        #[cfg(feature = "3d")]
+        {
+            rotation = Rotation::from(shape_rotation);
+        }
+
+        let shape_isometry = utils::make_isometry(shape_position, &rotation);
+        let inverse_shape_isometry = shape_isometry.inverse();
+
+        let dispatcher = &*self.query_pipeline.dispatcher;
+        let mut intersections = vec![];
+
+        let mut leaf_callback = &mut |entity_bits: &u64| {
+            let entity = Entity::from_bits(*entity_bits);
+
+            if let Some((collider_isometry, collider_shape, layers)) = colliders.get(&entity) {
+                if query_filter.test(entity, *layers) {
+                    let isometry = inverse_shape_isometry * collider_isometry;
+
+                    if dispatcher.intersection_test(
+                        &isometry,
+                        &**shape.get_shape(),
+                        &**collider_shape,
+                    ) == Ok(true)
+                    {
+                        intersections.push(entity);
+                        return callback(entity);
+                    }
+                }
+            }
+            true
+        };
+
+        let shape_aabb = shape.compute_aabb(&shape_isometry);
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
+    }
 }
 
 /// The result of a point projection on a collider.
