@@ -120,36 +120,18 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         solid: bool,
         query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
-        let colliders = self.get_collider_hash_map();
-
-        let mut hits = Vec::with_capacity(max_hits.min(100) as usize);
-        let ray = parry::query::Ray::new(origin.into(), direction.into());
-
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
-            if let Some((iso, shape, layers)) = colliders.get(&entity) {
-                if query_filter.test(entity, *layers) {
-                    if let Some(hit) =
-                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                    {
-                        hits.push(RayHitData {
-                            entity,
-                            time_of_impact: hit.toi,
-                            normal: hit.normal.into(),
-                        });
-
-                        return (hits.len() as u32) < max_hits;
-                    }
-                }
-            }
-            true
-        };
-
-        let mut visitor =
-            RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
-        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
-
-        hits
+        let mut hits = 0;
+        self.ray_hits_callback(
+            origin,
+            direction,
+            max_time_of_impact,
+            solid,
+            query_filter,
+            |_, _| {
+                hits += 1;
+                hits < max_hits
+            },
+        )
     }
 
     /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData), calling
@@ -284,27 +266,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         point: Vector,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
-        let point = point.into();
-
-        let mut intersections = vec![];
-
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
-            if let Ok((entity, position, rotation, shape, layers)) = self.colliders.get(entity) {
-                let isometry = utils::make_isometry(position.0, rotation);
-                if query_filter.test(entity, layers.map_or(CollisionLayers::default(), |l| *l))
-                    && shape.contains_point(&isometry, &point)
-                {
-                    intersections.push(entity);
-                }
-            }
-            true
-        };
-
-        let mut visitor = PointIntersectionsVisitor::new(&point, &mut leaf_callback);
-        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
+        self.point_intersections_callback(point, query_filter, |_| true)
     }
 
     /// Finds all entities with a collider that contains the given `point`, calling `callback` for each intersection.
@@ -341,16 +303,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
 
     /// Finds all entities with a [`ColliderAabb`] that is intersecting the given AABB.
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
-        let mut intersections = vec![];
-        let mut leaf_callback = |entity_bits: &u64| {
-            intersections.push(Entity::from_bits(*entity_bits));
-            true
-        };
-
-        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
-        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
+        self.aabb_intersections_with_aabb_callback(aabb, |_| true)
     }
 
     /// Finds all entities with a [`ColliderAabb`] that is intersecting the given `aabb`, calling `callback` for each intersection.
@@ -381,48 +334,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         shape_rotation: ShapeRotation,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
-        let colliders = self.get_collider_hash_map();
-        let rotation: Rotation;
-        #[cfg(feature = "2d")]
-        {
-            rotation = Rotation::from_radians(shape_rotation);
-        }
-        #[cfg(feature = "3d")]
-        {
-            rotation = Rotation::from(shape_rotation);
-        }
-
-        let shape_isometry = utils::make_isometry(shape_position, &rotation);
-        let inverse_shape_isometry = shape_isometry.inverse();
-
-        let dispatcher = &*self.query_pipeline.dispatcher;
-        let mut intersections = vec![];
-
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
-
-            if let Some((collider_isometry, collider_shape, layers)) = colliders.get(&entity) {
-                if query_filter.test(entity, *layers) {
-                    let isometry = inverse_shape_isometry * collider_isometry;
-
-                    if dispatcher.intersection_test(
-                        &isometry,
-                        &**shape.get_shape(),
-                        &**collider_shape,
-                    ) == Ok(true)
-                    {
-                        intersections.push(entity);
-                    }
-                }
-            }
-            true
-        };
-
-        let shape_aabb = shape.compute_aabb(&shape_isometry);
-        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
-        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
+        self.shape_intersections_callback(
+            shape,
+            shape_position,
+            shape_rotation,
+            query_filter,
+            |_| true,
+        )
     }
 
     /// Finds all entities with a [`Collider`] that is intersecting the given `shape` with a given position and rotation,
