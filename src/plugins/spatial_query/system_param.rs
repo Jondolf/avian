@@ -5,7 +5,9 @@ use parry::query::{
         RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
     },
     point::PointCompositeShapeProjBestFirstVisitor,
-    visitors::{PointIntersectionsVisitor, RayIntersectionsVisitor},
+    visitors::{
+        BoundingVolumeIntersectionsVisitor, PointIntersectionsVisitor, RayIntersectionsVisitor,
+    },
 };
 
 #[cfg(feature = "2d")]
@@ -332,6 +334,40 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         };
 
         let mut visitor = PointIntersectionsVisitor::new(&point, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
+    }
+
+    /// Finds all entities with a [`ColliderAabb`] that is intersecting the given AABB.
+    pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
+        let mut intersections = vec![];
+        let mut leaf_callback = |entity_bits: &u64| {
+            intersections.push(Entity::from_bits(*entity_bits));
+            true
+        };
+
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
+        self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
+
+        intersections
+    }
+
+    /// Finds all entities with a [`ColliderAabb`] that is intersecting the given `aabb`, calling `callback` for each intersection.
+    /// The search stops when `callback` returns `false` or all intersections have been found.
+    pub fn aabb_intersections_with_aabb_callback(
+        &self,
+        aabb: ColliderAabb,
+        mut callback: impl FnMut(Entity) -> bool,
+    ) -> Vec<Entity> {
+        let mut intersections = vec![];
+        let mut leaf_callback = |entity_bits: &u64| {
+            let entity = Entity::from_bits(*entity_bits);
+            intersections.push(entity);
+            callback(entity)
+        };
+
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
         self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
 
         intersections
