@@ -7,7 +7,7 @@ use parry::{
     shape::Shape,
 };
 
-/// A component used for ray casting.
+/// A component used for [ray casting](spatial_query#ray-casting).
 ///
 /// **Ray casting** is a type of [spatial query](spatial_query) that finds one or more hits
 /// between a ray and a set of colliders.
@@ -16,8 +16,8 @@ use parry::{
 /// and add them to the [`RayHits`] component. Each hit has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
-/// The [`RayCaster`] is the easiest way to handle ray casting. If you want more control and don't want to perform ray casts
-/// on every frame, consider using the [`SpatialQuery`] system parameter.
+/// The [`RayCaster`] is the easiest way to handle simple ray casts. If you want more control and don't want to
+/// perform ray casts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Hit count and order
 ///
@@ -320,7 +320,7 @@ impl RayHits {
     }
 }
 
-/// Data related to a hit during a [ray cast](RayCaster).
+/// Data related to a hit during a [ray cast](spatial_query#ray-casting).
 #[derive(Clone, Copy, Debug)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.

@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape};
 
-/// A component used for shape casting.
+/// A component used for [shape casting](spatial_query#shape-casting).
 ///
 /// **Shape casting** is a type of [spatial query](spatial_query) where a shape travels along a straight
 /// line and computes hits with colliders. This is often used to determine how far an object can move
@@ -11,9 +11,8 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 /// Each shape cast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
 /// a local `direction`. The [`ShapeCaster`] will find the closest hit as a [`ShapeHit`].
 ///
-/// The [`ShapeCaster`] is the easiest way to handle shape casting.
-/// If you want more control and don't want to perform shape casts on every frame, consider using
-/// the [`SpatialQuery`] system parameter.
+/// The [`ShapeCaster`] is the easiest way to handle simple shape casting. If you want more control and don't want
+/// to perform shape casts on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Example
 ///
@@ -297,7 +296,7 @@ impl ShapeCaster {
 #[derive(Component, Clone, Copy, Debug)]
 pub struct ShapeHit(pub Option<ShapeHitData>);
 
-/// Data related to a hit during a [shape cast](ShapeCaster).
+/// Data related to a hit during a [shape cast](spatial_query#shape-casting).
 #[derive(Component, Clone, Copy, Debug)]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the ray.

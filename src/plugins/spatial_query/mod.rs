@@ -1,6 +1,149 @@
-//! Handles spatial queries like [ray casting](RayCaster) and shape casting.
+//! **Spatial queries** are a way to get information about the environment. They perform geometric queries
+//! on [colliders](Collider) and retrieve data about intersections.
 //!
-//! See [`SpatialQueryPlugin`].
+//! There are four types of spatial queries: [ray casts](#ray-casting), [shape casts](#shape-casting),
+//! [point projection](#point-projection) and [intersection tests](#intersection-tests).
+//! All spatial queries can be done using the various methods provided by the [`SpatialQuery`] system parameter.
+//!
+//! Ray casting and shape casting can also be done with a component-based approach using the [`RayCaster`] and
+//! [`ShapeCaster`] components. They enable performing casts every frame in a way that is often more convenient
+//! than the normal [`SpatialQuery`] methods. See their documentation for more information.
+//!
+//! ## Ray casting
+//!
+//! **Ray casting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
+//! a variety of things like getting information about the environment for character controllers and AI,
+//! and even rendering using ray tracing.
+//!
+//! For each hit during ray casting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
+//! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
+//! the point of intersection.
+//!
+//! There are two ways to perform ray casts.
+//!
+//! 1. For simple ray casts, use the [`RayCaster`] component. It returns the results of the ray cast
+//! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
+//! it's attached to or its parent.
+//! 2. When you need more control or don't want to cast every frame, use the ray casting methods provided by
+//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery#method.cast_ray), [`ray_hits`](SpatialQuery#method.ray_hits) or
+//! [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback).
+//!
+//! See the documentation of the components and methods for more information.
+//!
+//! A simple example using the component-based method looks like this:
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
+//! use bevy_xpbd_3d::prelude::*;
+//!
+//! # #[cfg(all(feature = "3d", feature = "f32"))]
+//! fn setup(mut commands: Commands) {
+//!     // Spawn a ray caster at the center with the rays travelling right
+//!     commands.spawn(RayCaster::new(Vec3::ZERO, Vec3::X));
+//!     // ...spawn colliders and other things
+//! }
+//!
+//! fn print_hits(query: Query<(&RayCaster, &RayHits)>) {
+//!     for (ray, hits) in &query {
+//!         // For the faster iterator that isn't sorted, use `.iter()`
+//!         for hit in hits.iter_sorted() {
+//!             println!(
+//!                 "Hit entity {:?} at {} with normal {}",
+//!                 hit.entity,
+//!                 ray.origin + ray.direction * hit.time_of_impact,
+//!                 hit.normal,
+//!             );
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
+//!
+//! ## Shape casting
+//!
+//! **Shape casting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
+//! that is travelling along a half-line. It is very similar to [ray casting](#ray-casting), but instead of a "point"
+//! we have an entire shape travelling along a half-line. One use case is determining how far an object can move
+//! before it hits the environment.
+//!
+//! For each hit during shape casting, the hit entity, the *time of impact*, two local points of intersection and two local
+//! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
+//! hit, which is essentially the distance from the shape origin to the global point of intersection.
+//!
+//! There are two ways to perform shape casts.
+//!
+//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the closest hit with a collider
+//! in the [`ShapeHit`] component every frame. It uses local coordinates, so it will automatically follow the entity
+//! it's attached to or its parent.
+//! 2. When you need more control or don't want to cast every frame, use the [`SpatialQuery`] system parameter's
+//! method [`cast_shape`](SpatialQuery#method.cast_shape).
+//!
+//! See the documentation of the components and methods for more information.
+//!
+//! A simple example using the component-based method looks like this:
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # #[cfg(feature = "2d")]
+//! # use bevy_xpbd_2d::prelude::*;
+//! # #[cfg(feature = "3d")]
+//! use bevy_xpbd_3d::prelude::*;
+//!
+//! # #[cfg(all(feature = "3d", feature = "f32"))]
+//! fn setup(mut commands: Commands) {
+//!     // Spawn a shape caster with a ball shape at the center travelling right
+//!     commands.spawn(ShapeCaster::new(
+//!         Collider::ball(0.5), // Shape
+//!         Vec3::ZERO,          // Origin
+//!         Quat::default(),     // Shape rotation
+//!         Vec3::X              // Direction
+//!     ));
+//!     // ...spawn colliders and other things
+//! }
+//!
+//! fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
+//!     for (shape_caster, hit) in &query {
+//!         if let Some(hit) = hit.0 {
+//!             println!("Hit entity {:?}", hit.entity);
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
+//!
+//! ## Point projection
+//!
+//! **Point projection** is a spatial query that projects a point on the closest collider. It returns the collider's
+//! entity, the projected point, and whether the point is inside of the collider.
+//!
+//! Point projection can be done with the [`project_point`](SpatialQuery#method.project_point) method of the [`SpatialQuery`]
+//! system parameter. See its documentation for more information.
+//!
+//! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
+//!
+//! ## Intersection tests
+//!
+//! **Intersection tests** are spatial queries that return the entities of colliders that are intersecting a given
+//! shape or area.
+//!
+//! There are three types of intersection tests. They are all methods of the [`SpatialQuery`] system parameter,
+//! and they all have callback variants that call a given callback on each intersection.
+//!
+//! - [`point_intersections`](SpatialQuery#method.point_intersections): Finds all entities with a collider that contains
+//! the given point.
+//! - [`aabb_intersections_with_aabb`](SpatialQuery#method.aabb_intersections_with_aabb):
+//! Finds all entities with a [`ColliderAabb`] that is intersecting the given [`ColliderAabb`].
+//! - [`shape_intersections`](SpatialQuery#method.shape_intersections): Finds all entities with a [collider](Collider)
+//! that is intersecting the given shape.
+//!
+//! See the documentation of the components and methods for more information.
+//!
+//! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 
 mod pipeline;
 mod query_filter;
@@ -17,10 +160,9 @@ pub use system_param::*;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 
-/// Handles spatial queries like [ray casting](RayCaster) and shape casting.
-///
-/// The [`SpatialQueryPipeline`] resource is used to maintain a quaternary bounding volume hierarchy
-/// as an acceleration structure for the queries.
+/// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
+/// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
+/// [`RayCaster`] and [`ShapeCaster`].
 pub struct SpatialQueryPlugin;
 
 impl Plugin for SpatialQueryPlugin {
