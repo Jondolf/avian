@@ -1,5 +1,5 @@
 use crate::prelude::*;
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{prelude::*, utils::HashSet};
 use derive_more::From;
