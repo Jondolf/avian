@@ -473,7 +473,33 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
     }
 
-    /// Finds all entities with a collider that contains the given point.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
+    /// that contains the given point.
+    ///
+    /// ## Arguments
+    ///
+    /// - `point`: The point that intersections are tested against.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_point_intersections(spatial_query: SpatialQuery) {
+    ///     let intersections =
+    ///         spatial_query.point_intersections(Vec3::ZERO, SpatialQueryFilter::default());
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn point_intersections(
         &self,
         point: Vector,
@@ -482,8 +508,43 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.point_intersections_callback(point, query_filter, |_| true)
     }
 
-    /// Finds all entities with a collider that contains the given `point`, calling `callback` for each intersection.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
+    /// that contains the given point, calling the given `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
+    ///
+    /// ## Arguments
+    ///
+    /// - `point`: The point that intersections are tested against.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `callback`: A callback function called for each intersection.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_point_intersections(spatial_query: SpatialQuery) {
+    ///     let mut intersections = vec![];
+    ///     
+    ///     spatial_query.point_intersections_callback(
+    ///         Vec3::ZERO,                     // Point
+    ///         SpatialQueryFilter::default(),  // Query filter
+    ///         |entity| {                      // Callback function
+    ///             intersections.push(entity);
+    ///             true
+    ///         },
+    ///     );
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn point_intersections_callback(
         &self,
         point: Vector,
@@ -514,13 +575,62 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         intersections
     }
 
-    /// Finds all entities with a [`ColliderAabb`] that is intersecting the given AABB.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
+    /// that is intersecting the given `aabb`.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
+    ///     let aabb = Collider::ball(0.5).compute_aabb(Vector::ZERO, Quat::default());
+    ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
         self.aabb_intersections_with_aabb_callback(aabb, |_| true)
     }
 
-    /// Finds all entities with a [`ColliderAabb`] that is intersecting the given `aabb`, calling `callback` for each intersection.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
+    /// that is intersecting the given `aabb`, calling `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
+    ///     let mut intersections = vec![];
+    ///
+    ///     spatial_query.aabb_intersections_with_aabb_callback(
+    ///         Collider::ball(0.5).compute_aabb(Vector::ZERO, Quat::default()),
+    ///         |entity| {
+    ///             intersections.push(entity);
+    ///             true
+    ///         }
+    ///     );
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn aabb_intersections_with_aabb_callback(
         &self,
         aabb: ColliderAabb,
@@ -539,7 +649,39 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         intersections
     }
 
-    /// Finds all entities with a [`Collider`] that is intersecting the given `shape` with a given position and rotation.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
+    /// that is intersecting the given `shape` with a given position and rotation.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
+    /// - `shape_position`: The position of the shape.
+    /// - `shape_rotation`: The rotation of the shape.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_shape_intersections(spatial_query: SpatialQuery) {
+    ///     let intersections = spatial_query.shape_intersections(
+    ///         &Collider::ball(0.5),          // Shape
+    ///         Vec3::ZERO,                    // Shape position
+    ///         Quat::default(),               // Shape rotation
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     );
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn shape_intersections(
         &self,
         shape: &Collider,
@@ -556,9 +698,47 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Finds all entities with a [`Collider`] that is intersecting the given `shape` with a given position and rotation,
-    /// calling `callback` for each intersection. The search stops when `callback` returns `false` or all intersections
-    /// have been found.
+    /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
+    /// that is intersecting the given `shape` with a given position and rotation, calling `callback` for each
+    /// intersection. The search stops when `callback` returns `false` or all intersections have been found.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
+    /// - `shape_position`: The position of the shape.
+    /// - `shape_rotation`: The rotation of the shape.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `callback`: A callback function called for each intersection.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_shape_intersections(spatial_query: SpatialQuery) {
+    ///     let mut intersections = vec![];
+    ///
+    ///     spatial_query.shape_intersections_callback(
+    ///         &Collider::ball(0.5),          // Shape
+    ///         Vec3::ZERO,                    // Shape position
+    ///         Quat::default(),               // Shape rotation
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///         |entity| {                     // Callback function
+    ///             intersections.push(entity);
+    ///             true
+    ///         },
+    ///     );
+    ///
+    ///     for entity in intersections.iter() {
+    ///         println!("Entity: {:?}", entity);
+    ///     }
+    /// }
+    /// ```
     pub fn shape_intersections_callback(
         &self,
         shape: &Collider,
