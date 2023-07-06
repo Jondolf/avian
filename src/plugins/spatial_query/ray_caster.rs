@@ -303,18 +303,23 @@ pub struct RayHits {
 }
 
 impl RayHits {
+    /// Returns a slice over the ray hits.
+    pub fn as_slice(&self) -> &[RayHitData] {
+        &self.vector[0..self.count as usize]
+    }
+
     /// Returns an iterator over the hits in arbitrary order.
     ///
     /// If you want to get them sorted by time of impact, use `iter_sorted`.
     pub fn iter(&self) -> std::slice::Iter<RayHitData> {
-        self.vector[0..self.count as usize].iter()
+        self.as_slice().iter()
     }
 
     /// Returns an iterator over the hits, sorted in ascending order according to the time of impact.
     ///
     /// Note that this creates and sorts a new vector. If you don't need the hits in order, use `iter`.
     pub fn iter_sorted(&self) -> std::vec::IntoIter<RayHitData> {
-        let mut vector = self.vector[0..self.count as usize].to_vec();
+        let mut vector = self.as_slice().to_vec();
         vector.sort_by(|a, b| a.time_of_impact.partial_cmp(&b.time_of_impact).unwrap());
         vector.into_iter()
     }
