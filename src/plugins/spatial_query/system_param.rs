@@ -238,7 +238,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 
     /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
-    /// for each of them. The ray cast stops when `callback` returns false or all hits have been found.
+    /// for each hit. The ray cast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
     ///
@@ -247,10 +247,10 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
-    /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `callback`: A callback function called for each hit.
     ///
     /// ## Example
     ///
@@ -269,13 +269,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     spatial_query.ray_hits_callback(
     ///         Vec3::ZERO,                    // Origin
     ///         Vec3::X,                       // Direction
-    ///         100.0,                         // Maximum time of impact (travel distance)t
+    ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
     ///         SpatialQueryFilter::default(), // Query filter
     ///         |hit| {                        // Callback function
     ///             hits.push(hit);
     ///             true
-    ///         }
+    ///         },
     ///     );
     ///
     ///     // Print hits
@@ -355,8 +355,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast ray and print first hit
-    ///     if let Some(first_hit) = spatial_query.cast_shape
-    ///         Collider::ball(0.5),           // Shape
+    ///     if let Some(first_hit) = spatial_query.cast_shape(
+    ///         &Collider::ball(0.5),          // Shape
     ///         Vec3::ZERO,                    // Origin
     ///         Quat::default(),               // Shape rotation
     ///         Vec3::X,                       // Direction
@@ -418,7 +418,37 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
     }
 
-    /// Finds the projection of a given point on the closest collider.
+    /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
+    /// If one isn't found, `None` is returned.
+    ///
+    /// ## Arguments
+    ///
+    /// - `point`: The point that should be projected.
+    /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
+    /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_point_projection(spatial_query: SpatialQuery) {
+    ///     // Project a point and print the result
+    ///     if let Some(projection) = spatial_query.project_point(
+    ///         Vec3::ZERO,                    // Point
+    ///         true,                          // Are colliders treated as "solid"
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     ) {
+    ///         println!("Projection: {:?}", projection);
+    ///     }
+    /// }
+    /// ```
     pub fn project_point(
         &self,
         point: Vector,
@@ -583,7 +613,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 }
 
-/// The result of a point projection on a collider.
+/// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).
+#[derive(Debug, Clone, PartialEq)]
 pub struct PointProjection {
     /// The entity of the collider that the point was projected onto.
     pub entity: Entity,
