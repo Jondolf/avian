@@ -87,6 +87,7 @@ impl Plugin for PhysicsSetupPlugin {
                 PhysicsSet::BroadPhase,
                 PhysicsSet::Substeps,
                 PhysicsSet::Sleeping,
+                PhysicsSet::SpatialQuery,
                 PhysicsSet::Sync,
             )
                 .chain(),

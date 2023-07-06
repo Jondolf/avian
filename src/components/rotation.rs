@@ -48,8 +48,6 @@ pub struct Rotation {
 ///     // Spawn a dynamic rigid body rotated by 1.5 radians around the x axis
 ///     commands.spawn((RigidBody::Dynamic, Rotation(Quat::from_rotation_x(1.5))));
 /// }
-/// # #[cfg(not(feature = "f32"))]
-/// # fn setup() {}
 /// ```
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]

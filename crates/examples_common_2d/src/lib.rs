@@ -1,5 +1,7 @@
-use bevy::prelude::*;
+pub extern crate bevy_prototype_debug_lines;
 
+use bevy::prelude::*;
+use bevy_prototype_debug_lines::DebugLinesPlugin;
 use bevy_screen_diagnostics::{ScreenDiagnosticsPlugin, ScreenFrameDiagnosticsPlugin};
 use bevy_xpbd_2d::prelude::*;
 
@@ -16,6 +18,10 @@ impl Plugin for XpbdExamplePlugin {
             .add_system(bevy_xpbd_2d::resume.in_schedule(OnExit(AppState::Paused)))
             .add_system(pause_button)
             .add_system(step_button.run_if(in_state(AppState::Paused)));
+        #[cfg(not(feature = "debug-plugin"))]
+        {
+            app.add_plugin(DebugLinesPlugin::default());
+        }
     }
 }
 

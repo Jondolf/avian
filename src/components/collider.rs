@@ -88,6 +88,24 @@ impl Collider {
         &self.0
     }
 
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    #[cfg(feature = "2d")]
+    pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
+        ColliderAabb(self.get_shape().compute_aabb(&utils::make_isometry(
+            position,
+            &Rotation::from_radians(rotation),
+        )))
+    }
+
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    #[cfg(feature = "3d")]
+    pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
+        ColliderAabb(
+            self.get_shape()
+                .compute_aabb(&utils::make_isometry(position, &Rotation(rotation))),
+        )
+    }
+
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,

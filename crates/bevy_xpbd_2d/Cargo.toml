@@ -16,7 +16,7 @@ default = [ "2d", "f32" ]
 2d = []
 f32 = [ "dep:parry2d" ]
 f64 = [ "dep:parry2d-f64" ]
-debug-plugin = [ "dep:bevy_prototype_debug_lines" ]
+debug-plugin = [ "dep:bevy_prototype_debug_lines", "examples_common_2d/debug-plugin" ]
 simd = [ "parry2d?/simd-stable", "parry2d-f64?/simd-stable" ]
 enhanced-determinism = [ "parry2d?/enhanced-determinism", "parry2d-f64?/enhanced-determinism" ]
 
@@ -59,6 +59,10 @@ required-features = ["2d"]
 
 [[example]]
 name = "prismatic_joint_2d"
+required-features = ["2d"]
+
+[[example]]
+name = "ray_caster"
 required-features = ["2d"]
 
 [[example]]

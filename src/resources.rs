@@ -176,7 +176,7 @@ impl Default for DeactivationTime {
 ///         .run();
 /// }
 /// # #[cfg(not(all(feature = "3d", feature = "f32")))]
-/// # fn main() {}
+/// # fn main() {} // Doc test needs main
 /// ```
 ///
 /// You can also modify gravity while the app is running.

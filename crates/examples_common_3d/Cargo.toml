@@ -3,6 +3,9 @@ name = "examples_common_3d"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+debug-plugin = []
+
 [dependencies]
 bevy = { version = "0.10.1", default-features = false, features = [
     "bevy_core_pipeline",
@@ -16,4 +19,5 @@ bevy = { version = "0.10.1", default-features = false, features = [
     "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
 bevy_screen_diagnostics = "0.2"
+bevy_prototype_debug_lines = "0.10.1"
 bevy_xpbd_3d = { path = "../bevy_xpbd_3d", default-features = false }

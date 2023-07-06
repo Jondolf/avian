@@ -27,6 +27,7 @@ pub mod prepare;
 pub mod setup;
 pub mod sleeping;
 pub mod solver;
+pub mod spatial_query;
 pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
@@ -37,6 +38,7 @@ pub use prepare::PreparePlugin;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;
 pub use solver::{solve_constraint, SolverPlugin};
+pub use spatial_query::*;
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
@@ -56,6 +58,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
+/// - [`SpatialQueryPlugin`]: Handles spatial queries like [ray casting](RayCaster) and shape casting.
 /// - [`SyncPlugin`]: Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
@@ -150,6 +153,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
+            .add(SpatialQueryPlugin)
             .add(SyncPlugin)
     }
 }
@@ -164,6 +168,7 @@ impl PluginGroup for PhysicsPlugins {
 ///     3. Update velocities
 ///     4. Solve velocity constraints (dynamic friction and restitution)
 /// 4. Sleeping
+/// 5. Spatial queries (ray casting and shape casting)
 /// 5. Sync data
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
@@ -185,6 +190,10 @@ pub enum PhysicsSet {
     ///
     /// See [`SleepingPlugin`].
     Sleeping,
+    /// Responsible for spatial queries like [ray casting](`RayCaster`) and shape casting.
+    ///
+    /// See [`SpatialQueryPlugin`].
+    SpatialQuery,
     /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
     ///
     /// See [`SyncPlugin`].

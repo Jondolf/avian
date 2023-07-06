@@ -1,0 +1,108 @@
+use std::sync::Arc;
+
+use crate::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
+use parry::{
+    partitioning::{Qbvh, QbvhUpdateWorkspace},
+    query::{DefaultQueryDispatcher, QueryDispatcher},
+    shape::{Shape, TypedSimdCompositeShape},
+    utils::DefaultStorage,
+};
+
+/// A resource for the spatial query pipeline.
+///
+/// The pipeline maintains a quaternary bounding volume hierarchy `Qbvh` of the world's colliders
+/// as an acceleration structure for spatial queries.
+#[derive(Resource, Clone)]
+pub struct SpatialQueryPipeline {
+    pub(crate) qbvh: Qbvh<u64>,
+    pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
+    pub(crate) workspace: QbvhUpdateWorkspace,
+}
+
+impl Default for SpatialQueryPipeline {
+    fn default() -> Self {
+        Self {
+            qbvh: Qbvh::new(),
+            dispatcher: Arc::new(DefaultQueryDispatcher),
+            workspace: QbvhUpdateWorkspace::default(),
+        }
+    }
+}
+
+impl SpatialQueryPipeline {
+    pub(crate) fn as_composite_shape<'a>(
+        &'a self,
+        colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape, CollisionLayers)>,
+        query_filter: SpatialQueryFilter,
+    ) -> QueryPipelineAsCompositeShape {
+        QueryPipelineAsCompositeShape {
+            pipeline: self,
+            colliders,
+            query_filter,
+        }
+    }
+
+    pub(crate) fn update_incremental(
+        &mut self,
+        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape)>,
+        modified: Vec<Entity>,
+        removed: Vec<Entity>,
+        refit_and_balance: bool,
+    ) {
+        for removed in removed {
+            self.qbvh.remove(removed.to_bits());
+        }
+
+        for modified in modified {
+            if colliders.get(&modified).is_some() {
+                self.qbvh.pre_update_or_insert(modified.to_bits());
+            }
+        }
+
+        if refit_and_balance {
+            let _ = self.qbvh.refit(0.0, &mut self.workspace, |entity_bits| {
+                let (iso, shape) = colliders.get(&Entity::from_bits(*entity_bits)).unwrap();
+                shape.compute_aabb(iso)
+            });
+        }
+    }
+}
+
+pub(crate) struct QueryPipelineAsCompositeShape<'a> {
+    colliders: &'a HashMap<Entity, (Isometry<Scalar>, &'a dyn Shape, CollisionLayers)>,
+    pipeline: &'a SpatialQueryPipeline,
+    query_filter: SpatialQueryFilter,
+}
+
+impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
+    type PartShape = dyn Shape;
+    type PartId = u64;
+    type QbvhStorage = DefaultStorage;
+
+    fn map_typed_part_at(
+        &self,
+        shape_id: Self::PartId,
+        mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
+    ) {
+        if let Some((entity, (iso, shape, layers))) =
+            self.colliders.get_key_value(&Entity::from_bits(shape_id))
+        {
+            if self.query_filter.test(*entity, *layers) {
+                f(Some(iso), &**shape);
+            }
+        }
+    }
+
+    fn map_untyped_part_at(
+        &self,
+        shape_id: Self::PartId,
+        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape),
+    ) {
+        self.map_typed_part_at(shape_id, f);
+    }
+
+    fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
+        &self.pipeline.qbvh
+    }
+}
