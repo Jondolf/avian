@@ -204,7 +204,7 @@ impl Collider {
     }
 
     /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh`.
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         use parry::shape::TriMeshFlags;
 
@@ -216,7 +216,7 @@ impl Collider {
 
     /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
     /// built from a given Bevy `Mesh`.
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         let vertices_indices = extract_mesh_vertices_indices(mesh);
         vertices_indices.map(|(v, i)| SharedShape::convex_decomposition(&v, &i).into())
@@ -291,10 +291,10 @@ impl Collider {
     }
 }
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 type VerticesIndices = (Vec<nalgebra::Point3<Scalar>>, Vec<[u32; 3]>);
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
     let indices = mesh.indices()?;
