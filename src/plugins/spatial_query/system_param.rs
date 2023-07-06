@@ -127,7 +127,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             max_time_of_impact,
             solid,
             query_filter,
-            |_, _| {
+            |_| {
                 hits += 1;
                 hits < max_hits
             },
@@ -145,7 +145,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
-        mut callback: impl FnMut(Entity, RayHitData) -> bool,
+        mut callback: impl FnMut(RayHitData) -> bool,
     ) -> Vec<RayHitData> {
         let colliders = self.get_collider_hash_map();
 
@@ -166,7 +166,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
                         };
                         hits.push(hit);
 
-                        return callback(entity, hit);
+                        return callback(hit);
                     }
                 }
             }
