@@ -107,8 +107,42 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
             .collect()
     }
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes the closest [hit](RayHitData)
-    /// with a collider. If there are no hits, `None` is returned.
+    /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
+    /// If there are no hits, `None` is returned.
+    ///
+    /// ## Arguments
+    ///
+    /// - `origin`: Where the ray is cast from.
+    /// - `direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
+    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
+    /// at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     // Cast ray and print first hit
+    ///     if let Some(first_hit) = spatial_query.cast_ray(
+    ///         Vec3::ZERO,                    // Origin
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)
+    ///         true,                          // Does the ray treat colliders as "solid"
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     ) {
+    ///         println!("First hit: {:?}", first_hit);
+    ///     }
+    /// }
+    /// ```
     pub fn cast_ray(
         &self,
         origin: Vector,
@@ -139,10 +173,49 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             })
     }
 
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData)
-    /// until `max_hits` is reached.
+    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
-    /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`, some hits will be missed.
+    /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
+    /// some hits will be missed.
+    ///
+    /// ## Arguments
+    ///
+    /// - `origin`: Where the ray is cast from.
+    /// - `direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
+    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
+    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
+    /// at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     // Cast ray and get hits
+    ///     let hits = spatial_query.ray_hits(
+    ///         Vec3::ZERO,                    // Origin
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)
+    ///         20,                            // Maximum number of hits
+    ///         true,                          // Does the ray treat colliders as "solid"
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     );
+    ///
+    ///     // Print hits
+    ///     for hit in hits.iter() {
+    ///         println!("Hit: {:?}", hit);
+    ///     }
+    /// }
+    /// ```
     pub fn ray_hits(
         &self,
         origin: Vector,
@@ -166,10 +239,54 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [ray](RayCaster) from `origin` in a given `direction` and computes all [hits](RayHitData), calling
-    /// `callback` for each of them. The ray cast stops when `callback` returns false or all hits have been found.
+    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
+    /// for each of them. The ray cast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
+    ///
+    /// ## Arguments
+    ///
+    /// - `origin`: Where the ray is cast from.
+    /// - `direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
+    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
+    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
+    /// at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     let mut hits = vec![];
+    ///
+    ///     // Cast ray and get all hits
+    ///     spatial_query.ray_hits_callback(
+    ///         Vec3::ZERO,                    // Origin
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)t
+    ///         true,                          // Does the ray treat colliders as "solid"
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///         |hit| {                        // Callback function
+    ///             hits.push(hit);
+    ///             true
+    ///         }
+    ///     );
+    ///
+    ///     // Print hits
+    ///     for hit in hits.iter() {
+    ///         println!("Hit: {:?}", hit);
+    ///     }
+    /// }
+    /// ```
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
