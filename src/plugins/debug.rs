@@ -48,9 +48,10 @@ impl Default for PhysicsDebugConfig {
 fn debug_render_aabbs(aabbs: Query<&ColliderAabb>, mut shapes: ResMut<DebugShapes>) {
     #[cfg(feature = "2d")]
     for aabb in aabbs.iter() {
-        shapes
-            .rect()
-            .min_max(Vec2::from(aabb.mins), Vec2::from(aabb.maxs));
+        shapes.rect().min_max(
+            Vector::from(aabb.mins).as_f32(),
+            Vector::from(aabb.maxs).as_f32(),
+        );
     }
 
     #[cfg(feature = "3d")]
