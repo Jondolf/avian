@@ -15,9 +15,26 @@ type ShapeRotation = Scalar;
 #[cfg(feature = "3d")]
 type ShapeRotation = Quaternion;
 
-/// A system parameter for spatial queries that require more precise control.
+/// A system parameter for performing [spatial queries](spatial_query).
 ///
-/// ## Example
+/// ## Methods
+///
+/// - [Ray casting](spatial_query#ray-casting): [`cast_ray`](SpatialQuery#method.cast_ray),
+/// [`ray_hits`](SpatialQuery#method.ray_hits), [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback)
+/// - [Shape casting](spatial_query#shape-casting): [`cast_shape`](SpatialQuery#method.cast_shape)
+/// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery#method.project_point)
+/// - [Intersection tests](spatial_query#intersection-tests)
+///     - Point intersections: [`point_intersections`](SpatialQuery#method.point_intersections),
+/// [`point_intersections_callback`](SpatialQuery#method.point_intersections_callback)
+///     - AABB intersections: [`aabb_intersections_with_aabb`](SpatialQuery#method.aabb_intersections_with_aabb),
+/// [`aabb_intersections_with_aabb_callback`](SpatialQuery#method.aabb_intersections_with_aabb_callback)
+///     - Shape intersections: [`shape_intersections`](SpatialQuery#method.shape_intersections)
+/// [`shape_intersections_callback`](SpatialQuery#method.shape_intersections_callback)
+///
+/// For simple ray casts and shape casts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
+/// provide a more ECS-based approach and perform casts on every frame.
+///
+/// ## Ray casting example
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -28,6 +45,18 @@ type ShapeRotation = Quaternion;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(spatial_query: SpatialQuery) {
+///     // Cast ray and print first hit
+///     if let Some(first_hit) = spatial_query.cast_ray(
+///         Vec3::ZERO,                    // Origin
+///         Vec3::X,                       // Direction
+///         100.0,                         // Maximum time of impact (travel distance)
+///         true,                          // Does the ray treat colliders as "solid"
+///         SpatialQueryFilter::default(), // Query filter
+///     ) {
+///         println!("First hit: {:?}", first_hit);
+///     }
+///
+///     // Cast ray and get up to 20 hits
 ///     let hits = spatial_query.ray_hits(
 ///         Vec3::ZERO,                    // Origin
 ///         Vec3::X,                       // Direction
@@ -37,7 +66,10 @@ type ShapeRotation = Quaternion;
 ///         SpatialQueryFilter::default(), // Query filter
 ///     );
 ///
-///     println!("{:?}", hits);
+///     // Print hits
+///     for hit in hits.iter() {
+///         println!("Hit: {:?}", hit);
+///     }
 /// }
 /// ```
 #[derive(SystemParam)]
