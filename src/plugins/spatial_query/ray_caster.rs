@@ -299,13 +299,24 @@ impl RayCaster {
 pub struct RayHits {
     pub(crate) vector: Vec<RayHitData>,
     /// The number of hits.
-    pub count: u32,
+    pub(crate) count: u32,
 }
 
 impl RayHits {
     /// Returns a slice over the ray hits.
     pub fn as_slice(&self) -> &[RayHitData] {
         &self.vector[0..self.count as usize]
+    }
+
+    /// Returns the number of hits.
+    #[doc(alias = "count")]
+    pub fn len(&self) -> usize {
+        self.count as usize
+    }
+
+    /// Returns true if the number of hits is 0.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
     }
 
     /// Returns an iterator over the hits in arbitrary order.
