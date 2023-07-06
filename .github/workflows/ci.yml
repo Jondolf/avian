@@ -33,7 +33,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 
       - name: Run cargo test
-        run: cargo test --no-default-features --features enhanced-determinism,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
+        run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
 
   lints:
     name: Lints
