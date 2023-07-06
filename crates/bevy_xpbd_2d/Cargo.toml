@@ -62,5 +62,9 @@ name = "prismatic_joint_2d"
 required-features = ["2d"]
 
 [[example]]
+name = "ray_caster"
+required-features = ["2d"]
+
+[[example]]
 name = "revolute_joint_2d"
 required-features = ["2d"]
