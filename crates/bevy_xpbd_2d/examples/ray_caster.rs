@@ -3,6 +3,8 @@
 //! An alternative, more controlled approach is to use the methods of
 //! the [`SpatialQuery`] system parameter.
 
+#![allow(clippy::unnecessary_cast)]
+
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::prelude::*;
 use examples_common_2d::{bevy_prototype_debug_lines::*, *};
@@ -34,7 +36,7 @@ fn setup(
 
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(radius).into()).into(),
+                    mesh: meshes.add(shape::Circle::new(radius as f32).into()).into(),
                     material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
                     ..default()
                 },
@@ -59,13 +61,13 @@ fn setup(
 fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut lines: ResMut<DebugLines>) {
     for (ray, hits) in &mut rays {
         // Convert to Vec3 for lines
-        let origin = ray.global_origin().extend(0.0);
-        let direction = ray.global_direction().extend(0.0);
+        let origin = ray.global_origin().extend(0.0).as_f32();
+        let direction = ray.global_direction().extend(0.0).as_f32();
 
         for hit in hits.iter() {
             lines.line_colored(
                 origin,
-                origin + direction * hit.time_of_impact,
+                origin + direction * hit.time_of_impact as f32,
                 0.001,
                 Color::GREEN,
             );
