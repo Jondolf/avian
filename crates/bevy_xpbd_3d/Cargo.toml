@@ -16,7 +16,7 @@ default = [ "3d", "f32", "simd" ]
 3d = []
 f32 = [ "dep:parry3d" ]
 f64 = [ "dep:parry3d-f64" ]
-debug-plugin = [ "dep:bevy_prototype_debug_lines" ]
+debug-plugin = [ "dep:bevy_prototype_debug_lines", "examples_common_3d/debug-plugin" ]
 simd = [ "parry3d?/simd-stable", "parry3d-f64?/simd-stable" ]
 enhanced-determinism = [ "parry3d?/enhanced-determinism", "parry3d-f64?/enhanced-determinism" ]
 
