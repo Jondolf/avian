@@ -12,13 +12,14 @@ keywords = [ "gamedev", "physics", "simulation", "xpbd", "bevy" ]
 categories = [ "game-development", "science", "simulation" ]
 
 [features]
-default = [ "2d", "f32" ]
+default = [ "2d", "f32", "collider-from-mesh" ]
 2d = []
 f32 = [ "dep:parry2d" ]
 f64 = [ "dep:parry2d-f64" ]
 debug-plugin = [ "dep:bevy_prototype_debug_lines", "examples_common_2d/debug-plugin" ]
 simd = [ "parry2d?/simd-stable", "parry2d-f64?/simd-stable" ]
 enhanced-determinism = [ "parry2d?/enhanced-determinism", "parry2d-f64?/enhanced-determinism" ]
+collider-from-mesh = [ "bevy/bevy_render" ]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -27,7 +28,7 @@ required-features = [ "2d" ]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.10.1", default-features = false, features = [ "bevy_render" ] }
+bevy = { version = "0.10.1", default-features = false }
 bevy_prototype_debug_lines = { version = "0.10.1", optional = true }
 parry2d = { version = "0.13.1", optional = true }
 parry2d-f64 = { version = "0.13.1", optional = true }

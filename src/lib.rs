@@ -71,6 +71,8 @@
 //!
 //! ### Feature flags
 //!
+//! Default features: `2d`/`3d`, `f32` and `collider-from-mesh`
+//!
 //! - `2d` enables simulation on the `x` and `y` axes. Enabled by default for `bevy_xpbd_2d`. Incompatible with `3d`.
 //! - `3d` enables simulation on the `x`, `y` and `z` axes. Enabled by default for `bevy_xpbd_3d`. Incompatible with `2d`.
 //! - `f32` enables using `f32` numbers. Incompatible with `f64`.
@@ -78,6 +80,7 @@
 //! small timesteps. Incompatible with `f32`.
 //! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and events like [AABBs](ColliderAabb)
 //! and [contacts](Contact).
+//! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
