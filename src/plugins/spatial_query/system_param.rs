@@ -575,7 +575,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             true
         };
 
-        let shape_aabb = shape.compute_aabb(&shape_isometry);
+        let shape_aabb = shape.get_shape().compute_aabb(&shape_isometry);
         let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
         self.query_pipeline.qbvh.traverse_depth_first(&mut visitor);
 
