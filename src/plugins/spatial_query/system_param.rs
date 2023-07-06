@@ -115,9 +115,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
-    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
-    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
-    /// at the collider's boundary.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// ## Example
@@ -184,9 +183,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
-    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
-    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
-    /// at the collider's boundary.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// ## Example
@@ -250,9 +248,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
-    /// - `solid`: If true and the ray origin is inside of a [collider](Collider), the hit point
-    /// will be the ray origin itself. Otherwise, the collider will be treated as hollow, and the hit point will be
-    /// at the collider's boundary.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// ## Example
@@ -329,11 +326,48 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         hits
     }
 
-    /// Casts a [shape](ShapeCaster) with a given rotation from `origin` in a given `direction` and computes the closest [hit](ShapeHit).
+    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHit)
     /// with a collider. If there are no hits, `None` is returned.
     ///
-    /// This should be used when you don't need to shape cast on every frame and want the result instantly.
-    /// Otherwise, using [`ShapeCaster`] can be more convenient.
+    /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape being cast represented as a [`Collider`].
+    /// - `origin`: Where the shape is cast from.
+    /// - `shape_rotation`: The rotation of the shape being cast.
+    /// - `direction`: What direction the shape is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the shape can travel.
+    /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
+    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    /// hit will be returned.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     // Cast ray and print first hit
+    ///     if let Some(first_hit) = spatial_query.cast_shape
+    ///         Collider::ball(0.5),           // Shape
+    ///         Vec3::ZERO,                    // Origin
+    ///         Quat::default(),               // Shape rotation
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)
+    ///         true,                          // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     ) {
+    ///         println!("First hit: {:?}", first_hit);
+    ///     }
+    /// }
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
