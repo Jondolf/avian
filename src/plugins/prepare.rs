@@ -259,13 +259,14 @@ fn update_aabb(
             .get_shape()
             .compute_aabb(&make_isometry(pos.0, rot));
         let half_extents = Vector::from(computed_aabb.half_extents());
+        let center = Vector::from(computed_aabb.center());
 
         // Add a safety margin.
         let safety_margin = safety_margin_factor * (lin_vel_len + ang_vel_len);
         let extended_half_extents = half_extents + safety_margin;
 
-        collider_query.aabb.mins.coords = (pos.0 - extended_half_extents).into();
-        collider_query.aabb.maxs.coords = (pos.0 + extended_half_extents).into();
+        collider_query.aabb.mins.coords = (center - extended_half_extents).into();
+        collider_query.aabb.maxs.coords = (center + extended_half_extents).into();
     }
 }
 
