@@ -29,6 +29,7 @@ type PosIntegrationComponents = (
     &'static mut PreviousPosition,
     &'static mut LinearVelocity,
     Option<&'static LinearDamping>,
+    Option<&'static GravityScale>,
     &'static ExternalForce,
     &'static Mass,
 );
@@ -39,7 +40,17 @@ fn integrate_pos(
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut pos, mut prev_pos, mut lin_vel, lin_damping, external_force, mass) in &mut bodies {
+    for (
+        rb,
+        mut pos,
+        mut prev_pos,
+        mut lin_vel,
+        lin_damping,
+        gravity_scale,
+        external_force,
+        mass,
+    ) in &mut bodies
+    {
         prev_pos.0 = pos.0;
 
         if rb.is_static() {
@@ -53,7 +64,7 @@ fn integrate_pos(
                 lin_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
             }
 
-            let gravitation_force = mass.0 * gravity.0;
+            let gravitation_force = mass.0 * gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
             let external_forces = gravitation_force + external_force.0;
             lin_vel.0 += sub_dt.0 * external_forces / mass.0;
         }

@@ -88,6 +88,7 @@ type BodyWokeUpFilter = Or<(
     Changed<AngularVelocity>,
     Changed<ExternalForce>,
     Changed<ExternalTorque>,
+    Changed<GravityScale>,
 )>;
 
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
