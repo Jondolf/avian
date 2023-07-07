@@ -64,6 +64,8 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PreSolveAngularVelocity>()
             .register_type::<Restitution>()
             .register_type::<Friction>()
+            .register_type::<LinearDamping>()
+            .register_type::<AngularDamping>()
             .register_type::<ExternalForce>()
             .register_type::<ExternalTorque>()
             .register_type::<Mass>()

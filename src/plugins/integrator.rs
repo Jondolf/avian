@@ -28,6 +28,7 @@ type PosIntegrationComponents = (
     &'static mut Position,
     &'static mut PreviousPosition,
     &'static mut LinearVelocity,
+    Option<&'static LinearDamping>,
     &'static ExternalForce,
     &'static Mass,
 );
@@ -38,15 +39,20 @@ fn integrate_pos(
     gravity: Res<Gravity>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut pos, mut prev_pos, mut lin_vel, external_force, mass) in &mut bodies {
+    for (rb, mut pos, mut prev_pos, mut lin_vel, lin_damping, external_force, mass) in &mut bodies {
         prev_pos.0 = pos.0;
 
         if rb.is_static() {
             continue;
         }
 
-        // Apply gravity and other external forces
+        // Apply damping, gravity and other external forces
         if rb.is_dynamic() {
+            // Apply damping
+            if let Some(damping) = lin_damping {
+                lin_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
+            }
+
             let gravitation_force = mass.0 * gravity.0;
             let external_forces = gravitation_force + external_force.0;
             lin_vel.0 += sub_dt.0 * external_forces / mass.0;
@@ -61,6 +67,7 @@ type RotIntegrationComponents = (
     &'static mut Rotation,
     &'static mut PreviousRotation,
     &'static mut AngularVelocity,
+    Option<&'static AngularDamping>,
     &'static ExternalTorque,
     &'static Inertia,
     &'static InverseInertia,
@@ -72,8 +79,16 @@ fn integrate_rot(
     mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, _inertia, inverse_inertia) in
-        &mut bodies
+    for (
+        rb,
+        mut rot,
+        mut prev_rot,
+        mut ang_vel,
+        ang_damping,
+        external_torque,
+        _inertia,
+        inverse_inertia,
+    ) in &mut bodies
     {
         prev_rot.0 = *rot;
 
@@ -81,8 +96,13 @@ fn integrate_rot(
             continue;
         }
 
-        // Apply external torque
+        // Apply damping and external torque
         if rb.is_dynamic() {
+            // Apply damping
+            if let Some(damping) = ang_damping {
+                ang_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
+            }
+
             ang_vel.0 += sub_dt.0 * inverse_inertia.0 * external_torque.0;
         }
 
@@ -96,8 +116,16 @@ fn integrate_rot(
     mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, mut rot, mut prev_rot, mut ang_vel, external_torque, inertia, inverse_inertia) in
-        &mut bodies
+    for (
+        rb,
+        mut rot,
+        mut prev_rot,
+        mut ang_vel,
+        ang_damping,
+        external_torque,
+        inertia,
+        inverse_inertia,
+    ) in &mut bodies
     {
         prev_rot.0 = *rot;
 
@@ -105,8 +133,13 @@ fn integrate_rot(
             continue;
         }
 
-        // Apply external torque
+        // Apply damping and external torque
         if rb.is_dynamic() {
+            // Apply damping
+            if let Some(damping) = ang_damping {
+                ang_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
+            }
+
             let delta_ang_vel = sub_dt.0
                 * inverse_inertia.rotated(&rot).0
                 * (external_torque.0 - ang_vel.0.cross(inertia.rotated(&rot).0 * ang_vel.0));
