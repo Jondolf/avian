@@ -286,14 +286,15 @@ fn update_lin_vel(
     for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_lin_vel.0 = Vector::ZERO;
             lin_vel.0 = Vector::ZERO;
-            continue;
         }
 
         pre_solve_lin_vel.0 = lin_vel.0;
-        // v = (x - x_prev) / h
-        lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
+
+        if rb.is_dynamic() {
+            // v = (x - x_prev) / h
+            lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
+        }
     }
 }
 
@@ -315,13 +316,14 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = 0.0;
             ang_vel.0 = 0.0;
-            continue;
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
-        ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+
+        if rb.is_dynamic() {
+            ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+        }
     }
 }
 
@@ -343,18 +345,18 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = Vector::ZERO;
             ang_vel.0 = Vector::ZERO;
-            continue;
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
 
-        let delta_rot = rot.mul_quat(prev_rot.inverse().0);
-        ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
+        if rb.is_dynamic() {
+            let delta_rot = rot.mul_quat(prev_rot.inverse().0);
+            ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
 
-        if delta_rot.w < 0.0 {
-            ang_vel.0 = -ang_vel.0;
+            if delta_rot.w < 0.0 {
+                ang_vel.0 = -ang_vel.0;
+            }
         }
     }
 }
