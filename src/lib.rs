@@ -161,6 +161,8 @@
 //! - [Define collision layers](CollisionLayers#creation)
 //! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Use joints](joints#using-joints)
+//! - [Apply external forces](ExternalForce)
+//! - [Apply external torque](ExternalTorque)
 //! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
 //! - [Configure friction](Friction)
