@@ -26,6 +26,7 @@
 //!     - [Sensor colliders](Sensor)
 //!     - [Collision layers](CollisionLayers)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
+//! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
 //! - External [forces](ExternalForce) and [torque](ExternalTorque)
 //! - [Gravity](Gravity)
 //! - [Joints](joints)

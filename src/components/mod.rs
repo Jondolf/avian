@@ -500,6 +500,26 @@ impl From<Scalar> for Friction {
     }
 }
 
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [linear velocity](LinearVelocity)
+/// each frame. This can be used to simulate air resistance.
+///
+/// The default linear damping coefficient is `0.0`, which corresponds to no damping.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut,
+)]
+#[reflect(Component)]
+pub struct LinearDamping(pub Scalar);
+
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [angular velocity](AngularVelocity)
+/// each frame. This can be used to simulate air resistance.
+///
+/// The default angular damping coefficient is `0.0`, which corresponds to no damping.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut,
+)]
+#[reflect(Component)]
+pub struct AngularDamping(pub Scalar);
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
