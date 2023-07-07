@@ -175,7 +175,7 @@ impl LinearVelocity {
 /// The linear velocity of a body before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveLinearVelocity(pub Vector);
+pub(crate) struct PreSolveLinearVelocity(pub Vector);
 
 /// The angular velocity of a body in radians. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
@@ -202,13 +202,13 @@ impl AngularVelocity {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngularVelocity(pub Scalar);
+pub(crate) struct PreSolveAngularVelocity(pub Scalar);
 
 /// The angular velocity of a body in radians before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngularVelocity(pub Vector);
+pub(crate) struct PreSolveAngularVelocity(pub Vector);
 
 /// An external force applied to a body during the integration step. It persists during the simulation, so it must be cleared manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
