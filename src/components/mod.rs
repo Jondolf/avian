@@ -234,6 +234,16 @@ impl FloatZero for Scalar {
 #[reflect(Component)]
 pub struct ExternalTorque(pub Torque);
 
+/// Controls how [gravity](Gravity) affects a specific [rigid body](RigidBody).
+///
+/// A gravity scale of `0.0` will disable gravity, while `2.0` will double the gravity.
+/// Using a negative value will flip the direction of the gravity.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
+)]
+#[reflect(Component)]
+pub struct GravityScale(pub Scalar);
+
 /// Determines how coefficients are combined. The default is `Average`.
 ///
 /// When combine rules clash with each other, the following priority order is used: `Max > Multiply > Min > Average`.
@@ -505,7 +515,7 @@ impl From<Scalar> for Friction {
 ///
 /// The default linear damping coefficient is `0.0`, which corresponds to no damping.
 #[derive(
-    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut,
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[reflect(Component)]
 pub struct LinearDamping(pub Scalar);
@@ -515,7 +525,7 @@ pub struct LinearDamping(pub Scalar);
 ///
 /// The default angular damping coefficient is `0.0`, which corresponds to no damping.
 #[derive(
-    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut,
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[reflect(Component)]
 pub struct AngularDamping(pub Scalar);

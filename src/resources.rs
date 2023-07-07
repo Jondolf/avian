@@ -151,10 +151,11 @@ impl Default for DeactivationTime {
 /// A resource for the global gravitational acceleration.
 ///
 /// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational
-/// acceleration near Earth's surface.
+/// acceleration near Earth's surface. Note that if you are using pixels as length units in 2D,
+/// this gravity will be tiny. You should modify the gravity to fit your application.
 ///
-/// Note that if you are using pixels as length units in 2D, this gravity will be tiny. You should
-/// modify the gravity to fit your application.
+/// You can also control how gravity affects a specific [rigid body](RigidBody) using the [`GravityScale`]
+/// component. The magnitude of the gravity will be multiplied by this scaling factor.
 ///
 /// ## Example
 ///
