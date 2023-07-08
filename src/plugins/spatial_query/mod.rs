@@ -336,10 +336,7 @@ fn update_shape_caster_positions(
     }
 }
 
-fn raycast(
-    mut rays: Query<(&RayCaster, &mut RayHits), Without<Collider>>,
-    spatial_query: SpatialQuery,
-) {
+fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
     let colliders = spatial_query.get_collider_hash_map();
     for (ray, mut hits) in &mut rays {
         if ray.enabled {
@@ -348,10 +345,7 @@ fn raycast(
     }
 }
 
-fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit), Without<Collider>>,
-    spatial_query: SpatialQuery,
-) {
+fn shapecast(mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit)>, spatial_query: SpatialQuery) {
     let colliders = spatial_query.get_collider_hash_map();
     for (shape_caster, mut hit) in &mut shape_casters {
         if shape_caster.enabled {
