@@ -367,8 +367,9 @@ type ColliderChangedFilter = (
 
 fn update_query_pipeline(
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+    added_colliders: Query<Entity, Added<Collider>>,
     changed_colliders: Query<Entity, ColliderChangedFilter>,
-    mut removed: RemovedComponents<Collider>,
+    mut removed_colliders: RemovedComponents<Collider>,
     mut query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
     let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
@@ -383,7 +384,8 @@ fn update_query_pipeline(
             )
         })
         .collect();
+    let added = added_colliders.iter().collect::<Vec<_>>();
     let modified = changed_colliders.iter().collect::<Vec<_>>();
-    let removed = removed.iter().collect::<Vec<_>>();
-    query_pipeline.update_incremental(&colliders, modified, removed, true);
+    let removed = removed_colliders.iter().collect::<Vec<_>>();
+    query_pipeline.update_incremental(&colliders, added, modified, removed, true);
 }
