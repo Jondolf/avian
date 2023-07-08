@@ -65,6 +65,7 @@ impl SpatialQueryPipeline {
                 let (iso, shape) = colliders.get(&Entity::from_bits(*entity_bits)).unwrap();
                 shape.compute_aabb(iso)
             });
+            self.qbvh.rebalance(0.0, &mut self.workspace);
         }
     }
 }
