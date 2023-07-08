@@ -16,9 +16,9 @@ use crate::prelude::*;
 /// fn setup(mut commands: Commands) {
 ///     let object = commands.spawn(Collider::ball(0.5)).id();
 ///
-///     // A query filter that only includes one layer and excludes the `object` entity
+///     // A query filter that has three collision masks and excludes the `object` entity
 ///     let query_filter = SpatialQueryFilter::new()
-///         .masks_from_bits(0b1011)
+///         .with_masks_from_bits(0b1011)
 ///         .without_entities([object]);
 ///
 ///     // Spawn a ray caster with the query filter
@@ -48,55 +48,22 @@ impl SpatialQueryFilter {
         Self::default()
     }
 
-    /// Disables all masks of the filter configuration. No colliders will be included in
-    /// [spatial queries](crate::spatial_query).
-    pub fn no_masks(mut self) -> Self {
-        self.masks = 0;
-        self
-    }
-
     /// Sets the masks of the filter configuration using a bitmask. Colliders with the corresponding
     /// [collision group](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
-    pub fn masks_from_bits(mut self, masks: u32) -> Self {
+    pub fn with_masks_from_bits(mut self, masks: u32) -> Self {
         self.masks = masks;
         self
     }
 
-    /// Adds the given mask to the filter configuration. Colliders with the corresponding
-    /// [collision group](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
-    pub fn with_mask(mut self, mask: impl PhysicsLayer) -> Self {
-        self.masks |= mask.to_bits();
-        self
-    }
-
-    /// Adds the given masks to the filter configuration. Colliders with the corresponding
-    /// [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
+    /// Sets the masks of the filter configuration using a list of [layers](PhysicsLayer).
+    /// Colliders with the corresponding [collision groups](CollisionLayers) will be included
+    /// in the [spatial query](crate::spatial_query).
     pub fn with_masks(mut self, masks: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+        self.masks = 0;
         for mask in masks.into_iter().map(|l| l.to_bits()) {
             self.masks |= mask;
         }
         self
-    }
-
-    /// Removes the given mask from the filter configuration. Colliders with the corresponding
-    /// [collision group](CollisionLayers) will be excluded from the [spatial query](crate::spatial_query).
-    pub fn without_mask(mut self, mask: impl PhysicsLayer) -> Self {
-        self.masks &= !mask.to_bits();
-        self
-    }
-
-    /// Removes the given masks from the filter configuration. Colliders with the corresponding
-    /// [collision groups](CollisionLayers) will be excluded from the [spatial query](crate::spatial_query).
-    pub fn without_masks(mut self, masks: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
-        for mask in masks.into_iter().map(|l| l.to_bits()) {
-            self.masks &= !mask;
-        }
-        self
-    }
-
-    /// Returns true if the given layer is contained in the filter's masks.
-    pub fn contains_mask(self, layer: impl PhysicsLayer) -> bool {
-        (self.masks & layer.to_bits()) != 0
     }
 
     /// Excludes the given entities from [spatial queries](crate::spatial_query).
