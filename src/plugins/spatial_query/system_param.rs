@@ -165,8 +165,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| RayHitData {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (entity_index, hit))| RayHitData {
+                entity: Entity::from_raw(entity_index),
                 time_of_impact: hit.toi,
                 normal: hit.normal.into(),
             })
@@ -298,8 +298,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         let mut hits = Vec::with_capacity(10);
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {
                     if let Some(hit) =
@@ -408,8 +408,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| ShapeHitData {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (entity_index, hit))| ShapeHitData {
+                entity: Entity::from_raw(entity_index),
                 time_of_impact: hit.toi,
                 point1: hit.witness1.into(),
                 point2: hit.witness2.into(),
@@ -466,8 +466,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (projection, entity_bits))| PointProjection {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (projection, entity_index))| PointProjection {
+                entity: Entity::from_raw(entity_index),
                 point: projection.point.into(),
                 is_inside: projection.is_inside,
             })
@@ -555,8 +555,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
 
         let mut intersections = vec![];
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             if let Ok((entity, position, rotation, shape, layers)) = self.colliders.get(entity) {
                 let isometry = utils::make_isometry(position.0, rotation);
                 if query_filter.test(entity, layers.map_or(CollisionLayers::default(), |l| *l))
@@ -637,8 +637,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         mut callback: impl FnMut(Entity) -> bool,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
-        let mut leaf_callback = |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             intersections.push(entity);
             callback(entity)
         };
@@ -764,8 +764,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         let dispatcher = &*self.query_pipeline.dispatcher;
         let mut intersections = vec![];
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
 
             if let Some((collider_isometry, collider_shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {

@@ -257,8 +257,8 @@ impl ShapeCaster {
         query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| ShapeHitData {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (entity_index, hit))| ShapeHitData {
+                entity: Entity::from_raw(entity_index),
                 time_of_impact: hit.toi,
                 point1: hit.witness1.into(),
                 point2: hit.witness2.into(),
