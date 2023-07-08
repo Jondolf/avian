@@ -101,8 +101,7 @@
 //!
 //! fn main() {
 //!     App::new()
-//!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(PhysicsPlugins)
+//!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 //!         // ...your other plugins, systems and resources
 //!         .run();
 //! }

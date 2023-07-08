@@ -5,5 +5,13 @@ members = [
 ]
 resolver = "2"
 
+[patch.crates-io]
+bevy = { git = "https://github.com/bevyengine/bevy" }
+nalgebra = { git = "https://github.com/dimforge/nalgebra" }
+parry2d = { git = "https://github.com/Jondolf/parry", branch = "update-nalgebra" }
+parry2d-f64 = { git = "https://github.com/Jondolf/parry", branch = "update-nalgebra" }
+parry3d = { git = "https://github.com/Jondolf/parry", branch = "update-nalgebra" }
+parry3d-f64 = { git = "https://github.com/Jondolf/parry", branch = "update-nalgebra" }
+
 [profile.dev]
 opt-level = 1 # Use slightly better optimization, so examples work

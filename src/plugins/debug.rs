@@ -16,10 +16,10 @@ impl Plugin for PhysicsDebugPlugin {
         app.add_plugin(DebugLinesPlugin::default())
             .init_resource::<PhysicsDebugConfig>()
             .register_type::<PhysicsDebugConfig>()
-            .add_system(
+            .add_systems(
                 debug_render_aabbs.run_if(|config: Res<PhysicsDebugConfig>| config.render_aabbs),
             )
-            .add_system(
+            .add_systems(
                 debug_render_contacts
                     .run_if(|config: Res<PhysicsDebugConfig>| config.render_contacts),
             );

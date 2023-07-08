@@ -2,6 +2,8 @@
 //!
 //! See [`PhysicsSetupPlugin`].
 
+use bevy::transform::TransformSystem;
+
 use crate::prelude::*;
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
@@ -25,7 +27,26 @@ use crate::prelude::*;
 /// and it typically handles things like collision detection and constraint solving.
 ///
 /// [Substepping sets](SubstepSet) are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
-pub struct PhysicsSetupPlugin;
+pub struct PhysicsSetupPlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PhysicsSetupPlugin {
+    /// Creates a [`PhysicsSetupPlugin`] using the given schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new<S: ScheduleLabel>(schedule: S) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PhysicsSetupPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
@@ -108,17 +129,19 @@ impl Plugin for PhysicsSetupPlugin {
         app.add_schedule(SubstepSchedule, substep_schedule);
 
         // Add system set for running physics schedule
+        let schedule = &self.schedule;
         app.configure_set(
-            FixedUpdateSet
-                .before(CoreSet::Update)
-                .in_base_set(CoreSet::PreUpdate),
+            schedule.dyn_clone(),
+            FixedUpdateSet.before(TransformSystem::TransformPropagate),
         );
-        app.add_system(run_physics_schedule.in_set(FixedUpdateSet));
+        app.add_systems(
+            schedule.dyn_clone(),
+            run_physics_schedule.in_set(FixedUpdateSet),
+        );
 
-        app.add_system(
-            run_substep_schedule
-                .in_set(PhysicsSet::Substeps)
-                .in_schedule(PhysicsSchedule),
+        app.add_systems(
+            PhysicsSchedule,
+            run_substep_schedule.in_set(PhysicsSet::Substeps),
         );
     }
 }

@@ -11,11 +11,10 @@ use examples_common_2d::{bevy_prototype_debug_lines::*, *};
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
+        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .add_system(render_rays)
-        .add_startup_system(setup)
+        .add_systems(render_rays)
+        .add_systems(Startup, setup)
         .run();
 }
 

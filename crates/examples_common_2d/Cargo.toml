@@ -7,7 +7,7 @@ edition = "2021"
 debug-plugin = []
 
 [dependencies]
-bevy = { version = "0.10.1", default-features = false, features = [
+bevy = { version = "0.11.0-dev", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_text",
     "bevy_ui",
@@ -15,9 +15,10 @@ bevy = { version = "0.10.1", default-features = false, features = [
     "bevy_render",
     "bevy_sprite",
     "bevy_pbr",
+    "tonemapping_luts",
+    "ktx2",
+    "zstd",
     "bevy_winit",
     "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
-bevy_screen_diagnostics = "0.2"
-bevy_prototype_debug_lines = "0.10.1"
 bevy_xpbd_2d = { path = "../bevy_xpbd_2d", default-features = false }

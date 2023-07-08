@@ -67,6 +67,25 @@ use bevy::prelude::*;
 ///
 /// You can also find more information regarding the engine's general plugin architecture [here](plugins).
 ///
+/// ## Custom schedule
+///
+/// You can run the [`PhysicsSchedule`] in any schedule you want.
+/// You can set the schedule when adding the plugin group:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::new(FixedUpdate)))
+///         .run();
+/// }
+/// ```
+///
 /// ## Custom plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
@@ -92,7 +111,7 @@ use bevy::prelude::*;
 ///             .expect("add PhysicsSchedule first");
 ///
 ///         // Add the system into the broad phase system set
-///         physics_schedule.add_system(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
+///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
 ///     }
 /// }
 ///
@@ -122,7 +141,7 @@ use bevy::prelude::*;
 ///
 ///     // Add PhysicsPlugins and replace default broad phase with our custom broad phase
 ///     app.add_plugins(
-///         PhysicsPlugins
+///         PhysicsPlugins::default()
 ///             .build()
 ///             .disable::<BroadPhasePlugin>()
 ///             .add(CustomBroadPhasePlugin),
@@ -134,7 +153,26 @@ use bevy::prelude::*;
 ///
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_broad_phase.rs).
-pub struct PhysicsPlugins;
+pub struct PhysicsPlugins {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PhysicsPlugins {
+    /// Creates a [`PhysicsPlugins`] plugin group using the given schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new<S: ScheduleLabel>(schedule: S) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PhysicsPlugins {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
@@ -147,7 +185,7 @@ impl PluginGroup for PhysicsPlugins {
         }
 
         builder
-            .add(PhysicsSetupPlugin)
+            .add(PhysicsSetupPlugin::new(self.schedule))
             .add(PreparePlugin)
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)

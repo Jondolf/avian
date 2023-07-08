@@ -23,19 +23,28 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-
-    // Ground
-    commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
-            transform: Transform::from_scale(Vec3::new(100.0, 1.0, 100.0)),
-            ..default()
-        },
-        RigidBody::Static,
-        Position(Vector::NEG_Y * 2.0),
-        Collider::cuboid(100.0, 1.0, 100.0),
-    ));
+    for x in -15..15 {
+        for y in -2..0 {
+            for z in -15..15 {
+                commands.spawn((
+                    PbrBundle {
+                        mesh: cube_mesh.clone(),
+                        material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
+                        transform: Transform::from_scale(Vec3::new(5.0, 1.25, 5.0)),
+                        ..default()
+                    },
+                    RigidBody::Kinematic,
+                    LinearVelocity(Vec3::NEG_Y * 0.01),
+                    Position(Vector::new(
+                        x as Scalar * 4.0,
+                        y as Scalar * 1.0,
+                        z as Scalar * 4.0,
+                    )),
+                    Collider::cuboid(5.0, 1.25, 5.0),
+                ));
+            }
+        }
+    }
 
     let cube_size = 2.0;
 
@@ -63,6 +72,12 @@ fn setup(
             }
         }
     }
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
+    commands.spawn(RayCaster::new(Vec3::NEG_Y, Vec3::X).with_max_hits(1000000));
 
     // Directional light
     commands.spawn(DirectionalLightBundle {
