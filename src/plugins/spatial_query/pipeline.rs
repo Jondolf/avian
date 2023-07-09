@@ -68,9 +68,7 @@ impl SpatialQueryPipeline {
         }
 
         for modified in modified {
-            if colliders.get(&modified).is_some() {
-                self.qbvh.pre_update_or_insert(modified.index());
-            }
+            self.qbvh.pre_update_or_insert(modified.index());
         }
 
         if refit_and_balance {
