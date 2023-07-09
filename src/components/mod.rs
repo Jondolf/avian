@@ -2,6 +2,7 @@
 
 mod collider;
 mod layers;
+mod locked_axes;
 mod mass_properties;
 mod rotation;
 mod world_queries;
@@ -10,6 +11,7 @@ use std::ops::{Deref, DerefMut};
 
 pub use collider::*;
 pub use layers::*;
+pub use locked_axes::*;
 pub use mass_properties::*;
 pub use rotation::*;
 pub use world_queries::*;

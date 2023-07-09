@@ -10,11 +10,6 @@ use parry::query::{
     },
 };
 
-#[cfg(feature = "2d")]
-type ShapeRotation = Scalar;
-#[cfg(feature = "3d")]
-type ShapeRotation = Quaternion;
-
 /// A system parameter for performing [spatial queries](spatial_query).
 ///
 /// ## Methods
@@ -374,7 +369,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         origin: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         direction: Vector,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
@@ -882,7 +877,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         shape_position: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
         self.shape_intersections_callback(
@@ -939,7 +934,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         shape_position: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) -> Vec<Entity> {

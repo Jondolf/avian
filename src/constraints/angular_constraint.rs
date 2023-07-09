@@ -26,8 +26,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let rot1 = *body1.rotation;
         let rot2 = *body2.rotation;
 
-        let inv_inertia1 = body1.world_inv_inertia().0;
-        let inv_inertia2 = body2.world_inv_inertia().0;
+        let inv_inertia1 = body1.effective_world_inv_inertia();
+        let inv_inertia2 = body2.effective_world_inv_inertia();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
@@ -61,8 +61,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         let rot1 = *body1.rotation;
         let rot2 = *body2.rotation;
 
-        let inv_inertia1 = body1.world_inv_inertia().0;
-        let inv_inertia2 = body2.world_inv_inertia().0;
+        let inv_inertia1 = body1.effective_world_inv_inertia();
+        let inv_inertia2 = body2.effective_world_inv_inertia();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
@@ -95,7 +95,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "3d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector) -> Scalar {
         if body.rb.is_dynamic() {
-            axis.dot(body.world_inv_inertia().0 * axis)
+            axis.dot(body.effective_world_inv_inertia() * axis)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
