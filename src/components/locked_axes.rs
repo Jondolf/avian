@@ -24,7 +24,7 @@ use crate::prelude::*;
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
 ///         Collider::capsule(1.0, 0.5),
-///         // In 2D, use use LockedAxes::new().lock_rotation()
+///         // In 2D, use LockedAxes::new().lock_rotation()
 ///         LockedAxes::new().lock_rotation_x().lock_rotation_z(),
 ///     ));
 /// }
