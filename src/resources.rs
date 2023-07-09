@@ -31,6 +31,8 @@ use crate::prelude::*;
 pub enum PhysicsTimestep {
     /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
     Fixed(Scalar),
+    /// **Fixed delta, once per frame**: the physics simulation will be advanced by a fixed value `dt` once every frame. This should only be used in cases where you can guarantee a fixed number of executions, like in FixedUpdate or on a server.
+    FixedOnce(Scalar),
     /// **Variable timestep**: the physics simulation will be advanced by `Time::delta_seconds().min(max_dt)` seconds at each Bevy tick.
     Variable {
         /// The maximum amount of time the physics simulation can be advanced at each Bevy tick. This makes sure that the simulation doesn't break when the delta time is large.
