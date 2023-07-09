@@ -196,8 +196,11 @@ fn run_physics_schedule(world: &mut World) {
     world.resource_mut::<DeltaTime>().0 = dt;
 
     match accumulate {
-        false if physics_loop.paused => {}
+        false if physics_loop.paused && physics_loop.queued_steps == 0 => {}
         false => {
+            if physics_loop.queued_steps > 0 {
+                physics_loop.queued_steps -= 1;
+            }
             debug!("running PhysicsSchedule");
             world.run_schedule(PhysicsSchedule);
         }
