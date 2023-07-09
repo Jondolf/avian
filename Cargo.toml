@@ -5,8 +5,5 @@ members = [
 ]
 resolver = "2"
 
-[patch.crates-io]
-bevy = { git = "https://github.com/bevyengine/bevy" }
-
 [profile.dev]
 opt-level = 1 # Use slightly better optimization, so examples work
