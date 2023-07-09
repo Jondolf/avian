@@ -79,8 +79,9 @@
 //! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the results of the shape cast
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the [`SpatialQuery`] system parameter's
-//! method [`cast_shape`](SpatialQuery#method.cast_shape).
+//! 2. When you need more control or don't want to cast every frame, use the shape casting methods provided by
+//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery#method.cast_shape), [`shape_hits`](SpatialQuery#method.shape_hits) or
+//! [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -105,9 +106,9 @@
 //!     // ...spawn colliders and other things
 //! }
 //!
-//! fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
-//!     for (shape_caster, hit) in &query {
-//!         if let Some(hit) = hit.0 {
+//! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
+//!     for (shape_caster, hits) in &query {
+//!         for hit in hits.iter()
 //!             println!("Hit entity {:?}", hit.entity);
 //!         }
 //!     }
