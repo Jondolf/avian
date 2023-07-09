@@ -44,9 +44,9 @@ fn setup(
         for y in -2..2 {
             for z in -2..2 {
                 let pos = Vector::new(
-                    x as Scalar * (cube_size + 0.1),
-                    y as Scalar * (cube_size + 0.1),
-                    z as Scalar * (cube_size + 0.1),
+                    x as Scalar * (cube_size + 0.05),
+                    y as Scalar * (cube_size + 0.05),
+                    z as Scalar * (cube_size + 0.05),
                 );
                 commands.spawn((
                     PbrBundle {
