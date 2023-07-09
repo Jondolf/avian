@@ -411,8 +411,10 @@ fn solve_vel(
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
 
-            let inv_inertia1 = body1.world_inv_inertia().0;
-            let inv_inertia2 = body2.world_inv_inertia().0;
+            let inv_mass1 = body1.effective_inv_mass();
+            let inv_mass2 = body2.effective_inv_mass();
+            let inv_inertia1 = body1.effective_world_inv_inertia();
+            let inv_inertia2 = body2.effective_world_inv_inertia();
 
             // Compute dynamic friction
             let friction_impulse = get_dynamic_friction(
@@ -456,12 +458,12 @@ fn solve_vel(
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += p / body1.mass.0;
+                body1.linear_velocity.0 += p * inv_mass1;
                 body1.angular_velocity.0 +=
                     compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
             }
             if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 -= p / body2.mass.0;
+                body2.linear_velocity.0 -= p * inv_mass2;
                 body2.angular_velocity.0 -=
                     compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
             }
