@@ -9,7 +9,11 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 /// in a direction before it hits something.
 ///
 /// Each shape cast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
-/// a local `direction`. The [`ShapeCaster`] will find the closest hit as a [`ShapeHit`].
+/// a local `direction`. The [`ShapeCaster`] will find each hit and add them to the [`ShapeHits`] component in
+/// the order of the time of impact.
+///
+/// Computing lots of hits can be expensive, especially against complex geometry, so the maximum number of hits
+/// is one by default. This can be configured through the `max_hits` property.
 ///
 /// The [`ShapeCaster`] is the easiest way to handle simple shape casting. If you want more control and don't want
 /// to perform shape casts on every frame, consider using the [`SpatialQuery`] system parameter.
