@@ -108,7 +108,7 @@
 //!
 //! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
 //!     for (shape_caster, hits) in &query {
-//!         for hit in hits.iter()
+//!         for hit in hits.iter() {
 //!             println!("Hit entity {:?}", hit.entity);
 //!         }
 //!     }
