@@ -3,9 +3,6 @@ name = "examples_common_3d"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-debug-plugin = []
-
 [dependencies]
 bevy = { version = "0.11", default-features = false, features = [
     "bevy_core_pipeline",
@@ -16,6 +13,7 @@ bevy = { version = "0.11", default-features = false, features = [
     "bevy_sprite",
     "bevy_pbr",
     "bevy_gizmos",
+    "default_font",
     "tonemapping_luts",
     "ktx2",
     "zstd",
