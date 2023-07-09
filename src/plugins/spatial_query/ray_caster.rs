@@ -139,7 +139,7 @@ impl RayCaster {
         self
     }
 
-    /// Sets the maximum amount of allowed hits.
+    /// Sets the maximum number of allowed hits.
     pub fn with_max_hits(mut self, max_hits: u32) -> Self {
         self.max_hits = max_hits;
         self

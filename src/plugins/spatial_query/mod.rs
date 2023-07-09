@@ -76,8 +76,8 @@
 //!
 //! There are two ways to perform shape casts.
 //!
-//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the closest hit with a collider
-//! in the [`ShapeHit`] component every frame. It uses local coordinates, so it will automatically follow the entity
+//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the results of the shape cast
+//! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the [`SpatialQuery`] system parameter's
 //! method [`cast_shape`](SpatialQuery#method.cast_shape).
@@ -203,9 +203,15 @@ fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added
     }
 }
 
-fn init_shape_hit(mut commands: Commands, shape_casters: Query<Entity, Added<ShapeCaster>>) {
-    for entity in &shape_casters {
-        commands.entity(entity).insert(ShapeHit(None));
+fn init_shape_hit(
+    mut commands: Commands,
+    shape_casters: Query<(Entity, &ShapeCaster), Added<ShapeCaster>>,
+) {
+    for (entity, shape_caster) in &shape_casters {
+        commands.entity(entity).insert(ShapeHits {
+            vector: Vec::with_capacity(shape_caster.max_hits.min(100_000) as usize),
+            count: 0,
+        });
     }
 }
 
@@ -345,11 +351,14 @@ fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQu
     }
 }
 
-fn shapecast(mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit)>, spatial_query: SpatialQuery) {
+fn shapecast(
+    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHits)>,
+    spatial_query: SpatialQuery,
+) {
     let colliders = spatial_query.get_collider_hash_map();
-    for (shape_caster, mut hit) in &mut shape_casters {
+    for (shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
-            hit.0 = shape_caster.cast(&colliders, &spatial_query.query_pipeline);
+            shape_caster.cast(&mut hits, &colliders, &spatial_query.query_pipeline);
         }
     }
 }
