@@ -21,7 +21,7 @@ impl SyncPlugin {
     /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
     /// The default schedule is `PostUpdate`.
-    pub fn new<S: ScheduleLabel>(schedule: S) -> Self {
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: Box::new(schedule),
         }
