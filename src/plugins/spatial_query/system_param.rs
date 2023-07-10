@@ -442,10 +442,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
-    ///     let mut hits = vec![];
-    ///
     ///     // Cast shape and get all hits
-    ///     spatial_query.shape_hits(
+    ///     let hits = spatial_query.shape_hits(
     ///         &Collider::ball(0.5),          // Shape
     ///         Vec3::ZERO,                    // Origin
     ///         Quat::default(),               // Shape rotation
