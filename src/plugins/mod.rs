@@ -16,7 +16,8 @@
 //!
 //! - [All of the current plugins and their responsibilities](PhysicsPlugins)
 //! - [Creating custom plugins](PhysicsPlugins#custom-plugins)
-//! - [`PhysicsSchedule`] and [`PhysicsSet`]
+//! - [`PhysicsSet`]
+//! - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
 pub mod broad_phase;
@@ -111,7 +112,7 @@ use bevy::prelude::*;
 ///             .expect("add PhysicsSchedule first");
 ///
 ///         // Add the system into the broad phase system set
-///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
+///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
 ///     }
 /// }
 ///
@@ -195,19 +196,37 @@ impl PluginGroup for PhysicsPlugins {
             .add(SyncPlugin)
     }
 }
-
-/// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
+/// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
 ///
-/// 1. Prepare
-/// 2. Broad phase
-/// 3. Substeps
-///     1. Integrate
-///     2. Solve positional and angular constraints
-///     3. Update velocities
-///     4. Solve velocity constraints (dynamic friction and restitution)
-/// 4. Sleeping
-/// 5. Spatial queries (ray casting and shape casting)
-/// 5. Sync data
+/// See [`PhysicsStepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct PhysicsSchedule;
+
+/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
+///
+/// See [`SubstepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct SubstepSchedule;
+
+/// High-level system sets for the main phases of the physics engine.
+/// You can use these to schedule your own systems before or after physics is run without
+/// having to worry about implementation details.
+///
+/// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+/// updating several components.
+/// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+/// 3. `Sync`: Responsible for synchronizing physics components with other data, like writing [`Position`]
+/// and [`Rotation`] components to `Transform`s.
+///
+/// ## See also
+///
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
+/// the constraint solver.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
@@ -215,6 +234,28 @@ pub enum PhysicsSet {
     ///
     /// See [`PreparePlugin`].
     Prepare,
+    /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+    /// Systems in this set are run in the [`PhysicsSchedule`].
+    StepSimulation,
+    /// Responsible for synchronizing physics components with other data, like writing [`Position`]
+    /// and [`Rotation`] components to `Transform`s.
+    ///
+    /// See [`SyncPlugin`].
+    Sync,
+}
+
+/// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
+///
+/// 1. Broad phase
+/// 2. Substeps
+///     1. Integrate
+///     2. Solve positional and angular constraints
+///     3. Update velocities
+///     4. Solve velocity constraints (dynamic friction and restitution)
+/// 3. Sleeping
+/// 4. Spatial queries (ray casting and shape casting)
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PhysicsStepSet {
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
     /// [AABB](ColliderAabb) intersection tests.
     ///
@@ -232,10 +273,6 @@ pub enum PhysicsSet {
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
-    /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
-    ///
-    /// See [`SyncPlugin`].
-    Sync,
 }
 
 /// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].

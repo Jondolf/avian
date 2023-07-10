@@ -1,11 +1,13 @@
-//! Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
+//! Responsible for synchronizing physics components with other data, like writing [`Position`]
+//! and [`Rotation`] components to `Transform`s.
 //!
 //! See [`SyncPlugin`].
 
-use crate::{prelude::*, PhysicsSchedule};
+use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
+/// Responsible for synchronizing physics components with other data, like writing [`Position`]
+/// and [`Rotation`] components to `Transform`s.
 ///
 /// Currently, the transforms of nested bodies are updated to reflect their global positions.
 /// This means that nested [rigid bodies](RigidBody) can behave independently regardless of the hierarchy.
@@ -15,9 +17,7 @@ pub struct SyncPlugin;
 
 impl Plugin for SyncPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first")
-            .add_systems(sync_transforms.in_set(PhysicsSet::Sync));
+        app.add_systems(PostUpdate, sync_transforms.in_set(PhysicsSet::Sync));
     }
 }
 

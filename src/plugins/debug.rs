@@ -22,13 +22,13 @@ impl Plugin for PhysicsDebugPlugin {
                 PostUpdate,
                 debug_render_aabbs
                     .run_if(|config: Res<PhysicsDebugConfig>| config.render_aabbs)
-                    .after(PhysicsSet::Sync),
+                    .after(PhysicsSet::StepSimulation),
             )
             .add_systems(
                 PostUpdate,
                 debug_render_contacts
                     .run_if(|config: Res<PhysicsDebugConfig>| config.render_contacts)
-                    .after(PhysicsSet::Sync),
+                    .after(PhysicsSet::StepSimulation),
             );
     }
 }

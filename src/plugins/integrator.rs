@@ -24,8 +24,8 @@ impl Plugin for IntegratorPlugin {
             .expect("add PhysicsSchedule first")
             .add_systems(
                 clear_external_force_and_torque
-                    .after(PhysicsSet::Substeps)
-                    .before(PhysicsSet::Sleeping),
+                    .after(PhysicsStepSet::Substeps)
+                    .before(PhysicsStepSet::Sleeping),
             );
     }
 }

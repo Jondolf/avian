@@ -77,7 +77,7 @@ impl Plugin for BruteForceBroadPhasePlugin {
             .expect("add PhysicsSchedule first");
 
         // Add the broad phase system into the broad phase set
-        physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
+        physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
     }
 }
 

@@ -12,7 +12,7 @@ use bevy::prelude::*;
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
-/// The broad phase systems run in [`PhysicsSet::BroadPhase`].
+/// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
 pub struct BroadPhasePlugin;
 
 impl Plugin for BroadPhasePlugin {
@@ -25,13 +25,63 @@ impl Plugin for BroadPhasePlugin {
 
         physics_schedule.add_systems(
             (
+                update_aabb,
                 update_aabb_intervals,
                 add_new_aabb_intervals,
                 collect_collision_pairs,
             )
                 .chain()
-                .in_set(PhysicsSet::BroadPhase),
+                .in_set(PhysicsStepSet::BroadPhase),
         );
+    }
+}
+
+type AABBChanged = Or<(
+    Changed<Position>,
+    Changed<Rotation>,
+    Changed<LinearVelocity>,
+    Changed<AngularVelocity>,
+)>;
+
+/// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
+#[allow(clippy::type_complexity)]
+fn update_aabb(
+    mut bodies: Query<
+        (
+            &Collider,
+            &mut ColliderAabb,
+            &Position,
+            &Rotation,
+            Option<&LinearVelocity>,
+            Option<&AngularVelocity>,
+        ),
+        AABBChanged,
+    >,
+    dt: Res<DeltaTime>,
+) {
+    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
+    let safety_margin_factor = 2.0 * dt.0;
+
+    for (collider, mut aabb, pos, rot, lin_vel, ang_vel) in &mut bodies {
+        let lin_vel_len = lin_vel.map_or(0.0, |v| v.length());
+
+        #[cfg(feature = "2d")]
+        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.abs());
+        #[cfg(feature = "3d")]
+        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.length());
+
+        let computed_aabb = collider
+            .get_shape()
+            .compute_aabb(&utils::make_isometry(pos.0, rot));
+        let half_extents = Vector::from(computed_aabb.half_extents());
+        let center = Vector::from(computed_aabb.center());
+
+        // Add a safety margin.
+        let safety_margin = safety_margin_factor * (lin_vel_len + ang_vel_len);
+        let extended_half_extents = half_extents + safety_margin;
+
+        aabb.mins.coords = (center - extended_half_extents).into();
+        aabb.maxs.coords = (center + extended_half_extents).into();
     }
 }
 

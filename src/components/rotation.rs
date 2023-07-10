@@ -57,8 +57,8 @@ pub struct Rotation(pub Quaternion);
 impl Rotation {
     /// Rotates the rotation by a 3D vector.
     #[cfg(feature = "2d")]
-    pub fn rotate_vec3(&self, vec: crate::Vector3) -> crate::Vector3 {
-        crate::Vector3::new(
+    pub fn rotate_vec3(&self, vec: Vector3) -> Vector3 {
+        Vector3::new(
             vec.x * self.cos() - vec.y * self.sin(),
             vec.x * self.sin() + vec.y * self.cos(),
             vec.z,

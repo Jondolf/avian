@@ -273,7 +273,7 @@
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
-//! the Bevy schedules[^1][^2] and sets[^3][^4], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
+//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
 //! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
@@ -315,7 +315,9 @@
 //!
 //! [^3]: [`PhysicsSet`]
 //!
-//! [^4]: [`SubstepSet`]
+//! [^4]: [`PhysicsStepSet`]
+//!
+//! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(missing_docs)]
@@ -371,4 +373,3 @@ use bevy::{
     prelude::*,
 };
 use parry::math::Isometry;
-use prelude::*;
