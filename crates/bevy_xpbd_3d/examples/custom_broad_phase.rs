@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{math::*, prelude::*, PhysicsSchedule, PhysicsStepSet};
 
 // Required for AABB intersection check. This might be abstracted away at some point.
 use bevy_xpbd_3d::parry::bounding_volume::BoundingVolume;

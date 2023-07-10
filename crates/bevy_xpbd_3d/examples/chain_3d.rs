@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{math::*, prelude::*};
 use examples_common_3d::XpbdExamplePlugin;
 
 fn main() {
