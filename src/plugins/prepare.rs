@@ -19,8 +19,9 @@ pub struct PreparePlugin;
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.configure_set(ComponentInitSet.in_set(PhysicsSet::Prepare));
+        app.configure_set(Update, ComponentInitSet.in_set(PhysicsSet::Prepare));
         app.add_systems(
+            Update,
             (init_rigid_bodies, init_mass_properties, init_colliders).in_set(ComponentInitSet),
         );
 

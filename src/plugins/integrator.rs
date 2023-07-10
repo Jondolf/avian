@@ -22,7 +22,7 @@ impl Plugin for IntegratorPlugin {
             .add_systems((integrate_pos, integrate_rot).in_set(SubstepSet::Integrate));
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_system(
+            .add_systems(
                 clear_external_force_and_torque
                     .after(PhysicsSet::Substeps)
                     .before(PhysicsSet::Sleeping),

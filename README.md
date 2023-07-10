@@ -69,9 +69,8 @@ use bevy_xpbd_3d::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(PhysicsPlugins)
-        .add_startup_system(setup)
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_systems(Startup, setup)
         .run();
 }
 

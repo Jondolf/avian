@@ -73,7 +73,7 @@
 //!     .expect("add SubstepSchedule first");
 //!
 //! // Add custom constraint
-//! substeps.add_system(
+//! substeps.add_systems(
 //!     solve_constraint::<CustomConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
 //! );
 //! ```

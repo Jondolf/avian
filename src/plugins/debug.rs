@@ -4,7 +4,6 @@
 
 use crate::prelude::*;
 use bevy::prelude::*;
-use bevy_prototype_debug_lines::*;
 
 /// Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes.
 ///
@@ -13,15 +12,23 @@ pub struct PhysicsDebugPlugin;
 
 impl Plugin for PhysicsDebugPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugin(DebugLinesPlugin::default())
-            .init_resource::<PhysicsDebugConfig>()
+        app.init_resource::<PhysicsDebugConfig>()
+            .insert_resource(GizmoConfig {
+                line_width: 1.0,
+                ..default()
+            })
             .register_type::<PhysicsDebugConfig>()
-            .add_system(
-                debug_render_aabbs.run_if(|config: Res<PhysicsDebugConfig>| config.render_aabbs),
+            .add_systems(
+                PostUpdate,
+                debug_render_aabbs
+                    .run_if(|config: Res<PhysicsDebugConfig>| config.render_aabbs)
+                    .after(PhysicsSet::Sync),
             )
-            .add_system(
+            .add_systems(
+                PostUpdate,
                 debug_render_contacts
-                    .run_if(|config: Res<PhysicsDebugConfig>| config.render_contacts),
+                    .run_if(|config: Res<PhysicsDebugConfig>| config.render_contacts)
+                    .after(PhysicsSet::Sync),
             );
     }
 }
@@ -45,48 +52,50 @@ impl Default for PhysicsDebugConfig {
     }
 }
 
-fn debug_render_aabbs(aabbs: Query<&ColliderAabb>, mut shapes: ResMut<DebugShapes>) {
+fn debug_render_aabbs(aabbs: Query<&ColliderAabb>, mut gizmos: Gizmos) {
     #[cfg(feature = "2d")]
     for aabb in aabbs.iter() {
-        shapes.rect().min_max(
-            Vector::from(aabb.mins).as_f32(),
-            Vector::from(aabb.maxs).as_f32(),
+        gizmos.cuboid(
+            Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).as_f32())
+                .with_translation(Vector::from(aabb.center()).extend(0.0).as_f32()),
+            Color::WHITE,
         );
     }
 
     #[cfg(feature = "3d")]
     for aabb in aabbs.iter() {
-        shapes.cuboid().min_max(
-            Vector::from(aabb.mins).as_f32(),
-            Vector::from(aabb.maxs).as_f32(),
+        gizmos.cuboid(
+            Transform::from_scale(Vector::from(aabb.extents()).as_f32())
+                .with_translation(Vector::from(aabb.center()).as_f32()),
+            Color::WHITE,
         );
     }
 }
 
 #[allow(clippy::unnecessary_cast)]
-fn debug_render_contacts(mut collisions: EventReader<Collision>, mut lines: ResMut<DebugLines>) {
+fn debug_render_contacts(mut collisions: EventReader<Collision>, mut gizmos: Gizmos) {
     #[cfg(feature = "2d")]
     for Collision(contact) in collisions.iter() {
-        let p1 = contact.point1.extend(0.0).as_f32();
-        let p2 = contact.point2.extend(0.0).as_f32();
+        let p1 = contact.point1.as_f32();
+        let p2 = contact.point2.as_f32();
 
-        lines.line_colored(p1 - Vec3::X * 0.3, p1 + Vec3::X * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p1 - Vec3::Y * 0.3, p1 + Vec3::Y * 0.3, 0.01, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::X * 0.3, p1 + Vec2::X * 0.3, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::Y * 0.3, p1 + Vec2::Y * 0.3, Color::CYAN);
 
-        lines.line_colored(p2 - Vec3::X * 0.3, p2 + Vec3::X * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p2 - Vec3::Y * 0.3, p2 + Vec3::Y * 0.3, 0.01, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::X * 0.3, p2 + Vec2::X * 0.3, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::Y * 0.3, p2 + Vec2::Y * 0.3, Color::CYAN);
     }
     #[cfg(feature = "3d")]
     for Collision(contact) in collisions.iter() {
         let p1 = contact.point1.as_f32();
         let p2 = contact.point2.as_f32();
 
-        lines.line_colored(p1 - Vec3::X * 0.3, p1 + Vec3::X * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p1 - Vec3::Y * 0.3, p1 + Vec3::Y * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p1 - Vec3::Z * 0.3, p1 + Vec3::Z * 0.3, 0.01, Color::CYAN);
+        gizmos.line(p1 - Vec3::X * 0.3, p1 + Vec3::X * 0.3, Color::CYAN);
+        gizmos.line(p1 - Vec3::Y * 0.3, p1 + Vec3::Y * 0.3, Color::CYAN);
+        gizmos.line(p1 - Vec3::Z * 0.3, p1 + Vec3::Z * 0.3, Color::CYAN);
 
-        lines.line_colored(p2 - Vec3::X * 0.3, p2 + Vec3::X * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p2 - Vec3::Y * 0.3, p2 + Vec3::Y * 0.3, 0.01, Color::CYAN);
-        lines.line_colored(p2 - Vec3::Z * 0.3, p2 + Vec3::Z * 0.3, 0.01, Color::CYAN);
+        gizmos.line(p2 - Vec3::X * 0.3, p2 + Vec3::X * 0.3, Color::CYAN);
+        gizmos.line(p2 - Vec3::Y * 0.3, p2 + Vec3::Y * 0.3, Color::CYAN);
+        gizmos.line(p2 - Vec3::Z * 0.3, p2 + Vec3::Z * 0.3, Color::CYAN);
     }
 }
