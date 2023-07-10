@@ -6,12 +6,11 @@ use examples_common_3d::XpbdExamplePlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
+        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
-        .add_startup_system(setup)
-        .add_system(movement)
+        .add_systems(Startup, setup)
+        .add_systems(Update, movement)
         .run();
 }
 
@@ -45,9 +44,9 @@ fn setup(
         for y in -2..2 {
             for z in -2..2 {
                 let pos = Vector::new(
-                    x as Scalar * (cube_size + 0.1),
-                    y as Scalar * (cube_size + 0.1),
-                    z as Scalar * (cube_size + 0.1),
+                    x as Scalar * (cube_size + 0.05),
+                    y as Scalar * (cube_size + 0.05),
+                    z as Scalar * (cube_size + 0.05),
                 );
                 commands.spawn((
                     PbrBundle {

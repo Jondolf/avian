@@ -216,7 +216,7 @@ fn penetration_constraints(
 ///     .get_schedule_mut(SubstepSchedule)
 ///     .expect("add SubstepSchedule first");
 ///
-/// substeps.add_system(
+/// substeps.add_systems(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
 ///         .in_set(SubstepSet::SolveUserConstraints),
 /// );

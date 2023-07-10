@@ -17,7 +17,7 @@ impl Plugin for SyncPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_system(sync_transforms.in_set(PhysicsSet::Sync));
+            .add_systems(sync_transforms.in_set(PhysicsSet::Sync));
     }
 }
 

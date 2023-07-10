@@ -19,8 +19,7 @@ use crate::prelude::*;
 ///
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         // Use a 120 Hz fixed timestep instead of the default 60 Hz
 ///         .insert_resource(PhysicsTimestep::Fixed(1.0 / 120.0))
 ///         .run();
@@ -81,8 +80,7 @@ pub struct SubDeltaTime(pub Scalar);
 ///
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         .insert_resource(SubstepCount(30))
 ///         .run();
 /// }
@@ -173,8 +171,7 @@ impl Default for DeactivationTime {
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
 ///         .run();
 /// }

@@ -7,15 +7,14 @@
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_xpbd_2d::prelude::*;
-use examples_common_2d::{bevy_prototype_debug_lines::*, *};
+use examples_common_2d::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
+        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
-        .add_system(render_rays)
-        .add_startup_system(setup)
+        .add_systems(Update, render_rays)
+        .add_systems(Startup, setup)
         .run();
 }
 
@@ -58,27 +57,21 @@ fn setup(
     ));
 }
 
-fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut lines: ResMut<DebugLines>) {
+fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizmos) {
     for (ray, hits) in &mut rays {
         // Convert to Vec3 for lines
-        let origin = ray.global_origin().extend(0.0).as_f32();
-        let direction = ray.global_direction().extend(0.0).as_f32();
+        let origin = ray.global_origin().as_f32();
+        let direction = ray.global_direction().as_f32();
 
         for hit in hits.iter() {
-            lines.line_colored(
+            gizmos.line_2d(
                 origin,
                 origin + direction * hit.time_of_impact as f32,
-                0.001,
                 Color::GREEN,
             );
         }
         if hits.is_empty() {
-            lines.line_colored(
-                origin,
-                origin + direction * 1_000_000.0,
-                0.001,
-                Color::ORANGE_RED,
-            );
+            gizmos.line_2d(origin, origin + direction * 1_000_000.0, Color::ORANGE_RED);
         }
     }
 }
