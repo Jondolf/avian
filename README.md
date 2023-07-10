@@ -139,6 +139,7 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 | Bevy | Bevy XPBD |
 | ---- | --------- |
+| 0.11 | main      |
 | 0.10 | 0.1       |
 
 ## Future features
