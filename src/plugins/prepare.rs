@@ -81,7 +81,7 @@ fn init_rigid_bodies(
             if let Some(ref mut transform) = transform {
                 #[cfg(feature = "2d")]
                 {
-                    transform.translation = pos.extend(0.0).as_f32();
+                    transform.translation = pos.extend(transform.translation.z).as_f32();
                 }
                 #[cfg(feature = "3d")]
                 {
