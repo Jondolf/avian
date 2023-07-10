@@ -2,6 +2,7 @@
 
 mod collider;
 mod layers;
+mod locked_axes;
 mod mass_properties;
 mod rotation;
 mod world_queries;
@@ -10,6 +11,7 @@ use std::ops::{Deref, DerefMut};
 
 pub use collider::*;
 pub use layers::*;
+pub use locked_axes::*;
 pub use mass_properties::*;
 pub use rotation::*;
 pub use world_queries::*;
@@ -238,19 +240,15 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 ///     ));
 ///
 ///     // Apply multiple forces.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         ExternalForce::default()
-///             .apply_force(Vec3::Y)
-///             .apply_force(Vec3::X),
-///     ));
+///     let mut force = ExternalForce::default();
+///     force.apply_force(Vec3::Y).apply_force(Vec3::X);
+///     commands.spawn((RigidBody::Dynamic, force));
 ///
 ///     // Apply a force at a specific point relative to the given center of mass, also applying a torque.
 ///     // In this case, the torque would cause the body to rotate counterclockwise.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         ExternalForce::default().apply_force_at_point(Vec3::Y, Vec3::X, Vec3::ZERO),
-///     ));
+///     let mut force = ExternalForce::default();
+///     force.apply_force_at_point(Vec3::Y, Vec3::X, Vec3::ZERO);
+///     commands.spawn((RigidBody::Dynamic, force));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
@@ -400,12 +398,9 @@ impl FloatZero for Scalar {
 ///     ));
 ///
 ///     // Apply multiple torques.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         ExternalTorque::default()
-///             .apply_torque(Vec3::Y)
-///             .apply_torque(Vec3::X),
-///     ));
+///     let mut torque = ExternalTorque::default();
+///     torque.apply_torque(Vec3::Y).apply_torque(Vec3::X);
+///     commands.spawn((RigidBody::Dynamic, torque));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
@@ -784,16 +779,22 @@ pub struct AngularDamping(pub Scalar);
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use approx::assert_relative_eq;
 
     #[test]
     fn coefficient_combine_works() {
         let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
 
         // (0.3 + 0.7) / 2.0 == 0.5
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average)),
-            Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average)
+        let average_result =
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average));
+        let average_expected = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average);
+        assert_relative_eq!(
+            average_result.coefficient,
+            average_expected.coefficient,
+            epsilon = 0.0001
         );
+        assert_eq!(average_result.combine_rule, average_expected.combine_rule);
 
         // 0.3.min(0.7) == 0.3
         assert_eq!(
@@ -802,10 +803,16 @@ mod tests {
         );
 
         // 0.3 * 0.7 == 0.21
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply)),
-            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply)
+        let multiply_result =
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply));
+        let multiply_expected =
+            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply);
+        assert_relative_eq!(
+            multiply_result.coefficient,
+            multiply_expected.coefficient,
+            epsilon = 0.0001
         );
+        assert_eq!(multiply_result.combine_rule, multiply_expected.combine_rule);
 
         // 0.3.max(0.7) == 0.7
         assert_eq!(

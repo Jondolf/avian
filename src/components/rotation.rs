@@ -9,6 +9,13 @@ use nalgebra::Matrix3x1;
 
 use crate::prelude::*;
 
+/// Radians
+#[cfg(feature = "2d")]
+pub(crate) type RotationValue = Scalar;
+/// Quaternion
+#[cfg(feature = "3d")]
+pub(crate) type RotationValue = Quaternion;
+
 /// The rotation of a body.
 ///
 /// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians.

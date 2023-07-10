@@ -84,18 +84,12 @@ impl PenetrationConstraint {
         dt: Scalar,
     ) {
         // Shorter aliases
+        let penetration = self.contact.penetration;
         let normal = self.contact.normal;
         let compliance = self.compliance;
         let lagrange = self.normal_lagrange;
         let r1 = self.world_r1;
         let r2 = self.world_r2;
-
-        // Compute contact positions at the current state
-        let p1 = body1.position.0 + body1.rotation.rotate(self.local_r1);
-        let p2 = body2.position.0 + body2.rotation.rotate(self.local_r2);
-
-        // Compute penetration depth
-        let penetration = (p1 - p2).dot(normal);
 
         // If penetration depth is under 0, skip the collision
         if penetration <= 0.0 {

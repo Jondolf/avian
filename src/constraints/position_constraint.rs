@@ -25,16 +25,18 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         let rot1 = *body1.rotation;
         let rot2 = *body2.rotation;
 
-        let inv_inertia1 = body1.world_inv_inertia().0;
-        let inv_inertia2 = body2.world_inv_inertia().0;
+        let inv_mass1 = body1.effective_inv_mass();
+        let inv_mass2 = body2.effective_inv_mass();
+        let inv_inertia1 = body1.effective_world_inv_inertia();
+        let inv_inertia2 = body2.effective_world_inv_inertia();
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() {
-            body1.position.0 += p * body1.inverse_mass.0;
+            body1.position.0 += p * inv_mass1;
             *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, r1, p);
         }
         if body2.rb.is_dynamic() {
-            body2.position.0 -= p * body2.inverse_mass.0;
+            body2.position.0 -= p * inv_mass2;
             *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, r2, p);
         }
 
@@ -68,7 +70,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            let inverse_inertia = body.world_inv_inertia().0;
+            let inverse_inertia = body.effective_world_inv_inertia();
 
             let r_cross_n = r.cross(n); // Compute the cross product only once
 

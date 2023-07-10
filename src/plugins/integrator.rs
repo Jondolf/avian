@@ -39,6 +39,8 @@ type PosIntegrationComponents = (
     Option<&'static GravityScale>,
     &'static ExternalForce,
     &'static Mass,
+    &'static InverseMass,
+    Option<&'static LockedAxes>,
 );
 
 /// Explicitly integrates the positions and linear velocities of bodies taking only external forces
@@ -57,6 +59,8 @@ fn integrate_pos(
         gravity_scale,
         external_force,
         mass,
+        inv_mass,
+        locked_axes,
     ) in &mut bodies
     {
         prev_pos.0 = pos.0;
@@ -65,6 +69,8 @@ fn integrate_pos(
             continue;
         }
 
+        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
         // Apply damping, gravity and other external forces
         if rb.is_dynamic() {
             // Apply damping
@@ -72,13 +78,16 @@ fn integrate_pos(
                 lin_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
             }
 
+            let mass = locked_axes.apply_to_vec(Vector::splat(mass.0));
+            let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass.0));
+
             // Apply forces
-            let gravitation_force = mass.0 * gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
+            let gravitation_force = mass * gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
             let external_forces = gravitation_force + external_force.force();
-            lin_vel.0 += sub_dt.0 * external_forces / mass.0;
+            lin_vel.0 += sub_dt.0 * external_forces * effective_inv_mass;
         }
 
-        pos.0 += sub_dt.0 * lin_vel.0;
+        pos.0 += locked_axes.apply_to_vec(sub_dt.0 * lin_vel.0);
     }
 }
 
@@ -92,6 +101,7 @@ type RotIntegrationComponents = (
     &'static ExternalTorque,
     &'static Inertia,
     &'static InverseInertia,
+    Option<&'static LockedAxes>,
 );
 
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account.
@@ -110,7 +120,8 @@ fn integrate_rot(
         external_force,
         external_torque,
         _inertia,
-        inverse_inertia,
+        inv_inertia,
+        locked_axes,
     ) in &mut bodies
     {
         prev_rot.0 = *rot;
@@ -119,6 +130,8 @@ fn integrate_rot(
             continue;
         }
 
+        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
         // Apply damping and external torque
         if rb.is_dynamic() {
             // Apply damping
@@ -126,12 +139,15 @@ fn integrate_rot(
                 ang_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
             }
 
+            let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.0);
+
             // Apply external torque
-            ang_vel.0 +=
-                sub_dt.0 * inverse_inertia.0 * (external_torque.torque + external_force.torque());
+            ang_vel.0 += sub_dt.0
+                * effective_inv_inertia
+                * (external_torque.torque + external_force.torque());
         }
 
-        *rot += Rotation::from_radians(sub_dt.0 * ang_vel.0);
+        *rot += Rotation::from_radians(locked_axes.apply_to_rotation(sub_dt.0 * ang_vel.0));
     }
 }
 
@@ -151,7 +167,8 @@ fn integrate_rot(
         external_force,
         external_torque,
         inertia,
-        inverse_inertia,
+        inv_inertia,
+        locked_axes,
     ) in &mut bodies
     {
         prev_rot.0 = *rot;
@@ -160,6 +177,8 @@ fn integrate_rot(
             continue;
         }
 
+        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
         // Apply damping and external torque
         if rb.is_dynamic() {
             // Apply damping
@@ -167,22 +186,22 @@ fn integrate_rot(
                 ang_vel.0 *= 1.0 / (1.0 + sub_dt.0 * damping.0);
             }
 
+            let effective_inertia = locked_axes.apply_to_rotation(inertia.rotated(&rot).0);
+            let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.rotated(&rot).0);
+
             // Apply external torque
             let delta_ang_vel = sub_dt.0
-                * inverse_inertia.rotated(&rot).0
+                * effective_inv_inertia
                 * ((external_torque.torque + external_force.torque())
-                    - ang_vel.0.cross(inertia.rotated(&rot).0 * ang_vel.0));
+                    - ang_vel.0.cross(effective_inertia * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }
 
         let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
-        let (x, y, z, w) = (
-            rot.x + sub_dt.0 * 0.5 * q.x,
-            rot.y + sub_dt.0 * 0.5 * q.y,
-            rot.z + sub_dt.0 * 0.5 * q.z,
-            rot.w + sub_dt.0 * 0.5 * q.w,
-        );
-        rot.0 = Quaternion::from_xyzw(x, y, z, w).normalize();
+        let effective_dq = locked_axes
+            .apply_to_vec(sub_dt.0 * 0.5 * q.xyz())
+            .extend(sub_dt.0 * 0.5 * q.w);
+        rot.0 = (rot.0 + Quaternion::from_vec4(effective_dq)).normalize();
     }
 }
 

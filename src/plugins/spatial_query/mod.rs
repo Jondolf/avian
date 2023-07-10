@@ -76,11 +76,12 @@
 //!
 //! There are two ways to perform shape casts.
 //!
-//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the closest hit with a collider
-//! in the [`ShapeHit`] component every frame. It uses local coordinates, so it will automatically follow the entity
+//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the results of the shape cast
+//! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the [`SpatialQuery`] system parameter's
-//! method [`cast_shape`](SpatialQuery#method.cast_shape).
+//! 2. When you need more control or don't want to cast every frame, use the shape casting methods provided by
+//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery#method.cast_shape), [`shape_hits`](SpatialQuery#method.shape_hits) or
+//! [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -105,9 +106,9 @@
 //!     // ...spawn colliders and other things
 //! }
 //!
-//! fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
-//!     for (shape_caster, hit) in &query {
-//!         if let Some(hit) = hit.0 {
+//! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
+//!     for (shape_caster, hits) in &query {
+//!         for hit in hits.iter() {
 //!             println!("Hit entity {:?}", hit.entity);
 //!         }
 //!     }
@@ -203,9 +204,15 @@ fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added
     }
 }
 
-fn init_shape_hit(mut commands: Commands, shape_casters: Query<Entity, Added<ShapeCaster>>) {
-    for entity in &shape_casters {
-        commands.entity(entity).insert(ShapeHit(None));
+fn init_shape_hit(
+    mut commands: Commands,
+    shape_casters: Query<(Entity, &ShapeCaster), Added<ShapeCaster>>,
+) {
+    for (entity, shape_caster) in &shape_casters {
+        commands.entity(entity).insert(ShapeHits {
+            vector: Vec::with_capacity(shape_caster.max_hits.min(100_000) as usize),
+            count: 0,
+        });
     }
 }
 
@@ -336,10 +343,7 @@ fn update_shape_caster_positions(
     }
 }
 
-fn raycast(
-    mut rays: Query<(&RayCaster, &mut RayHits), Without<Collider>>,
-    spatial_query: SpatialQuery,
-) {
+fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
     let colliders = spatial_query.get_collider_hash_map();
     for (ray, mut hits) in &mut rays {
         if ray.enabled {
@@ -349,13 +353,13 @@ fn raycast(
 }
 
 fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHit), Without<Collider>>,
+    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
 ) {
     let colliders = spatial_query.get_collider_hash_map();
-    for (shape_caster, mut hit) in &mut shape_casters {
+    for (shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
-            hit.0 = shape_caster.cast(&colliders, &spatial_query.query_pipeline);
+            shape_caster.cast(&mut hits, &colliders, &spatial_query.query_pipeline);
         }
     }
 }
@@ -367,8 +371,9 @@ type ColliderChangedFilter = (
 
 fn update_query_pipeline(
     colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
+    added_colliders: Query<Entity, Added<Collider>>,
     changed_colliders: Query<Entity, ColliderChangedFilter>,
-    mut removed: RemovedComponents<Collider>,
+    mut removed_colliders: RemovedComponents<Collider>,
     mut query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
     let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
@@ -383,7 +388,8 @@ fn update_query_pipeline(
             )
         })
         .collect();
+    let added = added_colliders.iter().collect::<Vec<_>>();
     let modified = changed_colliders.iter().collect::<Vec<_>>();
-    let removed = removed.iter().collect::<Vec<_>>();
-    query_pipeline.update_incremental(&colliders, modified, removed, true);
+    let removed = removed_colliders.iter().collect::<Vec<_>>();
+    query_pipeline.update_incremental(&colliders, added, modified, removed, true);
 }

@@ -95,6 +95,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<LockedAxes>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>();
 
@@ -211,26 +212,39 @@ fn run_physics_schedule(world: &mut World) {
     let time_step = *world.resource::<PhysicsTimestep>();
 
     // Update `DeltaTime` according to the `PhysicsTimestep` configuration
-    let dt = match time_step {
-        PhysicsTimestep::Fixed(fixed_delta_seconds) => fixed_delta_seconds,
-        PhysicsTimestep::Variable { max_dt } => delta_seconds.min(max_dt),
+    let (dt, accumulate) = match time_step {
+        PhysicsTimestep::Fixed(fixed_delta_seconds) => (fixed_delta_seconds, true),
+        PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
+        PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
     world.resource_mut::<DeltaTime>().0 = dt;
 
-    // Add time to the accumulator
-    if physics_loop.paused {
-        physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
-        physics_loop.queued_steps = 0;
-    } else {
-        physics_loop.accumulator += delta_seconds;
-    }
+    match accumulate {
+        false if physics_loop.paused && physics_loop.queued_steps == 0 => {}
+        false => {
+            if physics_loop.queued_steps > 0 {
+                physics_loop.queued_steps -= 1;
+            }
+            debug!("running PhysicsSchedule");
+            world.run_schedule(PhysicsSchedule);
+        }
+        true => {
+            // Add time to the accumulator
+            if physics_loop.paused {
+                physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
+                physics_loop.queued_steps = 0;
+            } else {
+                physics_loop.accumulator += delta_seconds;
+            }
 
-    // Step the simulation until the accumulator has been consumed.
-    // Note that a small remainder may be passed on to the next run of the physics schedule.
-    while physics_loop.accumulator >= dt && dt > 0.0 {
-        debug!("running PhysicsSchedule");
-        world.run_schedule(PhysicsSchedule);
-        physics_loop.accumulator -= dt;
+            // Step the simulation until the accumulator has been consumed.
+            // Note that a small remainder may be passed on to the next run of the physics schedule.
+            while physics_loop.accumulator >= dt && dt > 0.0 {
+                debug!("running PhysicsSchedule");
+                world.run_schedule(PhysicsSchedule);
+                physics_loop.accumulator -= dt;
+            }
+        }
     }
 
     world.insert_resource(physics_loop);

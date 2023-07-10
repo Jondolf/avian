@@ -139,7 +139,7 @@ impl RayCaster {
         self
     }
 
-    /// Sets the maximum amount of allowed hits.
+    /// Sets the maximum number of allowed hits.
     pub fn with_max_hits(mut self, max_hits: u32) -> Self {
         self.max_hits = max_hits;
         self
@@ -202,8 +202,8 @@ impl RayCaster {
             );
 
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_bits, hit))| RayHitData {
-                    entity: Entity::from_bits(entity_bits),
+                |(_, (entity_index, hit))| RayHitData {
+                    entity: Entity::from_raw(entity_index),
                     time_of_impact: hit.toi,
                     normal: hit.normal.into(),
                 },
@@ -219,8 +219,8 @@ impl RayCaster {
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
 
-            let mut leaf_callback = &mut |entity_bits: &u64| {
-                let entity = Entity::from_bits(*entity_bits);
+            let mut leaf_callback = &mut |entity_index: &u32| {
+                let entity = Entity::from_raw(*entity_index);
                 if let Some((iso, shape, layers)) = colliders.get(&entity) {
                     if self.query_filter.test(entity, *layers) {
                         if let Some(hit) = shape.cast_ray_and_get_normal(
