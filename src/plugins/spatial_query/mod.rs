@@ -167,10 +167,8 @@ pub struct SpatialQueryPlugin;
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>().add_systems(
-            PostUpdate,
-            (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
-        );
+        app.init_resource::<SpatialQueryPipeline>()
+            .add_systems(First, (init_ray_hits, init_shape_hit));
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)

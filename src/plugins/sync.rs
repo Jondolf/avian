@@ -13,11 +13,33 @@ use bevy::prelude::*;
 /// This means that nested [rigid bodies](RigidBody) can behave independently regardless of the hierarchy.
 ///
 /// The synchronization systems run in [`PhysicsSet::Sync`].
-pub struct SyncPlugin;
+pub struct SyncPlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl SyncPlugin {
+    /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new<S: ScheduleLabel>(schedule: S) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for SyncPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for SyncPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(PostUpdate, sync_transforms.in_set(PhysicsSet::Sync));
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            self.schedule.dyn_clone(),
+            sync_transforms.in_set(PhysicsSet::Sync),
+        );
     }
 }
 

@@ -182,18 +182,18 @@ impl PluginGroup for PhysicsPlugins {
 
         #[cfg(feature = "debug-plugin")]
         {
-            builder = builder.add(PhysicsDebugPlugin);
+            builder = builder.add(PhysicsDebugPlugin::default());
         }
 
         builder
-            .add(PhysicsSetupPlugin::new(self.schedule))
-            .add(PreparePlugin)
+            .add(PhysicsSetupPlugin::new(self.schedule.dyn_clone()))
+            .add(PreparePlugin::new(self.schedule.dyn_clone()))
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
-            .add(SyncPlugin)
+            .add(SyncPlugin::new(self.schedule))
     }
 }
 /// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].

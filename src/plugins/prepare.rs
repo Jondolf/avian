@@ -14,12 +14,31 @@ use bevy::prelude::*;
 /// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
-pub struct PreparePlugin;
+pub struct PreparePlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PreparePlugin {
+    /// Creates a [`PreparePlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new<S: ScheduleLabel>(schedule: S) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PreparePlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for PreparePlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+    fn build(&self, app: &mut App) {
         app.add_systems(
-            PostUpdate,
+            self.schedule.dyn_clone(),
             (
                 (init_rigid_bodies, init_mass_properties, init_colliders),
                 update_mass_properties,
