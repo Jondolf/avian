@@ -98,9 +98,9 @@ use bevy::prelude::*;
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
 ///
 /// pub struct CustomBroadPhasePlugin;
 ///
