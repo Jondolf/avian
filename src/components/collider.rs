@@ -1,9 +1,14 @@
+use std::fmt;
+
 use crate::prelude::*;
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{prelude::*, utils::HashSet};
 use derive_more::From;
-use parry::{bounding_volume::Aabb, shape::SharedShape};
+use parry::{
+    bounding_volume::Aabb,
+    shape::{SharedShape, TypedShape},
+};
 
 /// A collider used for collision detection.
 ///
@@ -78,6 +83,42 @@ impl Default for Collider {
         #[cfg(feature = "3d")]
         {
             Self(SharedShape::cuboid(0.5, 0.5, 0.5))
+        }
+    }
+}
+
+impl fmt::Debug for Collider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_typed_shape() {
+            TypedShape::Ball(shape) => write!(f, "{:?}", shape),
+            TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
+            TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
+            TypedShape::Capsule(shape) => write!(f, "{:?}", shape),
+            TypedShape::Segment(shape) => write!(f, "{:?}", shape),
+            TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
+            TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
+            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
+            TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
+            TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
+            TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
+            TypedShape::Compound(_) => write!(f, "Compound (not representable)"),
+            TypedShape::Custom(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::Cylinder(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::Cone(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundCylinder(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundCone(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "2d")]
+            TypedShape::ConvexPolygon(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "2d")]
+            TypedShape::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
         }
     }
 }
