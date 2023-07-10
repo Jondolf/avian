@@ -10,18 +10,14 @@ use parry::query::{
     },
 };
 
-#[cfg(feature = "2d")]
-type ShapeRotation = Scalar;
-#[cfg(feature = "3d")]
-type ShapeRotation = Quaternion;
-
 /// A system parameter for performing [spatial queries](spatial_query).
 ///
 /// ## Methods
 ///
 /// - [Ray casting](spatial_query#ray-casting): [`cast_ray`](SpatialQuery#method.cast_ray),
 /// [`ray_hits`](SpatialQuery#method.ray_hits), [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback)
-/// - [Shape casting](spatial_query#shape-casting): [`cast_shape`](SpatialQuery#method.cast_shape)
+/// - [Shape casting](spatial_query#shape-casting): [`cast_shape`](SpatialQuery#method.cast_shape),
+/// [`shape_hits`](SpatialQuery#method.shape_hits), [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback)
 /// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery#method.project_point)
 /// - [Intersection tests](spatial_query#intersection-tests)
 ///     - Point intersections: [`point_intersections`](SpatialQuery#method.point_intersections),
@@ -165,8 +161,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| RayHitData {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (entity_index, hit))| RayHitData {
+                entity: Entity::from_raw(entity_index),
                 time_of_impact: hit.toi,
                 normal: hit.normal.into(),
             })
@@ -182,7 +178,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
-    /// - `max_hits`: The maximum amount of hits. Additional hits will be missed.
+    /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
@@ -298,8 +294,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         let mut hits = Vec::with_capacity(10);
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {
                     if let Some(hit) =
@@ -373,7 +369,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         origin: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         direction: Vector,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
@@ -408,14 +404,207 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| ShapeHitData {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (entity_index, hit))| ShapeHitData {
+                entity: Entity::from_raw(entity_index),
                 time_of_impact: hit.toi,
                 point1: hit.witness1.into(),
                 point2: hit.witness2.into(),
                 normal1: hit.normal1.into(),
                 normal2: hit.normal2.into(),
             })
+    }
+
+    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// in the order of the time of impact until `max_hits` is reached.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape being cast represented as a [`Collider`].
+    /// - `origin`: Where the shape is cast from.
+    /// - `shape_rotation`: The rotation of the shape being cast.
+    /// - `direction`: What direction the shape is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the shape can travel.
+    /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
+    /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
+    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    /// hit will be returned.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `callback`: A callback function called for each hit.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     // Cast shape and get all hits
+    ///     let hits = spatial_query.shape_hits(
+    ///         &Collider::ball(0.5),          // Shape
+    ///         Vec3::ZERO,                    // Origin
+    ///         Quat::default(),               // Shape rotation
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)
+    ///         20,                            // Max hits
+    ///         true,                          // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///     );
+    ///
+    ///     // Print hits
+    ///     for hit in hits.iter() {
+    ///         println!("Hit: {:?}", hit);
+    ///     }
+    /// }
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn shape_hits(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        max_hits: u32,
+        ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Vec<ShapeHitData> {
+        let mut hits = 0;
+        self.shape_hits_callback(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            max_time_of_impact,
+            ignore_origin_penetration,
+            query_filter,
+            |_| {
+                hits += 1;
+                hits < max_hits
+            },
+        )
+    }
+
+    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// in the order of the time of impact, calling the given `callback` for each hit. The shape cast stops when
+    /// `callback` returns false or all hits have been found.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape being cast represented as a [`Collider`].
+    /// - `origin`: Where the shape is cast from.
+    /// - `shape_rotation`: The rotation of the shape being cast.
+    /// - `direction`: What direction the shape is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the shape can travel.
+    /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
+    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    /// hit will be returned.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `callback`: A callback function called for each hit.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// # use bevy_xpbd_2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// # #[cfg(all(feature = "3d", feature = "f32"))]
+    /// fn print_hits(spatial_query: SpatialQuery) {
+    ///     let mut hits = vec![];
+    ///
+    ///     // Cast shape and get all hits
+    ///     spatial_query.shape_hits_callback(
+    ///         &Collider::ball(0.5),          // Shape
+    ///         Vec3::ZERO,                    // Origin
+    ///         Quat::default(),               // Shape rotation
+    ///         Vec3::X,                       // Direction
+    ///         100.0,                         // Maximum time of impact (travel distance)
+    ///         true,                          // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(), // Query filter
+    ///         |hit| {                        // Callback function
+    ///             hits.push(hit);
+    ///             true
+    ///         },
+    ///     );
+    ///
+    ///     // Print hits
+    ///     for hit in hits.iter() {
+    ///         println!("Hit: {:?}", hit);
+    ///     }
+    /// }
+    /// ```
+    #[allow(clippy::too_many_arguments)]
+    pub fn shape_hits_callback(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        ignore_origin_penetration: bool,
+        mut query_filter: SpatialQueryFilter,
+        mut callback: impl FnMut(ShapeHitData) -> bool,
+    ) -> Vec<ShapeHitData> {
+        let colliders = self.get_collider_hash_map();
+        let rotation: Rotation;
+        #[cfg(feature = "2d")]
+        {
+            rotation = Rotation::from_radians(shape_rotation);
+        }
+        #[cfg(feature = "3d")]
+        {
+            rotation = Rotation::from(shape_rotation);
+        }
+
+        let shape_isometry = utils::make_isometry(origin, &rotation);
+        let shape_direction = direction.into();
+        let mut hits = Vec::with_capacity(10);
+
+        loop {
+            let pipeline_shape = self
+                .query_pipeline
+                .as_composite_shape(&colliders, query_filter.clone());
+            let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
+                &*self.query_pipeline.dispatcher,
+                &shape_isometry,
+                &shape_direction,
+                &pipeline_shape,
+                &**shape.get_shape(),
+                max_time_of_impact,
+                ignore_origin_penetration,
+            );
+
+            if let Some(hit) = self
+                .query_pipeline
+                .qbvh
+                .traverse_best_first(&mut visitor)
+                .map(|(_, (entity_index, hit))| ShapeHitData {
+                    entity: Entity::from_raw(entity_index),
+                    time_of_impact: hit.toi,
+                    point1: hit.witness1.into(),
+                    point2: hit.witness2.into(),
+                    normal1: hit.normal1.into(),
+                    normal2: hit.normal2.into(),
+                })
+            {
+                hits.push(hit);
+                query_filter.excluded_entities.insert(hit.entity);
+
+                if !callback(hit) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        hits
     }
 
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
@@ -466,8 +655,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         self.query_pipeline
             .qbvh
             .traverse_best_first(&mut visitor)
-            .map(|(_, (projection, entity_bits))| PointProjection {
-                entity: Entity::from_bits(entity_bits),
+            .map(|(_, (projection, entity_index))| PointProjection {
+                entity: Entity::from_raw(entity_index),
                 point: projection.point.into(),
                 is_inside: projection.is_inside,
             })
@@ -555,8 +744,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
 
         let mut intersections = vec![];
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             if let Ok((entity, position, rotation, shape, layers)) = self.colliders.get(entity) {
                 let isometry = utils::make_isometry(position.0, rotation);
                 if query_filter.test(entity, layers.map_or(CollisionLayers::default(), |l| *l))
@@ -637,8 +826,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         mut callback: impl FnMut(Entity) -> bool,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
-        let mut leaf_callback = |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
             intersections.push(entity);
             callback(entity)
         };
@@ -686,7 +875,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         shape_position: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
         self.shape_intersections_callback(
@@ -743,7 +932,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         shape: &Collider,
         shape_position: Vector,
-        shape_rotation: ShapeRotation,
+        shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) -> Vec<Entity> {
@@ -764,8 +953,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         let dispatcher = &*self.query_pipeline.dispatcher;
         let mut intersections = vec![];
 
-        let mut leaf_callback = &mut |entity_bits: &u64| {
-            let entity = Entity::from_bits(*entity_bits);
+        let mut leaf_callback = &mut |entity_index: &u32| {
+            let entity = Entity::from_raw(*entity_index);
 
             if let Some((collider_isometry, collider_shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {

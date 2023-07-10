@@ -60,8 +60,9 @@ fn sync_transforms(
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
-                let parent_pos =
-                    parent_pos.map_or(parent_transform.translation, |pos| pos.extend(0.0).as_f32());
+                let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| {
+                    pos.as_f32().extend(parent_transform.translation.z)
+                });
                 let parent_rot = parent_rot.map_or(parent_transform.rotation, |rot| {
                     Quaternion::from(*rot).as_f32()
                 });
@@ -73,7 +74,7 @@ fn sync_transforms(
                 // The new local transform of the child body,
                 // computed from the its global transform and its parents global transform
                 let new_transform = GlobalTransform::from(
-                    Transform::from_translation(pos.extend(0.0).as_f32())
+                    Transform::from_translation(pos.as_f32().extend(transform.translation.z))
                         .with_rotation(Quaternion::from(*rot).as_f32()),
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
@@ -82,7 +83,7 @@ fn sync_transforms(
                 transform.rotation = new_transform.rotation;
             }
         } else {
-            transform.translation = pos.extend(0.0).as_f32();
+            transform.translation = pos.as_f32().extend(transform.translation.z);
             transform.rotation = Quaternion::from(*rot).as_f32();
         }
     }

@@ -25,19 +25,43 @@ pub struct RigidBodyQuery {
     pub center_of_mass: &'static mut CenterOfMass,
     pub friction: &'static mut Friction,
     pub restitution: &'static mut Restitution,
+    pub locked_axes: Option<&'static LockedAxes>,
 }
 
 impl<'w> RigidBodyQueryItem<'w> {
-    /// Computes the world-space inverse inertia (does nothing in 2D).
-    #[cfg(feature = "2d")]
-    pub(crate) fn world_inv_inertia(&self) -> InverseInertia {
-        *self.inverse_inertia
+    /// Computes the effective inverse mass, taking into account any translation locking.
+    pub fn effective_inv_mass(&self) -> Vector {
+        let mut inv_mass = Vector::splat(self.inverse_mass.0);
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_mass = locked_axes.apply_to_vec(inv_mass);
+        }
+
+        inv_mass
     }
 
-    /// Computes the world-space inverse inertia tensor.
+    /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
+    #[cfg(feature = "2d")]
+    pub fn effective_world_inv_inertia(&self) -> Scalar {
+        let mut inv_inertia = self.inverse_inertia.0;
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+        }
+
+        inv_inertia
+    }
+
+    /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
-    pub fn world_inv_inertia(&self) -> InverseInertia {
-        self.inverse_inertia.rotated(&self.rotation)
+    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+        let mut inv_inertia = self.inverse_inertia.rotated(&self.rotation).0;
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+        }
+
+        inv_inertia
     }
 }
 

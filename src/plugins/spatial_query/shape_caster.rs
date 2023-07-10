@@ -9,7 +9,11 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 /// in a direction before it hits something.
 ///
 /// Each shape cast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
-/// a local `direction`. The [`ShapeCaster`] will find the closest hit as a [`ShapeHit`].
+/// a local `direction`. The [`ShapeCaster`] will find each hit and add them to the [`ShapeHits`] component in
+/// the order of the time of impact.
+///
+/// Computing lots of hits can be expensive, especially against complex geometry, so the maximum number of hits
+/// is one by default. This can be configured through the `max_hits` property.
 ///
 /// The [`ShapeCaster`] is the easiest way to handle simple shape casting. If you want more control and don't want
 /// to perform shape casts on every frame, consider using the [`SpatialQuery`] system parameter.
@@ -34,9 +38,9 @@ use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape
 ///     ));
 /// }
 ///
-/// fn print_hits(query: Query<(&ShapeCaster, &ShapeHit)>) {
-///     for (shape_caster, hit) in &query {
-///         if let Some(hit) = hit.0 {
+/// fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
+///     for (shape_caster, hits) in &query {
+///         for hit in hits.iter() {
 ///             println!("Hit entity {:?}", hit.entity);
 ///         }
 ///     }
@@ -82,6 +86,8 @@ pub struct ShapeCaster {
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
     /// until a hit is found.
     pub max_time_of_impact: Scalar,
+    /// The maximum number of hits allowed. By default this is one and only the first hit is returned.
+    pub max_hits: u32,
     /// Controls how the shape cast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
@@ -111,6 +117,7 @@ impl Default for ShapeCaster {
             direction: Vector::ZERO,
             global_direction: Vector::ZERO,
             max_time_of_impact: Scalar::MAX,
+            max_hits: 1,
             ignore_origin_penetration: false,
             query_filter: SpatialQueryFilter::default(),
         }
@@ -160,6 +167,12 @@ impl ShapeCaster {
     /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
     pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
         self.max_time_of_impact = max_time_of_impact;
+        self
+    }
+
+    /// Sets the maximum number of allowed hits.
+    pub fn with_max_hits(mut self, max_hits: u32) -> Self {
+        self.max_hits = max_hits;
         self
     }
 
@@ -226,9 +239,11 @@ impl ShapeCaster {
 
     pub(crate) fn cast(
         &self,
+        hits: &mut ShapeHits,
         colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape, CollisionLayers)>,
         query_pipeline: &SpatialQueryPipeline,
-    ) -> Option<ShapeHitData> {
+    ) {
+        hits.count = 0;
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -242,35 +257,48 @@ impl ShapeCaster {
         let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
         let shape_direction = self.global_direction().into();
 
-        let pipeline_shape =
-            query_pipeline.as_composite_shape(colliders, self.query_filter.clone());
-        let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
-            &*query_pipeline.dispatcher,
-            &shape_isometry,
-            &shape_direction,
-            &pipeline_shape,
-            &**self.shape.get_shape(),
-            self.max_time_of_impact,
-            self.ignore_origin_penetration,
-        );
+        let mut query_filter = self.query_filter.clone();
+        while hits.count < self.max_hits {
+            let pipeline_shape = query_pipeline.as_composite_shape(colliders, query_filter.clone());
+            let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
+                &*query_pipeline.dispatcher,
+                &shape_isometry,
+                &shape_direction,
+                &pipeline_shape,
+                &**self.shape.get_shape(),
+                self.max_time_of_impact,
+                self.ignore_origin_penetration,
+            );
 
-        query_pipeline
-            .qbvh
-            .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_bits, hit))| ShapeHitData {
-                entity: Entity::from_bits(entity_bits),
-                time_of_impact: hit.toi,
-                point1: hit.witness1.into(),
-                point2: hit.witness2.into(),
-                normal1: hit.normal1.into(),
-                normal2: hit.normal2.into(),
-            })
+            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
+                |(_, (entity_index, hit))| ShapeHitData {
+                    entity: Entity::from_raw(entity_index),
+                    time_of_impact: hit.toi,
+                    point1: hit.witness1.into(),
+                    point2: hit.witness2.into(),
+                    normal1: hit.normal1.into(),
+                    normal2: hit.normal2.into(),
+                },
+            ) {
+                if (hits.vector.len() as u32) < hits.count + 1 {
+                    hits.vector.push(hit);
+                } else {
+                    hits.vector[0] = hit;
+                }
+
+                hits.count += 1;
+                query_filter.excluded_entities.insert(hit.entity);
+            } else {
+                return;
+            }
+        }
     }
 }
 
-/// A component for the closest hit of a shape cast by a [`ShapeCaster`].
+/// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of time of impact.
 ///
-/// When there are no hits, the value is `None`.
+/// The maximum number of hits depends on the value of `max_hits` in [`ShapeCaster`]. By default only
+/// one hit is computed, as shape casting for many results can be expensive.
 ///
 /// ## Example
 ///
@@ -281,9 +309,9 @@ impl ShapeCaster {
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// fn print_hits(query: Query<&ShapeHit>) {
-///     for hit in &query {
-///         if let Some(hit) = hit.0 {
+/// fn print_hits(query: Query<&ShapeHits, With<ShapeCaster>>) {
+///     for hits in &query {
+///         for hit in hits.iter() {
 ///             println!(
 ///                 "Hit entity {:?} with time of impact {}",
 ///                 hit.entity,
@@ -293,8 +321,34 @@ impl ShapeCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Copy, Debug)]
-pub struct ShapeHit(pub Option<ShapeHitData>);
+#[derive(Component, Clone, Debug)]
+pub struct ShapeHits {
+    pub(crate) vector: Vec<ShapeHitData>,
+    pub(crate) count: u32,
+}
+
+impl ShapeHits {
+    /// Returns a slice over the shape cast hits.
+    pub fn as_slice(&self) -> &[ShapeHitData] {
+        &self.vector[0..self.count as usize]
+    }
+
+    /// Returns the number of hits.
+    #[doc(alias = "count")]
+    pub fn len(&self) -> usize {
+        self.count as usize
+    }
+
+    /// Returns true if the number of hits is 0.
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// Returns an iterator over the hits in the order of time of impact.
+    pub fn iter(&self) -> std::slice::Iter<ShapeHitData> {
+        self.as_slice().iter()
+    }
+}
 
 /// Data related to a hit during a [shape cast](spatial_query#shape-casting).
 #[derive(Component, Clone, Copy, Debug)]

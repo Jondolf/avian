@@ -36,6 +36,7 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
+//! - [Locking](LockedAxes) translational and rotational axes
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
@@ -160,6 +161,7 @@
 //! - [Define collision layers](CollisionLayers#creation)
 //! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Use joints](joints#using-joints)
+//! - [Lock translational and rotational axes](LockedAxes)
 //! - [Apply external forces](ExternalForce)
 //! - [Apply external torque](ExternalTorque)
 //! - [Configure gravity](Gravity)
