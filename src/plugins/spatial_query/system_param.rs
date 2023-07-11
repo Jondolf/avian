@@ -93,7 +93,7 @@ pub struct SpatialQuery<'w, 's> {
     >,
     pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
     pub(crate) changed_colliders: Query<'w, 's, Entity, ColliderChangedFilter>,
-    pub(crate) removed_colliders: Res<'w, spatial_query::RemovedColliders>,
+    pub(crate) removed_colliders: ResMut<'w, spatial_query::RemovedColliders>,
     /// The [`SpatialQueryPipeline`].
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
@@ -119,7 +119,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             .collect();
         let added = self.added_colliders.iter().collect::<Vec<_>>();
         let modified = self.changed_colliders.iter().collect::<Vec<_>>();
-        let removed = self.removed_colliders.iter().cloned().collect::<Vec<_>>();
+        let removed = self.removed_colliders.drain().collect::<Vec<_>>();
         self.query_pipeline
             .update_incremental(colliders, &added, &modified, &removed, true);
     }
