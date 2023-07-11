@@ -6,7 +6,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_xpbd_2d::prelude::*;
+use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::*;
 
 fn main() {

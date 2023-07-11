@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_2d::prelude::*;
+use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {
