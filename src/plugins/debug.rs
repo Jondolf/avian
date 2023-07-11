@@ -79,11 +79,11 @@ fn debug_render_contacts(mut collisions: EventReader<Collision>, mut gizmos: Giz
         let p1 = contact.point1.as_f32();
         let p2 = contact.point2.as_f32();
 
-        gizmos.line_2d(p1 - Vec2::X * 0.3, p1 + Vec2::X * 0.3, Color::CYAN);
-        gizmos.line_2d(p1 - Vec2::Y * 0.3, p1 + Vec2::Y * 0.3, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::X * 5.0, p1 + Vec2::X * 5.0, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::Y * 5.0, p1 + Vec2::Y * 5.0, Color::CYAN);
 
-        gizmos.line_2d(p2 - Vec2::X * 0.3, p2 + Vec2::X * 0.3, Color::CYAN);
-        gizmos.line_2d(p2 - Vec2::Y * 0.3, p2 + Vec2::Y * 0.3, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::X * 5.0, p2 + Vec2::X * 5.0, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::Y * 5.0, p2 + Vec2::Y * 5.0, Color::CYAN);
     }
     #[cfg(feature = "3d")]
     for Collision(contact) in collisions.iter() {
