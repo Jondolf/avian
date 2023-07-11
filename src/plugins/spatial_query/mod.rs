@@ -193,7 +193,7 @@ impl Plugin for SpatialQueryPlugin {
                     shapecast,
                 )
                     .chain()
-                    .in_set(PhysicsSet::SpatialQuery),
+                    .in_set(PhysicsStepSet::SpatialQuery),
             );
     }
 }

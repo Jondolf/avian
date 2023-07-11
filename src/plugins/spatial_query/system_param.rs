@@ -100,7 +100,7 @@ pub struct SpatialQuery<'w, 's> {
 
 impl<'w, 's> SpatialQuery<'w, 's> {
     /// Updates the colliders in the pipeline. This is done automatically once per physics frame in
-    /// [`PhysicsSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
+    /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
     /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].
     pub fn update_pipeline(&mut self) {
         let colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)> = self

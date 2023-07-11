@@ -43,17 +43,6 @@ impl Plugin for SolverPlugin {
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
 
-        substeps.configure_sets(
-            (
-                SubstepSet::Integrate,
-                SubstepSet::SolveConstraints,
-                SubstepSet::SolveUserConstraints,
-                SubstepSet::UpdateVelocities,
-                SubstepSet::SolveVelocities,
-            )
-                .chain(),
-        );
-
         substeps.add_systems(
             (
                 penetration_constraints,

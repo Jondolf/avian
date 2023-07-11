@@ -8,7 +8,26 @@ use bevy::prelude::*;
 /// Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes.
 ///
 /// You can configure what is rendered using the [`PhysicsDebugConfig`] resource.
-pub struct PhysicsDebugPlugin;
+pub struct PhysicsDebugPlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PhysicsDebugPlugin {
+    /// Creates a [`PhysicsDebugPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PhysicsDebugPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for PhysicsDebugPlugin {
     fn build(&self, app: &mut App) {
@@ -19,16 +38,16 @@ impl Plugin for PhysicsDebugPlugin {
             })
             .register_type::<PhysicsDebugConfig>()
             .add_systems(
-                PostUpdate,
+                self.schedule.dyn_clone(),
                 debug_render_aabbs
                     .run_if(|config: Res<PhysicsDebugConfig>| config.render_aabbs)
-                    .after(PhysicsSet::Sync),
+                    .after(PhysicsSet::StepSimulation),
             )
             .add_systems(
-                PostUpdate,
+                self.schedule.dyn_clone(),
                 debug_render_contacts
                     .run_if(|config: Res<PhysicsDebugConfig>| config.render_contacts)
-                    .after(PhysicsSet::Sync),
+                    .after(PhysicsSet::StepSimulation),
             );
     }
 }
@@ -79,11 +98,11 @@ fn debug_render_contacts(mut collisions: EventReader<Collision>, mut gizmos: Giz
         let p1 = contact.point1.as_f32();
         let p2 = contact.point2.as_f32();
 
-        gizmos.line_2d(p1 - Vec2::X * 0.3, p1 + Vec2::X * 0.3, Color::CYAN);
-        gizmos.line_2d(p1 - Vec2::Y * 0.3, p1 + Vec2::Y * 0.3, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::X * 5.0, p1 + Vec2::X * 5.0, Color::CYAN);
+        gizmos.line_2d(p1 - Vec2::Y * 5.0, p1 + Vec2::Y * 5.0, Color::CYAN);
 
-        gizmos.line_2d(p2 - Vec2::X * 0.3, p2 + Vec2::X * 0.3, Color::CYAN);
-        gizmos.line_2d(p2 - Vec2::Y * 0.3, p2 + Vec2::Y * 0.3, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::X * 5.0, p2 + Vec2::X * 5.0, Color::CYAN);
+        gizmos.line_2d(p2 - Vec2::Y * 5.0, p2 + Vec2::Y * 5.0, Color::CYAN);
     }
     #[cfg(feature = "3d")]
     for Collision(contact) in collisions.iter() {

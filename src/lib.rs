@@ -275,7 +275,7 @@
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
-//! the Bevy schedules[^1][^2] and sets[^3][^4], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
+//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
 //! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
@@ -317,7 +317,9 @@
 //!
 //! [^3]: [`PhysicsSet`]
 //!
-//! [^4]: [`SubstepSet`]
+//! [^4]: [`PhysicsStepSet`]
+//!
+//! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(missing_docs)]
@@ -353,11 +355,11 @@ pub mod prelude {
         collision::*,
         components::*,
         constraints::{joints::*, *},
-        math::*,
         plugins::*,
         resources::*,
-        *,
+        PhysicsSet,
     };
+    pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;
 }
 pub use prelude::setup::{pause, resume};
@@ -373,4 +375,123 @@ use bevy::{
     prelude::*,
 };
 use parry::math::Isometry;
-use prelude::*;
+
+/// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
+///
+/// See [`PhysicsStepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct PhysicsSchedule;
+
+/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
+///
+/// See [`SubstepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct SubstepSchedule;
+
+/// High-level system sets for the main phases of the physics engine.
+/// You can use these to schedule your own systems before or after physics is run without
+/// having to worry about implementation details.
+///
+/// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+/// updating several components.
+/// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+/// 3. `Sync`: Responsible for synchronizing physics components with other data, like writing [`Position`]
+/// and [`Rotation`] components to `Transform`s.
+///
+/// ## See also
+///
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
+/// the constraint solver.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PhysicsSet {
+    /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+    /// updating several components.
+    ///
+    /// See [`PreparePlugin`].
+    Prepare,
+    /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+    /// Systems in this set are run in the [`PhysicsSchedule`].
+    StepSimulation,
+    /// Responsible for synchronizing physics components with other data, like writing [`Position`]
+    /// and [`Rotation`] components to `Transform`s.
+    ///
+    /// See [`SyncPlugin`].
+    Sync,
+}
+
+/// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
+///
+/// 1. Broad phase
+/// 2. Substeps
+///     1. Integrate
+///     2. Solve positional and angular constraints
+///     3. Update velocities
+///     4. Solve velocity constraints (dynamic friction and restitution)
+/// 3. Sleeping
+/// 4. Spatial queries (ray casting and shape casting)
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PhysicsStepSet {
+    /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+    /// [AABB](ColliderAabb) intersection tests.
+    ///
+    /// See [`BroadPhasePlugin`].
+    BroadPhase,
+    /// Responsible for substepping, which is an inner loop inside a physics step.
+    ///
+    /// See [`SubstepSet`] and [`SubstepSchedule`].
+    Substeps,
+    /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
+    ///
+    /// See [`SleepingPlugin`].
+    Sleeping,
+    /// Responsible for spatial queries like [ray casting](`RayCaster`) and shape casting.
+    ///
+    /// See [`SpatialQueryPlugin`].
+    SpatialQuery,
+}
+
+/// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
+///
+/// 1. Integrate
+/// 2. Solve positional and angular constraints
+/// 3. Update velocities
+/// 4. Solve velocity constraints (dynamic friction and restitution)
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SubstepSet {
+    /// Responsible for integrating Newton's 2nd law of motion,
+    /// applying forces and moving entities according to their velocities.
+    ///
+    /// See [`IntegratorPlugin`].
+    Integrate,
+    /// The [solver] iterates through [constraints] and solves them.
+    /// This step is also responsible for narrow phase collision detection,
+    /// as it creates a [`PenetrationConstraint`] for each contact.
+    ///
+    /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
+    /// you should add them in [`SubstepSet::SolveUserConstraints`]
+    /// to avoid system order ambiguities.
+    ///
+    /// See [`SolverPlugin`].
+    SolveConstraints,
+    /// The [solver] iterates through custom [constraints] created by the user and solves them.
+    ///
+    /// You can [create new constraints](constraints#custom-constraints) by implementing [`XpbdConstraint`]
+    /// for a component and adding the [constraint system](solve_constraint) to this set.
+    ///
+    /// See [`SolverPlugin`].
+    SolveUserConstraints,
+    /// Responsible for updating velocities after [constraint](constraints) solving.
+    ///
+    /// See [`SolverPlugin`].
+    UpdateVelocities,
+    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
+    /// substepping loop.
+    ///
+    /// See [`SolverPlugin`].
+    SolveVelocities,
+}

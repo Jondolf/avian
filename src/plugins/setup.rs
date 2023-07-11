@@ -14,19 +14,17 @@ use crate::prelude::*;
 ///
 /// ## Schedules and sets
 ///
-/// The [`PhysicsSchedule`] is responsible for the high-level physics schedule that runs once per physics frame.
-/// It has the following sets, in order:
+/// This plugin initializes and configures the following schedules and system sets:
 ///
-/// 1. [`PhysicsSet::Prepare`],
-/// 2. [`PhysicsSet::BroadPhase`],
-/// 3. [`PhysicsSet::Substeps`],
-/// 4. [`PhysicsSet::Sleeping`],
-/// 5. [`PhysicsSet::Sync`],
-///
-/// The [`SubstepSchedule`] handles physics substepping. It is run [`SubstepCount`] times in [`PhysicsSet::Substeps`],
-/// and it typically handles things like collision detection and constraint solving.
-///
-/// [Substepping sets](SubstepSet) are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
+/// - [`PhysicsSet`]: High-level system sets for the main phases of the physics engine.
+/// You can use these to schedule your own systems before or after physics is run without
+/// having to worry about implementation details.
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
+/// the constraint solver.
 pub struct PhysicsSetupPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
@@ -99,6 +97,20 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>();
 
+        // Configure higher level system sets for the given schedule
+        let schedule = &self.schedule;
+        app.configure_sets(
+            schedule.dyn_clone(),
+            (
+                PhysicsSet::Prepare,
+                PhysicsSet::StepSimulation,
+                PhysicsSet::Sync,
+            )
+                .chain()
+                .before(TransformSystem::TransformPropagate),
+        );
+
+        // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::default();
 
         physics_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
@@ -108,18 +120,22 @@ impl Plugin for PhysicsSetupPlugin {
 
         physics_schedule.configure_sets(
             (
-                PhysicsSet::Prepare,
-                PhysicsSet::BroadPhase,
-                PhysicsSet::Substeps,
-                PhysicsSet::Sleeping,
-                PhysicsSet::SpatialQuery,
-                PhysicsSet::Sync,
+                PhysicsStepSet::BroadPhase,
+                PhysicsStepSet::Substeps,
+                PhysicsStepSet::Sleeping,
+                PhysicsStepSet::SpatialQuery,
             )
                 .chain(),
         );
 
         app.add_schedule(PhysicsSchedule, physics_schedule);
 
+        app.add_systems(
+            schedule.dyn_clone(),
+            run_physics_schedule.in_set(PhysicsSet::StepSimulation),
+        );
+
+        // Create substep schedule, the schedule that runs the inner substepping loop
         let mut substep_schedule = Schedule::default();
 
         substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
@@ -127,39 +143,25 @@ impl Plugin for PhysicsSetupPlugin {
             ..default()
         });
 
-        app.add_schedule(SubstepSchedule, substep_schedule);
+        substep_schedule.configure_sets(
+            (
+                SubstepSet::Integrate,
+                SubstepSet::SolveConstraints,
+                SubstepSet::SolveUserConstraints,
+                SubstepSet::UpdateVelocities,
+                SubstepSet::SolveVelocities,
+            )
+                .chain(),
+        );
 
-        // Add system set for running physics schedule
-        let schedule = &self.schedule;
-        app.configure_set(
-            schedule.dyn_clone(),
-            FixedUpdateSet.before(TransformSystem::TransformPropagate),
-        );
-        app.add_systems(
-            schedule.dyn_clone(),
-            run_physics_schedule.in_set(FixedUpdateSet),
-        );
+        app.add_schedule(SubstepSchedule, substep_schedule);
 
         app.add_systems(
             PhysicsSchedule,
-            run_substep_schedule.in_set(PhysicsSet::Substeps),
+            run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
     }
 }
-
-/// The high-level physics schedule that runs once per physics frame.
-/// See [`PhysicsSet`] for the system sets that are run in this schedule.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct PhysicsSchedule;
-
-/// The substepping schedule. The number of substeps per physics step is
-/// configured through the [`SubstepCount`] resource.
-/// See [`SubstepSet`] for the system sets that are run in this schedule.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct SubstepSchedule;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-struct FixedUpdateSet;
 
 /// Data related to the physics simulation loop.
 #[derive(Reflect, Resource, Debug, Default)]
