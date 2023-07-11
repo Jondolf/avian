@@ -159,7 +159,7 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
@@ -177,12 +177,18 @@ impl Plugin for SpatialQueryPlugin {
             .expect("add PhysicsSchedule first");
 
         physics_schedule
-            .add_systems((init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare))
+            .add_systems(
+                (init_ray_hits, init_shape_hit, update_removed_colliders)
+                    .in_set(PhysicsSet::Prepare),
+            )
             .add_systems(
                 (
                     update_ray_caster_positions,
                     update_shape_caster_positions,
-                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                    |mut spatial_query: SpatialQuery| {
+                        spatial_query.update_pipeline();
+                        spatial_query.removed_colliders.clear();
+                    },
                     raycast,
                     shapecast,
                 )
@@ -193,7 +199,7 @@ impl Plugin for SpatialQueryPlugin {
 }
 
 #[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
-struct RemovedColliders(Vec<Entity>);
+pub(crate) struct RemovedColliders(HashSet<Entity>);
 
 fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
@@ -371,6 +377,5 @@ fn update_removed_colliders(
     mut removals: RemovedComponents<Collider>,
     mut removed_colliders: ResMut<RemovedColliders>,
 ) {
-    removed_colliders.clear();
     removed_colliders.extend(removals.iter());
 }
