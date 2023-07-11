@@ -262,7 +262,7 @@ impl ShapeCaster {
                 &pipeline_shape,
                 &**self.shape.get_shape(),
                 self.max_time_of_impact,
-                self.ignore_origin_penetration,
+                !self.ignore_origin_penetration,
             );
 
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
