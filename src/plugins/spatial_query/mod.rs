@@ -164,37 +164,54 @@ use bevy::{prelude::*, utils::HashSet};
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
 /// [`RayCaster`] and [`ShapeCaster`].
-pub struct SpatialQueryPlugin;
+pub struct SpatialQueryPlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl SpatialQueryPlugin {
+    /// Creates a [`SpatialQueryPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for SpatialQueryPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpatialQueryPipeline>()
             .init_resource::<RemovedColliders>()
-            .add_systems(Last, update_removed_colliders);
+            .add_systems(Last, update_removed_colliders)
+            .add_systems(
+                self.schedule.dyn_clone(),
+                (init_ray_hits, init_shape_hit, update_removed_colliders)
+                    .in_set(PhysicsSet::Prepare),
+            );
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics_schedule
-            .add_systems(
-                (init_ray_hits, init_shape_hit, update_removed_colliders)
-                    .in_set(PhysicsSet::Prepare),
+        physics_schedule.add_systems(
+            (
+                update_ray_caster_positions,
+                update_shape_caster_positions,
+                |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                |mut removed: ResMut<RemovedColliders>| removed.clear(),
+                raycast,
+                shapecast,
             )
-            .add_systems(
-                (
-                    update_ray_caster_positions,
-                    update_shape_caster_positions,
-                    |mut spatial_query: SpatialQuery| {
-                        spatial_query.update_pipeline();
-                        spatial_query.removed_colliders.clear();
-                    },
-                    raycast,
-                    shapecast,
-                )
-                    .chain()
-                    .in_set(PhysicsStepSet::SpatialQuery),
-            );
+                .chain()
+                .in_set(PhysicsStepSet::SpatialQuery),
+        );
     }
 }
 

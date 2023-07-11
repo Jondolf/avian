@@ -93,7 +93,7 @@ pub struct SpatialQuery<'w, 's> {
     >,
     pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
     pub(crate) changed_colliders: Query<'w, 's, Entity, ColliderChangedFilter>,
-    pub(crate) removed_colliders: ResMut<'w, spatial_query::RemovedColliders>,
+    pub(crate) removed_colliders: Res<'w, spatial_query::RemovedColliders>,
     /// The [`SpatialQueryPipeline`].
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
