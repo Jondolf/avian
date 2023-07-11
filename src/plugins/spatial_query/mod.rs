@@ -159,7 +159,7 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
@@ -168,7 +168,9 @@ pub struct SpatialQueryPlugin;
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>();
+        app.init_resource::<SpatialQueryPipeline>()
+            .init_resource::<RemovedColliders>()
+            .add_systems(Last, update_removed_colliders);
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -180,7 +182,7 @@ impl Plugin for SpatialQueryPlugin {
                 (
                     update_ray_caster_positions,
                     update_shape_caster_positions,
-                    update_query_pipeline,
+                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
                     raycast,
                     shapecast,
                 )
@@ -189,6 +191,9 @@ impl Plugin for SpatialQueryPlugin {
             );
     }
 }
+
+#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
+struct RemovedColliders(Vec<Entity>);
 
 fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
@@ -344,10 +349,9 @@ fn update_shape_caster_positions(
 }
 
 fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
-    let colliders = spatial_query.get_collider_hash_map();
     for (ray, mut hits) in &mut rays {
         if ray.enabled {
-            ray.cast(&mut hits, &colliders, &spatial_query.query_pipeline);
+            ray.cast(&mut hits, &spatial_query.query_pipeline);
         }
     }
 }
@@ -356,40 +360,17 @@ fn shapecast(
     mut shape_casters: Query<(&ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
 ) {
-    let colliders = spatial_query.get_collider_hash_map();
     for (shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
-            shape_caster.cast(&mut hits, &colliders, &spatial_query.query_pipeline);
+            shape_caster.cast(&mut hits, &spatial_query.query_pipeline);
         }
     }
 }
 
-type ColliderChangedFilter = (
-    Or<(Changed<Position>, Changed<Rotation>, Changed<Collider>)>,
-    With<Collider>,
-);
-
-fn update_query_pipeline(
-    colliders: Query<(Entity, &Position, &Rotation, &Collider)>,
-    added_colliders: Query<Entity, Added<Collider>>,
-    changed_colliders: Query<Entity, ColliderChangedFilter>,
-    mut removed_colliders: RemovedComponents<Collider>,
-    mut query_pipeline: ResMut<SpatialQueryPipeline>,
+fn update_removed_colliders(
+    mut removals: RemovedComponents<Collider>,
+    mut removed_colliders: ResMut<RemovedColliders>,
 ) {
-    let colliders: HashMap<Entity, (Isometry<Scalar>, &dyn parry::shape::Shape)> = colliders
-        .iter()
-        .map(|(entity, position, rotation, collider)| {
-            (
-                entity,
-                (
-                    utils::make_isometry(position.0, rotation),
-                    &**collider.get_shape(),
-                ),
-            )
-        })
-        .collect();
-    let added = added_colliders.iter().collect::<Vec<_>>();
-    let modified = changed_colliders.iter().collect::<Vec<_>>();
-    let removed = removed_colliders.iter().collect::<Vec<_>>();
-    query_pipeline.update_incremental(&colliders, added, modified, removed, true);
+    removed_colliders.clear();
+    removed_colliders.extend(removals.iter());
 }
