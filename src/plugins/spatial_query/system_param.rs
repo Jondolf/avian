@@ -413,7 +413,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             &pipeline_shape,
             &**shape.get_shape(),
             max_time_of_impact,
-            ignore_origin_penetration,
+            !ignore_origin_penetration,
         );
 
         self.query_pipeline
@@ -589,7 +589,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
                 &pipeline_shape,
                 &**shape.get_shape(),
                 max_time_of_impact,
-                ignore_origin_penetration,
+                !ignore_origin_penetration,
             );
 
             if let Some(hit) = self
