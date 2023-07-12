@@ -21,7 +21,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
+/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
@@ -298,7 +298,7 @@ impl ShapeCaster {
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
+/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]

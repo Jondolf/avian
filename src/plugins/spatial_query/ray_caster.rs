@@ -32,7 +32,7 @@ use parry::query::{
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
+/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
@@ -267,7 +267,7 @@ impl RayCaster {
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
+/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]

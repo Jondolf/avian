@@ -33,7 +33,7 @@
 //! A simple example using the component-based method looks like this:
 //!
 //! ```
-//! # use bevy::prelude::*;
+//! use bevy::prelude::*;
 //! # #[cfg(feature = "2d")]
 //! # use bevy_xpbd_2d::prelude::*;
 //! # #[cfg(feature = "3d")]
@@ -88,7 +88,7 @@
 //! A simple example using the component-based method looks like this:
 //!
 //! ```
-//! # use bevy::prelude::*;
+//! use bevy::prelude::*;
 //! # #[cfg(feature = "2d")]
 //! # use bevy_xpbd_2d::prelude::*;
 //! # #[cfg(feature = "3d")]
