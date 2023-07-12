@@ -9,6 +9,8 @@
 **Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD)
 for the [Bevy game engine](https://bevyengine.org/).
 
+![Newton's cradle simulated using Bevy XPBD](https://github.com/Jondolf/bevy_xpbd/assets/57632562/ac441146-296e-4ddf-812a-3942f957d971)
+
 ## Design
 
 Below are some of the core design principles used in Bevy XPBD.
@@ -32,33 +34,42 @@ Below are some of the current features of Bevy XPBD.
     - Sensor colliders
     - Collision layers
 - Material properties like restitution and friction
+- Linear and angular velocity damping for simulating drag
 - External forces and torque
-- Gravity
+- Gravity and gravity scale for specific entities
 - Joints
 - Built-in constraints and support for custom constraints
+- Spatial queries
+    - Ray casting
+    - Shape casting
+    - Point projection
+    - Intersection tests
+- Locking translational and rotational axes with `LockedAxes`
 - Automatically deactivating bodies with `Sleeping`
 - Configurable timesteps and substepping
 - `f32`/`f64` precision (`f32` by default)
 
 ## Documentation
 
-- [`bevy_xpbd_2d`](https://docs.rs/bevy_xpbd_2d)
-- [`bevy_xpbd_3d`](https://docs.rs/bevy_xpbd_3d)
+- [2D documentation](https://docs.rs/bevy_xpbd_2d)
+- [3D documentation](https://docs.rs/bevy_xpbd_3d)
 
 ## Usage example
 
-For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
+First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`:
 
 ```toml
+# For 2D applications:
 [dependencies]
 bevy_xpbd_2d = "0.1"
-```
 
-Similarly for a 3D game, add `bevy_xpbd_3d`:
-
-```toml
+# For 3D applications:
 [dependencies]
 bevy_xpbd_3d = "0.1"
+
+# If you want to use the most up-to-date version, you can follow the main branch:
+[dependencies]
+bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 ```
 
 Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
@@ -145,17 +156,12 @@ cargo run --example cubes --no-default-features --features "3d f64"
 ## Future features
 
 - On-demand simulation stepping
-- Linear and angular velocity damping
-- Locking translational and rotational axes without joints
 - Joint motors
-- Spatial queries
 - Continuous collision detection
-- Multiple colliders per body
-- Debug render colliders and joints
+- Multiple colliders per body and colliders as children
+- Debug render colliders, joints and ray casts
 - Performance optimization (better broad phase, parallel solver...)
-- Soft bodies
-  - Cloth
-  - Deformable solids
+- Soft bodies (cloth and deformable solids)
 - Maybe fluid simulation
 
 ## Contributing
