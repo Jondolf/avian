@@ -9,7 +9,7 @@
 **Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD)
 for the [Bevy game engine](https://bevyengine.org/).
 
-![Newton's cradle simulated using Bevy XPBD](https://github.com/Jondolf/bevy_xpbd/assets/57632562/ac441146-296e-4ddf-812a-3942f957d971)
+![Newton's cradle simulated using Bevy XPBD](https://github.com/Jondolf/bevy_xpbd/assets/57632562/74f3754c-eb1c-4161-9384-a6fa8f92dd2e)
 
 ## Design
 
