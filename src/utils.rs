@@ -12,6 +12,10 @@ pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
     Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
 }
 
+pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
+    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
+}
+
 #[cfg(feature = "3d")]
 pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternion) -> Matrix3 {
     let rot_mat3 = Matrix3::from_quat(rot);

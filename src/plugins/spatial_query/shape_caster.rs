@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
-use parry::{query::details::TOICompositeShapeShapeBestFirstVisitor, shape::Shape};
+use bevy::prelude::*;
+use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 
 /// A component used for [shape casting](spatial_query#shape-casting).
 ///
@@ -237,12 +237,7 @@ impl ShapeCaster {
         self.global_direction = global_direction;
     }
 
-    pub(crate) fn cast(
-        &self,
-        hits: &mut ShapeHits,
-        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape, CollisionLayers)>,
-        query_pipeline: &SpatialQueryPipeline,
-    ) {
+    pub(crate) fn cast(&self, hits: &mut ShapeHits, query_pipeline: &SpatialQueryPipeline) {
         hits.count = 0;
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
@@ -259,7 +254,7 @@ impl ShapeCaster {
 
         let mut query_filter = self.query_filter.clone();
         while hits.count < self.max_hits {
-            let pipeline_shape = query_pipeline.as_composite_shape(colliders, query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*query_pipeline.dispatcher,
                 &shape_isometry,
@@ -267,12 +262,12 @@ impl ShapeCaster {
                 &pipeline_shape,
                 &**self.shape.get_shape(),
                 self.max_time_of_impact,
-                self.ignore_origin_penetration,
+                !self.ignore_origin_penetration,
             );
 
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
                 |(_, (entity_index, hit))| ShapeHitData {
-                    entity: Entity::from_raw(entity_index),
+                    entity: query_pipeline.entity_from_index(entity_index),
                     time_of_impact: hit.toi,
                     point1: hit.witness1.into(),
                     point2: hit.witness2.into(),

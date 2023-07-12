@@ -1,10 +1,7 @@
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
-use parry::{
-    query::{
-        details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
-    },
-    shape::Shape,
+use bevy::prelude::*;
+use parry::query::{
+    details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
 
 /// A component used for [ray casting](spatial_query#ray-casting).
@@ -182,16 +179,10 @@ impl RayCaster {
         self.global_direction = global_direction;
     }
 
-    pub(crate) fn cast(
-        &self,
-        hits: &mut RayHits,
-        colliders: &HashMap<Entity, (Isometry<Scalar>, &dyn Shape, CollisionLayers)>,
-        query_pipeline: &SpatialQueryPipeline,
-    ) {
+    pub(crate) fn cast(&self, hits: &mut RayHits, query_pipeline: &SpatialQueryPipeline) {
         hits.count = 0;
         if self.max_hits == 1 {
-            let pipeline_shape =
-                query_pipeline.as_composite_shape(colliders, self.query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(self.query_filter.clone());
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
@@ -203,7 +194,7 @@ impl RayCaster {
 
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
                 |(_, (entity_index, hit))| RayHitData {
-                    entity: Entity::from_raw(entity_index),
+                    entity: query_pipeline.entity_from_index(entity_index),
                     time_of_impact: hit.toi,
                     normal: hit.normal.into(),
                 },
@@ -220,8 +211,8 @@ impl RayCaster {
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
 
             let mut leaf_callback = &mut |entity_index: &u32| {
-                let entity = Entity::from_raw(*entity_index);
-                if let Some((iso, shape, layers)) = colliders.get(&entity) {
+                let entity = query_pipeline.entity_from_index(*entity_index);
+                if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
                     if self.query_filter.test(entity, *layers) {
                         if let Some(hit) = shape.cast_ray_and_get_normal(
                             iso,

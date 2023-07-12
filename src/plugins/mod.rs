@@ -192,7 +192,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
-            .add(SpatialQueryPlugin)
+            .add(SpatialQueryPlugin::new(self.schedule.dyn_clone()))
             .add(SyncPlugin::new(self.schedule))
     }
 }
