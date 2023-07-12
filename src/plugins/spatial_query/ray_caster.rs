@@ -120,6 +120,18 @@ impl RayCaster {
         }
     }
 
+    /// Sets the ray origin.
+    pub fn with_origin(mut self, origin: Vector) -> Self {
+        self.origin = origin;
+        self
+    }
+
+    /// Sets the ray direction.
+    pub fn with_direction(mut self, direction: Vector) -> Self {
+        self.direction = direction;
+        self
+    }
+
     /// Sets if the ray treats [colliders](Collider) as solid.
     ///
     /// If `solid` is true, the point of intersection will be the ray origin itself.\

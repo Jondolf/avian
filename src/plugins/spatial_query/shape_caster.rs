@@ -132,7 +132,7 @@ impl ShapeCaster {
             shape,
             origin,
             shape_rotation,
-            direction,
+            direction: direction.normalize(),
             ..default()
         }
     }
@@ -151,6 +151,18 @@ impl ShapeCaster {
             direction,
             ..default()
         }
+    }
+
+    /// Sets the ray origin.
+    pub fn with_origin(mut self, origin: Vector) -> Self {
+        self.origin = origin;
+        self
+    }
+
+    /// Sets the ray direction.
+    pub fn with_direction(mut self, direction: Vector) -> Self {
+        self.direction = direction;
+        self
     }
 
     /// Controls how the shape cast behaves when the shape is already penetrating a [collider](Collider)
@@ -222,13 +234,13 @@ impl ShapeCaster {
 
     /// Sets the global rotation of the shape.
     #[cfg(feature = "2d")]
-    pub fn set_global_shape_rotation(&mut self, global_rotation: Scalar) {
+    pub(crate) fn set_global_shape_rotation(&mut self, global_rotation: Scalar) {
         self.global_shape_rotation = global_rotation;
     }
 
     /// Sets the global rotation of the shape.
     #[cfg(feature = "3d")]
-    pub fn set_global_shape_rotation(&mut self, global_rotation: Quaternion) {
+    pub(crate) fn set_global_shape_rotation(&mut self, global_rotation: Quaternion) {
         self.global_shape_rotation = global_rotation;
     }
 
