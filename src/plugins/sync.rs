@@ -43,6 +43,15 @@ impl Plugin for SyncPlugin {
     }
 }
 
+type RbSyncQueryComponents = (
+    &'static mut Transform,
+    &'static Position,
+    &'static Rotation,
+    Option<&'static Parent>,
+);
+
+type RbSyncQueryFilter = Or<(Changed<Position>, Changed<Rotation>)>;
+
 type RigidBodyParentComponents = (
     &'static GlobalTransform,
     Option<&'static Position>,
@@ -52,7 +61,7 @@ type RigidBodyParentComponents = (
 /// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy `Transform`s.
 #[cfg(feature = "2d")]
 fn sync_transforms(
-    mut bodies: Query<(&mut Transform, &Position, &Rotation, Option<&Parent>)>,
+    mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut bodies {
@@ -95,7 +104,7 @@ fn sync_transforms(
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
 fn sync_transforms(
-    mut bodies: Query<(&mut Transform, &Position, &Rotation, Option<&Parent>)>,
+    mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut bodies {
