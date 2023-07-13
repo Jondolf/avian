@@ -233,6 +233,8 @@ fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, A
 }
 
 type MassPropertiesComponents = (
+    Entity,
+    &'static RigidBody,
     MassPropertiesQuery,
     Option<&'static Collider>,
     Option<&'static mut ColliderMassProperties>,
@@ -253,6 +255,8 @@ type MassPropertiesChanged = Or<(
 /// Also updates the collider's mass properties if the body has a collider.
 fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassPropertiesChanged>) {
     for (
+        entity,
+        rb,
         mut mass_properties,
         collider,
         collider_mass_properties,
@@ -279,11 +283,20 @@ fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassProper
             mass_properties += *collider_mass_properties;
         }
 
-        if mass_properties.mass.0 < Scalar::EPSILON {
-            mass_properties.mass.0 = Scalar::EPSILON;
-        }
-        if mass_properties.inverse_mass.0 < Scalar::EPSILON {
-            mass_properties.inverse_mass.0 = Scalar::EPSILON;
+        // Warn about dynamic bodies with no mass or inertia
+        let is_mass_valid =
+            mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
+        #[cfg(feature = "2d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
+        #[cfg(feature = "3d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
+        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
+            warn!(
+                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
+                entity
+            );
         }
     }
 }
