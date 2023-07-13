@@ -215,19 +215,9 @@ impl From<Rotation> for Scalar {
 #[cfg(feature = "2d")]
 impl From<Rotation> for Quaternion {
     fn from(rot: Rotation) -> Self {
-        if rot.cos() < 0.0 {
-            let t = 1.0 - rot.cos();
-            let d = 1.0 / (t * 2.0).sqrt();
-            let z = -rot.sin() * d;
-            let w = t * d;
-            Quaternion::from_xyzw(0.0, 0.0, z, w)
-        } else {
-            let t = 1.0 + rot.cos();
-            let d = 1.0 / (t * 2.0).sqrt();
-            let z = t * d;
-            let w = -rot.sin() * d;
-            Quaternion::from_xyzw(0.0, 0.0, z, w)
-        }
+        let z = rot.sin().signum() * ((1.0 - rot.cos()) / 2.0).abs().sqrt();
+        let w = ((1.0 + rot.cos()) / 2.0).abs().sqrt();
+        Quaternion::from_xyzw(0.0, 0.0, z, w)
     }
 }
 
