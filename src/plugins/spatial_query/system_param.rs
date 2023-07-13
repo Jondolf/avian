@@ -787,7 +787,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
-    ///     let aabb = Collider::ball(0.5).compute_aabb(Vector::ZERO, Quat::default());
+    ///     let aabb = Collider::ball(0.5).compute_aabb(Vec3::ZERO, Quat::default());
     ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
     ///
     ///     for entity in intersections.iter() {
@@ -817,7 +817,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut intersections = vec![];
     ///
     ///     spatial_query.aabb_intersections_with_aabb_callback(
-    ///         Collider::ball(0.5).compute_aabb(Vector::ZERO, Quat::default()),
+    ///         Collider::ball(0.5).compute_aabb(Vec3::ZERO, Quat::default()),
     ///         |entity| {
     ///             intersections.push(entity);
     ///             true
