@@ -155,10 +155,12 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 - On-demand simulation stepping
 - Joint motors
+- Articulations, aka. multibody joints
 - Continuous collision detection
 - Multiple colliders per body and colliders as children
 - Debug render colliders, joints and ray casts
 - Performance optimization (better broad phase, parallel solver...)
+- Proper cross-platform determinism
 - Soft bodies (cloth and deformable solids)
 - Maybe fluid simulation
 
