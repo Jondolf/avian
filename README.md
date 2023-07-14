@@ -59,11 +59,11 @@ First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`
 ```toml
 # For 2D applications:
 [dependencies]
-bevy_xpbd_2d = "0.1"
+bevy_xpbd_2d = "0.2"
 
 # For 3D applications:
 [dependencies]
-bevy_xpbd_3d = "0.1"
+bevy_xpbd_3d = "0.2"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -148,7 +148,7 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 | Bevy | Bevy XPBD |
 | ---- | --------- |
-| 0.11 | main      |
+| 0.11 | 0.2       |
 | 0.10 | 0.1       |
 
 ## Future features
@@ -156,8 +156,9 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - On-demand simulation stepping
 - Joint motors
 - Articulations, aka. multibody joints
-- Continuous collision detection
+- Continuous collision detection (CCD)
 - Multiple colliders per body and colliders as children
+- Collision filters, i.e. excluding certain entities or rigid body types
 - Debug render colliders, joints and ray casts
 - Performance optimization (better broad phase, parallel solver...)
 - Proper cross-platform determinism
