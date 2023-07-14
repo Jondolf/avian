@@ -340,7 +340,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         hits
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHit)
+    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
