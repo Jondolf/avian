@@ -27,8 +27,9 @@
 //!     - [Collision layers](CollisionLayers)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
-//! - External [forces](ExternalForce) and [torque](ExternalTorque)
 //! - [Gravity] and [gravity scale](GravityScale)
+//! - External [forces](ExternalForce) and [torque](ExternalTorque)
+//! - [Locking](LockedAxes) translational and rotational axes
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
 //! - [Spatial queries](spatial_query)
@@ -36,7 +37,6 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
-//! - [Locking](LockedAxes) translational and rotational axes
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
@@ -47,18 +47,20 @@
 //!
 //! ### Add the dependency
 //!
-//! For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
-//!
+//! First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`:
+//!  
 //! ```toml
+//! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.1"
-//! ```
+//! bevy_xpbd_2d = "0.2"
 //!
-//! Similarly for a 3D game, add `bevy_xpbd_3d`:
-//!
-//! ```toml
+//! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.1"
+//! bevy_xpbd_3d = "0.2"
+//!
+//! # If you want to use the most up-to-date version, you can follow the main branch:
+//! [dependencies]
+//! bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 //! ```
 //!
 //! By default, Bevy XPBD uses `f32` numbers. If you encounter instability or use a large number
@@ -68,7 +70,7 @@
 //! ```toml
 //! [dependencies]
 //! # Add 3D Bevy XPBD with double-precision floating point numbers
-//! bevy_xpbd_3d = { version = "0.1", features = ["3d", "f64"], default-features = false }
+//! bevy_xpbd_3d = { version = "0.2", default-features = false, features = ["3d", "f64"] }
 //! ```
 //!
 //! ### Feature flags
@@ -156,26 +158,67 @@
 //! ### Common tasks
 //!
 //! - [Create a rigid body](RigidBody)
+//! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Define mass properties](RigidBody#adding-mass-properties)
-//! - [Use joints](joints#using-joints)
-//! - [Lock translational and rotational axes](LockedAxes)
-//! - [Apply external forces](ExternalForce)
-//! - [Apply external torque](ExternalTorque)
-//! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
 //! - [Configure friction](Friction)
+//! - [Configure gravity](Gravity)
+//! - [Apply external forces](ExternalForce)
+//! - [Apply external torque](ExternalTorque)
+//! - [Lock translational and rotational axes](LockedAxes)
+//! - [Use joints](joints#using-joints)
 //! - [Perform spatial queries](spatial_query)
 //!     - [Ray casting](spatial_query#ray-casting)
 //!     - [Shape casting](spatial_query#shape-casting)
+//!     - [Point projection](spatial_query#point-projection)
+//!     - [Intersection tests](spatial_query#intersection-tests)
 //! - [Configure the physics timestep](PhysicsTimestep)
 //! - [Configure the substep count](SubstepCount)
+//! - [Configure the schedule for running physics](PhysicsPlugins#custom-schedule)
+//! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
 //!
-//! ## Troubleshooting
+//! ## Frequently asked questions
+//!
+//! ### How does Bevy XPBD compare to Rapier and bevy_rapier?
+//!
+//! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
+//! the most mature and feature-rich option.
+//!
+//! bevy_rapier is a great physics integration for Bevy, but it does have several problems:
+//!
+//! - It has to maintain a separate physics world and synchronize a ton of data with Bevy each frame
+//! - The source code is difficult to inspect, as the vast majority of it is glue code and wrappers
+//! for Bevy
+//! - It has poor docs.rs documentation, and the documentation on rapier.rs is often outdated and
+//! missing features
+//! - It is hard to extend as it's not very modular or composable in design
+//! - Overall, it doesn't have a native ECS-like feel outside of its public API
+//!
+//! Bevy XPBD on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
+//! and the public API. This removes the need for a separate physics world, reduces overhead, and makes
+//! the source code much more approachable and easy to inspect for Bevy users.
+//!
+//! In part thanks to Bevy's modular architecture and the ECS, Bevy XPBD is also highly composable,
+//! as it consists of several independent plugins and provides lots of options for configuration and extensions,
+//! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
+//! [custom joints](joints#custom-joints) and [constraints](constraints#custom-constraints).
+//!
+//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Bevy XPBD uses
+//! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
+//! but it hasn't been widely adopted in mainstream usage yet.
+//!
+//! One of the biggest disadvantages of Bevy XPBD is that it is still very young, so it can have lots of bugs,
+//! some missing features, and fewer community resources and third party crates. However, it is growing quite
+//! rapidly, and it already is pretty close to feature-parity with Rapier.
+//!
+//! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
+//! physics integration, bevy_rapier is the better choice, but if you prefer an engine with less overhead
+//! and a more native Bevy integration, consider using Bevy XPBD. Their core APIs are also quite similar,
+//! so switching between them should be straightforward.
 //!
 //! ### Why is nothing happening?
 //!
@@ -197,6 +240,8 @@
 //! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
 //! instantly give them infinite velocity.
 //!
+//! Bevy XPBD should automatically print warnings when it detects bodies with an invalid mass or inertia.
+//!
 //! ### Why is performance so bad?
 //!
 //! Make sure you are building your project in release mode using `cargo build --release`.
@@ -212,6 +257,18 @@
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
+//! ### Can the engine be used on servers?
+//!
+//! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
+//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! to whatever you want.
+//!
+//! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
+//! server and the client to make sure the physics simulation is only advanced by one step each time the schedule runs.
+//!
+//! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different
+//! machines.
+//!
 //! ### Something else?
 //!
 //! Physics engines are very large and Bevy XPBD is very young, so stability issues and bugs are to be expected.
@@ -220,18 +277,26 @@
 //! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
 //! [open a new issue](https://github.com/Jondolf/bevy_xpbd/issues/new) if there already isn't one regarding your problem.
 //!
+//! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
+//! There you can find a bevy_xpbd thread on the crate-help channel where you can ask questions.
+//!
 //! ## What is XPBD?
 //!
 //! *XPBD* or *Extended Position Based Dynamics* is a physics simulation method that extends
 //! the traditional *PBD* to be more physically accurate and less dependent on time step size
 //! and iteration count.
 //!
-//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
-//! [integration](integrator), [constraint solving](solver), and velocity updates. Unlike in force or impulse
-//! based simulation methods, [constraints] operate directly on positions, which often provides more reliable
-//! and stable results, and allows straightforward coupling of [rigid bodies](RigidBody), soft bodies and fluids.
+//! Unlike force or impulse based physics simulation methods, XPBD mostly operates at the position-level,
+//! which can produce more stable and reliable results, while allowing straightforward coupling
+//! of [rigid bodies](RigidBody), soft bodies and fluids.
 //!
-//! Below is a high level overview of the XPBD simulation loop.
+//! ### Simulation loop
+//!
+//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
+//! [integration](integrator), [constraint solving](solver), velocity updates, and a velocity solver that
+//! handles dynamic friction and restitution.
+//!
+//! It looks roughly like this:
 //!
 //! ```ignore
 //! while simulating:
@@ -275,8 +340,8 @@
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
-//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
-//! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
+//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`]
+//! handles XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
 //!
@@ -297,6 +362,7 @@
 //! how XPBD differs from other simulation methods and how the constraints work.
 //!
 //! - Video: Ten Minute Physics. 2022. *[Getting ready to simulate the world with XPBD](https://youtu.be/jrociOAYqxA)*.
+//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*.
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
@@ -375,6 +441,8 @@ use bevy::{
     prelude::*,
 };
 use parry::math::Isometry;
+#[allow(unused_imports)]
+use prelude::*;
 
 /// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
 ///

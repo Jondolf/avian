@@ -159,7 +159,7 @@ impl CenterOfMass {
 ///
 /// ## Example
 ///
-/// The easiest way to create a new bundle is to use the [new_computed](#method.new_computed) method
+/// The easiest way to create a new bundle is to use the [`new_computed`](#method.new_computed) method
 /// that computes the mass properties based on a given [`Collider`] and density.
 ///
 /// ```
