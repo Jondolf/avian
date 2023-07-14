@@ -179,6 +179,43 @@
 //!
 //! ## Frequently asked questions
 //!
+//! ### How does Bevy XPBD compare to Rapier and bevy_rapier?
+//!
+//! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
+//! the most mature and feature-rich option.
+//!
+//! bevy_rapier is a great physics integration for Bevy, but it does have several problems:
+//!
+//! - It has to maintain a separate physics world and synchronize a ton of data with Bevy each frame
+//! - The source code is difficult to inspect, as the vast majority of it is glue code and wrappers
+//! for Bevy
+//! - It has poor docs.rs documentation, and the documentation on rapier.rs is often outdated and
+//! missing features
+//! - It is hard to extend as it's not very modular or composable in design
+//! - Overall, it doesn't have a native ECS-like feel outside of its public API
+//!
+//! Bevy XPBD on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
+//! and the public API. This removes the need for a separate physics world, reduces overhead, and makes
+//! the source code much more approachable and easy to inspect for Bevy users.
+//!
+//! In part thanks to Bevy's modular architecture and the ECS, Bevy XPBD is also highly composable,
+//! as it consists of several independent plugins and provides lots of options for configuration and extensions,
+//! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
+//! [custom joints](joints#custom-joints) and [constraints](constraints#custom-constraints).
+//!
+//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Bevy XPBD uses
+//! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
+//! but it hasn't been widely adopted in mainstream usage yet.
+//!
+//! One of the biggest disadvantages of Bevy XPBD is that it is still very young, so it can have lots of bugs,
+//! some missing features, and fewer community resources and third party crates. However, it is growing quite
+//! rapidly, and it already is pretty close to feature-parity with Rapier.
+//!
+//! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
+//! physics integration, bevy_rapier is the better choice, but if you prefer an engine with less overhead
+//! and a more native Bevy integration, consider using Bevy XPBD. Their core APIs are also quite similar,
+//! so switching between them should be straightforward.
+//!
 //! ### Why is nothing happening?
 //!
 //! Make sure you have added the [`PhysicsPlugins`] plugin group and you have given your rigid bodies
