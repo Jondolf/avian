@@ -213,7 +213,7 @@
 //!
 //! One of the biggest disadvantages of Bevy XPBD is that it is still very young, so it can have lots of bugs,
 //! some missing features, and fewer community resources and third party crates. However, it is growing quite
-//! rapidly, and it already is pretty close to feature-parity with Rapier.
+//! rapidly, and it is already pretty close to feature-parity with Rapier.
 //!
 //! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
 //! physics integration, bevy_rapier is the better choice, but if you prefer an engine with less overhead
@@ -501,7 +501,7 @@ pub enum PhysicsSet {
 ///     3. Update velocities
 ///     4. Solve velocity constraints (dynamic friction and restitution)
 /// 3. Sleeping
-/// 4. Spatial queries (ray casting and shape casting)
+/// 4. Spatial queries
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
