@@ -245,12 +245,17 @@
 //! the traditional *PBD* to be more physically accurate and less dependent on time step size
 //! and iteration count.
 //!
-//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
-//! [integration](integrator), [constraint solving](solver), and velocity updates. Unlike in force or impulse
-//! based simulation methods, [constraints] operate directly on positions, which often provides more reliable
-//! and stable results, and allows straightforward coupling of [rigid bodies](RigidBody), soft bodies and fluids.
+//! Unlike force or impulse based physics simulation methods, XPBD operates at the position-level
+//! in the solver, which can produce more stable and reliable results, while allowing straightforward coupling
+//! of [rigid bodies](RigidBody), soft bodies and fluids.
 //!
-//! Below is a high level overview of the XPBD simulation loop.
+//! ### Simulation loop
+//!
+//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
+//! [integration](integrator), [constraint solving](solver), velocity updates and a velocity solver that
+//! handles dynamic friction and restitution.
+//!
+//! It looks roughly like this:
 //!
 //! ```ignore
 //! while simulating:
@@ -294,8 +299,8 @@
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
-//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
-//! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
+//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`]
+//! handles XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
 //!
