@@ -144,7 +144,7 @@ fn integrate_rot(
             // Apply external torque
             ang_vel.0 += sub_dt.0
                 * effective_inv_inertia
-                * (external_torque.torque + external_force.torque());
+                * (external_torque.torque() + external_force.torque());
         }
 
         *rot += Rotation::from_radians(locked_axes.apply_to_rotation(sub_dt.0 * ang_vel.0));
@@ -192,7 +192,7 @@ fn integrate_rot(
             // Apply external torque
             let delta_ang_vel = sub_dt.0
                 * effective_inv_inertia
-                * ((external_torque.torque + external_force.torque())
+                * ((external_torque.torque() + external_force.torque())
                     - ang_vel.0.cross(effective_inertia * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
         }

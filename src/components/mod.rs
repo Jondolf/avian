@@ -407,7 +407,7 @@ impl FloatZero for Scalar {
 #[reflect(Component)]
 pub struct ExternalTorque {
     /// The total external torque that will be applied.
-    pub torque: Torque,
+    torque: Torque,
     /// True if the torque persists across frames, and false if the torque is automatically cleared every physics frame.
     pub persistent: bool,
 }

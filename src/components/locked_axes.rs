@@ -18,7 +18,7 @@ use crate::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// #[cfg(feature = "3d")]
+/// # #[cfg(feature = "3d")]
 /// fn spawn(mut commands: Commands) {
 ///     // Spawn a capsule that only rotates around the Y axis
 ///     commands.spawn((
