@@ -58,14 +58,14 @@ fn setup(
             ..default()
         },
         RigidBody::Kinematic,
-        Position(Vec3::Y * 1.0),
+        Position(Vector::Y * 1.0),
         Collider::capsule(1.0, 0.4),
         // Cast the player shape downwards to detect when the player is grounded
         ShapeCaster::new(
             Collider::capsule(0.9, 0.35),
             Vector::ZERO,
             Quaternion::default(),
-            Vec3::NEG_Y,
+            Vector::NEG_Y,
         )
         .with_ignore_origin_penetration(true) // Don't count player's collider
         .with_max_time_of_impact(0.11)
