@@ -42,6 +42,14 @@ insta = "1.0"
 itertools = "0.10"
 
 [[example]]
+name = "basic_dynamic_character"
+required-features = ["3d"]
+
+[[example]]
+name = "basic_kinematic_character"
+required-features = ["3d"]
+
+[[example]]
 name = "chain_3d"
 required-features = ["3d"]
 
