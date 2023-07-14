@@ -70,8 +70,7 @@ use bevy::prelude::*;
 ///
 /// ## Custom schedule
 ///
-/// You can run the [`PhysicsSchedule`] in any schedule you want.
-/// You can set the schedule when adding the plugin group:
+/// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
 ///
 /// ```no_run
 /// use bevy::prelude::*;
@@ -86,6 +85,10 @@ use bevy::prelude::*;
 ///         .run();
 /// }
 /// ```
+///
+/// Note that using `FixedUpdate` with [`PhysicsTimestep::Fixed`] can produce unexpected results due to two separate
+/// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
+/// when you need to keep the client and server in sync.
 ///
 /// ## Custom plugins
 ///

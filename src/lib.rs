@@ -156,10 +156,10 @@
 //! ### Common tasks
 //!
 //! - [Create a rigid body](RigidBody)
+//! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Use joints](joints#using-joints)
 //! - [Lock translational and rotational axes](LockedAxes)
 //! - [Apply external forces](ExternalForce)
@@ -172,10 +172,12 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //! - [Configure the physics timestep](PhysicsTimestep)
 //! - [Configure the substep count](SubstepCount)
+//! - [Configure the schedule for running physics](PhysicsSchedule#custom-schedule)
+//! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
 //!
-//! ## Troubleshooting
+//! ## Frequently asked questions
 //!
 //! ### Why is nothing happening?
 //!
@@ -197,6 +199,8 @@
 //! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
 //! instantly give them infinite velocity.
 //!
+//! Bevy XPBD should automatically print warnings when it detects bodies with an invalid mass or inertia.
+//!
 //! ### Why is performance so bad?
 //!
 //! Make sure you are building your project in release mode using `cargo build --release`.
@@ -212,6 +216,18 @@
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
+//! ### Can the engine be used on servers?
+//!
+//! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
+//! [set the schedule that runs physics](PhysicsSchedule#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! to whatever you want.
+//!
+//! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
+//! server and the client to make sure the physics simulation is only advanced by one step each time the schedule runs.
+//!
+//! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different
+//! machines.
+//!
 //! ### Something else?
 //!
 //! Physics engines are very large and Bevy XPBD is very young, so stability issues and bugs are to be expected.
@@ -219,6 +235,9 @@
 //! If you encounter issues, please consider first taking a look at the
 //! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
 //! [open a new issue](https://github.com/Jondolf/bevy_xpbd/issues/new) if there already isn't one regarding your problem.
+//!
+//! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
+//! There you can find a bevy_xpbd thread on the crate-help channel where you can ask questions.
 //!
 //! ## What is XPBD?
 //!
