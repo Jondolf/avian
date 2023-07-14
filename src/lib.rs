@@ -27,8 +27,9 @@
 //!     - [Collision layers](CollisionLayers)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
-//! - External [forces](ExternalForce) and [torque](ExternalTorque)
 //! - [Gravity] and [gravity scale](GravityScale)
+//! - External [forces](ExternalForce) and [torque](ExternalTorque)
+//! - [Locking](LockedAxes) translational and rotational axes
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
 //! - [Spatial queries](spatial_query)
@@ -36,7 +37,6 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
-//! - [Locking](LockedAxes) translational and rotational axes
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
@@ -47,18 +47,20 @@
 //!
 //! ### Add the dependency
 //!
-//! For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
-//!
+//! First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`:
+//!  
 //! ```toml
+//! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.1"
-//! ```
+//! bevy_xpbd_2d = "0.2"
 //!
-//! Similarly for a 3D game, add `bevy_xpbd_3d`:
-//!
-//! ```toml
+//! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.1"
+//! bevy_xpbd_3d = "0.2"
+//!
+//! # If you want to use the most up-to-date version, you can follow the main branch:
+//! [dependencies]
+//! bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 //! ```
 //!
 //! By default, Bevy XPBD uses `f32` numbers. If you encounter instability or use a large number
@@ -68,7 +70,7 @@
 //! ```toml
 //! [dependencies]
 //! # Add 3D Bevy XPBD with double-precision floating point numbers
-//! bevy_xpbd_3d = { version = "0.1", features = ["3d", "f64"], default-features = false }
+//! bevy_xpbd_3d = { version = "0.2", default-features = false, features = ["3d", "f64"] }
 //! ```
 //!
 //! ### Feature flags
@@ -160,19 +162,21 @@
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Use joints](joints#using-joints)
-//! - [Lock translational and rotational axes](LockedAxes)
-//! - [Apply external forces](ExternalForce)
-//! - [Apply external torque](ExternalTorque)
-//! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
 //! - [Configure friction](Friction)
+//! - [Configure gravity](Gravity)
+//! - [Apply external forces](ExternalForce)
+//! - [Apply external torque](ExternalTorque)
+//! - [Lock translational and rotational axes](LockedAxes)
+//! - [Use joints](joints#using-joints)
 //! - [Perform spatial queries](spatial_query)
 //!     - [Ray casting](spatial_query#ray-casting)
 //!     - [Shape casting](spatial_query#shape-casting)
+//!     - [Point projection](spatial_query#point-projection)
+//!     - [Intersection tests](spatial_query#intersection-tests)
 //! - [Configure the physics timestep](PhysicsTimestep)
 //! - [Configure the substep count](SubstepCount)
-//! - [Configure the schedule for running physics](PhysicsSchedule#custom-schedule)
+//! - [Configure the schedule for running physics](PhysicsPlugins#custom-schedule)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
@@ -256,7 +260,7 @@
 //! ### Can the engine be used on servers?
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
-//! [set the schedule that runs physics](PhysicsSchedule#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
 //! to whatever you want.
 //!
 //! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
@@ -358,6 +362,7 @@
 //! how XPBD differs from other simulation methods and how the constraints work.
 //!
 //! - Video: Ten Minute Physics. 2022. *[Getting ready to simulate the world with XPBD](https://youtu.be/jrociOAYqxA)*.
+//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
@@ -436,6 +441,8 @@ use bevy::{
     prelude::*,
 };
 use parry::math::Isometry;
+#[allow(unused_imports)]
+use prelude::*;
 
 /// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
 ///
