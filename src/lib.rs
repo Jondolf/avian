@@ -286,14 +286,14 @@
 //! the traditional *PBD* to be more physically accurate and less dependent on time step size
 //! and iteration count.
 //!
-//! Unlike force or impulse based physics simulation methods, XPBD operates at the position-level
-//! in the solver, which can produce more stable and reliable results, while allowing straightforward coupling
+//! Unlike force or impulse based physics simulation methods, XPBD mostly operates at the position-level,
+//! which can produce more stable and reliable results, while allowing straightforward coupling
 //! of [rigid bodies](RigidBody), soft bodies and fluids.
 //!
 //! ### Simulation loop
 //!
 //! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
-//! [integration](integrator), [constraint solving](solver), velocity updates and a velocity solver that
+//! [integration](integrator), [constraint solving](solver), velocity updates, and a velocity solver that
 //! handles dynamic friction and restitution.
 //!
 //! It looks roughly like this:
@@ -362,7 +362,7 @@
 //! how XPBD differs from other simulation methods and how the constraints work.
 //!
 //! - Video: Ten Minute Physics. 2022. *[Getting ready to simulate the world with XPBD](https://youtu.be/jrociOAYqxA)*.
-//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*
+//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*.
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
