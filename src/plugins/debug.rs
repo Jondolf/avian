@@ -199,51 +199,44 @@ fn debug_render_colliders(
         match collider.as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                let vertices = s.to_polyline(12);
-                debug_renderer.draw_line_strip(
-                    nalgebra_to_glam(vertices),
-                    position,
-                    rotation,
-                    true,
+                debug_renderer.gizmos.circle(
+                    position.extend(0.0).as_f32(),
+                    Vec3::Z,
+                    s.radius,
                     Color::LIME_GREEN,
                 );
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                let (vertices, indices) = s.to_outline(12);
-                debug_renderer.draw_polyline(
-                    &nalgebra_to_glam(vertices),
-                    &indices,
-                    position,
-                    rotation,
+                debug_renderer.gizmos.sphere(
+                    position.as_f32(),
+                    rotation.as_f32(),
+                    s.radius,
                     Color::LIME_GREEN,
                 );
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
-                debug_renderer.draw_line_strip(
-                    nalgebra_to_glam(s.to_polyline()),
-                    position,
-                    rotation,
-                    true,
+                debug_renderer.gizmos.cuboid(
+                    Transform::from_scale(Vector::from(s.half_extents).extend(0.0).as_f32() * 2.0)
+                        .with_translation(position.extend(0.0))
+                        .with_rotation(Quaternion::from(*rotation).as_f32()),
                     Color::LIME_GREEN,
                 );
             }
             #[cfg(feature = "3d")]
             TypedShape::Cuboid(s) => {
-                let (vertices, indices) = s.to_outline();
-                debug_renderer.draw_polyline(
-                    &nalgebra_to_glam(vertices),
-                    &indices,
-                    position,
-                    rotation,
+                debug_renderer.gizmos.cuboid(
+                    Transform::from_scale(Vector::from(s.half_extents).as_f32() * 2.0)
+                        .with_translation(position.as_f32())
+                        .with_rotation(rotation.as_f32()),
                     Color::LIME_GREEN,
                 );
             }
             #[cfg(feature = "2d")]
             TypedShape::Capsule(s) => {
                 debug_renderer.draw_line_strip(
-                    nalgebra_to_glam(s.to_polyline(12)),
+                    nalgebra_to_glam(s.to_polyline(32)),
                     position,
                     rotation,
                     true,
@@ -252,7 +245,7 @@ fn debug_render_colliders(
             }
             #[cfg(feature = "3d")]
             TypedShape::Capsule(s) => {
-                let (vertices, indices) = s.to_outline(12);
+                let (vertices, indices) = s.to_outline(32);
                 debug_renderer.draw_polyline(
                     &nalgebra_to_glam(vertices),
                     &indices,
