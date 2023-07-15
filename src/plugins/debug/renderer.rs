@@ -31,14 +31,15 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         closed: bool,
         color: Color,
     ) {
+        let pos = position.as_f32();
         #[cfg(feature = "2d")]
         self.gizmos.linestrip_2d(
-            points.iter().map(|p| position.0 + rotation.rotate(*p)),
+            points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
             color,
         );
         #[cfg(feature = "3d")]
         self.gizmos.linestrip(
-            points.iter().map(|p| position.0 + rotation.rotate(*p)),
+            points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
             color,
         );
 
@@ -66,6 +67,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     }
 
     /// Draws a collider shape with a given position and rotation.
+    #[allow(clippy::unnecessary_cast)]
     pub fn draw_collider(
         &mut self,
         collider: &Collider,
@@ -78,19 +80,23 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         match collider.as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                self.gizmos
-                    .circle(position.extend(0.0).as_f32(), Vec3::Z, s.radius, color);
+                self.gizmos.circle(
+                    position.extend(0.0).as_f32(),
+                    Vec3::Z,
+                    s.radius as f32,
+                    color,
+                );
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
                 self.gizmos
-                    .sphere(position.as_f32(), rotation.as_f32(), s.radius, color);
+                    .sphere(position.as_f32(), rotation.as_f32(), s.radius as f32, color);
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
                 self.gizmos.cuboid(
                     Transform::from_scale(Vector::from(s.half_extents).extend(0.0).as_f32() * 2.0)
-                        .with_translation(position.extend(0.0))
+                        .with_translation(position.extend(0.0).as_f32())
                         .with_rotation(Quaternion::from(*rotation).as_f32()),
                     color,
                 );
@@ -158,7 +164,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
             ),
             #[cfg(feature = "2d")]
             TypedShape::HalfSpace(s) => {
-                let basis = Vector::new(-s.normal.y, s.normal.x).as_f32();
+                let basis = Vector::new(-s.normal.y, s.normal.x);
                 let a = basis * 10_000.0;
                 let b = basis * -10_000.0;
                 self.draw_line_strip(vec![a, b], position, rotation, false, color);
@@ -169,9 +175,8 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
                 let sign = n.z.signum();
                 let a = -1.0 / (sign + n.z);
                 let b = n.x * n.y * a;
-                let basis1 =
-                    Vector::new(1.0 + sign * n.x * n.x * a, sign * b, -sign * n.x).as_f32();
-                let basis2 = Vector::new(b, sign + n.y * n.y * a, -n.y).as_f32();
+                let basis1 = Vector::new(1.0 + sign * n.x * n.x * a, sign * b, -sign * n.x);
+                let basis2 = Vector::new(b, sign + n.y * n.y * a, -n.y);
                 let a = basis1 * 10_000.0;
                 let b = basis1 * -10_000.0;
                 let c = basis2 * 10_000.0;
