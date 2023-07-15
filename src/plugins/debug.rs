@@ -69,8 +69,8 @@ pub struct PhysicsDebugConfig {
     pub render_colliders: bool,
     /// Renders contact points.
     pub render_contacts: bool,
-    /// Determines if the visibility of entities with colliders should be set to `Visibility::Hidden`.
-    pub meshes_visible: bool,
+    /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`.
+    pub hide_meshes: bool,
 }
 
 impl Default for PhysicsDebugConfig {
@@ -78,8 +78,8 @@ impl Default for PhysicsDebugConfig {
         Self {
             render_aabbs: true,
             render_colliders: true,
-            render_contacts: true,
-            meshes_visible: false,
+            render_contacts: false,
+            hide_meshes: false,
         }
     }
 }
@@ -199,7 +199,7 @@ fn debug_render_colliders(
         match collider.as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                let vertices = s.to_polyline(6);
+                let vertices = s.to_polyline(12);
                 debug_renderer.draw_line_strip(
                     nalgebra_to_glam(vertices),
                     position,
@@ -210,7 +210,7 @@ fn debug_render_colliders(
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                let (vertices, indices) = s.to_outline(6);
+                let (vertices, indices) = s.to_outline(12);
                 debug_renderer.draw_polyline(
                     &nalgebra_to_glam(vertices),
                     &indices,
@@ -219,6 +219,62 @@ fn debug_render_colliders(
                     Color::LIME_GREEN,
                 );
             }
+            #[cfg(feature = "2d")]
+            TypedShape::Cuboid(s) => {
+                debug_renderer.draw_line_strip(
+                    nalgebra_to_glam(s.to_polyline()),
+                    position,
+                    rotation,
+                    true,
+                    Color::LIME_GREEN,
+                );
+            }
+            #[cfg(feature = "3d")]
+            TypedShape::Cuboid(s) => {
+                let (vertices, indices) = s.to_outline();
+                debug_renderer.draw_polyline(
+                    &nalgebra_to_glam(vertices),
+                    &indices,
+                    position,
+                    rotation,
+                    Color::LIME_GREEN,
+                );
+            }
+            #[cfg(feature = "2d")]
+            TypedShape::Capsule(s) => {
+                debug_renderer.draw_line_strip(
+                    nalgebra_to_glam(s.to_polyline(12)),
+                    position,
+                    rotation,
+                    true,
+                    Color::LIME_GREEN,
+                );
+            }
+            #[cfg(feature = "3d")]
+            TypedShape::Capsule(s) => {
+                let (vertices, indices) = s.to_outline(12);
+                debug_renderer.draw_polyline(
+                    &nalgebra_to_glam(vertices),
+                    &indices,
+                    position,
+                    rotation,
+                    Color::LIME_GREEN,
+                );
+            }
+            TypedShape::Segment(s) => debug_renderer.draw_line_strip(
+                vec![s.a.into(), s.b.into()],
+                position,
+                rotation,
+                false,
+                Color::LIME_GREEN,
+            ),
+            TypedShape::Triangle(s) => debug_renderer.draw_line_strip(
+                vec![s.a.into(), s.b.into(), s.c.into()],
+                position,
+                rotation,
+                true,
+                Color::LIME_GREEN,
+            ),
             _ => (),
         }
     }
@@ -230,10 +286,10 @@ fn change_mesh_visibility(
 ) {
     if config.is_changed() {
         for mut visibility in &mut meshes {
-            if config.meshes_visible {
-                *visibility = Visibility::Visible;
-            } else {
+            if config.hide_meshes {
                 *visibility = Visibility::Hidden;
+            } else {
+                *visibility = Visibility::Visible;
             }
         }
     }
