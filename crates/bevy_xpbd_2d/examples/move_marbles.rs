@@ -57,23 +57,23 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
+            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
         Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 12.5),
+        Collider::cuboid(50.0, 50.0 * 11.0),
     ));
     // Right wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
+            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
         Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 12.5),
+        Collider::cuboid(50.0, 50.0 * 11.0),
     ));
 
     let marble_radius = 7.5;
