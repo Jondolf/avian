@@ -144,6 +144,14 @@ impl Joint for RevoluteJoint {
         }
     }
 
+    fn local_anchor_1(&self) -> Vector {
+        self.local_anchor1
+    }
+
+    fn local_anchor_2(&self) -> Vector {
+        self.local_anchor2
+    }
+
     fn damping_linear(&self) -> Scalar {
         self.damping_linear
     }

@@ -115,6 +115,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
     /// Sets the angular velocity damping caused by the joint.
     fn with_angular_velocity_damping(self, damping: Scalar) -> Self;
 
+    /// Returns the local attachment point on the first body.
+    fn local_anchor_1(&self) -> Vector;
+
+    /// Returns the local attachment point on the second body.
+    fn local_anchor_2(&self) -> Vector;
+
     /// Returns the linear velocity damping of the joint.
     fn damping_linear(&self) -> Scalar;
 

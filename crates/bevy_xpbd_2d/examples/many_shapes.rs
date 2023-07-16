@@ -128,7 +128,6 @@ fn setup(
     );
     let shapes = [ball, cuboid, capsule, triangle];
 
-    // Spawn stacks of marbles
     for x in -12_i32..12 {
         for y in -8_i32..8 {
             let position = Vector::new(x as Scalar * 20.0, y as Scalar * 20.0);

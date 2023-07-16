@@ -37,7 +37,8 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
-//! - Debug rendering [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact) (with `debug-plugin` feature)
+//! - Debug rendering [colliders](Collider), [AABBs](ColliderAabb), [contacts](Contact), [joints] and axes
+//! (with `debug-plugin` feature)
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)

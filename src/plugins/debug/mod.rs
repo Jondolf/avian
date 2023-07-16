@@ -1,19 +1,29 @@
-//! Renders physics objects and properties for debugging purposes. This includes [AABBs](ColliderAabb),
-//! [colliders](Collider) and [contacts](Collision).
+//! Renders physics objects and properties for debugging purposes.
 //!
 //! See [`PhysicsDebugPlugin`].
 
+mod configuration;
 mod renderer;
 
+pub use configuration::*;
 pub use renderer::*;
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Renders physics objects and properties for debugging purposes. This includes [AABBs](ColliderAabb),
-/// [colliders](Collider) and [contacts](Collision).
+/// Renders physics objects and properties for debugging purposes.
 ///
-/// You can use the [`PhysicsDebugConfig`] resource for the global configuration and the [`DebugRender`] component
+/// Currently, the following are supported for debug rendering:
+///
+/// - Entity axes
+/// - [AABBs](ColliderAabb)
+/// - [Collider] wireframes
+/// - [Contact] points
+/// - [Joints](joints)
+/// - Changing the visibility of entities to only show debug rendering
+///
+/// By default, only axes, colliders and joints are debug rendered. You can use the [`PhysicsDebugConfig`]
+/// resource for the global configuration and the [`DebugRender`] component
 /// for entity-level configuration.
 pub struct PhysicsDebugPlugin {
     schedule: Box<dyn ScheduleLabel>,
@@ -51,9 +61,15 @@ impl Plugin for PhysicsDebugPlugin {
             .add_systems(
                 self.schedule.dyn_clone(),
                 (
+                    debug_render_axes,
                     debug_render_aabbs,
                     debug_render_colliders,
                     debug_render_contacts,
+                    // Todo: Refactor joints to allow iterating over all of them without generics
+                    debug_render_joints::<FixedJoint>,
+                    debug_render_joints::<PrismaticJoint>,
+                    debug_render_joints::<RevoluteJoint>,
+                    debug_render_joints::<SphericalJoint>,
                     change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation),
@@ -61,103 +77,33 @@ impl Plugin for PhysicsDebugPlugin {
     }
 }
 
-/// Controls the global [`PhysicsDebugPlugin`] configuration.
-///
-/// To configure the debug rendering of specific entities, use the [`DebugRender`] component.
-#[derive(Reflect, Resource)]
-#[reflect(Resource)]
-pub struct PhysicsDebugConfig {
-    /// The color of the [AABBs](ColliderAabb). If `None`, the AABBs will not be rendered.
-    pub aabb_color: Option<Color>,
-    /// The color of the [collider](Collider) wireframes. If `None`, the colliders will not be rendered.
-    pub collider_color: Option<Color>,
-    /// The color of the contact points. If `None`, the contact points will not be rendered.
-    pub contact_color: Option<Color>,
-    /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
-    /// which will only show the debug renders.
-    pub hide_meshes: bool,
-}
+fn debug_render_axes(
+    bodies: Query<(&Position, &Rotation, Option<&DebugRender>)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (pos, rot, render_config) in &bodies {
+        if let Some(lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
+            let x = rot.rotate(Vector::X * lengths.x);
+            debug_renderer.draw_line(pos.0 - x, pos.0 + x, Color::hsl(0.0, 1.0, 0.5));
 
-impl Default for PhysicsDebugConfig {
-    fn default() -> Self {
-        Self {
-            aabb_color: None,
-            collider_color: Some(Color::ORANGE),
-            contact_color: None,
-            hide_meshes: false,
+            let y = rot.rotate(Vector::Y * lengths.y);
+            debug_renderer.draw_line(pos.0 - y, pos.0 + y, Color::hsl(120.0, 1.0, 0.4));
+
+            #[cfg(feature = "3d")]
+            {
+                let z = rot.rotate(Vector::Z * lengths.z);
+                debug_renderer.draw_line(pos.0 - z, pos.0 + z, Color::hsl(220.0, 1.0, 0.6));
+            }
+
+            // Draw dot at the center of the body
+            #[cfg(feature = "2d")]
+            debug_renderer.gizmos.circle_2d(pos.0, 0.5, Color::YELLOW);
+            #[cfg(feature = "3d")]
+            debug_renderer
+                .gizmos
+                .sphere(pos.0, rot.0, 0.025, Color::YELLOW);
         }
-    }
-}
-
-/// A component for the debug render configuration of an entity.
-///
-/// This overwrites the global [`PhysicsDebugConfig`] for this specific entity.
-#[derive(Component, Reflect, Clone, Copy, PartialEq)]
-#[reflect(Component)]
-pub struct DebugRender {
-    /// The color of the [AABB](ColliderAabb). If `None`, the AABB will not be rendered.
-    pub aabb_color: Option<Color>,
-    /// The color of the [collider](Collider) wireframe. If `None`, the collider will not be rendered.
-    pub collider_color: Option<Color>,
-    /// Determines if the entity's visibility should be set to `Visibility::Hidden`, which will only show the debug render.
-    pub hide_mesh: bool,
-}
-
-impl Default for DebugRender {
-    fn default() -> Self {
-        Self {
-            aabb_color: None,
-            collider_color: Some(Color::LIME_GREEN),
-            hide_mesh: false,
-        }
-    }
-}
-
-impl DebugRender {
-    /// Creates a [`DebugRender`] configuration with a given collider color.
-    pub fn collider(color: Color) -> Self {
-        Self {
-            collider_color: Some(color),
-            ..default()
-        }
-    }
-
-    /// Creates a [`DebugRender`] configuration with a given AABB color.
-    pub fn aabb(color: Color) -> Self {
-        Self {
-            aabb_color: Some(color),
-            ..default()
-        }
-    }
-
-    /// Sets the collider color.
-    pub fn with_collider_color(mut self, color: Color) -> Self {
-        self.collider_color = Some(color);
-        self
-    }
-
-    /// Sets the AABB color.
-    pub fn with_aabb_color(mut self, color: Color) -> Self {
-        self.aabb_color = Some(color);
-        self
-    }
-
-    /// Sets the visibility of the entity's visual mesh.
-    pub fn with_mesh_visibility(mut self, is_visible: bool) -> Self {
-        self.hide_mesh = !is_visible;
-        self
-    }
-
-    /// Disables collider debug rendering.
-    pub fn without_collider(mut self) -> Self {
-        self.collider_color = None;
-        self
-    }
-
-    /// Disables AABB debug rendering.
-    pub fn without_aabb(mut self) -> Self {
-        self.aabb_color = None;
-        self
     }
 }
 
@@ -167,7 +113,7 @@ fn debug_render_aabbs(
     config: Res<PhysicsDebugConfig>,
 ) {
     #[cfg(feature = "2d")]
-    for (aabb, render_config) in aabbs.iter() {
+    for (aabb, render_config) in &aabbs {
         if let Some(color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
             debug_renderer.gizmos.cuboid(
                 Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).as_f32())
@@ -178,7 +124,7 @@ fn debug_render_aabbs(
     }
 
     #[cfg(feature = "3d")]
-    for (aabb, render_config) in aabbs.iter() {
+    for (aabb, render_config) in &aabbs {
         if let Some(color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
             debug_renderer.gizmos.cuboid(
                 Transform::from_scale(Vector::from(aabb.extents()).as_f32())
@@ -227,8 +173,39 @@ fn debug_render_colliders(
     }
 }
 
+fn debug_render_joints<T: Joint>(
+    bodies: Query<(&Position, &Rotation)>,
+    joints: Query<&T>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for joint in &joints {
+        if let Ok([(pos1, rot1), (pos2, rot2)]) = bodies.get_many(joint.entities()) {
+            if let Some(anchor_color) = config.joint_anchor_color {
+                debug_renderer.draw_line(
+                    pos1.0,
+                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
+                    anchor_color,
+                );
+                debug_renderer.draw_line(
+                    pos2.0,
+                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    anchor_color,
+                );
+            }
+            if let Some(separation_color) = config.joint_separation_color {
+                debug_renderer.draw_line(
+                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
+                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    separation_color,
+                );
+            }
+        }
+    }
+}
+
 type MeshVisibilityQueryFilter = (
-    With<Collider>,
+    Or<(With<RigidBody>, With<Collider>)>,
     Or<(Changed<DebugRender>, Without<DebugRender>)>,
 );
 
