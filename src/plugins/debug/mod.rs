@@ -54,6 +54,11 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_aabbs,
                     debug_render_colliders,
                     debug_render_contacts,
+                    // Todo: Refactor joints to allow iterating over all of them without generics
+                    debug_render_joints::<FixedJoint>,
+                    debug_render_joints::<PrismaticJoint>,
+                    debug_render_joints::<RevoluteJoint>,
+                    debug_render_joints::<SphericalJoint>,
                     change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation),
@@ -73,6 +78,10 @@ pub struct PhysicsDebugConfig {
     pub collider_color: Option<Color>,
     /// The color of the contact points. If `None`, the contact points will not be rendered.
     pub contact_color: Option<Color>,
+    /// The color of the lines drawn from the centers of bodies to their joint anchors.
+    pub joint_anchor_color: Option<Color>,
+    /// The color of the lines drawn between joint anchors, indicating the separation.
+    pub joint_separation_color: Option<Color>,
     /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
     /// which will only show the debug renders.
     pub hide_meshes: bool,
@@ -84,7 +93,9 @@ impl Default for PhysicsDebugConfig {
             aabb_color: None,
             collider_color: Some(Color::ORANGE),
             contact_color: None,
-            hide_meshes: false,
+            joint_anchor_color: Some(Color::PINK),
+            joint_separation_color: Some(Color::RED),
+            hide_meshes: true,
         }
     }
 }
@@ -227,8 +238,39 @@ fn debug_render_colliders(
     }
 }
 
+fn debug_render_joints<T: Joint>(
+    bodies: Query<(&Position, &Rotation)>,
+    joints: Query<&T>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for joint in &joints {
+        if let Ok([(pos1, rot1), (pos2, rot2)]) = bodies.get_many(joint.entities()) {
+            if let Some(anchor_color) = config.joint_anchor_color {
+                debug_renderer.draw_line(
+                    pos1.0,
+                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
+                    anchor_color,
+                );
+                debug_renderer.draw_line(
+                    pos2.0,
+                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    anchor_color,
+                );
+            }
+            if let Some(separation_color) = config.joint_separation_color {
+                debug_renderer.draw_line(
+                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
+                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    separation_color,
+                );
+            }
+        }
+    }
+}
+
 type MeshVisibilityQueryFilter = (
-    With<Collider>,
+    Or<(With<RigidBody>, With<Collider>)>,
     Or<(Changed<DebugRender>, Without<DebugRender>)>,
 );
 
