@@ -62,10 +62,12 @@ impl PhysicsDebugConfig {
         }
     }
 
-    /// Disables all debug rendering.
+    /// Creates a [`PhysicsDebugConfig`] configuration with debug rendering enabled but all options turned off.
+    ///
+    /// Note: this doesn't affect entities with [`DebugRender`] component; their debug gizmos will be visible.
     pub fn none() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             axis_lengths: None,
             aabb_color: None,
             collider_color: None,
