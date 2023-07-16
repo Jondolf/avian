@@ -16,7 +16,7 @@ fn main() {
 }
 
 #[derive(Component)]
-struct Marble;
+struct Controllable;
 
 fn setup(
     mut commands: Commands,
@@ -76,28 +76,68 @@ fn setup(
         Collider::cuboid(50.0, 50.0 * 11.0),
     ));
 
-    let marble_radius = 7.5;
-    let marble_mesh = MaterialMesh2dBundle {
-        mesh: meshes
-            .add(shape::Circle::new(marble_radius as f32).into())
-            .into(),
-        material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
-        ..default()
-    };
+    let ball = (
+        Collider::ball(7.5),
+        MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Circle::new(7.5).into()).into(),
+            material: materials.add(ColorMaterial::from(Color::rgb(0.29, 0.33, 0.64))),
+            ..default()
+        },
+    );
+    let cuboid = (
+        Collider::cuboid(15.0, 15.0),
+        MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Box::new(15.0, 15.0, 15.0).into()).into(),
+            material: materials.add(ColorMaterial::from(Color::rgb(0.47, 0.58, 0.8))),
+            ..default()
+        },
+    );
+    let capsule = (
+        Collider::capsule(20.0, 7.5),
+        MaterialMesh2dBundle {
+            mesh: meshes
+                .add(
+                    shape::Capsule {
+                        depth: 20.0,
+                        radius: 7.5,
+                        ..default()
+                    }
+                    .into(),
+                )
+                .into(),
+            material: materials.add(ColorMaterial::from(Color::rgb(0.63, 0.75, 0.88))),
+            ..default()
+        },
+    );
+    // Compute points of regular triangle
+    let delta_rotation = Rotation::from_degrees(120.0);
+    let triangle_points = vec![
+        Vector::Y * 10.0,
+        delta_rotation.rotate(Vector::Y * 10.0),
+        delta_rotation.inverse().rotate(Vector::Y * 10.0),
+    ];
+    let triangle = (
+        Collider::triangle(triangle_points[0], triangle_points[1], triangle_points[2]),
+        MaterialMesh2dBundle {
+            mesh: meshes
+                .add(shape::RegularPolygon::new(10.0, 3).into())
+                .into(),
+            material: materials.add(ColorMaterial::from(Color::rgb(0.77, 0.87, 0.97))),
+            ..default()
+        },
+    );
+    let shapes = [ball, cuboid, capsule, triangle];
 
     // Spawn stacks of marbles
-    for x in -12..12 {
-        for y in -10..10 {
-            let position = Vector::new(
-                x as Scalar * (2.5 * marble_radius),
-                y as Scalar * (2.5 * marble_radius),
-            );
+    for x in -12_i32..12 {
+        for y in -8_i32..8 {
+            let position = Vector::new(x as Scalar * 20.0, y as Scalar * 20.0);
             commands.spawn((
-                marble_mesh.clone(),
+                shapes[(x + y) as usize % 4].clone(),
                 RigidBody::Dynamic,
                 Position(position),
-                Collider::ball(marble_radius),
-                Marble,
+                Friction::new(0.001),
+                Controllable,
             ));
         }
     }
@@ -105,7 +145,7 @@ fn setup(
 
 fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut marbles: Query<&mut LinearVelocity, With<Marble>>,
+    mut marbles: Query<&mut LinearVelocity, With<Controllable>>,
 ) {
     for mut linear_velocity in &mut marbles {
         if keyboard_input.pressed(KeyCode::Up) {
