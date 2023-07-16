@@ -33,7 +33,7 @@ pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
 #[cfg(feature = "debug-plugin")]
-pub use debug::PhysicsDebugPlugin;
+pub use debug::*;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
 pub use setup::*;
