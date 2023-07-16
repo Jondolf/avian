@@ -7,6 +7,8 @@ use bevy::prelude::*;
 #[derive(Reflect, Resource)]
 #[reflect(Resource)]
 pub struct PhysicsDebugConfig {
+    /// Determines if debug rendering is enabled.
+    pub enabled: bool,
     /// The lengths of the axes drawn for an entity.
     pub axis_lengths: Option<Vector>,
     /// The color of the [AABBs](ColliderAabb). If `None`, the AABBs will not be rendered.
@@ -27,6 +29,7 @@ pub struct PhysicsDebugConfig {
 impl Default for PhysicsDebugConfig {
     fn default() -> Self {
         Self {
+            enabled: true,
             #[cfg(feature = "2d")]
             axis_lengths: Some(Vector::new(5.0, 5.0)),
             #[cfg(feature = "3d")]
@@ -45,6 +48,7 @@ impl PhysicsDebugConfig {
     /// Creates a [`PhysicsDebugConfig`] configuration with all rendering options enabled.
     pub fn all() -> Self {
         Self {
+            enabled: true,
             #[cfg(feature = "2d")]
             axis_lengths: Some(Vector::new(5.0, 5.0)),
             #[cfg(feature = "3d")]
@@ -58,9 +62,12 @@ impl PhysicsDebugConfig {
         }
     }
 
-    /// Disables all debug rendering for this entity.
+    /// Creates a [`PhysicsDebugConfig`] configuration with debug rendering enabled but all options turned off.
+    ///
+    /// Note: this doesn't affect entities with [`DebugRender`] component; their debug gizmos will be visible.
     pub fn none() -> Self {
         Self {
+            enabled: true,
             axis_lengths: None,
             aabb_color: None,
             collider_color: None,
