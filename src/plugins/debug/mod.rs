@@ -77,9 +77,9 @@ pub struct PhysicsDebugConfig {
 impl Default for PhysicsDebugConfig {
     fn default() -> Self {
         Self {
-            render_aabbs: true,
+            render_aabbs: false,
             render_colliders: true,
-            render_contacts: true,
+            render_contacts: false,
             hide_meshes: true,
         }
     }
