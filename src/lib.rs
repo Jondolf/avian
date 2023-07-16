@@ -37,6 +37,7 @@
 //!     - [Shape casting](spatial_query#shape-casting)
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
+//! - Debug rendering [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact) (with `debug-plugin` feature)
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
 //! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
@@ -82,8 +83,8 @@
 //! - `f32` enables using `f32` numbers. Incompatible with `f64`.
 //! - `f64` enables using `f64` numbers. Recommended when encountering stability problems, especially with
 //! small timesteps. Incompatible with `f32`.
-//! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and events like [AABBs](ColliderAabb)
-//! and [contacts](Contact).
+//! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and properties, like
+//! [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact).
 //! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even

@@ -43,6 +43,7 @@ Below are some of the current features of Bevy XPBD.
     - Point projection
     - Intersection tests
 - Locking translational and rotational axes with `LockedAxes`
+- Debug rendering colliders, AABBs and contacts
 - Automatically deactivating bodies with `Sleeping`
 - Configurable timesteps and substepping
 - `f32`/`f64` precision (`f32` by default)
@@ -159,7 +160,7 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - Continuous collision detection (CCD)
 - Multiple colliders per body and colliders as children
 - Collision filters, i.e. excluding certain entities or rigid body types
-- Debug render colliders, joints and ray casts
+- More debug rendering options (joints, ray casts...)
 - Performance optimization (better broad phase, parallel solver...)
 - Proper cross-platform determinism
 - Soft bodies (cloth and deformable solids)
