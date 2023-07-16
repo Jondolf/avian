@@ -51,6 +51,7 @@ impl Plugin for PhysicsDebugPlugin {
             .add_systems(
                 self.schedule.dyn_clone(),
                 (
+                    debug_render_axes,
                     debug_render_aabbs,
                     debug_render_colliders,
                     debug_render_contacts,
@@ -72,6 +73,8 @@ impl Plugin for PhysicsDebugPlugin {
 #[derive(Reflect, Resource)]
 #[reflect(Resource)]
 pub struct PhysicsDebugConfig {
+    /// The lengths of the axes drawn for an entity.
+    pub axis_lengths: Option<Vector>,
     /// The color of the [AABBs](ColliderAabb). If `None`, the AABBs will not be rendered.
     pub aabb_color: Option<Color>,
     /// The color of the [collider](Collider) wireframes. If `None`, the colliders will not be rendered.
@@ -90,12 +93,16 @@ pub struct PhysicsDebugConfig {
 impl Default for PhysicsDebugConfig {
     fn default() -> Self {
         Self {
+            #[cfg(feature = "2d")]
+            axis_lengths: Some(Vector::new(5.0, 5.0)),
+            #[cfg(feature = "3d")]
+            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: None,
             collider_color: Some(Color::ORANGE),
             contact_color: None,
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
-            hide_meshes: true,
+            hide_meshes: false,
         }
     }
 }
@@ -106,6 +113,8 @@ impl Default for PhysicsDebugConfig {
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
 #[reflect(Component)]
 pub struct DebugRender {
+    /// The lengths of the axes drawn for the entity.
+    pub axis_lengths: Option<Vector>,
     /// The color of the [AABB](ColliderAabb). If `None`, the AABB will not be rendered.
     pub aabb_color: Option<Color>,
     /// The color of the [collider](Collider) wireframe. If `None`, the collider will not be rendered.
@@ -117,6 +126,10 @@ pub struct DebugRender {
 impl Default for DebugRender {
     fn default() -> Self {
         Self {
+            #[cfg(feature = "2d")]
+            axis_lengths: Some(Vector::new(5.0, 5.0)),
+            #[cfg(feature = "3d")]
+            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: None,
             collider_color: Some(Color::LIME_GREEN),
             hide_mesh: false,
@@ -125,6 +138,15 @@ impl Default for DebugRender {
 }
 
 impl DebugRender {
+    /// Creates a [`DebugRender`] configuration with the given lengths for the axes
+    /// that are drawn for the entity.
+    pub fn axes(axis_lengths: Vector) -> Self {
+        Self {
+            axis_lengths: Some(axis_lengths),
+            ..default()
+        }
+    }
+
     /// Creates a [`DebugRender`] configuration with a given collider color.
     pub fn collider(color: Color) -> Self {
         Self {
@@ -139,6 +161,12 @@ impl DebugRender {
             aabb_color: Some(color),
             ..default()
         }
+    }
+
+    /// Sets the lengths of the axes drawn for the entity.
+    pub fn with_axes(mut self, axis_lengths: Vector) -> Self {
+        self.axis_lengths = Some(axis_lengths);
+        self
     }
 
     /// Sets the collider color.
@@ -159,6 +187,12 @@ impl DebugRender {
         self
     }
 
+    /// Disables axis debug rendering.
+    pub fn without_axes(mut self) -> Self {
+        self.axis_lengths = None;
+        self
+    }
+
     /// Disables collider debug rendering.
     pub fn without_collider(mut self) -> Self {
         self.collider_color = None;
@@ -172,13 +206,43 @@ impl DebugRender {
     }
 }
 
+fn debug_render_axes(
+    bodies: Query<(&Position, &Rotation, Option<&DebugRender>)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (pos, rot, render_config) in &bodies {
+        if let Some(lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
+            let x = rot.rotate(Vector::X * lengths.x);
+            debug_renderer.draw_line(pos.0 - x, pos.0 + x, Color::hsl(0.0, 1.0, 0.5));
+
+            let y = rot.rotate(Vector::Y * lengths.y);
+            debug_renderer.draw_line(pos.0 - y, pos.0 + y, Color::hsl(120.0, 1.0, 0.4));
+
+            #[cfg(feature = "3d")]
+            {
+                let z = rot.rotate(Vector::Z * lengths.z);
+                debug_renderer.draw_line(pos.0 - z, pos.0 + z, Color::hsl(220.0, 1.0, 0.6));
+            }
+
+            // Draw dot at the center of the body
+            #[cfg(feature = "2d")]
+            debug_renderer.gizmos.circle_2d(pos.0, 0.5, Color::YELLOW);
+            #[cfg(feature = "3d")]
+            debug_renderer
+                .gizmos
+                .sphere(pos.0, rot.0, 0.025, Color::YELLOW);
+        }
+    }
+}
+
 fn debug_render_aabbs(
     aabbs: Query<(&ColliderAabb, Option<&DebugRender>)>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
     #[cfg(feature = "2d")]
-    for (aabb, render_config) in aabbs.iter() {
+    for (aabb, render_config) in &aabbs {
         if let Some(color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
             debug_renderer.gizmos.cuboid(
                 Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).as_f32())
@@ -189,7 +253,7 @@ fn debug_render_aabbs(
     }
 
     #[cfg(feature = "3d")]
-    for (aabb, render_config) in aabbs.iter() {
+    for (aabb, render_config) in &aabbs {
         if let Some(color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
             debug_renderer.gizmos.cuboid(
                 Transform::from_scale(Vector::from(aabb.extents()).as_f32())
