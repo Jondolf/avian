@@ -298,6 +298,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [SpatialQuery::cast_shape]
+    #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
         shape: &Collider,
@@ -543,7 +544,7 @@ impl SpatialQueryPipeline {
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((isometry, shape, layers)) = self.colliders.get(&entity) {
-                if query_filter.test(entity, *layers) && shape.contains_point(&isometry, &point) {
+                if query_filter.test(entity, *layers) && shape.contains_point(isometry, &point) {
                     intersections.push(entity);
                     return callback(entity);
                 }
