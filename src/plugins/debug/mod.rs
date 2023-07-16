@@ -72,7 +72,8 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<SphericalJoint>,
                     change_mesh_visibility,
                 )
-                    .after(PhysicsSet::StepSimulation),
+                    .after(PhysicsSet::StepSimulation)
+                    .run_if(|config: Res<PhysicsDebugConfig>| config.enabled),
             );
     }
 }
@@ -140,7 +141,9 @@ fn debug_render_contacts(
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
-    let Some(color) = config.contact_color else { return };
+    let Some(color) = config.contact_color else {
+        return;
+    };
     for Collision(contact) in collisions.iter() {
         let p1 = contact.point1;
         let p2 = contact.point2;
