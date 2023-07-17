@@ -37,11 +37,10 @@ pub(crate) fn get_dynamic_friction(
         return Vector::ZERO;
     }
 
-    let normal_force = normal_lagrange / sub_dt.powi(2);
+    let normal_impulse = normal_lagrange / sub_dt;
 
     // Velocity update caused by dynamic friction, never exceeds the magnitude of the tangential velocity itself
-    -tangent_vel / tangent_vel_magnitude
-        * (sub_dt * coefficient * normal_force.abs()).min(tangent_vel_magnitude)
+    -tangent_vel * (coefficient * normal_impulse.abs() / tangent_vel_magnitude).min(1.0)
 }
 
 /// Calculates velocity correction caused by restitution.
