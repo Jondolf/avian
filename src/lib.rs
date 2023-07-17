@@ -40,7 +40,7 @@
 //! - Debug rendering [colliders](Collider), [AABBs](ColliderAabb), [contacts](Contact), [joints] and axes
 //! (with `debug-plugin` feature)
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
-//! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
+//! - Configurable [timesteps](PhysicsTimestep), [time scale](PhysicsTimescale) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
 //!
 //! ## Getting started
@@ -177,6 +177,7 @@
 //!     - [Point projection](spatial_query#point-projection)
 //!     - [Intersection tests](spatial_query#intersection-tests)
 //! - [Configure the physics timestep](PhysicsTimestep)
+//! - [Configure the time scale](PhysicsTimescale)
 //! - [Configure the substep count](SubstepCount)
 //! - [Configure the schedule for running physics](PhysicsPlugins#custom-schedule)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)

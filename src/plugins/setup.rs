@@ -50,6 +50,7 @@ impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
         app.init_resource::<PhysicsTimestep>()
+            .init_resource::<PhysicsTimescale>()
             .init_resource::<DeltaTime>()
             .init_resource::<SubDeltaTime>()
             .init_resource::<SubstepCount>()
@@ -212,13 +213,15 @@ fn run_physics_schedule(world: &mut World) {
     let delta_seconds = world.resource::<Time>().delta_seconds_f64();
 
     let time_step = *world.resource::<PhysicsTimestep>();
+    let time_scale = world.resource::<PhysicsTimescale>().0;
 
     // Update `DeltaTime` according to the `PhysicsTimestep` configuration
-    let (dt, accumulate) = match time_step {
+    let (raw_dt, accumulate) = match time_step {
         PhysicsTimestep::Fixed(fixed_delta_seconds) => (fixed_delta_seconds, true),
         PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
         PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
+    let dt = raw_dt * time_scale;
     world.resource_mut::<DeltaTime>().0 = dt;
 
     match accumulate {
@@ -236,7 +239,7 @@ fn run_physics_schedule(world: &mut World) {
                 physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
                 physics_loop.queued_steps = 0;
             } else {
-                physics_loop.accumulator += delta_seconds;
+                physics_loop.accumulator += delta_seconds * time_scale;
             }
 
             // Step the simulation until the accumulator has been consumed.
