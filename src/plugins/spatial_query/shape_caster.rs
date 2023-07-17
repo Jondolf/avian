@@ -351,6 +351,12 @@ impl ShapeHits {
         self.count == 0
     }
 
+    /// Clears the hits.
+    pub fn clear(&mut self) {
+        self.vector.clear();
+        self.count = 0;
+    }
+
     /// Returns an iterator over the hits in the order of time of impact.
     pub fn iter(&self) -> std::slice::Iter<ShapeHitData> {
         self.as_slice().iter()

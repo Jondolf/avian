@@ -322,6 +322,12 @@ impl RayHits {
         self.count == 0
     }
 
+    /// Clears the hits.
+    pub fn clear(&mut self) {
+        self.vector.clear();
+        self.count = 0;
+    }
+
     /// Returns an iterator over the hits in arbitrary order.
     ///
     /// If you want to get them sorted by time of impact, use `iter_sorted`.
