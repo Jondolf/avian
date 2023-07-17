@@ -375,6 +375,8 @@ fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQu
     for (ray, mut hits) in &mut rays {
         if ray.enabled {
             ray.cast(&mut hits, &spatial_query.query_pipeline);
+        } else if !hits.is_empty() {
+            hits.clear();
         }
     }
 }
@@ -386,6 +388,8 @@ fn shapecast(
     for (shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
             shape_caster.cast(&mut hits, &spatial_query.query_pipeline);
+        } else if !hits.is_empty() {
+            hits.clear();
         }
     }
 }
