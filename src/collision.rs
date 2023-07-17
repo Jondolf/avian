@@ -1,5 +1,7 @@
 //! Collision events, contact data and helpers.
 
+use parry::query::QueryDispatcher;
+
 use crate::prelude::*;
 
 /// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
@@ -21,11 +23,11 @@ pub struct Contact {
     pub entity1: Entity,
     /// Second entity in the contact.
     pub entity2: Entity,
-    /// Contact point on the first entity in global coordinates.
+    /// Contact point on the first entity in local coordinates.
     pub point1: Vector,
-    /// Contact point on the second entity in global coordinates.
+    /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
-    /// Contact normal from contact point 1 to 2.
+    /// Contact normal from contact point 1 to 2 in world coordinates.
     pub normal: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
@@ -43,10 +45,13 @@ pub(crate) fn compute_contact(
     collider1: &Collider,
     collider2: &Collider,
 ) -> Option<Contact> {
-    if let Ok(Some(contact)) = parry::query::contact(
-        &utils::make_isometry(position1, rotation1),
+    let isometry1 = utils::make_isometry(position1, rotation1);
+    let isometry2 = utils::make_isometry(position2, rotation2);
+    let isometry12 = isometry1.inv_mul(&isometry2);
+
+    if let Ok(Some(contact)) = parry::query::DefaultQueryDispatcher.contact(
+        &isometry12,
         collider1.get_shape().0.as_ref(),
-        &utils::make_isometry(position2, rotation2),
         collider2.get_shape().0.as_ref(),
         0.0,
     ) {
@@ -55,7 +60,7 @@ pub(crate) fn compute_contact(
             entity2,
             point1: contact.point1.into(),
             point2: contact.point2.into(),
-            normal: contact.normal1.into(),
+            normal: rotation1.rotate(contact.normal1.into()),
             penetration: -contact.dist,
         });
     }

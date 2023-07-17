@@ -68,6 +68,8 @@ impl Plugin for SolverPlugin {
                 .chain()
                 .in_set(SubstepSet::SolveVelocities),
         );
+
+        substeps.add_systems(apply_translation.in_set(SubstepSet::ApplyTranslation));
     }
 }
 
@@ -125,8 +127,8 @@ fn penetration_constraints(
             if let Some(contact) = compute_contact(
                 *ent1,
                 *ent2,
-                body1.position.0,
-                body2.position.0,
+                body1.position.0 + body1.accumulated_translation.0,
+                body2.position.0 + body2.accumulated_translation.0,
                 &body1.rotation,
                 &body2.rotation,
                 collider1,
@@ -265,6 +267,7 @@ fn update_lin_vel(
             &RigidBody,
             &Position,
             &PreviousPosition,
+            &AccumulatedTranslation,
             &mut LinearVelocity,
             &mut PreSolveLinearVelocity,
         ),
@@ -272,7 +275,7 @@ fn update_lin_vel(
     >,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
+    for (rb, pos, prev_pos, translation, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
             lin_vel.0 = Vector::ZERO;
@@ -282,7 +285,7 @@ fn update_lin_vel(
 
         if rb.is_dynamic() {
             // v = (x - x_prev) / h
-            lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
+            lin_vel.0 = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
         }
     }
 }
@@ -507,6 +510,17 @@ fn joint_damping<T: Joint>(
                 lin_vel2.0 -= p * inv_mass2.0;
             }
         }
+    }
+}
+
+fn apply_translation(mut bodies: Query<(&RigidBody, &mut Position, &mut AccumulatedTranslation)>) {
+    for (rb, mut pos, mut translation) in &mut bodies {
+        if rb.is_static() {
+            continue;
+        }
+
+        pos.0 += translation.0;
+        translation.0 = Vector::ZERO;
     }
 }
 

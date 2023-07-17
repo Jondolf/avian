@@ -85,6 +85,7 @@ fn init_rigid_bodies(
     ) in &mut bodies
     {
         let mut body = commands.entity(entity);
+        body.insert(AccumulatedTranslation(Vector::ZERO));
 
         if let Some(pos) = pos {
             body.insert(PreviousPosition(pos.0));
@@ -268,8 +269,13 @@ fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassProper
         }
 
         if let Some(collider) = collider {
-            let Some(mut collider_mass_properties)=collider_mass_properties else { continue; };
-            let Some(mut previous_collider_mass_properties)=previous_collider_mass_properties else { continue; };
+            let Some(mut collider_mass_properties) = collider_mass_properties else {
+                continue;
+            };
+            let Some(mut previous_collider_mass_properties) = previous_collider_mass_properties
+            else {
+                continue;
+            };
 
             // Subtract previous collider mass props from the body's mass props
             mass_properties -= previous_collider_mass_properties.0;

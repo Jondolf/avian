@@ -166,6 +166,11 @@ pub struct Position(pub Vector);
 #[reflect(Component)]
 pub struct PreviousPosition(pub Vector);
 
+/// Translation accumulated during a sub-step.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct AccumulatedTranslation(pub Vector);
+
 /// The linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]

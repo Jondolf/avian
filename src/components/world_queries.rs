@@ -14,6 +14,7 @@ pub struct RigidBodyQuery {
     pub rotation: &'static mut Rotation,
     pub previous_position: &'static mut PreviousPosition,
     pub previous_rotation: &'static mut PreviousRotation,
+    pub accumulated_translation: &'static mut AccumulatedTranslation,
     pub linear_velocity: &'static mut LinearVelocity,
     pub(crate) pre_solve_linear_velocity: &'static mut PreSolveLinearVelocity,
     pub angular_velocity: &'static mut AngularVelocity,

@@ -32,11 +32,11 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() {
-            body1.position.0 += p * inv_mass1;
+            body1.accumulated_translation.0 += p * inv_mass1;
             *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, r1, p);
         }
         if body2.rb.is_dynamic() {
-            body2.position.0 -= p * inv_mass2;
+            body2.accumulated_translation.0 -= p * inv_mass2;
             *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, r2, p);
         }
 
