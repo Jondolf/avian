@@ -10,6 +10,9 @@ use parry::{
     shape::{SharedShape, TypedShape},
 };
 
+/// Flags used for the preprocessing of a triangle mesh collider.
+pub type TriMeshFlags = parry::shape::TriMeshFlags;
+
 /// A collider used for collision detection.
 ///
 /// By default, colliders generate [collision events](#collision-events) and cause a collision response for
@@ -244,6 +247,17 @@ impl Collider {
         SharedShape::trimesh(vertices, indices).into()
     }
 
+    /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
+    /// and flags controlling the preprocessing.
+    pub fn trimesh_with_flags(
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+        flags: TriMeshFlags,
+    ) -> Self {
+        let vertices = vertices.into_iter().map(|v| v.into()).collect();
+        SharedShape::trimesh_with_flags(vertices, indices, flags).into()
+    }
+
     /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh`.
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
@@ -253,6 +267,14 @@ impl Collider {
         vertices_indices.map(|(v, i)| {
             SharedShape::trimesh_with_flags(v, i, TriMeshFlags::MERGE_DUPLICATE_VERTICES).into()
         })
+    }
+
+    /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh` and flags
+    /// controlling its preprocessing.
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn trimesh_from_bevy_mesh_with_flags(mesh: &Mesh, flags: TriMeshFlags) -> Option<Self> {
+        let vertices_indices = extract_mesh_vertices_indices(mesh);
+        vertices_indices.map(|(v, i)| SharedShape::trimesh_with_flags(v, i, flags).into())
     }
 
     /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
