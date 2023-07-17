@@ -99,11 +99,13 @@ fn debug_render_axes(
 
             // Draw dot at the center of the body
             #[cfg(feature = "2d")]
-            debug_renderer.gizmos.circle_2d(pos.0, 0.5, Color::YELLOW);
+            debug_renderer
+                .gizmos
+                .circle_2d(pos.as_f32(), 0.5, Color::YELLOW);
             #[cfg(feature = "3d")]
             debug_renderer
                 .gizmos
-                .sphere(pos.0, rot.0, 0.025, Color::YELLOW);
+                .sphere(pos.as_f32(), rot.as_f32(), 0.025, Color::YELLOW);
         }
     }
 }
