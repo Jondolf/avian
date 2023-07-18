@@ -78,6 +78,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Rotation>()
             .register_type::<PreviousPosition>()
             .register_type::<PreviousRotation>()
+            .register_type::<AccumulatedTranslation>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
             .register_type::<PreSolveLinearVelocity>()
@@ -151,6 +152,7 @@ impl Plugin for PhysicsSetupPlugin {
                 SubstepSet::SolveUserConstraints,
                 SubstepSet::UpdateVelocities,
                 SubstepSet::SolveVelocities,
+                SubstepSet::ApplyTranslation,
             )
                 .chain(),
         );

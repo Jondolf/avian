@@ -166,6 +166,17 @@ pub struct Position(pub Vector);
 #[reflect(Component)]
 pub struct PreviousPosition(pub Vector);
 
+/// Translation accumulated during a sub-step.
+///
+/// When updating position during integration or constraint solving, the required translation
+/// is added to [`AccumulatedTranslation`], instead of [`Position`]. This improves numerical stability
+/// of the simulation, especially for bodies far away from world origin.
+///
+/// After each substep, actual [`Position`] is updated during [`SubstepSet::ApplyTranslation`].
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct AccumulatedTranslation(pub Vector);
+
 /// The linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]

@@ -565,4 +565,8 @@ pub enum SubstepSet {
     ///
     /// See [`SolverPlugin`].
     SolveVelocities,
+    /// Responsible for applying translation accumulated during the substep.
+    ///
+    /// See [`SolverPlugin`].
+    ApplyTranslation,
 }

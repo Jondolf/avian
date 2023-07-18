@@ -55,12 +55,11 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 impl PenetrationConstraint {
     /// Creates a new [`PenetrationConstraint`] with the given bodies and contact data.
     pub fn new(body1: &RigidBodyQueryItem, body2: &RigidBodyQueryItem, contact: Contact) -> Self {
-        let world_r1 =
-            contact.point1 - body1.position.0 + body1.rotation.rotate(body1.center_of_mass.0);
-        let world_r2 =
-            contact.point2 - body2.position.0 + body2.rotation.rotate(body2.center_of_mass.0);
-        let local_r1 = body1.rotation.inverse().rotate(world_r1);
-        let local_r2 = body2.rotation.inverse().rotate(world_r2);
+        let local_r1 = contact.point1 - body1.center_of_mass.0;
+        let local_r2 = contact.point2 - body2.center_of_mass.0;
+
+        let world_r1 = body1.rotation.rotate(local_r1);
+        let world_r2 = body2.rotation.rotate(local_r2);
 
         Self {
             entity1: body1.entity,
@@ -132,14 +131,14 @@ impl PenetrationConstraint {
         let r1 = self.world_r1;
         let r2 = self.world_r2;
 
-        // Compute contact positions at the current state and before substep integration
-        let p1 = body1.position.0 + body1.rotation.rotate(self.local_r1);
-        let p2 = body2.position.0 + body2.rotation.rotate(self.local_r2);
-        let prev_p1 = body1.previous_position.0 + body1.previous_rotation.rotate(self.local_r1);
-        let prev_p2 = body2.previous_position.0 + body2.previous_rotation.rotate(self.local_r2);
-
         // Compute relative motion of the contact points and get the tangential component
-        let delta_p = (p1 - prev_p1) - (p2 - prev_p2);
+        let delta_p1 =
+            body1.position.0 - body1.previous_position.0 + body1.accumulated_translation.0 + r1
+                - body1.previous_rotation.rotate(self.local_r1);
+        let delta_p2 =
+            body2.position.0 - body2.previous_position.0 + body2.accumulated_translation.0 + r2
+                - body2.previous_rotation.rotate(self.local_r2);
+        let delta_p = delta_p1 - delta_p2;
         let delta_p_tangent = delta_p - delta_p.dot(normal) * normal;
 
         // Compute magnitude of relative tangential movement and get normalized tangent vector

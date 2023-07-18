@@ -32,8 +32,9 @@ impl Plugin for IntegratorPlugin {
 
 type PosIntegrationComponents = (
     &'static RigidBody,
-    &'static mut Position,
+    &'static Position,
     &'static mut PreviousPosition,
+    &'static mut AccumulatedTranslation,
     &'static mut LinearVelocity,
     Option<&'static LinearDamping>,
     Option<&'static GravityScale>,
@@ -52,8 +53,9 @@ fn integrate_pos(
 ) {
     for (
         rb,
-        mut pos,
+        pos,
         mut prev_pos,
+        mut translation,
         mut lin_vel,
         lin_damping,
         gravity_scale,
@@ -87,7 +89,7 @@ fn integrate_pos(
             lin_vel.0 += sub_dt.0 * external_forces * effective_inv_mass;
         }
 
-        pos.0 += locked_axes.apply_to_vec(sub_dt.0 * lin_vel.0);
+        translation.0 += locked_axes.apply_to_vec(sub_dt.0 * lin_vel.0);
     }
 }
 
