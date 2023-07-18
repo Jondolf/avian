@@ -82,6 +82,9 @@ fn setup(
         ..default()
     });
 
+    // convert to Vec3 so code compiles when `f64` feature is enabled
+    let origin = Vec3::new(origin.x as _, origin.y as _, origin.z as _);
+
     // Camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_translation(origin + Vec3::new(0.0, 12.0, 40.0))
