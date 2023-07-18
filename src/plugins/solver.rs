@@ -261,6 +261,7 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
+#[allow(clippy::type_complexity)]
 fn update_lin_vel(
     mut bodies: Query<
         (
