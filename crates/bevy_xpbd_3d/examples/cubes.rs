@@ -22,9 +22,6 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let origin = Vector::new(0.0, 0.0, 0.0);
-    let density = 1.0;
-
     let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
 
     // Ground
@@ -36,7 +33,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Position(origin + Vector::NEG_Y * 2.0),
+        Position(Vector::NEG_Y * 2.0),
         Collider::cuboid(100.0, 1.0, 100.0),
     ));
 
@@ -51,9 +48,6 @@ fn setup(
                     y as Scalar * (cube_size + 0.05),
                     z as Scalar * (cube_size + 0.05),
                 );
-
-                let collider = Collider::cuboid(cube_size, cube_size, cube_size);
-
                 commands.spawn((
                     PbrBundle {
                         mesh: cube_mesh.clone(),
@@ -62,9 +56,8 @@ fn setup(
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    ColliderMassProperties::new_computed(&collider, density),
-                    collider,
-                    Position(origin + pos + Vector::Y * 5.0),
+                    Position(pos + Vector::Y * 5.0),
+                    Collider::cuboid(cube_size, cube_size, cube_size),
                     Cube,
                 ));
             }
@@ -82,13 +75,10 @@ fn setup(
         ..default()
     });
 
-    // convert to Vec3 so code compiles when `f64` feature is enabled
-    let origin = Vec3::new(origin.x as _, origin.y as _, origin.z as _);
-
     // Camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(origin + Vec3::new(0.0, 12.0, 40.0))
-            .looking_at(origin + Vec3::Y * 5.0, Vec3::Y),
+        transform: Transform::from_translation(Vec3::new(0.0, 12.0, 40.0))
+            .looking_at(Vec3::Y * 5.0, Vec3::Y),
         ..default()
     });
 }
