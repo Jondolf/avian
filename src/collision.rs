@@ -1,6 +1,6 @@
 //! Collision events, contact data and helpers.
 
-use parry::query::{ContactManifoldsWorkspace, PersistentQueryDispatcher, QueryDispatcher};
+use parry::query::QueryDispatcher;
 
 use crate::prelude::*;
 
