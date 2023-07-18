@@ -24,8 +24,12 @@ pub struct Contact {
     /// Second entity in the contact.
     pub entity2: Entity,
     /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
+    pub local_point1: Vector,
     /// Contact point on the second entity in local coordinates.
+    pub local_point2: Vector,
+    /// Contact point on the first entity in global coordinates.
+    pub point1: Vector,
+    /// Contact point on the second entity in global coordinates.
     pub point2: Vector,
     /// Contact normal from contact point 1 to 2 in world coordinates.
     pub normal: Vector,
@@ -58,8 +62,10 @@ pub(crate) fn compute_contact(
         return Some(Contact {
             entity1,
             entity2,
-            point1: contact.point1.into(),
-            point2: contact.point2.into(),
+            local_point1: contact.point1.into(),
+            local_point2: contact.point2.into(),
+            point1: position1 + rotation1.rotate(contact.point1.into()),
+            point2: position2 + rotation2.rotate(contact.point2.into()),
             normal: rotation1.rotate(contact.normal1.into()),
             penetration: -contact.dist,
         });

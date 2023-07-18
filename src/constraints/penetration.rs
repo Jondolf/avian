@@ -55,8 +55,8 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 impl PenetrationConstraint {
     /// Creates a new [`PenetrationConstraint`] with the given bodies and contact data.
     pub fn new(body1: &RigidBodyQueryItem, body2: &RigidBodyQueryItem, contact: Contact) -> Self {
-        let local_r1 = contact.point1 - body1.center_of_mass.0;
-        let local_r2 = contact.point2 - body2.center_of_mass.0;
+        let local_r1 = contact.local_point1 - body1.center_of_mass.0;
+        let local_r2 = contact.local_point2 - body2.center_of_mass.0;
 
         let world_r1 = body1.rotation.rotate(local_r1);
         let world_r2 = body2.rotation.rotate(local_r2);
