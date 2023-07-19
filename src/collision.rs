@@ -50,10 +50,6 @@ pub struct ContactManifold {
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContactData {
-    /// First entity in the contact.
-    pub entity1: Entity,
-    /// Second entity in the contact.
-    pub entity2: Entity,
     /// Contact point on the first entity in local coordinates.
     pub local_point1: Vector,
     /// Contact point on the second entity in local coordinates.
@@ -108,8 +104,6 @@ pub(crate) fn compute_contacts(
                     .contacts()
                     .iter()
                     .map(|contact| ContactData {
-                        entity1,
-                        entity2,
                         local_point1: contact.local_p1.into(),
                         local_point2: contact.local_p2.into(),
                         point1: position1 + rotation1.rotate(contact.local_p1.into()),

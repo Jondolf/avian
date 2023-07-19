@@ -372,17 +372,12 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let ContactData {
-            entity1,
-            entity2,
-            normal,
-            ..
-        } = constraint.contact;
-
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
+
+            let normal = constraint.contact.normal;
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel1 = compute_contact_vel(
