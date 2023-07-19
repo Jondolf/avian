@@ -105,8 +105,10 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, sensor1, layers1, colliding_entities1, sleeping1) = bundle1;
-            let (mut body2, collider2, sensor2, layers2, colliding_entities2, sleeping2) = bundle2;
+            let (mut body1, collider1, sensor1, layers1, mut colliding_entities1, sleeping1) =
+                bundle1;
+            let (mut body2, collider2, sensor2, layers2, mut colliding_entities2, sleeping2) =
+                bundle2;
 
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
@@ -124,7 +126,7 @@ fn penetration_constraints(
                 continue;
             }
 
-            if let Some(contact) = compute_contact(
+            let contacts = compute_contacts(
                 *ent1,
                 *ent2,
                 body1.position.0 + body1.accumulated_translation.0,
@@ -133,17 +135,17 @@ fn penetration_constraints(
                 &body2.rotation,
                 collider1,
                 collider2,
-            ) {
-                collision_events.push(Collision(contact));
+            );
 
+            if !contacts.manifolds.is_empty() {
                 let mut collision_started_1 = false;
                 let mut collision_started_2 = false;
 
                 // Add entity to set of colliding entities
-                if let Some(mut entities) = colliding_entities1 {
+                if let Some(ref mut entities) = colliding_entities1 {
                     collision_started_1 = entities.insert(*ent2);
                 }
-                if let Some(mut entities) = colliding_entities2 {
+                if let Some(ref mut entities) = colliding_entities2 {
                     collision_started_2 = entities.insert(*ent1);
                 }
 
@@ -160,10 +162,17 @@ fn penetration_constraints(
 
                 // Create and solve constraint if both colliders are solid
                 if sensor1.is_none() && sensor2.is_none() {
-                    let mut constraint = PenetrationConstraint::new(&body1, &body2, contact);
-                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                    penetration_constraints.0.push(constraint);
+                    for contact_manifold in contacts.manifolds.iter() {
+                        for contact in contact_manifold.contacts.iter() {
+                            let mut constraint =
+                                PenetrationConstraint::new(&body1, &body2, *contact);
+                            constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                            penetration_constraints.0.push(constraint);
+                        }
+                    }
                 }
+
+                collision_events.push(Collision(contacts));
             } else {
                 let mut collision_ended_1 = false;
                 let mut collision_ended_2 = false;
@@ -363,7 +372,7 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let Contact {
+        let ContactData {
             entity1,
             entity2,
             normal,

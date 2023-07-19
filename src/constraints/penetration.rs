@@ -13,7 +13,7 @@ pub struct PenetrationConstraint {
     /// Second entity in the constraint.
     pub entity2: Entity,
     /// Data associated with the contact.
-    pub contact: Contact,
+    pub contact: ContactData,
     /// Vector from the first entity's center of mass to the contact point in local coordinates.
     pub local_r1: Vector,
     /// Vector from the second entity's center of mass to the contact point in local coordinates.
@@ -54,7 +54,11 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 
 impl PenetrationConstraint {
     /// Creates a new [`PenetrationConstraint`] with the given bodies and contact data.
-    pub fn new(body1: &RigidBodyQueryItem, body2: &RigidBodyQueryItem, contact: Contact) -> Self {
+    pub fn new(
+        body1: &RigidBodyQueryItem,
+        body2: &RigidBodyQueryItem,
+        contact: ContactData,
+    ) -> Self {
         let local_r1 = contact.local_point1 - body1.center_of_mass.0;
         let local_r2 = contact.local_point2 - body2.center_of_mass.0;
 
