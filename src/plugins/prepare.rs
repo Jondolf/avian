@@ -40,7 +40,15 @@ impl Plugin for PreparePlugin {
         app.add_systems(
             self.schedule.dyn_clone(),
             (
-                (init_rigid_bodies, init_mass_properties, init_colliders),
+                (
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                    init_rigid_bodies,
+                )
+                    .chain()
+                    .run_if(any_new_rigid_bodies),
+                init_mass_properties,
+                init_colliders,
                 update_mass_properties,
             )
                 .chain()
@@ -64,6 +72,10 @@ type RigidBodyComponents = (
     Option<&'static Friction>,
     Option<&'static TimeSleeping>,
 );
+
+fn any_new_rigid_bodies(query: Query<(), Added<RigidBody>>) -> bool {
+    !query.is_empty()
+}
 
 fn init_rigid_bodies(
     mut commands: Commands,
