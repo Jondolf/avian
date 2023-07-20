@@ -377,33 +377,34 @@ fn solve_vel(
                 continue;
             }
 
+            // Skip constraint if it didn't apply a correction
+            if constraint.normal_lagrange == 0.0 {
+                continue;
+            }
+
             let normal = constraint.contact.normal;
+            let r1 = body1.rotation.rotate(constraint.local_r1);
+            let r2 = body2.rotation.rotate(constraint.local_r2);
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel1 = compute_contact_vel(
                 body1.pre_solve_linear_velocity.0,
                 body1.pre_solve_angular_velocity.0,
-                constraint.world_r1,
+                r1,
             );
             let pre_solve_contact_vel2 = compute_contact_vel(
                 body2.pre_solve_linear_velocity.0,
                 body2.pre_solve_angular_velocity.0,
-                constraint.world_r2,
+                r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 = compute_contact_vel(
-                body1.linear_velocity.0,
-                body1.angular_velocity.0,
-                constraint.world_r1,
-            );
-            let contact_vel2 = compute_contact_vel(
-                body2.linear_velocity.0,
-                body2.angular_velocity.0,
-                constraint.world_r2,
-            );
+            let contact_vel1 =
+                compute_contact_vel(body1.linear_velocity.0, body1.angular_velocity.0, r1);
+            let contact_vel2 =
+                compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
@@ -441,28 +442,18 @@ fn solve_vel(
             let delta_v_dir = delta_v / delta_v_length;
 
             // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(
-                &body1,
-                constraint.world_r1,
-                delta_v_dir,
-            );
-            let w2 = constraint.compute_generalized_inverse_mass(
-                &body2,
-                constraint.world_r2,
-                delta_v_dir,
-            );
+            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, delta_v_dir);
+            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, delta_v_dir);
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p * inv_mass1;
-                body1.angular_velocity.0 +=
-                    compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
+                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
             }
             if body2.rb.is_dynamic() {
                 body2.linear_velocity.0 -= p * inv_mass2;
-                body2.angular_velocity.0 -=
-                    compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
+                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
             }
         }
     }

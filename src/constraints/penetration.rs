@@ -47,6 +47,30 @@ impl XpbdConstraint<2> for PenetrationConstraint {
     /// Solves overlap between two bodies.
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
         let [body1, body2] = bodies;
+
+        // For convex-convex collider contacts, we can compute the penetration at the current state
+        // using the contact points like the XPBD paper suggests, which reduces explosiveness.
+        //
+        // However, non-convex colliders cause convex colliders to sink into them unless we use
+        // the penetration depth provided by Parry.
+        //
+        // Todo: Figure out why this is and use the method below for all collider types in order to fix
+        // explosions for all contacts.
+        if self.contact.convex {
+            let p1 = body1.position.0
+                + body1.accumulated_translation.0
+                + body1.rotation.rotate(self.local_r1);
+            let p2 = body2.position.0
+                + body2.accumulated_translation.0
+                + body2.rotation.rotate(self.local_r2);
+            self.contact.penetration = (p1 - p2).dot(self.contact.normal);
+        }
+
+        // If penetration depth is under 0, skip the collision
+        if self.contact.penetration <= Scalar::EPSILON {
+            return;
+        }
+
         self.solve_contact(body1, body2, dt);
         self.solve_friction(body1, body2, dt);
     }
@@ -93,13 +117,8 @@ impl PenetrationConstraint {
         let normal = self.contact.normal;
         let compliance = self.compliance;
         let lagrange = self.normal_lagrange;
-        let r1 = self.world_r1;
-        let r2 = self.world_r2;
-
-        // If penetration depth is under 0, skip the collision
-        if penetration <= 0.0 {
-            return;
-        }
+        let r1 = body1.rotation.rotate(self.local_r1);
+        let r2 = body2.rotation.rotate(self.local_r2);
 
         // Compute generalized inverse masses
         let w1 = self.compute_generalized_inverse_mass(body1, r1, normal);
@@ -132,8 +151,8 @@ impl PenetrationConstraint {
         let normal = self.contact.normal;
         let compliance = self.compliance;
         let lagrange = self.tangent_lagrange;
-        let r1 = self.world_r1;
-        let r2 = self.world_r2;
+        let r1 = body1.rotation.rotate(self.local_r1);
+        let r2 = body2.rotation.rotate(self.local_r2);
 
         // Compute relative motion of the contact points and get the tangential component
         let delta_p1 =
