@@ -26,12 +26,21 @@
 //!     - [Sensor colliders](Sensor)
 //!     - [Collision layers](CollisionLayers)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
+//! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
+//! - [Gravity] and [gravity scale](GravityScale)
 //! - External [forces](ExternalForce) and [torque](ExternalTorque)
-//! - [Gravity](Gravity)
+//! - [Locking](LockedAxes) translational and rotational axes
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
+//! - [Spatial queries](spatial_query)
+//!     - [Ray casting](spatial_query#ray-casting)
+//!     - [Shape casting](spatial_query#shape-casting)
+//!     - [Point projection](spatial_query#point-projection)
+//!     - [Intersection tests](spatial_query#intersection-tests)
+//! - Debug rendering [colliders](Collider), [AABBs](ColliderAabb), [contacts](Contact), [joints] and axes
+//! (with `debug-plugin` feature)
 //! - Automatically deactivating bodies with [sleeping](Sleeping)
-//! - Configurable [timesteps](PhysicsTimestep) and [substepping](SubstepCount)
+//! - Configurable [timesteps](PhysicsTimestep), [time scale](PhysicsTimescale) and [substepping](SubstepCount)
 //! - `f32`/`f64` precision (`f32` by default)
 //!
 //! ## Getting started
@@ -40,18 +49,20 @@
 //!
 //! ### Add the dependency
 //!
-//! For a 2D game, add the `bevy_xpbd_2d` crate to your `Cargo.toml` like this:
-//!
+//! First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`:
+//!  
 //! ```toml
+//! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.1"
-//! ```
+//! bevy_xpbd_2d = "0.2"
 //!
-//! Similarly for a 3D game, add `bevy_xpbd_3d`:
-//!
-//! ```toml
+//! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.1"
+//! bevy_xpbd_3d = "0.2"
+//!
+//! # If you want to use the most up-to-date version, you can follow the main branch:
+//! [dependencies]
+//! bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 //! ```
 //!
 //! By default, Bevy XPBD uses `f32` numbers. If you encounter instability or use a large number
@@ -61,18 +72,21 @@
 //! ```toml
 //! [dependencies]
 //! # Add 3D Bevy XPBD with double-precision floating point numbers
-//! bevy_xpbd_3d = { version = "0.1", features = ["3d", "f64"], default-features = false }
+//! bevy_xpbd_3d = { version = "0.2", default-features = false, features = ["3d", "f64"] }
 //! ```
 //!
 //! ### Feature flags
+//!
+//! Default features: `2d`/`3d`, `f32` and `collider-from-mesh`
 //!
 //! - `2d` enables simulation on the `x` and `y` axes. Enabled by default for `bevy_xpbd_2d`. Incompatible with `3d`.
 //! - `3d` enables simulation on the `x`, `y` and `z` axes. Enabled by default for `bevy_xpbd_3d`. Incompatible with `2d`.
 //! - `f32` enables using `f32` numbers. Incompatible with `f64`.
 //! - `f64` enables using `f64` numbers. Recommended when encountering stability problems, especially with
 //! small timesteps. Incompatible with `f32`.
-//! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and events like [AABBs](ColliderAabb)
-//! and [contacts](Contact).
+//! - `debug-plugin` enables the `PhysicsDebugPlugin` used for rendering physics objects and properties, like
+//! [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact).
+//! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
@@ -92,8 +106,7 @@
 //!
 //! fn main() {
 //!     App::new()
-//!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(PhysicsPlugins)
+//!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 //!         // ...your other plugins, systems and resources
 //!         .run();
 //! }
@@ -147,20 +160,68 @@
 //! ### Common tasks
 //!
 //! - [Create a rigid body](RigidBody)
+//! - [Define mass properties](RigidBody#adding-mass-properties)
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Define mass properties](RigidBody#adding-mass-properties)
-//! - [Use joints](joints#using-joints)
-//! - [Configure gravity](Gravity)
 //! - [Configure restitution](Restitution)
 //! - [Configure friction](Friction)
+//! - [Configure gravity](Gravity)
+//! - [Apply external forces](ExternalForce)
+//! - [Apply external torque](ExternalTorque)
+//! - [Lock translational and rotational axes](LockedAxes)
+//! - [Use joints](joints#using-joints)
+//! - [Perform spatial queries](spatial_query)
+//!     - [Ray casting](spatial_query#ray-casting)
+//!     - [Shape casting](spatial_query#shape-casting)
+//!     - [Point projection](spatial_query#point-projection)
+//!     - [Intersection tests](spatial_query#intersection-tests)
 //! - [Configure the physics timestep](PhysicsTimestep)
+//! - [Configure the time scale](PhysicsTimescale)
 //! - [Configure the substep count](SubstepCount)
+//! - [Configure the schedule for running physics](PhysicsPlugins#custom-schedule)
+//! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //! - [Create custom constraints](constraints#custom-constraints)
 //! - [Replace built-in plugins with custom plugins](PhysicsPlugins#custom-plugins)
 //!
-//! ## Troubleshooting
+//! ## Frequently asked questions
+//!
+//! ### How does Bevy XPBD compare to Rapier and bevy_rapier?
+//!
+//! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
+//! the most mature and feature-rich option.
+//!
+//! bevy_rapier is a great physics integration for Bevy, but it does have several problems:
+//!
+//! - It has to maintain a separate physics world and synchronize a ton of data with Bevy each frame
+//! - The source code is difficult to inspect, as the vast majority of it is glue code and wrappers
+//! for Bevy
+//! - It has poor docs.rs documentation, and the documentation on rapier.rs is often outdated and
+//! missing features
+//! - It is hard to extend as it's not very modular or composable in design
+//! - Overall, it doesn't have a native ECS-like feel outside of its public API
+//!
+//! Bevy XPBD on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
+//! and the public API. This removes the need for a separate physics world, reduces overhead, and makes
+//! the source code much more approachable and easy to inspect for Bevy users.
+//!
+//! In part thanks to Bevy's modular architecture and the ECS, Bevy XPBD is also highly composable,
+//! as it consists of several independent plugins and provides lots of options for configuration and extensions,
+//! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
+//! [custom joints](joints#custom-joints) and [constraints](constraints#custom-constraints).
+//!
+//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Bevy XPBD uses
+//! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
+//! but it hasn't been widely adopted in mainstream usage yet.
+//!
+//! One of the biggest disadvantages of Bevy XPBD is that it is still very young, so it can have lots of bugs,
+//! some missing features, and fewer community resources and third party crates. However, it is growing quite
+//! rapidly, and it is already pretty close to feature-parity with Rapier.
+//!
+//! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
+//! physics integration, bevy_rapier is the better choice, but if you prefer an engine with less overhead
+//! and a more native Bevy integration, consider using Bevy XPBD. Their core APIs are also quite similar,
+//! so switching between them should be straightforward.
 //!
 //! ### Why is nothing happening?
 //!
@@ -182,6 +243,8 @@
 //! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
 //! instantly give them infinite velocity.
 //!
+//! Bevy XPBD should automatically print warnings when it detects bodies with an invalid mass or inertia.
+//!
 //! ### Why is performance so bad?
 //!
 //! Make sure you are building your project in release mode using `cargo build --release`.
@@ -197,6 +260,18 @@
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
+//! ### Can the engine be used on servers?
+//!
+//! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
+//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! to whatever you want.
+//!
+//! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
+//! server and the client to make sure the physics simulation is only advanced by one step each time the schedule runs.
+//!
+//! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different
+//! machines.
+//!
 //! ### Something else?
 //!
 //! Physics engines are very large and Bevy XPBD is very young, so stability issues and bugs are to be expected.
@@ -205,18 +280,26 @@
 //! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
 //! [open a new issue](https://github.com/Jondolf/bevy_xpbd/issues/new) if there already isn't one regarding your problem.
 //!
+//! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
+//! There you can find a bevy_xpbd thread on the crate-help channel where you can ask questions.
+//!
 //! ## What is XPBD?
 //!
 //! *XPBD* or *Extended Position Based Dynamics* is a physics simulation method that extends
 //! the traditional *PBD* to be more physically accurate and less dependent on time step size
 //! and iteration count.
 //!
-//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
-//! [integration](integrator), [constraint solving](solver), and velocity updates. Unlike in force or impulse
-//! based simulation methods, [constraints] operate directly on positions, which often provides more reliable
-//! and stable results, and allows straightforward coupling of [rigid bodies](RigidBody), soft bodies and fluids.
+//! Unlike force or impulse based physics simulation methods, XPBD mostly operates at the position-level,
+//! which can produce more stable and reliable results, while allowing straightforward coupling
+//! of [rigid bodies](RigidBody), soft bodies and fluids.
 //!
-//! Below is a high level overview of the XPBD simulation loop.
+//! ### Simulation loop
+//!
+//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
+//! [integration](integrator), [constraint solving](solver), velocity updates, and a velocity solver that
+//! handles dynamic friction and restitution.
+//!
+//! It looks roughly like this:
 //!
 //! ```ignore
 //! while simulating:
@@ -260,8 +343,8 @@
 //! [external torque](ExternalTorque).
 //!
 //! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSetupPlugin`] sets up
-//! the Bevy schedules[^1][^2] and sets[^3][^4], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`] handles
-//! XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
+//! the Bevy schedules[^1][^2] and sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase, the [`IntegratorPlugin`]
+//! handles XPBD integration, and so on. You can find all of the plugins and their responsibilities [here](PhysicsPlugins).
 //!
 //! ### See also
 //!
@@ -282,6 +365,7 @@
 //! how XPBD differs from other simulation methods and how the constraints work.
 //!
 //! - Video: Ten Minute Physics. 2022. *[Getting ready to simulate the world with XPBD](https://youtu.be/jrociOAYqxA)*.
+//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*.
 //! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
 //! (inspired this project)
 //!
@@ -302,7 +386,9 @@
 //!
 //! [^3]: [`PhysicsSet`]
 //!
-//! [^4]: [`SubstepSet`]
+//! [^4]: [`PhysicsStepSet`]
+//!
+//! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(missing_docs)]
@@ -338,11 +424,11 @@ pub mod prelude {
         collision::*,
         components::*,
         constraints::{joints::*, *},
-        math::*,
         plugins::*,
         resources::*,
-        *,
+        PhysicsSet,
     };
+    pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;
 }
 pub use prelude::setup::{pause, resume};
@@ -358,4 +444,129 @@ use bevy::{
     prelude::*,
 };
 use parry::math::Isometry;
+#[allow(unused_imports)]
 use prelude::*;
+
+/// Responsible for advancing the physics simulation. This is run in [`PhysicsSet::StepSimulation`].
+///
+/// See [`PhysicsStepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct PhysicsSchedule;
+
+/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
+///
+/// See [`SubstepSet`] for the system sets that are run in this schedule.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct SubstepSchedule;
+
+/// High-level system sets for the main phases of the physics engine.
+/// You can use these to schedule your own systems before or after physics is run without
+/// having to worry about implementation details.
+///
+/// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+/// updating several components.
+/// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+/// 3. `Sync`: Responsible for synchronizing physics components with other data, like writing [`Position`]
+/// and [`Rotation`] components to `Transform`s.
+///
+/// ## See also
+///
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
+/// the constraint solver.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PhysicsSet {
+    /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
+    /// updating several components.
+    ///
+    /// See [`PreparePlugin`].
+    Prepare,
+    /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+    /// Systems in this set are run in the [`PhysicsSchedule`].
+    StepSimulation,
+    /// Responsible for synchronizing physics components with other data, like writing [`Position`]
+    /// and [`Rotation`] components to `Transform`s.
+    ///
+    /// See [`SyncPlugin`].
+    Sync,
+}
+
+/// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
+///
+/// 1. Broad phase
+/// 2. Substeps
+///     1. Integrate
+///     2. Solve positional and angular constraints
+///     3. Update velocities
+///     4. Solve velocity constraints (dynamic friction and restitution)
+/// 3. Sleeping
+/// 4. Spatial queries
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PhysicsStepSet {
+    /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+    /// [AABB](ColliderAabb) intersection tests.
+    ///
+    /// See [`BroadPhasePlugin`].
+    BroadPhase,
+    /// Responsible for substepping, which is an inner loop inside a physics step.
+    ///
+    /// See [`SubstepSet`] and [`SubstepSchedule`].
+    Substeps,
+    /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
+    ///
+    /// See [`SleepingPlugin`].
+    Sleeping,
+    /// Responsible for spatial queries like [ray casting](`RayCaster`) and shape casting.
+    ///
+    /// See [`SpatialQueryPlugin`].
+    SpatialQuery,
+}
+
+/// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
+///
+/// 1. Integrate
+/// 2. Solve positional and angular constraints
+/// 3. Update velocities
+/// 4. Solve velocity constraints (dynamic friction and restitution)
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SubstepSet {
+    /// Responsible for integrating Newton's 2nd law of motion,
+    /// applying forces and moving entities according to their velocities.
+    ///
+    /// See [`IntegratorPlugin`].
+    Integrate,
+    /// The [solver] iterates through [constraints] and solves them.
+    /// This step is also responsible for narrow phase collision detection,
+    /// as it creates a [`PenetrationConstraint`] for each contact.
+    ///
+    /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
+    /// you should add them in [`SubstepSet::SolveUserConstraints`]
+    /// to avoid system order ambiguities.
+    ///
+    /// See [`SolverPlugin`].
+    SolveConstraints,
+    /// The [solver] iterates through custom [constraints] created by the user and solves them.
+    ///
+    /// You can [create new constraints](constraints#custom-constraints) by implementing [`XpbdConstraint`]
+    /// for a component and adding the [constraint system](solve_constraint) to this set.
+    ///
+    /// See [`SolverPlugin`].
+    SolveUserConstraints,
+    /// Responsible for updating velocities after [constraint](constraints) solving.
+    ///
+    /// See [`SolverPlugin`].
+    UpdateVelocities,
+    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
+    /// substepping loop.
+    ///
+    /// See [`SolverPlugin`].
+    SolveVelocities,
+    /// Responsible for applying translation accumulated during the substep.
+    ///
+    /// See [`SolverPlugin`].
+    ApplyTranslation,
+}

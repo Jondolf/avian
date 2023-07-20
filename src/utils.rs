@@ -12,6 +12,10 @@ pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
     Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
 }
 
+pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
+    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
+}
+
 #[cfg(feature = "3d")]
 pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternion) -> Matrix3 {
     let rot_mat3 = Matrix3::from_quat(rot);
@@ -21,15 +25,15 @@ pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternio
 /// Calculates impulse magnitude correction caused by dynamic friction.
 pub(crate) fn get_dynamic_friction(
     tangent_speed: Scalar,
-	generalized_mass_sum: Scalar,
+    generalized_mass_sum: Scalar,
     coefficient: Scalar,
     normal_lagrange: Scalar,
     sub_dt: Scalar,
 ) -> Scalar {
-    let normal_force = normal_lagrange / sub_dt.powi(2);
+    let normal_impulse = normal_lagrange / sub_dt;
 
     // Velocity update caused by dynamic friction, never exceeds the magnitude of the tangential velocity itself
-    -(sub_dt * coefficient * normal_force.abs()).min(tangent_speed / generalized_mass_sum)
+    -(coefficient * normal_impulse.abs()).min(tangent_speed / generalized_mass_sum)
 }
 
 /// Calculates speed correction caused by restitution.

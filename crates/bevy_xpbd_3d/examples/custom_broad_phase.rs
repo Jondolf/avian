@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{math::*, prelude::*, PhysicsSchedule, PhysicsStepSet};
 
 // Required for AABB intersection check. This might be abstracted away at some point.
 use bevy_xpbd_3d::parry::bounding_volume::BoundingVolume;
@@ -11,13 +11,13 @@ fn main() {
 
     // Add PhysicsPlugins and replace default broad phase with our custom broad phase
     app.add_plugins(
-        PhysicsPlugins
+        PhysicsPlugins::default()
             .build()
             .disable::<BroadPhasePlugin>()
             .add(BruteForceBroadPhasePlugin),
     );
 
-    app.add_startup_system(setup).run();
+    app.add_systems(Startup, setup).run();
 }
 
 // Modified from Bevy's 3d_scene example, a cube falling to the ground with velocity
@@ -77,7 +77,7 @@ impl Plugin for BruteForceBroadPhasePlugin {
             .expect("add PhysicsSchedule first");
 
         // Add the broad phase system into the broad phase set
-        physics_schedule.add_system(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
+        physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
     }
 }
 

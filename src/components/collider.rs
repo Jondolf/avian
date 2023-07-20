@@ -1,9 +1,17 @@
+use std::fmt;
+
 use crate::prelude::*;
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{prelude::*, utils::HashSet};
 use derive_more::From;
-use parry::{bounding_volume::Aabb, shape::SharedShape};
+use parry::{
+    bounding_volume::Aabb,
+    shape::{SharedShape, TypedShape},
+};
+
+/// Flags used for the preprocessing of a triangle mesh collider.
+pub type TriMeshFlags = parry::shape::TriMeshFlags;
 
 /// A collider used for collision detection.
 ///
@@ -82,10 +90,64 @@ impl Default for Collider {
     }
 }
 
+impl fmt::Debug for Collider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.as_typed_shape() {
+            TypedShape::Ball(shape) => write!(f, "{:?}", shape),
+            TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
+            TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
+            TypedShape::Capsule(shape) => write!(f, "{:?}", shape),
+            TypedShape::Segment(shape) => write!(f, "{:?}", shape),
+            TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
+            TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
+            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
+            TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
+            TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
+            TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
+            TypedShape::Compound(_) => write!(f, "Compound (not representable)"),
+            TypedShape::Custom(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::Cylinder(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::Cone(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundCylinder(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundCone(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "3d")]
+            TypedShape::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "2d")]
+            TypedShape::ConvexPolygon(shape) => write!(f, "{:?}", shape),
+            #[cfg(feature = "2d")]
+            TypedShape::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
+        }
+    }
+}
+
 impl Collider {
     /// Gets the raw shape of the collider. The shapes are provided by [`parry`].
     pub fn get_shape(&self) -> &SharedShape {
         &self.0
+    }
+
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    #[cfg(feature = "2d")]
+    pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
+        ColliderAabb(self.get_shape().compute_aabb(&utils::make_isometry(
+            position,
+            &Rotation::from_radians(rotation),
+        )))
+    }
+
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    #[cfg(feature = "3d")]
+    pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
+        ColliderAabb(
+            self.get_shape()
+                .compute_aabb(&utils::make_isometry(position, &Rotation(rotation))),
+        )
     }
 
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
@@ -185,8 +247,19 @@ impl Collider {
         SharedShape::trimesh(vertices, indices).into()
     }
 
+    /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
+    /// and flags controlling the preprocessing.
+    pub fn trimesh_with_flags(
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+        flags: TriMeshFlags,
+    ) -> Self {
+        let vertices = vertices.into_iter().map(|v| v.into()).collect();
+        SharedShape::trimesh_with_flags(vertices, indices, flags).into()
+    }
+
     /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh`.
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         use parry::shape::TriMeshFlags;
 
@@ -196,9 +269,17 @@ impl Collider {
         })
     }
 
+    /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh` and flags
+    /// controlling its preprocessing.
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn trimesh_from_bevy_mesh_with_flags(mesh: &Mesh, flags: TriMeshFlags) -> Option<Self> {
+        let vertices_indices = extract_mesh_vertices_indices(mesh);
+        vertices_indices.map(|(v, i)| SharedShape::trimesh_with_flags(v, i, flags).into())
+    }
+
     /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
     /// built from a given Bevy `Mesh`.
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
         let vertices_indices = extract_mesh_vertices_indices(mesh);
         vertices_indices.map(|(v, i)| SharedShape::convex_decomposition(&v, &i).into())
@@ -273,10 +354,10 @@ impl Collider {
     }
 }
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 type VerticesIndices = (Vec<nalgebra::Point3<Scalar>>, Vec<[u32; 3]>);
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
     let indices = mesh.indices()?;

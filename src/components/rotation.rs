@@ -9,6 +9,13 @@ use nalgebra::Matrix3x1;
 
 use crate::prelude::*;
 
+/// Radians
+#[cfg(feature = "2d")]
+pub(crate) type RotationValue = Scalar;
+/// Quaternion
+#[cfg(feature = "3d")]
+pub(crate) type RotationValue = Quaternion;
+
 /// The rotation of a body.
 ///
 /// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians.
@@ -48,8 +55,6 @@ pub struct Rotation {
 ///     // Spawn a dynamic rigid body rotated by 1.5 radians around the x axis
 ///     commands.spawn((RigidBody::Dynamic, Rotation(Quat::from_rotation_x(1.5))));
 /// }
-/// # #[cfg(not(feature = "f32"))]
-/// # fn setup() {}
 /// ```
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
@@ -59,8 +64,8 @@ pub struct Rotation(pub Quaternion);
 impl Rotation {
     /// Rotates the rotation by a 3D vector.
     #[cfg(feature = "2d")]
-    pub fn rotate_vec3(&self, vec: crate::Vector3) -> crate::Vector3 {
-        crate::Vector3::new(
+    pub fn rotate_vec3(&self, vec: Vector3) -> Vector3 {
+        Vector3::new(
             vec.x * self.cos() - vec.y * self.sin(),
             vec.x * self.sin() + vec.y * self.cos(),
             vec.z,
@@ -210,19 +215,9 @@ impl From<Rotation> for Scalar {
 #[cfg(feature = "2d")]
 impl From<Rotation> for Quaternion {
     fn from(rot: Rotation) -> Self {
-        if rot.cos() < 0.0 {
-            let t = 1.0 - rot.cos();
-            let d = 1.0 / (t * 2.0).sqrt();
-            let z = -rot.sin() * d;
-            let w = t * d;
-            Quaternion::from_xyzw(0.0, 0.0, z, w)
-        } else {
-            let t = 1.0 + rot.cos();
-            let d = 1.0 / (t * 2.0).sqrt();
-            let z = t * d;
-            let w = -rot.sin() * d;
-            Quaternion::from_xyzw(0.0, 0.0, z, w)
-        }
+        let z = rot.sin().signum() * ((1.0 - rot.cos()) / 2.0).abs().sqrt();
+        let w = ((1.0 + rot.cos()) / 2.0).abs().sqrt();
+        Quaternion::from_xyzw(0.0, 0.0, z, w)
     }
 }
 

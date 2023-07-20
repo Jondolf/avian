@@ -115,6 +115,14 @@ impl Joint for PrismaticJoint {
         }
     }
 
+    fn local_anchor_1(&self) -> Vector {
+        self.local_anchor1
+    }
+
+    fn local_anchor_2(&self) -> Vector {
+        self.local_anchor2
+    }
+
     fn damping_linear(&self) -> Scalar {
         self.damping_linear
     }
@@ -142,8 +150,8 @@ impl PrismaticJoint {
         let axis1 = body1.rotation.rotate(self.free_axis);
         if let Some(limits) = self.free_axis_limits {
             delta_x += limits.compute_correction_along_axis(
-                body1.position.0 + world_r1,
-                body2.position.0 + world_r2,
+                body1.position.0 + body1.accumulated_translation.0 + world_r1,
+                body2.position.0 + body2.accumulated_translation.0 + world_r2,
                 axis1,
             );
         }
@@ -154,8 +162,8 @@ impl PrismaticJoint {
         {
             let axis2 = Vector::new(axis1.y, -axis1.x);
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.position.0 + world_r1,
-                body2.position.0 + world_r2,
+                body1.position.0 + body1.accumulated_translation.0 + world_r1,
+                body2.position.0 + body2.accumulated_translation.0 + world_r2,
                 axis2,
             );
         }
@@ -165,13 +173,13 @@ impl PrismaticJoint {
             let axis3 = axis1.cross(axis2);
 
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.position.0 + world_r1,
-                body2.position.0 + world_r2,
+                body1.position.0 + body1.accumulated_translation.0 + world_r1,
+                body2.position.0 + body2.accumulated_translation.0 + world_r2,
                 axis2,
             );
             delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.position.0 + world_r1,
-                body2.position.0 + world_r2,
+                body1.position.0 + body1.accumulated_translation.0 + world_r1,
+                body2.position.0 + body2.accumulated_translation.0 + world_r2,
                 axis3,
             );
         }

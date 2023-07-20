@@ -38,8 +38,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`](#method.new) method
 /// that takes in a list of groups and masks. Additional groups and masks can be added and removed by calling methods like
-/// [`with_groups`](#method.with_groups), [`with_masks`](#method.with_masks), [`without_groups`](#method.without_groups) and
-/// [`without_masks`](#method.without_masks).
+/// [`add_groups`](#method.add_groups), [`add_masks`](#method.add_masks), [`remove_groups`](#method.remove_groups) and
+/// [`remove_masks`](#method.remove_masks).
 ///
 /// These methods require the layers to implement [`PhysicsLayer`]. The easiest way to define the physics layers is to
 /// create an enum with `#[derive(PhysicsLayer)]`.
@@ -84,7 +84,7 @@ impl CollisionLayers {
         groups: impl IntoIterator<Item = L>,
         masks: impl IntoIterator<Item = L>,
     ) -> Self {
-        Self::none().with_groups(groups).with_masks(masks)
+        Self::none().add_groups(groups).add_masks(masks)
     }
 
     /// Contains all groups and masks.
@@ -128,13 +128,13 @@ impl CollisionLayers {
     }
 
     /// Adds the given layer into `groups`.
-    pub fn with_group(mut self, layer: impl PhysicsLayer) -> Self {
+    pub fn add_group(mut self, layer: impl PhysicsLayer) -> Self {
         self.groups |= layer.to_bits();
         self
     }
 
     /// Adds the given layers into `groups`.
-    pub fn with_groups(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+    pub fn add_groups(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
         for layer in layers.into_iter().map(|l| l.to_bits()) {
             self.groups |= layer;
         }
@@ -143,8 +143,17 @@ impl CollisionLayers {
     }
 
     /// Removes the given layer from `groups`.
-    pub fn without_group(mut self, layer: impl PhysicsLayer) -> Self {
+    pub fn remove_group(mut self, layer: impl PhysicsLayer) -> Self {
         self.groups &= !layer.to_bits();
+        self
+    }
+
+    /// Removes the given layers from `groups`.
+    pub fn remove_groups(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+        for layer in layers.into_iter().map(|l| l.to_bits()) {
+            self.groups &= !layer;
+        }
+
         self
     }
 
@@ -154,13 +163,13 @@ impl CollisionLayers {
     }
 
     /// Adds the given layer into `masks`.
-    pub fn with_mask(mut self, layer: impl PhysicsLayer) -> Self {
+    pub fn add_mask(mut self, layer: impl PhysicsLayer) -> Self {
         self.masks |= layer.to_bits();
         self
     }
 
     /// Adds the given layers in `masks`.
-    pub fn with_masks(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+    pub fn add_masks(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
         for layer in layers.into_iter().map(|l| l.to_bits()) {
             self.masks |= layer;
         }
@@ -169,8 +178,17 @@ impl CollisionLayers {
     }
 
     /// Removes the given layer from `masks`.
-    pub fn without_mask(mut self, layer: impl PhysicsLayer) -> Self {
+    pub fn remove_mask(mut self, layer: impl PhysicsLayer) -> Self {
         self.masks &= !layer.to_bits();
+        self
+    }
+
+    /// Removes the given layers from `masks`.
+    pub fn remove_masks(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+        for layer in layers.into_iter().map(|l| l.to_bits()) {
+            self.masks &= !layer;
+        }
+
         self
     }
 

@@ -16,7 +16,8 @@
 //!
 //! - [All of the current plugins and their responsibilities](PhysicsPlugins)
 //! - [Creating custom plugins](PhysicsPlugins#custom-plugins)
-//! - [`PhysicsSchedule`] and [`PhysicsSet`]
+//! - [`PhysicsSet`]
+//! - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
 pub mod broad_phase;
@@ -27,16 +28,18 @@ pub mod prepare;
 pub mod setup;
 pub mod sleeping;
 pub mod solver;
+pub mod spatial_query;
 pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
 #[cfg(feature = "debug-plugin")]
-pub use debug::PhysicsDebugPlugin;
+pub use debug::*;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;
 pub use solver::{solve_constraint, SolverPlugin};
+pub use spatial_query::*;
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
@@ -56,6 +59,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
+/// - [`SpatialQueryPlugin`]: Handles spatial queries like [ray casting](RayCaster) and shape casting.
 /// - [`SyncPlugin`]: Synchronizes the engine's [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
@@ -63,6 +67,28 @@ use bevy::prelude::*;
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
 /// You can also find more information regarding the engine's general plugin architecture [here](plugins).
+///
+/// ## Custom schedule
+///
+/// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::new(FixedUpdate)))
+///         .run();
+/// }
+/// ```
+///
+/// Note that using `FixedUpdate` with [`PhysicsTimestep::Fixed`] can produce unexpected results due to two separate
+/// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
+/// when you need to keep the client and server in sync.
 ///
 /// ## Custom plugins
 ///
@@ -75,9 +101,9 @@ use bevy::prelude::*;
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
 ///
 /// pub struct CustomBroadPhasePlugin;
 ///
@@ -89,7 +115,7 @@ use bevy::prelude::*;
 ///             .expect("add PhysicsSchedule first");
 ///
 ///         // Add the system into the broad phase system set
-///         physics_schedule.add_system(collect_collision_pairs.in_set(PhysicsSet::BroadPhase));
+///         physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
 ///     }
 /// }
 ///
@@ -119,7 +145,7 @@ use bevy::prelude::*;
 ///
 ///     // Add PhysicsPlugins and replace default broad phase with our custom broad phase
 ///     app.add_plugins(
-///         PhysicsPlugins
+///         PhysicsPlugins::default()
 ///             .build()
 ///             .disable::<BroadPhasePlugin>()
 ///             .add(CustomBroadPhasePlugin),
@@ -131,7 +157,26 @@ use bevy::prelude::*;
 ///
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_broad_phase.rs).
-pub struct PhysicsPlugins;
+pub struct PhysicsPlugins {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PhysicsPlugins {
+    /// Creates a [`PhysicsPlugins`] plugin group using the given schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PhysicsPlugins {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
@@ -140,94 +185,17 @@ impl PluginGroup for PhysicsPlugins {
 
         #[cfg(feature = "debug-plugin")]
         {
-            builder = builder.add(PhysicsDebugPlugin);
+            builder = builder.add(PhysicsDebugPlugin::default());
         }
 
         builder
-            .add(PhysicsSetupPlugin)
-            .add(PreparePlugin)
+            .add(PhysicsSetupPlugin::new(self.schedule.dyn_clone()))
+            .add(PreparePlugin::new(self.schedule.dyn_clone()))
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
-            .add(SyncPlugin)
+            .add(SpatialQueryPlugin::new(self.schedule.dyn_clone()))
+            .add(SyncPlugin::new(self.schedule))
     }
-}
-
-/// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
-///
-/// 1. Prepare
-/// 2. Broad phase
-/// 3. Substeps
-///     1. Integrate
-///     2. Solve positional and angular constraints
-///     3. Update velocities
-///     4. Solve velocity constraints (dynamic friction and restitution)
-/// 4. Sleeping
-/// 5. Sync data
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PhysicsSet {
-    /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
-    /// updating several components.
-    ///
-    /// See [`PreparePlugin`].
-    Prepare,
-    /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
-    /// [AABB](ColliderAabb) intersection tests.
-    ///
-    /// See [`BroadPhasePlugin`].
-    BroadPhase,
-    /// Responsible for substepping, which is an inner loop inside a physics step.
-    ///
-    /// See [`SubstepSet`] and [`SubstepSchedule`].
-    Substeps,
-    /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
-    ///
-    /// See [`SleepingPlugin`].
-    Sleeping,
-    /// Responsible for synchronizing [`Position`]s and [`Rotation`]s with Bevy's `Transform`s.
-    ///
-    /// See [`SyncPlugin`].
-    Sync,
-}
-
-/// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
-///
-/// 1. Integrate
-/// 2. Solve positional and angular constraints
-/// 3. Update velocities
-/// 4. Solve velocity constraints (dynamic friction and restitution)
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SubstepSet {
-    /// Responsible for integrating Newton's 2nd law of motion,
-    /// applying forces and moving entities according to their velocities.
-    ///
-    /// See [`IntegratorPlugin`].
-    Integrate,
-    /// The [solver] iterates through [constraints] and solves them.
-    /// This step is also responsible for narrow phase collision detection,
-    /// as it creates a [`PenetrationConstraint`] for each contact.
-    ///
-    /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
-    /// you should add them in [`SubstepSet::SolveUserConstraints`]
-    /// to avoid system order ambiguities.
-    ///
-    /// See [`SolverPlugin`].
-    SolveConstraints,
-    /// The [solver] iterates through custom [constraints] created by the user and solves them.
-    ///
-    /// You can [create new constraints](constraints#custom-constraints) by implementing [`XpbdConstraint`]
-    /// for a component and adding the [constraint system](solve_constraint) to this set.
-    ///
-    /// See [`SolverPlugin`].
-    SolveUserConstraints,
-    /// Responsible for updating velocities after [constraint](constraints) solving.
-    ///
-    /// See [`SolverPlugin`].
-    UpdateVelocities,
-    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
-    /// substepping loop.
-    ///
-    /// See [`SolverPlugin`].
-    SolveVelocities,
 }

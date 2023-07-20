@@ -15,7 +15,7 @@ use bevy::prelude::*;
 ///
 /// This plugin does *not* handle constraints waking up bodies. That is done by the [solver].
 ///
-/// The sleeping systems run in [`PhysicsSet::Sleeping`].
+/// The sleeping systems run in [`PhysicsStepSet::Sleeping`].
 pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
@@ -25,7 +25,7 @@ impl Plugin for SleepingPlugin {
             .add_systems(
                 (mark_sleeping_bodies, wake_up_bodies, gravity_wake_up_bodies)
                     .chain()
-                    .in_set(PhysicsSet::Sleeping),
+                    .in_set(PhysicsStepSet::Sleeping),
             );
     }
 }
@@ -88,6 +88,7 @@ type BodyWokeUpFilter = Or<(
     Changed<AngularVelocity>,
     Changed<ExternalForce>,
     Changed<ExternalTorque>,
+    Changed<GravityScale>,
 )>;
 
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like

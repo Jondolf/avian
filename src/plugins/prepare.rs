@@ -3,7 +3,7 @@
 //!
 //! See [`PreparePlugin`].
 
-use crate::{prelude::*, utils::make_isometry};
+use crate::prelude::*;
 use bevy::prelude::*;
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
@@ -11,32 +11,51 @@ use bevy::prelude::*;
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
 /// - Adds missing collider components for entities with a [`Collider`] component
-/// - Updates [AABBs](ColliderAabb)
 /// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
-pub struct PreparePlugin;
+pub struct PreparePlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
 
-impl Plugin for PreparePlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
-        app.configure_set(ComponentInitSet.in_set(PhysicsSet::Prepare));
-        app.add_systems(
-            (init_rigid_bodies, init_mass_properties, init_colliders).in_set(ComponentInitSet),
-        );
-
-        app.get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first")
-            .add_systems(
-                (update_aabb, update_mass_properties)
-                    .chain()
-                    .after(ComponentInitSet)
-                    .in_set(PhysicsSet::Prepare),
-            );
+impl PreparePlugin {
+    /// Creates a [`PreparePlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
     }
 }
 
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct ComponentInitSet;
+impl Default for PreparePlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
+
+impl Plugin for PreparePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            self.schedule.dyn_clone(),
+            (
+                (
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                    init_rigid_bodies,
+                )
+                    .chain()
+                    .run_if(any_new_rigid_bodies),
+                init_mass_properties,
+                init_colliders,
+                update_mass_properties,
+            )
+                .chain()
+                .in_set(PhysicsSet::Prepare),
+        );
+    }
+}
 
 type RigidBodyComponents = (
     Entity,
@@ -53,6 +72,10 @@ type RigidBodyComponents = (
     Option<&'static Friction>,
     Option<&'static TimeSleeping>,
 );
+
+fn any_new_rigid_bodies(query: Query<(), Added<RigidBody>>) -> bool {
+    !query.is_empty()
+}
 
 fn init_rigid_bodies(
     mut commands: Commands,
@@ -74,6 +97,7 @@ fn init_rigid_bodies(
     ) in &mut bodies
     {
         let mut body = commands.entity(entity);
+        body.insert(AccumulatedTranslation(Vector::ZERO));
 
         if let Some(pos) = pos {
             body.insert(PreviousPosition(pos.0));
@@ -81,7 +105,7 @@ fn init_rigid_bodies(
             if let Some(ref mut transform) = transform {
                 #[cfg(feature = "2d")]
                 {
-                    transform.translation = pos.extend(0.0).as_f32();
+                    transform.translation = pos.as_f32().extend(transform.translation.z);
                 }
                 #[cfg(feature = "3d")]
                 {
@@ -221,53 +245,14 @@ fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, A
     }
 }
 
-type AABBChanged = Or<(
-    Changed<Position>,
-    Changed<Rotation>,
-    Changed<LinearVelocity>,
-    Changed<AngularVelocity>,
-)>;
-
-/// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
-#[allow(clippy::type_complexity)]
-fn update_aabb(
-    mut bodies: Query<
-        (
-            ColliderQuery,
-            &Position,
-            &Rotation,
-            Option<&LinearVelocity>,
-            Option<&AngularVelocity>,
-        ),
-        AABBChanged,
-    >,
-    dt: Res<DeltaTime>,
-) {
-    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * dt.0;
-
-    for (mut collider_query, pos, rot, lin_vel, ang_vel) in &mut bodies {
-        let lin_vel_len = lin_vel.map_or(0.0, |v| v.length());
-
-        #[cfg(feature = "2d")]
-        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.abs());
-        #[cfg(feature = "3d")]
-        let ang_vel_len = ang_vel.map_or(0.0, |v| v.0.length());
-
-        let computed_aabb = collider_query
-            .collider
-            .get_shape()
-            .compute_aabb(&make_isometry(pos.0, rot));
-        let half_extents = Vector::from(computed_aabb.half_extents());
-
-        // Add a safety margin.
-        let safety_margin = safety_margin_factor * (lin_vel_len + ang_vel_len);
-        let extended_half_extents = half_extents + safety_margin;
-
-        collider_query.aabb.mins.coords = (pos.0 - extended_half_extents).into();
-        collider_query.aabb.maxs.coords = (pos.0 + extended_half_extents).into();
-    }
-}
+type MassPropertiesComponents = (
+    Entity,
+    &'static RigidBody,
+    MassPropertiesQuery,
+    Option<&'static Collider>,
+    Option<&'static mut ColliderMassProperties>,
+    Option<&'static mut PreviousColliderMassProperties>,
+);
 
 type MassPropertiesChanged = Or<(
     Changed<Mass>,
@@ -281,34 +266,55 @@ type MassPropertiesChanged = Or<(
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_properties(
-    mut bodies: Query<(MassPropertiesQuery, Option<ColliderQuery>), MassPropertiesChanged>,
-) {
-    for (mut mass_properties, collider) in &mut bodies {
+fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassPropertiesChanged>) {
+    for (
+        entity,
+        rb,
+        mut mass_properties,
+        collider,
+        collider_mass_properties,
+        previous_collider_mass_properties,
+    ) in &mut bodies
+    {
         if mass_properties.mass.is_changed() && mass_properties.mass.0 >= Scalar::EPSILON {
             mass_properties.inverse_mass.0 = 1.0 / mass_properties.mass.0;
         }
 
-        if let Some(mut collider_query) = collider {
+        if let Some(collider) = collider {
+            let Some(mut collider_mass_properties) = collider_mass_properties else {
+                continue;
+            };
+            let Some(mut previous_collider_mass_properties) = previous_collider_mass_properties
+            else {
+                continue;
+            };
+
             // Subtract previous collider mass props from the body's mass props
-            mass_properties -= collider_query.previous_mass_properties.0;
+            mass_properties -= previous_collider_mass_properties.0;
 
             // Update previous and current collider mass props
-            collider_query.previous_mass_properties.0 = *collider_query.mass_properties;
-            *collider_query.mass_properties = ColliderMassProperties::new_computed(
-                &collider_query.collider,
-                collider_query.mass_properties.density,
-            );
+            previous_collider_mass_properties.0 = *collider_mass_properties;
+            *collider_mass_properties =
+                ColliderMassProperties::new_computed(collider, collider_mass_properties.density);
 
             // Add new collider mass props to the body's mass props
-            mass_properties += *collider_query.mass_properties;
+            mass_properties += *collider_mass_properties;
         }
 
-        if mass_properties.mass.0 < Scalar::EPSILON {
-            mass_properties.mass.0 = Scalar::EPSILON;
-        }
-        if mass_properties.inverse_mass.0 < Scalar::EPSILON {
-            mass_properties.inverse_mass.0 = Scalar::EPSILON;
+        // Warn about dynamic bodies with no mass or inertia
+        let is_mass_valid =
+            mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
+        #[cfg(feature = "2d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
+        #[cfg(feature = "3d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
+        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
+            warn!(
+                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
+                entity
+            );
         }
     }
 }

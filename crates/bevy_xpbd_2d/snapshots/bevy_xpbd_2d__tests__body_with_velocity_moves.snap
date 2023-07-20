@@ -11,8 +11,8 @@ Transform {
     rotation: Quat(
         0.0,
         0.0,
+        0.0,
         1.0,
-        -0.0,
     ),
     scale: Vec3(
         1.0,

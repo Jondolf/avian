@@ -2,12 +2,16 @@
 
 mod collider;
 mod layers;
+mod locked_axes;
 mod mass_properties;
 mod rotation;
 mod world_queries;
 
+use std::ops::{Deref, DerefMut};
+
 pub use collider::*;
 pub use layers::*;
+pub use locked_axes::*;
 pub use mass_properties::*;
 pub use rotation::*;
 pub use world_queries::*;
@@ -162,6 +166,17 @@ pub struct Position(pub Vector);
 #[reflect(Component)]
 pub struct PreviousPosition(pub Vector);
 
+/// Translation accumulated during a sub-step.
+///
+/// When updating position during integration or constraint solving, the required translation
+/// is added to [`AccumulatedTranslation`], instead of [`Position`]. This improves numerical stability
+/// of the simulation, especially for bodies far away from world origin.
+///
+/// After each substep, actual [`Position`] is updated during [`SubstepSet::ApplyTranslation`].
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct AccumulatedTranslation(pub Vector);
+
 /// The linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -175,7 +190,7 @@ impl LinearVelocity {
 /// The linear velocity of a body before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveLinearVelocity(pub Vector);
+pub(crate) struct PreSolveLinearVelocity(pub Vector);
 
 /// The angular velocity of a body in radians. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
@@ -202,18 +217,157 @@ impl AngularVelocity {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngularVelocity(pub Scalar);
+pub(crate) struct PreSolveAngularVelocity(pub Scalar);
 
 /// The angular velocity of a body in radians before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreSolveAngularVelocity(pub Vector);
+pub(crate) struct PreSolveAngularVelocity(pub Vector);
 
-/// An external force applied to a body during the integration step. It persists during the simulation, so it must be cleared manually.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+/// An external force applied to a dynamic [rigid body](RigidBody) during the integration step.
+///
+/// By default, the force persists across frames. You can clear the force manually using
+/// [`clear`](#method.clear) or set `persistent` to false.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn setup(mut commands: Commands) {
+///     // Apply a force every physics frame.
+///     commands.spawn((RigidBody::Dynamic, ExternalForce::new(Vec3::Y)));
+///
+///     // Apply an initial force and automatically clear it every physics frame.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         ExternalForce::new(Vec3::Y).with_persistence(false),
+///     ));
+///
+///     // Apply multiple forces.
+///     let mut force = ExternalForce::default();
+///     force.apply_force(Vec3::Y).apply_force(Vec3::X);
+///     commands.spawn((RigidBody::Dynamic, force));
+///
+///     // Apply a force at a specific point relative to the given center of mass, also applying a torque.
+///     // In this case, the torque would cause the body to rotate counterclockwise.
+///     let mut force = ExternalForce::default();
+///     force.apply_force_at_point(Vec3::Y, Vec3::X, Vec3::ZERO);
+///     commands.spawn((RigidBody::Dynamic, force));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[reflect(Component)]
-pub struct ExternalForce(pub Vector);
+pub struct ExternalForce {
+    /// The total external force that will be applied.
+    force: Vector,
+    /// True if the force persists across frames, and false if the force is automatically cleared every physics frame.
+    ///
+    /// If you clear the force manually, use the [`clear`](#method.clear) method. This will clear the force and
+    /// the torque that is applied when the force is not applied at the center of mass.
+    pub persistent: bool,
+    /// The torque caused by forces applied at certain points using [`apply_force_at_point`](#method.apply_force_At_point).
+    torque: Torque,
+}
+
+impl Deref for ExternalForce {
+    type Target = Vector;
+
+    fn deref(&self) -> &Self::Target {
+        &self.force
+    }
+}
+
+impl DerefMut for ExternalForce {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.force
+    }
+}
+
+impl Default for ExternalForce {
+    fn default() -> Self {
+        Self {
+            force: Vector::ZERO,
+            persistent: true,
+            torque: Torque::ZERO,
+        }
+    }
+}
+
+impl ExternalForce {
+    /// Zero external force.
+    pub const ZERO: Self = Self {
+        force: Vector::ZERO,
+        persistent: true,
+        torque: Torque::ZERO,
+    };
+
+    /// Creates a new [`ExternalForce`] component with a given `force`.
+    pub fn new(force: Vector) -> Self {
+        Self { force, ..default() }
+    }
+
+    /// Sets the force. Note that the torque caused by any forces will not be reset.
+    pub fn set_force(&mut self, force: Vector) -> &mut Self {
+        **self = force;
+        self
+    }
+
+    /// Adds the given `force` to the force that will be applied.
+    pub fn apply_force(&mut self, force: Vector) -> &mut Self {
+        **self += force;
+        self
+    }
+
+    /// Applies the given `force` at a local `point`, which will also cause torque to be applied.
+    pub fn apply_force_at_point(
+        &mut self,
+        force: Vector,
+        point: Vector,
+        center_of_mass: Vector,
+    ) -> &mut Self {
+        **self += force;
+        #[cfg(feature = "2d")]
+        {
+            self.torque += (point - center_of_mass).perp_dot(force);
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.torque += (point - center_of_mass).cross(force);
+        }
+        self
+    }
+
+    /// Returns the force.
+    pub fn force(&self) -> Vector {
+        self.force
+    }
+
+    /// Returns the torque caused by forces applied at certain points using
+    /// [`apply_force_at_point`](#method.apply_force_At_point).
+    pub fn torque(&self) -> Torque {
+        self.torque
+    }
+
+    /// Determines if the force is persistent or if it should be automatically cleared every physics frame.
+    #[doc(alias = "clear_automatically")]
+    pub fn with_persistence(mut self, is_persistent: bool) -> Self {
+        self.persistent = is_persistent;
+        self
+    }
+
+    /// Sets the force and the potential torque caused by the force to zero.
+    pub fn clear(&mut self) {
+        self.force = Vector::ZERO;
+        self.torque = Torque::ZERO;
+    }
+}
 
 #[cfg(feature = "2d")]
 pub(crate) type Torque = Scalar;
@@ -229,10 +383,123 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
-/// An external torque applied to a body during the integration step. It persists during the simulation, so it must be cleared manually.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+/// An external torque applied to a dynamic [rigid body](RigidBody) during the integration step.
+///
+/// By default, the torque persists across frames. You can clear the torque manually using
+/// [`clear`](#method.clear) or set `persistent` to false.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn setup(mut commands: Commands) {
+///     // Apply a torque every physics frame.
+///     commands.spawn((RigidBody::Dynamic, ExternalTorque::new(Vec3::Y)));
+///
+///     // Apply an initial torque and automatically clear it every physics frame.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         ExternalTorque::new(Vec3::Y).with_persistence(false),
+///     ));
+///
+///     // Apply multiple torques.
+///     let mut torque = ExternalTorque::default();
+///     torque.apply_torque(Vec3::Y).apply_torque(Vec3::X);
+///     commands.spawn((RigidBody::Dynamic, torque));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[reflect(Component)]
-pub struct ExternalTorque(pub Torque);
+pub struct ExternalTorque {
+    /// The total external torque that will be applied.
+    torque: Torque,
+    /// True if the torque persists across frames, and false if the torque is automatically cleared every physics frame.
+    pub persistent: bool,
+}
+
+impl Deref for ExternalTorque {
+    type Target = Torque;
+
+    fn deref(&self) -> &Self::Target {
+        &self.torque
+    }
+}
+
+impl DerefMut for ExternalTorque {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.torque
+    }
+}
+
+impl Default for ExternalTorque {
+    fn default() -> Self {
+        Self {
+            torque: Torque::ZERO,
+            persistent: true,
+        }
+    }
+}
+
+impl ExternalTorque {
+    /// Zero external torque.
+    pub const ZERO: Self = Self {
+        torque: Torque::ZERO,
+        persistent: true,
+    };
+
+    /// Creates a new [`ExternalTorque`] component with a given `torque`.
+    pub fn new(torque: Torque) -> Self {
+        Self {
+            torque,
+            ..default()
+        }
+    }
+
+    /// Sets the torque.
+    pub fn set_torque(&mut self, torque: Torque) -> &mut Self {
+        **self = torque;
+        self
+    }
+
+    /// Adds the given `torque` to the torque that will be applied.
+    pub fn apply_torque(&mut self, torque: Torque) -> &mut Self {
+        **self += torque;
+        self
+    }
+
+    /// Determines if the torque is persistent or if it should be automatically cleared every physics frame.
+    #[doc(alias = "clear_automatically")]
+    pub fn with_persistence(mut self, is_persistent: bool) -> Self {
+        self.persistent = is_persistent;
+        self
+    }
+
+    /// Returns the torque.
+    pub fn torque(&self) -> Torque {
+        self.torque
+    }
+
+    /// Sets the torque to zero.
+    pub fn clear(&mut self) {
+        self.torque = Torque::ZERO;
+    }
+}
+
+/// Controls how [gravity](Gravity) affects a specific [rigid body](RigidBody).
+///
+/// A gravity scale of `0.0` will disable gravity, while `2.0` will double the gravity.
+/// Using a negative value will flip the direction of the gravity.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
+)]
+#[reflect(Component)]
+pub struct GravityScale(pub Scalar);
 
 /// Determines how coefficients are combined. The default is `Average`.
 ///
@@ -500,19 +767,45 @@ impl From<Scalar> for Friction {
     }
 }
 
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [linear velocity](LinearVelocity)
+/// each frame. This can be used to simulate air resistance.
+///
+/// The default linear damping coefficient is `0.0`, which corresponds to no damping.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
+)]
+#[reflect(Component)]
+pub struct LinearDamping(pub Scalar);
+
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [angular velocity](AngularVelocity)
+/// each frame. This can be used to simulate air resistance.
+///
+/// The default angular damping coefficient is `0.0`, which corresponds to no damping.
+#[derive(
+    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
+)]
+#[reflect(Component)]
+pub struct AngularDamping(pub Scalar);
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
+    use approx::assert_relative_eq;
 
     #[test]
     fn coefficient_combine_works() {
         let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
 
         // (0.3 + 0.7) / 2.0 == 0.5
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average)),
-            Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average)
+        let average_result =
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average));
+        let average_expected = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average);
+        assert_relative_eq!(
+            average_result.coefficient,
+            average_expected.coefficient,
+            epsilon = 0.0001
         );
+        assert_eq!(average_result.combine_rule, average_expected.combine_rule);
 
         // 0.3.min(0.7) == 0.3
         assert_eq!(
@@ -521,10 +814,16 @@ mod tests {
         );
 
         // 0.3 * 0.7 == 0.21
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply)),
-            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply)
+        let multiply_result =
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply));
+        let multiply_expected =
+            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply);
+        assert_relative_eq!(
+            multiply_result.coefficient,
+            multiply_expected.coefficient,
+            epsilon = 0.0001
         );
+        assert_eq!(multiply_result.combine_rule, multiply_expected.combine_rule);
 
         // 0.3.max(0.7) == 0.7
         assert_eq!(

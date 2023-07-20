@@ -1,19 +1,18 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 
 fn main() {
     let mut app = App::new();
 
     // Add plugins and startup system
-    app.add_plugins(DefaultPlugins)
-        .add_plugins(PhysicsPlugins)
-        .add_startup_system(setup);
+    app.add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_systems(Startup, setup);
 
     // Get physics substep schedule and add our custom distance constraint
     let substeps = app
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
-    substeps.add_system(
+    substeps.add_systems(
         solve_constraint::<CustomDistanceConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
     );
 

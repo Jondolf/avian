@@ -44,6 +44,7 @@
 //!     lagrange: f32,
 //! }
 //!
+//! #[cfg(feature = "f32")]
 //! impl XpbdConstraint<2> for CustomConstraint {
 //!     fn entities(&self) -> [Entity; 2] {
 //!         [self.entity1, self.entity2]
@@ -51,7 +52,7 @@
 //!     fn clear_lagrange_multipliers(&mut self) {
 //!         self.lagrange = 0.0;
 //!     }
-//!     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+//!     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: f32) {
 //!         // Constraint solving logic goes here
 //!     }
 //! }
@@ -73,7 +74,7 @@
 //!     .expect("add SubstepSchedule first");
 //!
 //! // Add custom constraint
-//! substeps.add_system(
+//! substeps.add_systems(
 //!     solve_constraint::<CustomConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
 //! );
 //! ```

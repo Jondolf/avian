@@ -2,6 +2,11 @@
 //!
 //! See [`PhysicsSetupPlugin`].
 
+use bevy::{
+    ecs::schedule::{ExecutorKind, ScheduleBuildSettings},
+    transform::TransformSystem,
+};
+
 use crate::prelude::*;
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
@@ -12,25 +17,43 @@ use crate::prelude::*;
 ///
 /// ## Schedules and sets
 ///
-/// The [`PhysicsSchedule`] is responsible for the high-level physics schedule that runs once per physics frame.
-/// It has the following sets, in order:
+/// This plugin initializes and configures the following schedules and system sets:
 ///
-/// 1. [`PhysicsSet::Prepare`],
-/// 2. [`PhysicsSet::BroadPhase`],
-/// 3. [`PhysicsSet::Substeps`],
-/// 4. [`PhysicsSet::Sleeping`],
-/// 5. [`PhysicsSet::Sync`],
-///
-/// The [`SubstepSchedule`] handles physics substepping. It is run [`SubstepCount`] times in [`PhysicsSet::Substeps`],
-/// and it typically handles things like collision detection and constraint solving.
-///
-/// [Substepping sets](SubstepSet) are added by the solver plugin if it is enabled. See [`SolverPlugin`] for more information.
-pub struct PhysicsSetupPlugin;
+/// - [`PhysicsSet`]: High-level system sets for the main phases of the physics engine.
+/// You can use these to schedule your own systems before or after physics is run without
+/// having to worry about implementation details.
+/// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
+/// the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
+/// the constraint solver.
+pub struct PhysicsSetupPlugin {
+    schedule: Box<dyn ScheduleLabel>,
+}
+
+impl PhysicsSetupPlugin {
+    /// Creates a [`PhysicsSetupPlugin`] using the given schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: Box::new(schedule),
+        }
+    }
+}
+
+impl Default for PhysicsSetupPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
 
 impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
         app.init_resource::<PhysicsTimestep>()
+            .init_resource::<PhysicsTimescale>()
             .init_resource::<DeltaTime>()
             .init_resource::<SubDeltaTime>()
             .init_resource::<SubstepCount>()
@@ -58,80 +81,97 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Rotation>()
             .register_type::<PreviousPosition>()
             .register_type::<PreviousRotation>()
+            .register_type::<AccumulatedTranslation>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
             .register_type::<PreSolveLinearVelocity>()
             .register_type::<PreSolveAngularVelocity>()
             .register_type::<Restitution>()
             .register_type::<Friction>()
+            .register_type::<LinearDamping>()
+            .register_type::<AngularDamping>()
             .register_type::<ExternalForce>()
             .register_type::<ExternalTorque>()
+            .register_type::<GravityScale>()
             .register_type::<Mass>()
             .register_type::<InverseMass>()
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<LockedAxes>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>();
 
+        // Configure higher level system sets for the given schedule
+        let schedule = &self.schedule;
+        app.configure_sets(
+            schedule.dyn_clone(),
+            (
+                PhysicsSet::Prepare,
+                PhysicsSet::StepSimulation,
+                PhysicsSet::Sync,
+            )
+                .chain()
+                .before(TransformSystem::TransformPropagate),
+        );
+
+        // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::default();
 
-        physics_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-            ambiguity_detection: LogLevel::Error,
-            ..default()
-        });
+        physics_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
 
         physics_schedule.configure_sets(
             (
-                PhysicsSet::Prepare,
-                PhysicsSet::BroadPhase,
-                PhysicsSet::Substeps,
-                PhysicsSet::Sleeping,
-                PhysicsSet::Sync,
+                PhysicsStepSet::BroadPhase,
+                PhysicsStepSet::Substeps,
+                PhysicsStepSet::Sleeping,
+                PhysicsStepSet::SpatialQuery,
             )
                 .chain(),
         );
 
         app.add_schedule(PhysicsSchedule, physics_schedule);
 
+        app.add_systems(
+            schedule.dyn_clone(),
+            run_physics_schedule.in_set(PhysicsSet::StepSimulation),
+        );
+
+        // Create substep schedule, the schedule that runs the inner substepping loop
         let mut substep_schedule = Schedule::default();
 
-        substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-            ambiguity_detection: LogLevel::Error,
-            ..default()
-        });
+        substep_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+
+        substep_schedule.configure_sets(
+            (
+                SubstepSet::Integrate,
+                SubstepSet::SolveConstraints,
+                SubstepSet::SolveUserConstraints,
+                SubstepSet::UpdateVelocities,
+                SubstepSet::SolveVelocities,
+                SubstepSet::ApplyTranslation,
+            )
+                .chain(),
+        );
 
         app.add_schedule(SubstepSchedule, substep_schedule);
 
-        // Add system set for running physics schedule
-        app.configure_set(
-            FixedUpdateSet
-                .before(CoreSet::Update)
-                .in_base_set(CoreSet::PreUpdate),
-        );
-        app.add_system(run_physics_schedule.in_set(FixedUpdateSet));
-
-        app.add_system(
-            run_substep_schedule
-                .in_set(PhysicsSet::Substeps)
-                .in_schedule(PhysicsSchedule),
+        app.add_systems(
+            PhysicsSchedule,
+            run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
     }
 }
-
-/// The high-level physics schedule that runs once per physics frame.
-/// See [`PhysicsSet`] for the system sets that are run in this schedule.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct PhysicsSchedule;
-
-/// The substepping schedule. The number of substeps per physics step is
-/// configured through the [`SubstepCount`] resource.
-/// See [`SubstepSet`] for the system sets that are run in this schedule.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct SubstepSchedule;
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-struct FixedUpdateSet;
 
 /// Data related to the physics simulation loop.
 #[derive(Reflect, Resource, Debug, Default)]
@@ -182,28 +222,43 @@ fn run_physics_schedule(world: &mut World) {
     let delta_seconds = world.resource::<Time>().delta_seconds_f64();
 
     let time_step = *world.resource::<PhysicsTimestep>();
+    let time_scale = world.resource::<PhysicsTimescale>().0;
 
     // Update `DeltaTime` according to the `PhysicsTimestep` configuration
-    let dt = match time_step {
-        PhysicsTimestep::Fixed(fixed_delta_seconds) => fixed_delta_seconds,
-        PhysicsTimestep::Variable { max_dt } => delta_seconds.min(max_dt),
+    let (raw_dt, accumulate) = match time_step {
+        PhysicsTimestep::Fixed(fixed_delta_seconds) => (fixed_delta_seconds, true),
+        PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
+        PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
+    let dt = raw_dt * time_scale;
     world.resource_mut::<DeltaTime>().0 = dt;
 
-    // Add time to the accumulator
-    if physics_loop.paused {
-        physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
-        physics_loop.queued_steps = 0;
-    } else {
-        physics_loop.accumulator += delta_seconds;
-    }
+    match accumulate {
+        false if physics_loop.paused && physics_loop.queued_steps == 0 => {}
+        false => {
+            if physics_loop.queued_steps > 0 {
+                physics_loop.queued_steps -= 1;
+            }
+            debug!("running PhysicsSchedule");
+            world.run_schedule(PhysicsSchedule);
+        }
+        true => {
+            // Add time to the accumulator
+            if physics_loop.paused {
+                physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
+                physics_loop.queued_steps = 0;
+            } else {
+                physics_loop.accumulator += delta_seconds * time_scale;
+            }
 
-    // Step the simulation until the accumulator has been consumed.
-    // Note that a small remainder may be passed on to the next run of the physics schedule.
-    while physics_loop.accumulator >= dt && dt > 0.0 {
-        debug!("running PhysicsSchedule");
-        world.run_schedule(PhysicsSchedule);
-        physics_loop.accumulator -= dt;
+            // Step the simulation until the accumulator has been consumed.
+            // Note that a small remainder may be passed on to the next run of the physics schedule.
+            while physics_loop.accumulator >= dt && dt > 0.0 {
+                debug!("running PhysicsSchedule");
+                world.run_schedule(PhysicsSchedule);
+                physics_loop.accumulator -= dt;
+            }
+        }
     }
 
     world.insert_resource(physics_loop);

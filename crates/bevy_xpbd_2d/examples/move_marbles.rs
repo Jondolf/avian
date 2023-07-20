@@ -1,18 +1,17 @@
 #![allow(clippy::unnecessary_cast)]
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_xpbd_2d::prelude::*;
+use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(XpbdExamplePlugin)
+        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
-        .add_startup_system(setup)
-        .add_system(movement)
+        .add_systems(Startup, setup)
+        .add_systems(Update, movement)
         .run();
 }
 
@@ -58,23 +57,23 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
+            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
         Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 12.5),
+        Collider::cuboid(50.0, 50.0 * 11.0),
     ));
     // Right wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 12.5, 1.0)),
+            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
         Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 12.5),
+        Collider::cuboid(50.0, 50.0 * 11.0),
     ));
 
     let marble_radius = 7.5;

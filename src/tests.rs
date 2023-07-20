@@ -23,9 +23,11 @@ macro_rules! setup_insta {
 
 fn create_app() -> App {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_plugins(PhysicsPlugins);
-    app.add_plugin(LogPlugin::default());
+    app.add_plugins((
+        MinimalPlugins,
+        PhysicsPlugins::default(),
+        LogPlugin::default(),
+    ));
     app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }
@@ -77,7 +79,6 @@ fn setup_cubes_simulation(mut commands: Commands) {
 #[test]
 fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = create_app();
-    app.setup();
 
     for _ in 0..500 {
         tick_60_fps(&mut app);
@@ -92,7 +93,7 @@ fn body_with_velocity_moves() {
 
     app.insert_resource(Gravity::ZERO);
 
-    app.add_startup_system(|mut commands: Commands| {
+    app.add_systems(Startup, |mut commands: Commands| {
         // move right at 1 unit per second
         commands.spawn((
             SpatialBundle::default(),
@@ -100,8 +101,6 @@ fn body_with_velocity_moves() {
             LinearVelocity(Vector::X),
         ));
     });
-
-    app.setup();
 
     const UPDATES: usize = 500;
 
@@ -141,9 +140,7 @@ fn cubes_simulation_is_deterministic_across_machines() {
     setup_insta!();
     let mut app = create_app();
 
-    app.add_startup_system(setup_cubes_simulation);
-
-    app.setup();
+    app.add_systems(Startup, setup_cubes_simulation);
 
     const SECONDS: usize = 10;
     const UPDATES: usize = 60 * SECONDS;
@@ -168,9 +165,7 @@ fn cubes_simulation_is_locally_deterministic() {
     fn run_cubes() -> Vec<(Id, Transform)> {
         let mut app = create_app();
 
-        app.add_startup_system(setup_cubes_simulation);
-
-        app.setup();
+        app.add_systems(Startup, setup_cubes_simulation);
 
         const SECONDS: usize = 5;
         const UPDATES: usize = 60 * SECONDS;

@@ -43,17 +43,6 @@ impl Plugin for SolverPlugin {
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
 
-        substeps.configure_sets(
-            (
-                SubstepSet::Integrate,
-                SubstepSet::SolveConstraints,
-                SubstepSet::SolveUserConstraints,
-                SubstepSet::UpdateVelocities,
-                SubstepSet::SolveVelocities,
-            )
-                .chain(),
-        );
-
         substeps.add_systems(
             (
                 penetration_constraints,
@@ -79,6 +68,8 @@ impl Plugin for SolverPlugin {
                 .chain()
                 .in_set(SubstepSet::SolveVelocities),
         );
+
+        substeps.add_systems(apply_translation.in_set(SubstepSet::ApplyTranslation));
     }
 }
 
@@ -114,8 +105,10 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, sensor1, layers1, colliding_entities1, sleeping1) = bundle1;
-            let (mut body2, collider2, sensor2, layers2, colliding_entities2, sleeping2) = bundle2;
+            let (mut body1, collider1, sensor1, layers1, mut colliding_entities1, sleeping1) =
+                bundle1;
+            let (mut body2, collider2, sensor2, layers2, mut colliding_entities2, sleeping2) =
+                bundle2;
 
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
@@ -133,26 +126,26 @@ fn penetration_constraints(
                 continue;
             }
 
-            if let Some(contact) = compute_contact(
+            let contacts = compute_contacts(
                 *ent1,
                 *ent2,
-                body1.position.0,
-                body2.position.0,
+                body1.position.0 + body1.accumulated_translation.0,
+                body2.position.0 + body2.accumulated_translation.0,
                 &body1.rotation,
                 &body2.rotation,
                 collider1,
                 collider2,
-            ) {
-                collision_events.push(Collision(contact));
+            );
 
+            if !contacts.manifolds.is_empty() {
                 let mut collision_started_1 = false;
                 let mut collision_started_2 = false;
 
                 // Add entity to set of colliding entities
-                if let Some(mut entities) = colliding_entities1 {
+                if let Some(ref mut entities) = colliding_entities1 {
                     collision_started_1 = entities.insert(*ent2);
                 }
-                if let Some(mut entities) = colliding_entities2 {
+                if let Some(ref mut entities) = colliding_entities2 {
                     collision_started_2 = entities.insert(*ent1);
                 }
 
@@ -169,10 +162,17 @@ fn penetration_constraints(
 
                 // Create and solve constraint if both colliders are solid
                 if sensor1.is_none() && sensor2.is_none() {
-                    let mut constraint = PenetrationConstraint::new(&body1, &body2, contact);
-                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                    penetration_constraints.0.push(constraint);
+                    for contact_manifold in contacts.manifolds.iter() {
+                        for contact in contact_manifold.contacts.iter() {
+                            let mut constraint =
+                                PenetrationConstraint::new(&body1, &body2, *contact);
+                            constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                            penetration_constraints.0.push(constraint);
+                        }
+                    }
                 }
+
+                collision_events.push(Collision(contacts));
             } else {
                 let mut collision_ended_1 = false;
                 let mut collision_ended_2 = false;
@@ -216,7 +216,7 @@ fn penetration_constraints(
 ///     .get_schedule_mut(SubstepSchedule)
 ///     .expect("add SubstepSchedule first");
 ///
-/// substeps.add_system(
+/// substeps.add_systems(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
 ///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
@@ -270,12 +270,14 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the previous step.
+#[allow(clippy::type_complexity)]
 fn update_lin_vel(
     mut bodies: Query<
         (
             &RigidBody,
             &Position,
             &PreviousPosition,
+            &AccumulatedTranslation,
             &mut LinearVelocity,
             &mut PreSolveLinearVelocity,
         ),
@@ -283,17 +285,18 @@ fn update_lin_vel(
     >,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    for (rb, pos, prev_pos, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
+    for (rb, pos, prev_pos, translation, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_lin_vel.0 = Vector::ZERO;
             lin_vel.0 = Vector::ZERO;
-            continue;
         }
 
         pre_solve_lin_vel.0 = lin_vel.0;
-        // v = (x - x_prev) / h
-        lin_vel.0 = (pos.0 - prev_pos.0) / sub_dt.0;
+
+        if rb.is_dynamic() {
+            // v = (x - x_prev) / h
+            lin_vel.0 = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+        }
     }
 }
 
@@ -315,13 +318,14 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = 0.0;
             ang_vel.0 = 0.0;
-            continue;
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
-        ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+
+        if rb.is_dynamic() {
+            ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+        }
     }
 }
 
@@ -343,18 +347,18 @@ fn update_ang_vel(
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() {
-            pre_solve_ang_vel.0 = Vector::ZERO;
             ang_vel.0 = Vector::ZERO;
-            continue;
         }
 
         pre_solve_ang_vel.0 = ang_vel.0;
 
-        let delta_rot = rot.mul_quat(prev_rot.inverse().0);
-        ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
+        if rb.is_dynamic() {
+            let delta_rot = rot.mul_quat(prev_rot.inverse().0);
+            ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
 
-        if delta_rot.w < 0.0 {
-            ang_vel.0 = -ang_vel.0;
+            if delta_rot.w < 0.0 {
+                ang_vel.0 = -ang_vel.0;
+            }
         }
     }
 }
@@ -368,62 +372,61 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let Contact {
-            entity1,
-            entity2,
-            normal,
-            ..
-        } = constraint.contact;
-
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
+
+            // Skip constraint if it didn't apply a correction
+            if constraint.normal_lagrange == 0.0 {
+                continue;
+            }
+
+            let normal = constraint.contact.normal;
+            let r1 = body1.rotation.rotate(constraint.local_r1);
+            let r2 = body2.rotation.rotate(constraint.local_r2);
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel1 = compute_contact_vel(
                 body1.pre_solve_linear_velocity.0,
                 body1.pre_solve_angular_velocity.0,
-                constraint.world_r1,
+                r1,
             );
             let pre_solve_contact_vel2 = compute_contact_vel(
                 body2.pre_solve_linear_velocity.0,
                 body2.pre_solve_angular_velocity.0,
-                constraint.world_r2,
+                r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_speed = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 = compute_contact_vel(
-                body1.linear_velocity.0,
-                body1.angular_velocity.0,
-                constraint.world_r1,
-            );
-            let contact_vel2 = compute_contact_vel(
-                body2.linear_velocity.0,
-                body2.angular_velocity.0,
-                constraint.world_r2,
-            );
+            let contact_vel1 =
+                compute_contact_vel(body1.linear_velocity.0, body1.angular_velocity.0, r1);
+            let contact_vel2 =
+                compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
+
             let normal_speed = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_speed;
             let tangent_speed = tangent_vel.length();
-            let inv_inertia1 = body1.world_inv_inertia().0;
-            let inv_inertia2 = body2.world_inv_inertia().0;
+
+            let inv_mass1 = body1.effective_inv_mass();
+            let inv_mass2 = body2.effective_inv_mass();
+            let inv_inertia1 = body1.effective_world_inv_inertia();
+            let inv_inertia2 = body2.effective_world_inv_inertia();
 
             let mut p = Vector::ZERO;
 
             // Compute restitution
-            let restitution_speed = get_restitution(               
+            let restitution_speed = get_restitution(
                 normal_speed,
                 pre_solve_normal_speed,
                 body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
-            if restitution_speed > Scalar::EPSILON
-            {                   
+            if restitution_speed > Scalar::EPSILON {
                 let w1 = constraint.compute_generalized_inverse_mass(
                     &body1,
                     constraint.world_r1,
@@ -434,13 +437,12 @@ fn solve_vel(
                     constraint.world_r2,
                     normal,
                 );
-                
+
                 p += restitution_speed / (w1 + w2) * normal;
             }
-            
+
             // Compute dynamic friction
-            if tangent_speed > Scalar::EPSILON
-            {
+            if tangent_speed > Scalar::EPSILON {
                 let tangent_dir = tangent_vel / tangent_speed;
 
                 let w1 = constraint.compute_generalized_inverse_mass(
@@ -452,7 +454,7 @@ fn solve_vel(
                     &body2,
                     constraint.world_r2,
                     tangent_dir,
-                );              
+                );
 
                 let friction_impulse = get_dynamic_friction(
                     tangent_speed,
@@ -465,14 +467,12 @@ fn solve_vel(
             }
 
             if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += p / body1.mass.0;
-                body1.angular_velocity.0 +=
-                    compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
+                body1.linear_velocity.0 += p * inv_mass1;
+                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
             }
             if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 -= p / body2.mass.0;
-                body2.angular_velocity.0 -=
-                    compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
+                body2.linear_velocity.0 -= p * inv_mass2;
+                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
             }
         }
     }
@@ -525,6 +525,17 @@ fn joint_damping<T: Joint>(
                 lin_vel2.0 -= p * inv_mass2.0;
             }
         }
+    }
+}
+
+fn apply_translation(mut bodies: Query<(&RigidBody, &mut Position, &mut AccumulatedTranslation)>) {
+    for (rb, mut pos, mut translation) in &mut bodies {
+        if rb.is_static() {
+            continue;
+        }
+
+        pos.0 += translation.0;
+        translation.0 = Vector::ZERO;
     }
 }
 

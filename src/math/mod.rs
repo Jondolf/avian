@@ -50,6 +50,13 @@ impl AsF32 for bevy::math::DVec2 {
     }
 }
 
+impl AsF32 for bevy::math::Vec2 {
+    type F32 = Self;
+    fn as_f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
 impl AsF32 for bevy::math::Vec4 {
     type F32 = Self;
     fn as_f32(&self) -> Self::F32 {

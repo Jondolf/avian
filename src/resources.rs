@@ -19,8 +19,7 @@ use crate::prelude::*;
 ///
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         // Use a 120 Hz fixed timestep instead of the default 60 Hz
 ///         .insert_resource(PhysicsTimestep::Fixed(1.0 / 120.0))
 ///         .run();
@@ -31,6 +30,8 @@ use crate::prelude::*;
 pub enum PhysicsTimestep {
     /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
     Fixed(Scalar),
+    /// **Fixed delta, once per frame**: the physics simulation will be advanced by a fixed value `dt` once every frame. This should only be used in cases where you can guarantee a fixed number of executions, like in FixedUpdate or on a server.
+    FixedOnce(Scalar),
     /// **Variable timestep**: the physics simulation will be advanced by `Time::delta_seconds().min(max_dt)` seconds at each Bevy tick.
     Variable {
         /// The maximum amount of time the physics simulation can be advanced at each Bevy tick. This makes sure that the simulation doesn't break when the delta time is large.
@@ -43,6 +44,49 @@ pub enum PhysicsTimestep {
 impl Default for PhysicsTimestep {
     fn default() -> Self {
         Self::Fixed(1.0 / 60.0)
+    }
+}
+
+/// Configures the ratio of physics seconds per real second.
+///
+/// The default time scale is 1.0, meaning the simulation runs in real time.
+/// Reduce this for slow motion, increase for fast forward.
+///
+/// This changes the [`DeltaTime`] that the simulation is advanced by for each
+/// iteration. The frequency of physics updates, set using [`PhysicsTimestep`],
+/// remains unchanged.
+///
+/// The time scale impacts the accuracy of the simulation and large values may
+/// cause jittering or missed collisions. You may keep a consistent simulation
+/// behaviour by adjusting your [timestep](`PhysicsTimestep::Fixed`)
+/// at the cost of performance.
+///
+/// ## Example
+///
+/// You can change the time scale by inserting the [`PhysicsTimescale`] resource:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         // Run the simulation at half speed, in slow motion
+///         .insert_resource(PhysicsTimescale(0.5))
+///         .run();
+/// }
+/// ```
+#[derive(Reflect, Resource)]
+#[reflect(Resource)]
+pub struct PhysicsTimescale(pub Scalar);
+
+impl Default for PhysicsTimescale {
+    fn default() -> Self {
+        Self(1.0)
     }
 }
 
@@ -79,8 +123,7 @@ pub struct SubDeltaTime(pub Scalar);
 ///
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         .insert_resource(SubstepCount(30))
 ///         .run();
 /// }
@@ -151,10 +194,11 @@ impl Default for DeactivationTime {
 /// A resource for the global gravitational acceleration.
 ///
 /// The default is an acceleration of 9.81 m/s^2 pointing down, which is approximate to the gravitational
-/// acceleration near Earth's surface.
+/// acceleration near Earth's surface. Note that if you are using pixels as length units in 2D,
+/// this gravity will be tiny. You should modify the gravity to fit your application.
 ///
-/// Note that if you are using pixels as length units in 2D, this gravity will be tiny. You should
-/// modify the gravity to fit your application.
+/// You can also control how gravity affects a specific [rigid body](RigidBody) using the [`GravityScale`]
+/// component. The magnitude of the gravity will be multiplied by this scaling factor.
 ///
 /// ## Example
 ///
@@ -170,13 +214,12 @@ impl Default for DeactivationTime {
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn main() {
 ///     App::new()
-///         .add_plugins(DefaultPlugins)
-///         .add_plugins(PhysicsPlugins)
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
 ///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
 ///         .run();
 /// }
 /// # #[cfg(not(all(feature = "3d", feature = "f32")))]
-/// # fn main() {}
+/// # fn main() {} // Doc test needs main
 /// ```
 ///
 /// You can also modify gravity while the app is running.
