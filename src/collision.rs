@@ -99,8 +99,7 @@ pub(crate) fn compute_contacts(
             entity1,
             entity2,
             manifolds: manifolds
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|manifold| ContactManifold {
                     entity1,
                     entity2,
