@@ -427,35 +427,16 @@ fn solve_vel(
                 sub_dt.0,
             );
             if restitution_speed > Scalar::EPSILON {
-                let w1 = constraint.compute_generalized_inverse_mass(
-                    &body1,
-                    constraint.world_r1,
-                    normal,
-                );
-                let w2 = constraint.compute_generalized_inverse_mass(
-                    &body2,
-                    constraint.world_r2,
-                    normal,
-                );
-
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
                 p += restitution_speed / (w1 + w2) * normal;
             }
 
             // Compute dynamic friction
             if tangent_speed > Scalar::EPSILON {
                 let tangent_dir = tangent_vel / tangent_speed;
-
-                let w1 = constraint.compute_generalized_inverse_mass(
-                    &body1,
-                    constraint.world_r1,
-                    tangent_dir,
-                );
-                let w2 = constraint.compute_generalized_inverse_mass(
-                    &body2,
-                    constraint.world_r2,
-                    tangent_dir,
-                );
-
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent_dir);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent_dir);
                 let friction_impulse = get_dynamic_friction(
                     tangent_speed,
                     w1 + w2,
