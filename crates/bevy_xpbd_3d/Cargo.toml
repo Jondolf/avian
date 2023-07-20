@@ -36,7 +36,9 @@ derive_more = "0.99"
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
+benches_common_3d = { path = "../benches_common_3d" }
 approx = "0.5"
+criterion = { version = "0.4", features = ["html_reports"] }
 glam = { version = "0.24", features = [ "approx" ] }
 insta = "1.0"
 itertools = "0.10"
@@ -76,3 +78,7 @@ required-features = ["3d"]
 [[example]]
 name = "custom_constraint"
 required-features = ["3d"]
+
+[[bench]]
+name = "cubes"
+harness = false
