@@ -2,7 +2,10 @@
 //!
 //! See [`PhysicsSetupPlugin`].
 
-use bevy::transform::TransformSystem;
+use bevy::{
+    ecs::schedule::{ExecutorKind, ScheduleBuildSettings},
+    transform::TransformSystem,
+};
 
 use crate::prelude::*;
 
@@ -115,10 +118,12 @@ impl Plugin for PhysicsSetupPlugin {
         // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::default();
 
-        physics_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-            ambiguity_detection: LogLevel::Error,
-            ..default()
-        });
+        physics_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
 
         physics_schedule.configure_sets(
             (
@@ -140,10 +145,12 @@ impl Plugin for PhysicsSetupPlugin {
         // Create substep schedule, the schedule that runs the inner substepping loop
         let mut substep_schedule = Schedule::default();
 
-        substep_schedule.set_build_settings(bevy::ecs::schedule::ScheduleBuildSettings {
-            ambiguity_detection: LogLevel::Error,
-            ..default()
-        });
+        substep_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
 
         substep_schedule.configure_sets(
             (
