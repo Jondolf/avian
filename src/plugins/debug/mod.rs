@@ -146,23 +146,27 @@ fn debug_render_contacts(
     let Some(color) = config.contact_color else {
         return;
     };
-    for Collision(contact) in collisions.iter() {
-        let p1 = contact.point1;
-        let p2 = contact.point2;
-        #[cfg(feature = "2d")]
-        let len = 5.0;
-        #[cfg(feature = "3d")]
-        let len = 0.3;
+    for Collision(contacts) in collisions.iter() {
+        for manifold in contacts.manifolds.iter() {
+            for contact in manifold.contacts.iter() {
+                let p1 = contact.point1;
+                let p2 = contact.point2;
+                #[cfg(feature = "2d")]
+                let len = 5.0;
+                #[cfg(feature = "3d")]
+                let len = 0.3;
 
-        debug_renderer.draw_line(p1 - Vector::X * len, p1 + Vector::X * len, color);
-        debug_renderer.draw_line(p1 - Vector::Y * len, p1 + Vector::Y * len, color);
-        #[cfg(feature = "3d")]
-        debug_renderer.draw_line(p1 - Vector::Z * len, p1 + Vector::Z * len, color);
+                debug_renderer.draw_line(p1 - Vector::X * len, p1 + Vector::X * len, color);
+                debug_renderer.draw_line(p1 - Vector::Y * len, p1 + Vector::Y * len, color);
+                #[cfg(feature = "3d")]
+                debug_renderer.draw_line(p1 - Vector::Z * len, p1 + Vector::Z * len, color);
 
-        debug_renderer.draw_line(p2 - Vector::X * len, p2 + Vector::X * len, color);
-        debug_renderer.draw_line(p2 - Vector::Y * len, p2 + Vector::Y * len, color);
-        #[cfg(feature = "3d")]
-        debug_renderer.draw_line(p2 - Vector::Z * len, p2 + Vector::Z * len, color);
+                debug_renderer.draw_line(p2 - Vector::X * len, p2 + Vector::X * len, color);
+                debug_renderer.draw_line(p2 - Vector::Y * len, p2 + Vector::Y * len, color);
+                #[cfg(feature = "3d")]
+                debug_renderer.draw_line(p2 - Vector::Z * len, p2 + Vector::Z * len, color);
+            }
+        }
     }
 }
 

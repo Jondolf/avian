@@ -105,8 +105,10 @@ fn penetration_constraints(
 
     for (ent1, ent2) in broad_collision_pairs.0.iter() {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, sensor1, layers1, colliding_entities1, sleeping1) = bundle1;
-            let (mut body2, collider2, sensor2, layers2, colliding_entities2, sleeping2) = bundle2;
+            let (mut body1, collider1, sensor1, layers1, mut colliding_entities1, sleeping1) =
+                bundle1;
+            let (mut body2, collider2, sensor2, layers2, mut colliding_entities2, sleeping2) =
+                bundle2;
 
             let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
             let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
@@ -124,7 +126,7 @@ fn penetration_constraints(
                 continue;
             }
 
-            if let Some(contact) = compute_contact(
+            let contacts = compute_contacts(
                 *ent1,
                 *ent2,
                 body1.position.0 + body1.accumulated_translation.0,
@@ -133,17 +135,17 @@ fn penetration_constraints(
                 &body2.rotation,
                 collider1,
                 collider2,
-            ) {
-                collision_events.push(Collision(contact));
+            );
 
+            if !contacts.manifolds.is_empty() {
                 let mut collision_started_1 = false;
                 let mut collision_started_2 = false;
 
                 // Add entity to set of colliding entities
-                if let Some(mut entities) = colliding_entities1 {
+                if let Some(ref mut entities) = colliding_entities1 {
                     collision_started_1 = entities.insert(*ent2);
                 }
-                if let Some(mut entities) = colliding_entities2 {
+                if let Some(ref mut entities) = colliding_entities2 {
                     collision_started_2 = entities.insert(*ent1);
                 }
 
@@ -160,10 +162,17 @@ fn penetration_constraints(
 
                 // Create and solve constraint if both colliders are solid
                 if sensor1.is_none() && sensor2.is_none() {
-                    let mut constraint = PenetrationConstraint::new(&body1, &body2, contact);
-                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                    penetration_constraints.0.push(constraint);
+                    for contact_manifold in contacts.manifolds.iter() {
+                        for contact in contact_manifold.contacts.iter() {
+                            let mut constraint =
+                                PenetrationConstraint::new(&body1, &body2, *contact);
+                            constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                            penetration_constraints.0.push(constraint);
+                        }
+                    }
                 }
+
+                collision_events.push(Collision(contacts));
             } else {
                 let mut collision_ended_1 = false;
                 let mut collision_ended_2 = false;
@@ -363,43 +372,39 @@ fn solve_vel(
     sub_dt: Res<SubDeltaTime>,
 ) {
     for constraint in penetration_constraints.0.iter() {
-        let Contact {
-            entity1,
-            entity2,
-            normal,
-            ..
-        } = constraint.contact;
-
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut([entity1, entity2]) {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
+
+            // Skip constraint if it didn't apply a correction
+            if constraint.normal_lagrange == 0.0 {
+                continue;
+            }
+
+            let normal = constraint.contact.normal;
+            let r1 = body1.rotation.rotate(constraint.local_r1);
+            let r2 = body2.rotation.rotate(constraint.local_r2);
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel1 = compute_contact_vel(
                 body1.pre_solve_linear_velocity.0,
                 body1.pre_solve_angular_velocity.0,
-                constraint.world_r1,
+                r1,
             );
             let pre_solve_contact_vel2 = compute_contact_vel(
                 body2.pre_solve_linear_velocity.0,
                 body2.pre_solve_angular_velocity.0,
-                constraint.world_r2,
+                r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
             let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
-            let contact_vel1 = compute_contact_vel(
-                body1.linear_velocity.0,
-                body1.angular_velocity.0,
-                constraint.world_r1,
-            );
-            let contact_vel2 = compute_contact_vel(
-                body2.linear_velocity.0,
-                body2.angular_velocity.0,
-                constraint.world_r2,
-            );
+            let contact_vel1 =
+                compute_contact_vel(body1.linear_velocity.0, body1.angular_velocity.0, r1);
+            let contact_vel2 =
+                compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
             let normal_vel = normal.dot(relative_vel);
             let tangent_vel = relative_vel - normal * normal_vel;
@@ -437,28 +442,18 @@ fn solve_vel(
             let delta_v_dir = delta_v / delta_v_length;
 
             // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(
-                &body1,
-                constraint.world_r1,
-                delta_v_dir,
-            );
-            let w2 = constraint.compute_generalized_inverse_mass(
-                &body2,
-                constraint.world_r2,
-                delta_v_dir,
-            );
+            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, delta_v_dir);
+            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, delta_v_dir);
 
             // Compute velocity impulse and apply velocity updates (equation 33)
             let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p * inv_mass1;
-                body1.angular_velocity.0 +=
-                    compute_delta_ang_vel(inv_inertia1, constraint.world_r1, p);
+                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
             }
             if body2.rb.is_dynamic() {
                 body2.linear_velocity.0 -= p * inv_mass2;
-                body2.angular_velocity.0 -=
-                    compute_delta_ang_vel(inv_inertia2, constraint.world_r2, p);
+                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
             }
         }
     }
