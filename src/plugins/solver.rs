@@ -509,7 +509,12 @@ fn joint_damping<T: Joint>(
     }
 }
 
-fn apply_translation(mut bodies: Query<(&RigidBody, &mut Position, &mut AccumulatedTranslation)>) {
+fn apply_translation(
+    mut bodies: Query<
+        (&RigidBody, &mut Position, &mut AccumulatedTranslation),
+        Changed<AccumulatedTranslation>,
+    >,
+) {
     for (rb, mut pos, mut translation) in &mut bodies {
         if rb.is_static() {
             continue;
