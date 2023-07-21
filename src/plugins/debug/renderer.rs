@@ -209,7 +209,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
                     #[cfg(feature = "2d")]
                     let rot = *rotation + Rotation::from_radians(sub_pos.rotation.angle());
                     #[cfg(feature = "3d")]
-                    let rot = Rotation(rotation.0 + sub_pos.rotation.into());
+                    let rot = Rotation((rotation.0 + sub_pos.rotation.into()).normalize());
                     self.draw_collider(&Collider::from(shape.to_owned()), &pos, &rot, color);
                 }
             }
