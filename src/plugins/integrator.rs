@@ -203,7 +203,6 @@ fn integrate_rot(
                 * ((external_torque.torque() + external_force.torque())
                     - ang_vel.0.cross(effective_inertia * ang_vel.0));
             ang_vel.0 += delta_ang_vel;
-            println!("{:?} {:?} {}", external_force.torque(), ang_vel.0, sub_dt.0);
         }
 
         let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
