@@ -68,6 +68,8 @@ type RigidBodyComponents = (
     Option<&'static AngularVelocity>,
     Option<&'static ExternalForce>,
     Option<&'static ExternalTorque>,
+    Option<&'static ExternalImpulse>,
+    Option<&'static ExternalAngularImpulse>,
     Option<&'static Restitution>,
     Option<&'static Friction>,
     Option<&'static TimeSleeping>,
@@ -91,6 +93,8 @@ fn init_rigid_bodies(
         ang_vel,
         force,
         torque,
+        impulse,
+        angular_impulse,
         restitution,
         friction,
         time_sleeping,
@@ -163,6 +167,12 @@ fn init_rigid_bodies(
         }
         if torque.is_none() {
             body.insert(ExternalTorque::default());
+        }
+        if impulse.is_none() {
+            body.insert(ExternalImpulse::default());
+        }
+        if angular_impulse.is_none() {
+            body.insert(ExternalAngularImpulse::default());
         }
         if restitution.is_none() {
             body.insert(Restitution::default());
