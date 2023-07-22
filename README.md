@@ -33,7 +33,7 @@ Below are some of the current features of Bevy XPBD.
     - Collision layers
 - Material properties like restitution and friction
 - Linear and angular velocity damping for simulating drag
-- External forces and torque
+- External forces, torque and impulses
 - Gravity and gravity scale for specific entities
 - Joints
 - Built-in constraints and support for custom constraints

@@ -28,7 +28,8 @@
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
 //! - [Gravity] and [gravity scale](GravityScale)
-//! - External [forces](ExternalForce) and [torque](ExternalTorque)
+//! - External [forces](ExternalForce), [torque](ExternalTorque), [impulses](ExternalImpulse) and
+//! [angular impulses](ExternalAngularImpulse)
 //! - [Locking](LockedAxes) translational and rotational axes
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)

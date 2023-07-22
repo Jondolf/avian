@@ -449,6 +449,7 @@ impl ExternalImpulse {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[reflect(Component)]
+#[doc(alias = "ExternalTorqueImpulse")]
 pub struct ExternalAngularImpulse {
     /// The total external angular impulse that will be applied.
     impulse: Torque,
