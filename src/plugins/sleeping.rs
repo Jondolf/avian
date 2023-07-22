@@ -88,6 +88,8 @@ type BodyWokeUpFilter = Or<(
     Changed<AngularVelocity>,
     Changed<ExternalForce>,
     Changed<ExternalTorque>,
+    Changed<ExternalImpulse>,
+    Changed<ExternalAngularImpulse>,
     Changed<GravityScale>,
 )>;
 
