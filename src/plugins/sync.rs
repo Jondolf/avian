@@ -36,10 +36,94 @@ impl Default for SyncPlugin {
 
 impl Plugin for SyncPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            self.schedule.dyn_clone(),
-            sync_transforms.in_set(PhysicsSet::Sync),
-        );
+        app.init_resource::<SyncConfig>()
+            .register_type::<SyncConfig>()
+            .add_systems(
+                self.schedule.dyn_clone(),
+                (
+                    init_old_global_transform
+                        .in_set(PhysicsSet::Prepare)
+                        .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                    // Todo: Moving bodies using Transform seems to have a weird jittery delay sometimes
+                    (
+                        bevy::transform::systems::sync_simple_transforms,
+                        bevy::transform::systems::propagate_transforms,
+                        transform_to_position,
+                    )
+                        .chain()
+                        .after(PhysicsSet::Prepare)
+                        .before(PhysicsSet::StepSimulation)
+                        .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                    position_to_transform
+                        .in_set(PhysicsSet::Sync)
+                        .run_if(|config: Res<SyncConfig>| config.position_to_transform),
+                ),
+            )
+            .add_systems(Last, update_previous_global_transforms);
+    }
+}
+
+/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+#[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
+#[reflect(Resource)]
+pub struct SyncConfig {
+    /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    position_to_transform: bool,
+    /// Updates [`Position`] and [`Rotation`] based on transform changes,
+    /// allowing you to move bodies using `Transform`. Defaults to true.
+    transform_to_position: bool,
+}
+
+impl Default for SyncConfig {
+    fn default() -> Self {
+        SyncConfig {
+            position_to_transform: true,
+            transform_to_position: true,
+        }
+    }
+}
+
+/// The global transform of a body at the end of the previous frame.
+/// Used for detecting if the transform was modified before the start of the physics schedule.
+#[derive(Component, Deref, DerefMut)]
+struct PreviousGlobalTransform(GlobalTransform);
+
+fn init_old_global_transform(
+    mut commands: Commands,
+    bodies: Query<(Entity, &GlobalTransform), Added<RigidBody>>,
+) {
+    for (entity, transform) in &bodies {
+        commands
+            .entity(entity)
+            .insert(PreviousGlobalTransform(*transform));
+    }
+}
+
+fn transform_to_position(
+    mut bodies: Query<(
+        &GlobalTransform,
+        &PreviousGlobalTransform,
+        &mut Position,
+        &mut Rotation,
+    )>,
+) {
+    for (global_transform, previous_transform, mut position, mut rotation) in &mut bodies {
+        if *global_transform == previous_transform.0 {
+            continue;
+        }
+        println!("hi");
+
+        let transform = global_transform.compute_transform();
+        #[cfg(feature = "2d")]
+        {
+            position.0 = transform.translation.adjust_precision().truncate();
+            *rotation = Rotation::from(transform.rotation.adjust_precision());
+        }
+        #[cfg(feature = "3d")]
+        {
+            position.0 = transform.translation.adjust_precision();
+            rotation.0 = transform.rotation.adjust_precision();
+        }
     }
 }
 
@@ -59,8 +143,11 @@ type RigidBodyParentComponents = (
 );
 
 /// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy `Transform`s.
+///
+/// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
+/// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
-fn sync_transforms(
+fn position_to_transform(
     mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
@@ -103,7 +190,7 @@ fn sync_transforms(
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
-fn sync_transforms(
+fn position_to_transform(
     mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
@@ -134,5 +221,13 @@ fn sync_transforms(
             transform.translation = pos.as_f32();
             transform.rotation = rot.as_f32();
         }
+    }
+}
+
+fn update_previous_global_transforms(
+    mut bodies: Query<(&GlobalTransform, &mut PreviousGlobalTransform)>,
+) {
+    for (transform, mut previous_transform) in &mut bodies {
+        previous_transform.0 = *transform;
     }
 }
