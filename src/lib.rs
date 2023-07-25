@@ -468,8 +468,8 @@ pub struct SubstepSchedule;
 /// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
 /// updating several components.
 /// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
-/// 3. `Sync`: Responsible for synchronizing physics components with other data, like writing [`Position`]
-/// and [`Rotation`] components to `Transform`s.
+/// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
+/// and [`Rotation`] in sync with `Transform`.
 ///
 /// ## See also
 ///
@@ -489,8 +489,8 @@ pub enum PhysicsSet {
     /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
     /// Systems in this set are run in the [`PhysicsSchedule`].
     StepSimulation,
-    /// Responsible for synchronizing physics components with other data, like writing [`Position`]
-    /// and [`Rotation`] components to `Transform`s.
+    /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
+    /// and [`Rotation`] in sync with `Transform`.
     ///
     /// See [`SyncPlugin`].
     Sync,
