@@ -382,9 +382,9 @@ fn solve_vel(
                 continue;
             }
 
-            let normal = constraint.contact.normal;
-            let r1 = body1.rotation.rotate(constraint.local_r1);
-            let r2 = body2.rotation.rotate(constraint.local_r2);
+            let normal = constraint.contact.global_normal(&body1.rotation);
+            let r1 = body1.rotation.rotate(constraint.r1);
+            let r2 = body2.rotation.rotate(constraint.r2);
 
             // Compute pre-solve relative normal velocities at the contact point (used for restitution)
             let pre_solve_contact_vel1 = compute_contact_vel(

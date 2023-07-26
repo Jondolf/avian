@@ -43,7 +43,8 @@ pub struct ContactManifold {
     pub entity2: Entity,
     /// The contacts in this manifold.
     pub contacts: Vec<ContactData>,
-    /// A world-space contact normal shared by all contacts in this manifold.
+    /// A contact normal shared by all contacts in this manifold,
+    /// expressed in the local space of the first entity.
     pub normal: Vector,
 }
 
@@ -51,20 +52,35 @@ pub struct ContactManifold {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContactData {
     /// Contact point on the first entity in local coordinates.
-    pub local_point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub local_point2: Vector,
-    /// Contact point on the first entity in global coordinates.
     pub point1: Vector,
-    /// Contact point on the second entity in global coordinates.
+    /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
-    /// Contact normal from contact point 1 to 2 in world coordinates.
+    /// A contact normal expressed in the local space of the first entity.
     pub normal: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
     /// True if both colliders are convex. Currently, contacts between
     /// convex and non-convex colliders have to be handled differently.
     pub(crate) convex: bool,
+}
+
+impl ContactData {
+    /// Returns the global contact point on the first entity,
+    /// transforming the local point by the given entity position and rotation.
+    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
+        position.0 + rotation.rotate(self.point1)
+    }
+
+    /// Returns the global contact point on the second entity,
+    /// transforming the local point by the given entity position and rotation.
+    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
+        position.0 + rotation.rotate(self.point2)
+    }
+
+    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
+    pub fn global_normal(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal)
+    }
 }
 
 /// Computes one pair of contact points between two shapes.
@@ -103,17 +119,15 @@ pub(crate) fn compute_contacts(
                 .map(|manifold| ContactManifold {
                     entity1,
                     entity2,
-                    normal: rotation1.rotate(manifold.local_n1.into()),
+                    normal: manifold.local_n1.into(),
                     contacts: manifold
                         .contacts()
                         .iter()
                         .filter(|contact| -contact.dist > 0.0)
                         .map(|contact| ContactData {
-                            local_point1: contact.local_p1.into(),
-                            local_point2: contact.local_p2.into(),
-                            point1: position1 + rotation1.rotate(contact.local_p1.into()),
-                            point2: position2 + rotation2.rotate(contact.local_p2.into()),
-                            normal: rotation1.rotate(manifold.local_n1.into()),
+                            point1: contact.local_p1.into(),
+                            point2: contact.local_p2.into(),
+                            normal: manifold.local_n1.into(),
                             penetration: -contact.dist,
                             convex,
                         })
@@ -134,11 +148,9 @@ pub(crate) fn compute_contacts(
             )
             .unwrap()
             .map(|contact| ContactData {
-                local_point1: contact.point1.into(),
-                local_point2: contact.point2.into(),
-                point1: position1 + rotation1.rotate(contact.point1.into()),
-                point2: position2 + rotation2.rotate(contact.point2.into()),
-                normal: rotation1.rotate(contact.normal1.into()),
+                point1: contact.point1.into(),
+                point2: contact.point2.into(),
+                normal: contact.normal1.into(),
                 penetration: -contact.dist,
                 convex,
             });
