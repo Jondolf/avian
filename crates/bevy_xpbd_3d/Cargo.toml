@@ -63,6 +63,14 @@ name = "cubes"
 required-features = ["3d"]
 
 [[example]]
+name = "custom_broad_phase"
+required-features = ["3d"]
+
+[[example]]
+name = "custom_constraint"
+required-features = ["3d"]
+
+[[example]]
 name = "fixed_joint_3d"
 required-features = ["3d"]
 
@@ -75,11 +83,7 @@ name = "revolute_joint_3d"
 required-features = ["3d"]
 
 [[example]]
-name = "custom_broad_phase"
-required-features = ["3d"]
-
-[[example]]
-name = "custom_constraint"
+name = "trimesh_shapes_3d"
 required-features = ["3d"]
 
 [[bench]]
