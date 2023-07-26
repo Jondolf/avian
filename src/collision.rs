@@ -107,6 +107,7 @@ pub(crate) fn compute_contacts(
                     contacts: manifold
                         .contacts()
                         .iter()
+                        .filter(|contact| -contact.dist > 0.0)
                         .map(|contact| ContactData {
                             local_point1: contact.local_p1.into(),
                             local_point2: contact.local_p2.into(),
@@ -116,7 +117,6 @@ pub(crate) fn compute_contacts(
                             penetration: -contact.dist,
                             convex,
                         })
-                        .filter(|contact| contact.penetration > 0.0)
                         .collect(),
                 })
                 .collect(),
