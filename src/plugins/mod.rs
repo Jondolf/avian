@@ -24,6 +24,7 @@ pub mod broad_phase;
 #[cfg(feature = "debug-plugin")]
 pub mod debug;
 pub mod integrator;
+pub mod narrow_phase;
 pub mod prepare;
 pub mod setup;
 pub mod sleeping;
