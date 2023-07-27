@@ -92,6 +92,8 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<AngularDamping>()
             .register_type::<ExternalForce>()
             .register_type::<ExternalTorque>()
+            .register_type::<ExternalImpulse>()
+            .register_type::<ExternalAngularImpulse>()
             .register_type::<GravityScale>()
             .register_type::<Mass>()
             .register_type::<InverseMass>()

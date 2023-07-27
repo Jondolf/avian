@@ -18,6 +18,6 @@ bevy = { version = "0.11", default-features = false, features = [
     "ktx2",
     "zstd",
     "bevy_winit",
-    "x11", # github actions runners don't have libxkbcommon installed, so can't use wayland
+    "x11",                # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
 bevy_xpbd_2d = { path = "../bevy_xpbd_2d", default-features = false }

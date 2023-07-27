@@ -139,6 +139,7 @@ fn debug_render_aabbs(
 }
 
 fn debug_render_contacts(
+    colliders: Query<(&Position, &Rotation), With<Collider>>,
     mut collisions: EventReader<Collision>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
@@ -147,10 +148,17 @@ fn debug_render_contacts(
         return;
     };
     for Collision(contacts) in collisions.iter() {
+        let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
+            continue;
+        };
+        let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
+            continue;
+        };
+
         for manifold in contacts.manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let p1 = contact.point1;
-                let p2 = contact.point2;
+                let p1 = contact.global_point1(position1, rotation1);
+                let p2 = contact.global_point2(position2, rotation2);
                 #[cfg(feature = "2d")]
                 let len = 5.0;
                 #[cfg(feature = "3d")]
