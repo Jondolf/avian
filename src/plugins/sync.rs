@@ -15,9 +15,6 @@ use bevy::prelude::*;
 /// change, and vice versa. This means that you can use any of these components to move
 /// or position bodies, and the changes be reflected in the other components.
 ///
-/// Note that the engine uses [`Position`] and [`Rotation`] for all of the physics internally,
-/// so changes to `Transform` will only be detected if they happen before the [`PhysicsSchedule`].
-///
 /// You can configure what data is synchronized and how it is synchronized
 /// using the [`SyncConfig`] resource.
 ///
@@ -55,34 +52,48 @@ impl Plugin for SyncPlugin {
         app.init_resource::<SyncConfig>()
             .register_type::<SyncConfig>();
 
-        // Sync changes in `Transform` to `Position` and `Rotation`
+        // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
+        // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
             self.schedule.dyn_clone(),
-            (
-                // Run transform propagation to make sure hierarchies are handled correctly
+            ((
                 bevy::transform::systems::sync_simple_transforms,
                 bevy::transform::systems::propagate_transforms,
+                init_previous_global_transform,
                 transform_to_position,
+                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
+                update_previous_global_transforms,
             )
                 .chain()
-                .before(PhysicsStepSet::BroadPhase)
+                .after(PhysicsSet::Prepare)
+                .before(PhysicsSet::StepSimulation),)
+                .chain()
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
-        // Init `PreviousGlobalTransform` and update it at the very start of each frame.
-        // This is used for detecting if the user changed transforms before the start of the `PhysicsSchedule`.
+        // Apply `Transform`, `Position` and `Rotation` changes that happened during the physics frame.
         app.add_systems(
             self.schedule.dyn_clone(),
-            init_previous_global_transform
-                .in_set(PhysicsSet::Prepare)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
-        )
-        .add_systems(First, update_previous_global_transforms);
-
-        // Sync changes in `Position` and `Rotation` to `Transform`
-        app.add_systems(
-            self.schedule.dyn_clone(),
-            position_to_transform
+            (
+                (
+                    // Apply `Transform` changes to `Position` and `Rotation`
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                    transform_to_position,
+                )
+                    .chain()
+                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                // Apply `Position` and `Rotation` changes to `Transform`
+                position_to_transform,
+                (
+                    // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
+                    bevy::transform::systems::sync_simple_transforms,
+                    update_previous_global_transforms,
+                )
+                    .chain()
+                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+            )
+                .chain()
                 .in_set(PhysicsSet::Sync)
                 .run_if(|config: Res<SyncConfig>| config.position_to_transform),
         );
@@ -138,20 +149,42 @@ fn transform_to_position(
     )>,
 ) {
     for (global_transform, previous_transform, mut position, mut rotation) in &mut bodies {
+        // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
             continue;
         }
 
         let transform = global_transform.compute_transform();
+        let previous_transform = previous_transform.compute_transform();
+
         #[cfg(feature = "2d")]
         {
-            position.0 = transform.translation.adjust_precision().truncate();
-            *rotation = Rotation::from(transform.rotation.adjust_precision());
+            position.0 = (previous_transform.translation.truncate()
+                + (transform.translation - previous_transform.translation).truncate()
+                + (position.0 - previous_transform.translation.truncate()))
+            .adjust_precision();
         }
         #[cfg(feature = "3d")]
         {
-            position.0 = transform.translation.adjust_precision();
-            rotation.0 = transform.rotation.adjust_precision();
+            position.0 = (previous_transform.translation
+                + (transform.translation - previous_transform.translation)
+                + (position.0 - previous_transform.translation))
+                .adjust_precision();
+        }
+
+        #[cfg(feature = "2d")]
+        {
+            let rot = Rotation::from(transform.rotation.adjust_precision());
+            let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
+            *rotation = prev_rot + (rot - prev_rot) + (*rotation - prev_rot);
+        }
+        #[cfg(feature = "3d")]
+        {
+            rotation.0 = (previous_transform.rotation
+                + (transform.rotation - previous_transform.rotation)
+                + (rotation.0 - previous_transform.rotation))
+                .normalize()
+                .adjust_precision();
         }
     }
 }
