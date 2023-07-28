@@ -88,6 +88,7 @@ impl Plugin for SyncPlugin {
                 (
                     // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
                     bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
                     update_previous_global_transforms,
                 )
                     .chain()
@@ -145,10 +146,18 @@ fn transform_to_position(
         &GlobalTransform,
         &PreviousGlobalTransform,
         &mut Position,
+        Option<&AccumulatedTranslation>,
         &mut Rotation,
     )>,
 ) {
-    for (global_transform, previous_transform, mut position, mut rotation) in &mut bodies {
+    for (
+        global_transform,
+        previous_transform,
+        mut position,
+        accumulated_translation,
+        mut rotation,
+    ) in &mut bodies
+    {
         // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
             continue;
@@ -156,20 +165,21 @@ fn transform_to_position(
 
         let transform = global_transform.compute_transform();
         let previous_transform = previous_transform.compute_transform();
+        let pos = position.0 + accumulated_translation.map_or(Vector::ZERO, |t| t.0);
 
         #[cfg(feature = "2d")]
         {
             position.0 = (previous_transform.translation.truncate()
-                + (transform.translation - previous_transform.translation).truncate()
-                + (position.0 - previous_transform.translation.truncate()))
-            .adjust_precision();
+                + (transform.translation - previous_transform.translation).truncate())
+            .adjust_precision()
+                + (pos - previous_transform.translation.truncate().adjust_precision());
         }
         #[cfg(feature = "3d")]
         {
             position.0 = (previous_transform.translation
-                + (transform.translation - previous_transform.translation)
-                + (position.0 - previous_transform.translation))
-                .adjust_precision();
+                + (transform.translation - previous_transform.translation))
+                .adjust_precision()
+                + (pos - previous_transform.translation.adjust_precision());
         }
 
         #[cfg(feature = "2d")]
@@ -182,7 +192,7 @@ fn transform_to_position(
         {
             rotation.0 = (previous_transform.rotation
                 + (transform.rotation - previous_transform.rotation)
-                + (rotation.0 - previous_transform.rotation))
+                + (rotation.as_f32() - previous_transform.rotation))
                 .normalize()
                 .adjust_precision();
         }
