@@ -245,7 +245,7 @@ fn send_collision_events(
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
 ) {
-    for ((entity1, entity2), mut contacts) in collisions.0.iter_mut() {
+    for ((entity1, entity2), contacts) in collisions.0.iter_mut() {
         let penetrating = contacts.manifolds.iter().any(|manifold| {
             manifold
                 .contacts
@@ -260,9 +260,7 @@ fn send_collision_events(
 
             // Get or insert the previous contacts.
             // If the bodies weren't penetrating previously, they started colliding this frame.
-            if let Some(mut previous_contacts) =
-                previous_collisions.0.get_mut(&(*entity1, *entity2))
-            {
+            if let Some(previous_contacts) = previous_collisions.0.get_mut(&(*entity1, *entity2)) {
                 if !previous_contacts.during_current_frame {
                     collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
                     previous_contacts.during_current_frame = true;
@@ -292,8 +290,7 @@ fn send_collision_events(
 
             // Reset collision state to not penetrating.
             contacts.during_current_frame = false;
-        } else if let Some(mut previous_contacts) =
-            previous_collisions.0.get_mut(&(*entity1, *entity2))
+        } else if let Some(previous_contacts) = previous_collisions.0.get_mut(&(*entity1, *entity2))
         {
             // If the bodies weren't penetrating last frame either, we can return early.
             if !previous_contacts.manifolds.iter().any(|manifold| {
