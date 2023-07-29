@@ -12,6 +12,7 @@ use bevy::prelude::*;
 use bevy_xpbd_3d::{
     math::*, prelude::*, PhysicsSchedule, PhysicsStepSet, SubstepSchedule, SubstepSet,
 };
+use nalgebra::RealField;
 
 fn main() {
     App::new()
@@ -21,9 +22,7 @@ fn main() {
         .add_systems(
             // Run collision handling in substep schedule
             SubstepSchedule,
-            kinematic_collision
-                .after(SubstepSet::UpdateVelocities)
-                .before(SubstepSet::SolveVelocities),
+            kinematic_collision.in_set(SubstepSet::SolveUserConstraints),
         )
         .run();
 }
@@ -58,7 +57,7 @@ fn setup(
             ..default()
         },
         RigidBody::Kinematic,
-        Position(Vector::Y * 1.0),
+        Position(Vector::Y * 7.0),
         Collider::capsule(1.0, 0.4),
         // Cast the player shape downwards to detect when the player is grounded
         ShapeCaster::new(
@@ -93,14 +92,14 @@ fn setup(
 
 fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut LinearVelocity, &ShapeHits), With<Player>>,
+    mut players: Query<(&mut LinearVelocity, &ShapeHits, &CollidingEntities), With<Player>>,
 ) {
-    for (mut linear_velocity, ground_hits) in &mut players {
+    for (mut linear_velocity, ground_hits, entities) in &mut players {
         // Reset vertical valocity if grounded, otherwise apply gravity
         if !ground_hits.is_empty() {
             linear_velocity.y = 0.0;
         } else {
-            linear_velocity.y -= 0.4;
+            linear_velocity.y -= 0.1;
         }
 
         // Directional movement
@@ -130,16 +129,23 @@ fn movement(
 }
 
 fn kinematic_collision(
-    mut collision_event_reader: EventReader<Collision>,
+    collisions: Res<Collisions>,
     mut bodies: Query<(&RigidBody, &mut Position)>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
-    for Collision(contacts) in collision_event_reader.iter() {
+    for contacts in collisions.iter() {
+        // If the collision didn't happen during this substep, skip the collision
+        if !contacts.during_current_substep {
+            continue;
+        }
         if let Ok([(rb1, mut position1), (rb2, mut position2)]) =
             bodies.get_many_mut([contacts.entity1, contacts.entity2])
         {
             for manifold in contacts.manifolds.iter() {
                 for contact in manifold.contacts.iter() {
+                    if contact.penetration <= Scalar::EPSILON {
+                        continue;
+                    }
                     if rb1.is_kinematic() && !rb2.is_kinematic() {
                         position1.0 -= contact.normal * contact.penetration;
                     } else if rb2.is_kinematic() && !rb1.is_kinematic() {
