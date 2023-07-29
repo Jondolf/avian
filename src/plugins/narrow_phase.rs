@@ -47,6 +47,16 @@ impl Plugin for NarrowPhasePlugin {
                 .chain()
                 .in_set(SubstepSet::NarrowPhase),
         );
+
+        // Remove collisions against removed colliders from `Collisions`
+        app.add_systems(
+            Last,
+            |mut removals: RemovedComponents<Collider>, mut collisions: ResMut<Collisions>| {
+                for removed in removals.iter() {
+                    collisions.remove_collisions_with_entity(removed);
+                }
+            },
+        );
     }
 }
 
@@ -119,6 +129,12 @@ impl Collisions {
                     None
                 }
             })
+    }
+
+    /// Removes collisions against the given entity from the `HashMap`.
+    fn remove_collisions_with_entity(&mut self, entity: Entity) {
+        self.0
+            .retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
     }
 }
 

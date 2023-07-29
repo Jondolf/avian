@@ -12,7 +12,6 @@ use bevy::prelude::*;
 use bevy_xpbd_3d::{
     math::*, prelude::*, PhysicsSchedule, PhysicsStepSet, SubstepSchedule, SubstepSet,
 };
-use nalgebra::RealField;
 
 fn main() {
     App::new()
@@ -92,9 +91,9 @@ fn setup(
 
 fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&mut LinearVelocity, &ShapeHits, &CollidingEntities), With<Player>>,
+    mut players: Query<(&mut LinearVelocity, &ShapeHits), With<Player>>,
 ) {
-    for (mut linear_velocity, ground_hits, entities) in &mut players {
+    for (mut linear_velocity, ground_hits) in &mut players {
         // Reset vertical valocity if grounded, otherwise apply gravity
         if !ground_hits.is_empty() {
             linear_velocity.y = 0.0;
