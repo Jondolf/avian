@@ -1,18 +1,31 @@
-//! Responsible for synchronizing physics components with other data, like writing [`Position`]
-//! and [`Rotation`] components to `Transform`s.
+//! Responsible for synchronizing physics components with other data, like keeping [`Position`]
+//! and [`Rotation`] in sync with `Transform`.
 //!
 //! See [`SyncPlugin`].
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Responsible for synchronizing physics components with other data, like writing [`Position`]
-/// and [`Rotation`] components to `Transform`s.
+/// Responsible for synchronizing physics components with other data, like keeping [`Position`]
+/// and [`Rotation`] in sync with `Transform`.
 ///
-/// Currently, the transforms of nested bodies are updated to reflect their global positions.
-/// This means that nested [rigid bodies](RigidBody) can behave independently regardless of the hierarchy.
+/// ## Syncing between [`Position`]/[`Rotation`] and [`Transform`]
 ///
-/// The synchronization systems run in [`PhysicsSet::Sync`].
+/// By default, each body's `Transform` will be updated when [`Position`] or [`Rotation`]
+/// change, and vice versa. This means that you can use any of these components to move
+/// or position bodies, and the changes be reflected in the other components.
+///
+/// You can configure what data is synchronized and how it is synchronized
+/// using the [`SyncConfig`] resource.
+///
+/// ## `Transform` hierarchies
+///
+/// When synchronizing changes in [`Position`] or [`Rotation`] to `Transform`,
+/// the engine treats nested [rigid bodies](RigidBody) as a flat structure. This means that
+/// the bodies move independently of the parents, and moving the parent will not affect the child.
+///
+/// If you would like a child entity to be rigidly attached to its parent, you could use a [`FixedJoint`]
+/// or write your own system to handle hierarchies differently.
 pub struct SyncPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
@@ -36,10 +49,153 @@ impl Default for SyncPlugin {
 
 impl Plugin for SyncPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<SyncConfig>()
+            .register_type::<SyncConfig>();
+
+        // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
+        // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
             self.schedule.dyn_clone(),
-            sync_transforms.in_set(PhysicsSet::Sync),
+            ((
+                bevy::transform::systems::sync_simple_transforms,
+                bevy::transform::systems::propagate_transforms,
+                init_previous_global_transform,
+                transform_to_position,
+                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
+                update_previous_global_transforms,
+            )
+                .chain()
+                .after(PhysicsSet::Prepare)
+                .before(PhysicsSet::StepSimulation),)
+                .chain()
+                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
+
+        // Apply `Transform`, `Position` and `Rotation` changes that happened during the physics frame.
+        app.add_systems(
+            self.schedule.dyn_clone(),
+            (
+                (
+                    // Apply `Transform` changes to `Position` and `Rotation`
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                    transform_to_position,
+                )
+                    .chain()
+                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                // Apply `Position` and `Rotation` changes to `Transform`
+                position_to_transform,
+                (
+                    // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                    update_previous_global_transforms,
+                )
+                    .chain()
+                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+            )
+                .chain()
+                .in_set(PhysicsSet::Sync)
+                .run_if(|config: Res<SyncConfig>| config.position_to_transform),
+        );
+    }
+}
+
+/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+#[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
+#[reflect(Resource)]
+pub struct SyncConfig {
+    /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    position_to_transform: bool,
+    /// Updates [`Position`] and [`Rotation`] based on transform changes,
+    /// allowing you to move bodies using `Transform`. Defaults to true.
+    transform_to_position: bool,
+}
+
+impl Default for SyncConfig {
+    fn default() -> Self {
+        SyncConfig {
+            position_to_transform: true,
+            transform_to_position: true,
+        }
+    }
+}
+
+/// The global transform of a body at the end of the previous frame.
+/// Used for detecting if the transform was modified before the start of the physics schedule.
+#[derive(Component, Deref, DerefMut)]
+struct PreviousGlobalTransform(GlobalTransform);
+
+fn init_previous_global_transform(
+    mut commands: Commands,
+    bodies: Query<(Entity, &GlobalTransform), Added<RigidBody>>,
+) {
+    for (entity, transform) in &bodies {
+        commands
+            .entity(entity)
+            .insert(PreviousGlobalTransform(*transform));
+    }
+}
+
+/// Copies `GlobalTransform` changes to [`Position`] and [`Rotation`].
+/// This allows users to use transforms for moving and positioning bodies.
+///
+/// To account for hierarchies, transform propagation should be run before this system.
+fn transform_to_position(
+    mut bodies: Query<(
+        &GlobalTransform,
+        &PreviousGlobalTransform,
+        &mut Position,
+        Option<&AccumulatedTranslation>,
+        &mut Rotation,
+    )>,
+) {
+    for (
+        global_transform,
+        previous_transform,
+        mut position,
+        accumulated_translation,
+        mut rotation,
+    ) in &mut bodies
+    {
+        // Skip entity if the global transform value hasn't changed
+        if *global_transform == previous_transform.0 {
+            continue;
+        }
+
+        let transform = global_transform.compute_transform();
+        let previous_transform = previous_transform.compute_transform();
+        let pos = position.0 + accumulated_translation.map_or(Vector::ZERO, |t| t.0);
+
+        #[cfg(feature = "2d")]
+        {
+            position.0 = (previous_transform.translation.truncate()
+                + (transform.translation - previous_transform.translation).truncate())
+            .adjust_precision()
+                + (pos - previous_transform.translation.truncate().adjust_precision());
+        }
+        #[cfg(feature = "3d")]
+        {
+            position.0 = (previous_transform.translation
+                + (transform.translation - previous_transform.translation))
+                .adjust_precision()
+                + (pos - previous_transform.translation.adjust_precision());
+        }
+
+        #[cfg(feature = "2d")]
+        {
+            let rot = Rotation::from(transform.rotation.adjust_precision());
+            let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
+            *rotation = prev_rot + (rot - prev_rot) + (*rotation - prev_rot);
+        }
+        #[cfg(feature = "3d")]
+        {
+            rotation.0 = (previous_transform.rotation
+                + (transform.rotation - previous_transform.rotation)
+                + (rotation.as_f32() - previous_transform.rotation))
+                .normalize()
+                .adjust_precision();
+        }
     }
 }
 
@@ -58,9 +214,13 @@ type RigidBodyParentComponents = (
     Option<&'static Rotation>,
 );
 
-/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy `Transform`s.
+/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
+/// This allows users and the engine to use these components for moving and positioning bodies.
+///
+/// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
+/// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
-fn sync_transforms(
+fn position_to_transform(
     mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
@@ -98,12 +258,13 @@ fn sync_transforms(
     }
 }
 
-/// Copies [`Position`] and [`Rotation`] values from the physics world to Bevy's `Transform`s.
+/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
+/// This allows users and the engine to use these components for moving and positioning bodies.
 ///
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
-fn sync_transforms(
+fn position_to_transform(
     mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
     parents: Query<RigidBodyParentComponents, With<Children>>,
 ) {
@@ -134,5 +295,14 @@ fn sync_transforms(
             transform.translation = pos.as_f32();
             transform.rotation = rot.as_f32();
         }
+    }
+}
+
+/// Updates [`PreviousGlobalTransform`] by setting it to `GlobalTransform` at the very end or start of a frame.
+fn update_previous_global_transforms(
+    mut bodies: Query<(&GlobalTransform, &mut PreviousGlobalTransform)>,
+) {
+    for (transform, mut previous_transform) in &mut bodies {
+        previous_transform.0 = *transform;
     }
 }
