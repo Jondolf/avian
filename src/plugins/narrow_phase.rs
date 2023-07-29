@@ -22,13 +22,38 @@ impl Plugin for NarrowPhasePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<Collision>()
             .add_event::<CollisionStarted>()
-            .add_event::<CollisionEnded>();
+            .add_event::<CollisionEnded>()
+            .init_resource::<NarrowPhaseConfig>()
+            .register_type::<NarrowPhaseConfig>();
 
         let substep_schedule = app
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
 
         substep_schedule.add_systems((collect_collisions).chain().in_set(SubstepSet::NarrowPhase));
+    }
+}
+
+/// A resource for configuring the [narrow phase](NarrowPhasePlugin).
+#[derive(Resource, Reflect, Clone, Debug, PartialEq)]
+#[reflect(Resource)]
+pub struct NarrowPhaseConfig {
+    /// The maximum separation distance allowed for a collision to be accepted.
+    ///
+    /// This can be used for things like **speculative contacts** where the contacts should
+    /// include pairs of entities that *might* be in contact after constraint solving or
+    /// other positional changes.
+    prediction_distance: Scalar,
+}
+
+impl Default for NarrowPhaseConfig {
+    fn default() -> Self {
+        Self {
+            #[cfg(feature = "2d")]
+            prediction_distance: 5.0,
+            #[cfg(feature = "3d")]
+            prediction_distance: 0.005,
+        }
     }
 }
 
@@ -61,6 +86,7 @@ fn collect_collisions(
     mut collision_ev_writer: EventWriter<Collision>,
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+    narrow_phase_config: Res<NarrowPhaseConfig>,
 ) {
     let mut collision_events = Vec::with_capacity(broad_collision_pairs.0.len());
     let mut started_collisions = Vec::new();
@@ -114,6 +140,7 @@ fn collect_collisions(
                 rotation2,
                 collider1,
                 collider2,
+                narrow_phase_config.prediction_distance,
             );
 
             if !contacts.manifolds.is_empty() {
@@ -235,15 +262,12 @@ pub(crate) fn compute_contacts(
     rotation2: &Rotation,
     collider1: &Collider,
     collider2: &Collider,
+    prediction_distance: Scalar,
 ) -> Contacts {
     let isometry1 = utils::make_isometry(position1, rotation1);
     let isometry2 = utils::make_isometry(position2, rotation2);
     let isometry12 = isometry1.inv_mul(&isometry2);
     let convex = collider1.is_convex() && collider2.is_convex();
-    #[cfg(feature = "2d")]
-    let prediction_distance = 2.0;
-    #[cfg(feature = "3d")]
-    let prediction_distance = 0.002;
 
     if convex {
         // Todo: Reuse manifolds from previous frame to improve performance
