@@ -80,13 +80,17 @@ fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    mut collision_ev_reader: EventReader<Collision>,
+    collisions: Res<Collisions>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     penetration_constraints.0.clear();
 
-    for Collision(contacts) in collision_ev_reader.iter() {
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([contacts.entity1, contacts.entity2]) {
+    for ((entity1, entity2), contacts) in collisions
+        .0
+        .iter()
+        .filter(|(_, contacts)| contacts.during_current_substep)
+    {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
 
@@ -98,15 +102,15 @@ fn penetration_constraints(
                 continue;
             }
 
-            // When an active body collides with a sleeping body, wake up the sleeping body
-            if sleeping1.is_some() {
-                commands.entity(contacts.entity1).remove::<Sleeping>();
-            } else if sleeping2.is_some() {
-                commands.entity(contacts.entity2).remove::<Sleeping>();
-            }
-
             // Create and solve constraint if both colliders are solid
             if sensor1.is_none() && sensor2.is_none() {
+                // When an active body collides with a sleeping body, wake up the sleeping body
+                if sleeping1.is_some() {
+                    commands.entity(*entity1).remove::<Sleeping>();
+                } else if sleeping2.is_some() {
+                    commands.entity(*entity2).remove::<Sleeping>();
+                }
+
                 for contact_manifold in contacts.manifolds.iter() {
                     for contact in contact_manifold.contacts.iter() {
                         let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
