@@ -4,7 +4,6 @@
 //! See [`SolverPlugin`].
 
 use crate::{
-    collision::*,
     prelude::*,
     utils::{get_dynamic_friction, get_restitution},
 };
@@ -34,10 +33,7 @@ pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PenetrationConstraints>()
-            .add_event::<Collision>()
-            .add_event::<CollisionStarted>()
-            .add_event::<CollisionEnded>();
+        app.init_resource::<PenetrationConstraints>();
 
         let substeps = app
             .get_schedule_mut(SubstepSchedule)
@@ -82,41 +78,17 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 #[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(
-        RigidBodyQuery,
-        &Collider,
-        Option<&Sensor>,
-        Option<&CollisionLayers>,
-        Option<&mut CollidingEntities>,
-        Option<&Sleeping>,
-    )>,
-    broad_collision_pairs: Res<BroadCollisionPairs>,
+    mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    mut collision_ev_writer: EventWriter<Collision>,
-    mut collision_started_ev_writer: EventWriter<CollisionStarted>,
-    mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+    mut collision_ev_reader: EventReader<Collision>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    let mut collision_events = Vec::with_capacity(broad_collision_pairs.0.len());
-    let mut started_collisions = Vec::new();
-    let mut ended_collisions = Vec::new();
-
     penetration_constraints.0.clear();
 
-    for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, sensor1, layers1, mut colliding_entities1, sleeping1) =
-                bundle1;
-            let (mut body2, collider2, sensor2, layers2, mut colliding_entities2, sleeping2) =
-                bundle2;
-
-            let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
-            let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
-
-            // Skip collision if collision layers are incompatible
-            if !layers1.interacts_with(layers2) {
-                continue;
-            }
+    for Collision(contacts) in collision_ev_reader.iter() {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([contacts.entity1, contacts.entity2]) {
+            let (mut body1, sensor1, sleeping1) = bundle1;
+            let (mut body2, sensor2, sleeping2) = bundle2;
 
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
@@ -126,75 +98,25 @@ fn penetration_constraints(
                 continue;
             }
 
-            let contacts = compute_contacts(
-                *ent1,
-                *ent2,
-                body1.position.0 + body1.accumulated_translation.0,
-                body2.position.0 + body2.accumulated_translation.0,
-                &body1.rotation,
-                &body2.rotation,
-                collider1,
-                collider2,
-            );
+            // When an active body collides with a sleeping body, wake up the sleeping body
+            if sleeping1.is_some() {
+                commands.entity(contacts.entity1).remove::<Sleeping>();
+            } else if sleeping2.is_some() {
+                commands.entity(contacts.entity2).remove::<Sleeping>();
+            }
 
-            if !contacts.manifolds.is_empty() {
-                let mut collision_started_1 = false;
-                let mut collision_started_2 = false;
-
-                // Add entity to set of colliding entities
-                if let Some(ref mut entities) = colliding_entities1 {
-                    collision_started_1 = entities.insert(*ent2);
-                }
-                if let Some(ref mut entities) = colliding_entities2 {
-                    collision_started_2 = entities.insert(*ent1);
-                }
-
-                if collision_started_1 || collision_started_2 {
-                    started_collisions.push(CollisionStarted(*ent1, *ent2));
-                }
-
-                // When an active body collides with a sleeping body, wake up the sleeping body
-                if sleeping1.is_some() {
-                    commands.entity(*ent1).remove::<Sleeping>();
-                } else if sleeping2.is_some() {
-                    commands.entity(*ent2).remove::<Sleeping>();
-                }
-
-                // Create and solve constraint if both colliders are solid
-                if sensor1.is_none() && sensor2.is_none() {
-                    for contact_manifold in contacts.manifolds.iter() {
-                        for contact in contact_manifold.contacts.iter() {
-                            let mut constraint =
-                                PenetrationConstraint::new(&body1, &body2, *contact);
-                            constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                            penetration_constraints.0.push(constraint);
-                        }
+            // Create and solve constraint if both colliders are solid
+            if sensor1.is_none() && sensor2.is_none() {
+                for contact_manifold in contacts.manifolds.iter() {
+                    for contact in contact_manifold.contacts.iter() {
+                        let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
+                        constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                        penetration_constraints.0.push(constraint);
                     }
-                }
-
-                collision_events.push(Collision(contacts));
-            } else {
-                let mut collision_ended_1 = false;
-                let mut collision_ended_2 = false;
-
-                // Remove entity from set of colliding entities
-                if let Some(mut entities) = colliding_entities1 {
-                    collision_ended_1 = entities.remove(ent2);
-                }
-                if let Some(mut entities) = colliding_entities2 {
-                    collision_ended_2 = entities.remove(ent1);
-                }
-
-                if collision_ended_1 || collision_ended_2 {
-                    ended_collisions.push(CollisionEnded(*ent1, *ent2));
                 }
             }
         }
     }
-
-    collision_ev_writer.send_batch(collision_events);
-    collision_started_ev_writer.send_batch(started_collisions);
-    collision_ended_ev_writer.send_batch(ended_collisions);
 }
 
 /// Iterates through the constraints of a given type and solves them. Sleeping bodies are woken up when
@@ -427,7 +349,7 @@ fn solve_vel(
                 normal,
                 normal_vel,
                 pre_solve_normal_vel,
-                body1.restitution.combine(*body2.restitution).coefficient,
+                0.0,
                 gravity.0,
                 sub_dt.0,
             );
