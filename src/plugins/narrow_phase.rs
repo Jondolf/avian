@@ -43,7 +43,7 @@ impl Plugin for NarrowPhasePlugin {
             .expect("add SubstepSchedule first");
 
         substep_schedule.add_systems(
-            (clear_collision_states, collect_collisions)
+            (reset_substep_collision_states, collect_collisions)
                 .chain()
                 .in_set(SubstepSet::NarrowPhase),
         );
@@ -211,8 +211,8 @@ fn collect_collisions(
     }
 }
 
-fn clear_collision_states(mut collisions: ResMut<Collisions>) {
-    for contacts in collisions.iter_mut() {
+fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
+    for contacts in collisions.0.values_mut() {
         contacts.during_current_substep = false;
     }
 }
