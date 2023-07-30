@@ -126,11 +126,13 @@ impl Default for SyncConfig {
 #[derive(Component, Deref, DerefMut)]
 struct PreviousGlobalTransform(GlobalTransform);
 
+type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider>)>;
+
 fn init_previous_global_transform(
     mut commands: Commands,
-    bodies: Query<(Entity, &GlobalTransform), Added<RigidBody>>,
+    query: Query<(Entity, &GlobalTransform), PhysicsObjectAddedFilter>,
 ) {
-    for (entity, transform) in &bodies {
+    for (entity, transform) in &query {
         commands
             .entity(entity)
             .insert(PreviousGlobalTransform(*transform));
@@ -138,11 +140,11 @@ fn init_previous_global_transform(
 }
 
 /// Copies `GlobalTransform` changes to [`Position`] and [`Rotation`].
-/// This allows users to use transforms for moving and positioning bodies.
+/// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
 fn transform_to_position(
-    mut bodies: Query<(
+    mut query: Query<(
         &GlobalTransform,
         &PreviousGlobalTransform,
         &mut Position,
@@ -156,7 +158,7 @@ fn transform_to_position(
         mut position,
         accumulated_translation,
         mut rotation,
-    ) in &mut bodies
+    ) in &mut query
     {
         // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
@@ -199,16 +201,16 @@ fn transform_to_position(
     }
 }
 
-type RbSyncQueryComponents = (
+type PosToTransformComponents = (
     &'static mut Transform,
     &'static Position,
     &'static Rotation,
     Option<&'static Parent>,
 );
 
-type RbSyncQueryFilter = Or<(Changed<Position>, Changed<Rotation>)>;
+type PosToTransformFilter = Or<(Changed<Position>, Changed<Rotation>)>;
 
-type RigidBodyParentComponents = (
+type ParentComponents = (
     &'static GlobalTransform,
     Option<&'static Position>,
     Option<&'static Rotation>,
@@ -221,10 +223,10 @@ type RigidBodyParentComponents = (
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
 fn position_to_transform(
-    mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
-    parents: Query<RigidBodyParentComponents, With<Children>>,
+    mut query: Query<PosToTransformComponents, PosToTransformFilter>,
+    parents: Query<ParentComponents, With<Children>>,
 ) {
-    for (mut transform, pos, rot, parent) in &mut bodies {
+    for (mut transform, pos, rot, parent) in &mut query {
         if let Some(parent) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
                 // Compute the global transform of the parent using its Position and Rotation
@@ -265,10 +267,10 @@ fn position_to_transform(
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
 fn position_to_transform(
-    mut bodies: Query<RbSyncQueryComponents, RbSyncQueryFilter>,
-    parents: Query<RigidBodyParentComponents, With<Children>>,
+    mut query: Query<PosToTransformComponents, PosToTransformFilter>,
+    parents: Query<ParentComponents, With<Children>>,
 ) {
-    for (mut transform, pos, rot, parent) in &mut bodies {
+    for (mut transform, pos, rot, parent) in &mut query {
         if let Some(parent) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
                 // Compute the global transform of the parent using its Position and Rotation
