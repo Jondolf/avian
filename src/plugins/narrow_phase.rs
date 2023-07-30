@@ -3,7 +3,8 @@
 //! See [`NarrowPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
+use indexmap::IndexMap;
 use parry::query::{PersistentQueryDispatcher, QueryDispatcher};
 
 /// Computes contacts between entities and sends collision events.
@@ -83,9 +84,17 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
+// Collisions are currently stored in an `IndexMap` that uses fxhash.
+// It should have faster iteration than `HashMap` while mostly retaining other performance characteristics.
+// In a simple benchmark, the difference seemed pretty negligible though.
+//
+// `IndexMap` preserves insertion order, which affects the order in which collisions are detected.
+// This can be good or bad depending on the situation, but it can make spawned stacks appear more
+// consistent and uniform, for example in the `move_marbles` example.
+// ==========================================
 /// All collision pairs.
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
-pub struct Collisions(pub(crate) HashMap<(Entity, Entity), Contacts>);
+#[derive(Resource, Debug, Default)]
+pub struct Collisions(pub(crate) IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
@@ -141,7 +150,7 @@ impl Collisions {
 /// Stores the collision pairs from the previous frame.
 /// This is used for detecting when collisions have started or ended.
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
-struct PreviousCollisions(HashMap<(Entity, Entity), Contacts>);
+struct PreviousCollisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 /// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
 #[derive(Event, Clone, Debug, PartialEq)]

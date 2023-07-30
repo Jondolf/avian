@@ -36,6 +36,8 @@ parry2d = { version = "0.13", optional = true }
 parry2d-f64 = { version = "0.13", optional = true }
 nalgebra = { version = "0.32", features = ["convert-glam024"] }
 derive_more = "0.99"
+indexmap = "2.0.0"
+fxhash = "0.2.1"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
