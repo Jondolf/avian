@@ -227,6 +227,11 @@ fn init_mass_properties(
 
 type ColliderComponents = (
     Entity,
+    // Use transform as default position and rotation if no components for them found
+    Option<&'static mut Transform>,
+    Option<&'static GlobalTransform>,
+    Option<&'static Position>,
+    Option<&'static Rotation>,
     &'static Collider,
     Option<&'static ColliderAabb>,
     Option<&'static CollidingEntities>,
@@ -234,11 +239,69 @@ type ColliderComponents = (
     Option<&'static PreviousColliderMassProperties>,
 );
 
-fn init_colliders(mut commands: Commands, colliders: Query<ColliderComponents, Added<Collider>>) {
-    for (entity, collider, aabb, colliding_entities, mass_properties, previous_mass_properties) in
-        &colliders
+fn init_colliders(
+    mut commands: Commands,
+    mut colliders: Query<ColliderComponents, Added<Collider>>,
+) {
+    for (
+        entity,
+        mut transform,
+        global_transform,
+        pos,
+        rot,
+        collider,
+        aabb,
+        colliding_entities,
+        mass_properties,
+        previous_mass_properties,
+    ) in &mut colliders
     {
         let mut entity_commands = commands.entity(entity);
+
+        if let Some(pos) = pos {
+            if let Some(ref mut transform) = transform {
+                #[cfg(feature = "2d")]
+                {
+                    transform.translation = pos.as_f32().extend(transform.translation.z);
+                }
+                #[cfg(feature = "3d")]
+                {
+                    transform.translation = pos.as_f32();
+                }
+            }
+        } else {
+            let translation;
+            #[cfg(feature = "2d")]
+            {
+                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
+                });
+            }
+            #[cfg(feature = "3d")]
+            {
+                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(
+                        t.translation().x as Scalar,
+                        t.translation().y as Scalar,
+                        t.translation().z as Scalar,
+                    )
+                });
+            }
+
+            entity_commands.insert(Position(translation));
+        }
+
+        if let Some(rot) = rot {
+            if let Some(mut transform) = transform {
+                let q: Quaternion = (*rot).into();
+                transform.rotation = q.as_f32();
+            }
+        } else {
+            let rotation = global_transform.map_or(Rotation::default(), |t| {
+                t.compute_transform().rotation.into()
+            });
+            entity_commands.insert(rotation);
+        }
 
         if aabb.is_none() {
             entity_commands.insert(ColliderAabb::from_shape(collider.get_shape()));
