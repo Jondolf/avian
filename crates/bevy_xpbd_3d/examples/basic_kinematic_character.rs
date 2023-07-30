@@ -56,7 +56,7 @@ fn setup(
             ..default()
         },
         RigidBody::Kinematic,
-        Position(Vector::Y * 7.0),
+        Position(Vector::Y * 1.0),
         Collider::capsule(1.0, 0.4),
         // Cast the player shape downwards to detect when the player is grounded
         ShapeCaster::new(
@@ -98,7 +98,7 @@ fn movement(
         if !ground_hits.is_empty() {
             linear_velocity.y = 0.0;
         } else {
-            linear_velocity.y -= 0.1;
+            linear_velocity.y -= 0.4;
         }
 
         // Directional movement
