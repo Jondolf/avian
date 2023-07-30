@@ -561,7 +561,7 @@ pub enum SubstepSet {
     ///
     /// See [`SolverPlugin`].
     UpdateVelocities,
-    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
+    /// Responsible for applying dynamic friction, restitution and joint damping at the end of the
     /// substepping loop.
     ///
     /// See [`SolverPlugin`].
