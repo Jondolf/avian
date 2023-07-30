@@ -127,9 +127,14 @@ impl fmt::Debug for Collider {
 }
 
 impl Collider {
-    /// Gets the raw shape of the collider. The shapes are provided by [`parry`].
+    /// Returns the raw shape of the collider. The shapes are provided by [`parry`].
     pub fn get_shape(&self) -> &SharedShape {
         &self.0
+    }
+
+    /// Returns a mutable reference to the raw shape of the collider. The shapes are provided by [`parry`].
+    pub fn get_shape_mut(&mut self) -> &mut SharedShape {
+        &mut self.0
     }
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
