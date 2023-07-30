@@ -98,10 +98,16 @@ fn update_aabb(
 struct AabbIntervals(Vec<(Entity, ColliderAabb, RigidBody, CollisionLayers)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
-fn update_aabb_intervals(aabbs: Query<&ColliderAabb>, mut intervals: ResMut<AabbIntervals>) {
-    intervals.0.retain_mut(|(entity, aabb, _, _)| {
-        if let Ok(new_aabb) = aabbs.get(*entity) {
+fn update_aabb_intervals(
+    aabbs: Query<(&ColliderAabb, Option<&RigidBody>)>,
+    mut intervals: ResMut<AabbIntervals>,
+) {
+    intervals.0.retain_mut(|(entity, aabb, rb, _)| {
+        if let Ok((new_aabb, new_rb)) = aabbs.get(*entity) {
             *aabb = *new_aabb;
+            if let Some(new_rb) = new_rb {
+                *rb = *new_rb;
+            }
             true
         } else {
             false

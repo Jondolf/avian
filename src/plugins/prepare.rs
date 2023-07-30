@@ -320,7 +320,7 @@ fn init_colliders(
 
 type MassPropertiesComponents = (
     Entity,
-    &'static RigidBody,
+    Option<&'static RigidBody>,
     MassPropertiesQuery,
     Option<&'static Collider>,
     Option<&'static mut ColliderMassProperties>,
@@ -375,19 +375,21 @@ fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassProper
         }
 
         // Warn about dynamic bodies with no mass or inertia
-        let is_mass_valid =
-            mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
-        #[cfg(feature = "2d")]
-        let is_inertia_valid =
-            mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
-        #[cfg(feature = "3d")]
-        let is_inertia_valid =
-            mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
-        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
-            warn!(
-                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
-                entity
-            );
+        if let Some(rb) = rb {
+            let is_mass_valid =
+                mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
+            #[cfg(feature = "2d")]
+            let is_inertia_valid =
+                mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
+            #[cfg(feature = "3d")]
+            let is_inertia_valid =
+                mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
+            if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
+                warn!(
+                    "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
+                    entity
+                );
+            }
         }
     }
 }
