@@ -4,6 +4,8 @@
 
 use crate::prelude::*;
 use bevy::prelude::*;
+#[cfg(feature = "parallel")]
+use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 use indexmap::IndexMap;
 use parry::query::{PersistentQueryDispatcher, QueryDispatcher};
 
@@ -167,7 +169,7 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn collect_collisions(
-    mut bodies: Query<(
+    bodies: Query<(
         Option<&RigidBody>,
         &Position,
         Option<&AccumulatedTranslation>,
@@ -180,60 +182,134 @@ fn collect_collisions(
     mut collisions: ResMut<Collisions>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
 ) {
-    for (entity1, entity2) in broad_collision_pairs.0.iter() {
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
-            let (
-                rb1,
-                position1,
-                accumulated_translation1,
-                rotation1,
-                collider1,
-                layers1,
-                sleeping1,
-            ) = bundle1;
-            let (
-                rb2,
-                position2,
-                accumulated_translation2,
-                rotation2,
-                collider2,
-                layers2,
-                sleeping2,
-            ) = bundle2;
+    #[cfg(feature = "parallel")]
+    {
+        let pool = ComputeTaskPool::get();
+        // Todo: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
+        let new_collisions = broad_collision_pairs
+            .0
+            .par_splat_map(pool, None, |chunks| {
+                let mut collisions: Vec<((Entity, Entity), Contacts)> = vec![];
+                for (entity1, entity2) in chunks {
+                    if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
+                        let (
+                            rb1,
+                            position1,
+                            accumulated_translation1,
+                            rotation1,
+                            collider1,
+                            layers1,
+                            sleeping1,
+                        ) = bundle1;
+                        let (
+                            rb2,
+                            position2,
+                            accumulated_translation2,
+                            rotation2,
+                            collider2,
+                            layers2,
+                            sleeping2,
+                        ) = bundle2;
 
-            let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
-            let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
+                        if check_collision_validity(
+                            rb1, rb2, layers1, layers2, sleeping1, sleeping2,
+                        ) {
+                            let contacts = compute_contacts(
+                                *entity1,
+                                *entity2,
+                                position1.0
+                                    + accumulated_translation1.map_or(Vector::default(), |t| t.0),
+                                position2.0
+                                    + accumulated_translation2.map_or(Vector::default(), |t| t.0),
+                                rotation1,
+                                rotation2,
+                                collider1,
+                                collider2,
+                                narrow_phase_config.prediction_distance,
+                            );
 
-            // Skip collision if collision layers are incompatible
-            if !layers1.interacts_with(layers2) {
-                continue;
-            }
+                            if !contacts.manifolds.is_empty() {
+                                collisions.push(((*entity1, *entity2), contacts));
+                            }
+                        }
+                    }
+                }
+                collisions
+            })
+            .into_iter()
+            .flatten();
+        collisions.0.extend(new_collisions);
+    }
+    #[cfg(not(feature = "parallel"))]
+    {
+        for (entity1, entity2) in broad_collision_pairs.0.iter() {
+            if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
+                let (
+                    rb1,
+                    position1,
+                    accumulated_translation1,
+                    rotation1,
+                    collider1,
+                    layers1,
+                    sleeping1,
+                ) = bundle1;
+                let (
+                    rb2,
+                    position2,
+                    accumulated_translation2,
+                    rotation2,
+                    collider2,
+                    layers2,
+                    sleeping2,
+                ) = bundle2;
 
-            let inactive1 = rb1.map_or(false, |rb| rb.is_static()) || sleeping1.is_some();
-            let inactive2 = rb2.map_or(false, |rb| rb.is_static()) || sleeping2.is_some();
+                if check_collision_validity(rb1, rb2, layers1, layers2, sleeping1, sleeping2) {
+                    let contacts = compute_contacts(
+                        *entity1,
+                        *entity2,
+                        position1.0 + accumulated_translation1.map_or(Vector::default(), |t| t.0),
+                        position2.0 + accumulated_translation2.map_or(Vector::default(), |t| t.0),
+                        rotation1,
+                        rotation2,
+                        collider1,
+                        collider2,
+                        narrow_phase_config.prediction_distance,
+                    );
 
-            // No collision if the bodies are static or sleeping
-            if inactive1 && inactive2 {
-                continue;
-            }
-
-            let contacts = compute_contacts(
-                *entity1,
-                *entity2,
-                position1.0 + accumulated_translation1.map_or(Vector::default(), |t| t.0),
-                position2.0 + accumulated_translation2.map_or(Vector::default(), |t| t.0),
-                rotation1,
-                rotation2,
-                collider1,
-                collider2,
-                narrow_phase_config.prediction_distance,
-            );
-
-            if !contacts.manifolds.is_empty() {
-                collisions.0.insert((*entity1, *entity2), contacts);
+                    if !contacts.manifolds.is_empty() {
+                        collisions.0.insert((*entity1, *entity2), contacts);
+                    }
+                }
             }
         }
     }
+}
+
+fn check_collision_validity(
+    rb1: Option<&RigidBody>,
+    rb2: Option<&RigidBody>,
+    layers1: Option<&CollisionLayers>,
+    layers2: Option<&CollisionLayers>,
+    sleeping1: Option<&Sleeping>,
+    sleeping2: Option<&Sleeping>,
+) -> bool {
+    let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
+    let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
+
+    // Skip collision if collision layers are incompatible
+    if !layers1.interacts_with(layers2) {
+        return false;
+    }
+
+    let inactive1 = rb1.map_or(false, |rb| rb.is_static()) || sleeping1.is_some();
+    let inactive2 = rb2.map_or(false, |rb| rb.is_static()) || sleeping2.is_some();
+
+    // No collision if the bodies are static or sleeping
+    if inactive1 && inactive2 {
+        return false;
+    }
+
+    true
 }
 
 fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
@@ -330,6 +406,9 @@ fn send_collision_events(
             previous_contacts.during_current_frame = false;
         }
     }
+
+    // Clear collisions at the end of each frame to avoid unnecessary iteration and memory usage
+    collisions.0.clear();
 }
 
 /// All contacts between two colliders.
