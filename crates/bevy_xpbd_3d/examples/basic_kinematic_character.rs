@@ -21,9 +21,7 @@ fn main() {
         .add_systems(
             // Run collision handling in substep schedule
             SubstepSchedule,
-            kinematic_collision
-                .after(SubstepSet::UpdateVelocities)
-                .before(SubstepSet::SolveVelocities),
+            kinematic_collision.in_set(SubstepSet::SolveUserConstraints),
         )
         .run();
 }
@@ -130,16 +128,23 @@ fn movement(
 }
 
 fn kinematic_collision(
-    mut collision_event_reader: EventReader<Collision>,
+    collisions: Res<Collisions>,
     mut bodies: Query<(&RigidBody, &mut Position)>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
-    for Collision(contacts) in collision_event_reader.iter() {
+    for contacts in collisions.iter() {
+        // If the collision didn't happen during this substep, skip the collision
+        if !contacts.during_current_substep {
+            continue;
+        }
         if let Ok([(rb1, mut position1), (rb2, mut position2)]) =
             bodies.get_many_mut([contacts.entity1, contacts.entity2])
         {
             for manifold in contacts.manifolds.iter() {
                 for contact in manifold.contacts.iter() {
+                    if contact.penetration <= Scalar::EPSILON {
+                        continue;
+                    }
                     if rb1.is_kinematic() && !rb2.is_kinematic() {
                         position1.0 -= contact.normal * contact.penetration;
                     } else if rb2.is_kinematic() && !rb1.is_kinematic() {

@@ -157,6 +157,7 @@ impl Plugin for PhysicsSetupPlugin {
         substep_schedule.configure_sets(
             (
                 SubstepSet::Integrate,
+                SubstepSet::NarrowPhase,
                 SubstepSet::SolveConstraints,
                 SubstepSet::SolveUserConstraints,
                 SubstepSet::UpdateVelocities,

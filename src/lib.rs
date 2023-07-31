@@ -89,6 +89,8 @@
 //! [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact).
 //! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
+//! - `parallel` enables multithreading. This improves performance for larger simulations but can add unnecessary
+//! overhead for smaller ones.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
 //!
@@ -412,7 +414,6 @@ pub extern crate parry3d as parry;
 #[cfg(all(feature = "3d", feature = "f64"))]
 pub extern crate parry3d_f64 as parry;
 
-pub mod collision;
 pub mod components;
 pub mod constraints;
 pub mod math;
@@ -422,7 +423,6 @@ pub mod resources;
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
-        collision::*,
         components::*,
         constraints::{joints::*, *},
         plugins::*,
@@ -501,9 +501,10 @@ pub enum PhysicsSet {
 /// 1. Broad phase
 /// 2. Substeps
 ///     1. Integrate
-///     2. Solve positional and angular constraints
-///     3. Update velocities
-///     4. Solve velocity constraints (dynamic friction and restitution)
+///     2. Narrow phase
+///     3. Solve positional and angular constraints
+///     4. Update velocities
+///     5. Solve velocity constraints (dynamic friction and restitution)
 /// 3. Sleeping
 /// 4. Spatial queries
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -540,9 +541,11 @@ pub enum SubstepSet {
     ///
     /// See [`IntegratorPlugin`].
     Integrate,
+    /// Responsible for computing contacts between entities and sending collision events.
+    ///
+    /// See [`NarrowPhasePlugin`].
+    NarrowPhase,
     /// The [solver] iterates through [constraints] and solves them.
-    /// This step is also responsible for narrow phase collision detection,
-    /// as it creates a [`PenetrationConstraint`] for each contact.
     ///
     /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
     /// you should add them in [`SubstepSet::SolveUserConstraints`]
