@@ -89,6 +89,8 @@
 //! [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact).
 //! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
+//! - `parallel` enables multithreading. This improves performance for larger simulations but can add unnecessary
+//! overhead for smaller ones.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
 //!
