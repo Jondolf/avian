@@ -353,7 +353,7 @@ fn solve_vel(
                 normal,
                 normal_vel,
                 pre_solve_normal_vel,
-                0.0,
+                body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
