@@ -3,7 +3,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// A distance joint prevents relative translation of the attached bodies away from its rest length while allowing rotation around all axes.
+/// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
 ///
 /// Distance joints can be useful for things like springs, muscles, and mass-spring networks.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
