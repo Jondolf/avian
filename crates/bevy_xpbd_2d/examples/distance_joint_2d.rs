@@ -24,9 +24,7 @@ fn setup(mut commands: Commands) {
         ..default()
     };
 
-    let anchor = commands
-        .spawn((square.clone(), RigidBody::Kinematic))
-        .id();
+    let anchor = commands.spawn((square.clone(), RigidBody::Kinematic)).id();
 
     let object = commands
         .spawn((
@@ -45,6 +43,6 @@ fn setup(mut commands: Commands) {
             // .with_linear_velocity_damping(0.1)
             .with_angular_velocity_damping(1.0)
             .with_limits(55.0, 150.0)
-            .with_compliance(1.0/50000.0),
+            .with_compliance(1.0 / 50000.0),
     );
 }

@@ -23,9 +23,13 @@ fn setup(
     };
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length.
-    let static_cube = commands.spawn((cube_mesh.clone(),
-                                      RigidBody::Static,
-                                      Collider::cuboid(1., 1., 1.))).id();
+    let static_cube = commands
+        .spawn((
+            cube_mesh.clone(),
+            RigidBody::Static,
+            Collider::cuboid(1., 1., 1.),
+        ))
+        .id();
     let dynamic_cube = commands
         .spawn((
             cube_mesh,
@@ -46,7 +50,7 @@ fn setup(
             .with_limits(0.75, 2.5)
             // .with_linear_velocity_damping(0.1)
             // .with_angular_velocity_damping(1.0)
-            .with_compliance(1.0 / 100.0)
+            .with_compliance(1.0 / 100.0),
     );
 
     // Light

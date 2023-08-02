@@ -83,17 +83,17 @@
 //! [See the code implementations](https://github.com/Jondolf/bevy_xpbd/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
+mod distance;
 mod fixed;
 mod prismatic;
 mod revolute;
 mod spherical;
-mod distance;
 
+pub use distance::*;
 pub use fixed::*;
 pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
-pub use distance::*;
 
 use crate::prelude::*;
 use bevy::prelude::*;
