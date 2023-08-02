@@ -174,7 +174,7 @@ impl DistanceJoint {
         self.compute_force(self.lagrange, n, dt)
     }
 
-    /// Sets the translational limits along the joint's free axis.
+    /// Sets the minimum and maximum distances between the attached bodies.
     pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             length_limits: Some(DistanceLimit::new(min, max)),
