@@ -17,6 +17,7 @@
 //! - [`PenetrationConstraint`](PenetrationConstraint)
 //! - [Joints](joints)
 //!     - [`FixedJoint`]
+//!     - [`DistanceJoint`]
 //!     - [`SphericalJoint`]
 //!     - [`RevoluteJoint`]
 //!     - [`PrismaticJoint`]

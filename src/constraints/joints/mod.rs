@@ -13,12 +13,13 @@
 //!
 //! Below is a table containing the joints that are currently implemented.
 //!
-//! | Joint              | Allowed 2D DOF | Allowed 3D DOF |
-//! | ------------------ | -------------- | -------------- |
-//! | [`FixedJoint`]     | None           | None           |
-//! | [`PrismaticJoint`] | 1 Translation  | 1 Translation  |
-//! | [`RevoluteJoint`]  | 1 Rotation     | 1 Rotation     |
-//! | [`SphericalJoint`] | 1 Rotation     | 3 Rotations    |
+//! | Joint              | Allowed 2D DOF            | Allowed 3D DOF              |
+//! | ------------------ | ------------------------- | --------------------------- |
+//! | [`FixedJoint`]     | None                      | None                        |
+//! | [`DistanceJoint`]  | 1 Translation, 1 Rotation | 2 Translations, 3 Rotations |
+//! | [`PrismaticJoint`] | 1 Translation             | 1 Translation               |
+//! | [`RevoluteJoint`]  | 1 Rotation                | 1 Rotation                  |
+//! | [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |
 //!
 //! ## Using joints
 //!
@@ -82,11 +83,13 @@
 //! [See the code implementations](https://github.com/Jondolf/bevy_xpbd/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
+mod distance;
 mod fixed;
 mod prismatic;
 mod revolute;
 mod spherical;
 
+pub use distance::*;
 pub use fixed::*;
 pub use prismatic::*;
 pub use revolute::*;
@@ -278,7 +281,7 @@ impl DistanceLimit {
         // Equation 25
         if a < self.min {
             // Separation distance lower limit
-            -axis * (a - self.min)
+            axis * (self.min - a)
         } else if a > self.max {
             // Separation distance upper limit
             -axis * (a - self.max)

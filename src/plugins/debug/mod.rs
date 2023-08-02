@@ -68,6 +68,7 @@ impl Plugin for PhysicsDebugPlugin {
                     // Todo: Refactor joints to allow iterating over all of them without generics
                     debug_render_joints::<FixedJoint>,
                     debug_render_joints::<PrismaticJoint>,
+                    debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
                     change_mesh_visibility,
