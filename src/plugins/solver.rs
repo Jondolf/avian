@@ -46,6 +46,7 @@ impl Plugin for SolverPlugin {
                 solve_constraint::<RevoluteJoint, 2>,
                 solve_constraint::<SphericalJoint, 2>,
                 solve_constraint::<PrismaticJoint, 2>,
+                solve_constraint::<DistanceJoint, 2>,
             )
                 .chain()
                 .in_set(SubstepSet::SolveConstraints),
@@ -60,6 +61,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<RevoluteJoint>,
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
+                joint_damping::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SubstepSet::SolveVelocities),
