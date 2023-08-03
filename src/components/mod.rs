@@ -85,7 +85,7 @@ use derive_more::From;
 /// Note that the mass properties of colliders are added on top of the existing mass properties, so if you
 /// want to define the body's mass properties explicitly, you might want to add
 /// [`ColliderMassProperties::ZERO`](ColliderMassProperties#associatedconstant.ZERO) to the colliders.
-#[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
