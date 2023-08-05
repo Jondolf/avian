@@ -9,7 +9,7 @@ use bevy::prelude::*;
 pub struct PhysicsDebugConfig {
     /// Determines if debug rendering is enabled.
     pub enabled: bool,
-    /// The lengths of the axes drawn for an entity.
+    /// The lengths of the axes drawn for an entity at the center of mass.
     pub axis_lengths: Option<Vector>,
     /// The color of the [AABBs](ColliderAabb). If `None`, the AABBs will not be rendered.
     pub aabb_color: Option<Color>,
@@ -79,7 +79,7 @@ impl PhysicsDebugConfig {
     }
 
     /// Creates a [`PhysicsDebugConfig`] configuration with the given lengths for the axes
-    /// that are drawn for the entity. Other debug rendering options will be disabled.
+    /// that are drawn for the entity at the center of mass. Other debug rendering options will be disabled.
     pub fn axes(axis_lengths: Vector) -> Self {
         Self {
             axis_lengths: Some(axis_lengths),
@@ -192,7 +192,7 @@ impl PhysicsDebugConfig {
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
 #[reflect(Component)]
 pub struct DebugRender {
-    /// The lengths of the axes drawn for the entity.
+    /// The lengths of the axes drawn for the entity at the center of mass.
     pub axis_lengths: Option<Vector>,
     /// The color of the [AABB](ColliderAabb). If `None`, the AABB will not be rendered.
     pub aabb_color: Option<Color>,
@@ -241,7 +241,7 @@ impl DebugRender {
     }
 
     /// Creates a [`DebugRender`] configuration with the given lengths for the axes
-    /// that are drawn for the entity. Other debug rendering options will be disabled.
+    /// that are drawn for the entity at the center of mass. Other debug rendering options will be disabled.
     pub fn axes(axis_lengths: Vector) -> Self {
         Self {
             axis_lengths: Some(axis_lengths),
@@ -267,7 +267,7 @@ impl DebugRender {
         }
     }
 
-    /// Sets the lengths of the axes drawn for the entity.
+    /// Sets the lengths of the axes drawn for the entity at the center of mass.
     pub fn with_axes(mut self, axis_lengths: Vector) -> Self {
         self.axis_lengths = Some(axis_lengths);
         self
