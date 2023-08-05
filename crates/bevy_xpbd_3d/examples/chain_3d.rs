@@ -126,8 +126,8 @@ fn ui(mut commands: Commands) {
                 )
                 .with_style(Style {
                     margin: UiRect {
-                        left: Val::Percent(0.5),
-                        top: Val::Percent(2.0),
+                        left: Val::Px(5.0),
+                        top: Val::Px(30.0),
                         ..default()
                     },
                     ..default()
