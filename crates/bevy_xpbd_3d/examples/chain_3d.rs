@@ -15,7 +15,7 @@ fn main() {
         })
         .insert_resource(SubstepCount(80))
         .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 2.0))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, ui))
         .add_systems(Update, movement)
         .run();
 }
@@ -94,4 +94,48 @@ fn movement(
         }
         linear_velocity.0 *= 0.9;
     }
+}
+
+fn ui(mut commands: Commands) {
+    commands.spawn(Camera2dBundle {
+        camera: Camera {
+            order: -1,
+            ..default()
+        },
+        ..default()
+    });
+    commands
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(100.),
+                ..default()
+            },
+            background_color: Color::rgba(0.15, 0.15, 0.15, 0.0).into(),
+            ..default()
+        })
+        .with_children(|parent| {
+            // text
+            parent.spawn((
+                TextBundle::from_section(
+                    "Use Arrow Keys to Move The Chain",
+                    TextStyle {
+                        font_size: 20.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
+                )
+                .with_style(Style {
+                    margin: UiRect{
+                        left: Val::Percent(0.5),
+                        top: Val::Percent(2.0),
+                        ..default()
+                    },
+                    ..default()
+                }),
+                // Because this is a distinct label widget and
+                // not button/list item text, this is necessary
+                // for accessibility to treat the text accordingly.
+                Label,
+            ));
+        });
 }
