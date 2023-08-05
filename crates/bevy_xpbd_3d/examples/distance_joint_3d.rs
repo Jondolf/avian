@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
+use bevy_xpbd_3d::{math::*, prelude::*};
 
 fn main() {
     let mut app = App::new();
