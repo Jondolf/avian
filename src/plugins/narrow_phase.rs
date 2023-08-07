@@ -37,7 +37,7 @@ impl Plugin for NarrowPhasePlugin {
 
         physics_schedule.add_systems(
             (
-                (apply_deferred, fix_sleeping_collisions)
+                (apply_deferred, wake_up_on_collision_ended)
                     .chain()
                     .after(PhysicsStepSet::Substeps)
                     .before(PhysicsStepSet::Sleeping),
@@ -413,7 +413,7 @@ fn send_collision_events(
         .retain(|key, _| !ended_collisions.contains(key));
 }
 
-fn fix_sleeping_collisions(
+fn wake_up_on_collision_ended(
     mut commands: Commands,
     collisions: Res<Collisions>,
     mut colliding: Query<&CollidingEntities, (Changed<Position>, Without<Sleeping>)>,
