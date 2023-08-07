@@ -27,11 +27,7 @@ impl Plugin for IntegratorPlugin {
                     .after(PhysicsStepSet::BroadPhase)
                     .before(PhysicsStepSet::Substeps),
             )
-            .add_systems(
-                clear_forces_and_impulses
-                    .after(PhysicsStepSet::Substeps)
-                    .before(PhysicsStepSet::Sleeping),
-            );
+            .add_systems(clear_forces_and_impulses.after(PhysicsStepSet::SpatialQuery));
     }
 }
 

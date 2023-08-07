@@ -82,14 +82,14 @@ fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    collisions: Res<Collisions>,
+    mut collisions: ResMut<Collisions>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     penetration_constraints.0.clear();
 
     for ((entity1, entity2), contacts) in collisions
         .0
-        .iter()
+        .iter_mut()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
@@ -117,7 +117,14 @@ fn penetration_constraints(
                     for contact in contact_manifold.contacts.iter() {
                         let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
                         constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                        penetration_constraints.0.push(constraint);
+
+                        if contact.penetration > Scalar::EPSILON {
+                            contacts.during_current_frame = true;
+                            contacts.during_current_substep = true;
+                            penetration_constraints.0.push(constraint);
+                        } else {
+                            contacts.during_current_substep = false;
+                        }
                     }
                 }
             }

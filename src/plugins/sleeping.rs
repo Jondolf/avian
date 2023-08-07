@@ -19,11 +19,16 @@ use bevy::prelude::*;
 pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+    fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                (mark_sleeping_bodies, wake_up_bodies, gravity_wake_up_bodies)
+                (
+                    apply_deferred,
+                    mark_sleeping_bodies,
+                    wake_up_bodies,
+                    gravity_wake_up_bodies,
+                )
                     .chain()
                     .in_set(PhysicsStepSet::Sleeping),
             );
@@ -81,7 +86,7 @@ fn mark_sleeping_bodies(
     }
 }
 
-type BodyWokeUpFilter = Or<(
+type WokeUpFilter = Or<(
     Changed<Position>,
     Changed<Rotation>,
     Changed<LinearVelocity>,
@@ -97,7 +102,7 @@ type BodyWokeUpFilter = Or<(
 /// position, rotation, velocity and external forces are changed.
 fn wake_up_bodies(
     mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyWokeUpFilter)>,
+    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, WokeUpFilter)>,
 ) {
     for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();
