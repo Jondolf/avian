@@ -370,7 +370,11 @@ fn send_collision_events(
                 if sleeping1 || sleeping2 {
                     continue;
                 }
+            } else {
+                // One of the colliders despawned, collision ended
+                collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
             }
+
             contacts.during_current_frame = false;
         } else if let Some(previous_contacts) = previous_collisions.0.get_mut(&(*entity1, *entity2))
         {
