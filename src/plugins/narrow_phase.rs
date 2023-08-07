@@ -535,7 +535,7 @@ pub(crate) fn compute_contacts(
     let isometry12 = isometry1.inv_mul(&isometry2);
     let convex = collider1.is_convex() && collider2.is_convex();
 
-    if true {
+    if convex {
         // Todo: Reuse manifolds from previous frame to improve performance
         let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
         let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
