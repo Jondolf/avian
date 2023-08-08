@@ -159,7 +159,7 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
@@ -214,9 +214,6 @@ impl Plugin for SpatialQueryPlugin {
         );
     }
 }
-
-#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
-pub(crate) struct RemovedColliders(HashSet<Entity>);
 
 fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
@@ -394,6 +391,7 @@ fn shapecast(
     }
 }
 
+// Todo: Move this out of the spatial query plugin
 fn update_removed_colliders(
     mut removals: RemovedComponents<Collider>,
     mut removed_colliders: ResMut<RemovedColliders>,

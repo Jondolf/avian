@@ -372,6 +372,7 @@ fn send_collision_events(
                 }
             } else {
                 // One of the colliders despawned, collision ended
+                ended_collisions.insert((*entity1, *entity2));
                 collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
             }
 
@@ -419,9 +420,9 @@ fn send_collision_events(
 
 fn wake_up_on_collision_ended(
     mut commands: Commands,
-    collisions: Res<Collisions>,
+    previous_collisions: Res<PreviousCollisions>,
     mut colliding: Query<&CollidingEntities, (Changed<Position>, Without<Sleeping>)>,
-    mut removals: RemovedComponents<Collider>,
+    removed_colliders: Res<RemovedColliders>,
     mut sleeping: Query<(Entity, &CollidingEntities, &mut TimeSleeping), With<Sleeping>>,
 ) {
     // Wake up bodies when a body they're colliding with moves
@@ -434,15 +435,23 @@ fn wake_up_on_collision_ended(
     }
 
     // Wake up bodies when a body they're colliding with is despawned
-    for entity1 in removals.iter() {
-        let mut query =
-            sleeping.iter_many_mut(collisions.collisions_with_entity(entity1).map(|contacts| {
-                if entity1 != contacts.entity2 {
-                    contacts.entity2
+    for entity in removed_colliders.iter() {
+        let mut query = sleeping.iter_many_mut(previous_collisions.0.iter().filter_map(
+            move |((entity1, entity2), contacts)| {
+                if contacts.during_current_frame {
+                    if entity1 == entity {
+                        Some(*entity2)
+                    } else if entity2 == entity {
+                        Some(*entity1)
+                    } else {
+                        None
+                    }
                 } else {
-                    contacts.entity1
+                    None
                 }
-            }));
+            },
+        ));
+
         if let Some((entity2, _, mut time_sleeping)) = query.fetch_next() {
             commands.entity(entity2).remove::<Sleeping>();
             time_sleeping.0 = 0.0;

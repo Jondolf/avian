@@ -1,6 +1,6 @@
 //! Resources used in the simulation.
 
-use bevy::prelude::Resource;
+use bevy::{prelude::Resource, utils::HashSet};
 
 use crate::prelude::*;
 
@@ -153,6 +153,9 @@ impl Default for IterationCount {
 #[derive(Reflect, Resource, Default, Debug)]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
+
+#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
+pub(crate) struct RemovedColliders(HashSet<Entity>);
 
 /// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
 ///
