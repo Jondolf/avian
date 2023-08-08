@@ -37,10 +37,20 @@ impl Plugin for NarrowPhasePlugin {
 
         physics_schedule.add_systems(
             (
+                // Reset collision states before the narrow phase
+                (|mut collisions: ResMut<Collisions>| {
+                    collisions
+                        .iter_mut()
+                        .for_each(|c| c.during_current_frame = false)
+                })
+                .after(PhysicsStepSet::BroadPhase)
+                .before(PhysicsStepSet::Substeps),
+                // Wake up sleeping bodies when the other body moves or despawns
                 (apply_deferred, wake_up_on_collision_ended)
                     .chain()
                     .after(PhysicsStepSet::Substeps)
                     .before(PhysicsStepSet::Sleeping),
+                // Send collision events
                 send_collision_events
                     .after(PhysicsStepSet::Sleeping)
                     .before(PhysicsStepSet::SpatialQuery),
@@ -375,8 +385,6 @@ fn send_collision_events(
                 ended_collisions.insert((*entity1, *entity2));
                 collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
             }
-
-            contacts.during_current_frame = false;
         } else if let Some(previous_contacts) = previous_collisions.0.get_mut(&(*entity1, *entity2))
         {
             // If the bodies weren't penetrating last frame either, we can return early.
