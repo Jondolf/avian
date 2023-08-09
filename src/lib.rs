@@ -167,7 +167,7 @@
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Configure restitution](Restitution)
+//! - [Configure restitution (bounciness)](Restitution)
 //! - [Configure friction](Friction)
 //! - [Configure gravity](Gravity)
 //! - [Apply external forces](ExternalForce)

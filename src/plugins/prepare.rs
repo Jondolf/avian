@@ -11,7 +11,9 @@ use bevy::prelude::*;
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
 /// - Adds missing collider components for entities with a [`Collider`] component
+/// - Adds missing mass properties for entities with a [`RigidBody`] or [`Collider`] component
 /// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
+/// - Clamps restitution coefficients between 0 and 1
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin {
@@ -50,6 +52,7 @@ impl Plugin for PreparePlugin {
                 init_mass_properties,
                 init_colliders,
                 update_mass_properties,
+                clamp_restitution,
             )
                 .chain()
                 .in_set(PhysicsSet::Prepare),
@@ -391,5 +394,11 @@ fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassProper
                 );
             }
         }
+    }
+}
+
+fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
+    for mut restitution in &mut query {
+        restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
     }
 }
