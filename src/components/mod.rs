@@ -302,7 +302,7 @@ pub struct Restitution {
     /// This should be between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
     /// to a **perfectly elastic collision** that preserves all kinetic energy. The default value is 0.3.
     pub coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies interact.
+    /// The coefficient combine rule used when two bodies collide.
     pub combine_rule: CoefficientCombine,
 }
 
@@ -437,7 +437,7 @@ pub struct Friction {
     pub dynamic_coefficient: Scalar,
     /// Coefficient of static friction.
     pub static_coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies interact.
+    /// The coefficient combine rule used when two bodies collide.
     pub combine_rule: CoefficientCombine,
 }
 
