@@ -252,7 +252,7 @@ pub enum CoefficientCombine {
     Max = 4,
 }
 
-/// Controls how elastic or bouncy an entity is when colliding with other entities.
+/// Controls how bouncy an entity is when colliding with other entities.
 ///
 /// 0.0: Perfectly inelastic\
 /// 1.0: Perfectly elastic\
@@ -289,6 +289,8 @@ pub enum CoefficientCombine {
 ///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
 /// );
 /// ```
+#[doc(alias = "Bounciness")]
+#[doc(alias = "Elasticity")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Restitution {
