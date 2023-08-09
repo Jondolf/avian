@@ -122,8 +122,8 @@ impl DistanceJoint {
         let world_r2 = body2.rotation.rotate(self.local_anchor2);
 
         // // Compute the positional difference
-        let mut delta_x = (body1.position.0 + body1.accumulated_translation.0 + world_r1)
-            - (body2.position.0 + body2.accumulated_translation.0 + world_r2);
+        let mut delta_x =
+            (body1.current_position() + world_r1) - (body2.current_position() + world_r2);
 
         // The current separation distance
         let mut length = delta_x.length();
@@ -133,8 +133,8 @@ impl DistanceJoint {
                 return Vector::ZERO;
             }
             delta_x += limits.compute_correction(
-                body1.position.0 + body1.accumulated_translation.0 + world_r1,
-                body2.position.0 + body2.accumulated_translation.0 + world_r2,
+                body1.current_position() + world_r1,
+                body2.current_position() + world_r2,
             );
             length = delta_x.length();
         }
@@ -153,12 +153,8 @@ impl DistanceJoint {
         let n = delta_x / length;
 
         // Compute generalized inverse masses (method from PositionConstraint)
-        let w1 = <Self as PositionConstraint>::compute_generalized_inverse_mass(
-            self, body1, world_r1, n,
-        );
-        let w2 = <Self as PositionConstraint>::compute_generalized_inverse_mass(
-            self, body2, world_r2, n,
-        );
+        let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, n);
+        let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, n);
         let w = [w1, w2];
 
         // Constraint gradients, i.e. how the bodies should be moved

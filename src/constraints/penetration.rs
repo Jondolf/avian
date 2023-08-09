@@ -53,10 +53,8 @@ impl XpbdConstraint<2> for PenetrationConstraint {
         // Todo: Figure out why this is and use the method below for all collider types in order to fix
         // explosions for all contacts.
         if self.contact.convex {
-            let p1 =
-                body1.position.0 + body1.accumulated_translation.0 + body1.rotation.rotate(self.r1);
-            let p2 =
-                body2.position.0 + body2.accumulated_translation.0 + body2.rotation.rotate(self.r2);
+            let p1 = body1.current_position() + body1.rotation.rotate(self.r1);
+            let p2 = body2.current_position() + body2.rotation.rotate(self.r2);
             self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
         }
 
@@ -144,12 +142,10 @@ impl PenetrationConstraint {
         let r2 = body2.rotation.rotate(self.r2);
 
         // Compute relative motion of the contact points and get the tangential component
-        let delta_p1 =
-            body1.position.0 - body1.previous_position.0 + body1.accumulated_translation.0 + r1
-                - body1.previous_rotation.rotate(self.r1);
-        let delta_p2 =
-            body2.position.0 - body2.previous_position.0 + body2.accumulated_translation.0 + r2
-                - body2.previous_rotation.rotate(self.r2);
+        let delta_p1 = body1.current_position() - body1.previous_position.0 + r1
+            - body1.previous_rotation.rotate(self.r1);
+        let delta_p2 = body2.current_position() - body2.previous_position.0 + r2
+            - body2.previous_rotation.rotate(self.r2);
         let delta_p = delta_p1 - delta_p2;
         let delta_p_tangent = delta_p - delta_p.dot(normal) * normal;
 
