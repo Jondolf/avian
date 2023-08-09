@@ -138,17 +138,6 @@ impl Default for SubstepCount {
     }
 }
 
-/// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`SubstepCount`] instead, as substepping can provide better convergence, accuracy and energy conservation.
-#[derive(Reflect, Resource)]
-#[reflect(Resource)]
-pub struct IterationCount(pub u32);
-
-impl Default for IterationCount {
-    fn default() -> Self {
-        Self(4)
-    }
-}
-
 /// A list of entity pairs for potential collisions collected during the broad phase.
 #[derive(Reflect, Resource, Default, Debug)]
 #[reflect(Resource)]

@@ -153,7 +153,6 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    num_pos_iters: Res<IterationCount>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     // Clear Lagrange multipliers
@@ -161,37 +160,35 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
         .iter_mut()
         .for_each(|mut c| c.clear_lagrange_multipliers());
 
-    for _j in 0..num_pos_iters.0 {
-        for mut constraint in &mut constraints {
-            // Get components for entities
-            if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
-                let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
-                let all_inactive = bodies
-                    .iter()
-                    .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
+    for mut constraint in &mut constraints {
+        // Get components for entities
+        if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+            let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+            let all_inactive = bodies
+                .iter()
+                .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
 
-                // No constraint solving if none of the bodies is dynamic,
-                // or if all of the bodies are either static or sleeping
-                if none_dynamic || all_inactive {
-                    continue;
-                }
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
 
-                // At least one of the participating bodies is active, so wake up any sleeping bodies
-                for (body, sleeping) in &bodies {
-                    if sleeping.is_some() {
-                        commands.entity(body.entity).remove::<Sleeping>();
-                    }
+            // At least one of the participating bodies is active, so wake up any sleeping bodies
+            for (body, sleeping) in &bodies {
+                if sleeping.is_some() {
+                    commands.entity(body.entity).remove::<Sleeping>();
                 }
+            }
 
-                // Get the bodies as an array and solve the constraint
-                if let Ok(bodies) = bodies
-                    .iter_mut()
-                    .map(|(ref mut body, _)| body)
-                    .collect::<Vec<&mut RigidBodyQueryItem>>()
-                    .try_into()
-                {
-                    constraint.solve(bodies, sub_dt.0);
-                }
+            // Get the bodies as an array and solve the constraint
+            if let Ok(bodies) = bodies
+                .iter_mut()
+                .map(|(ref mut body, _)| body)
+                .collect::<Vec<&mut RigidBodyQueryItem>>()
+                .try_into()
+            {
+                constraint.solve(bodies, sub_dt.0);
             }
         }
     }
