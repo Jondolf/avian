@@ -64,6 +64,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
         inv_inertia
     }
+
+    /// Returns the current position of the body. This is a sum of the [`Position`] and
+    /// [`AccumulatedTranslation`] components.
+    pub fn current_position(&self) -> Vector {
+        self.position.0 + self.accumulated_translation.0
+    }
 }
 
 #[derive(WorldQuery)]
