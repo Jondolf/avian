@@ -301,17 +301,26 @@ pub struct Restitution {
 }
 
 impl Restitution {
-    /// Zero restitution and [`CoefficientCombine::Average`].
-    pub const ZERO: Self = Self {
-        coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
+    /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
+    ///
+    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`](#associatedconstant.PERFECTLY_INELASTIC).
+    pub const ZERO: Self = Self::new(0.0);
+
+    /// A restitution coefficient of 0.0, which corresponds to a perfectly inelastic collision.
+    ///
+    /// Uses [`CoefficientCombine::Average`].
+    pub const PERFECTLY_INELASTIC: Self = Self::new(0.0);
+
+    /// A restitution coefficient of 1.0, which corresponds to a perfectly elastic collision.
+    ///
+    /// Uses [`CoefficientCombine::Average`].
+    pub const PERFECTLY_ELASTIC: Self = Self::new(1.0);
 
     /// Creates a new [`Restitution`] component with the given restitution coefficient.
-    pub fn new(coefficient: Scalar) -> Self {
+    pub const fn new(coefficient: Scalar) -> Self {
         Self {
             coefficient,
-            ..default()
+            combine_rule: CoefficientCombine::Average,
         }
     }
 
