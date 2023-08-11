@@ -44,6 +44,8 @@ pub struct RevoluteJoint {
     pub align_torque: Torque,
     /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit_torque: Torque,
+    /// The joint's motor.
+    pub motor: JointMotor,
 }
 
 impl XpbdConstraint<2> for RevoluteJoint {
@@ -55,6 +57,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
         self.position_lagrange = 0.0;
         self.align_lagrange = 0.0;
         self.angle_limit_lagrange = 0.0;
+        self.motor.lagrange = 0.0;
     }
 
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
@@ -64,8 +67,14 @@ impl XpbdConstraint<2> for RevoluteJoint {
         // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
         let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
         let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_torque =
+            self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
         self.align_lagrange = lagrange;
+
+        // Drive joint motor
+        let mut motor = self.motor;
+        motor.solve([body1, body2], dt);
+        self.motor = motor;
 
         // Align positions
         let mut lagrange = self.position_lagrange;
@@ -109,6 +118,7 @@ impl Joint for RevoluteJoint {
             angle_limit_torque: 0.0,
             #[cfg(feature = "3d")]
             angle_limit_torque: Vector::ZERO,
+            motor: JointMotor::default(),
         }
     }
 
@@ -162,6 +172,11 @@ impl Joint for RevoluteJoint {
 }
 
 impl RevoluteJoint {
+    /// Sets the joint motor.
+    pub fn with_motor(self, motor: JointMotor) -> Self {
+        Self { motor, ..self }
+    }
+
     /// Sets the axis that the bodies should be aligned on.
     #[cfg(feature = "3d")]
     pub fn with_aligned_axis(self, axis: Vector) -> Self {

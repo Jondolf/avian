@@ -85,12 +85,14 @@
 
 mod distance;
 mod fixed;
+mod motor;
 mod prismatic;
 mod revolute;
 mod spherical;
 
 pub use distance::*;
 pub use fixed::*;
+pub use motor::*;
 pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
