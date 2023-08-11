@@ -310,7 +310,7 @@
 //!     h = ∆t / substep_count
 //!
 //!     // Broad phase
-//!     collect_collision_pairs()
+//!     broad_collision_pairs = collect_collision_pairs()
 //!
 //!     for substep_count:
 //!         // Integrate
@@ -326,9 +326,12 @@
 //!             q = q + h * 0.5 * [ω_x, ω_y, ω_z, 0] * q
 //!             q = q / |q|
 //!
-//!         // Solve constraints (1 iteration and many substeps recommended)
-//!         for iteration_count:
-//!             solve_constraints(particles and bodies)
+//!         // Narrow phase
+//!         for pair in broad_collision_pairs:
+//!             compute_contacts(pair)
+//!
+//!         // Solve constraints (contacts, joints etc.)
+//!         solve_constraints(particles and bodies)
 //!
 //!         // Update velocities
 //!         for n particles and bodies:
