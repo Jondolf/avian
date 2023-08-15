@@ -17,7 +17,7 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
-/// An external force applied continuously to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external local force applied continuously to a dynamic [rigid body](RigidBody) during the integration step.
 ///
 /// By default, the force persists across frames. You can clear the force manually using
 /// [`clear`](#method.clear) or set `persistent` to false.
@@ -33,7 +33,7 @@ impl FloatZero for Scalar {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
-///     // Apply a force every physics frame.
+///     // Apply a local force every physics frame.
 ///     commands.spawn((RigidBody::Dynamic, ExternalForce::new(Vec3::Y)));
 ///
 ///     // Apply an initial force and automatically clear it every physics frame.
@@ -100,18 +100,18 @@ impl ExternalForce {
         torque: Torque::ZERO,
     };
 
-    /// Creates a new [`ExternalForce`] component with a given `force`.
+    /// Creates a new [`ExternalForce`] component with a given local `force`.
     pub fn new(force: Vector) -> Self {
         Self { force, ..default() }
     }
 
-    /// Sets the force. Note that the torque caused by any forces will not be reset.
+    /// Sets the local force. Note that the torque caused by any forces will not be reset.
     pub fn set_force(&mut self, force: Vector) -> &mut Self {
         **self = force;
         self
     }
 
-    /// Adds the given `force` to the force that will be applied.
+    /// Adds the given local `force` to the force that will be applied.
     pub fn apply_force(&mut self, force: Vector) -> &mut Self {
         **self += force;
         self
@@ -136,7 +136,7 @@ impl ExternalForce {
         self
     }
 
-    /// Returns the force.
+    /// Returns the force in the local reference frame of the body.
     pub fn force(&self) -> Vector {
         self.force
     }
@@ -269,7 +269,7 @@ impl ExternalTorque {
     }
 }
 
-/// An external impulse applied instantly to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external local impulse applied instantly to a dynamic [rigid body](RigidBody) during the integration step.
 ///
 /// By default, the impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
@@ -285,7 +285,7 @@ impl ExternalTorque {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
-///     // Apply an impulse.
+///     // Apply a local impulse.
 ///     commands.spawn((RigidBody::Dynamic, ExternalImpulse::new(Vec3::Y)));
 ///
 ///     // Apply an impulse every physics frame.
@@ -352,7 +352,7 @@ impl ExternalImpulse {
         angular_impulse: Torque::ZERO,
     };
 
-    /// Creates a new [`ExternalImpulse`] component with a given `impulse`.
+    /// Creates a new [`ExternalImpulse`] component with a given local `impulse`.
     pub fn new(impulse: Vector) -> Self {
         Self {
             impulse,
@@ -360,13 +360,13 @@ impl ExternalImpulse {
         }
     }
 
-    /// Sets the impulse. Note that the angular impulse caused by any impulses will not be reset.
+    /// Sets the local impulse. Note that the angular impulse caused by any impulses will not be reset.
     pub fn set_impulse(&mut self, impulse: Vector) -> &mut Self {
         **self = impulse;
         self
     }
 
-    /// Adds the given `impulse` to the impulse that will be applied.
+    /// Adds the given local `impulse` to the impulse that will be applied.
     pub fn apply_impulse(&mut self, impulse: Vector) -> &mut Self {
         **self += impulse;
         self
@@ -391,7 +391,7 @@ impl ExternalImpulse {
         self
     }
 
-    /// Returns the impulse.
+    /// Returns the impulse in the local reference frame of the body.
     pub fn impulse(&self) -> Vector {
         self.impulse
     }
