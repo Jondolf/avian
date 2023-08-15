@@ -102,7 +102,7 @@ impl Inertia {
             let matrix = Matrix3::from(self.0);
             let offset = Vector::from(offset);
             let diagonal_el = offset.norm_squared();
-            let diagonal_mat = parry::na::Matrix3::from_diagonal_element(diagonal_el);
+            let diagonal_mat = Matrix3::from_diagonal_element(diagonal_el);
             math::Matrix3::from(matrix + (diagonal_mat + offset * offset.transpose()) * mass)
         } else {
             self.0
