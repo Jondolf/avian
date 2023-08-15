@@ -93,20 +93,51 @@ pub(crate) struct ColliderQuery {
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
-        self.mass.0 += rhs.mass.0;
+        let total_mass = self.mass.0 + rhs.mass.0;
+
+        if total_mass <= 0.0 {
+            return;
+        }
+
+        let com1 = self.center_of_mass.0;
+        let com2 = rhs.center_of_mass.0;
+
+        // Compute the combined center of mass and combined inertia tensor
+        let new_com = (com1 * self.mass.0 + com2 * rhs.mass.0) / total_mass;
+        let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
+        let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
+        let new_inertia = i1 + i2;
+
+        // Update mass properties
+        self.mass.0 = total_mass;
         self.inverse_mass.0 = 1.0 / self.mass.0;
-        self.inertia.0 += rhs.inertia.0;
+        self.inertia.0 = new_inertia;
         self.inverse_inertia.0 = self.inertia.inverse().0;
-        self.center_of_mass.0 += rhs.center_of_mass.0;
+        self.center_of_mass.0 = new_com;
     }
 }
 
 impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
-        self.mass.0 -= rhs.mass.0;
+        if self.mass.0 + rhs.mass.0 <= 0.0 {
+            return;
+        }
+
+        let new_mass = (self.mass.0 - rhs.mass.0).max(0.0);
+        let com1 = self.center_of_mass.0;
+        let com2 = rhs.center_of_mass.0;
+
+        // Compute the combined center of mass and combined inertia tensor
+        let new_com = (com1 * self.mass.0 - com2 * rhs.mass.0) / new_mass;
+        let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
+        let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
+        let new_inertia = i1 - i2;
+
+        // Update mass properties
+        self.mass.0 = new_mass;
         self.inverse_mass.0 = 1.0 / self.mass.0;
-        self.inertia.0 -= rhs.inertia.0;
+        self.inertia.0 = new_inertia;
         self.inverse_inertia.0 = self.inertia.inverse().0;
-        self.center_of_mass.0 -= rhs.center_of_mass.0;
+        self.center_of_mass.0 = new_com;
     }
 }
