@@ -81,7 +81,7 @@ impl Inertia {
         InverseInertia(self.0.inverse())
     }
 
-    /// Shifts the inertia a body with a given mass by the given offset.
+    /// Computes the inertia of a body with the given mass, shifted by the given offset.
     #[cfg(feature = "2d")]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Scalar {
         if mass > 0.0 && mass.is_finite() {
@@ -91,7 +91,7 @@ impl Inertia {
         }
     }
 
-    /// Shifts the inertia tensor pf a body with a given mass by the given offset.
+    /// Computes the inertia of a body with the given mass, shifted by the given offset.
     #[cfg(feature = "3d")]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
         use parry::na::*;
