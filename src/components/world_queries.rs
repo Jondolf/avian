@@ -231,28 +231,21 @@ mod tests {
         );
     }
 
-    // Todo: Test if inertia values are correct
     #[test]
-    fn mass_properties_add_sub_equals_original() {
+    fn mass_properties_add_sub_works() {
         // Create app
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
 
-        // Spawn an entity with mass properties
-        app.world.spawn(MassPropertiesBundle {
-            mass: Mass(1.6),
-            inverse_mass: InverseMass(1.0 / 1.6),
-            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
-        });
+        let original_mass_props =
+            MassPropertiesBundle::new_computed(&Collider::capsule(2.4, 0.6), 3.9);
 
-        // Create collider mass properties that will be subtracted from the existing mass properties
-        let collider_mass_props = ColliderMassProperties {
-            mass: Mass(1.6),
-            inverse_mass: InverseMass(1.0 / 1.6),
-            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
-        };
+        // Spawn an entity with mass properties
+        app.world.spawn(original_mass_props.clone());
+
+        // Create collider mass properties
+        let collider_mass_props =
+            ColliderMassProperties::new_computed(&Collider::capsule(7.4, 2.1), 14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world.query::<MassPropertiesQuery>();
@@ -261,8 +254,30 @@ mod tests {
         mass_props -= collider_mass_props;
 
         // Test if values are correct. They should be equal to the original values.
-        assert_eq!(mass_props.mass.0, 1.6);
-        assert_eq!(mass_props.inverse_mass.0, 1.0 / 1.6);
-        assert_eq!(mass_props.center_of_mass.0, Vector::X * 1.2 + Vector::Y);
+        assert_relative_eq!(
+            mass_props.mass.0,
+            original_mass_props.mass.0,
+            epsilon = 0.000_001
+        );
+        assert_relative_eq!(
+            mass_props.inverse_mass.0,
+            original_mass_props.inverse_mass.0,
+            epsilon = 0.000_001
+        );
+        assert_relative_eq!(
+            mass_props.inertia.0,
+            original_mass_props.inertia.0,
+            epsilon = 0.000_001
+        );
+        assert_relative_eq!(
+            mass_props.inverse_inertia.0,
+            original_mass_props.inverse_inertia.0,
+            epsilon = 0.000_001
+        );
+        assert_relative_eq!(
+            mass_props.center_of_mass.0,
+            original_mass_props.center_of_mass.0,
+            epsilon = 0.000_001
+        );
     }
 }
