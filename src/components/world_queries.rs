@@ -145,3 +145,124 @@ impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         self.center_of_mass.0 = new_com;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::prelude::*;
+    use approx::assert_relative_eq;
+    use bevy::prelude::*;
+
+    // Todo: Test if inertia values are correct
+    #[test]
+    fn mass_properties_add_assign_works() {
+        // Create app
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        // Spawn an entity with mass properties
+        app.world.spawn(MassPropertiesBundle {
+            mass: Mass(1.6),
+            inverse_mass: InverseMass(1.0 / 1.6),
+            center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
+            ..default()
+        });
+
+        // Create collider mass properties that will be added to the existing mass properties
+        let collider_mass_props = ColliderMassProperties {
+            mass: Mass(8.1),
+            inverse_mass: InverseMass(1.0 / 8.1),
+            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
+            ..default()
+        };
+
+        // Get the mass properties and add the collider mass properties
+        let mut query = app.world.query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(&mut app.world);
+        mass_props += collider_mass_props;
+
+        // Test if values are correct
+        // (reference values were calculated by hand)
+        assert_eq!(mass_props.mass.0, 9.7);
+        assert_eq!(mass_props.inverse_mass.0, 1.0 / 9.7);
+        assert_relative_eq!(
+            mass_props.center_of_mass.0,
+            Vector::X * 0.375_257 + Vector::Y * 0.835_051,
+            epsilon = 0.000_001
+        );
+    }
+
+    // Todo: Test if inertia values are correct
+    #[test]
+    fn mass_properties_sub_assign_works() {
+        // Create app
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        // Spawn an entity with mass properties
+        app.world.spawn(MassPropertiesBundle {
+            mass: Mass(8.1),
+            inverse_mass: InverseMass(1.0 / 8.1),
+            center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
+            ..default()
+        });
+
+        // Create collider mass properties that will be subtracted from the existing mass properties
+        let collider_mass_props = ColliderMassProperties {
+            mass: Mass(1.6),
+            inverse_mass: InverseMass(1.0 / 1.6),
+            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
+            ..default()
+        };
+
+        // Get the mass properties and subtract the collider mass properties
+        let mut query = app.world.query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(&mut app.world);
+        mass_props -= collider_mass_props;
+
+        // Test if values are correct.
+        // The reference values were calculated by hand.
+        // The center of mass is computed as: (com1 * mass1 - com2 * mass2) / (mass1 - mass2).max(0.0)
+        assert_eq!(mass_props.mass.0, 6.5);
+        assert_eq!(mass_props.inverse_mass.0, 1.0 / 6.5);
+        assert_relative_eq!(
+            mass_props.center_of_mass.0,
+            Vector::NEG_X * 5.030_769 + Vector::NEG_Y * 0.246_153,
+            epsilon = 0.000_001
+        );
+    }
+
+    // Todo: Test if inertia values are correct
+    #[test]
+    fn mass_properties_add_sub_equals_original() {
+        // Create app
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+
+        // Spawn an entity with mass properties
+        app.world.spawn(MassPropertiesBundle {
+            mass: Mass(1.6),
+            inverse_mass: InverseMass(1.0 / 1.6),
+            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
+            ..default()
+        });
+
+        // Create collider mass properties that will be subtracted from the existing mass properties
+        let collider_mass_props = ColliderMassProperties {
+            mass: Mass(1.6),
+            inverse_mass: InverseMass(1.0 / 1.6),
+            center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
+            ..default()
+        };
+
+        // Get the mass properties and then add and subtract the collider mass properties
+        let mut query = app.world.query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(&mut app.world);
+        mass_props += collider_mass_props;
+        mass_props -= collider_mass_props;
+
+        // Test if values are correct. They should be equal to the original values.
+        assert_eq!(mass_props.mass.0, 1.6);
+        assert_eq!(mass_props.inverse_mass.0, 1.0 / 1.6);
+        assert_eq!(mass_props.center_of_mass.0, Vector::X * 1.2 + Vector::Y);
+    }
+}
