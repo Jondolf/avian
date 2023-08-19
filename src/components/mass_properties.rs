@@ -94,15 +94,14 @@ impl Inertia {
     /// Computes the inertia of a body with the given mass, shifted by the given offset.
     #[cfg(feature = "3d")]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+        type NaMatrix3 = parry::na::Matrix3<math::Scalar>;
         use parry::na::*;
-        #[cfg(feature = "f64")]
-        type Matrix3 = parry::na::DMatrix<Scalar, Const<3>, Const<3>, ArrayStorage<Scalar, 3, 3>>;
 
         if mass > 0.0 && mass.is_finite() {
-            let matrix = Matrix3::from(self.0);
+            let matrix = NaMatrix3::from(self.0);
             let offset = Vector::from(offset);
             let diagonal_el = offset.norm_squared();
-            let diagonal_mat = Matrix3::from_diagonal_element(diagonal_el);
+            let diagonal_mat = NaMatrix3::from_diagonal_element(diagonal_el);
             math::Matrix3::from(matrix + (diagonal_mat + offset * offset.transpose()) * mass)
         } else {
             self.0
