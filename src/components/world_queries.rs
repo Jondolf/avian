@@ -93,9 +93,9 @@ pub(crate) struct ColliderQuery {
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
-        let total_mass = self.mass.0 + rhs.mass.0;
+        let new_mass = self.mass.0 + rhs.mass.0;
 
-        if total_mass <= 0.0 {
+        if new_mass <= 0.0 {
             return;
         }
 
@@ -103,13 +103,13 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         let com2 = rhs.center_of_mass.0;
 
         // Compute the combined center of mass and combined inertia tensor
-        let new_com = (com1 * self.mass.0 + com2 * rhs.mass.0) / total_mass;
+        let new_com = (com1 * self.mass.0 + com2 * rhs.mass.0) / new_mass;
         let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
         let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
         let new_inertia = i1 + i2;
 
         // Update mass properties
-        self.mass.0 = total_mass;
+        self.mass.0 = new_mass;
         self.inverse_mass.0 = 1.0 / self.mass.0;
         self.inertia.0 = new_inertia;
         self.inverse_inertia.0 = self.inertia.inverse().0;
@@ -128,7 +128,11 @@ impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         let com2 = rhs.center_of_mass.0;
 
         // Compute the combined center of mass and combined inertia tensor
-        let new_com = (com1 * self.mass.0 - com2 * rhs.mass.0) / new_mass;
+        let new_com = if new_mass > Scalar::EPSILON {
+            (com1 * self.mass.0 - com2 * rhs.mass.0) / new_mass
+        } else {
+            com1
+        };
         let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
         let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
         let new_inertia = i1 - i2;
