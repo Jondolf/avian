@@ -116,7 +116,6 @@ impl Plugin for PhysicsSetupPlugin {
         );
 
         // Check and store if schedule is configured to run in FixedUpdate.
-
         let fixed_update = schedule.inner_type_id() == FixedUpdate::inner_type_id(&FixedUpdate);
 
         app.insert_resource(PhysicsLoop {
@@ -228,21 +227,19 @@ fn run_physics_schedule(world: &mut World) {
         .remove_resource::<PhysicsLoop>()
         .expect("no PhysicsLoop resource");
 
-    let delta_seconds;
-
     #[cfg(feature = "f32")]
-    if physics_loop.fixed_update {
-        delta_seconds = world.resource::<FixedTime>().period.as_secs_f32();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f32()
     } else {
-        delta_seconds = world.resource::<Time>().delta_seconds();
-    }
+        world.resource::<Time>().delta_seconds()
+    };
 
     #[cfg(feature = "f64")]
-    if physics_loop.fixed_update {
-        delta_seconds = world.resource::<FixedTime>().period.as_secs_f64();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f64()
     } else {
-        delta_seconds = world.resource::<Time>().delta_seconds_f64();
-    }
+        world.resource::<Time>().delta_seconds_f64()
+    };
 
     let time_step = *world.resource::<PhysicsTimestep>();
     let time_scale = world.resource::<PhysicsTimescale>().0;
