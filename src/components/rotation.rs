@@ -101,6 +101,11 @@ impl Rotation {
         }
     }
 
+    /// Creates a [`Rotation`] from the sine and cosine of an angle in radians.
+    pub fn from_sin_cos(sin: Scalar, cos: Scalar) -> Self {
+        Self { sin, cos }
+    }
+
     /// Creates a [`Rotation`] from degrees.
     pub fn from_degrees(degrees: Scalar) -> Self {
         Self::from_radians(degrees.to_radians())
