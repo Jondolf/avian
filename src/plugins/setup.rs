@@ -60,7 +60,6 @@ impl Plugin for PhysicsSetupPlugin {
             .init_resource::<BroadCollisionPairs>()
             .init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
-            .init_resource::<PhysicsLoop>()
             .init_resource::<Gravity>()
             .register_type::<PhysicsTimestep>()
             .register_type::<DeltaTime>()
@@ -115,6 +114,14 @@ impl Plugin for PhysicsSetupPlugin {
                 .chain()
                 .before(TransformSystem::TransformPropagate),
         );
+
+        // Check and store if schedule is configured to run in FixedUpdate.
+        let fixed_update = schedule.inner_type_id() == FixedUpdate::inner_type_id(&FixedUpdate);
+
+        app.insert_resource(PhysicsLoop {
+            fixed_update,
+            ..Default::default()
+        });
 
         // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::default();
@@ -183,6 +190,8 @@ pub struct PhysicsLoop {
     pub(crate) accumulator: Scalar,
     /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
     pub(crate) queued_steps: u32,
+    /// If [`PhysicsSchedule`] runs in [`FixedUpdate`]. Determines the delta time for the simulation.
+    pub(crate) fixed_update: bool,
     /// Determines if the simulation is paused.
     pub paused: bool,
 }
@@ -219,9 +228,18 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let delta_seconds = world.resource::<Time>().delta_seconds();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f32()
+    } else {
+        world.resource::<Time>().delta_seconds()
+    };
+
     #[cfg(feature = "f64")]
-    let delta_seconds = world.resource::<Time>().delta_seconds_f64();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f64()
+    } else {
+        world.resource::<Time>().delta_seconds_f64()
+    };
 
     let time_step = *world.resource::<PhysicsTimestep>();
     let time_scale = world.resource::<PhysicsTimescale>().0;
