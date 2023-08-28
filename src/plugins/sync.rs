@@ -245,7 +245,7 @@ fn position_to_transform(
                 // The new local transform of the child body,
                 // computed from the its global transform and its parents global transform
                 let new_transform = GlobalTransform::from(
-                    Transform::from_translation(pos.as_f32().extend(transform.translation.z))
+                    Transform::from_translation(pos.as_f32().extend(0.0))
                         .with_rotation(Quaternion::from(*rot).as_f32()),
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
