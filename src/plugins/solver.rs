@@ -5,7 +5,7 @@
 
 use crate::{
     prelude::*,
-    utils::{get_dynamic_friction, get_restitution},
+    utils::{compute_dynamic_friction, compute_restitution},
 };
 use bevy::prelude::*;
 use constraints::penetration::PenetrationConstraint;
@@ -344,7 +344,7 @@ fn solve_vel(
             let mut p = Vector::ZERO;
 
             // Compute restitution
-            let restitution_speed = get_restitution(
+            let restitution_speed = compute_restitution(
                 normal_speed,
                 pre_solve_normal_speed,
                 body1.restitution.combine(*body2.restitution).coefficient,
@@ -362,7 +362,7 @@ fn solve_vel(
                 let tangent_dir = tangent_vel / tangent_speed;
                 let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent_dir);
                 let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent_dir);
-                let friction_impulse = get_dynamic_friction(
+                let friction_impulse = compute_dynamic_friction(
                     tangent_speed,
                     w1 + w2,
                     body1.friction.combine(*body2.friction).dynamic_coefficient,

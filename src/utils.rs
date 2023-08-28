@@ -22,32 +22,33 @@ pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternio
     (rot_mat3 * inertia_tensor) * rot_mat3.transpose()
 }
 
-/// Calculates impulse magnitude correction caused by dynamic friction.
-pub(crate) fn get_dynamic_friction(
+/// Computes the magnitude of the impulse caused by dynamic friction.
+pub(crate) fn compute_dynamic_friction(
     tangent_speed: Scalar,
-    generalized_mass_sum: Scalar,
+    generalized_inv_mass_sum: Scalar,
     coefficient: Scalar,
     normal_lagrange: Scalar,
     sub_dt: Scalar,
 ) -> Scalar {
     let normal_impulse = normal_lagrange / sub_dt;
 
-    // Velocity update caused by dynamic friction, never exceeds the magnitude of the tangential velocity itself
-    -(coefficient * normal_impulse.abs()).min(tangent_speed / generalized_mass_sum)
+    // Compute impulse caused by dynamic friction, clamped to never exceed the tangential speed.
+    // Note: This is handled differently from the XPBD paper because it treated mass incorrectly.
+    -(coefficient * normal_impulse.abs()).min(tangent_speed / generalized_inv_mass_sum)
 }
 
-/// Calculates speed correction caused by restitution.
-pub(crate) fn get_restitution(
-    normal_vel: Scalar,
-    pre_solve_normal_vel: Scalar,
+/// Computes the speed correction caused by restitution.
+pub(crate) fn compute_restitution(
+    normal_speed: Scalar,
+    pre_solve_normal_speed: Scalar,
     mut coefficient: Scalar,
     gravity: Vector,
     sub_dt: Scalar,
 ) -> Scalar {
     // If normal velocity is small enough, use restitution of 0 to avoid jittering
-    if normal_vel.abs() <= 2.0 * gravity.length() * sub_dt {
+    if normal_speed.abs() <= 2.0 * gravity.length() * sub_dt {
         coefficient = 0.0;
     }
 
-    -normal_vel + (-coefficient * pre_solve_normal_vel).min(0.0)
+    -normal_speed + (-coefficient * pre_solve_normal_speed).min(0.0)
 }
