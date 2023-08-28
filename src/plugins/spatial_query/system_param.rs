@@ -266,7 +266,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         solid: bool,
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(RayHitData) -> bool,
-    ) -> Vec<RayHitData> {
+    ) {
         self.query_pipeline.ray_hits_callback(
             origin,
             direction,
@@ -473,7 +473,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(ShapeHitData) -> bool,
-    ) -> Vec<ShapeHitData> {
+    ) {
         self.query_pipeline.shape_hits_callback(
             shape,
             origin,
@@ -604,7 +604,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         point: Vector,
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
+    ) {
         self.query_pipeline
             .point_intersections_callback(point, query_filter, callback)
     }
@@ -669,7 +669,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         aabb: ColliderAabb,
         callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
+    ) {
         self.query_pipeline
             .aabb_intersections_with_aabb_callback(aabb, callback)
     }
@@ -766,7 +766,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
+    ) {
         self.query_pipeline.shape_intersections_callback(
             shape,
             shape_position,

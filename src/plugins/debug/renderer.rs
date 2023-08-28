@@ -205,7 +205,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
             }
             TypedShape::Compound(s) => {
                 for (sub_pos, shape) in s.shapes() {
-                    let pos = Position(position.0 + Vector::from(sub_pos.translation));
+                    let pos = Position(position.0 + rotation.rotate(sub_pos.translation.into()));
                     #[cfg(feature = "2d")]
                     let rot = *rotation + Rotation::from_radians(sub_pos.rotation.angle());
                     #[cfg(feature = "3d")]

@@ -76,7 +76,7 @@ fn setup(
         Collider::cuboid(50.0, 50.0 * 11.0),
     ));
 
-    let marble_radius = 7.5;
+    let marble_radius = 5.0;
     let marble_mesh = MaterialMesh2dBundle {
         mesh: meshes
             .add(shape::Circle::new(marble_radius as f32).into())
@@ -86,8 +86,8 @@ fn setup(
     };
 
     // Spawn stacks of marbles
-    for x in -12..12 {
-        for y in -10..10 {
+    for x in -20..20 {
+        for y in -19..19 {
             let position = Vector::new(
                 x as Scalar * (2.5 * marble_radius),
                 y as Scalar * (2.5 * marble_radius),

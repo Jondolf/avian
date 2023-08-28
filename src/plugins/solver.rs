@@ -4,7 +4,6 @@
 //! See [`SolverPlugin`].
 
 use crate::{
-    collision::*,
     prelude::*,
     utils::{get_dynamic_friction, get_restitution},
 };
@@ -34,10 +33,7 @@ pub struct SolverPlugin;
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PenetrationConstraints>()
-            .add_event::<Collision>()
-            .add_event::<CollisionStarted>()
-            .add_event::<CollisionEnded>();
+        app.init_resource::<PenetrationConstraints>();
 
         let substeps = app
             .get_schedule_mut(SubstepSchedule)
@@ -50,6 +46,7 @@ impl Plugin for SolverPlugin {
                 solve_constraint::<RevoluteJoint, 2>,
                 solve_constraint::<SphericalJoint, 2>,
                 solve_constraint::<PrismaticJoint, 2>,
+                solve_constraint::<DistanceJoint, 2>,
             )
                 .chain()
                 .in_set(SubstepSet::SolveConstraints),
@@ -64,6 +61,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<RevoluteJoint>,
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
+                joint_damping::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SubstepSet::SolveVelocities),
@@ -82,41 +80,21 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 #[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(
-        RigidBodyQuery,
-        &Collider,
-        Option<&Sensor>,
-        Option<&CollisionLayers>,
-        Option<&mut CollidingEntities>,
-        Option<&Sleeping>,
-    )>,
-    broad_collision_pairs: Res<BroadCollisionPairs>,
+    mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    mut collision_ev_writer: EventWriter<Collision>,
-    mut collision_started_ev_writer: EventWriter<CollisionStarted>,
-    mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+    collisions: Res<Collisions>,
     sub_dt: Res<SubDeltaTime>,
 ) {
-    let mut collision_events = Vec::with_capacity(broad_collision_pairs.0.len());
-    let mut started_collisions = Vec::new();
-    let mut ended_collisions = Vec::new();
-
     penetration_constraints.0.clear();
 
-    for (ent1, ent2) in broad_collision_pairs.0.iter() {
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*ent1, *ent2]) {
-            let (mut body1, collider1, sensor1, layers1, mut colliding_entities1, sleeping1) =
-                bundle1;
-            let (mut body2, collider2, sensor2, layers2, mut colliding_entities2, sleeping2) =
-                bundle2;
-
-            let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
-            let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
-
-            // Skip collision if collision layers are incompatible
-            if !layers1.interacts_with(layers2) {
-                continue;
-            }
+    for ((entity1, entity2), contacts) in collisions
+        .0
+        .iter()
+        .filter(|(_, contacts)| contacts.during_current_substep)
+    {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
+            let (mut body1, sensor1, sleeping1) = bundle1;
+            let (mut body2, sensor2, sleeping2) = bundle2;
 
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
@@ -126,75 +104,25 @@ fn penetration_constraints(
                 continue;
             }
 
-            let contacts = compute_contacts(
-                *ent1,
-                *ent2,
-                body1.position.0 + body1.accumulated_translation.0,
-                body2.position.0 + body2.accumulated_translation.0,
-                &body1.rotation,
-                &body2.rotation,
-                collider1,
-                collider2,
-            );
-
-            if !contacts.manifolds.is_empty() {
-                let mut collision_started_1 = false;
-                let mut collision_started_2 = false;
-
-                // Add entity to set of colliding entities
-                if let Some(ref mut entities) = colliding_entities1 {
-                    collision_started_1 = entities.insert(*ent2);
-                }
-                if let Some(ref mut entities) = colliding_entities2 {
-                    collision_started_2 = entities.insert(*ent1);
-                }
-
-                if collision_started_1 || collision_started_2 {
-                    started_collisions.push(CollisionStarted(*ent1, *ent2));
-                }
-
+            // Create and solve constraint if both colliders are solid
+            if sensor1.is_none() && sensor2.is_none() {
                 // When an active body collides with a sleeping body, wake up the sleeping body
                 if sleeping1.is_some() {
-                    commands.entity(*ent1).remove::<Sleeping>();
+                    commands.entity(*entity1).remove::<Sleeping>();
                 } else if sleeping2.is_some() {
-                    commands.entity(*ent2).remove::<Sleeping>();
+                    commands.entity(*entity2).remove::<Sleeping>();
                 }
 
-                // Create and solve constraint if both colliders are solid
-                if sensor1.is_none() && sensor2.is_none() {
-                    for contact_manifold in contacts.manifolds.iter() {
-                        for contact in contact_manifold.contacts.iter() {
-                            let mut constraint =
-                                PenetrationConstraint::new(&body1, &body2, *contact);
-                            constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                            penetration_constraints.0.push(constraint);
-                        }
+                for contact_manifold in contacts.manifolds.iter() {
+                    for contact in contact_manifold.contacts.iter() {
+                        let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
+                        constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                        penetration_constraints.0.push(constraint);
                     }
-                }
-
-                collision_events.push(Collision(contacts));
-            } else {
-                let mut collision_ended_1 = false;
-                let mut collision_ended_2 = false;
-
-                // Remove entity from set of colliding entities
-                if let Some(mut entities) = colliding_entities1 {
-                    collision_ended_1 = entities.remove(ent2);
-                }
-                if let Some(mut entities) = colliding_entities2 {
-                    collision_ended_2 = entities.remove(ent1);
-                }
-
-                if collision_ended_1 || collision_ended_2 {
-                    ended_collisions.push(CollisionEnded(*ent1, *ent2));
                 }
             }
         }
     }
-
-    collision_ev_writer.send_batch(collision_events);
-    collision_started_ev_writer.send_batch(started_collisions);
-    collision_ended_ev_writer.send_batch(ended_collisions);
 }
 
 /// Iterates through the constraints of a given type and solves them. Sleeping bodies are woken up when
@@ -225,7 +153,6 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    num_pos_iters: Res<IterationCount>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     // Clear Lagrange multipliers
@@ -233,37 +160,35 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
         .iter_mut()
         .for_each(|mut c| c.clear_lagrange_multipliers());
 
-    for _j in 0..num_pos_iters.0 {
-        for mut constraint in &mut constraints {
-            // Get components for entities
-            if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
-                let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
-                let all_inactive = bodies
-                    .iter()
-                    .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
+    for mut constraint in &mut constraints {
+        // Get components for entities
+        if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+            let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+            let all_inactive = bodies
+                .iter()
+                .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
 
-                // No constraint solving if none of the bodies is dynamic,
-                // or if all of the bodies are either static or sleeping
-                if none_dynamic || all_inactive {
-                    continue;
-                }
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
 
-                // At least one of the participating bodies is active, so wake up any sleeping bodies
-                for (body, sleeping) in &bodies {
-                    if sleeping.is_some() {
-                        commands.entity(body.entity).remove::<Sleeping>();
-                    }
+            // At least one of the participating bodies is active, so wake up any sleeping bodies
+            for (body, sleeping) in &bodies {
+                if sleeping.is_some() {
+                    commands.entity(body.entity).remove::<Sleeping>();
                 }
+            }
 
-                // Get the bodies as an array and solve the constraint
-                if let Ok(bodies) = bodies
-                    .iter_mut()
-                    .map(|(ref mut body, _)| body)
-                    .collect::<Vec<&mut RigidBodyQueryItem>>()
-                    .try_into()
-                {
-                    constraint.solve(bodies, sub_dt.0);
-                }
+            // Get the bodies as an array and solve the constraint
+            if let Ok(bodies) = bodies
+                .iter_mut()
+                .map(|(ref mut body, _)| body)
+                .collect::<Vec<&mut RigidBodyQueryItem>>()
+                .try_into()
+            {
+                constraint.solve(bodies, sub_dt.0);
             }
         }
     }

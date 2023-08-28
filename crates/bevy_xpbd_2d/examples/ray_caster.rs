@@ -35,16 +35,16 @@ fn setup(
 
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(radius as f32).into()).into(),
+                    mesh: meshes.add(shape::Circle::new(radius).into()).into(),
                     material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
+                    transform: Transform::from_xyz(
+                        x as f32 * radius * 3.0,
+                        y as f32 * radius * 3.0,
+                        0.0,
+                    ),
                     ..default()
                 },
-                RigidBody::Kinematic,
-                Position(Vector::new(
-                    x as Scalar * radius * 3.0,
-                    y as Scalar * radius * 3.0,
-                )),
-                Collider::ball(radius),
+                Collider::ball(radius as Scalar),
             ));
         }
     }

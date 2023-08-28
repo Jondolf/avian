@@ -1,10 +1,11 @@
 # Bevy XPBD
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
-[![2D crates.io](https://img.shields.io/crates/v/bevy_xpbd_2d)](https://crates.io/crates/bevy_xpbd_2d)
-[![2D docs.rs](https://docs.rs/bevy_xpbd_2d/badge.svg)](https://docs.rs/bevy_xpbd_2d)
-[![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d)](https://crates.io/crates/bevy_xpbd_3d)
-[![3D docs.rs](https://docs.rs/bevy_xpbd_3d/badge.svg)](https://docs.rs/bevy_xpbd_3d)
+[![ci](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml)
+[![2D crates.io](https://img.shields.io/crates/v/bevy_xpbd_2d?label=2D%20crates.io)](https://crates.io/crates/bevy_xpbd_2d)
+[![2D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_2d?label=2D%20docs.rs)](https://docs.rs/bevy_xpbd_2d)
+[![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d?label=3D%20crates.io)](https://crates.io/crates/bevy_xpbd_3d)
+[![3D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_3d?label=3D%20docs.rs)](https://docs.rs/bevy_xpbd_3d)
 
 **Bevy XPBD** is a 2D and 3D physics engine based on *Extended Position Based Dynamics* (XPBD)
 for the [Bevy game engine](https://bevyengine.org/).

@@ -85,7 +85,7 @@ use derive_more::From;
 /// Note that the mass properties of colliders are added on top of the existing mass properties, so if you
 /// want to define the body's mass properties explicitly, you might want to add
 /// [`ColliderMassProperties::ZERO`](ColliderMassProperties#associatedconstant.ZERO) to the colliders.
-#[derive(Reflect, Default, Clone, Copy, Component, PartialEq, Eq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
@@ -252,11 +252,14 @@ pub enum CoefficientCombine {
     Max = 4,
 }
 
-/// Controls how elastic or bouncy an entity is when colliding with other entities.
+/// A component for the [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
+/// This controls how bouncy a body is.
 ///
-/// 0.0: Perfectly inelastic\
-/// 1.0: Perfectly elastic\
-/// 2.0: Kinetic energy is doubled
+/// The coefficient is between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
+/// to a **perfectly elastic collision** that preserves all kinetic energy. The default coefficient is 0.3, and it currently
+/// can not be configured at a global level.
+///
+/// When two bodies collide, their restitution coefficients are combined using the specified [`CoefficientCombine`] rule.
 ///
 /// ## Example
 ///
@@ -289,27 +292,50 @@ pub enum CoefficientCombine {
 ///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
 /// );
 /// ```
+#[doc(alias = "Bounciness")]
+#[doc(alias = "Elasticity")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[reflect(Component)]
 pub struct Restitution {
-    /// Coefficient of restitution.
+    /// The [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
+    ///
+    /// This should be between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
+    /// to a **perfectly elastic collision** that preserves all kinetic energy. The default value is 0.3.
     pub coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies interact.
+    /// The coefficient combine rule used when two bodies collide.
     pub combine_rule: CoefficientCombine,
 }
 
 impl Restitution {
-    /// Zero restitution and [`CoefficientCombine::Average`].
+    /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
+    ///
+    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`](#associatedconstant.PERFECTLY_INELASTIC).
     pub const ZERO: Self = Self {
         coefficient: 0.0,
+        combine_rule: CoefficientCombine::Average,
+    };
+
+    /// A restitution coefficient of 0.0, which corresponds to a perfectly inelastic collision.
+    ///
+    /// Uses [`CoefficientCombine::Average`].
+    pub const PERFECTLY_INELASTIC: Self = Self {
+        coefficient: 0.0,
+        combine_rule: CoefficientCombine::Average,
+    };
+
+    /// A restitution coefficient of 1.0, which corresponds to a perfectly elastic collision.
+    ///
+    /// Uses [`CoefficientCombine::Average`].
+    pub const PERFECTLY_ELASTIC: Self = Self {
+        coefficient: 1.0,
         combine_rule: CoefficientCombine::Average,
     };
 
     /// Creates a new [`Restitution`] component with the given restitution coefficient.
     pub fn new(coefficient: Scalar) -> Self {
         Self {
-            coefficient,
-            ..default()
+            coefficient: coefficient.clamp(0.0, 1.0),
+            combine_rule: CoefficientCombine::Average,
         }
     }
 
@@ -411,7 +437,7 @@ pub struct Friction {
     pub dynamic_coefficient: Scalar,
     /// Coefficient of static friction.
     pub static_coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies interact.
+    /// The coefficient combine rule used when two bodies collide.
     pub combine_rule: CoefficientCombine,
 }
 
@@ -525,6 +551,13 @@ pub struct AngularDamping(pub Scalar);
 mod tests {
     use crate::prelude::*;
     use approx::assert_relative_eq;
+
+    #[test]
+    fn restitution_clamping_works() {
+        assert_eq!(Restitution::new(-2.0).coefficient, 0.0);
+        assert_eq!(Restitution::new(0.6).coefficient, 0.6);
+        assert_eq!(Restitution::new(3.0).coefficient, 1.0);
+    }
 
     #[test]
     fn coefficient_combine_works() {

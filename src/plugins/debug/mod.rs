@@ -68,6 +68,7 @@ impl Plugin for PhysicsDebugPlugin {
                     // Todo: Refactor joints to allow iterating over all of them without generics
                     debug_render_joints::<FixedJoint>,
                     debug_render_joints::<PrismaticJoint>,
+                    debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
                     change_mesh_visibility,
@@ -79,33 +80,38 @@ impl Plugin for PhysicsDebugPlugin {
 }
 
 fn debug_render_axes(
-    bodies: Query<(&Position, &Rotation, Option<&DebugRender>)>,
+    bodies: Query<(&Position, &Rotation, &CenterOfMass, Option<&DebugRender>)>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
-    for (pos, rot, render_config) in &bodies {
+    for (pos, rot, local_com, render_config) in &bodies {
         if let Some(lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
+            let global_com = pos.0 + rot.rotate(local_com.0);
             let x = rot.rotate(Vector::X * lengths.x);
-            debug_renderer.draw_line(pos.0 - x, pos.0 + x, Color::hsl(0.0, 1.0, 0.5));
+            debug_renderer.draw_line(global_com - x, global_com + x, Color::hsl(0.0, 1.0, 0.5));
 
             let y = rot.rotate(Vector::Y * lengths.y);
-            debug_renderer.draw_line(pos.0 - y, pos.0 + y, Color::hsl(120.0, 1.0, 0.4));
+            debug_renderer.draw_line(global_com - y, global_com + y, Color::hsl(120.0, 1.0, 0.4));
 
             #[cfg(feature = "3d")]
             {
                 let z = rot.rotate(Vector::Z * lengths.z);
-                debug_renderer.draw_line(pos.0 - z, pos.0 + z, Color::hsl(220.0, 1.0, 0.6));
+                debug_renderer.draw_line(
+                    global_com - z,
+                    global_com + z,
+                    Color::hsl(220.0, 1.0, 0.6),
+                );
             }
 
-            // Draw dot at the center of the body
+            // Draw dot at the center of mass
             #[cfg(feature = "2d")]
             debug_renderer
                 .gizmos
-                .circle_2d(pos.as_f32(), 0.5, Color::YELLOW);
+                .circle_2d(global_com.as_f32(), 0.5, Color::YELLOW);
             #[cfg(feature = "3d")]
             debug_renderer
                 .gizmos
-                .sphere(pos.as_f32(), rot.as_f32(), 0.025, Color::YELLOW);
+                .sphere(global_com.as_f32(), rot.as_f32(), 0.025, Color::YELLOW);
         }
     }
 }

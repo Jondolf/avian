@@ -89,6 +89,8 @@
 //! [colliders](Collider), [AABBs](ColliderAabb) and [contacts](Contact).
 //! - `collider-from-mesh` allows you to create [colliders](Collider) from Bevy meshes. Enables `bevy_render`.
 //! - `simd` enables [SIMD](https://en.wikipedia.org/wiki/Single_instruction,_multiple_data) optimizations.
+//! - `parallel` enables multithreading. This improves performance for larger simulations but can add unnecessary
+//! overhead for smaller ones.
 //! - `enhanced-determinism` enables increased determinism. (Note: cross-platform determinism doesn't work yet, even
 //! with this feature enabled)
 //!
@@ -165,7 +167,7 @@
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Configure restitution](Restitution)
+//! - [Configure restitution (bounciness)](Restitution)
 //! - [Configure friction](Friction)
 //! - [Configure gravity](Gravity)
 //! - [Apply external forces](ExternalForce)
@@ -308,7 +310,7 @@
 //!     h = ∆t / substep_count
 //!
 //!     // Broad phase
-//!     collect_collision_pairs()
+//!     broad_collision_pairs = collect_collision_pairs()
 //!
 //!     for substep_count:
 //!         // Integrate
@@ -324,9 +326,12 @@
 //!             q = q + h * 0.5 * [ω_x, ω_y, ω_z, 0] * q
 //!             q = q / |q|
 //!
-//!         // Solve constraints (1 iteration and many substeps recommended)
-//!         for iteration_count:
-//!             solve_constraints(particles and bodies)
+//!         // Narrow phase
+//!         for pair in broad_collision_pairs:
+//!             compute_contacts(pair)
+//!
+//!         // Solve constraints (contacts, joints etc.)
+//!         solve_constraints(particles and bodies)
 //!
 //!         // Update velocities
 //!         for n particles and bodies:
@@ -412,7 +417,6 @@ pub extern crate parry3d as parry;
 #[cfg(all(feature = "3d", feature = "f64"))]
 pub extern crate parry3d_f64 as parry;
 
-pub mod collision;
 pub mod components;
 pub mod constraints;
 pub mod math;
@@ -422,7 +426,6 @@ pub mod resources;
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
     pub use crate::{
-        collision::*,
         components::*,
         constraints::{joints::*, *},
         plugins::*,
@@ -468,8 +471,8 @@ pub struct SubstepSchedule;
 /// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
 /// updating several components.
 /// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
-/// 3. `Sync`: Responsible for synchronizing physics components with other data, like writing [`Position`]
-/// and [`Rotation`] components to `Transform`s.
+/// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
+/// and [`Rotation`] in sync with `Transform`.
 ///
 /// ## See also
 ///
@@ -489,8 +492,8 @@ pub enum PhysicsSet {
     /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
     /// Systems in this set are run in the [`PhysicsSchedule`].
     StepSimulation,
-    /// Responsible for synchronizing physics components with other data, like writing [`Position`]
-    /// and [`Rotation`] components to `Transform`s.
+    /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
+    /// and [`Rotation`] in sync with `Transform`.
     ///
     /// See [`SyncPlugin`].
     Sync,
@@ -501,9 +504,10 @@ pub enum PhysicsSet {
 /// 1. Broad phase
 /// 2. Substeps
 ///     1. Integrate
-///     2. Solve positional and angular constraints
-///     3. Update velocities
-///     4. Solve velocity constraints (dynamic friction and restitution)
+///     2. Narrow phase
+///     3. Solve positional and angular constraints
+///     4. Update velocities
+///     5. Solve velocity constraints (dynamic friction and restitution)
 /// 3. Sleeping
 /// 4. Spatial queries
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -540,9 +544,11 @@ pub enum SubstepSet {
     ///
     /// See [`IntegratorPlugin`].
     Integrate,
+    /// Responsible for computing contacts between entities and sending collision events.
+    ///
+    /// See [`NarrowPhasePlugin`].
+    NarrowPhase,
     /// The [solver] iterates through [constraints] and solves them.
-    /// This step is also responsible for narrow phase collision detection,
-    /// as it creates a [`PenetrationConstraint`] for each contact.
     ///
     /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
     /// you should add them in [`SubstepSet::SolveUserConstraints`]
@@ -561,7 +567,7 @@ pub enum SubstepSet {
     ///
     /// See [`SolverPlugin`].
     UpdateVelocities,
-    /// Responsible for applying dynamic friction, restitution and joint damping at the end of thei
+    /// Responsible for applying dynamic friction, restitution and joint damping at the end of the
     /// substepping loop.
     ///
     /// See [`SolverPlugin`].
