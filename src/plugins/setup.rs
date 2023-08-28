@@ -62,6 +62,7 @@ impl Plugin for PhysicsSetupPlugin {
             .init_resource::<DeactivationTime>()
             .init_resource::<Gravity>()
             .register_type::<PhysicsTimestep>()
+            .register_type::<PhysicsTimescale>()
             .register_type::<DeltaTime>()
             .register_type::<SubDeltaTime>()
             .register_type::<SubstepCount>()
@@ -242,7 +243,7 @@ fn run_physics_schedule(world: &mut World) {
     };
 
     let time_step = *world.resource::<PhysicsTimestep>();
-    let time_scale = world.resource::<PhysicsTimescale>().0;
+    let time_scale = world.resource::<PhysicsTimescale>().0.max(0.0);
 
     // Update `DeltaTime` according to the `PhysicsTimestep` configuration
     let (raw_dt, accumulate) = match time_step {
