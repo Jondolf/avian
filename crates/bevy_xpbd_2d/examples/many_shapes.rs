@@ -135,7 +135,7 @@ fn setup(
                 shapes[(x + y) as usize % 4].clone(),
                 RigidBody::Dynamic,
                 Position(position),
-                Friction::new(0.001),
+                Friction::new(0.1),
                 Controllable,
             ));
         }
