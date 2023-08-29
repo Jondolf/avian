@@ -12,7 +12,7 @@ keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["3d", "f32", "collider-from-mesh", "parallel"]
+default = ["3d", "f32", "collider-from-mesh", "bevy-scenes", "parallel"]
 3d = []
 f32 = ["dep:parry3d"]
 f64 = ["dep:parry3d-f64"]
@@ -24,6 +24,7 @@ enhanced-determinism = [
 ]
 parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
 collider-from-mesh = ["bevy/bevy_render"]
+bevy-scenes = ["bevy/bevy_scene", "bevy/bevy_gltf"]
 
 [lib]
 name = "bevy_xpbd_3d"
@@ -88,6 +89,10 @@ required-features = ["3d"]
 [[example]]
 name = "trimesh_shapes_3d"
 required-features = ["3d"]
+
+[[example]]
+name = "async_colliders"
+required-features = ["3d", "bevy-scenes"]
 
 [[bench]]
 name = "cubes"
