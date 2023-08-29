@@ -1,12 +1,4 @@
-//! A very basic implementation of a character controller for a kinematic rigid body.
-//! Supports directional movement and jumping.
-//!
-//! Bevy XPBD does not have a built-in character controller yet, so you will have to implement
-//! the logic yourself. For kinematic bodies, collision response has to be handled manually, as shown in
-//! this example.
-//!
-//! Using dynamic bodies is often easier, as they handle most of the physics for you.
-//! For a dynamic character controller, see the `basic_dynamic_character` example.
+//! Simple example of asynchronously adding colliders from meshes that are loaded from GLTF.
 
 use bevy::prelude::*;
 use bevy::scene::SceneInstance;
