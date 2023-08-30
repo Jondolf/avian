@@ -126,6 +126,155 @@ impl fmt::Debug for Collider {
     }
 }
 
+/// Compares two [`parry::SharedShape`], for Collider's PartialEq implementation.
+///
+/// Proxy for `PartialEq` for those `parry::Shape` that implement PartialEq
+/// otherwise we do some extra work to compare lists of points and rounded border radius etc.
+///
+/// This isn't implemented directly in Collider's PartialEq because we need to recurse for
+/// Compound shapes, which contain multiple SharedShapes within.
+fn cmp_shared_shapes(this: &SharedShape, other: &SharedShape) -> bool {
+    // shapes with different types can't be equal.
+    if this.0.shape_type() != other.0.shape_type() {
+        return false;
+    }
+    match this.as_typed_shape() {
+        TypedShape::Ball(shape) => shape == other.as_ball().unwrap(),
+        TypedShape::Cuboid(shape) => shape == other.as_cuboid().unwrap(),
+        TypedShape::RoundCuboid(shape) => {
+            shape.border_radius == other.as_round_cuboid().unwrap().border_radius
+                && shape.inner_shape == other.as_round_cuboid().unwrap().inner_shape
+        }
+        TypedShape::Capsule(shape) => {
+            shape.radius == other.as_capsule().unwrap().radius
+                && shape.segment == other.as_capsule().unwrap().segment
+        }
+        TypedShape::Segment(shape) => shape == other.as_segment().unwrap(),
+        TypedShape::Triangle(shape) => shape == other.as_triangle().unwrap(),
+        TypedShape::RoundTriangle(shape) => {
+            shape.border_radius == other.as_round_triangle().unwrap().border_radius
+                && shape.inner_shape == other.as_round_triangle().unwrap().inner_shape
+        }
+        TypedShape::TriMesh(shape) => {
+            shape.flat_indices() == other.as_trimesh().unwrap().flat_indices()
+        }
+        TypedShape::Polyline(shape) => {
+            if shape.num_segments() != other.as_polyline().unwrap().num_segments() {
+                return false;
+            }
+            for i in 0..shape.num_segments() as u32 {
+                if shape.segment(i) != other.as_polyline().unwrap().segment(i) {
+                    return false;
+                }
+            }
+            true
+        }
+        TypedShape::HalfSpace(shape) => shape == other.as_halfspace().unwrap(),
+        TypedShape::HeightField(_) => false,
+        TypedShape::Compound(shape) => {
+            let shapes = shape.shapes();
+            let other_shapes = other.as_compound().unwrap().shapes();
+            if shapes.len() != other_shapes.len() {
+                return false;
+            }
+            for i in 0..shapes.len() {
+                // isometries check
+                if shapes[i].0 != other_shapes[i].0 {
+                    return false;
+                }
+                // shapes check
+                if !cmp_shared_shapes(&shapes[i].1, &other_shapes[i].1) {
+                    return false;
+                }
+            }
+            true
+        }
+        TypedShape::Custom(_) => false,
+        #[cfg(feature = "3d")]
+        TypedShape::ConvexPolyhedron(shape) => shape == other.as_convex_polyhedron().unwrap(),
+        #[cfg(feature = "3d")]
+        TypedShape::Cylinder(shape) => shape == other.as_cylinder().unwrap(),
+        #[cfg(feature = "3d")]
+        TypedShape::Cone(shape) => shape == other.as_cone().unwrap(),
+        #[cfg(feature = "3d")]
+        TypedShape::RoundCylinder(shape) => {
+            shape.border_radius == other.as_round_cylinder().unwrap().border_radius
+                && shape.inner_shape == other.as_round_cylinder().unwrap().inner_shape
+        }
+        #[cfg(feature = "3d")]
+        TypedShape::RoundCone(shape) => {
+            shape.border_radius == other.as_round_cone().unwrap().border_radius
+                && shape.inner_shape == other.as_round_cone().unwrap().inner_shape
+        }
+        #[cfg(feature = "3d")]
+        TypedShape::RoundConvexPolyhedron(shape) => {
+            if shape.border_radius != other.as_round_convex_polyhedron().unwrap().border_radius {
+                return false;
+            }
+            let points = shape.inner_shape.points();
+            let other_points = other
+                .as_round_convex_polyhedron()
+                .unwrap()
+                .inner_shape
+                .points();
+            // must have same number of points
+            if points.len() != other_points.len() {
+                return false;
+            }
+            // compare all points
+            for i in 0..points.len() {
+                if points[i] != other_points[i] {
+                    return false;
+                }
+            }
+            true
+        }
+        #[cfg(feature = "2d")]
+        TypedShape::ConvexPolygon(shape) => {
+            let points = shape.points();
+            let other_points = other.as_convex_polygon().unwrap().points();
+            if points.len() != other_points.len() {
+                return false;
+            }
+            // compare all points
+            for i in 0..points.len() {
+                if points[i] != other_points[i] {
+                    return false;
+                }
+            }
+            true
+        }
+        #[cfg(feature = "2d")]
+        TypedShape::RoundConvexPolygon(shape) => {
+            if shape.border_radius != other.as_round_convex_polygon().unwrap().border_radius {
+                return false;
+            }
+            let points = shape.inner_shape.points();
+            let other_points = other
+                .as_round_convex_polygon()
+                .unwrap()
+                .inner_shape
+                .points();
+            if points.len() != other_points.len() {
+                return false;
+            }
+            // compare all points
+            for i in 0..points.len() {
+                if points[i] != other_points[i] {
+                    return false;
+                }
+            }
+            true
+        }
+    }
+}
+
+impl std::cmp::PartialEq for Collider {
+    fn eq(&self, other: &Self) -> bool {
+        cmp_shared_shapes(self, other)
+    }
+}
+
 impl Collider {
     /// Returns the raw shape of the collider. The shapes are provided by [`parry`].
     pub fn get_shape(&self) -> &SharedShape {
