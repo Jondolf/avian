@@ -33,7 +33,7 @@ pub(crate) type RotationValue = Quaternion;
 /// }
 /// ```
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[reflect(Component)]
 pub struct Rotation {
     /// The cosine of the rotation angle in radians.
@@ -57,7 +57,7 @@ pub struct Rotation {
 /// }
 /// ```
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub struct Rotation(pub Quaternion);
 
@@ -281,6 +281,6 @@ impl From<Rotation> for Matrix3x1<Scalar> {
 }
 
 /// The previous rotation of a body. See [`Rotation`].
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub struct PreviousRotation(pub Rotation);
