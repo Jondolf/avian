@@ -6,7 +6,10 @@ use bevy_xpbd_3d::prelude::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_plugins((
+            DefaultPlugins,
+            PhysicsPlugins::default().build().disable::<SyncPlugin>(),
+        ))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -66,7 +69,7 @@ pub fn init_async_scene_colliders(
                     let mesh = meshes.get(handle).expect("mesh should already be loaded");
                     match Collider::trimesh_from_bevy_mesh(mesh) {
                         Some(collider) => {
-                            println!("{}", name);
+                            // println!("{}", name);
                             commands
                                 .entity(child_entity)
                                 .insert((collider, RigidBody::Static));
@@ -86,8 +89,8 @@ pub fn init_async_scene_colliders(
 
 fn debug_output(query: Query<(&Name, &Transform, &Handle<Mesh>), Changed<Transform>>) {
     for (name, transform, _) in query.iter() {
-        if name.as_str() == "Cube.001.0" {
-            println!("{} transform: {:?}", name, transform);
-        }
+        // if name.as_str() == "Cube.001.0" {
+        println!("{} transform: {:?}", name, transform);
+        // }
     }
 }
