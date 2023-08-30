@@ -233,6 +233,18 @@ impl From<Rotation> for Quaternion {
     }
 }
 
+impl From<Transform> for Rotation {
+    fn from(value: Transform) -> Self {
+        Self::from(value.rotation)
+    }
+}
+
+impl From<GlobalTransform> for Rotation {
+    fn from(value: GlobalTransform) -> Self {
+        Self::from(value.compute_transform().rotation)
+    }
+}
+
 #[cfg(feature = "2d")]
 impl From<Quat> for Rotation {
     fn from(quat: Quat) -> Self {
