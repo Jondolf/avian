@@ -80,7 +80,7 @@ impl Default for PhysicsTimestep {
 ///         .run();
 /// }
 /// ```
-#[derive(Reflect, Resource)]
+#[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
 #[reflect(Resource)]
 pub struct PhysicsTimescale(pub Scalar);
 

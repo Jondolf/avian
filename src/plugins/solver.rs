@@ -5,7 +5,7 @@
 
 use crate::{
     prelude::*,
-    utils::{get_dynamic_friction, get_restitution},
+    utils::{compute_dynamic_friction, compute_restitution},
 };
 use bevy::prelude::*;
 use constraints::penetration::PenetrationConstraint;
@@ -323,7 +323,7 @@ fn solve_vel(
                 r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
-            let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
+            let pre_solve_normal_speed = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
             let contact_vel1 =
@@ -331,47 +331,47 @@ fn solve_vel(
             let contact_vel2 =
                 compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
-            let normal_vel = normal.dot(relative_vel);
-            let tangent_vel = relative_vel - normal * normal_vel;
+
+            let normal_speed = normal.dot(relative_vel);
+            let tangent_vel = relative_vel - normal * normal_speed;
+            let tangent_speed = tangent_vel.length();
 
             let inv_mass1 = body1.effective_inv_mass();
             let inv_mass2 = body2.effective_inv_mass();
             let inv_inertia1 = body1.effective_world_inv_inertia();
             let inv_inertia2 = body2.effective_world_inv_inertia();
 
-            // Compute dynamic friction
-            let friction_impulse = get_dynamic_friction(
-                tangent_vel,
-                body1.friction.combine(*body2.friction).dynamic_coefficient,
-                constraint.normal_lagrange,
-                sub_dt.0,
-            );
+            let mut p = Vector::ZERO;
 
             // Compute restitution
-            let restitution_impulse = get_restitution(
-                normal,
-                normal_vel,
-                pre_solve_normal_vel,
+            let restitution_speed = compute_restitution(
+                normal_speed,
+                pre_solve_normal_speed,
                 body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
-
-            let delta_v = friction_impulse + restitution_impulse;
-            let delta_v_length = delta_v.length();
-
-            if delta_v_length <= Scalar::EPSILON {
-                continue;
+            if restitution_speed > Scalar::EPSILON {
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
+                p += restitution_speed / (w1 + w2) * normal;
             }
 
-            let delta_v_dir = delta_v / delta_v_length;
+            // Compute dynamic friction
+            if tangent_speed > Scalar::EPSILON {
+                let tangent_dir = tangent_vel / tangent_speed;
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent_dir);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent_dir);
+                let friction_impulse = compute_dynamic_friction(
+                    tangent_speed,
+                    w1 + w2,
+                    body1.friction.combine(*body2.friction).dynamic_coefficient,
+                    constraint.normal_lagrange,
+                    sub_dt.0,
+                );
+                p += friction_impulse * tangent_dir;
+            }
 
-            // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, delta_v_dir);
-            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, delta_v_dir);
-
-            // Compute velocity impulse and apply velocity updates (equation 33)
-            let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p * inv_mass1;
                 body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);

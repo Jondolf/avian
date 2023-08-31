@@ -35,7 +35,9 @@ fn create_app() -> App {
 
 fn tick_60_fps(app: &mut App) {
     let mut update_strategy = app.world.resource_mut::<TimeUpdateStrategy>();
-    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else { unimplemented!() };
+    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
+        unimplemented!()
+    };
     *update_strategy =
         TimeUpdateStrategy::ManualInstant(prev_time + Duration::from_secs_f64(1. / 60.));
     app.update();
