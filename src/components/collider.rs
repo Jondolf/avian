@@ -412,6 +412,7 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
 /// }
 /// ```
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
+#[reflect(Component)]
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a collider.
