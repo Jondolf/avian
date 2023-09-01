@@ -28,10 +28,10 @@ Below are some of the current features of Bevy XPBD.
 
 - Dynamic, kinematic and static rigid bodies
 - Colliders powered by [parry](https://parry.rs)
-    - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
-    - Access to colliding entities with `CollidingEntities`
-    - Sensor colliders
-    - Collision layers
+  - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
+  - Access to colliding entities with `CollidingEntities`
+  - Sensor colliders
+  - Collision layers
 - Material properties like restitution and friction
 - Linear and angular velocity damping for simulating drag
 - External forces, torque and impulses
@@ -39,10 +39,10 @@ Below are some of the current features of Bevy XPBD.
 - Joints
 - Built-in constraints and support for custom constraints
 - Spatial queries
-    - Ray casting
-    - Shape casting
-    - Point projection
-    - Intersection tests
+  - Ray casting
+  - Shape casting
+  - Point projection
+  - Intersection tests
 - Locking translational and rotational axes with `LockedAxes`
 - Debug rendering colliders, AABBs, contacts, joints and axes
 - Automatically deactivating bodies with `Sleeping`
@@ -130,7 +130,7 @@ fn setup(
 }
 ```
 
-https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4
+<https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4>
 
 ## More examples
 
@@ -142,7 +142,7 @@ In actual usage these are not needed, so you can just use `f32` or `f64` types d
 By default the examples use `f32`. To run the `f64` versions, you need to disable default features and manually choose the dimension
 and precision:
 
-```
+```shell
 cargo run --example cubes --no-default-features --features "3d f64"
 ```
 
@@ -174,11 +174,27 @@ as well, but especially for larger changes and additions it's better to open an 
 You can also ask for help or ask questions on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph)
 where you can find me as `Jondolf`.
 
+## Acknowledgments
+
+Thanks to the entire Bevy community for the incredible support.
+All of your contributions, insight, questions and requests
+are greatly appreciated, and they are a huge help in driving
+the state of physics in Bevy forward.
+
+I would also like to give a special thanks to [Johan Helsing][johan-helsing]
+for inspiring this project and helping me significantly in the early stages.
+Your original [tutorial series][johan-xpbd-tutorial] is the reason bevy_xpbd
+exists in the first place, and without your support and contributions
+the project wouldn't be where it is today.
+
+[johan-helsing]: https://github.com/johanhelsing
+[johan-xpbd-tutorial]: https://johanhelsing.studio/posts/bevy-xpbd
+
 ## License
 
 Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
 
-- MIT License ([LICENSE-MIT](/LICENSE-MIT) or http://opensource.org/licenses/MIT)
-- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](/LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
 
 at your option.
