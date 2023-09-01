@@ -478,7 +478,7 @@ impl ExternalImpulse {
     }
 }
 
-/// An external angular impulse applied to a dynamic [rigid body](RigidBody).
+/// An external angular impulse applied instantly to a dynamic [rigid body](RigidBody).
 ///
 /// By default, the angular impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
