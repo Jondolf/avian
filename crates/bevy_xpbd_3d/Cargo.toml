@@ -18,11 +18,12 @@ f32 = ["dep:parry3d"]
 f64 = ["dep:parry3d-f64"]
 debug-plugin = ["bevy/bevy_gizmos"]
 simd = ["parry3d?/simd-stable", "parry3d-f64?/simd-stable"]
+parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
 enhanced-determinism = [
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
+    "glam/libm",
 ]
-parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
 collider-from-mesh = ["bevy/bevy_render"]
 
 [lib]
@@ -36,6 +37,7 @@ bevy = { version = "0.11", default-features = false }
 parry3d = { version = "0.13", optional = true }
 parry3d-f64 = { version = "0.13", optional = true }
 nalgebra = { version = "0.32", features = ["convert-glam024"] }
+glam = { version = "0.24", features = ["approx"] }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
@@ -45,7 +47,6 @@ examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
 approx = "0.5"
 criterion = { version = "0.4", features = ["html_reports"] }
-glam = { version = "0.24", features = ["approx"] }
 insta = "1.0"
 itertools = "0.10"
 

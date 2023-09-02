@@ -11,7 +11,7 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
-use bevy::math::*;
+use glam::*;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
@@ -29,49 +29,49 @@ pub trait AsF32 {
     fn as_f32(&self) -> Self::F32;
 }
 
-impl AsF32 for bevy::math::DVec3 {
+impl AsF32 for DVec3 {
     type F32 = Vec3;
     fn as_f32(&self) -> Self::F32 {
         self.as_vec3()
     }
 }
 
-impl AsF32 for bevy::math::Vec3 {
+impl AsF32 for Vec3 {
     type F32 = Self;
     fn as_f32(&self) -> Self::F32 {
         *self
     }
 }
 
-impl AsF32 for bevy::math::DVec2 {
+impl AsF32 for DVec2 {
     type F32 = Vec2;
     fn as_f32(&self) -> Self::F32 {
         self.as_vec2()
     }
 }
 
-impl AsF32 for bevy::math::Vec2 {
+impl AsF32 for Vec2 {
     type F32 = Self;
     fn as_f32(&self) -> Self::F32 {
         *self
     }
 }
 
-impl AsF32 for bevy::math::Vec4 {
+impl AsF32 for Vec4 {
     type F32 = Self;
     fn as_f32(&self) -> Self::F32 {
         *self
     }
 }
 
-impl AsF32 for bevy::math::DQuat {
-    type F32 = bevy::math::Quat;
+impl AsF32 for DQuat {
+    type F32 = Quat;
     fn as_f32(&self) -> Self::F32 {
-        bevy::math::DQuat::as_f32(*self)
+        DQuat::as_f32(*self)
     }
 }
 
-impl AsF32 for bevy::math::Quat {
+impl AsF32 for Quat {
     type F32 = Self;
     fn as_f32(&self) -> Self::F32 {
         *self

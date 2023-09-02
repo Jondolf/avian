@@ -1,5 +1,5 @@
 use super::AdjustPrecision;
-use bevy::math::*;
+use glam::*;
 
 /// The floating point number type used by Bevy XPBD.
 pub type Scalar = f32;
