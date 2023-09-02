@@ -22,7 +22,7 @@ parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
 enhanced-determinism = [
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
-    "glam/libm",
+    #"glam/libm",
 ]
 collider-from-mesh = ["bevy/bevy_render"]
 
