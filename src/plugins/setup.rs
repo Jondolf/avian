@@ -189,9 +189,9 @@ impl Plugin for PhysicsSetupPlugin {
 #[reflect(Resource)]
 pub struct PhysicsLoop {
     /// Time accumulated into the physics loop. This is consumed by the [`PhysicsSchedule`].
-    pub(crate) accumulator: Scalar,
+    pub accumulator: Scalar,
     /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
-    pub(crate) queued_steps: u32,
+    pub queued_steps: u32,
     /// If [`PhysicsSchedule`] runs in [`FixedUpdate`]. Determines the delta time for the simulation.
     pub(crate) fixed_update: bool,
     /// Determines if the simulation is paused.
