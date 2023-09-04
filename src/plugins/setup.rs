@@ -166,6 +166,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 SubstepSet::Integrate,
                 SubstepSet::NarrowPhase,
+                SubstepSet::PostProcessCollisions,
                 SubstepSet::SolveConstraints,
                 SubstepSet::SolveUserConstraints,
                 SubstepSet::UpdateVelocities,
@@ -180,6 +181,27 @@ impl Plugin for PhysicsSetupPlugin {
         app.add_systems(
             PhysicsSchedule,
             run_substep_schedule.in_set(PhysicsStepSet::Substeps),
+        );
+
+        // Create post-process collisions schedule, the schedule that should be used to
+        // run collision post-processing systems, such as filtering.
+        let mut post_process_collisions_schedule = Schedule::default();
+
+        post_process_collisions_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+
+        app.add_schedule(
+            PostProcessCollisionsSchedule,
+            post_process_collisions_schedule,
+        );
+
+        app.add_systems(
+            SubstepSchedule,
+            run_post_process_collisions_schedule.in_set(SubstepSet::PostProcessCollisions),
         );
     }
 }
@@ -299,4 +321,10 @@ fn run_substep_schedule(world: &mut World) {
         debug!("running SubstepSchedule: {i}");
         world.run_schedule(SubstepSchedule);
     }
+}
+
+/// Runs the [`PostProcessCollisionsSchedule`].
+fn run_post_process_collisions_schedule(world: &mut World) {
+    debug!("running PostProcessCollisionsSchedule");
+    world.run_schedule(PostProcessCollisionsSchedule);
 }
