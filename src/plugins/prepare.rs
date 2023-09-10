@@ -80,17 +80,24 @@ fn init_transforms(
             Option<&mut Transform>,
             Option<&GlobalTransform>,
             Option<&Position>,
+            Option<&PreviousPosition>,
             Option<&Rotation>,
+            Option<&PreviousRotation>,
             Option<&Parent>,
         ),
         Or<(Added<RigidBody>, Added<Collider>)>,
     >,
     parents: Query<&GlobalTransform, With<Children>>,
 ) {
-    for (entity, mut transform, global_transform, pos, rot, parent) in &mut query {
-        let mut body = commands.entity(entity);
+    for (entity, mut transform, global_transform, pos, previous_pos, rot, previous_rot, parent) in
+        &mut query
+    {
+        let position: Position;
+        let rotation: Rotation;
+
+        // Compute Transform based on Position or vice versa
         if let Some(pos) = pos {
-            body.insert(PreviousPosition(pos.0));
+            position = *pos;
 
             if let Some(ref mut transform) = transform {
                 // Initialize new translation as global position
@@ -110,30 +117,27 @@ fn init_transforms(
                 transform.translation = new_translation;
             }
         } else {
-            let translation;
             #[cfg(feature = "2d")]
             {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
                     Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                });
+                }));
             }
             #[cfg(feature = "3d")]
             {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
                     Vector::new(
                         t.translation().x as Scalar,
                         t.translation().y as Scalar,
                         t.translation().z as Scalar,
                     )
-                });
+                }));
             }
-
-            body.insert(Position(translation));
-            body.insert(PreviousPosition(translation));
         }
 
+        // Compute Transform based on Rotation or vice versa
         if let Some(rot) = rot {
-            body.insert(PreviousRotation(*rot));
+            rotation = *rot;
 
             if let Some(mut transform) = transform {
                 // Initialize new rotation as global rotation
@@ -150,12 +154,19 @@ fn init_transforms(
                 transform.rotation = new_rotation;
             }
         } else {
-            let rotation = global_transform.map_or(Rotation::default(), |t| {
+            rotation = global_transform.map_or(Rotation::default(), |t| {
                 t.compute_transform().rotation.into()
             });
-            body.insert(rotation);
-            body.insert(PreviousRotation(rotation));
         }
+
+        // Insert the position and rotation.
+        // The values are either unchanged (Position and Rotation already exist) or computed based on the GlobalTransform.
+        commands.entity(entity).insert((
+            position,
+            *previous_pos.unwrap_or(&PreviousPosition(position.0)),
+            rotation,
+            *previous_rot.unwrap_or(&PreviousRotation(rotation)),
+        ));
     }
 }
 
@@ -191,38 +202,20 @@ fn init_rigid_bodies(
         time_sleeping,
     ) in &mut bodies
     {
-        let mut body = commands.entity(entity);
-        body.insert(AccumulatedTranslation(Vector::ZERO));
-
-        if lin_vel.is_none() {
-            body.insert(LinearVelocity::default());
-        }
-        body.insert(PreSolveLinearVelocity::default());
-        if ang_vel.is_none() {
-            body.insert(AngularVelocity::default());
-        }
-        body.insert(PreSolveAngularVelocity::default());
-        if force.is_none() {
-            body.insert(ExternalForce::default());
-        }
-        if torque.is_none() {
-            body.insert(ExternalTorque::default());
-        }
-        if impulse.is_none() {
-            body.insert(ExternalImpulse::default());
-        }
-        if angular_impulse.is_none() {
-            body.insert(ExternalAngularImpulse::default());
-        }
-        if restitution.is_none() {
-            body.insert(Restitution::default());
-        }
-        if friction.is_none() {
-            body.insert(Friction::default());
-        }
-        if time_sleeping.is_none() {
-            body.insert(TimeSleeping::default());
-        }
+        commands.entity(entity).insert((
+            AccumulatedTranslation(Vector::ZERO),
+            *lin_vel.unwrap_or(&LinearVelocity::default()),
+            *ang_vel.unwrap_or(&AngularVelocity::default()),
+            PreSolveLinearVelocity::default(),
+            PreSolveAngularVelocity::default(),
+            *force.unwrap_or(&ExternalForce::default()),
+            *torque.unwrap_or(&ExternalTorque::default()),
+            *impulse.unwrap_or(&ExternalImpulse::default()),
+            *angular_impulse.unwrap_or(&ExternalAngularImpulse::default()),
+            *restitution.unwrap_or(&Restitution::default()),
+            *friction.unwrap_or(&Friction::default()),
+            *time_sleeping.unwrap_or(&TimeSleeping::default()),
+        ));
     }
 }
 
@@ -242,27 +235,18 @@ fn init_mass_properties(
     >,
 ) {
     for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        let mut body = commands.entity(entity);
-
-        if mass.is_none() {
-            body.insert(Mass(
+        commands.entity(entity).insert((
+            *mass.unwrap_or(&Mass(
                 inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-            ));
-        }
-        if inverse_mass.is_none() {
-            body.insert(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
-        }
-        if inertia.is_none() {
-            body.insert(
-                inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-            );
-        }
-        if inverse_inertia.is_none() {
-            body.insert(inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()));
-        }
-        if center_of_mass.is_none() {
-            body.insert(CenterOfMass::default());
-        }
+            )),
+            *inverse_mass.unwrap_or(&InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
+            *inertia.unwrap_or(
+                &inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
+            ),
+            *inverse_inertia
+                .unwrap_or(&inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse())),
+            *center_of_mass.unwrap_or(&CenterOfMass::default()),
+        ));
     }
 }
 
@@ -274,30 +258,21 @@ fn init_colliders(
             Entity,
             &Collider,
             Option<&ColliderAabb>,
-            Option<&CollidingEntities>,
             Option<&ColliderMassProperties>,
             Option<&PreviousColliderMassProperties>,
         ),
         Added<Collider>,
     >,
 ) {
-    for (entity, collider, aabb, colliding_entities, mass_properties, previous_mass_properties) in
-        &mut colliders
-    {
-        let mut entity_commands = commands.entity(entity);
-
-        if aabb.is_none() {
-            entity_commands.insert(ColliderAabb::from_shape(collider.get_shape()));
-        }
-        if colliding_entities.is_none() {
-            entity_commands.insert(CollidingEntities::default());
-        }
-        if mass_properties.is_none() {
-            entity_commands.insert(ColliderMassProperties::new_computed(collider, 1.0));
-        }
-        if previous_mass_properties.is_none() {
-            entity_commands.insert(PreviousColliderMassProperties(ColliderMassProperties::ZERO));
-        }
+    for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
+        commands.entity(entity).insert((
+            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
+            *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
+            *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
+                ColliderMassProperties::ZERO,
+            )),
+            CollidingEntities::default(),
+        ));
     }
 }
 
