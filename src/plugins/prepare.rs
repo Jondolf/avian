@@ -80,17 +80,24 @@ fn init_transforms(
             Option<&mut Transform>,
             Option<&GlobalTransform>,
             Option<&Position>,
+            Option<&PreviousPosition>,
             Option<&Rotation>,
+            Option<&PreviousRotation>,
             Option<&Parent>,
         ),
         Or<(Added<RigidBody>, Added<Collider>)>,
     >,
     parents: Query<&GlobalTransform, With<Children>>,
 ) {
-    for (entity, mut transform, global_transform, pos, rot, parent) in &mut query {
-        let mut body = commands.entity(entity);
+    for (entity, mut transform, global_transform, pos, previous_pos, rot, previous_rot, parent) in
+        &mut query
+    {
+        let position: Position;
+        let rotation: Rotation;
+
+        // Compute Transform based on Position or vice versa
         if let Some(pos) = pos {
-            body.insert(PreviousPosition(pos.0));
+            position = *pos;
 
             if let Some(ref mut transform) = transform {
                 // Initialize new translation as global position
@@ -110,30 +117,27 @@ fn init_transforms(
                 transform.translation = new_translation;
             }
         } else {
-            let translation;
             #[cfg(feature = "2d")]
             {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
                     Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                });
+                }));
             }
             #[cfg(feature = "3d")]
             {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
                     Vector::new(
                         t.translation().x as Scalar,
                         t.translation().y as Scalar,
                         t.translation().z as Scalar,
                     )
-                });
+                }));
             }
-
-            body.insert(Position(translation));
-            body.insert(PreviousPosition(translation));
         }
 
+        // Compute Transform based on Rotation or vice versa
         if let Some(rot) = rot {
-            body.insert(PreviousRotation(*rot));
+            rotation = *rot;
 
             if let Some(mut transform) = transform {
                 // Initialize new rotation as global rotation
@@ -150,12 +154,19 @@ fn init_transforms(
                 transform.rotation = new_rotation;
             }
         } else {
-            let rotation = global_transform.map_or(Rotation::default(), |t| {
+            rotation = global_transform.map_or(Rotation::default(), |t| {
                 t.compute_transform().rotation.into()
             });
-            body.insert(rotation);
-            body.insert(PreviousRotation(rotation));
         }
+
+        // Insert the position and rotation.
+        // The values are either unchanged (Position and Rotation already exist) or computed based on the GlobalTransform.
+        commands.entity(entity).insert((
+            position,
+            *previous_pos.unwrap_or(&PreviousPosition(position.0)),
+            rotation,
+            *previous_rot.unwrap_or(&PreviousRotation(rotation)),
+        ));
     }
 }
 
@@ -191,8 +202,7 @@ fn init_rigid_bodies(
         time_sleeping,
     ) in &mut bodies
     {
-        let mut body = commands.entity(entity);
-        body.insert((
+        commands.entity(entity).insert((
             AccumulatedTranslation(Vector::ZERO),
             *lin_vel.unwrap_or(&LinearVelocity::default()),
             *ang_vel.unwrap_or(&AngularVelocity::default()),
@@ -225,8 +235,7 @@ fn init_mass_properties(
     >,
 ) {
     for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        let mut body = commands.entity(entity);
-        body.insert((
+        commands.entity(entity).insert((
             *mass.unwrap_or(&Mass(
                 inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
             )),
