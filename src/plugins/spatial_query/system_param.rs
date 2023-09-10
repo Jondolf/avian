@@ -1,16 +1,6 @@
 use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-type ColliderChangedFilter = (
-    Or<(
-        Changed<Position>,
-        Changed<Rotation>,
-        Changed<Collider>,
-        Changed<CollisionLayers>,
-    )>,
-    With<Collider>,
-);
-
 /// A system parameter for performing [spatial queries](spatial_query).
 ///
 /// ## Methods
@@ -83,8 +73,6 @@ pub struct SpatialQuery<'w, 's> {
         ),
     >,
     pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
-    pub(crate) changed_colliders: Query<'w, 's, Entity, ColliderChangedFilter>,
-    pub(crate) removed_colliders: ResMut<'w, spatial_query::RemovedColliders>,
     /// The [`SpatialQueryPipeline`].
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
@@ -94,13 +82,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
     /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].
     pub fn update_pipeline(&mut self) {
-        self.query_pipeline.update_incremental(
-            self.colliders.iter(),
-            self.added_colliders.iter(),
-            self.changed_colliders.iter(),
-            self.removed_colliders.drain(),
-            true,
-        );
+        self.query_pipeline
+            .update(self.colliders.iter(), self.added_colliders.iter());
     }
 
     /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
