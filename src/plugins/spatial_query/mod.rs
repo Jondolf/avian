@@ -159,7 +159,7 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
@@ -187,14 +187,10 @@ impl Default for SpatialQueryPlugin {
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>()
-            .init_resource::<RemovedColliders>()
-            .add_systems(Last, update_removed_colliders)
-            .add_systems(
-                self.schedule.dyn_clone(),
-                (init_ray_hits, init_shape_hit, update_removed_colliders)
-                    .in_set(PhysicsSet::Prepare),
-            );
+        app.init_resource::<SpatialQueryPipeline>().add_systems(
+            self.schedule.dyn_clone(),
+            (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
+        );
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -205,7 +201,6 @@ impl Plugin for SpatialQueryPlugin {
                 update_ray_caster_positions,
                 update_shape_caster_positions,
                 |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
-                |mut removed: ResMut<RemovedColliders>| removed.clear(),
                 raycast,
                 shapecast,
             )
@@ -214,9 +209,6 @@ impl Plugin for SpatialQueryPlugin {
         );
     }
 }
-
-#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
-pub(crate) struct RemovedColliders(HashSet<Entity>);
 
 fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
@@ -392,11 +384,4 @@ fn shapecast(
             hits.clear();
         }
     }
-}
-
-fn update_removed_colliders(
-    mut removals: RemovedComponents<Collider>,
-    mut removed_colliders: ResMut<RemovedColliders>,
-) {
-    removed_colliders.extend(removals.iter());
 }
