@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
-    partitioning::{Qbvh, QbvhUpdateWorkspace},
+    partitioning::Qbvh,
     query::{
         details::{
             RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
@@ -26,7 +26,6 @@ use parry::{
 pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
-    pub(crate) workspace: QbvhUpdateWorkspace,
     pub(crate) colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pub(crate) entity_generations: HashMap<u32, u32>,
 }
@@ -36,7 +35,6 @@ impl Default for SpatialQueryPipeline {
         Self {
             qbvh: Qbvh::new(),
             dispatcher: Arc::new(DefaultQueryDispatcher),
-            workspace: QbvhUpdateWorkspace::default(),
             colliders: HashMap::default(),
             entity_generations: HashMap::default(),
         }
@@ -61,7 +59,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Updates the associated acceleration structures with a new set of entities.
-    pub fn update_incremental<'a>(
+    pub fn update<'a>(
         &mut self,
         colliders: impl Iterator<
             Item = (
@@ -73,9 +71,6 @@ impl SpatialQueryPipeline {
             ),
         >,
         added_colliders: impl Iterator<Item = Entity>,
-        changed_colliders: impl Iterator<Item = Entity>,
-        removed_colliders: impl Iterator<Item = Entity>,
-        refit_and_balance: bool,
     ) {
         let colliders = colliders
             .map(|(entity, position, rotation, collider, layers)| {
@@ -89,20 +84,14 @@ impl SpatialQueryPipeline {
                 )
             })
             .collect();
-        let added = added_colliders.collect::<Vec<_>>();
-        let modified = changed_colliders.collect::<Vec<_>>();
-        let removed = removed_colliders.collect::<Vec<_>>();
 
-        self.update_incremental_internal(colliders, &added, &modified, &removed, refit_and_balance)
+        self.update_internal(colliders, added_colliders)
     }
 
-    fn update_incremental_internal(
+    fn update_internal(
         &mut self,
         colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
-        added: &[Entity],
-        modified: &[Entity],
-        removed: &[Entity],
-        refit_and_balance: bool,
+        added: impl Iterator<Item = Entity>,
     ) {
         self.colliders = colliders;
 
@@ -116,28 +105,28 @@ impl SpatialQueryPipeline {
             }
         }
 
-        for removed in removed {
-            self.qbvh.remove(removed.index());
-        }
+        struct DataGenerator<'a>(
+            &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        );
 
-        for modified in modified {
-            if self.colliders.contains_key(modified) {
-                self.qbvh.pre_update_or_insert(modified.index());
+        impl<'a> parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'a> {
+            fn size_hint(&self) -> usize {
+                self.0.len()
+            }
+
+            #[inline(always)]
+            fn for_each(&mut self, mut f: impl FnMut(u32, parry::bounding_volume::Aabb)) {
+                for (entity, co) in self.0.iter() {
+                    // Compute and return AABB
+                    let (iso, shape, _) = co;
+                    let aabb = shape.get_shape().compute_aabb(iso);
+                    f(entity.index(), aabb)
+                }
             }
         }
 
-        if refit_and_balance {
-            let _ = self.qbvh.refit(0.0, &mut self.workspace, |entity_index| {
-                // Construct entity ID
-                let generation = self.entity_generations.get(entity_index).map_or(0, |i| *i);
-                let entity = utils::entity_from_index_and_gen(*entity_index, generation);
-                // Compute and return AABB
-                let (iso, shape, _) = self.colliders.get(&entity).unwrap();
-                let aabb = shape.get_shape().compute_aabb(iso);
-                aabb
-            });
-            self.qbvh.rebalance(0.0, &mut self.workspace);
-        }
+        self.qbvh
+            .clear_and_rebuild(DataGenerator(&self.colliders), 0.01);
     }
 
     pub(crate) fn entity_from_index(&self, index: u32) -> Entity {
