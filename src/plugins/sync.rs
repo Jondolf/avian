@@ -98,6 +98,27 @@ impl Plugin for SyncPlugin {
                 .in_set(PhysicsSet::Sync)
                 .run_if(|config: Res<SyncConfig>| config.position_to_transform),
         );
+
+        // Update child colliders before narrow phase in substepping loop
+        let substep_schedule = app
+            .get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first");
+        substep_schedule.add_systems(
+            update_child_collider_position
+                .chain()
+                .after(SubstepSet::Integrate)
+                .before(SubstepSet::NarrowPhase),
+        );
+
+        // Update child colliders after substepping loop
+        let physics_schedule = app
+            .get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first");
+        physics_schedule.add_systems(
+            update_child_collider_position
+                .after(PhysicsStepSet::Substeps)
+                .before(PhysicsStepSet::Sleeping),
+        );
     }
 }
 
@@ -136,6 +157,50 @@ fn init_previous_global_transform(
         commands
             .entity(entity)
             .insert(PreviousGlobalTransform(*transform));
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn update_child_collider_position(
+    mut colliders: Query<(&Transform, &mut Position, &mut Rotation, &Parent), With<Collider>>,
+    parents: Query<
+        (&GlobalTransform, &Position, &Rotation),
+        (
+            With<Children>,
+            Without<Parent>,
+            Or<(Changed<Position>, Changed<Rotation>)>,
+        ),
+    >,
+) {
+    for (transform, mut position, mut rotation, parent) in &mut colliders {
+        let Ok((global_transform, parent_pos, parent_rot)) = parents.get(parent.get()) else {
+            continue;
+        };
+
+        #[cfg(feature = "2d")]
+        let translation = parent_rot
+            .rotate_vec3(
+                transform.translation.adjust_precision()
+                    * utils::global_transform_scale(global_transform).extend(1.0),
+            )
+            .truncate();
+        #[cfg(feature = "3d")]
+        let translation = parent_rot.rotate_vec3(
+            transform.translation.adjust_precision()
+                * utils::global_transform_scale(global_transform),
+        );
+
+        position.0 = parent_pos.0 + translation;
+        #[cfg(feature = "2d")]
+        {
+            *rotation = *parent_rot + Rotation::from(transform.rotation);
+        }
+        #[cfg(feature = "3d")]
+        {
+            *rotation = (parent_rot.0 * transform.rotation.adjust_precision())
+                .normalize()
+                .into();
+        }
     }
 }
 
@@ -208,7 +273,7 @@ type PosToTransformComponents = (
     Option<&'static Parent>,
 );
 
-type PosToTransformFilter = Or<(Changed<Position>, Changed<Rotation>)>;
+type PosToTransformFilter = (With<RigidBody>, Or<(Changed<Position>, Changed<Rotation>)>);
 
 type ParentComponents = (
     &'static GlobalTransform,
