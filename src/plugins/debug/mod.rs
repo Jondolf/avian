@@ -80,7 +80,7 @@ impl Plugin for PhysicsDebugPlugin {
 }
 
 fn debug_render_axes(
-    bodies: Query<(&Position, &Rotation, &CenterOfMass, Option<&DebugRender>)>,
+    bodies: Query<(&Position, &Rotation, &CenterOfMass, Option<&DebugRender>), With<RigidBody>>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
