@@ -81,6 +81,7 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
+    colliders: Query<(&Transform, &GlobalTransform, &ColliderParent), With<Parent>>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     collisions: Res<Collisions>,
     sub_dt: Res<SubDeltaTime>,
@@ -92,7 +93,46 @@ fn penetration_constraints(
         .iter()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
+        let (translation1, entity1) = colliders.get(*entity1).map_or(
+            (Vector::ZERO, *entity1),
+            |(transform, global_transform, collider_parent)| {
+                (
+                    #[cfg(feature = "2d")]
+                    {
+                        transform.translation.truncate().adjust_precision()
+                            * utils::global_transform_scale(global_transform)
+                    },
+                    #[cfg(feature = "3d")]
+                    {
+                        transform.translation.adjust_precision()
+                            * utils::global_transform_scale(global_transform)
+                    },
+                    collider_parent.0,
+                )
+            },
+        );
+        let (translation2, entity2) = colliders.get(*entity2).map_or(
+            (Vector::ZERO, *entity2),
+            |(transform, global_transform, collider_parent)| {
+                (
+                    #[cfg(feature = "2d")]
+                    {
+                        transform.translation.truncate().adjust_precision()
+                            * utils::global_transform_scale(global_transform)
+                    },
+                    #[cfg(feature = "3d")]
+                    {
+                        transform.translation.adjust_precision()
+                            * utils::global_transform_scale(global_transform)
+                    },
+                    collider_parent.0,
+                )
+            },
+        );
+        if entity1 == entity2 {
+            continue;
+        }
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([entity1, entity2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
 
@@ -108,14 +148,22 @@ fn penetration_constraints(
             if sensor1.is_none() && sensor2.is_none() {
                 // When an active body collides with a sleeping body, wake up the sleeping body
                 if sleeping1.is_some() {
-                    commands.entity(*entity1).remove::<Sleeping>();
+                    commands.entity(entity1).remove::<Sleeping>();
                 } else if sleeping2.is_some() {
-                    commands.entity(*entity2).remove::<Sleeping>();
+                    commands.entity(entity2).remove::<Sleeping>();
                 }
 
                 for contact_manifold in contacts.manifolds.iter() {
                     for contact in contact_manifold.contacts.iter() {
-                        let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
+                        let mut constraint = PenetrationConstraint::new(
+                            &body1,
+                            &body2,
+                            ContactData {
+                                point1: contact.point1 + translation1,
+                                point2: contact.point2 + translation2,
+                                ..*contact
+                            },
+                        );
                         constraint.solve([&mut body1, &mut body2], sub_dt.0);
                         penetration_constraints.0.push(constraint);
                     }

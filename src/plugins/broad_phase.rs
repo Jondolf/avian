@@ -52,23 +52,31 @@ fn update_aabb(
             &mut ColliderAabb,
             &Position,
             &Rotation,
+            &ColliderParent,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
         AABBChanged,
     >,
+    velocity: Query<(Option<&LinearVelocity>, Option<&AngularVelocity>), With<Children>>,
     dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.0;
 
-    for (collider, mut aabb, pos, rot, lin_vel, ang_vel) in &mut bodies {
-        let lin_vel = lin_vel.map_or(Vector::ZERO, |v| v.0);
+    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut bodies {
+        let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
+            (lin_vel.0, ang_vel.0)
+        } else if let Ok((Some(lin_vel), Some(ang_vel))) = velocity.get(collider_parent.0) {
+            (lin_vel.0, ang_vel.0)
+        } else {
+            (Vector::ZERO, AngularVelocity::ZERO.0)
+        };
 
         #[cfg(feature = "2d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.abs());
+        let ang_vel_magnitude = ang_vel.abs();
         #[cfg(feature = "3d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.length());
+        let ang_vel_magnitude = ang_vel.length();
 
         // Compute AABB half extents and center
         let computed_aabb = collider
@@ -99,14 +107,19 @@ struct AabbIntervals(Vec<(Entity, ColliderAabb, RigidBody, CollisionLayers)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 fn update_aabb_intervals(
-    aabbs: Query<(&ColliderAabb, Option<&RigidBody>)>,
+    aabbs: Query<(Entity, &ColliderParent, &ColliderAabb, Option<&RigidBody>)>,
+    parent_bodies: Query<&RigidBody, With<Children>>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(|(entity, aabb, rb, _)| {
-        if let Ok((new_aabb, new_rb)) = aabbs.get(*entity) {
+        if let Ok((entity, parent, new_aabb, new_rb)) = aabbs.get(*entity) {
             *aabb = *new_aabb;
             if let Some(new_rb) = new_rb {
                 *rb = *new_rb;
+            } else if entity != parent.0 {
+                if let Ok(new_rb) = parent_bodies.get(parent.0) {
+                    *rb = *new_rb;
+                }
             }
             true
         } else {

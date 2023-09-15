@@ -56,6 +56,7 @@ impl Plugin for PreparePlugin {
                 init_rigid_bodies,
                 init_mass_properties,
                 init_colliders,
+                update_collider_parents,
                 update_mass_properties,
                 clamp_restitution,
             )
@@ -272,7 +273,23 @@ fn init_colliders(
                 ColliderMassProperties::ZERO,
             )),
             CollidingEntities::default(),
+            ColliderParent(entity),
         ));
+    }
+}
+
+fn update_collider_parents(
+    mut query: Query<
+        (Entity, &mut ColliderParent, Option<&Parent>),
+        Or<(Changed<Parent>, Changed<ColliderParent>)>,
+    >,
+) {
+    for (entity, mut collider_parent, parent_entity) in &mut query {
+        if let Some(parent_entity) = parent_entity {
+            collider_parent.0 = parent_entity.get();
+        } else {
+            collider_parent.0 = entity;
+        }
     }
 }
 
@@ -298,7 +315,18 @@ fn update_mass_properties(
             Option<&mut ColliderMassProperties>,
             Option<&mut PreviousColliderMassProperties>,
         ),
-        MassPropertiesChanged,
+        (With<RigidBody>, MassPropertiesChanged),
+    >,
+    mut child_colliders: Query<
+        (
+            &Transform,
+            &GlobalTransform,
+            &ColliderParent,
+            &Collider,
+            &mut ColliderMassProperties,
+            &mut PreviousColliderMassProperties,
+        ),
+        Without<RigidBody>,
     >,
 ) {
     for (
@@ -351,6 +379,43 @@ fn update_mass_properties(
                     entity
                 );
             }
+        }
+    }
+    for (
+        transform,
+        global_transform,
+        collider_parent,
+        _,
+        mut collider_mass_properties,
+        mut previous_collider_mass_properties,
+    ) in &mut child_colliders
+    {
+        if let Ok((_, _, mut mass_properties, Some(collider), _, _)) =
+            bodies.get_mut(collider_parent.0)
+        {
+            #[cfg(feature = "2d")]
+            let translation = transform.translation.truncate().adjust_precision()
+                * utils::global_transform_scale(global_transform);
+            #[cfg(feature = "3d")]
+            let translation = transform.translation.adjust_precision()
+                * utils::global_transform_scale(global_transform);
+
+            // Subtract previous collider mass props from the body's mass props
+            mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
+                center_of_mass: CenterOfMass(translation),
+                ..previous_collider_mass_properties.0
+            });
+
+            // Update previous and current collider mass props
+            previous_collider_mass_properties.0 = *collider_mass_properties;
+            *collider_mass_properties =
+                ColliderMassProperties::new_computed(collider, collider_mass_properties.density);
+
+            // Add new collider mass props to the body's mass props
+            mass_properties += ColliderMassProperties {
+                center_of_mass: CenterOfMass(translation),
+                ..*collider_mass_properties
+            };
         }
     }
 }

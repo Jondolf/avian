@@ -392,6 +392,9 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
+#[derive(Reflect, Clone, Component, Debug, PartialEq, Eq)]
+pub struct ColliderParent(pub Entity);
+
 /// A component that marks a [`Collider`] as a sensor collider.
 ///
 /// Sensor colliders send [collision events](Collider#collision-events) but don't cause a collision response.
