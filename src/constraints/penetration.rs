@@ -53,8 +53,8 @@ impl XpbdConstraint<2> for PenetrationConstraint {
         // Todo: Figure out why this is and use the method below for all collider types in order to fix
         // explosions for all contacts.
         if self.contact.convex {
-            let p1 = body1.current_position() + body1.rotation.rotate(self.r1);
-            let p2 = body2.current_position() + body2.rotation.rotate(self.r2);
+            let p1 = body1.current_position() + body1.rotation.rotate(self.contact.point1);
+            let p2 = body2.current_position() + body2.rotation.rotate(self.contact.point2);
             self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
         }
 
