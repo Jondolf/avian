@@ -7,7 +7,7 @@ use crate::{
     prelude::*,
     utils::{compute_dynamic_friction, compute_restitution},
 };
-use bevy::prelude::*;
+use bevy::{ecs::query::Has, prelude::*};
 use constraints::penetration::PenetrationConstraint;
 
 /// Solves positional and angular [constraints], updates velocities and solves velocity constraints
@@ -81,7 +81,17 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
-    colliders: Query<(&Transform, &GlobalTransform, &ColliderParent), With<Parent>>,
+    colliders: Query<
+        (
+            &Transform,
+            &GlobalTransform,
+            &ColliderParent,
+            Has<Sensor>,
+            Option<&Friction>,
+            Option<&Restitution>,
+        ),
+        (Without<RigidBody>, With<Parent>),
+    >,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     collisions: Res<Collisions>,
     sub_dt: Res<SubDeltaTime>,
@@ -93,42 +103,65 @@ fn penetration_constraints(
         .iter()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
-        let (translation1, entity1) = colliders.get(*entity1).map_or(
-            (Vector::ZERO, *entity1),
-            |(transform, global_transform, collider_parent)| {
-                (
-                    #[cfg(feature = "2d")]
-                    {
-                        transform.translation.truncate().adjust_precision()
-                            * utils::global_transform_scale(global_transform)
-                    },
-                    #[cfg(feature = "3d")]
-                    {
-                        transform.translation.adjust_precision()
-                            * utils::global_transform_scale(global_transform)
-                    },
-                    collider_parent.0,
-                )
-            },
-        );
-        let (translation2, entity2) = colliders.get(*entity2).map_or(
-            (Vector::ZERO, *entity2),
-            |(transform, global_transform, collider_parent)| {
-                (
-                    #[cfg(feature = "2d")]
-                    {
-                        transform.translation.truncate().adjust_precision()
-                            * utils::global_transform_scale(global_transform)
-                    },
-                    #[cfg(feature = "3d")]
-                    {
-                        transform.translation.adjust_precision()
-                            * utils::global_transform_scale(global_transform)
-                    },
-                    collider_parent.0,
-                )
-            },
-        );
+        // Todo: Clean this up
+        let (translation1, entity1, collider_is_sensor1, friction1, restitution1) =
+            colliders.get(*entity1).map_or(
+                (Vector::ZERO, *entity1, false, None, None),
+                |(
+                    transform,
+                    global_transform,
+                    collider_parent,
+                    is_sensor,
+                    friction,
+                    restitution,
+                )| {
+                    (
+                        #[cfg(feature = "2d")]
+                        {
+                            transform.translation.truncate().adjust_precision()
+                                * utils::global_transform_scale(global_transform)
+                        },
+                        #[cfg(feature = "3d")]
+                        {
+                            transform.translation.adjust_precision()
+                                * utils::global_transform_scale(global_transform)
+                        },
+                        collider_parent.0,
+                        is_sensor,
+                        friction,
+                        restitution,
+                    )
+                },
+            );
+        let (translation2, entity2, collider_is_sensor2, friction2, restitution2) =
+            colliders.get(*entity2).map_or(
+                (Vector::ZERO, *entity2, false, None, None),
+                |(
+                    transform,
+                    global_transform,
+                    collider_parent,
+                    is_sensor,
+                    friction,
+                    restitution,
+                )| {
+                    (
+                        #[cfg(feature = "2d")]
+                        {
+                            transform.translation.truncate().adjust_precision()
+                                * utils::global_transform_scale(global_transform)
+                        },
+                        #[cfg(feature = "3d")]
+                        {
+                            transform.translation.adjust_precision()
+                                * utils::global_transform_scale(global_transform)
+                        },
+                        collider_parent.0,
+                        is_sensor,
+                        friction,
+                        restitution,
+                    )
+                },
+            );
         if entity1 == entity2 {
             continue;
         }
@@ -139,23 +172,42 @@ fn penetration_constraints(
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
 
-            // No collision if one of the bodies is static and the other one is sleeping.
-            if inactive1 && inactive2 {
+            let body1_is_sensor = contacts.entity1 == body1.entity && sensor1.is_some();
+            let body2_is_sensor = contacts.entity2 == body2.entity && sensor2.is_some();
+
+            // No collision response if both bodies are static or sleeping
+            // or if either of the colliders is a sensor collider.
+            if (inactive1 && inactive2)
+                || body1_is_sensor
+                || body2_is_sensor
+                || collider_is_sensor1
+                || collider_is_sensor2
+            {
                 continue;
             }
 
-            // Create and solve constraint if both colliders are solid
-            if sensor1.is_none() && sensor2.is_none() {
-                // When an active body collides with a sleeping body, wake up the sleeping body
-                if sleeping1.is_some() {
-                    commands.entity(entity1).remove::<Sleeping>();
-                } else if sleeping2.is_some() {
-                    commands.entity(entity2).remove::<Sleeping>();
-                }
+            // When an active body collides with a sleeping body, wake up the sleeping body
+            if sleeping1.is_some() {
+                commands.entity(entity1).remove::<Sleeping>();
+            } else if sleeping2.is_some() {
+                commands.entity(entity2).remove::<Sleeping>();
+            }
 
-                for contact_manifold in contacts.manifolds.iter() {
-                    for contact in contact_manifold.contacts.iter() {
-                        let mut constraint = PenetrationConstraint::new(
+            for contact_manifold in contacts.manifolds.iter() {
+                for contact in contact_manifold.contacts.iter() {
+                    let friction = friction1
+                        .unwrap_or(&body1.friction)
+                        .combine(*friction2.unwrap_or(&body2.friction));
+                    let restitution_coefficient = restitution1
+                        .unwrap_or(&body1.restitution)
+                        .combine(*restitution2.unwrap_or(&body2.restitution))
+                        .coefficient;
+
+                    let mut constraint = PenetrationConstraint {
+                        dynamic_friction_coefficient: friction.dynamic_coefficient,
+                        static_friction_coefficient: friction.static_coefficient,
+                        restitution_coefficient,
+                        ..PenetrationConstraint::new(
                             &body1,
                             &body2,
                             ContactData {
@@ -163,10 +215,10 @@ fn penetration_constraints(
                                 point2: contact.point2 + translation2,
                                 ..*contact
                             },
-                        );
-                        constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                        penetration_constraints.0.push(constraint);
-                    }
+                        )
+                    };
+                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                    penetration_constraints.0.push(constraint);
                 }
             }
         }
@@ -395,7 +447,7 @@ fn solve_vel(
             let restitution_speed = compute_restitution(
                 normal_speed,
                 pre_solve_normal_speed,
-                body1.restitution.combine(*body2.restitution).coefficient,
+                constraint.restitution_coefficient,
                 gravity.0,
                 sub_dt.0,
             );
@@ -413,7 +465,7 @@ fn solve_vel(
                 let friction_impulse = compute_dynamic_friction(
                     tangent_speed,
                     w1 + w2,
-                    body1.friction.combine(*body2.friction).dynamic_coefficient,
+                    constraint.dynamic_friction_coefficient,
                     constraint.normal_lagrange,
                     sub_dt.0,
                 );
