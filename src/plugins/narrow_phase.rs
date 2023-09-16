@@ -516,14 +516,7 @@ pub(crate) fn compute_contacts(
             entity2,
             manifolds: manifolds
                 .iter()
-                .map(|manifold| {
-                    let sub_pos1 = manifold
-                        .subshape_pos1
-                        .map_or(Vector::ZERO, |iso| iso.translation.into());
-                    let sub_pos2 = manifold
-                        .subshape_pos2
-                        .map_or(Vector::ZERO, |iso| iso.translation.into());
-                    ContactManifold {
+                .map(|manifold| ContactManifold {
                         entity1,
                         entity2,
                         normal: manifold.local_n1.into(),
@@ -531,14 +524,21 @@ pub(crate) fn compute_contacts(
                             .contacts()
                             .iter()
                             .map(|contact| ContactData {
-                                point1: Vector::from(contact.local_p1) + sub_pos1,
-                                point2: Vector::from(contact.local_p2) + sub_pos2,
+                            point1: manifold
+                                .subshape_pos1
+                                .unwrap_or_default()
+                                .transform_point(&contact.local_p1)
+                                .into(),
+                            point2: manifold
+                                .subshape_pos2
+                                .unwrap_or_default()
+                                .transform_point(&contact.local_p2)
+                                .into(),
                                 normal: manifold.local_n1.into(),
                                 penetration: -contact.dist,
                                 convex,
                             })
                             .collect(),
-                    }
                 })
                 .collect(),
             during_current_frame: true,
