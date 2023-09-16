@@ -104,7 +104,8 @@ impl Plugin for SyncPlugin {
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
         substep_schedule.add_systems(
-            update_child_collider_position
+            (update_collider_offset, update_child_collider_position)
+                .chain()
                 .chain()
                 .after(SubstepSet::Integrate)
                 .before(SubstepSet::NarrowPhase),
@@ -115,7 +116,8 @@ impl Plugin for SyncPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
         physics_schedule.add_systems(
-            update_child_collider_position
+            (update_collider_offset, update_child_collider_position)
+                .chain()
                 .after(PhysicsStepSet::Substeps)
                 .before(PhysicsStepSet::Sleeping),
         );
@@ -161,36 +163,25 @@ fn init_previous_global_transform(
 }
 
 #[allow(clippy::type_complexity)]
-fn update_child_collider_position(
-    mut colliders: Query<(&Transform, &mut Position, &mut Rotation, &Parent), With<Collider>>,
-    parents: Query<
-        (&GlobalTransform, &Position, &Rotation),
+pub(crate) fn update_child_collider_position(
+    mut colliders: Query<
         (
-            With<Children>,
-            Without<Parent>,
-            Or<(Changed<Position>, Changed<Rotation>)>,
+            &Transform,
+            &ColliderOffset,
+            &mut Position,
+            &mut Rotation,
+            &ColliderParent,
         ),
+        Without<RigidBody>,
     >,
+    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
-    for (transform, mut position, mut rotation, parent) in &mut colliders {
-        let Ok((global_transform, parent_pos, parent_rot)) = parents.get(parent.get()) else {
+    for (transform, offset, mut position, mut rotation, parent) in &mut colliders {
+        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
             continue;
         };
 
-        #[cfg(feature = "2d")]
-        let translation = parent_rot
-            .rotate_vec3(
-                transform.translation.adjust_precision()
-                    * utils::global_transform_scale(global_transform).extend(1.0),
-            )
-            .truncate();
-        #[cfg(feature = "3d")]
-        let translation = parent_rot.rotate_vec3(
-            transform.translation.adjust_precision()
-                * utils::global_transform_scale(global_transform),
-        );
-
-        position.0 = parent_pos.0 + translation;
+        position.0 = parent_pos.0 + parent_rot.rotate(offset.0);
         #[cfg(feature = "2d")]
         {
             *rotation = *parent_rot + Rotation::from(transform.rotation);
@@ -200,6 +191,43 @@ fn update_child_collider_position(
             *rotation = (parent_rot.0 * transform.rotation.adjust_precision())
                 .normalize()
                 .into();
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub(crate) fn update_collider_offset(
+    transformed_colliders: Query<Entity, (With<Collider>, Without<RigidBody>, Changed<Transform>)>,
+    children: Query<&Children, With<Collider>>,
+    bodies: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
+    mut child_colliders: Query<
+        (
+            &mut ColliderOffset,
+            &Position,
+            Ref<Transform>,
+            &ColliderParent,
+        ),
+        (With<Parent>, Without<RigidBody>),
+    >,
+) {
+    for (mut collider_offset, position, transform, collider_parent) in &mut child_colliders {
+        if !transform.is_changed() {
+            continue;
+        }
+        if let Ok((parent_pos, parent_rot)) = bodies.get(collider_parent.get()) {
+            collider_offset.0 = parent_rot.inverse().rotate(position.0 - parent_pos.0);
+        }
+    }
+
+    for entity in &transformed_colliders {
+        for child in children.iter_descendants(entity) {
+            if let Ok((mut collider_offset, position, _, collider_parent)) =
+                child_colliders.get_mut(child)
+            {
+                if let Ok((parent_pos, parent_rot)) = bodies.get(collider_parent.get()) {
+                    collider_offset.0 = parent_rot.inverse().rotate(position.0 - parent_pos.0);
+                }
+            }
         }
     }
 }

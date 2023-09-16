@@ -56,7 +56,14 @@ impl Plugin for PreparePlugin {
                 init_rigid_bodies,
                 init_mass_properties,
                 init_colliders,
+                apply_deferred,
                 update_collider_parents,
+                (
+                    sync::update_collider_offset,
+                    sync::update_child_collider_position,
+                )
+                    .chain()
+                    .run_if(any_new_physics_entities),
                 update_mass_properties,
                 clamp_restitution,
             )
@@ -65,6 +72,9 @@ impl Plugin for PreparePlugin {
         );
     }
 }
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+struct PreviousColliderOffset(Vector);
 
 /// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
 /// have been added. Used for avoiding unnecessary transform propagation.
@@ -259,15 +269,20 @@ fn init_colliders(
             Entity,
             &Collider,
             Option<&ColliderAabb>,
+            Option<&ColliderOffset>,
             Option<&ColliderMassProperties>,
             Option<&PreviousColliderMassProperties>,
         ),
         Added<Collider>,
     >,
 ) {
-    for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
+    for (entity, collider, aabb, offset, mass_properties, previous_mass_properties) in
+        &mut colliders
+    {
         commands.entity(entity).insert((
             *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
+            *offset.unwrap_or(&default()),
+            PreviousColliderOffset(Vector::ZERO),
             *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
             *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
                 ColliderMassProperties::ZERO,
@@ -279,132 +294,65 @@ fn init_colliders(
 }
 
 fn update_collider_parents(
-    mut query: Query<
-        (Entity, &mut ColliderParent, Option<&Parent>),
-        Or<(Changed<Parent>, Changed<ColliderParent>)>,
+    mut bodies: Query<(Entity, Option<&mut ColliderParent>), With<RigidBody>>,
+    body_children: Query<&Children>,
+    mut child_colliders: Query<
+        &mut ColliderParent,
+        (With<Collider>, Without<RigidBody>, Changed<Parent>),
     >,
 ) {
-    for (entity, mut collider_parent, parent_entity) in &mut query {
-        if let Some(parent_entity) = parent_entity {
-            collider_parent.0 = parent_entity.get();
-        } else {
+    for (entity, collider_parent) in &mut bodies {
+        if let Some(mut collider_parent) = collider_parent {
             collider_parent.0 = entity;
+        }
+        for child in body_children.iter_descendants(entity) {
+            if let Ok(mut collider_parent) = child_colliders.get_mut(child) {
+                collider_parent.0 = entity;
+            }
         }
     }
 }
-
-type MassPropertiesChanged = Or<(
-    Changed<Mass>,
-    Changed<InverseMass>,
-    Changed<Inertia>,
-    Changed<InverseInertia>,
-    Changed<Collider>,
-    Changed<ColliderMassProperties>,
-)>;
 
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
 fn update_mass_properties(
-    mut bodies: Query<
+    mut bodies: Query<(Entity, &RigidBody, MassPropertiesQuery)>,
+    mut colliders: Query<
         (
-            Entity,
-            Option<&RigidBody>,
-            MassPropertiesQuery,
-            Option<&Collider>,
-            Option<&mut ColliderMassProperties>,
-            Option<&mut PreviousColliderMassProperties>,
-        ),
-        (With<RigidBody>, MassPropertiesChanged),
-    >,
-    mut child_colliders: Query<
-        (
-            &Transform,
-            &GlobalTransform,
+            &ColliderOffset,
+            &mut PreviousColliderOffset,
             &ColliderParent,
             &Collider,
             &mut ColliderMassProperties,
             &mut PreviousColliderMassProperties,
         ),
-        Without<RigidBody>,
+        Or<(
+            Changed<Collider>,
+            Changed<ColliderOffset>,
+            Changed<ColliderMassProperties>,
+        )>,
     >,
 ) {
     for (
-        entity,
-        rb,
-        mut mass_properties,
-        collider,
-        collider_mass_properties,
-        previous_collider_mass_properties,
-    ) in &mut bodies
-    {
-        if mass_properties.mass.is_changed() && mass_properties.mass.0 >= Scalar::EPSILON {
-            mass_properties.inverse_mass.0 = 1.0 / mass_properties.mass.0;
-        }
-
-        if let Some(collider) = collider {
-            let Some(mut collider_mass_properties) = collider_mass_properties else {
-                continue;
-            };
-            let Some(mut previous_collider_mass_properties) = previous_collider_mass_properties
-            else {
-                continue;
-            };
-
-            // Subtract previous collider mass props from the body's mass props
-            mass_properties -= previous_collider_mass_properties.0;
-
-            // Update previous and current collider mass props
-            previous_collider_mass_properties.0 = *collider_mass_properties;
-            *collider_mass_properties =
-                ColliderMassProperties::new_computed(collider, collider_mass_properties.density);
-
-            // Add new collider mass props to the body's mass props
-            mass_properties += *collider_mass_properties;
-        }
-
-        // Warn about dynamic bodies with no mass or inertia
-        if let Some(rb) = rb {
-            let is_mass_valid =
-                mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
-            #[cfg(feature = "2d")]
-            let is_inertia_valid =
-                mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
-            #[cfg(feature = "3d")]
-            let is_inertia_valid =
-                mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
-            if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
-                warn!(
-                    "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
-                    entity
-                );
-            }
-        }
-    }
-    for (
-        transform,
-        global_transform,
+        collider_offset,
+        mut previous_collider_offset,
         collider_parent,
-        _,
+        collider,
         mut collider_mass_properties,
         mut previous_collider_mass_properties,
-    ) in &mut child_colliders
+    ) in &mut colliders
     {
-        if let Ok((_, _, mut mass_properties, Some(collider), _, _)) =
-            bodies.get_mut(collider_parent.0)
-        {
-            #[cfg(feature = "2d")]
-            let translation = transform.translation.truncate().adjust_precision()
-                * utils::global_transform_scale(global_transform);
-            #[cfg(feature = "3d")]
-            let translation = transform.translation.adjust_precision()
-                * utils::global_transform_scale(global_transform);
-
+        if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
             // Subtract previous collider mass props from the body's mass props
             mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
-                center_of_mass: CenterOfMass(translation),
+                center_of_mass: CenterOfMass(
+                    previous_collider_offset.0 + previous_collider_mass_properties.center_of_mass.0,
+                ),
                 ..previous_collider_mass_properties.0
             });
+
+            previous_collider_offset.0 = collider_offset.0;
 
             // Update previous and current collider mass props
             previous_collider_mass_properties.0 = *collider_mass_properties;
@@ -413,9 +361,37 @@ fn update_mass_properties(
 
             // Add new collider mass props to the body's mass props
             mass_properties += ColliderMassProperties {
-                center_of_mass: CenterOfMass(translation),
+                center_of_mass: CenterOfMass(
+                    collider_offset.0 + collider_mass_properties.center_of_mass.0,
+                ),
                 ..*collider_mass_properties
             };
+        }
+    }
+
+    for (entity, rb, mut mass_properties) in &mut bodies {
+        let is_mass_valid =
+            mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
+        #[cfg(feature = "2d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
+        #[cfg(feature = "3d")]
+        let is_inertia_valid =
+            mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
+
+        if mass_properties.mass.is_changed() && is_mass_valid {
+            mass_properties.inverse_mass.0 = 1.0 / mass_properties.mass.0;
+        }
+        if mass_properties.inertia.is_changed() && is_inertia_valid {
+            mass_properties.inverse_inertia.0 = mass_properties.inertia.inverse().0;
+        }
+
+        // Warn about dynamic bodies with no mass or inertia
+        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
+            warn!(
+                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
+                entity
+            );
         }
     }
 }

@@ -102,7 +102,8 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
-            .register_type::<Sensor>();
+            .register_type::<Sensor>()
+            .register_type::<ColliderOffset>();
 
         // Configure higher level system sets for the given schedule
         let schedule = &self.schedule;

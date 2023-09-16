@@ -434,6 +434,14 @@ impl ColliderParent {
     }
 }
 
+/// The positional offset of a collider relative to the rigid body it's attached to.
+/// This is in the local space of the body, not the collider itself.
+///
+/// The offset is used for computing things like contact positions and a body's center of mass
+/// without having to traverse deeply nested hierarchies.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+pub(crate) struct ColliderOffset(pub(crate) Vector);
+
 /// A component that marks a [`Collider`] as a sensor collider.
 ///
 /// Sensor colliders send [collision events](Collider#collision-events) but don't cause a collision response.

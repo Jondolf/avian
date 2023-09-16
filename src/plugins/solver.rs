@@ -83,8 +83,7 @@ fn penetration_constraints(
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
     colliders: Query<
         (
-            &Transform,
-            &GlobalTransform,
+            &ColliderOffset,
             &ColliderParent,
             Has<Sensor>,
             Option<&Friction>,
@@ -103,68 +102,30 @@ fn penetration_constraints(
         .iter()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
-        // Todo: Clean this up
-        let (translation1, entity1, collider_is_sensor1, friction1, restitution1) =
+        let (collider_offset1, collider_entity1, collider_is_sensor1, friction1, restitution1) =
             colliders.get(*entity1).map_or(
-                (Vector::ZERO, *entity1, false, None, None),
-                |(
-                    transform,
-                    global_transform,
-                    collider_parent,
-                    is_sensor,
-                    friction,
-                    restitution,
-                )| {
-                    (
-                        #[cfg(feature = "2d")]
-                        {
-                            transform.translation.truncate().adjust_precision()
-                                * utils::global_transform_scale(global_transform)
-                        },
-                        #[cfg(feature = "3d")]
-                        {
-                            transform.translation.adjust_precision()
-                                * utils::global_transform_scale(global_transform)
-                        },
-                        collider_parent.0,
-                        is_sensor,
-                        friction,
-                        restitution,
-                    )
+                (default(), None, false, None, None),
+                |(offset, ent, sensor, friction, restitution)| {
+                    (offset.0, Some(ent.get()), sensor, friction, restitution)
                 },
             );
-        let (translation2, entity2, collider_is_sensor2, friction2, restitution2) =
+        let (collider_offset2, collider_entity2, collider_is_sensor2, friction2, restitution2) =
             colliders.get(*entity2).map_or(
-                (Vector::ZERO, *entity2, false, None, None),
-                |(
-                    transform,
-                    global_transform,
-                    collider_parent,
-                    is_sensor,
-                    friction,
-                    restitution,
-                )| {
-                    (
-                        #[cfg(feature = "2d")]
-                        {
-                            transform.translation.truncate().adjust_precision()
-                                * utils::global_transform_scale(global_transform)
-                        },
-                        #[cfg(feature = "3d")]
-                        {
-                            transform.translation.adjust_precision()
-                                * utils::global_transform_scale(global_transform)
-                        },
-                        collider_parent.0,
-                        is_sensor,
-                        friction,
-                        restitution,
-                    )
+                (default(), None, false, None, None),
+                |(offset, ent, sensor, friction, restitution)| {
+                    (offset.0, Some(ent.get()), sensor, friction, restitution)
                 },
             );
+
+        let (entity1, entity2) = (
+            collider_entity1.unwrap_or(*entity1),
+            collider_entity2.unwrap_or(*entity2),
+        );
+
         if entity1 == entity2 {
             continue;
         }
+
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([entity1, entity2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
@@ -193,16 +154,16 @@ fn penetration_constraints(
                 commands.entity(entity2).remove::<Sleeping>();
             }
 
+            let friction = friction1
+                .unwrap_or(&body1.friction)
+                .combine(*friction2.unwrap_or(&body2.friction));
+            let restitution_coefficient = restitution1
+                .unwrap_or(&body1.restitution)
+                .combine(*restitution2.unwrap_or(&body2.restitution))
+                .coefficient;
+
             for contact_manifold in contacts.manifolds.iter() {
                 for contact in contact_manifold.contacts.iter() {
-                    let friction = friction1
-                        .unwrap_or(&body1.friction)
-                        .combine(*friction2.unwrap_or(&body2.friction));
-                    let restitution_coefficient = restitution1
-                        .unwrap_or(&body1.restitution)
-                        .combine(*restitution2.unwrap_or(&body2.restitution))
-                        .coefficient;
-
                     let mut constraint = PenetrationConstraint {
                         dynamic_friction_coefficient: friction.dynamic_coefficient,
                         static_friction_coefficient: friction.static_coefficient,
@@ -211,8 +172,8 @@ fn penetration_constraints(
                             &body1,
                             &body2,
                             ContactData {
-                                point1: contact.point1 + translation1,
-                                point2: contact.point2 + translation2,
+                                point1: contact.point1 + collider_offset1,
+                                point2: contact.point2 + collider_offset2,
                                 ..*contact
                             },
                         )

@@ -46,7 +46,7 @@ type AABBChanged = Or<(
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
 fn update_aabb(
-    mut bodies: Query<
+    mut colliders: Query<
         (
             &Collider,
             &mut ColliderAabb,
@@ -58,16 +58,16 @@ fn update_aabb(
         ),
         AABBChanged,
     >,
-    velocity: Query<(Option<&LinearVelocity>, Option<&AngularVelocity>), With<Children>>,
+    parent_velocity: Query<(Option<&LinearVelocity>, Option<&AngularVelocity>), With<Children>>,
     dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.0;
 
-    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut bodies {
+    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (lin_vel.0, ang_vel.0)
-        } else if let Ok((Some(lin_vel), Some(ang_vel))) = velocity.get(collider_parent.0) {
+        } else if let Ok((Some(lin_vel), Some(ang_vel))) = parent_velocity.get(collider_parent.0) {
             (lin_vel.0, ang_vel.0)
         } else {
             (Vector::ZERO, AngularVelocity::ZERO.0)
