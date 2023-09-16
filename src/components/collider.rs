@@ -392,8 +392,47 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
+/// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
+///
+/// If the collider is a child of a rigid body, this points to the body's `Entity` ID.
+/// If the [`Collider`] component is instead on the same entity as the [`RigidBody`] component,
+/// this points to the collider's own `Entity` ID.
+///
+/// This component is added and updated automatically based on entity hierarchies and should not
+/// be modified directly.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+///     // Spawn rigid body with its own collider
+///     let body_id = commands.spawn((RigidBody::Dynamic, Collider::ball(0.5))).id();
+///     
+///     // Spawn another collider and add it as a child of the rigid body.
+///     // The ColliderParent component will automatically be added with the value of body_id.
+///     commands
+///         .spawn((
+///             Collider::ball(0.5),
+///             TransformBundle::from_transform(Transform::from_translation(Vec3::X * 2.0)),
+///         ))
+///         .set_parent(body_id);
+/// }
+/// ```
 #[derive(Reflect, Clone, Component, Debug, PartialEq, Eq)]
-pub struct ColliderParent(pub Entity);
+pub struct ColliderParent(pub(crate) Entity);
+
+impl ColliderParent {
+    /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
+    pub const fn get(&self) -> Entity {
+        self.0
+    }
+}
 
 /// A component that marks a [`Collider`] as a sensor collider.
 ///
