@@ -129,7 +129,7 @@ fn movement(
 
 fn kinematic_collision(
     collisions: Res<Collisions>,
-    mut bodies: Query<(&RigidBody, &mut Position)>,
+    mut bodies: Query<(&RigidBody, &mut Position, &Rotation)>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
@@ -137,7 +137,7 @@ fn kinematic_collision(
         if !contacts.during_current_substep {
             continue;
         }
-        if let Ok([(rb1, mut position1), (rb2, mut position2)]) =
+        if let Ok([(rb1, mut position1, rotation1), (rb2, mut position2, _)]) =
             bodies.get_many_mut([contacts.entity1, contacts.entity2])
         {
             for manifold in contacts.manifolds.iter() {
@@ -146,9 +146,9 @@ fn kinematic_collision(
                         continue;
                     }
                     if rb1.is_kinematic() && !rb2.is_kinematic() {
-                        position1.0 -= contact.normal * contact.penetration;
+                        position1.0 -= contact.global_normal1(rotation1) * contact.penetration;
                     } else if rb2.is_kinematic() && !rb1.is_kinematic() {
-                        position2.0 += contact.normal * contact.penetration;
+                        position2.0 += contact.global_normal1(rotation1) * contact.penetration;
                     }
                 }
             }
