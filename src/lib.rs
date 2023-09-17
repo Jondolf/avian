@@ -542,9 +542,11 @@ pub enum PhysicsStepSet {
 /// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
 ///
 /// 1. Integrate
-/// 2. Solve positional and angular constraints
-/// 3. Update velocities
-/// 4. Solve velocity constraints (dynamic friction and restitution)
+/// 2. Narrow phase
+/// 3. Post-process collisions
+/// 4. Solve positional and angular constraints
+/// 5. Update velocities
+/// 6. Solve velocity constraints (dynamic friction and restitution)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSet {
     /// Responsible for integrating Newton's 2nd law of motion,
@@ -556,11 +558,11 @@ pub enum SubstepSet {
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,
-    /// An empty substep for custom post-processes that can be created by the user
-    /// such as filtering collisions.
+    /// Responsible for running [`PostProcessCollisionsSchedule`] to allow user-defined systems
+    /// to post-process collisions, such as filtering.
     ///
     /// If you want to edit or remove collisions after [`SubstepSet::NarrowPhase`], you can
-    /// add custom systems here.
+    /// add custom systems to this set, or to [`PostProcessCollisionsSchedule`].
     ///
     /// See [`NarrowPhasePlugin`].
     PostProcessCollisions,

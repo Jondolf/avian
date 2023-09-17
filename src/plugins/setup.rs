@@ -28,6 +28,8 @@ use crate::prelude::*;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
+/// - [`PostProcessCollisionsSchedule`]: Responsible for running collision post-processing systems.
+/// Empty by default.
 pub struct PhysicsSetupPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
