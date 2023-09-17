@@ -44,19 +44,9 @@ impl XpbdConstraint<2> for PenetrationConstraint {
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
         let [body1, body2] = bodies;
 
-        // For convex-convex collider contacts, we can compute the penetration at the current state
-        // using the contact points like the XPBD paper suggests, which reduces explosiveness.
-        //
-        // However, non-convex colliders cause convex colliders to sink into them unless we use
-        // the penetration depth provided by Parry.
-        //
-        // Todo: Figure out why this is and use the method below for all collider types in order to fix
-        // explosions for all contacts.
-        if self.contact.convex {
-            let p1 = body1.current_position() + body1.rotation.rotate(self.r1);
-            let p2 = body2.current_position() + body2.rotation.rotate(self.r2);
-            self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
-        }
+        let p1 = body1.current_position() + body1.rotation.rotate(self.contact.point1);
+        let p2 = body2.current_position() + body2.rotation.rotate(self.contact.point2);
+        self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
 
         // If penetration depth is under 0, skip the collision
         if self.contact.penetration <= Scalar::EPSILON {

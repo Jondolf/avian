@@ -7,7 +7,7 @@ use bevy::prelude::*;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 use indexmap::IndexMap;
-use parry::query::{PersistentQueryDispatcher, QueryDispatcher};
+use parry::query::PersistentQueryDispatcher;
 
 /// Computes contacts between entities and sends collision events.
 ///
@@ -458,9 +458,6 @@ pub struct ContactData {
     pub normal: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
-    /// True if both colliders are convex. Currently, contacts between
-    /// convex and non-convex colliders have to be handled differently.
-    pub(crate) convex: bool,
 }
 
 impl ContactData {
@@ -498,76 +495,47 @@ pub(crate) fn compute_contacts(
     let isometry1 = utils::make_isometry(position1, rotation1);
     let isometry2 = utils::make_isometry(position2, rotation2);
     let isometry12 = isometry1.inv_mul(&isometry2);
-    let convex = collider1.is_convex() && collider2.is_convex();
 
-    if convex {
-        // Todo: Reuse manifolds from previous frame to improve performance
-        let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
-        let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
-            &isometry12,
-            collider1.get_shape().0.as_ref(),
-            collider2.get_shape().0.as_ref(),
-            prediction_distance,
-            &mut manifolds,
-            &mut None,
-        );
-        Contacts {
-            entity1,
-            entity2,
-            manifolds: manifolds
-                .iter()
-                .map(|manifold| ContactManifold {
-                    entity1,
-                    entity2,
-                    normal: manifold.local_n1.into(),
-                    contacts: manifold
-                        .contacts()
-                        .iter()
-                        .map(|contact| ContactData {
-                            point1: contact.local_p1.into(),
-                            point2: contact.local_p2.into(),
-                            normal: manifold.local_n1.into(),
-                            penetration: -contact.dist,
-                            convex,
-                        })
-                        .collect(),
-                })
-                .collect(),
-            during_current_frame: true,
-            during_current_substep: true,
-        }
-    } else {
-        // For some reason, convex colliders sink into non-convex colliders
-        // if we use contact manifolds, so we have to compute a single contact point instead.
-        // Todo: Find out why this is and use contact manifolds for both types of colliders.
-        let contact = parry::query::DefaultQueryDispatcher
-            .contact(
-                &isometry12,
-                collider1.get_shape().0.as_ref(),
-                collider2.get_shape().0.as_ref(),
-                prediction_distance,
-            )
-            .unwrap()
-            .map(|contact| ContactData {
-                point1: contact.point1.into(),
-                point2: contact.point2.into(),
-                normal: contact.normal1.into(),
-                penetration: -contact.dist,
-                convex,
-            });
-        Contacts {
-            entity1,
-            entity2,
-            manifolds: contact.map_or(vec![], |contact| {
-                vec![ContactManifold {
-                    entity1,
-                    entity2,
-                    contacts: vec![contact],
-                    normal: contact.normal,
-                }]
-            }),
-            during_current_frame: true,
-            during_current_substep: true,
-        }
+    // Todo: Reuse manifolds from previous frame to improve performance
+    let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
+    let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
+        &isometry12,
+        collider1.get_shape().0.as_ref(),
+        collider2.get_shape().0.as_ref(),
+        prediction_distance,
+        &mut manifolds,
+        &mut None,
+    );
+    Contacts {
+        entity1,
+        entity2,
+        manifolds: manifolds
+            .iter()
+            .map(|manifold| ContactManifold {
+                entity1,
+                entity2,
+                normal: manifold.local_n1.into(),
+                contacts: manifold
+                    .contacts()
+                    .iter()
+                    .map(|contact| ContactData {
+                        point1: manifold
+                            .subshape_pos1
+                            .unwrap_or_default()
+                            .transform_point(&contact.local_p1)
+                            .into(),
+                        point2: manifold
+                            .subshape_pos2
+                            .unwrap_or_default()
+                            .transform_point(&contact.local_p2)
+                            .into(),
+                        normal: manifold.local_n1.into(),
+                        penetration: -contact.dist,
+                    })
+                    .collect(),
+            })
+            .collect(),
+        during_current_frame: true,
+        during_current_substep: true,
     }
 }
