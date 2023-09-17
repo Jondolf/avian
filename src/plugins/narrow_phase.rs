@@ -444,7 +444,10 @@ pub struct ContactManifold {
     pub contacts: Vec<ContactData>,
     /// A contact normal shared by all contacts in this manifold,
     /// expressed in the local space of the first entity.
-    pub normal: Vector,
+    pub normal1: Vector,
+    /// A contact normal shared by all contacts in this manifold,
+    /// expressed in the local space of the second entity.
+    pub normal2: Vector,
 }
 
 /// Data related to a contact between two bodies.
@@ -455,7 +458,9 @@ pub struct ContactData {
     /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
     /// A contact normal expressed in the local space of the first entity.
-    pub normal: Vector,
+    pub normal1: Vector,
+    /// A contact normal expressed in the local space of the second entity.
+    pub normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
 }
@@ -474,8 +479,13 @@ impl ContactData {
     }
 
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal(&self, rotation: &Rotation) -> Vector {
-        rotation.rotate(self.normal)
+    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal1)
+    }
+
+    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal2)
     }
 }
 
@@ -511,28 +521,50 @@ pub(crate) fn compute_contacts(
         entity2,
         manifolds: manifolds
             .iter()
-            .map(|manifold| ContactManifold {
-                entity1,
-                entity2,
-                normal: manifold.local_n1.into(),
-                contacts: manifold
-                    .contacts()
-                    .iter()
-                    .map(|contact| ContactData {
-                        point1: manifold
-                            .subshape_pos1
-                            .unwrap_or_default()
-                            .transform_point(&contact.local_p1)
-                            .into(),
-                        point2: manifold
-                            .subshape_pos2
-                            .unwrap_or_default()
-                            .transform_point(&contact.local_p2)
-                            .into(),
-                        normal: manifold.local_n1.into(),
-                        penetration: -contact.dist,
+            .filter_map(|manifold| {
+                if let (Some(normal1), Some(normal2)) = (
+                    manifold
+                        .subshape_pos1
+                        .unwrap_or_default()
+                        .rotation
+                        .transform_vector(&manifold.local_n1)
+                        .try_normalize(0.1),
+                    manifold
+                        .subshape_pos2
+                        .unwrap_or_default()
+                        .rotation
+                        .transform_vector(&manifold.local_n2)
+                        .try_normalize(0.1),
+                ) {
+                    let (normal1, normal2) = (normal1.into(), normal2.into());
+                    Some(ContactManifold {
+                        entity1,
+                        entity2,
+                        normal1,
+                        normal2,
+                        contacts: manifold
+                            .contacts()
+                            .iter()
+                            .map(|contact| ContactData {
+                                point1: manifold
+                                    .subshape_pos1
+                                    .unwrap_or_default()
+                                    .transform_point(&contact.local_p1)
+                                    .into(),
+                                point2: manifold
+                                    .subshape_pos2
+                                    .unwrap_or_default()
+                                    .transform_point(&contact.local_p2)
+                                    .into(),
+                                normal1,
+                                normal2,
+                                penetration: -contact.dist,
+                            })
+                            .collect(),
                     })
-                    .collect(),
+                } else {
+                    None
+                }
             })
             .collect(),
         during_current_frame: true,

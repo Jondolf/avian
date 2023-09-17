@@ -46,7 +46,7 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 
         let p1 = body1.current_position() + body1.rotation.rotate(self.contact.point1);
         let p2 = body2.current_position() + body2.rotation.rotate(self.contact.point2);
-        self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
+        self.contact.penetration = (p1 - p2).dot(self.contact.global_normal1(&body1.rotation));
 
         // If penetration depth is under 0, skip the collision
         if self.contact.penetration <= Scalar::EPSILON {
@@ -93,7 +93,7 @@ impl PenetrationConstraint {
         let compliance = self.compliance;
         let lagrange = self.normal_lagrange;
         let penetration = self.contact.penetration;
-        let normal = self.contact.global_normal(&body1.rotation);
+        let normal = self.contact.global_normal1(&body1.rotation);
         let r1 = body1.rotation.rotate(self.r1);
         let r2 = body2.rotation.rotate(self.r2);
 
@@ -127,15 +127,17 @@ impl PenetrationConstraint {
         let compliance = self.compliance;
         let lagrange = self.tangent_lagrange;
         let penetration = self.contact.penetration;
-        let normal = self.contact.global_normal(&body1.rotation);
+        let normal = self.contact.global_normal1(&body1.rotation);
         let r1 = body1.rotation.rotate(self.r1);
         let r2 = body2.rotation.rotate(self.r2);
 
         // Compute relative motion of the contact points and get the tangential component
-        let delta_p1 = body1.current_position() - body1.previous_position.0 + r1
-            - body1.previous_rotation.rotate(self.r1);
-        let delta_p2 = body2.current_position() - body2.previous_position.0 + r2
-            - body2.previous_rotation.rotate(self.r2);
+        let delta_p1 = body1.current_position() - body1.previous_position.0
+            + body1.rotation.rotate(self.contact.point1)
+            - body1.previous_rotation.rotate(self.contact.point1);
+        let delta_p2 = body2.current_position() - body2.previous_position.0
+            + body2.rotation.rotate(self.contact.point2)
+            - body2.previous_rotation.rotate(self.contact.point2);
         let delta_p = delta_p1 - delta_p2;
         let delta_p_tangent = delta_p - delta_p.dot(normal) * normal;
 
