@@ -12,25 +12,6 @@ pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
     Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
 }
 
-pub(crate) fn global_transform_scale(global_transform: &GlobalTransform) -> Vector {
-    let det = global_transform.affine().matrix3.determinant();
-
-    #[cfg(feature = "2d")]
-    return Vec2::new(
-        global_transform.affine().matrix3.x_axis.length() * det.signum(),
-        global_transform.affine().matrix3.y_axis.length(),
-    )
-    .adjust_precision();
-
-    #[cfg(feature = "3d")]
-    return Vec3::new(
-        global_transform.affine().matrix3.x_axis.length() * det.signum(),
-        global_transform.affine().matrix3.y_axis.length(),
-        global_transform.affine().matrix3.z_axis.length(),
-    )
-    .adjust_precision();
-}
-
 pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
     bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
 }
