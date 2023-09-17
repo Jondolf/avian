@@ -106,7 +106,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Static,
-            Position(Vector::Y * 15.0 * 6.0 * y as f32),
+            Position(Vector::Y * 15.0 * 6.0 * y as Scalar),
             Collider::cuboid(25.0 * 20.0, 25.0),
             OneWayPlatform::default(),
         ));
@@ -125,7 +125,7 @@ fn setup(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Position(Vector::ZERO),
-        Collider::cuboid(actor_size.x, actor_size.y),
+        Collider::cuboid(actor_size.x.into(), actor_size.y.into()),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
     ));
