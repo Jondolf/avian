@@ -521,49 +521,36 @@ pub(crate) fn compute_contacts(
         entity2,
         manifolds: manifolds
             .iter()
-            .filter_map(|manifold| {
-                if let (Some(normal1), Some(normal2)) = (
-                    manifold
-                        .subshape_pos1
-                        .unwrap_or_default()
-                        .rotation
-                        .transform_vector(&manifold.local_n1)
-                        .try_normalize(0.1),
-                    manifold
-                        .subshape_pos2
-                        .unwrap_or_default()
-                        .rotation
-                        .transform_vector(&manifold.local_n2)
-                        .try_normalize(0.1),
-                ) {
-                    let (normal1, normal2) = (normal1.into(), normal2.into());
-                    Some(ContactManifold {
-                        entity1,
-                        entity2,
-                        normal1,
-                        normal2,
-                        contacts: manifold
-                            .contacts()
-                            .iter()
-                            .map(|contact| ContactData {
-                                point1: manifold
-                                    .subshape_pos1
-                                    .unwrap_or_default()
-                                    .transform_point(&contact.local_p1)
-                                    .into(),
-                                point2: manifold
-                                    .subshape_pos2
-                                    .unwrap_or_default()
-                                    .transform_point(&contact.local_p2)
-                                    .into(),
-                                normal1,
-                                normal2,
-                                penetration: -contact.dist,
-                            })
-                            .collect(),
-                    })
-                } else {
-                    None
+            .map(|manifold| {
+                let subpos1 = manifold.subshape_pos1.unwrap_or_default();
+                let subpos2 = manifold.subshape_pos2.unwrap_or_default();
+                let normal1 = subpos1
+                    .rotation
+                    .transform_vector(&manifold.local_n1)
+                    .normalize()
+                    .into();
+                let normal2 = subpos2
+                    .rotation
+                    .transform_vector(&manifold.local_n2)
+                    .normalize()
+                    .into();
+
+                ContactManifold {
+                    entity1,
+                    entity2,
+                    normal1,
+                    normal2,
+                    contacts: manifold
+                        .contacts()
+                        .iter()
+                        .map(|contact| ContactData {
+                            point1: subpos1.transform_point(&contact.local_p1).into(),
+                            point2: subpos2.transform_point(&contact.local_p2).into(),
+                            normal1,
+                            normal2,
+                            penetration: -contact.dist,
+                        })
+                        .collect(),
                 }
             })
             .collect(),
