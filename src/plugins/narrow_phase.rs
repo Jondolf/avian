@@ -521,21 +521,26 @@ pub(crate) fn compute_contacts(
         entity2,
         manifolds: manifolds
             .iter()
-            .map(|manifold| {
+            .filter_map(|manifold| {
                 let subpos1 = manifold.subshape_pos1.unwrap_or_default();
                 let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-                let normal1 = subpos1
+                let normal1: Vector = subpos1
                     .rotation
                     .transform_vector(&manifold.local_n1)
                     .normalize()
                     .into();
-                let normal2 = subpos2
+                let normal2: Vector = subpos2
                     .rotation
                     .transform_vector(&manifold.local_n2)
                     .normalize()
                     .into();
 
-                ContactManifold {
+                // Make sure normals are valid
+                if !normal1.is_normalized() || !normal2.is_normalized() {
+                    return None;
+                }
+
+                Some(ContactManifold {
                     entity1,
                     entity2,
                     normal1,
@@ -551,7 +556,7 @@ pub(crate) fn compute_contacts(
                             penetration: -contact.dist,
                         })
                         .collect(),
-                }
+                })
             })
             .collect(),
         during_current_frame: true,
