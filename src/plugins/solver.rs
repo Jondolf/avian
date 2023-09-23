@@ -368,7 +368,7 @@ fn solve_vel(
                 continue;
             }
 
-            let normal = constraint.contact.global_normal(&body1.rotation);
+            let normal = constraint.contact.global_normal1(&body1.rotation);
             let r1 = body1.rotation.rotate(constraint.r1);
             let r2 = body2.rotation.rotate(constraint.r2);
 
