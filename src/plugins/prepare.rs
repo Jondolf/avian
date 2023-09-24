@@ -6,7 +6,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::query::Has, prelude::*};
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
 /// and [colliders](Collider) and updates components.
@@ -99,6 +99,7 @@ fn init_transforms(
             Option<&PreviousRotation>,
             Option<&Parent>,
             Option<&ColliderParent>,
+            Has<RigidBody>,
         ),
         Or<(Added<RigidBody>, Added<Collider>)>,
     >,
@@ -121,6 +122,7 @@ fn init_transforms(
         previous_rot,
         parent,
         collider_parent,
+        is_rb,
     ) in &mut query
     {
         let parent = collider_parent.map_or(parent.map(|p| p.get()), |p| Some(p.get()));
@@ -232,13 +234,22 @@ fn init_transforms(
         };
 
         // Insert the position and rotation.
-        // The values are either unchanged (Position and Rotation already exist) or computed based on the GlobalTransform.
-        commands.entity(entity).insert((
-            Position(new_position),
-            *previous_pos.unwrap_or(&PreviousPosition(new_position)),
-            new_rotation,
-            *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-        ));
+        // The values are either unchanged (Position and Rotation already exist)
+        // or computed based on the GlobalTransform.
+        // If the entity isn't a rigid body, adding PreviousPosition and PreviousRotation
+        // is unnecessary.
+        if is_rb {
+            commands.entity(entity).insert((
+                Position(new_position),
+                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                new_rotation,
+                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+            ));
+        } else {
+            commands
+                .entity(entity)
+                .insert((Position(new_position), new_rotation));
+        }
     }
 }
 
@@ -303,7 +314,7 @@ fn init_mass_properties(
             Option<&InverseInertia>,
             Option<&CenterOfMass>,
         ),
-        Or<(Added<RigidBody>, Added<Collider>)>,
+        Added<RigidBody>,
     >,
 ) {
     for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
