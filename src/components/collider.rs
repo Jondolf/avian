@@ -13,37 +13,146 @@ use parry::{
 /// Flags used for the preprocessing of a triangle mesh collider.
 pub type TriMeshFlags = parry::shape::TriMeshFlags;
 
-/// A collider used for collision detection.
-///
-/// By default, colliders generate [collision events](#collision-events) and cause a collision response for
-/// [rigid bodies](RigidBody). If you only want collision events, you can add a [`Sensor`] component.
+/// A collider used for detecting collisions and generating contacts.
 ///
 /// ## Creation
 ///
-/// `Collider` has tons of methods for creating colliders of various shapes.
-/// For example, to add a ball collider to a [rigid body](RigidBody), use [`Collider::ball`](#method.ball):
+/// `Collider` has tons of methods for creating colliders of various shapes:
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Create a ball collider with a given radius
+/// commands.spawn(Collider::ball(0.5));
+/// // Create a capsule collider with a given height and radius
+/// commands.spawn(Collider::capsule(2.0, 0.5));
+/// # }
+/// ```
 ///
+/// Colliders on their own only detect contacts and generate [collision events](#collision-events).
+/// To make colliders apply contact forces, they have to be attached to [rigid bodies](RigidBody):
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         Transform::from_xyz(0.0, 2.0, 0.0),
+///     ));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5, 5.0));"
+)]
 /// }
 /// ```
 ///
-/// In addition, Bevy XPBD will automatically add some other components, like the following:
+/// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
+/// [`Sensor`], and [`CollisionLayers`].
+///
+/// In addition, Bevy XPBD automatically adds some other components for colliders, like the following:
 ///
 /// - [`ColliderAabb`]
 /// - [`CollidingEntities`]
 /// - [`ColliderMassProperties`]
 ///
+/// ## Multiple colliders
+///
+/// It can often be useful to attach multiple colliders to the same rigid body.
+///
+/// This can be done in two ways. Either use [`Collider::compound`] to have one collider that consists of many
+/// shapes, or for more control, spawn several collider entities as the children of a rigid body:
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // Spawn a rigid body with one collider on the same entity and two as children
+///     commands
+///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+///         .with_children(|children| {
+///             // Spawn the child colliders positioned relative to the rigid body
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///         });
+/// }
+/// ```
+///
+/// Colliders can be arbitrarily nested and transformed relative to the parent.
+/// The rigid body that a collider is attached to can be accessed using the [`ColliderParent`] component.
+///
+/// The benefit of using separate entities for the colliders is that each collider can have its own
+/// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
+/// and other configuration options, and they send separate [collision events](#collision-events).
+///
+/// ## Sensors
+///
+/// If you want a collider to be attached to a rigid body but don't want it to apply forces on
+/// contact, you can add a [`Sensor`] component to make the collider only send
+/// [collision events](#collision-events):
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // This body will pass through objects but still generate collision events
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::ball(0.5),
+///     Sensor,
+/// ));
+/// # }
+/// ```
+///
 /// ## Collision layers
 ///
-/// You can use collsion layers to configure which entities can collide with each other.
+/// Collision layers can be used to configure which entities can collide with each other.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// #[derive(PhysicsLayer)]
+/// enum Layer {
+///     Player,
+///     Enemy,
+///     Ground,
+/// }
+///
+/// fn spawn(mut commands: Commands) {
+///     commands.spawn((
+///         Collider::ball(0.5),
+///         // Player collides with enemies and the ground, but not with other players
+///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
+///     ));
+/// }
+/// ```
 ///
 /// See [`CollisionLayers`] for more information and examples.
 ///
@@ -52,21 +161,30 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
 /// You can listen to these events as you normally would.
 ///
-/// For example, you could read [contacts](Contact) like this:
+/// For example, you could read [contacts](Contacts) between entities like this:
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
-///
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
 /// fn my_system(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contact) in collision_event_reader.iter() {
-///         println!("{:?} and {:?} are colliding", contact.entity1, contact.entity2);
+///     for Collision(contact_pair) in collision_event_reader.iter() {
+///         println!(
+///             "{:?} and {:?} are colliding",
+///             contact_pair.entity1, contact_pair.entity2
+///         );
 ///     }
 /// }
 /// ```
+///
+/// The entities that are colliding with a given entity can also be accessed using
+/// the [`CollidingEntities`] component.
+///
+/// For even more control, you can use the [`Collisions`] resource to get, iterate, filter and modify
+/// collisions.
 ///
 /// ## Advanced usage
 ///
