@@ -166,6 +166,7 @@ fn pass_through_one_way_platform(
 }
 
 /// Allows entities to pass through [`OneWayPlatform`] entities.
+///
 /// Passing through is achieved by removing the collisions between the [`OneWayPlatform`]
 /// and the other entity if the entity should pass through.
 /// If a [`PassThroughOneWayPlatform`] is present on the non-platform entity,
@@ -173,13 +174,14 @@ fn pass_through_one_way_platform(
 ///
 /// Entities known to be passing through each [`OneWayPlatform`] are stored in the
 /// [`OneWayPlatform`]. If an entity is known to be passing through a [`OneWayPlatform`],
-/// it is allowed to continue to do so.
+/// it is allowed to continue to do so, even if [`PassThroughOneWayPlatform`] has been
+/// set to disallow passing through.
 ///
 /// > Note that this is a very simplistic implementation of one-way
 /// > platforms to demonstrate filtering collisions via [`PostProcessCollisionsSchedule`].
 /// > You will probably want something more robust to implement one-way
-/// > platforms properly, or may elect to use sensor colliders instead, which
-/// > means you won't have collisions at all.
+/// > platforms properly, or may elect to use a sensor collider for your entities instead,
+/// > which means you won't need to filter collisions at all.
 ///
 /// #### When an entity is known to already be passing through the [`OneWayPlatform`]
 /// Any time an entity begins passing through a [`OneWayPlatform`], it is added to the
@@ -215,12 +217,11 @@ fn pass_through_one_way_platform(
 /// through a [`OneWayPlatform`] if it is already penetrating the platform. Once it exits the platform,
 /// it will no longer be allowed to pass through.
 fn one_way_platform(
-    mut one_way_platforms_query: Query<(&mut OneWayPlatform, Option<&Rotation>)>,
+    mut one_way_platforms_query: Query<&mut OneWayPlatform>,
     other_colliders_query: Query<
         Option<&PassThroughOneWayPlatform>,
         (With<Collider>, Without<OneWayPlatform>), // NOTE: This precludes OneWayPlatform passing through a OneWayPlatform
     >,
-    rotations_query: Query<&Rotation>,
     mut collisions: ResMut<Collisions>,
 ) {
     // This assumes that Collisions contains empty entries for entities
@@ -237,39 +238,24 @@ fn one_way_platform(
             })
         }
 
+        // Differentiate between which normal of the manifold we should use
+        enum RelevantNormal {
+            Normal1,
+            Normal2,
+        }
+
         // First, figure out which entity is the one-way platform, and which is the other.
         // Choose the appropriate normal for pass-through depending on which is which.
-        let (
-            mut one_way_platform,
-            platform_entity,
-            other_entity,
-            maybe_platform_rotation,
-            pass_through_vector,
-        ) = if let Ok((one_way_platform, maybe_platform_rotation)) =
-            one_way_platforms_query.get_mut(*entity1)
-        {
-            (
-                one_way_platform,
-                entity1,
-                entity2,
-                maybe_platform_rotation,
-                Vector::Y * 1.,
-            )
-        } else if let Ok((one_way_platform, maybe_platform_rotation)) =
-            one_way_platforms_query.get_mut(*entity2)
-        {
-            (
-                one_way_platform,
-                entity2,
-                entity1,
-                maybe_platform_rotation,
-                Vector::Y * -1.,
-            )
-        } else {
-            // Neither is a one-way-platform, so accept the collision:
-            // we're done here.
-            return true;
-        };
+        let (mut one_way_platform, other_entity, relevant_normal) =
+            if let Ok(one_way_platform) = one_way_platforms_query.get_mut(*entity1) {
+                (one_way_platform, entity2, RelevantNormal::Normal1)
+            } else if let Ok(one_way_platform) = one_way_platforms_query.get_mut(*entity2) {
+                (one_way_platform, entity1, RelevantNormal::Normal2)
+            } else {
+                // Neither is a one-way-platform, so accept the collision:
+                // we're done here.
+                return true;
+            };
 
         if one_way_platform.0.contains(other_entity) {
             // If we were already allowing a collision for a particular entity,
@@ -282,11 +268,6 @@ fn one_way_platform(
             }
         }
 
-        let pass_through_global_vector = maybe_platform_rotation
-            .unwrap_or(&Rotation::default())
-            .inverse()
-            .rotate(pass_through_vector);
-
         match other_colliders_query.get(*other_entity) {
             // Pass-through is set to never, so accept the collision.
             Ok(Some(PassThroughOneWayPlatform::Never)) => true,
@@ -298,18 +279,15 @@ fn one_way_platform(
             }
             // Default behaviour is "by normal".
             Err(_) | Ok(None) | Ok(Some(PassThroughOneWayPlatform::ByNormal)) => {
-                // Rotate the global pass through vector into the platform's local space.
-                let pass_through_vector = rotations_query
-                    .get(*platform_entity)
-                    .unwrap_or(&Rotation::default())
-                    .rotate(pass_through_global_vector);
-
-                // If all contact normals are in line with the pass_through_vector of this platform
-                // (in its local space), then ignore the collision and register it as an entity
-                // that's currently penetrating.
+                // If all contact normals are in line with the local up vector of this platform,
+                // then this collision should occur: the entity is on top of the platform.
                 if contacts.manifolds.iter().all(|manifold| {
-                    manifold.normal.length() > Scalar::EPSILON
-                        && manifold.normal.dot(pass_through_vector) >= 0.5
+                    let normal = match relevant_normal {
+                        RelevantNormal::Normal1 => manifold.normal1,
+                        RelevantNormal::Normal2 => manifold.normal2,
+                    };
+
+                    normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
                 }) {
                     true
                 } else if any_penetrating(&contacts) {
