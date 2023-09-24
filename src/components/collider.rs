@@ -522,24 +522,21 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
-///
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
 /// fn setup(mut commands: Commands) {
-///     // Spawn rigid body with its own collider
-///     let body_id = commands.spawn((RigidBody::Dynamic, Collider::ball(0.5))).id();
-///     
-///     // Spawn another collider and add it as a child of the rigid body.
-///     // The ColliderParent component will automatically be added with the value of body_id.
+///     // Spawn a rigid body with one collider on the same entity and two as children.
+///     // Each entity will have a ColliderParent component that has the same rigid body entity.
 ///     commands
-///         .spawn((
-///             Collider::ball(0.5),
-///             TransformBundle::from_transform(Transform::from_translation(Vec3::X * 2.0)),
-///         ))
-///         .set_parent(body_id);
+///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+///         .with_children(|children| {
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///         });
 /// }
 /// ```
 #[derive(Reflect, Clone, Component, Debug, PartialEq, Eq)]
