@@ -53,11 +53,11 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///     ));
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn(((RigidBody::Static, Collider::cuboid(5.0, 0.5));"
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "    commands.spawn(((RigidBody::Static, Collider::cuboid(5.0, 0.5, 5.0));"
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5, 5.0)));"
 )]
 /// }
 /// ```
