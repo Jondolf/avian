@@ -93,15 +93,39 @@ type BodyWokeUpFilter = Or<(
     Changed<GravityScale>,
 )>;
 
+type ColliderTransformedFilter = Or<(
+    Changed<Collider>,
+    Changed<Transform>,
+    Changed<ColliderOffset>,
+)>;
+
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed.
+#[allow(clippy::type_complexity)]
 fn wake_up_bodies(
     mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyWokeUpFilter)>,
+    mut bodies: ParamSet<(
+        Query<(Entity, &mut TimeSleeping), (With<Sleeping>, BodyWokeUpFilter)>,
+        Query<(Entity, &mut TimeSleeping), With<RigidBody>>,
+    )>,
+    all_colliders: Query<&ColliderParent>,
+    child_colliders: Query<&ColliderParent, (Without<RigidBody>, ColliderTransformedFilter)>,
+    // Todo: This seems to miss despawns
+    mut removed_colliders: RemovedComponents<Collider>,
 ) {
-    for (entity, mut time_sleeping) in &mut bodies {
+    // Wake up bodies that have been moved
+    for (entity, mut time_sleeping) in &mut bodies.p0() {
         commands.entity(entity).remove::<Sleeping>();
         time_sleeping.0 = 0.0;
+    }
+
+    // Wake up bodies when any of their attached colliders have been moved or removed
+    let removed_colliders = all_colliders.iter_many(removed_colliders.iter());
+    for collider_parent in child_colliders.iter().chain(removed_colliders) {
+        if let Ok((entity, mut time_sleeping)) = bodies.p1().get_mut(collider_parent.get()) {
+            commands.entity(entity).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
+        }
     }
 }
 
