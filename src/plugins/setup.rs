@@ -98,12 +98,15 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<ColliderMassProperties>()
+            .register_type::<PreviousColliderMassProperties>()
             .register_type::<LockedAxes>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
-            .register_type::<ColliderOffset>();
+            .register_type::<ColliderOffset>()
+            .register_type::<PreviousColliderOffset>();
 
         // Configure higher level system sets for the given schedule
         let schedule = &self.schedule;

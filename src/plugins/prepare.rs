@@ -75,7 +75,8 @@ impl Plugin for PreparePlugin {
 }
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-struct PreviousColliderOffset(Vector);
+#[reflect(Component)]
+pub(crate) struct PreviousColliderOffset(Vector);
 
 /// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
 /// have been added. Used for avoiding unnecessary transform propagation.

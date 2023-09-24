@@ -37,7 +37,7 @@ pub use broad_phase::BroadPhasePlugin;
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
 pub use narrow_phase::*;
-pub use prepare::PreparePlugin;
+pub use prepare::*;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;
 pub use solver::{solve_constraint, SolverPlugin};

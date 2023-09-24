@@ -302,5 +302,6 @@ impl Default for ColliderMassProperties {
 }
 
 /// The previous [`ColliderMassProperties`].
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
 pub(crate) struct PreviousColliderMassProperties(pub ColliderMassProperties);
