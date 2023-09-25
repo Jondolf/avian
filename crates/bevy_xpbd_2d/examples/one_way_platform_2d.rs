@@ -1,3 +1,9 @@
+//! A 2D platformer example with one-way platforms to demonstrate
+//! filtering collisions with systems in the `PostProcessCollisions` schedule.
+//!
+//! Move with arrow keys, jump with Space and descend through
+//! platforms by pressing Space while holding the down arrow.
+
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
 use bevy_xpbd_2d::{math::*, prelude::*, PostProcessCollisionsSchedule};
 use examples_common_2d::XpbdExamplePlugin;
@@ -124,7 +130,7 @@ fn setup(
         actor_mesh.clone(),
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
-        Position(Vector::ZERO),
+        Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
         Collider::cuboid(actor_size.x.into(), actor_size.y.into()),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
@@ -143,11 +149,14 @@ fn movement(
             linear_velocity.x += 10.0;
         }
 
-        if linear_velocity.y.abs() < 0.1 // Assume "mostly stopped" to mean "grounded"
+        // Assume "mostly stopped" to mean "grounded".
+        // You should use ray casting, shape casting or sensor colliders
+        // for more robust ground detection.
+        if linear_velocity.y.abs() < 0.1
             && !keyboard_input.pressed(KeyCode::Down)
             && keyboard_input.just_pressed(KeyCode::Space)
         {
-            linear_velocity.y = 500.0;
+            linear_velocity.y = 450.0;
         }
     }
 }
@@ -226,7 +235,6 @@ fn one_way_platform(
 ) {
     // This assumes that Collisions contains empty entries for entities
     // that were once colliding but no longer are.
-
     collisions.retain(|(entity1, entity2), contacts| {
         // This is used in a couple of if statements below; writing here for brevity below.
         fn any_penetrating(contacts: &Contacts) -> bool {
