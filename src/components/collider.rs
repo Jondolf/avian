@@ -392,10 +392,11 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Some((vtx, idx))
 }
 
-/// A component that marks a [`Collider`] as a sensor collider.
+/// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///
-/// Sensor colliders send [collision events](Collider#collision-events) but don't cause a collision response.
-/// This is often used to detect when something enters or leaves an area.
+/// Sensor colliders send [collision events](Collider#collision-events) and register intersections,
+/// but allow other bodies to pass through them. This is often used to detect when something enters
+/// or leaves an area or is intersecting some shape.
 ///
 /// ## Example
 ///
@@ -407,10 +408,12 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
 /// use bevy_xpbd_3d::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     // Spawn a static ball that generates collision events but doesn't cause a collision response
+///     // Spawn a static body with a sensor collider.
+///     // Other bodies will pass through, but it will still send collision events.
 ///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
 /// }
 /// ```
+#[doc(alias = "Trigger")]
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
 pub struct Sensor;
