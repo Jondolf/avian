@@ -28,7 +28,7 @@ use crate::prelude::*;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
-/// - [`PostProcessCollisionsSchedule`]: Responsible for running collision post-processing systems.
+/// - [`PostProcessCollisions`]: Responsible for running collision post-processing systems.
 /// Empty by default.
 pub struct PhysicsSetupPlugin {
     schedule: Box<dyn ScheduleLabel>,
@@ -196,10 +196,7 @@ impl Plugin for PhysicsSetupPlugin {
                 ..default()
             });
 
-        app.add_schedule(
-            PostProcessCollisionsSchedule,
-            post_process_collisions_schedule,
-        );
+        app.add_schedule(PostProcessCollisions, post_process_collisions_schedule);
 
         app.add_systems(
             SubstepSchedule,
@@ -325,8 +322,8 @@ fn run_substep_schedule(world: &mut World) {
     }
 }
 
-/// Runs the [`PostProcessCollisionsSchedule`].
+/// Runs the [`PostProcessCollisions`] schedule.
 fn run_post_process_collisions_schedule(world: &mut World) {
-    debug!("running PostProcessCollisionsSchedule");
-    world.run_schedule(PostProcessCollisionsSchedule);
+    debug!("running PostProcessCollisions");
+    world.run_schedule(PostProcessCollisions);
 }

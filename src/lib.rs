@@ -468,7 +468,7 @@ pub struct SubstepSchedule;
 ///
 /// Empty by default.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct PostProcessCollisionsSchedule;
+pub struct PostProcessCollisions;
 
 /// High-level system sets for the main phases of the physics engine.
 /// You can use these to schedule your own systems before or after physics is run without
@@ -488,7 +488,7 @@ pub struct PostProcessCollisionsSchedule;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
-/// - [`PostProcessCollisionsSchedule`]: Responsible for running the post-process collisions group in
+/// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
 /// [`SubstepSet::PostProcessCollisions`]. Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
@@ -558,11 +558,11 @@ pub enum SubstepSet {
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,
-    /// Responsible for running [`PostProcessCollisionsSchedule`] to allow user-defined systems
+    /// Responsible for running [`PostProcessCollisions`] to allow user-defined systems
     /// to post-process collisions, such as filtering.
     ///
     /// If you want to edit or remove collisions after [`SubstepSet::NarrowPhase`], you can
-    /// add custom systems to this set, or to [`PostProcessCollisionsSchedule`].
+    /// add custom systems to this set, or to [`PostProcessCollisions`].
     ///
     /// See [`NarrowPhasePlugin`].
     PostProcessCollisions,

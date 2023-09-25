@@ -5,7 +5,7 @@
 //! platforms by pressing Space while holding the down arrow.
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
-use bevy_xpbd_2d::{math::*, prelude::*, PostProcessCollisionsSchedule};
+use bevy_xpbd_2d::{math::*, prelude::*, PostProcessCollisions};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {
@@ -16,7 +16,7 @@ fn main() {
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, pass_through_one_way_platform))
-        .add_systems(PostProcessCollisionsSchedule, one_way_platform)
+        .add_systems(PostProcessCollisions, one_way_platform)
         .run();
 }
 
@@ -187,7 +187,7 @@ fn pass_through_one_way_platform(
 /// set to disallow passing through.
 ///
 /// > Note that this is a very simplistic implementation of one-way
-/// > platforms to demonstrate filtering collisions via [`PostProcessCollisionsSchedule`].
+/// > platforms to demonstrate filtering collisions via [`PostProcessCollisions`].
 /// > You will probably want something more robust to implement one-way
 /// > platforms properly, or may elect to use a sensor collider for your entities instead,
 /// > which means you won't need to filter collisions at all.
