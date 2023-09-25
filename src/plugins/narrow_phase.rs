@@ -142,10 +142,18 @@ impl Collisions {
             })
     }
 
+    /// Retains only the collisions for which the specified predicate returns `true`.
+    /// Collisions for which the predicate returns `false` are removed from the `HashMap`.
+    pub fn retain<F>(&mut self, keep: F)
+    where
+        F: FnMut(&(Entity, Entity), &mut Contacts) -> bool,
+    {
+        self.0.retain(keep);
+    }
+
     /// Removes collisions against the given entity from the `HashMap`.
     fn remove_collisions_with_entity(&mut self, entity: Entity) {
-        self.0
-            .retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
+        self.retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
     }
 }
 
