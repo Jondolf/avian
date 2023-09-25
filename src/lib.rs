@@ -558,8 +558,8 @@ pub enum SubstepSet {
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,
-    /// Responsible for running [`PostProcessCollisions`] to allow user-defined systems
-    /// to post-process collisions, such as filtering.
+    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
+    /// to filter and modify collisions.
     ///
     /// If you want to edit or remove collisions after [`SubstepSet::NarrowPhase`], you can
     /// add custom systems to this set, or to [`PostProcessCollisions`].
