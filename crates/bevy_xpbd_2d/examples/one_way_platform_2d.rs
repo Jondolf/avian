@@ -112,7 +112,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Static,
-            Position(Vector::Y * 15.0 * 6.0 * y as Scalar),
+            Position(Vector::Y * 16.0 * 6.0 * y as Scalar),
             Collider::cuboid(25.0 * 20.0, 25.0),
             OneWayPlatform::default(),
         ));
