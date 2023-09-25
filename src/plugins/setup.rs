@@ -185,8 +185,8 @@ impl Plugin for PhysicsSetupPlugin {
             run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
 
-        // Create post-process collisions schedule, the schedule that should be used to
-        // run collision post-processing systems, such as filtering.
+        // Create the PostProcessCollisions schedule for user-defined systems
+        // that filter and modify collisions.
         let mut post_process_collisions_schedule = Schedule::default();
 
         post_process_collisions_schedule
