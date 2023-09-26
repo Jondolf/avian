@@ -77,6 +77,7 @@ impl Plugin for PreparePlugin {
             (
                 update_collider_storage.before(PhysicsStepSet::BroadPhase),
                 handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
+                handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
             ),
         );
     }
@@ -404,6 +405,29 @@ fn update_collider_parents(
             if let Ok(mut collider_parent) = child_colliders.get_mut(child) {
                 collider_parent.0 = entity;
             }
+        }
+    }
+}
+
+/// Updates colliders when the rigid bodies they were attached to have been removed.
+fn handle_rigid_body_removals(
+    mut commands: Commands,
+    mut colliders: Query<(Entity, &ColliderParent, &mut ColliderOffset), Without<RigidBody>>,
+    bodies: Query<(), With<RigidBody>>,
+    removals: RemovedComponents<RigidBody>,
+) {
+    // Return if no rigid bodies have been removed
+    if removals.is_empty() {
+        return;
+    }
+
+    for (collider_entity, collider_parent, mut collider_offset) in &mut colliders {
+        // If the body associated with the collider parent entity doesn't exist,
+        // remove ColliderParent and reset ColliderOffset.
+        // Todo: Just remove ColliderOffset, it's unnecessary when there's no body
+        if !bodies.contains(collider_parent.get()) {
+            commands.entity(collider_entity).remove::<ColliderParent>();
+            collider_offset.0 = Vector::ZERO;
         }
     }
 }
