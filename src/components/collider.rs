@@ -539,7 +539,7 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
 ///         });
 /// }
 /// ```
-#[derive(Reflect, Clone, Component, Debug, PartialEq, Eq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 pub struct ColliderParent(pub(crate) Entity);
 
 impl ColliderParent {

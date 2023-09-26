@@ -6,7 +6,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*};
+use bevy::{ecs::query::Has, prelude::*, utils::HashMap};
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
 /// and [colliders](Collider) and updates components.
@@ -41,7 +41,7 @@ impl Default for PreparePlugin {
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<ColliderStorageMap>().add_systems(
             self.schedule.dyn_clone(),
             (
                 apply_deferred,
@@ -71,12 +71,35 @@ impl Plugin for PreparePlugin {
                 .chain()
                 .in_set(PhysicsSet::Prepare),
         );
+
+        app.add_systems(
+            PhysicsSchedule,
+            (
+                update_collider_storage.before(PhysicsStepSet::BroadPhase),
+                handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
+            ),
+        );
     }
 }
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub(crate) struct PreviousColliderOffset(Vector);
+
+// Todo: Does this make sense in this file? It would also be nice to find an alternative approach.
+/// A hash map that stores some collider data that is needed when colliders are removed from
+/// rigid bodies.
+///
+/// This includes the collider parent for finding the associated rigid body after collider removal,
+/// and collider mass properties for updating the rigid body's mass properties when its collider is removed.
+///
+/// Ideally, we would just have some entity removal event or callback, but that doesn't
+/// exist yet, and `RemovedComponents` only returns entities, not component data.
+#[derive(Resource, Reflect, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Resource)]
+pub(crate) struct ColliderStorageMap(
+    HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderOffset)>,
+);
 
 /// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
 /// have been added. Used for avoiding unnecessary transform propagation.
@@ -385,6 +408,42 @@ fn update_collider_parents(
     }
 }
 
+/// Updates [`ColliderStorageMap`], a resource that stores some collider properties that need
+/// to be handled when colliders are removed from entities.
+fn update_collider_storage(
+    // Todo: Maybe it's enough to store only colliders that aren't on rigid body entities directly (i.e. child colliders)
+    colliders: Query<
+        (
+            Entity,
+            &ColliderParent,
+            &ColliderMassProperties,
+            &ColliderOffset,
+        ),
+        (
+            With<Collider>,
+            Or<(Changed<ColliderParent>, Changed<ColliderMassProperties>)>,
+        ),
+    >,
+    mut storage: ResMut<ColliderStorageMap>,
+) {
+    for (entity, parent, collider_mass_properties, collider_offset) in &colliders {
+        storage.insert(
+            entity,
+            (*parent, *collider_mass_properties, *collider_offset),
+        );
+    }
+}
+
+/// Removes removed colliders from the [`ColliderStorageMap`] resource at the end of the physics frame.
+fn handle_collider_storage_removals(
+    mut removals: RemovedComponents<Collider>,
+    mut storage: ResMut<ColliderStorageMap>,
+) {
+    removals.iter().for_each(|entity| {
+        storage.remove(&entity);
+    });
+}
+
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
@@ -405,6 +464,8 @@ fn update_mass_properties(
             Changed<ColliderMassProperties>,
         )>,
     >,
+    collider_map: Res<ColliderStorageMap>,
+    mut removed_colliders: RemovedComponents<Collider>,
 ) {
     for (
         collider_offset,
@@ -438,6 +499,21 @@ fn update_mass_properties(
                 ),
                 ..*collider_mass_properties
             };
+        }
+    }
+
+    for entity in removed_colliders.iter() {
+        if let Some((collider_parent, collider_mass_properties, collider_offset)) =
+            collider_map.get(&entity)
+        {
+            if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
+                mass_properties -= ColliderMassProperties {
+                    center_of_mass: CenterOfMass(
+                        collider_offset.0 + collider_mass_properties.center_of_mass.0,
+                    ),
+                    ..*collider_mass_properties
+                };
+            }
         }
     }
 

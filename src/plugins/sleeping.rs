@@ -19,7 +19,7 @@ use bevy::prelude::*;
 pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
+    fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
@@ -110,8 +110,9 @@ fn wake_up_bodies(
     )>,
     all_colliders: Query<&ColliderParent>,
     child_colliders: Query<&ColliderParent, (Without<RigidBody>, ColliderTransformedFilter)>,
-    // Todo: This seems to miss despawns
     mut removed_colliders: RemovedComponents<Collider>,
+    // This stores some collider data so that we can access it even though the entity has been removed
+    collider_storage: Res<ColliderStorageMap>,
 ) {
     // Wake up bodies that have been moved
     for (entity, mut time_sleeping) in &mut bodies.p0() {
@@ -120,8 +121,13 @@ fn wake_up_bodies(
     }
 
     // Wake up bodies when any of their attached colliders have been moved or removed
-    let removed_colliders = all_colliders.iter_many(removed_colliders.iter());
-    for collider_parent in child_colliders.iter().chain(removed_colliders) {
+    let removed_colliders_iter =
+        all_colliders.iter_many(removed_colliders.iter().filter_map(|entity| {
+            collider_storage
+                .get(&entity)
+                .map(|(rb_entity, _, _)| rb_entity.get())
+        }));
+    for collider_parent in child_colliders.iter().chain(removed_colliders_iter) {
         if let Ok((entity, mut time_sleeping)) = bodies.p1().get_mut(collider_parent.get()) {
             commands.entity(entity).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
