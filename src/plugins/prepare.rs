@@ -365,45 +365,55 @@ fn init_colliders(
             Entity,
             &Collider,
             Option<&ColliderAabb>,
-            Option<&ColliderOffset>,
             Option<&ColliderMassProperties>,
             Option<&PreviousColliderMassProperties>,
         ),
         Added<Collider>,
     >,
 ) {
-    for (entity, collider, aabb, offset, mass_properties, previous_mass_properties) in
-        &mut colliders
-    {
+    for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
         commands.entity(entity).insert((
             *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
-            *offset.unwrap_or(&default()),
-            PreviousColliderOffset(Vector::ZERO),
             *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
             *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
                 ColliderMassProperties::ZERO,
             )),
             CollidingEntities::default(),
-            ColliderParent(entity),
         ));
     }
 }
 
 fn update_collider_parents(
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>), With<RigidBody>>,
-    body_children: Query<&Children>,
-    mut child_colliders: Query<
-        &mut ColliderParent,
-        (With<Collider>, Without<RigidBody>, Changed<Parent>),
-    >,
+    mut commands: Commands,
+    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<Collider>), With<RigidBody>>,
+    children: Query<&Children>,
+    mut child_colliders: Query<Option<&mut ColliderParent>, (With<Collider>, Without<RigidBody>)>,
 ) {
-    for (entity, collider_parent) in &mut bodies {
-        if let Some(mut collider_parent) = collider_parent {
-            collider_parent.0 = entity;
-        }
-        for child in body_children.iter_descendants(entity) {
-            if let Ok(mut collider_parent) = child_colliders.get_mut(child) {
+    for (entity, collider_parent, has_collider) in &mut bodies {
+        if has_collider {
+            if let Some(mut collider_parent) = collider_parent {
                 collider_parent.0 = entity;
+            } else {
+                commands.entity(entity).insert((
+                    ColliderParent(entity),
+                    // Todo: This probably causes a one frame delay. Compute real value?
+                    ColliderOffset::default(),
+                    PreviousColliderOffset::default(),
+                ));
+            }
+        }
+        for child in children.iter_descendants(entity) {
+            if let Ok(collider_parent) = child_colliders.get_mut(child) {
+                if let Some(mut collider_parent) = collider_parent {
+                    collider_parent.0 = entity;
+                } else {
+                    commands.entity(child).insert((
+                        ColliderParent(entity),
+                        // Todo: This probably causes a one frame delay. Compute real value?
+                        ColliderOffset::default(),
+                        PreviousColliderOffset::default(),
+                    ));
+                }
             }
         }
     }
@@ -412,7 +422,7 @@ fn update_collider_parents(
 /// Updates colliders when the rigid bodies they were attached to have been removed.
 fn handle_rigid_body_removals(
     mut commands: Commands,
-    mut colliders: Query<(Entity, &ColliderParent, &mut ColliderOffset), Without<RigidBody>>,
+    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
     bodies: Query<(), With<RigidBody>>,
     removals: RemovedComponents<RigidBody>,
 ) {
@@ -421,13 +431,15 @@ fn handle_rigid_body_removals(
         return;
     }
 
-    for (collider_entity, collider_parent, mut collider_offset) in &mut colliders {
+    for (collider_entity, collider_parent) in &colliders {
         // If the body associated with the collider parent entity doesn't exist,
         // remove ColliderParent and reset ColliderOffset.
-        // Todo: Just remove ColliderOffset, it's unnecessary when there's no body
         if !bodies.contains(collider_parent.get()) {
-            commands.entity(collider_entity).remove::<ColliderParent>();
-            collider_offset.0 = Vector::ZERO;
+            commands.entity(collider_entity).remove::<(
+                ColliderParent,
+                ColliderOffset,
+                PreviousColliderOffset,
+            )>();
         }
     }
 }
