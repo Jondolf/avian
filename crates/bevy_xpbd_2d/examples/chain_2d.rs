@@ -46,7 +46,7 @@ fn setup(
             .spawn((
                 particle_mesh.clone(),
                 RigidBody::Dynamic,
-                Position(i as Scalar * Vector::NEG_Y * (particle_radius * 2.0 + 1.0)),
+                Transform::from_xyz(0.0, i as f32 * (particle_radius * 2.0 + 1.0), 0.0),
                 MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
             ))
             .id();
@@ -65,7 +65,7 @@ fn follow_mouse(
     buttons: Res<Input<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    mut follower: Query<&mut Position, With<FollowMouse>>,
+    mut follower: Query<&mut Transform, With<FollowMouse>>,
 ) {
     if buttons.pressed(MouseButton::Left) {
         let window = windows.single();
@@ -79,8 +79,7 @@ fn follow_mouse(
             let ndc = (pos / window_size) * 2.0 - Vec2::ONE;
             let ndc_to_world =
                 camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-            let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-            follower_position.0 = world_pos.truncate().adjust_precision();
+            follower_position.translation = ndc_to_world.project_point3(ndc.extend(-1.0));
         }
     }
 }

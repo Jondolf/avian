@@ -15,34 +15,42 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
-    let square = SpriteBundle {
-        sprite: Sprite {
-            color: Color::rgb(0.2, 0.7, 0.9),
-            custom_size: Some(Vec2::splat(50.0)),
-            ..default()
-        },
+    let square_sprite = Sprite {
+        color: Color::rgb(0.2, 0.7, 0.9),
+        custom_size: Some(Vec2::splat(50.0)),
         ..default()
     };
 
-    let anchor = commands.spawn((square.clone(), RigidBody::Kinematic)).id();
+    let anchor = commands
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite.clone(),
+                ..default()
+            },
+            RigidBody::Kinematic,
+        ))
+        .id();
 
     let object = commands
         .spawn((
-            square,
+            SpriteBundle {
+                sprite: square_sprite,
+                transform: Transform::from_xyz(0.0, -100.0, 0.0),
+                ..default()
+            },
             RigidBody::Dynamic,
-            Position(-Vector::Y * 100.0),
             MassPropertiesBundle::new_computed(&Collider::cuboid(50.0, 50.0), 1.0),
         ))
         .id();
 
     commands.spawn(
         DistanceJoint::new(anchor, object)
-            .with_local_anchor_1(-Vector::Y * 25.0)
-            .with_local_anchor_2(Vector::ONE * 25.0)
+            .with_local_anchor_1(Vector::ZERO)
+            .with_local_anchor_2(Vector::ZERO)
             .with_rest_length(100.0)
-            // .with_linear_velocity_damping(0.1)
+            .with_linear_velocity_damping(0.1)
             .with_angular_velocity_damping(1.0)
-            .with_limits(55.0, 150.0)
-            .with_compliance(1.0 / 50000.0),
+            .with_limits(140.0, 150.0)
+            .with_compliance(0.00000001),
     );
 }

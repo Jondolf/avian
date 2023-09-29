@@ -55,44 +55,44 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, 50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::Y * 50.0 * 6.0),
         Collider::cuboid(50.0 * 20.0, 50.0),
     ));
     // Floor
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, -50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 50.0 * 6.0),
         Collider::cuboid(50.0 * 20.0, 50.0),
     ));
     // Left wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_X * 50.0 * 9.5),
         Collider::cuboid(50.0, 50.0 * 11.0),
     ));
     // Right wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::X * 50.0 * 9.5),
         Collider::cuboid(50.0, 50.0 * 11.0),
     ));
 
@@ -108,20 +108,22 @@ fn setup(
         commands.spawn((
             SpriteBundle {
                 sprite: one_way_sprite.clone(),
-                transform: Transform::from_scale(Vec3::new(10.0, 0.5, 1.0)),
+                transform: Transform::from_xyz(0.0, y as Scalar * 16.0 * 6.0, 0.0)
+                    .with_scale(Vec3::new(10.0, 0.5, 1.0)),
                 ..default()
             },
             RigidBody::Static,
-            Position(Vector::Y * 16.0 * 6.0 * y as Scalar),
             Collider::cuboid(25.0 * 20.0, 25.0),
             OneWayPlatform::default(),
         ));
     }
 
     // Spawn an actor for the user to control
-    let actor_size = Vec2::new(20.0, 20.0);
+    let actor_size = Vector::new(20.0, 20.0);
     let actor_mesh = MaterialMesh2dBundle {
-        mesh: meshes.add(shape::Quad::new(actor_size).into()).into(),
+        mesh: meshes
+            .add(shape::Quad::new(actor_size.as_f32()).into())
+            .into(),
         material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
         ..default()
     };
@@ -131,7 +133,7 @@ fn setup(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Collider::cuboid(actor_size.x.into(), actor_size.y.into()),
+        Collider::cuboid(actor_size.x, actor_size.y),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
     ));
@@ -242,7 +244,7 @@ fn one_way_platform(
                 manifold
                     .contacts
                     .iter()
-                    .any(|contact| contact.penetration > 0.)
+                    .any(|contact| contact.penetration > 0.0)
             })
         }
 
@@ -268,7 +270,7 @@ fn one_way_platform(
         if one_way_platform.0.contains(other_entity) {
             // If we were already allowing a collision for a particular entity,
             // and if it is penetrating us still, continue to allow it to do so.
-            if any_penetrating(&contacts) {
+            if any_penetrating(contacts) {
                 return false;
             } else {
                 // If it's no longer penetrating us, forget it.
@@ -298,7 +300,7 @@ fn one_way_platform(
                     normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
                 }) {
                     true
-                } else if any_penetrating(&contacts) {
+                } else if any_penetrating(contacts) {
                     // If it's already penetrating, ignore the collision and register
                     // the other entity as one that's currently penetrating.
                     one_way_platform.0.insert(*other_entity);
