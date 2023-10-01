@@ -351,7 +351,7 @@ fn solve_vel(
                 gravity.0,
                 sub_dt.0,
             );
-            if restitution_speed > Scalar::EPSILON {
+            if restitution_speed.abs() > Scalar::EPSILON {
                 let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
                 let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
                 p += restitution_speed / (w1 + w2) * normal;

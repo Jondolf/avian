@@ -41,14 +41,19 @@ pub(crate) fn compute_dynamic_friction(
 pub(crate) fn compute_restitution(
     normal_speed: Scalar,
     pre_solve_normal_speed: Scalar,
-    mut coefficient: Scalar,
-    gravity: Vector,
-    sub_dt: Scalar,
+    coefficient: Scalar,
+    _gravity: Vector,
+    _sub_dt: Scalar,
 ) -> Scalar {
+    // TODO: The XPBD paper has this, but it seems to be prevent bounces in cases
+    // where bodies should clearly be bouncing.
+    // Maybe change the threshold to be even lower? Or is this even needed at all?
+    /*
     // If normal velocity is small enough, use restitution of 0 to avoid jittering
     if normal_speed.abs() <= 2.0 * gravity.length() * sub_dt {
         coefficient = 0.0;
     }
+    */
 
     -normal_speed + (-coefficient * pre_solve_normal_speed).min(0.0)
 }
