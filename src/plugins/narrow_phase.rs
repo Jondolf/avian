@@ -99,6 +99,39 @@ impl Default for NarrowPhaseConfig {
 pub struct Collisions(pub(crate) IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
+    /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
+    /// else returns `None`.
+    ///
+    /// The order of the entities does not matter.
+    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
+        self.0
+            .get(&(entity1, entity2))
+            .filter(|contacts| contacts.during_current_frame)
+            .or_else(|| {
+                self.0
+                    .get(&(entity2, entity1))
+                    .filter(|contacts| contacts.during_current_frame)
+            })
+    }
+
+    /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
+    /// else returns `None`.
+    ///
+    /// The order of the entities does not matter.
+    pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
+        // For lifetime reasons, the mutable borrows can't be in the same scope,
+        // so we check if the key exists first (there's probably a better way though)
+        if self.0.contains_key(&(entity1, entity2)) {
+            self.0
+                .get_mut(&(entity1, entity2))
+                .filter(|contacts| contacts.during_current_frame)
+        } else {
+            self.0
+                .get_mut(&(entity2, entity1))
+                .filter(|contacts| contacts.during_current_frame)
+        }
+    }
+
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
         self.0
