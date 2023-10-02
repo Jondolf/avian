@@ -385,7 +385,7 @@ fn solve_vel(
 }
 
 /// Applies velocity corrections caused by joint damping.
-fn joint_damping<T: Joint>(
+pub fn joint_damping<T: Joint>(
     mut bodies: Query<
         (
             &RigidBody,
