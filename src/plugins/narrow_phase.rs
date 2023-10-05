@@ -7,7 +7,7 @@ use crate::prelude::*;
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 use bevy::{ecs::query::Has, prelude::*, utils::HashSet};
 use indexmap::IndexMap;
-use parry::query::{PersistentQueryDispatcher, QueryDispatcher};
+use parry::query::PersistentQueryDispatcher;
 
 /// Computes contacts between entities and sends collision events.
 ///
@@ -116,6 +116,39 @@ impl Default for NarrowPhaseConfig {
 pub struct Collisions(pub(crate) IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
+    /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
+    /// else returns `None`.
+    ///
+    /// The order of the entities does not matter.
+    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
+        self.0
+            .get(&(entity1, entity2))
+            .filter(|contacts| contacts.during_current_frame)
+            .or_else(|| {
+                self.0
+                    .get(&(entity2, entity1))
+                    .filter(|contacts| contacts.during_current_frame)
+            })
+    }
+
+    /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
+    /// else returns `None`.
+    ///
+    /// The order of the entities does not matter.
+    pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
+        // For lifetime reasons, the mutable borrows can't be in the same scope,
+        // so we check if the key exists first (there's probably a better way though)
+        if self.0.contains_key(&(entity1, entity2)) {
+            self.0
+                .get_mut(&(entity1, entity2))
+                .filter(|contacts| contacts.during_current_frame)
+        } else {
+            self.0
+                .get_mut(&(entity2, entity1))
+                .filter(|contacts| contacts.during_current_frame)
+        }
+    }
+
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
         self.0
@@ -159,10 +192,18 @@ impl Collisions {
             })
     }
 
+    /// Retains only the collisions for which the specified predicate returns `true`.
+    /// Collisions for which the predicate returns `false` are removed from the `HashMap`.
+    pub fn retain<F>(&mut self, keep: F)
+    where
+        F: FnMut(&(Entity, Entity), &mut Contacts) -> bool,
+    {
+        self.0.retain(keep);
+    }
+
     /// Removes collisions against the given entity from the `HashMap`.
     fn remove_collisions_with_entity(&mut self, entity: Entity) {
-        self.0
-            .retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
+        self.retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
     }
 }
 
@@ -500,7 +541,10 @@ pub struct ContactManifold {
     pub contacts: Vec<ContactData>,
     /// A contact normal shared by all contacts in this manifold,
     /// expressed in the local space of the first entity.
-    pub normal: Vector,
+    pub normal1: Vector,
+    /// A contact normal shared by all contacts in this manifold,
+    /// expressed in the local space of the second entity.
+    pub normal2: Vector,
 }
 
 /// Data related to a contact between two bodies.
@@ -511,12 +555,11 @@ pub struct ContactData {
     /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
     /// A contact normal expressed in the local space of the first entity.
-    pub normal: Vector,
+    pub normal1: Vector,
+    /// A contact normal expressed in the local space of the second entity.
+    pub normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
-    /// True if both colliders are convex. Currently, contacts between
-    /// convex and non-convex colliders have to be handled differently.
-    pub(crate) convex: bool,
 }
 
 impl ContactData {
@@ -533,8 +576,13 @@ impl ContactData {
     }
 
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal(&self, rotation: &Rotation) -> Vector {
-        rotation.rotate(self.normal)
+    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal1)
+    }
+
+    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal2)
     }
 }
 
@@ -554,78 +602,61 @@ pub(crate) fn compute_contacts(
     let isometry1 = utils::make_isometry(position1, rotation1);
     let isometry2 = utils::make_isometry(position2, rotation2);
     let isometry12 = isometry1.inv_mul(&isometry2);
-    let convex = collider1.is_convex() && collider2.is_convex();
 
-    if convex {
-        // Todo: Reuse manifolds from previous frame to improve performance
-        let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
-        let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
-            &isometry12,
-            collider1.get_shape().0.as_ref(),
-            collider2.get_shape().0.as_ref(),
-            prediction_distance,
-            &mut manifolds,
-            &mut None,
-        );
+    // Todo: Reuse manifolds from previous frame to improve performance
+    let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
+    let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
+        &isometry12,
+        collider1.get_shape().0.as_ref(),
+        collider2.get_shape().0.as_ref(),
+        prediction_distance,
+        &mut manifolds,
+        &mut None,
+    );
+    Contacts {
+        entity1,
+        entity2,
+        manifolds: manifolds
+            .iter()
+            .filter_map(|manifold| {
+                let subpos1 = manifold.subshape_pos1.unwrap_or_default();
+                let subpos2 = manifold.subshape_pos2.unwrap_or_default();
+                let normal1: Vector = subpos1
+                    .rotation
+                    .transform_vector(&manifold.local_n1)
+                    .normalize()
+                    .into();
+                let normal2: Vector = subpos2
+                    .rotation
+                    .transform_vector(&manifold.local_n2)
+                    .normalize()
+                    .into();
 
-        Contacts {
-            entity1,
-            entity2,
-            manifolds: manifolds
-                .iter()
-                .map(|manifold| ContactManifold {
+                // Make sure normals are valid
+                if !normal1.is_normalized() || !normal2.is_normalized() {
+                    return None;
+                }
+
+                Some(ContactManifold {
                     entity1,
                     entity2,
-                    normal: manifold.local_n1.into(),
+                    normal1,
+                    normal2,
                     contacts: manifold
                         .contacts()
                         .iter()
                         .map(|contact| ContactData {
-                            point1: contact.local_p1.into(),
-                            point2: contact.local_p2.into(),
-                            normal: manifold.local_n1.into(),
+                            point1: subpos1.transform_point(&contact.local_p1).into(),
+                            point2: subpos2.transform_point(&contact.local_p2).into(),
+                            normal1,
+                            normal2,
                             penetration: -contact.dist,
-                            convex,
                         })
                         .collect(),
                 })
-                .collect(),
-            during_current_frame: true,
-            during_current_substep: true,
-        }
-    } else {
-        // For some reason, convex colliders sink into non-convex colliders
-        // if we use contact manifolds, so we have to compute a single contact point instead.
-        // Todo: Find out why this is and use contact manifolds for both types of colliders.
-        let contact = parry::query::DefaultQueryDispatcher
-            .contact(
-                &isometry12,
-                collider1.get_shape().0.as_ref(),
-                collider2.get_shape().0.as_ref(),
-                prediction_distance,
-            )
-            .unwrap()
-            .map(|contact| ContactData {
-                point1: contact.point1.into(),
-                point2: contact.point2.into(),
-                normal: contact.normal1.into(),
-                penetration: -contact.dist,
-                convex,
-            });
-
-        Contacts {
-            entity1,
-            entity2,
-            manifolds: contact.map_or(vec![], |contact| {
-                vec![ContactManifold {
-                    entity1,
-                    entity2,
-                    contacts: vec![contact],
-                    normal: contact.normal,
-                }]
-            }),
-            during_current_frame: true,
-            during_current_substep: true,
-        }
+            })
+            .collect(),
+        during_current_frame: true,
+        during_current_substep: true,
     }
 }

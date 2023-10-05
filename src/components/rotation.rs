@@ -33,7 +33,7 @@ pub(crate) type RotationValue = Quaternion;
 /// }
 /// ```
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[reflect(Component)]
 pub struct Rotation {
     /// The cosine of the rotation angle in radians.
@@ -57,7 +57,7 @@ pub struct Rotation {
 /// }
 /// ```
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub struct Rotation(pub Quaternion);
 
@@ -99,6 +99,11 @@ impl Rotation {
             cos: radians.cos(),
             sin: radians.sin(),
         }
+    }
+
+    /// Creates a [`Rotation`] from the sine and cosine of an angle in radians.
+    pub fn from_sin_cos(sin: Scalar, cos: Scalar) -> Self {
+        Self { sin, cos }
     }
 
     /// Creates a [`Rotation`] from degrees.
@@ -228,6 +233,18 @@ impl From<Rotation> for Quaternion {
     }
 }
 
+impl From<Transform> for Rotation {
+    fn from(value: Transform) -> Self {
+        Self::from(value.rotation)
+    }
+}
+
+impl From<GlobalTransform> for Rotation {
+    fn from(value: GlobalTransform) -> Self {
+        Self::from(value.compute_transform().rotation)
+    }
+}
+
 #[cfg(feature = "2d")]
 impl From<Quat> for Rotation {
     fn from(quat: Quat) -> Self {
@@ -276,6 +293,6 @@ impl From<Rotation> for Matrix3x1<Scalar> {
 }
 
 /// The previous rotation of a body. See [`Rotation`].
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub struct PreviousRotation(pub Rotation);

@@ -235,4 +235,28 @@ impl LockedAxes {
         }
         rotation
     }
+
+    /// Sets the given angular velocity to zero if rotational axes are locked.
+    #[cfg(feature = "2d")]
+    pub(crate) fn apply_to_angular_velocity(&self, mut angular_velocity: Scalar) -> Scalar {
+        if self.is_rotation_locked() {
+            angular_velocity = 0.0;
+        }
+        angular_velocity
+    }
+
+    /// Sets axes of the given angular velocity to zero based on the [`LockedAxes`] configuration.
+    #[cfg(feature = "3d")]
+    pub(crate) fn apply_to_angular_velocity(&self, mut angular_velocity: Vector) -> Vector {
+        if self.is_rotation_x_locked() {
+            angular_velocity.x = 0.0;
+        }
+        if self.is_rotation_y_locked() {
+            angular_velocity.y = 0.0;
+        }
+        if self.is_rotation_z_locked() {
+            angular_velocity.z = 0.0;
+        }
+        angular_velocity
+    }
 }

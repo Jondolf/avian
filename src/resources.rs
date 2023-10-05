@@ -80,7 +80,7 @@ impl Default for PhysicsTimestep {
 ///         .run();
 /// }
 /// ```
-#[derive(Reflect, Resource)]
+#[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
 #[reflect(Resource)]
 pub struct PhysicsTimescale(pub Scalar);
 
@@ -135,17 +135,6 @@ pub struct SubstepCount(pub u32);
 impl Default for SubstepCount {
     fn default() -> Self {
         Self(12)
-    }
-}
-
-/// The number of iterations used in the position solver. It is recommended to keep this low and to increase [`SubstepCount`] instead, as substepping can provide better convergence, accuracy and energy conservation.
-#[derive(Reflect, Resource)]
-#[reflect(Resource)]
-pub struct IterationCount(pub u32);
-
-impl Default for IterationCount {
-    fn default() -> Self {
-        Self(4)
     }
 }
 

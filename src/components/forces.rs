@@ -17,7 +17,10 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
-/// An external force applied continuously to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external force applied continuously to a dynamic [rigid body](RigidBody).
+///
+/// The force is stored in world space. If you want to apply forces in local space, you need to
+/// use the body's rotation to [transform the local force into world space](#local-forces).
 ///
 /// By default, the force persists across frames. You can clear the force manually using
 /// [`clear`](#method.clear) or set `persistent` to false.
@@ -33,7 +36,7 @@ impl FloatZero for Scalar {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
-///     // Apply a force every physics frame.
+///     // Apply a force in world space every physics frame.
 ///     commands.spawn((RigidBody::Dynamic, ExternalForce::new(Vec3::Y)));
 ///
 ///     // Apply an initial force and automatically clear it every physics frame.
@@ -54,6 +57,36 @@ impl FloatZero for Scalar {
 ///     commands.spawn((RigidBody::Dynamic, force));
 /// }
 /// ```
+///
+/// ## Local forces
+///
+/// The force stored in `ExternalForce` is in world space.
+///
+/// If you want to apply a force in some direction relative to the body's frame of reference,
+/// you need to rotate the force using the body's `Transform` or [`Rotation`].
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn setup(mut commands: Commands) {
+///     // Spawn a rotated body and apply a force in the local up direction.
+///     let transform = Transform::from_rotation(Quat::from_rotation_z(0.2));
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         ExternalForce::new(transform.rotation * Vec3::Y),
+///         transform,
+///     ));
+/// }
+/// ```
+///
+/// Note that the actual force stored in `ExternalForce` is still in world space.
+/// If you want to apply a force in the same local direction every frame,
+/// consider setting `persistent` to `false` and running [`apply_force`](#method.apply_force) in a system.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalForce {
@@ -100,24 +133,24 @@ impl ExternalForce {
         torque: Torque::ZERO,
     };
 
-    /// Creates a new [`ExternalForce`] component with a given `force`.
+    /// Creates a new [`ExternalForce`] component with a given world-space `force`.
     pub fn new(force: Vector) -> Self {
         Self { force, ..default() }
     }
 
-    /// Sets the force. Note that the torque caused by any forces will not be reset.
+    /// Sets the world-space force. Note that the torque caused by any forces will not be reset.
     pub fn set_force(&mut self, force: Vector) -> &mut Self {
         **self = force;
         self
     }
 
-    /// Adds the given `force` to the force that will be applied.
+    /// Adds the given world-space `force` to the force that will be applied.
     pub fn apply_force(&mut self, force: Vector) -> &mut Self {
         **self += force;
         self
     }
 
-    /// Applies the given `force` at a local `point`, which will also cause torque to be applied.
+    /// Applies the given world-space `force` at a local `point`, which will also cause torque to be applied.
     pub fn apply_force_at_point(
         &mut self,
         force: Vector,
@@ -136,7 +169,7 @@ impl ExternalForce {
         self
     }
 
-    /// Returns the force.
+    /// Returns the force in world space.
     pub fn force(&self) -> Vector {
         self.force
     }
@@ -161,7 +194,7 @@ impl ExternalForce {
     }
 }
 
-/// An external torque applied continuously to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external torque applied continuously to a dynamic [rigid body](RigidBody).
 ///
 /// By default, the torque persists across frames. You can clear the torque manually using
 /// [`clear`](#method.clear) or set `persistent` to false.
@@ -269,7 +302,10 @@ impl ExternalTorque {
     }
 }
 
-/// An external impulse applied instantly to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external impulse applied instantly to a dynamic [rigid body](RigidBody).
+///
+/// The impulse is stored in world space. If you want to apply impulses in local space, you need to
+/// use the body's rotation to [transform the local impulse into world space](#local-impulses).
 ///
 /// By default, the impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
@@ -285,7 +321,7 @@ impl ExternalTorque {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
-///     // Apply an impulse.
+///     // Apply an impulse in world space.
 ///     commands.spawn((RigidBody::Dynamic, ExternalImpulse::new(Vec3::Y)));
 ///
 ///     // Apply an impulse every physics frame.
@@ -304,6 +340,32 @@ impl ExternalTorque {
 ///     let mut impulse = ExternalImpulse::default();
 ///     impulse.apply_impulse_at_point(Vec3::Y, Vec3::X, Vec3::ZERO);
 ///     commands.spawn((RigidBody::Dynamic, impulse));
+/// }
+/// ```
+///
+/// ## Local impulses
+///
+/// The impulse stored in `ExternalImpulse` is in world space.
+///
+/// If you want to apply an impulse in some direction relative to the body's frame of reference,
+/// you need to rotate the impulse using the body's `Transform` or [`Rotation`].
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// fn setup(mut commands: Commands) {
+///     // Spawn a rotated body and apply an impulse in the local up direction.
+///     let transform = Transform::from_rotation(Quat::from_rotation_z(0.2));
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         ExternalImpulse::new(transform.rotation * Vec3::Y),
+///         transform,
+///     ));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
@@ -352,7 +414,7 @@ impl ExternalImpulse {
         angular_impulse: Torque::ZERO,
     };
 
-    /// Creates a new [`ExternalImpulse`] component with a given `impulse`.
+    /// Creates a new [`ExternalImpulse`] component with a given world-space `impulse`.
     pub fn new(impulse: Vector) -> Self {
         Self {
             impulse,
@@ -360,19 +422,19 @@ impl ExternalImpulse {
         }
     }
 
-    /// Sets the impulse. Note that the angular impulse caused by any impulses will not be reset.
+    /// Sets the world-space impulse. Note that the angular impulse caused by any impulses will not be reset.
     pub fn set_impulse(&mut self, impulse: Vector) -> &mut Self {
         **self = impulse;
         self
     }
 
-    /// Adds the given `impulse` to the impulse that will be applied.
+    /// Adds the given world-space `impulse` to the impulse that will be applied.
     pub fn apply_impulse(&mut self, impulse: Vector) -> &mut Self {
         **self += impulse;
         self
     }
 
-    /// Applies the given `impulse` at a local `point`, which will also cause an angular impulse to be applied.
+    /// Applies the given world-space `impulse` at a local `point`, which will also cause an angular impulse to be applied.
     pub fn apply_impulse_at_point(
         &mut self,
         impulse: Vector,
@@ -391,7 +453,7 @@ impl ExternalImpulse {
         self
     }
 
-    /// Returns the impulse.
+    /// Returns the impulse in world space.
     pub fn impulse(&self) -> Vector {
         self.impulse
     }
@@ -416,7 +478,7 @@ impl ExternalImpulse {
     }
 }
 
-/// An external angular impulse applied to a dynamic [rigid body](RigidBody) during the integration step.
+/// An external angular impulse applied instantly to a dynamic [rigid body](RigidBody).
 ///
 /// By default, the angular impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.

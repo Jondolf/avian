@@ -22,6 +22,7 @@ parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
 enhanced-determinism = [
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
+    "glam/libm",
 ]
 collider-from-mesh = ["bevy/bevy_render"]
 
@@ -36,6 +37,7 @@ bevy = { version = "0.11", default-features = false }
 parry2d = { version = "0.13", optional = true }
 parry2d-f64 = { version = "0.13", optional = true }
 nalgebra = { version = "0.32", features = ["convert-glam024"] }
+glam = { version = "0.24", features = ["approx"] }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
@@ -43,7 +45,6 @@ fxhash = "0.2.1"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 approx = "0.5"
-glam = { version = "0.24", features = ["approx"] }
 insta = "1.0"
 itertools = "0.10"
 

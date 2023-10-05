@@ -148,8 +148,8 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let world_r2 = body2.rotation.rotate(r2);
 
         let delta_x = DistanceLimit::new(0.0, 0.0).compute_correction(
-            body1.position.0 + body1.accumulated_translation.0 + world_r1,
-            body2.position.0 + body2.accumulated_translation.0 + world_r2,
+            body1.current_position() + world_r1,
+            body2.current_position() + world_r2,
         );
         let magnitude = delta_x.length();
 

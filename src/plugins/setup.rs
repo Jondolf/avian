@@ -9,6 +9,8 @@ use bevy::{
 
 use crate::prelude::*;
 
+use super::sync::PreviousGlobalTransform;
+
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
 /// This plugin does *not* initialize any other plugins or physics systems.
@@ -28,6 +30,8 @@ use crate::prelude::*;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
+/// - [`PostProcessCollisions`]: Responsible for running collision post-processing systems.
+/// Empty by default.
 pub struct PhysicsSetupPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
@@ -57,17 +61,15 @@ impl Plugin for PhysicsSetupPlugin {
             .init_resource::<DeltaTime>()
             .init_resource::<SubDeltaTime>()
             .init_resource::<SubstepCount>()
-            .init_resource::<IterationCount>()
             .init_resource::<BroadCollisionPairs>()
             .init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
-            .init_resource::<PhysicsLoop>()
             .init_resource::<Gravity>()
             .register_type::<PhysicsTimestep>()
+            .register_type::<PhysicsTimescale>()
             .register_type::<DeltaTime>()
             .register_type::<SubDeltaTime>()
             .register_type::<SubstepCount>()
-            .register_type::<IterationCount>()
             .register_type::<BroadCollisionPairs>()
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
@@ -81,6 +83,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Rotation>()
             .register_type::<PreviousPosition>()
             .register_type::<PreviousRotation>()
+            .register_type::<PreviousGlobalTransform>()
             .register_type::<AccumulatedTranslation>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
@@ -102,7 +105,9 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CenterOfMass>()
             .register_type::<LockedAxes>()
             .register_type::<CollisionLayers>()
-            .register_type::<CollidingEntities>();
+            .register_type::<CollidingEntities>()
+            .register_type::<CoefficientCombine>()
+            .register_type::<Sensor>();
 
         // Configure higher level system sets for the given schedule
         let schedule = &self.schedule;
@@ -116,6 +121,14 @@ impl Plugin for PhysicsSetupPlugin {
                 .chain()
                 .before(TransformSystem::TransformPropagate),
         );
+
+        // Check and store if schedule is configured to run in FixedUpdate.
+        let fixed_update = schedule.inner_type_id() == FixedUpdate::inner_type_id(&FixedUpdate);
+
+        app.insert_resource(PhysicsLoop {
+            fixed_update,
+            ..Default::default()
+        });
 
         // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::default();
@@ -158,6 +171,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 SubstepSet::Integrate,
                 SubstepSet::NarrowPhase,
+                SubstepSet::PostProcessCollisions,
                 SubstepSet::SolveConstraints,
                 SubstepSet::SolveUserConstraints,
                 SubstepSet::UpdateVelocities,
@@ -173,6 +187,24 @@ impl Plugin for PhysicsSetupPlugin {
             PhysicsSchedule,
             run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
+
+        // Create the PostProcessCollisions schedule for user-defined systems
+        // that filter and modify collisions.
+        let mut post_process_collisions_schedule = Schedule::default();
+
+        post_process_collisions_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+
+        app.add_schedule(PostProcessCollisions, post_process_collisions_schedule);
+
+        app.add_systems(
+            SubstepSchedule,
+            run_post_process_collisions_schedule.in_set(SubstepSet::PostProcessCollisions),
+        );
     }
 }
 
@@ -181,9 +213,11 @@ impl Plugin for PhysicsSetupPlugin {
 #[reflect(Resource)]
 pub struct PhysicsLoop {
     /// Time accumulated into the physics loop. This is consumed by the [`PhysicsSchedule`].
-    pub(crate) accumulator: Scalar,
+    pub accumulator: Scalar,
     /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
-    pub(crate) queued_steps: u32,
+    pub queued_steps: u32,
+    /// If [`PhysicsSchedule`] runs in [`FixedUpdate`]. Determines the delta time for the simulation.
+    pub(crate) fixed_update: bool,
     /// Determines if the simulation is paused.
     pub paused: bool,
 }
@@ -220,12 +254,21 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let delta_seconds = world.resource::<Time>().delta_seconds();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f32()
+    } else {
+        world.resource::<Time>().delta_seconds()
+    };
+
     #[cfg(feature = "f64")]
-    let delta_seconds = world.resource::<Time>().delta_seconds_f64();
+    let delta_seconds = if physics_loop.fixed_update {
+        world.resource::<FixedTime>().period.as_secs_f64()
+    } else {
+        world.resource::<Time>().delta_seconds_f64()
+    };
 
     let time_step = *world.resource::<PhysicsTimestep>();
-    let time_scale = world.resource::<PhysicsTimescale>().0;
+    let time_scale = world.resource::<PhysicsTimescale>().0.max(0.0);
 
     // Update `DeltaTime` according to the `PhysicsTimestep` configuration
     let (raw_dt, accumulate) = match time_step {
@@ -280,4 +323,10 @@ fn run_substep_schedule(world: &mut World) {
         debug!("running SubstepSchedule: {i}");
         world.run_schedule(SubstepSchedule);
     }
+}
+
+/// Runs the [`PostProcessCollisions`] schedule.
+fn run_post_process_collisions_schedule(world: &mut World) {
+    debug!("running PostProcessCollisions");
+    world.run_schedule(PostProcessCollisions);
 }

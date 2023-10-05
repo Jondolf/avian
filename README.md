@@ -32,6 +32,7 @@ Below are some of the current features of Bevy XPBD.
     - Access to colliding entities with `CollidingEntities`
     - Sensor colliders
     - Collision layers
+    - Filtering and modifying collisions with custom systems
 - Material properties like restitution and friction
 - Linear and angular velocity damping for simulating drag
 - External forces, torque and impulses
@@ -160,7 +161,8 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
 - Multiple colliders per body and colliders as children
-- Collision filters, i.e. excluding certain entities or rigid body types
+- Per-entity collision hooks or callbacks
+- Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)
 - Proper cross-platform determinism
 - Soft bodies (cloth and deformable solids)

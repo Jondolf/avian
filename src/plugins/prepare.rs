@@ -3,6 +3,8 @@
 //!
 //! See [`PreparePlugin`].
 
+#![allow(clippy::type_complexity)]
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -11,7 +13,9 @@ use bevy::prelude::*;
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
 /// - Adds missing collider components for entities with a [`Collider`] component
+/// - Adds missing mass properties for entities with a [`RigidBody`] or [`Collider`] component
 /// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
+/// - Clamps restitution coefficients between 0 and 1
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin {
@@ -40,16 +44,20 @@ impl Plugin for PreparePlugin {
         app.add_systems(
             self.schedule.dyn_clone(),
             (
+                apply_deferred,
+                // Run transform propagation if new bodies or colliders have been added
                 (
                     bevy::transform::systems::sync_simple_transforms,
                     bevy::transform::systems::propagate_transforms,
-                    init_rigid_bodies,
                 )
                     .chain()
-                    .run_if(any_new_rigid_bodies),
+                    .run_if(any_new_physics_entities),
+                init_transforms,
+                init_rigid_bodies,
                 init_mass_properties,
                 init_colliders,
                 update_mass_properties,
+                clamp_restitution,
             )
                 .chain()
                 .in_set(PhysicsSet::Prepare),
@@ -57,38 +65,132 @@ impl Plugin for PreparePlugin {
     }
 }
 
-type RigidBodyComponents = (
-    Entity,
-    // Use transform as default position and rotation if no components for them found
-    Option<&'static mut Transform>,
-    Option<&'static GlobalTransform>,
-    Option<&'static Position>,
-    Option<&'static Rotation>,
-    Option<&'static LinearVelocity>,
-    Option<&'static AngularVelocity>,
-    Option<&'static ExternalForce>,
-    Option<&'static ExternalTorque>,
-    Option<&'static ExternalImpulse>,
-    Option<&'static ExternalAngularImpulse>,
-    Option<&'static Restitution>,
-    Option<&'static Friction>,
-    Option<&'static TimeSleeping>,
-);
-
-fn any_new_rigid_bodies(query: Query<(), Added<RigidBody>>) -> bool {
+/// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
+/// have been added. Used for avoiding unnecessary transform propagation.
+fn any_new_physics_entities(query: Query<(), Or<(Added<RigidBody>, Added<Collider>)>>) -> bool {
     !query.is_empty()
 }
 
+/// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa.
+fn init_transforms(
+    mut commands: Commands,
+    mut query: Query<
+        (
+            Entity,
+            Option<&mut Transform>,
+            Option<&GlobalTransform>,
+            Option<&Position>,
+            Option<&PreviousPosition>,
+            Option<&Rotation>,
+            Option<&PreviousRotation>,
+            Option<&Parent>,
+        ),
+        Or<(Added<RigidBody>, Added<Collider>)>,
+    >,
+    parents: Query<&GlobalTransform, With<Children>>,
+) {
+    for (entity, mut transform, global_transform, pos, previous_pos, rot, previous_rot, parent) in
+        &mut query
+    {
+        let position: Position;
+        let rotation: Rotation;
+
+        // Compute Transform based on Position or vice versa
+        if let Some(pos) = pos {
+            position = *pos;
+
+            if let Some(ref mut transform) = transform {
+                // Initialize new translation as global position
+                #[cfg(feature = "2d")]
+                let mut new_translation = pos.as_f32().extend(transform.translation.z);
+                #[cfg(feature = "3d")]
+                let mut new_translation = pos.as_f32();
+
+                // If the body is a child, subtract the parent's global translation
+                // to get the local translation
+                if let Some(parent) = parent {
+                    if let Ok(parent_transform) = parents.get(**parent) {
+                        new_translation -= parent_transform.translation();
+                    }
+                }
+
+                transform.translation = new_translation;
+            }
+        } else {
+            #[cfg(feature = "2d")]
+            {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
+                }));
+            }
+            #[cfg(feature = "3d")]
+            {
+                position = Position(global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                    Vector::new(
+                        t.translation().x as Scalar,
+                        t.translation().y as Scalar,
+                        t.translation().z as Scalar,
+                    )
+                }));
+            }
+        }
+
+        // Compute Transform based on Rotation or vice versa
+        if let Some(rot) = rot {
+            rotation = *rot;
+
+            if let Some(mut transform) = transform {
+                // Initialize new rotation as global rotation
+                let mut new_rotation = Quaternion::from(*rot).as_f32();
+
+                // If the body is a child, subtract the parent's global rotation
+                // to get the local rotation
+                if let Some(parent) = parent {
+                    if let Ok(parent_transform) = parents.get(**parent) {
+                        new_rotation = new_rotation - parent_transform.compute_transform().rotation;
+                    }
+                }
+
+                transform.rotation = new_rotation;
+            }
+        } else {
+            rotation = global_transform.map_or(Rotation::default(), |t| {
+                t.compute_transform().rotation.into()
+            });
+        }
+
+        // Insert the position and rotation.
+        // The values are either unchanged (Position and Rotation already exist) or computed based on the GlobalTransform.
+        commands.entity(entity).insert((
+            position,
+            *previous_pos.unwrap_or(&PreviousPosition(position.0)),
+            rotation,
+            *previous_rot.unwrap_or(&PreviousRotation(rotation)),
+        ));
+    }
+}
+
+/// Initializes missing components for [rigid bodies](RigidBody).
 fn init_rigid_bodies(
     mut commands: Commands,
-    mut bodies: Query<RigidBodyComponents, Added<RigidBody>>,
+    mut bodies: Query<
+        (
+            Entity,
+            Option<&LinearVelocity>,
+            Option<&AngularVelocity>,
+            Option<&ExternalForce>,
+            Option<&ExternalTorque>,
+            Option<&ExternalImpulse>,
+            Option<&ExternalAngularImpulse>,
+            Option<&Restitution>,
+            Option<&Friction>,
+            Option<&TimeSleeping>,
+        ),
+        Added<RigidBody>,
+    >,
 ) {
     for (
         entity,
-        mut transform,
-        global_transform,
-        pos,
-        rot,
         lin_vel,
         ang_vel,
         force,
@@ -100,232 +202,79 @@ fn init_rigid_bodies(
         time_sleeping,
     ) in &mut bodies
     {
-        let mut body = commands.entity(entity);
-        body.insert(AccumulatedTranslation(Vector::ZERO));
-
-        if let Some(pos) = pos {
-            body.insert(PreviousPosition(pos.0));
-
-            if let Some(ref mut transform) = transform {
-                #[cfg(feature = "2d")]
-                {
-                    transform.translation = pos.as_f32().extend(transform.translation.z);
-                }
-                #[cfg(feature = "3d")]
-                {
-                    transform.translation = pos.as_f32();
-                }
-            }
-        } else {
-            let translation;
-            #[cfg(feature = "2d")]
-            {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                    Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                });
-            }
-            #[cfg(feature = "3d")]
-            {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                    Vector::new(
-                        t.translation().x as Scalar,
-                        t.translation().y as Scalar,
-                        t.translation().z as Scalar,
-                    )
-                });
-            }
-
-            body.insert(Position(translation));
-            body.insert(PreviousPosition(translation));
-        }
-
-        if let Some(rot) = rot {
-            body.insert(PreviousRotation(*rot));
-
-            if let Some(mut transform) = transform {
-                let q: Quaternion = (*rot).into();
-                transform.rotation = q.as_f32();
-            }
-        } else {
-            let rotation = global_transform.map_or(Rotation::default(), |t| {
-                t.compute_transform().rotation.into()
-            });
-            body.insert(rotation);
-            body.insert(PreviousRotation(rotation));
-        }
-
-        if lin_vel.is_none() {
-            body.insert(LinearVelocity::default());
-        }
-        body.insert(PreSolveLinearVelocity::default());
-        if ang_vel.is_none() {
-            body.insert(AngularVelocity::default());
-        }
-        body.insert(PreSolveAngularVelocity::default());
-        if force.is_none() {
-            body.insert(ExternalForce::default());
-        }
-        if torque.is_none() {
-            body.insert(ExternalTorque::default());
-        }
-        if impulse.is_none() {
-            body.insert(ExternalImpulse::default());
-        }
-        if angular_impulse.is_none() {
-            body.insert(ExternalAngularImpulse::default());
-        }
-        if restitution.is_none() {
-            body.insert(Restitution::default());
-        }
-        if friction.is_none() {
-            body.insert(Friction::default());
-        }
-        if time_sleeping.is_none() {
-            body.insert(TimeSleeping::default());
-        }
+        commands.entity(entity).insert((
+            AccumulatedTranslation(Vector::ZERO),
+            *lin_vel.unwrap_or(&LinearVelocity::default()),
+            *ang_vel.unwrap_or(&AngularVelocity::default()),
+            PreSolveLinearVelocity::default(),
+            PreSolveAngularVelocity::default(),
+            *force.unwrap_or(&ExternalForce::default()),
+            *torque.unwrap_or(&ExternalTorque::default()),
+            *impulse.unwrap_or(&ExternalImpulse::default()),
+            *angular_impulse.unwrap_or(&ExternalAngularImpulse::default()),
+            *restitution.unwrap_or(&Restitution::default()),
+            *friction.unwrap_or(&Friction::default()),
+            *time_sleeping.unwrap_or(&TimeSleeping::default()),
+        ));
     }
 }
 
-type MassPropComponents = (
-    Entity,
-    Option<&'static Mass>,
-    Option<&'static InverseMass>,
-    Option<&'static Inertia>,
-    Option<&'static InverseInertia>,
-    Option<&'static CenterOfMass>,
-);
-type MassPropComponentsQueryFilter = Or<(Added<RigidBody>, Added<Collider>)>;
-
+/// Initializes missing mass properties for [rigid bodies](RigidBody) and [colliders](Collider).
 fn init_mass_properties(
     mut commands: Commands,
-    mass_properties: Query<MassPropComponents, MassPropComponentsQueryFilter>,
+    mass_properties: Query<
+        (
+            Entity,
+            Option<&Mass>,
+            Option<&InverseMass>,
+            Option<&Inertia>,
+            Option<&InverseInertia>,
+            Option<&CenterOfMass>,
+        ),
+        Or<(Added<RigidBody>, Added<Collider>)>,
+    >,
 ) {
     for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        let mut body = commands.entity(entity);
-
-        if mass.is_none() {
-            body.insert(Mass(
+        commands.entity(entity).insert((
+            *mass.unwrap_or(&Mass(
                 inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-            ));
-        }
-        if inverse_mass.is_none() {
-            body.insert(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0)));
-        }
-        if inertia.is_none() {
-            body.insert(
-                inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-            );
-        }
-        if inverse_inertia.is_none() {
-            body.insert(inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()));
-        }
-        if center_of_mass.is_none() {
-            body.insert(CenterOfMass::default());
-        }
+            )),
+            *inverse_mass.unwrap_or(&InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
+            *inertia.unwrap_or(
+                &inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
+            ),
+            *inverse_inertia
+                .unwrap_or(&inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse())),
+            *center_of_mass.unwrap_or(&CenterOfMass::default()),
+        ));
     }
 }
 
-type ColliderComponents = (
-    Entity,
-    // Use transform as default position and rotation if no components for them found
-    Option<&'static mut Transform>,
-    Option<&'static GlobalTransform>,
-    Option<&'static Position>,
-    Option<&'static Rotation>,
-    &'static Collider,
-    Option<&'static ColliderAabb>,
-    Option<&'static CollidingEntities>,
-    Option<&'static ColliderMassProperties>,
-    Option<&'static PreviousColliderMassProperties>,
-);
-
+/// Initializes missing components for [colliders](Collider).
 fn init_colliders(
     mut commands: Commands,
-    mut colliders: Query<ColliderComponents, Added<Collider>>,
+    mut colliders: Query<
+        (
+            Entity,
+            &Collider,
+            Option<&ColliderAabb>,
+            Option<&ColliderMassProperties>,
+            Option<&PreviousColliderMassProperties>,
+        ),
+        Added<Collider>,
+    >,
 ) {
-    for (
-        entity,
-        mut transform,
-        global_transform,
-        pos,
-        rot,
-        collider,
-        aabb,
-        colliding_entities,
-        mass_properties,
-        previous_mass_properties,
-    ) in &mut colliders
-    {
-        let mut entity_commands = commands.entity(entity);
-
-        if let Some(pos) = pos {
-            if let Some(ref mut transform) = transform {
-                #[cfg(feature = "2d")]
-                {
-                    transform.translation = pos.as_f32().extend(transform.translation.z);
-                }
-                #[cfg(feature = "3d")]
-                {
-                    transform.translation = pos.as_f32();
-                }
-            }
-        } else {
-            let translation;
-            #[cfg(feature = "2d")]
-            {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                    Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                });
-            }
-            #[cfg(feature = "3d")]
-            {
-                translation = global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                    Vector::new(
-                        t.translation().x as Scalar,
-                        t.translation().y as Scalar,
-                        t.translation().z as Scalar,
-                    )
-                });
-            }
-
-            entity_commands.insert(Position(translation));
-        }
-
-        if let Some(rot) = rot {
-            if let Some(mut transform) = transform {
-                let q: Quaternion = (*rot).into();
-                transform.rotation = q.as_f32();
-            }
-        } else {
-            let rotation = global_transform.map_or(Rotation::default(), |t| {
-                t.compute_transform().rotation.into()
-            });
-            entity_commands.insert(rotation);
-        }
-
-        if aabb.is_none() {
-            entity_commands.insert(ColliderAabb::from_shape(collider.get_shape()));
-        }
-        if colliding_entities.is_none() {
-            entity_commands.insert(CollidingEntities::default());
-        }
-        if mass_properties.is_none() {
-            entity_commands.insert(ColliderMassProperties::new_computed(collider, 1.0));
-        }
-        if previous_mass_properties.is_none() {
-            entity_commands.insert(PreviousColliderMassProperties(ColliderMassProperties::ZERO));
-        }
+    for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
+        commands.entity(entity).insert((
+            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
+            *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
+            *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
+                ColliderMassProperties::ZERO,
+            )),
+            CollidingEntities::default(),
+        ));
     }
 }
-
-type MassPropertiesComponents = (
-    Entity,
-    Option<&'static RigidBody>,
-    MassPropertiesQuery,
-    Option<&'static Collider>,
-    Option<&'static mut ColliderMassProperties>,
-    Option<&'static mut PreviousColliderMassProperties>,
-);
 
 type MassPropertiesChanged = Or<(
     Changed<Mass>,
@@ -339,7 +288,19 @@ type MassPropertiesChanged = Or<(
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassPropertiesChanged>) {
+fn update_mass_properties(
+    mut bodies: Query<
+        (
+            Entity,
+            Option<&RigidBody>,
+            MassPropertiesQuery,
+            Option<&Collider>,
+            Option<&mut ColliderMassProperties>,
+            Option<&mut PreviousColliderMassProperties>,
+        ),
+        MassPropertiesChanged,
+    >,
+) {
     for (
         entity,
         rb,
@@ -391,5 +352,12 @@ fn update_mass_properties(mut bodies: Query<MassPropertiesComponents, MassProper
                 );
             }
         }
+    }
+}
+
+/// Clamps coefficients of [restitution](Restitution) to be between 0.0 and 1.0.
+fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
+    for mut restitution in &mut query {
+        restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
     }
 }

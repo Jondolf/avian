@@ -187,14 +187,10 @@ impl Default for SpatialQueryPlugin {
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>()
-            .init_resource::<RemovedColliders>()
-            .add_systems(Last, update_removed_colliders)
-            .add_systems(
-                self.schedule.dyn_clone(),
-                (init_ray_hits, init_shape_hit, update_removed_colliders)
-                    .in_set(PhysicsSet::Prepare),
-            );
+        app.init_resource::<SpatialQueryPipeline>().add_systems(
+            self.schedule.dyn_clone(),
+            (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
+        );
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -205,7 +201,6 @@ impl Plugin for SpatialQueryPlugin {
                 update_ray_caster_positions,
                 update_shape_caster_positions,
                 |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
-                |mut removed: ResMut<RemovedColliders>| removed.clear(),
                 raycast,
                 shapecast,
             )
@@ -389,12 +384,4 @@ fn shapecast(
             hits.clear();
         }
     }
-}
-
-// Todo: Move this out of the spatial query plugin
-fn update_removed_colliders(
-    mut removals: RemovedComponents<Collider>,
-    mut removed_colliders: ResMut<RemovedColliders>,
-) {
-    removed_colliders.extend(removals.iter());
 }

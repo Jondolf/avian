@@ -5,7 +5,7 @@
 
 use crate::{
     prelude::*,
-    utils::{get_dynamic_friction, get_restitution},
+    utils::{compute_dynamic_friction, compute_restitution},
 };
 use bevy::prelude::*;
 use constraints::penetration::PenetrationConstraint;
@@ -160,7 +160,6 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    num_pos_iters: Res<IterationCount>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     // Clear Lagrange multipliers
@@ -168,37 +167,35 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
         .iter_mut()
         .for_each(|mut c| c.clear_lagrange_multipliers());
 
-    for _j in 0..num_pos_iters.0 {
-        for mut constraint in &mut constraints {
-            // Get components for entities
-            if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
-                let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
-                let all_inactive = bodies
-                    .iter()
-                    .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
+    for mut constraint in &mut constraints {
+        // Get components for entities
+        if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+            let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+            let all_inactive = bodies
+                .iter()
+                .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
 
-                // No constraint solving if none of the bodies is dynamic,
-                // or if all of the bodies are either static or sleeping
-                if none_dynamic || all_inactive {
-                    continue;
-                }
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
 
-                // At least one of the participating bodies is active, so wake up any sleeping bodies
-                for (body, sleeping) in &bodies {
-                    if sleeping.is_some() {
-                        commands.entity(body.entity).remove::<Sleeping>();
-                    }
+            // At least one of the participating bodies is active, so wake up any sleeping bodies
+            for (body, sleeping) in &bodies {
+                if sleeping.is_some() {
+                    commands.entity(body.entity).remove::<Sleeping>();
                 }
+            }
 
-                // Get the bodies as an array and solve the constraint
-                if let Ok(bodies) = bodies
-                    .iter_mut()
-                    .map(|(ref mut body, _)| body)
-                    .collect::<Vec<&mut RigidBodyQueryItem>>()
-                    .try_into()
-                {
-                    constraint.solve(bodies, sub_dt.0);
-                }
+            // Get the bodies as an array and solve the constraint
+            if let Ok(bodies) = bodies
+                .iter_mut()
+                .map(|(ref mut body, _)| body)
+                .collect::<Vec<&mut RigidBodyQueryItem>>()
+                .try_into()
+            {
+                constraint.solve(bodies, sub_dt.0);
             }
         }
     }
@@ -222,7 +219,7 @@ fn update_lin_vel(
 ) {
     for (rb, pos, prev_pos, translation, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && lin_vel.0 != Vector::ZERO {
             lin_vel.0 = Vector::ZERO;
         }
 
@@ -252,7 +249,7 @@ fn update_ang_vel(
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && ang_vel.0 != 0.0 {
             ang_vel.0 = 0.0;
         }
 
@@ -281,7 +278,7 @@ fn update_ang_vel(
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && ang_vel.0 != Vector::ZERO {
             ang_vel.0 = Vector::ZERO;
         }
 
@@ -317,7 +314,7 @@ fn solve_vel(
                 continue;
             }
 
-            let normal = constraint.contact.global_normal(&body1.rotation);
+            let normal = constraint.contact.global_normal1(&body1.rotation);
             let r1 = body1.rotation.rotate(constraint.r1);
             let r2 = body2.rotation.rotate(constraint.r2);
 
@@ -333,7 +330,7 @@ fn solve_vel(
                 r2,
             );
             let pre_solve_relative_vel = pre_solve_contact_vel1 - pre_solve_contact_vel2;
-            let pre_solve_normal_vel = normal.dot(pre_solve_relative_vel);
+            let pre_solve_normal_speed = normal.dot(pre_solve_relative_vel);
 
             // Compute relative normal and tangential velocities at the contact point (equation 29)
             let contact_vel1 =
@@ -341,47 +338,47 @@ fn solve_vel(
             let contact_vel2 =
                 compute_contact_vel(body2.linear_velocity.0, body2.angular_velocity.0, r2);
             let relative_vel = contact_vel1 - contact_vel2;
-            let normal_vel = normal.dot(relative_vel);
-            let tangent_vel = relative_vel - normal * normal_vel;
+
+            let normal_speed = normal.dot(relative_vel);
+            let tangent_vel = relative_vel - normal * normal_speed;
+            let tangent_speed = tangent_vel.length();
 
             let inv_mass1 = body1.effective_inv_mass();
             let inv_mass2 = body2.effective_inv_mass();
             let inv_inertia1 = body1.effective_world_inv_inertia();
             let inv_inertia2 = body2.effective_world_inv_inertia();
 
-            // Compute dynamic friction
-            let friction_impulse = get_dynamic_friction(
-                tangent_vel,
-                body1.friction.combine(*body2.friction).dynamic_coefficient,
-                constraint.normal_lagrange,
-                sub_dt.0,
-            );
+            let mut p = Vector::ZERO;
 
             // Compute restitution
-            let restitution_impulse = get_restitution(
-                normal,
-                normal_vel,
-                pre_solve_normal_vel,
+            let restitution_speed = compute_restitution(
+                normal_speed,
+                pre_solve_normal_speed,
                 body1.restitution.combine(*body2.restitution).coefficient,
                 gravity.0,
                 sub_dt.0,
             );
-
-            let delta_v = friction_impulse + restitution_impulse;
-            let delta_v_length = delta_v.length();
-
-            if delta_v_length <= Scalar::EPSILON {
-                continue;
+            if restitution_speed.abs() > Scalar::EPSILON {
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
+                p += restitution_speed / (w1 + w2) * normal;
             }
 
-            let delta_v_dir = delta_v / delta_v_length;
+            // Compute dynamic friction
+            if tangent_speed > Scalar::EPSILON {
+                let tangent_dir = tangent_vel / tangent_speed;
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent_dir);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent_dir);
+                let friction_impulse = compute_dynamic_friction(
+                    tangent_speed,
+                    w1 + w2,
+                    body1.friction.combine(*body2.friction).dynamic_coefficient,
+                    constraint.normal_lagrange,
+                    sub_dt.0,
+                );
+                p += friction_impulse * tangent_dir;
+            }
 
-            // Compute generalized inverse masses
-            let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, delta_v_dir);
-            let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, delta_v_dir);
-
-            // Compute velocity impulse and apply velocity updates (equation 33)
-            let p = delta_v / (w1 + w2);
             if body1.rb.is_dynamic() {
                 body1.linear_velocity.0 += p * inv_mass1;
                 body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
@@ -395,7 +392,7 @@ fn solve_vel(
 }
 
 /// Applies velocity corrections caused by joint damping.
-fn joint_damping<T: Joint>(
+pub fn joint_damping<T: Joint>(
     mut bodies: Query<
         (
             &RigidBody,

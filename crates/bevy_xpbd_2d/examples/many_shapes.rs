@@ -111,7 +111,7 @@ fn setup(
     );
     // Compute points of regular triangle
     let delta_rotation = Rotation::from_degrees(120.0);
-    let triangle_points = vec![
+    let triangle_points = [
         Vector::Y * 10.0,
         delta_rotation.rotate(Vector::Y * 10.0),
         delta_rotation.inverse().rotate(Vector::Y * 10.0),
@@ -135,7 +135,7 @@ fn setup(
                 shapes[(x + y) as usize % 4].clone(),
                 RigidBody::Dynamic,
                 Position(position),
-                Friction::new(0.001),
+                Friction::new(0.1),
                 Controllable,
             ));
         }

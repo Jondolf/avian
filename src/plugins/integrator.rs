@@ -151,7 +151,7 @@ fn integrate_rot(
                 * (external_torque.torque() + external_force.torque());
         }
 
-        *rot += Rotation::from_radians(locked_axes.apply_to_rotation(sub_dt.0 * ang_vel.0));
+        *rot += Rotation::from_radians(locked_axes.apply_to_angular_velocity(sub_dt.0 * ang_vel.0));
     }
 }
 
@@ -203,7 +203,7 @@ fn integrate_rot(
 
         let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
         let effective_dq = locked_axes
-            .apply_to_vec(sub_dt.0 * 0.5 * q.xyz())
+            .apply_to_angular_velocity(sub_dt.0 * 0.5 * q.xyz())
             .extend(sub_dt.0 * 0.5 * q.w);
         rot.0 = (rot.0 + Quaternion::from_vec4(effective_dq)).normalize();
     }

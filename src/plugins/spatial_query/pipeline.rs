@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
-    partitioning::{Qbvh, QbvhUpdateWorkspace},
+    partitioning::Qbvh,
     query::{
         details::{
             RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
@@ -26,7 +26,6 @@ use parry::{
 pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
-    pub(crate) workspace: QbvhUpdateWorkspace,
     pub(crate) colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pub(crate) entity_generations: HashMap<u32, u32>,
 }
@@ -36,7 +35,6 @@ impl Default for SpatialQueryPipeline {
         Self {
             qbvh: Qbvh::new(),
             dispatcher: Arc::new(DefaultQueryDispatcher),
-            workspace: QbvhUpdateWorkspace::default(),
             colliders: HashMap::default(),
             entity_generations: HashMap::default(),
         }
@@ -61,7 +59,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Updates the associated acceleration structures with a new set of entities.
-    pub fn update_incremental<'a>(
+    pub fn update<'a>(
         &mut self,
         colliders: impl Iterator<
             Item = (
@@ -73,9 +71,6 @@ impl SpatialQueryPipeline {
             ),
         >,
         added_colliders: impl Iterator<Item = Entity>,
-        changed_colliders: impl Iterator<Item = Entity>,
-        removed_colliders: impl Iterator<Item = Entity>,
-        refit_and_balance: bool,
     ) {
         let colliders = colliders
             .map(|(entity, position, rotation, collider, layers)| {
@@ -89,20 +84,14 @@ impl SpatialQueryPipeline {
                 )
             })
             .collect();
-        let added = added_colliders.collect::<Vec<_>>();
-        let modified = changed_colliders.collect::<Vec<_>>();
-        let removed = removed_colliders.collect::<Vec<_>>();
 
-        self.update_incremental_internal(colliders, &added, &modified, &removed, refit_and_balance)
+        self.update_internal(colliders, added_colliders)
     }
 
-    fn update_incremental_internal(
+    fn update_internal(
         &mut self,
         colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
-        added: &[Entity],
-        modified: &[Entity],
-        removed: &[Entity],
-        refit_and_balance: bool,
+        added: impl Iterator<Item = Entity>,
     ) {
         self.colliders = colliders;
 
@@ -116,28 +105,28 @@ impl SpatialQueryPipeline {
             }
         }
 
-        for removed in removed {
-            self.qbvh.remove(removed.index());
-        }
+        struct DataGenerator<'a>(
+            &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        );
 
-        for modified in modified {
-            if self.colliders.contains_key(modified) {
-                self.qbvh.pre_update_or_insert(modified.index());
+        impl<'a> parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'a> {
+            fn size_hint(&self) -> usize {
+                self.0.len()
+            }
+
+            #[inline(always)]
+            fn for_each(&mut self, mut f: impl FnMut(u32, parry::bounding_volume::Aabb)) {
+                for (entity, co) in self.0.iter() {
+                    // Compute and return AABB
+                    let (iso, shape, _) = co;
+                    let aabb = shape.get_shape().compute_aabb(iso);
+                    f(entity.index(), aabb)
+                }
             }
         }
 
-        if refit_and_balance {
-            let _ = self.qbvh.refit(0.0, &mut self.workspace, |entity_index| {
-                // Construct entity ID
-                let generation = self.entity_generations.get(entity_index).map_or(0, |i| *i);
-                let entity = utils::entity_from_index_and_gen(*entity_index, generation);
-                // Compute and return AABB
-                let (iso, shape, _) = self.colliders.get(&entity).unwrap();
-                let aabb = shape.get_shape().compute_aabb(iso);
-                aabb
-            });
-            self.qbvh.rebalance(0.0, &mut self.workspace);
-        }
+        self.qbvh
+            .clear_and_rebuild(DataGenerator(&self.colliders), 0.01);
     }
 
     pub(crate) fn entity_from_index(&self, index: u32) -> Entity {
@@ -208,18 +197,19 @@ impl SpatialQueryPipeline {
         solid: bool,
         query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
-        let mut hits = 0;
+        let mut hits = Vec::with_capacity(10);
         self.ray_hits_callback(
             origin,
             direction,
             max_time_of_impact,
             solid,
             query_filter,
-            |_| {
-                hits += 1;
-                hits < max_hits
+            |hit| {
+                hits.push(hit);
+                (hits.len() as u32) < max_hits
             },
-        )
+        );
+        hits
     }
 
     /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
@@ -246,10 +236,9 @@ impl SpatialQueryPipeline {
         solid: bool,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(RayHitData) -> bool,
-    ) -> Vec<RayHitData> {
+    ) {
         let colliders = &self.colliders;
 
-        let mut hits = Vec::with_capacity(10);
         let ray = parry::query::Ray::new(origin.into(), direction.into());
 
         let mut leaf_callback = &mut |entity_index: &u32| {
@@ -264,7 +253,6 @@ impl SpatialQueryPipeline {
                             time_of_impact: hit.toi,
                             normal: hit.normal.into(),
                         };
-                        hits.push(hit);
 
                         return callback(hit);
                     }
@@ -276,8 +264,6 @@ impl SpatialQueryPipeline {
         let mut visitor =
             RayIntersectionsVisitor::new(&ray, max_time_of_impact, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
-
-        hits
     }
 
     /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
@@ -374,7 +360,7 @@ impl SpatialQueryPipeline {
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
-        let mut hits = 0;
+        let mut hits = Vec::with_capacity(10);
         self.shape_hits_callback(
             shape,
             origin,
@@ -383,11 +369,12 @@ impl SpatialQueryPipeline {
             max_time_of_impact,
             ignore_origin_penetration,
             query_filter,
-            |_| {
-                hits += 1;
-                hits < max_hits
+            |hit| {
+                hits.push(hit);
+                (hits.len() as u32) < max_hits
             },
-        )
+        );
+        hits
     }
 
     /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
@@ -419,7 +406,7 @@ impl SpatialQueryPipeline {
         ignore_origin_penetration: bool,
         mut query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(ShapeHitData) -> bool,
-    ) -> Vec<ShapeHitData> {
+    ) {
         let rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -432,7 +419,6 @@ impl SpatialQueryPipeline {
 
         let shape_isometry = utils::make_isometry(origin, &rotation);
         let shape_direction = direction.into();
-        let mut hits = Vec::with_capacity(10);
 
         loop {
             let pipeline_shape = self.as_composite_shape(query_filter.clone());
@@ -458,7 +444,6 @@ impl SpatialQueryPipeline {
                         normal2: hit.normal2.into(),
                     })
             {
-                hits.push(hit);
                 query_filter.excluded_entities.insert(hit.entity);
 
                 if !callback(hit) {
@@ -468,8 +453,6 @@ impl SpatialQueryPipeline {
                 break;
             }
         }
-
-        hits
     }
 
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
@@ -517,7 +500,12 @@ impl SpatialQueryPipeline {
         point: Vector,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
-        self.point_intersections_callback(point, query_filter, |_| true)
+        let mut intersections = vec![];
+        self.point_intersections_callback(point, query_filter, |e| {
+            intersections.push(e);
+            true
+        });
+        intersections
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
@@ -536,16 +524,13 @@ impl SpatialQueryPipeline {
         point: Vector,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
+    ) {
         let point = point.into();
-
-        let mut intersections = vec![];
 
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((isometry, shape, layers)) = self.colliders.get(&entity) {
                 if query_filter.test(entity, *layers) && shape.contains_point(isometry, &point) {
-                    intersections.push(entity);
                     return callback(entity);
                 }
             }
@@ -554,8 +539,6 @@ impl SpatialQueryPipeline {
 
         let mut visitor = PointIntersectionsVisitor::new(&point, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
@@ -563,7 +546,12 @@ impl SpatialQueryPipeline {
     ///
     /// See also: [SpatialQuery::point_intersections_callback]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
-        self.aabb_intersections_with_aabb_callback(aabb, |_| true)
+        let mut intersections = vec![];
+        self.aabb_intersections_with_aabb_callback(aabb, |e| {
+            intersections.push(e);
+            true
+        });
+        intersections
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
@@ -575,18 +563,14 @@ impl SpatialQueryPipeline {
         &self,
         aabb: ColliderAabb,
         mut callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
-        let mut intersections = vec![];
+    ) {
         let mut leaf_callback = |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
-            intersections.push(entity);
             callback(entity)
         };
 
         let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
@@ -607,13 +591,18 @@ impl SpatialQueryPipeline {
         shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
     ) -> Vec<Entity> {
+        let mut intersections = vec![];
         self.shape_intersections_callback(
             shape,
             shape_position,
             shape_rotation,
             query_filter,
-            |_| true,
-        )
+            |e| {
+                intersections.push(e);
+                true
+            },
+        );
+        intersections
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
@@ -636,7 +625,7 @@ impl SpatialQueryPipeline {
         shape_rotation: RotationValue,
         query_filter: SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
-    ) -> Vec<Entity> {
+    ) {
         let colliders = &self.colliders;
         let rotation: Rotation;
         #[cfg(feature = "2d")]
@@ -652,7 +641,6 @@ impl SpatialQueryPipeline {
         let inverse_shape_isometry = shape_isometry.inverse();
 
         let dispatcher = &*self.dispatcher;
-        let mut intersections = vec![];
 
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
@@ -667,7 +655,6 @@ impl SpatialQueryPipeline {
                         &**collider.get_shape(),
                     ) == Ok(true)
                     {
-                        intersections.push(entity);
                         return callback(entity);
                     }
                 }
@@ -678,8 +665,6 @@ impl SpatialQueryPipeline {
         let shape_aabb = shape.get_shape().compute_aabb(&shape_isometry);
         let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
-
-        intersections
     }
 }
 

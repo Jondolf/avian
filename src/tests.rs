@@ -35,7 +35,9 @@ fn create_app() -> App {
 
 fn tick_60_fps(app: &mut App) {
     let mut update_strategy = app.world.resource_mut::<TimeUpdateStrategy>();
-    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else { unimplemented!() };
+    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
+        unimplemented!()
+    };
     *update_strategy =
         TimeUpdateStrategy::ManualInstant(prev_time + Duration::from_secs_f64(1. / 60.));
     app.update();
@@ -134,7 +136,6 @@ fn body_with_velocity_moves() {
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
 struct Id(usize);
 
-#[ignore = "determinism across machines doesn't work yet"]
 #[cfg(all(feature = "3d", feature = "enhanced-determinism"))]
 #[test]
 fn cubes_simulation_is_deterministic_across_machines() {

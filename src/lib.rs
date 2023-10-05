@@ -167,7 +167,7 @@
 //! - [Add a collider](Collider)
 //! - [Listen to collision events](Collider#collision-events)
 //! - [Define collision layers](CollisionLayers#creation)
-//! - [Configure restitution](Restitution)
+//! - [Configure restitution (bounciness)](Restitution)
 //! - [Configure friction](Friction)
 //! - [Configure gravity](Gravity)
 //! - [Apply external forces](ExternalForce)
@@ -310,7 +310,7 @@
 //!     h = ∆t / substep_count
 //!
 //!     // Broad phase
-//!     collect_collision_pairs()
+//!     broad_collision_pairs = collect_collision_pairs()
 //!
 //!     for substep_count:
 //!         // Integrate
@@ -326,9 +326,12 @@
 //!             q = q + h * 0.5 * [ω_x, ω_y, ω_z, 0] * q
 //!             q = q / |q|
 //!
-//!         // Solve constraints (1 iteration and many substeps recommended)
-//!         for iteration_count:
-//!             solve_constraints(particles and bodies)
+//!         // Narrow phase
+//!         for pair in broad_collision_pairs:
+//!             compute_contacts(pair)
+//!
+//!         // Solve constraints (contacts, joints etc.)
+//!         solve_constraints(particles and bodies)
 //!
 //!         // Update velocities
 //!         for n particles and bodies:
@@ -461,6 +464,12 @@ pub struct PhysicsSchedule;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 
+/// The schedule that runs in [`SubstepSet::PostProcessCollisions`].
+///
+/// Empty by default.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
+pub struct PostProcessCollisions;
+
 /// High-level system sets for the main phases of the physics engine.
 /// You can use these to schedule your own systems before or after physics is run without
 /// having to worry about implementation details.
@@ -479,6 +488,8 @@ pub struct SubstepSchedule;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
+/// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
+/// [`SubstepSet::PostProcessCollisions`]. Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
@@ -531,9 +542,11 @@ pub enum PhysicsStepSet {
 /// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
 ///
 /// 1. Integrate
-/// 2. Solve positional and angular constraints
-/// 3. Update velocities
-/// 4. Solve velocity constraints (dynamic friction and restitution)
+/// 2. Narrow phase
+/// 3. Post-process collisions
+/// 4. Solve positional and angular constraints
+/// 5. Update velocities
+/// 6. Solve velocity constraints (dynamic friction and restitution)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSet {
     /// Responsible for integrating Newton's 2nd law of motion,
@@ -545,6 +558,14 @@ pub enum SubstepSet {
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,
+    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
+    /// to filter and modify collisions.
+    ///
+    /// If you want to modify or remove collisions after [`SubstepSet::NarrowPhase`], you can
+    /// add custom systems to this set, or to [`PostProcessCollisions`].
+    ///
+    /// See [`NarrowPhasePlugin`].
+    PostProcessCollisions,
     /// The [solver] iterates through [constraints] and solves them.
     ///
     /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
