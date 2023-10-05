@@ -123,8 +123,9 @@ impl Default for SyncConfig {
 
 /// The global transform of a body at the end of the previous frame.
 /// Used for detecting if the transform was modified before the start of the physics schedule.
-#[derive(Component, Deref, DerefMut)]
-struct PreviousGlobalTransform(GlobalTransform);
+#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
+pub struct PreviousGlobalTransform(pub GlobalTransform);
 
 type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider>)>;
 

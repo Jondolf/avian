@@ -9,6 +9,8 @@ use bevy::{
 
 use crate::prelude::*;
 
+use super::sync::PreviousGlobalTransform;
+
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
 /// This plugin does *not* initialize any other plugins or physics systems.
@@ -81,6 +83,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Rotation>()
             .register_type::<PreviousPosition>()
             .register_type::<PreviousRotation>()
+            .register_type::<PreviousGlobalTransform>()
             .register_type::<AccumulatedTranslation>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
