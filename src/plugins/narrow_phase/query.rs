@@ -1,4 +1,4 @@
-//! **Contact queries** compute information about contacts between [`Collider`]s.
+//! **Contact queries** compute information about contacts between two [`Collider`]s.
 //!
 //! This module contains the following contact queries:
 //!
@@ -6,6 +6,9 @@
 //! | --------------------- | -------------------------------------------------------------- |
 //! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s. |
 //! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
+//!
+//! For geometric queries that query the entire world for intersections, like ray casting, shape casting
+//! and point projection, see [spatial queries](spatial_query).
 
 use crate::prelude::*;
 use parry::query::PersistentQueryDispatcher;
