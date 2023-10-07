@@ -25,6 +25,7 @@
 //!     - Access to [colliding entities](CollidingEntities)
 //!     - [Sensor colliders](Sensor)
 //!     - [Collision layers](CollisionLayers)
+//!     - [Contact and time of impact queries](narrow_phase::query)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
 //! - [Gravity] and [gravity scale](GravityScale)

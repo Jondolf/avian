@@ -1,6 +1,54 @@
+//! **Contact queries** compute information about contacts between [`Collider`]s.
+//!
+//! This module contains the following contact queries:
+//!
+//! | Contact query         | Description                                                    |
+//! | --------------------- | -------------------------------------------------------------- |
+//! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s. |
+//! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
+
 use crate::prelude::*;
 use parry::query::PersistentQueryDispatcher;
 
+/// Computes one pair of contact points between two [`Collider`]s.
+///
+/// Returns `None` if the colliders are separated by a distance greater than `prediction_distance`
+/// or if the given shapes are invalid.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// // Compute a contact that should have a penetration depth of 0.5
+/// let contact = contact(
+///     // First collider
+///     &collider1,
+///     Vec3::default(),
+///     Quat::default(),
+///     // Second collider
+///     &collider2,
+///     Vec3::X * 0.5,
+///     Quat::default(),
+///     // Prediction distance
+///     0.0,
+/// );
+///
+/// assert_eq!(
+///     contact.is_some_and(|contact| contact.penetration == 0.5),
+///     true
+/// );
+/// # }
+/// ```
 pub fn contact(
     collider1: &Collider,
     position1: impl Into<Position>,
@@ -54,6 +102,42 @@ pub fn contact(
 // Todo: Add a persistent version of this that tries to reuse previous contact manifolds
 // by exploiting spatial and temporal coherence. This is supported by Parry's contact_manifolds,
 // but requires using Parry's ContactManifold type.
+/// Computes all [`ContactManifold`]s between two [`Collider`]s.
+///
+/// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+/// or if the given shapes are invalid.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// // Compute contact manifolds a collision that should be penetrating
+/// let manifolds = contact_manifolds(
+///     // First collider
+///     &collider1,
+///     Vec3::default(),
+///     Quat::default(),
+///     // Second collider
+///     &collider2,
+///     Vec3::X * 0.25,
+///     Quat::default(),
+///     // Prediction distance
+///     0.0,
+/// );
+///
+/// assert_eq!(manifolds.is_empty(), false);
+/// # }
+/// ```
 pub fn contact_manifolds(
     collider1: &Collider,
     position1: impl Into<Position>,
