@@ -7,6 +7,7 @@
 //! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s. |
 //! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
 //! | [`closest_points`]    | Computes the closest points between two [`Collider`]s.         |
+//! | [`distance`]          | Computes the minimum distance separating two [`Collider`]s.    |
 //!
 //! For geometric queries that query the entire world for intersections, like ray casting, shape casting
 //! and point projection, see [spatial queries](spatial_query).
@@ -225,10 +226,9 @@ pub enum ClosestPoints {
     OutsideMargin,
 }
 
-/// Computes one pair of contact points between two [`Collider`]s.
+/// Computes the [`ClosestPoints`] between two [`Collider`]s.
 ///
-/// Returns `None` if the colliders are separated by a distance greater than `prediction_distance`
-/// or if the given shapes are invalid.
+/// Returns `Err(UnsupportedShape)` if either of the collider shapes is not supported.
 ///
 /// ## Example
 ///
@@ -294,7 +294,7 @@ pub fn closest_points(
     collider2: &Collider,
     position2: impl Into<Position>,
     rotation2: impl Into<Rotation>,
-    max_distance: f32,
+    max_distance: Scalar,
 ) -> Result<ClosestPoints, UnsupportedShape> {
     let rotation1: Rotation = rotation1.into();
     let rotation2: Rotation = rotation2.into();
@@ -315,4 +315,71 @@ pub fn closest_points(
         }
         parry::query::ClosestPoints::Disjoint => ClosestPoints::OutsideMargin,
     })
+}
+
+/// Computes the minimum distance separating two [`Collider`]s.
+///
+/// Returns `0.0` if the colliders are touching or penetrating, and `Err(UnsupportedShape)`
+/// if either of the collider shapes is not supported.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// // The distance is 1.0
+/// assert_eq!(
+///     distance(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::X * 2.0,
+///         Quat::default(),
+///     ).expect("Unsupported shape"),
+///     1.0,
+/// );
+///
+/// // The colliders are penetrating, so the distance is 0.0
+/// assert_eq!(
+///     distance(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::default(),
+///         Quat::default(),
+///     ).expect("Unsupported shape"),
+///     0.0,
+/// );
+/// # }
+/// ```
+pub fn distance(
+    collider1: &Collider,
+    position1: impl Into<Position>,
+    rotation1: impl Into<Rotation>,
+    collider2: &Collider,
+    position2: impl Into<Position>,
+    rotation2: impl Into<Rotation>,
+) -> Result<Scalar, UnsupportedShape> {
+    let rotation1: Rotation = rotation1.into();
+    let rotation2: Rotation = rotation2.into();
+    let isometry1 = utils::make_isometry(position1.into(), rotation1);
+    let isometry2 = utils::make_isometry(position2.into(), rotation2);
+
+    parry::query::distance(
+        &isometry1,
+        collider1.get_shape().0.as_ref(),
+        &isometry2,
+        collider2.get_shape().0.as_ref(),
+    )
 }
