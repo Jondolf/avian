@@ -8,6 +8,7 @@
 //! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
 //! | [`closest_points`]    | Computes the closest points between two [`Collider`]s.         |
 //! | [`distance`]          | Computes the minimum distance separating two [`Collider`]s.    |
+//! | [`intersection_test`] | Tests whether two [`Collider`]s are intersecting each other.   |
 //!
 //! For geometric queries that query the entire world for intersections, like ray casting, shape casting
 //! and point projection, see [spatial queries](spatial_query).
@@ -377,6 +378,72 @@ pub fn distance(
     let isometry2 = utils::make_isometry(position2.into(), rotation2);
 
     parry::query::distance(
+        &isometry1,
+        collider1.get_shape().0.as_ref(),
+        &isometry2,
+        collider2.get_shape().0.as_ref(),
+    )
+}
+
+/// Tests whether two [`Collider`]s are intersecting each other.
+///
+/// Returns `Err(UnsupportedShape)` if either of the collider shapes is not supported.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// // These colliders should be intersecting
+/// assert_eq!(
+///     intersection_test(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::default(),
+///         Quat::default(),
+///     ).expect("Unsupported shape"),
+///     true,
+/// );
+///
+/// // These colliders shouldn't be intersecting
+/// assert_eq!(
+///     intersection_test(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::X * 5.0,
+///         Quat::default(),
+///     ).expect("Unsupported shape"),
+///     false,
+/// );
+/// # }
+/// ```
+pub fn intersection_test(
+    collider1: &Collider,
+    position1: impl Into<Position>,
+    rotation1: impl Into<Rotation>,
+    collider2: &Collider,
+    position2: impl Into<Position>,
+    rotation2: impl Into<Rotation>,
+) -> Result<bool, UnsupportedShape> {
+    let rotation1: Rotation = rotation1.into();
+    let rotation2: Rotation = rotation2.into();
+    let isometry1 = utils::make_isometry(position1.into(), rotation1);
+    let isometry2 = utils::make_isometry(position2.into(), rotation2);
+
+    parry::query::intersection_test(
         &isometry1,
         collider1.get_shape().0.as_ref(),
         &isometry2,
