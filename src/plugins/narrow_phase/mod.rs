@@ -2,9 +2,9 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
-pub mod query;
+pub mod contact_query;
 
-pub use query::*;
+pub use contact_query::*;
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -267,7 +267,7 @@ fn collect_collisions(
                                 entity2: *entity2,
                                 during_current_frame: true,
                                 during_current_substep: true,
-                                manifolds: query::contact_manifolds(
+                                manifolds: contact_query::contact_manifolds(
                                     collider1,
                                     position1,
                                     *rotation1,
@@ -323,7 +323,7 @@ fn collect_collisions(
                         entity2: *entity2,
                         during_current_frame: true,
                         during_current_substep: true,
-                        manifolds: query::contact_manifolds(
+                        manifolds: contact_query::contact_manifolds(
                             collider1,
                             position1,
                             *rotation1,
