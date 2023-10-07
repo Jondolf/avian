@@ -112,8 +112,8 @@ impl Default for NarrowPhaseConfig {
 // consistent and uniform, for example in the `move_marbles` example.
 // ==========================================
 /// All collision pairs.
-#[derive(Resource, Debug, Default)]
-pub struct Collisions(pub(crate) IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
+#[derive(Resource, Clone, Debug, Default, PartialEq)]
+pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
     /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
@@ -147,6 +147,18 @@ impl Collisions {
                 .get_mut(&(entity2, entity1))
                 .filter(|contacts| contacts.during_current_frame)
         }
+    }
+
+    /// Returns a reference to the internal `IndexMap`.
+    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the internal `IndexMap`.
+    pub fn get_internal_mut(
+        &mut self,
+    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+        &mut self.0
     }
 
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
@@ -192,6 +204,43 @@ impl Collisions {
             })
     }
 
+    /// Inserts contact data for a collision between two entities.
+    ///
+    /// If a collision entry with the same entities already exists, it will be overwritten,
+    /// and the old value will be returned. Otherwise, `None` is returned.
+    ///
+    /// **Note**: Manually inserting collisions can be error prone and should generally be avoided.
+    /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](#method.get_mut)
+    /// or [`iter_mut`](#method.iter_mut).
+    pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
+        // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
+        // entity ID. This requires changes elsewhere as well though.
+        self.0
+            .insert((contacts.entity1, contacts.entity2), contacts)
+    }
+
+    /// Extends [`Collisions`] with all collision pairs in the given iterable.
+    ///
+    /// This is mostly equivalent to calling [`insert_collision_pair`](#method.insert_collision_pair)
+    /// for each of the collision pairs.
+    pub fn extend<I: IntoIterator<Item = Contacts>>(&mut self, collisions: I) {
+        // (Note: this is a copy of `std`/`hashbrown`/`indexmap`'s reservation logic.)
+        // Keys may be already present or show multiple times in the iterator.
+        // Reserve the entire hint lower bound if the map is empty.
+        // Otherwise reserve half the hint (rounded up), so the map
+        // will only resize twice in the worst case.
+        let iter = collisions.into_iter();
+        let reserve = if self.get_internal().is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.get_internal_mut().reserve(reserve);
+        iter.for_each(move |contacts| {
+            self.insert_collision_pair(contacts);
+        });
+    }
+
     /// Retains only the collisions for which the specified predicate returns `true`.
     /// Collisions for which the predicate returns `false` are removed from the `HashMap`.
     pub fn retain<F>(&mut self, keep: F)
@@ -209,8 +258,8 @@ impl Collisions {
 
 /// Stores the collision pairs from the previous frame.
 /// This is used for detecting when collisions have started or ended.
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
-struct PreviousCollisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
+#[derive(Resource, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
+struct PreviousCollisions(Collisions);
 
 /// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
 #[derive(Event, Clone, Debug, PartialEq)]
@@ -247,7 +296,7 @@ fn collect_collisions(
         let new_collisions = broad_collision_pairs
             .0
             .par_splat_map(pool, None, |chunks| {
-                let mut collisions: Vec<((Entity, Entity), Contacts)> = vec![];
+                let mut collisions: Vec<Contacts> = vec![];
                 for (entity1, entity2) in chunks {
                     if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
                         let (
@@ -287,7 +336,7 @@ fn collect_collisions(
                             );
 
                             if !contacts.manifolds.is_empty() {
-                                collisions.push(((*entity1, *entity2), contacts));
+                                collisions.push(contacts);
                             }
                         }
                     }
@@ -296,7 +345,7 @@ fn collect_collisions(
             })
             .into_iter()
             .flatten();
-        collisions.0.extend(new_collisions);
+        collisions.extend(new_collisions);
     }
     #[cfg(not(feature = "parallel"))]
     {
@@ -335,7 +384,7 @@ fn collect_collisions(
                     );
 
                     if !contacts.manifolds.is_empty() {
-                        collisions.0.insert((*entity1, *entity2), contacts);
+                        collisions.insert_collision_pair(contacts);
                     }
                 }
             }
@@ -371,7 +420,7 @@ fn check_collision_validity(
 }
 
 fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
-    for contacts in collisions.0.values_mut() {
+    for contacts in collisions.get_internal_mut().values_mut() {
         contacts.during_current_substep = false;
     }
 }
@@ -389,7 +438,7 @@ fn send_collision_events(
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
 ) {
     let mut ended_collisions = HashSet::<(Entity, Entity)>::new();
-    for ((entity1, entity2), contacts) in collisions.0.iter_mut() {
+    for ((entity1, entity2), contacts) in collisions.get_internal_mut().iter_mut() {
         // Bodies were penetrating during this physics frame
         if contacts.during_current_frame {
             // Send collision event.
@@ -400,8 +449,9 @@ fn send_collision_events(
             {
                 // Get or insert the previous contacts.
                 // If the bodies weren't penetrating previously, they started colliding this frame.
-                if let Some(previous_contacts) =
-                    previous_collisions.0.get_mut(&(*entity1, *entity2))
+                if let Some(previous_contacts) = previous_collisions
+                    .get_internal_mut()
+                    .get_mut(&(*entity1, *entity2))
                 {
                     if !previous_contacts.during_current_frame {
                         previous_contacts.during_current_frame = true;
@@ -410,9 +460,7 @@ fn send_collision_events(
                         entities2.insert(*entity1);
                     }
                 } else {
-                    previous_collisions
-                        .0
-                        .insert((*entity1, *entity2), contacts.clone());
+                    previous_collisions.insert_collision_pair(contacts.clone());
                     collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
                     entities1.insert(*entity2);
                     entities2.insert(*entity1);
@@ -426,30 +474,20 @@ fn send_collision_events(
                 ended_collisions.insert((*entity1, *entity2));
                 collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
             }
-        } else if let Some(previous_contacts) = previous_collisions.0.get_mut(&(*entity1, *entity2))
-        {
-            // If the bodies weren't penetrating last frame either, we can return early.
-            if !previous_contacts.during_current_frame {
-                continue;
-            }
-
-            // If the bodies aren't penetrating currently but they were penetrating last frame,
-            // the collision has ended.
-            if previous_contacts.during_current_frame {
-                if let Ok([(mut entities1, sleeping1), (mut entities2, sleeping2)]) =
-                    colliders.get_many_mut([*entity1, *entity2])
-                {
-                    if sleeping1 || sleeping2 {
-                        contacts.during_current_frame = true;
-                        continue;
-                    }
-                    entities1.remove(entity2);
-                    entities2.remove(entity1);
-                    ended_collisions.insert((*entity1, *entity2));
+        } else if let Some(previous_contacts) = previous_collisions.get_mut(*entity1, *entity2) {
+            if let Ok([(mut entities1, sleeping1), (mut entities2, sleeping2)]) =
+                colliders.get_many_mut([*entity1, *entity2])
+            {
+                if sleeping1 || sleeping2 {
+                    contacts.during_current_frame = true;
+                    continue;
                 }
-
-                collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
+                entities1.remove(entity2);
+                entities2.remove(entity1);
+                ended_collisions.insert((*entity1, *entity2));
             }
+
+            collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
 
             // Reset previous collision state to match current collision state.
             previous_contacts.during_current_frame = false;
@@ -457,21 +495,17 @@ fn send_collision_events(
     }
 
     // Only retain previous collisions with entities from current collisions
-    previous_collisions
-        .0
-        .retain(|key, _| collisions.0.contains_key(key));
+    previous_collisions.retain(|key, _| collisions.0.contains_key(key));
 
     // Clear collisions at the end of each frame to avoid unnecessary iteration and memory usage
-    collisions
-        .0
-        .retain(|key, _| !ended_collisions.contains(key));
+    collisions.retain(|key, _| !ended_collisions.contains(key));
 }
 
 fn wake_up_on_collision_ended(
     mut commands: Commands,
     previous_collisions: Res<PreviousCollisions>,
     mut colliding: Query<&CollidingEntities, (Changed<Position>, Without<Sleeping>)>,
-    removed_colliders: Res<RemovedColliders>,
+    mut removed_colliders: RemovedComponents<Collider>,
     mut sleeping: Query<(Entity, &CollidingEntities, &mut TimeSleeping), With<Sleeping>>,
 ) {
     // Wake up bodies when a body they're colliding with moves
@@ -485,21 +519,16 @@ fn wake_up_on_collision_ended(
 
     // Wake up bodies when a body they're colliding with is despawned
     for entity in removed_colliders.iter() {
-        let mut query = sleeping.iter_many_mut(previous_collisions.0.iter().filter_map(
-            move |((entity1, entity2), contacts)| {
-                if contacts.during_current_frame {
-                    if entity1 == entity {
-                        Some(*entity2)
-                    } else if entity2 == entity {
-                        Some(*entity1)
-                    } else {
-                        None
-                    }
+        let mut query =
+            sleeping.iter_many_mut(previous_collisions.iter().filter_map(move |contacts| {
+                if contacts.entity1 == entity {
+                    Some(contacts.entity2)
+                } else if contacts.entity2 == entity {
+                    Some(contacts.entity1)
                 } else {
                     None
                 }
-            },
-        ));
+            }));
 
         if let Some((entity2, _, mut time_sleeping)) = query.fetch_next() {
             commands.entity(entity2).remove::<Sleeping>();
