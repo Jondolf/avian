@@ -6,12 +6,16 @@
 //! | --------------------- | -------------------------------------------------------------- |
 //! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s. |
 //! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
+//! | [`closest_points`]    | Computes the closest points between two [`Collider`]s.         |
 //!
 //! For geometric queries that query the entire world for intersections, like ray casting, shape casting
 //! and point projection, see [spatial queries](spatial_query).
 
 use crate::prelude::*;
-use parry::query::PersistentQueryDispatcher;
+use parry::query::{PersistentQueryDispatcher, Unsupported};
+
+/// An error indicating that a contact query is not supported for one of the [`Collider`] shapes.
+pub type UnsupportedShape = Unsupported;
 
 /// Computes one pair of contact points between two [`Collider`]s.
 ///
@@ -202,4 +206,113 @@ pub fn contact_manifolds(
             })
         })
         .collect()
+}
+
+/// Information about the closest points between two [`Collider`]s.
+///
+/// The closest points can be computed using [`closest_points`].
+#[derive(Reflect, Clone, Copy, Debug, PartialEq)]
+pub enum ClosestPoints {
+    /// The two shapes are intersecting each other.
+    Intersecting,
+    /// The two shapes are not intersecting each other but the distance between the closest points
+    /// is below the user-defined maximum distance.
+    ///
+    /// The points are expressed in world space.
+    WithinMargin(Vector, Vector),
+    /// The two shapes are not intersecting each other and the distance between the closest points
+    /// exceeds the user-defined maximum distance.
+    OutsideMargin,
+}
+
+/// Computes one pair of contact points between two [`Collider`]s.
+///
+/// Returns `None` if the colliders are separated by a distance greater than `prediction_distance`
+/// or if the given shapes are invalid.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// // The shapes are intersecting
+/// assert_eq!(
+///     closest_points(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::default(),
+///         Quat::default(),
+///         2.0,
+///     ).expect("Unsupported shape"),
+///     ClosestPoints::Intersecting,
+/// );
+///
+/// // The shapes are not intersecting but the distance between the closest points is below 2.0
+/// assert_eq!(
+///     closest_points(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::X * 1.5,
+///         Quat::default(),
+///         2.0,
+///     ).expect("Unsupported shape"),
+///     ClosestPoints::WithinMargin(Vec3::X * 0.5, Vec3::X * 1.0),
+/// );
+///
+/// // The shapes are not intersecting and the distance between the closest points exceeds 2.0
+/// assert_eq!(
+///     closest_points(
+///         &collider1,
+///         Vec3::default(),
+///         Quat::default(),
+///         &collider2,
+///         Vec3::X * 5.0,
+///         Quat::default(),
+///         2.0,
+///     ).expect("Unsupported shape"),
+///     ClosestPoints::OutsideMargin,
+/// );
+/// # }
+/// ```
+pub fn closest_points(
+    collider1: &Collider,
+    position1: impl Into<Position>,
+    rotation1: impl Into<Rotation>,
+    collider2: &Collider,
+    position2: impl Into<Position>,
+    rotation2: impl Into<Rotation>,
+    max_distance: f32,
+) -> Result<ClosestPoints, UnsupportedShape> {
+    let rotation1: Rotation = rotation1.into();
+    let rotation2: Rotation = rotation2.into();
+    let isometry1 = utils::make_isometry(position1.into(), rotation1);
+    let isometry2 = utils::make_isometry(position2.into(), rotation2);
+
+    parry::query::closest_points(
+        &isometry1,
+        collider1.get_shape().0.as_ref(),
+        &isometry2,
+        collider2.get_shape().0.as_ref(),
+        max_distance,
+    )
+    .map(|closest_points| match closest_points {
+        parry::query::ClosestPoints::Intersecting => ClosestPoints::Intersecting,
+        parry::query::ClosestPoints::WithinMargin(point1, point2) => {
+            ClosestPoints::WithinMargin(point1.into(), point2.into())
+        }
+        parry::query::ClosestPoints::Disjoint => ClosestPoints::OutsideMargin,
+    })
 }
