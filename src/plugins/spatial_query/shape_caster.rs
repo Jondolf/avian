@@ -261,7 +261,7 @@ impl ShapeCaster {
             shape_rotation = Rotation::from(self.global_shape_rotation());
         }
 
-        let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
+        let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
         let shape_direction = self.global_direction().into();
 
         let mut query_filter = self.query_filter.clone();
