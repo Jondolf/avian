@@ -17,7 +17,7 @@
 use crate::prelude::*;
 use parry::query::{PersistentQueryDispatcher, Unsupported};
 
-/// An error indicating that a contact query is not supported for one of the [`Collider`] shapes.
+/// An error indicating that a [contact query](contact_query) is not supported for one of the [`Collider`] shapes.
 pub type UnsupportedShape = Unsupported;
 
 /// Computes one pair of contact points between two [`Collider`]s.
