@@ -2,13 +2,14 @@
 //!
 //! This module contains the following contact queries:
 //!
-//! | Contact query         | Description                                                    |
-//! | --------------------- | -------------------------------------------------------------- |
-//! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s. |
-//! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.   |
-//! | [`closest_points`]    | Computes the closest points between two [`Collider`]s.         |
-//! | [`distance`]          | Computes the minimum distance separating two [`Collider`]s.    |
-//! | [`intersection_test`] | Tests whether two [`Collider`]s are intersecting each other.   |
+//! | Contact query         | Description                                                               |
+//! | --------------------- | ------------------------------------------------------------------------- |
+//! | [`contact`]           | Computes one pair of contact points between two [`Collider`]s.            |
+//! | [`contact_manifolds`] | Computes all [`ContactManifold`]s between two [`Collider`]s.              |
+//! | [`closest_points`]    | Computes the closest points between two [`Collider`]s.                    |
+//! | [`distance`]          | Computes the minimum distance separating two [`Collider`]s.               |
+//! | [`intersection_test`] | Tests whether two [`Collider`]s are intersecting each other.              |
+//! | [`time_of_impact`]    | Computes when two moving [`Collider`]s hit each other for the first time. |
 //!
 //! For geometric queries that query the entire world for intersections, like ray casting, shape casting
 //! and point projection, see [spatial queries](spatial_query).
@@ -50,7 +51,8 @@ pub type UnsupportedShape = Unsupported;
 ///     Quat::default(),
 ///     // Prediction distance
 ///     0.0,
-/// );
+/// )
+/// .expect("Unsupported collider shape");
 ///
 /// assert_eq!(
 ///     contact.is_some_and(|contact| contact.penetration == 0.5),
@@ -66,46 +68,49 @@ pub fn contact(
     position2: impl Into<Position>,
     rotation2: impl Into<Rotation>,
     prediction_distance: Scalar,
-) -> Option<ContactData> {
+) -> Result<Option<ContactData>, UnsupportedShape> {
     let rotation1: Rotation = rotation1.into();
     let rotation2: Rotation = rotation2.into();
     let isometry1 = utils::make_isometry(position1.into(), rotation1);
     let isometry2 = utils::make_isometry(position2.into(), rotation2);
 
-    if let Ok(Some(contact)) = parry::query::contact(
+    parry::query::contact(
         &isometry1,
         collider1.get_shape().0.as_ref(),
         &isometry2,
         collider2.get_shape().0.as_ref(),
         prediction_distance,
-    ) {
-        // Transform contact data into local space
-        let point1: Vector = rotation1.inverse().rotate(contact.point1.into());
-        let point2: Vector = rotation2.inverse().rotate(contact.point2.into());
-        let normal1: Vector = rotation1
-            .inverse()
-            .rotate(contact.normal1.into())
-            .normalize();
-        let normal2: Vector = rotation2
-            .inverse()
-            .rotate(contact.normal2.into())
-            .normalize();
+    )
+    .map(|contact| {
+        if let Some(contact) = contact {
+            // Transform contact data into local space
+            let point1: Vector = rotation1.inverse().rotate(contact.point1.into());
+            let point2: Vector = rotation2.inverse().rotate(contact.point2.into());
+            let normal1: Vector = rotation1
+                .inverse()
+                .rotate(contact.normal1.into())
+                .normalize();
+            let normal2: Vector = rotation2
+                .inverse()
+                .rotate(contact.normal2.into())
+                .normalize();
 
-        // Make sure normals are valid
-        if !normal1.is_normalized() || !normal2.is_normalized() {
-            return None;
+            // Make sure normals are valid
+            if !normal1.is_normalized() || !normal2.is_normalized() {
+                return None;
+            }
+
+            Some(ContactData {
+                point1,
+                point2,
+                normal1,
+                normal2,
+                penetration: -contact.dist,
+            })
+        } else {
+            None
         }
-
-        Some(ContactData {
-            point1,
-            point2,
-            normal1,
-            normal2,
-            penetration: -contact.dist,
-        })
-    } else {
-        None
-    }
+    })
 }
 
 // Todo: Add a persistent version of this that tries to reuse previous contact manifolds
@@ -255,7 +260,8 @@ pub enum ClosestPoints {
 ///         Vec3::default(),
 ///         Quat::default(),
 ///         2.0,
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     ClosestPoints::Intersecting,
 /// );
 ///
@@ -269,7 +275,8 @@ pub enum ClosestPoints {
 ///         Vec3::X * 1.5,
 ///         Quat::default(),
 ///         2.0,
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     ClosestPoints::WithinMargin(Vec3::X * 0.5, Vec3::X * 1.0),
 /// );
 ///
@@ -283,7 +290,8 @@ pub enum ClosestPoints {
 ///         Vec3::X * 5.0,
 ///         Quat::default(),
 ///         2.0,
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     ClosestPoints::OutsideMargin,
 /// );
 /// # }
@@ -346,7 +354,8 @@ pub fn closest_points(
 ///         &collider2,
 ///         Vec3::X * 2.0,
 ///         Quat::default(),
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     1.0,
 /// );
 ///
@@ -359,7 +368,8 @@ pub fn closest_points(
 ///         &collider2,
 ///         Vec3::default(),
 ///         Quat::default(),
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     0.0,
 /// );
 /// # }
@@ -412,7 +422,8 @@ pub fn distance(
 ///         &collider2,
 ///         Vec3::default(),
 ///         Quat::default(),
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     true,
 /// );
 ///
@@ -425,7 +436,8 @@ pub fn distance(
 ///         &collider2,
 ///         Vec3::X * 5.0,
 ///         Quat::default(),
-///     ).expect("Unsupported shape"),
+///     )
+///     .expect("Unsupported collider shape"),
 ///     false,
 /// );
 /// # }
@@ -449,4 +461,106 @@ pub fn intersection_test(
         &isometry2,
         collider2.get_shape().0.as_ref(),
     )
+}
+
+/// The way the [time of impact](time_of_impact) computation was terminated.
+pub type TimeOfImpactStatus = parry::query::details::TOIStatus;
+
+/// The result of a [time of impact](time_of_impact) computation between two moving [`Collider`]s.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TimeOfImpact {
+    /// The time at which the colliders come into contact.
+    pub time_of_impact: Scalar,
+    /// The closest point on the first collider, at the time of impact,
+    /// expressed in local space.
+    pub point1: Vector,
+    /// The closest point on the second collider, at the time of impact,
+    /// expressed in local space.
+    pub point2: Vector,
+    /// The outward normal on the first collider, at the time of impact,
+    /// expressed in local space.
+    pub normal1: Vector,
+    /// The outward normal on the second collider, at the time of impact,
+    /// expressed in local space.
+    pub normal2: Vector,
+    /// The way the time of impact computation was terminated.
+    pub status: TimeOfImpactStatus,
+}
+
+/// Computes when two moving [`Collider`]s hit each other for the first time.
+///
+/// Returns `Ok(None)` if the time of impact is greater than `max_time_of_impact`
+/// and `Err(UnsupportedShape)` if either of the collider shapes is not supported.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # {
+/// let collider1 = Collider::ball(0.5);
+/// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
+///
+/// let result = time_of_impact(
+///     &collider1,        // Collider 1
+///     Vec3::NEG_X * 5.0, // Position 1
+///     Quat::default(),   // Rotation 1
+///     Vec3::X,           // Linear velocity 1
+///     &collider2,        // Collider 2
+///     Vec3::X * 5.0,     // Position 2
+///     Quat::default(),   // Rotation 2
+///     Vec3::NEG_X,       // Linear velocity 2
+///     100.0,             // Maximum time of impact
+/// )
+/// .expect("Unsupported collider shape");
+///
+/// assert_eq!(result.unwrap().time_of_impact, 4.5);
+/// # }
+/// ```
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn time_of_impact(
+    collider1: &Collider,
+    position1: impl Into<Position>,
+    rotation1: impl Into<Rotation>,
+    velocity1: impl Into<LinearVelocity>,
+    collider2: &Collider,
+    position2: impl Into<Position>,
+    rotation2: impl Into<Rotation>,
+    velocity2: impl Into<LinearVelocity>,
+    max_time_of_impact: Scalar,
+) -> Result<Option<TimeOfImpact>, UnsupportedShape> {
+    let rotation1: Rotation = rotation1.into();
+    let rotation2: Rotation = rotation2.into();
+
+    let velocity1: LinearVelocity = velocity1.into();
+    let velocity2: LinearVelocity = velocity2.into();
+
+    let isometry1 = utils::make_isometry(position1.into(), rotation1);
+    let isometry2 = utils::make_isometry(position2.into(), rotation2);
+
+    parry::query::time_of_impact(
+        &isometry1,
+        &velocity1.0.into(),
+        collider1.get_shape().0.as_ref(),
+        &isometry2,
+        &velocity2.0.into(),
+        collider2.get_shape().0.as_ref(),
+        max_time_of_impact,
+        true,
+    )
+    .map(|toi| {
+        toi.map(|toi| TimeOfImpact {
+            time_of_impact: toi.toi,
+            point1: toi.witness1.into(),
+            point2: toi.witness2.into(),
+            normal1: toi.normal1.into(),
+            normal2: toi.normal2.into(),
+            status: toi.status,
+        })
+    })
 }
