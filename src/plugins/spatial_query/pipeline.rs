@@ -77,7 +77,7 @@ impl SpatialQueryPipeline {
                 (
                     entity,
                     (
-                        utils::make_isometry(position.0, rotation),
+                        utils::make_isometry(position.0, *rotation),
                         collider.clone(),
                         layers.map_or(CollisionLayers::default(), |layers| *layers),
                     ),
@@ -305,7 +305,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(origin, &rotation);
+        let shape_isometry = utils::make_isometry(origin, rotation);
         let shape_direction = direction.into();
         let pipeline_shape = self.as_composite_shape(query_filter);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
@@ -417,7 +417,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(origin, &rotation);
+        let shape_isometry = utils::make_isometry(origin, rotation);
         let shape_direction = direction.into();
 
         loop {
@@ -637,7 +637,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(shape_position, &rotation);
+        let shape_isometry = utils::make_isometry(shape_position, rotation);
         let inverse_shape_isometry = shape_isometry.inverse();
 
         let dispatcher = &*self.dispatcher;
