@@ -37,8 +37,20 @@ jobs:
         shell: bash
         run: echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
 
+      - name: Check disk space in $GITHUB_WORKSPACE
+        run: du -s -h $GITHUB_WORKSPACE || true
+      - name: Check disk space in $GITHUB_WORKSPACE/*
+        run: du -s -h $GITHUB_WORKSPACE/* || true
+      - name: Check disk space on /
+        run: du -s -h / || true
       - name: Run cargo test
         run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
+      - name: Check disk space in $GITHUB_WORKSPACE
+        run: du -s -h $GITHUB_WORKSPACE || true
+      - name: Check disk space in $GITHUB_WORKSPACE/*
+        run: du -s -h $GITHUB_WORKSPACE/* || true
+      - name: Check disk space on /
+        run: du -s -h / || true
 
   lints:
     name: Lints
