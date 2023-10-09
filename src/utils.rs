@@ -3,13 +3,23 @@
 use crate::prelude::*;
 
 #[cfg(feature = "2d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
-    Isometry::<Scalar>::new(pos.into(), (*rot).into())
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
 #[cfg(feature = "3d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
-    Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
 
 pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
@@ -41,14 +51,19 @@ pub(crate) fn compute_dynamic_friction(
 pub(crate) fn compute_restitution(
     normal_speed: Scalar,
     pre_solve_normal_speed: Scalar,
-    mut coefficient: Scalar,
-    gravity: Vector,
-    sub_dt: Scalar,
+    coefficient: Scalar,
+    _gravity: Vector,
+    _sub_dt: Scalar,
 ) -> Scalar {
+    // TODO: The XPBD paper has this, but it seems to be prevent bounces in cases
+    // where bodies should clearly be bouncing.
+    // Maybe change the threshold to be even lower? Or is this even needed at all?
+    /*
     // If normal velocity is small enough, use restitution of 0 to avoid jittering
     if normal_speed.abs() <= 2.0 * gravity.length() * sub_dt {
         coefficient = 0.0;
     }
+    */
 
     -normal_speed + (-coefficient * pre_solve_normal_speed).min(0.0)
 }

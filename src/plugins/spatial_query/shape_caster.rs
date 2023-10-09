@@ -261,7 +261,7 @@ impl ShapeCaster {
             shape_rotation = Rotation::from(self.global_shape_rotation());
         }
 
-        let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
+        let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
         let shape_direction = self.global_direction().into();
 
         let mut query_filter = self.query_filter.clone();
@@ -364,9 +364,9 @@ impl ShapeHits {
 }
 
 /// Data related to a hit during a [shape cast](spatial_query#shape-casting).
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShapeHitData {
-    /// The entity of the collider that was hit by the ray.
+    /// The entity of the collider that was hit by the shape.
     pub entity: Entity,
     /// How long the shape travelled before the initial hit,
     /// i.e. the distance between the origin and the point of intersection.

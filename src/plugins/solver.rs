@@ -273,7 +273,7 @@ fn update_lin_vel(
 ) {
     for (rb, pos, prev_pos, translation, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && lin_vel.0 != Vector::ZERO {
             lin_vel.0 = Vector::ZERO;
         }
 
@@ -303,7 +303,7 @@ fn update_ang_vel(
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && ang_vel.0 != 0.0 {
             ang_vel.0 = 0.0;
         }
 
@@ -332,7 +332,7 @@ fn update_ang_vel(
 ) {
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
-        if rb.is_static() {
+        if rb.is_static() && ang_vel.0 != Vector::ZERO {
             ang_vel.0 = Vector::ZERO;
         }
 
@@ -412,7 +412,7 @@ fn solve_vel(
                 gravity.0,
                 sub_dt.0,
             );
-            if restitution_speed > Scalar::EPSILON {
+            if restitution_speed.abs() > Scalar::EPSILON {
                 let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
                 let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
                 p += restitution_speed / (w1 + w2) * normal;
@@ -446,7 +446,7 @@ fn solve_vel(
 }
 
 /// Applies velocity corrections caused by joint damping.
-fn joint_damping<T: Joint>(
+pub fn joint_damping<T: Joint>(
     mut bodies: Query<
         (
             &RigidBody,

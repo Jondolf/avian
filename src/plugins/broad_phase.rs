@@ -81,7 +81,7 @@ fn update_aabb(
         // Compute AABB half extents and center
         let computed_aabb = collider
             .get_shape()
-            .compute_aabb(&utils::make_isometry(pos.0, rot));
+            .compute_aabb(&utils::make_isometry(*pos, *rot));
         let half_extents = Vector::from(computed_aabb.half_extents());
         let center = Vector::from(computed_aabb.center());
 
