@@ -253,15 +253,12 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
         dt: Scalar,
     ) -> Scalar {
         // Compute the sum of all inverse masses multiplied by the squared lengths of the corresponding gradients.
+        // Don't go below EPSILON to avoid dividing by zero.
         let w_sum = inverse_masses
             .iter()
             .enumerate()
-            .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared());
-
-        // Avoid division by zero
-        if w_sum <= Scalar::EPSILON {
-            return 0.0;
-        }
+            .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared())
+            .min(Scalar::EPSILON);
 
         // tilde_a = a/h^2
         let tilde_compliance = compliance / dt.powi(2);
