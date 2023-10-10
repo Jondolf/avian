@@ -94,8 +94,11 @@ fn integrate_pos(
             let external_forces = gravitation_force + external_force.force();
             lin_vel.0 += sub_dt.0 * external_forces * effective_inv_mass;
         }
-
-        translation.0 += locked_axes.apply_to_vec(sub_dt.0 * lin_vel.0);
+        // avoid triggering bevy's change detection unnecessarily
+        let delta = locked_axes.apply_to_vec(sub_dt.0 * lin_vel.0);
+        if delta != Vector::ZERO {
+            translation.0 += delta;
+        }
     }
 }
 
@@ -154,8 +157,11 @@ fn integrate_rot(
                 * effective_inv_inertia
                 * (external_torque.torque() + external_force.torque());
         }
-
-        *rot += Rotation::from_radians(locked_axes.apply_to_angular_velocity(sub_dt.0 * ang_vel.0));
+        // avoid triggering bevy's change detection unnecessarily
+        let delta = locked_axes.apply_to_angular_velocity(sub_dt.0 * ang_vel.0);
+        if delta != 0.0 {
+            *rot += Rotation::from_radians(delta);
+        }
     }
 }
 
@@ -209,7 +215,11 @@ fn integrate_rot(
         let effective_dq = locked_axes
             .apply_to_angular_velocity(sub_dt.0 * 0.5 * q.xyz())
             .extend(sub_dt.0 * 0.5 * q.w);
-        rot.0 = (rot.0 + Quaternion::from_vec4(effective_dq)).normalize();
+        // avoid triggering bevy's change detection unnecessarily
+        let delta = Quaternion::from_vec4(effective_dq);
+        if delta != Quaternion::IDENTITY {
+            rot.0 = (rot.0 + delta).normalize();
+        }
     }
 }
 
