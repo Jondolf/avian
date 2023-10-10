@@ -258,7 +258,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
             .iter()
             .enumerate()
             .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared())
-            .min(Scalar::EPSILON);
+            .max(Scalar::EPSILON);
 
         // tilde_a = a/h^2
         let tilde_compliance = compliance / dt.powi(2);
