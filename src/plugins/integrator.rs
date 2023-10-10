@@ -92,10 +92,10 @@ fn integrate_pos(
             let gravitation_force =
                 effective_mass * gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
             let external_forces = gravitation_force + external_force.force();
-            let delta_linvel = sub_dt.0 * external_forces * effective_inv_mass;
+            let delta_lin_vel = sub_dt.0 * external_forces * effective_inv_mass;
             // avoid triggering bevy's change detection unnecessarily
-            if delta_linvel != Vector::ZERO {
-                lin_vel.0 += delta_linvel;
+            if delta_lin_vel != Vector::ZERO {
+                lin_vel.0 += delta_lin_vel;
             }
         }
         if lin_vel.0 != Vector::ZERO {
