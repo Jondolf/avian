@@ -280,12 +280,7 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
         if delta_lin_vel != Vector::ZERO {
             lin_vel.0 += delta_lin_vel;
         }
-        #[cfg(feature = "3d")]
-        if delta_ang_vel != Vector::ZERO {
-            ang_vel.0 += delta_ang_vel;
-        }
-        #[cfg(feature = "2d")]
-        if delta_ang_vel != 0.0 {
+        if delta_ang_vel != AngularVelocity::ZERO.0 {
             ang_vel.0 += delta_ang_vel;
         }
     }
