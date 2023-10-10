@@ -395,18 +395,14 @@ fn solve_vel(
                 }
             }
             if body2.rb.is_dynamic() {
-                let lin_vel_2 = p * inv_mass2;
-                let ang_vel_2 = compute_delta_ang_vel(inv_inertia2, r2, p);
-                if lin_vel_2 != Vector::ZERO {
-                    body2.linear_velocity.0 += lin_vel_2;
+                let delta_lin_vel = p * inv_mass2;
+                let delta_ang_vel = compute_delta_ang_vel(inv_inertia2, r2, p);
+
+                if delta_lin_vel != Vector::ZERO {
+                    body2.linear_velocity.0 -= delta_lin_vel;
                 }
-                #[cfg(feature = "2d")]
-                if ang_vel_2 != 0.0 {
-                    body2.angular_velocity.0 += ang_vel_2;
-                }
-                #[cfg(feature = "3d")]
-                if ang_vel_2 != Vector::ZERO {
-                    body2.angular_velocity.0 += ang_vel_2;
+                if delta_ang_vel != AngularVelocity::ZERO.0 {
+                    body2.angular_velocity.0 -= delta_ang_vel;
                 }
             }
         }
