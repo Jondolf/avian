@@ -142,7 +142,7 @@ impl Collider {
     pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
         ColliderAabb(self.get_shape().compute_aabb(&utils::make_isometry(
             position,
-            &Rotation::from_radians(rotation),
+            Rotation::from_radians(rotation),
         )))
     }
 
@@ -151,7 +151,7 @@ impl Collider {
     pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
         ColliderAabb(
             self.get_shape()
-                .compute_aabb(&utils::make_isometry(position, &Rotation(rotation))),
+                .compute_aabb(&utils::make_isometry(position, Rotation(rotation))),
         )
     }
 
@@ -173,7 +173,7 @@ impl Collider {
             .into_iter()
             .map(|(p, r, c)| {
                 (
-                    utils::make_isometry(*p.into(), &r.into()),
+                    utils::make_isometry(*p.into(), r.into()),
                     c.into().get_shape().clone(),
                 )
             })

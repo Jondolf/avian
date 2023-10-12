@@ -1,69 +1,78 @@
+name: CI
+
 on:
   push:
     branches:
       - main
   pull_request:
 
-name: ci
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Install stable toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo check
         run: cargo check
 
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Install stable toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+      - uses: actions/checkout@v3
       
-      # Disable incremental compilation to save disk space
-      - name: Disable incremental compilation
-        shell: bash
-        run: echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
 
-      - name: Check disk space in $GITHUB_WORKSPACE
-        run: du -s -h $GITHUB_WORKSPACE || true
-      - name: Check disk space in $GITHUB_WORKSPACE/*
-        run: du -s -h $GITHUB_WORKSPACE/* || true
-      - name: Check disk space on /
-        run: du -s -h / || true
+      - uses: dtolnay/rust-toolchain@stable
+
       - name: Run cargo test
         run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
-      - name: Check disk space in $GITHUB_WORKSPACE
-        run: du -s -h $GITHUB_WORKSPACE || true
-      - name: Check disk space in $GITHUB_WORKSPACE/*
-        run: du -s -h $GITHUB_WORKSPACE/* || true
-      - name: Check disk space on /
-        run: du -s -h / || true
 
   lints:
     name: Lints
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v3
-
-      - name: Install stable toolchain
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
-          rustup component add rustfmt
-          rustup component add clippy
+      - uses: actions/checkout@v3
+      
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
+      
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check

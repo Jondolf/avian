@@ -3,13 +3,23 @@
 use crate::prelude::*;
 
 #[cfg(feature = "2d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
-    Isometry::<Scalar>::new(pos.into(), (*rot).into())
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
 #[cfg(feature = "3d")]
-pub(crate) fn make_isometry(pos: Vector, rot: &Rotation) -> Isometry<Scalar> {
-    Isometry::<Scalar>::new(pos.into(), rot.to_scaled_axis().into())
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
 
 pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
