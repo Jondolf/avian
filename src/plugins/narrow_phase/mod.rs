@@ -92,7 +92,7 @@ pub struct NarrowPhaseConfig {
     /// This can be used for things like **speculative contacts** where the contacts should
     /// include pairs of entities that *might* be in contact after constraint solving or
     /// other positional changes.
-    prediction_distance: Scalar,
+    pub prediction_distance: Scalar,
 }
 
 impl Default for NarrowPhaseConfig {
