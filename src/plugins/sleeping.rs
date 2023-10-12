@@ -23,7 +23,11 @@ impl Plugin for SleepingPlugin {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                (mark_sleeping_bodies, wake_up_bodies, gravity_wake_up_bodies)
+                (
+                    mark_sleeping_bodies,
+                    wake_up_bodies,
+                    wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>()),
+                )
                     .chain()
                     .in_set(PhysicsStepSet::Sleeping),
             );
@@ -105,16 +109,14 @@ fn wake_up_bodies(
     }
 }
 
-/// Removes the [`Sleeping`] component from sleeping bodies when [`Gravity`] is changed.
-fn gravity_wake_up_bodies(
+/// Removes the [`Sleeping`] component from all sleeping bodies.
+/// Triggered automatically when [`Gravity`] is changed.
+fn wake_all_sleeping_bodies(
     mut commands: Commands,
     mut bodies: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
-    gravity: Res<Gravity>,
 ) {
-    if gravity.is_changed() {
-        for (entity, mut time_sleeping) in &mut bodies {
-            commands.entity(entity).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
-        }
+    for (entity, mut time_sleeping) in &mut bodies {
+        commands.entity(entity).remove::<Sleeping>();
+        time_sleeping.0 = 0.0;
     }
 }
