@@ -58,6 +58,8 @@ impl Plugin for PreparePlugin {
                 init_colliders,
                 update_mass_properties,
                 clamp_restitution,
+                // all the components we added above must exist before we can simulate the bodies
+                apply_deferred,
             )
                 .chain()
                 .in_set(PhysicsSet::Prepare),
