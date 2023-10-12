@@ -346,7 +346,7 @@ impl RayHits {
 }
 
 /// Data related to a hit during a [ray cast](spatial_query#ray-casting).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
