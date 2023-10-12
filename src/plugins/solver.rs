@@ -220,7 +220,11 @@ fn update_lin_vel(
 
         if rb.is_dynamic() {
             // v = (x - x_prev) / h
-            lin_vel.0 = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+            let new_lin_vel = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+            // avoid triggering bevy's change detection unnecessarily
+            if new_lin_vel != lin_vel.0 {
+                lin_vel.0 = new_lin_vel;
+            }
         }
     }
 }
@@ -249,7 +253,11 @@ fn update_ang_vel(
         pre_solve_ang_vel.0 = ang_vel.0;
 
         if rb.is_dynamic() {
-            ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+            let new_ang_vel = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+            // avoid triggering bevy's change detection unnecessarily
+            if new_ang_vel != ang_vel.0 {
+                ang_vel.0 = new_ang_vel;
+            }
         }
     }
 }
@@ -279,10 +287,13 @@ fn update_ang_vel(
 
         if rb.is_dynamic() {
             let delta_rot = rot.mul_quat(prev_rot.inverse().0);
-            ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
-
+            let mut new_ang_vel = 2.0 * delta_rot.xyz() / sub_dt.0;
             if delta_rot.w < 0.0 {
-                ang_vel.0 = -ang_vel.0;
+                new_ang_vel = -new_ang_vel;
+            }
+            // avoid triggering bevy's change detection unnecessarily
+            if new_ang_vel != ang_vel.0 {
+                ang_vel.0 = new_ang_vel;
             }
         }
     }
@@ -373,12 +384,26 @@ fn solve_vel(
             }
 
             if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += p * inv_mass1;
-                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
+                let delta_lin_vel = p * inv_mass1;
+                let delta_ang_vel = compute_delta_ang_vel(inv_inertia1, r1, p);
+
+                if delta_lin_vel != Vector::ZERO {
+                    body1.linear_velocity.0 += delta_lin_vel;
+                }
+                if delta_ang_vel != AngularVelocity::ZERO.0 {
+                    body1.angular_velocity.0 += delta_ang_vel;
+                }
             }
             if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 -= p * inv_mass2;
-                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
+                let delta_lin_vel = p * inv_mass2;
+                let delta_ang_vel = compute_delta_ang_vel(inv_inertia2, r2, p);
+
+                if delta_lin_vel != Vector::ZERO {
+                    body2.linear_velocity.0 -= delta_lin_vel;
+                }
+                if delta_ang_vel != AngularVelocity::ZERO.0 {
+                    body2.angular_velocity.0 -= delta_ang_vel;
+                }
             }
         }
     }
