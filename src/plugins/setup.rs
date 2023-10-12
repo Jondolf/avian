@@ -294,7 +294,7 @@ fn run_physics_schedule(world: &mut World) {
                 physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
                 physics_loop.queued_steps = 0;
             } else {
-                physics_loop.accumulator += dt;
+                physics_loop.accumulator += delta_seconds * time_scale;
             }
 
             // Step the simulation until the accumulator has been consumed.
