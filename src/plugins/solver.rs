@@ -92,6 +92,10 @@ fn penetration_constraints(
         .iter_mut()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
+        // Reset penetration state for this substep.
+        // This is set to true if any of the contacts is penetrating.
+        contacts.during_current_substep = false;
+
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
@@ -117,13 +121,13 @@ fn penetration_constraints(
                     for contact in contact_manifold.contacts.iter() {
                         let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
                         constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                        penetration_constraints.0.push(constraint);
 
+                        // Set collision as penetrating for this frame and substep.
+                        // This is used for detecting when the collision has started or ended.
                         if contact.penetration > Scalar::EPSILON {
                             contacts.during_current_frame = true;
                             contacts.during_current_substep = true;
-                            penetration_constraints.0.push(constraint);
-                        } else {
-                            contacts.during_current_substep = false;
                         }
                     }
                 }
