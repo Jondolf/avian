@@ -220,18 +220,8 @@ impl Collisions {
         // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
         // entity ID. This requires changes elsewhere as well though.
         // Todo: Handle during_previous_frame nicer
-        self.0.insert(
-            (contacts.entity1, contacts.entity2),
-            Contacts {
-                during_previous_frame: self
-                    .0
-                    .get(&(contacts.entity1, contacts.entity2))
-                    .map_or(contacts.during_previous_frame, |contacts| {
-                        contacts.during_previous_frame
-                    }),
-                ..contacts
-            },
-        )
+        self.0
+            .insert((contacts.entity1, contacts.entity2), contacts)
     }
 
     /// Extends [`Collisions`] with all collision pairs in the given iterable.
@@ -306,7 +296,7 @@ fn collect_collisions(
         let new_collisions = broad_collision_pairs
             .0
             .par_splat_map(pool, None, |chunks| {
-                let mut collisions: Vec<Contacts> = vec![];
+                let mut new_collisions: Vec<Contacts> = vec![];
                 for (entity1, entity2) in chunks {
                     if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
                         let (
@@ -335,10 +325,16 @@ fn collect_collisions(
                                 + accumulated_translation1.copied().unwrap_or_default().0;
                             let position2 = position2.0
                                 + accumulated_translation2.copied().unwrap_or_default().0;
+
+                            let during_previous_frame = collisions
+                                .get_internal()
+                                .get(&(*entity1, *entity2))
+                                .map_or(false, |c| c.during_previous_frame);
+
                             let contacts = Contacts {
                                 entity1: *entity1,
                                 entity2: *entity2,
-                                during_previous_frame: false,
+                                during_previous_frame,
                                 during_current_frame: true,
                                 during_current_substep: true,
                                 manifolds: contact_query::contact_manifolds(
@@ -353,12 +349,12 @@ fn collect_collisions(
                             };
 
                             if !contacts.manifolds.is_empty() {
-                                collisions.push(contacts);
+                                new_collisions.push(contacts);
                             }
                         }
                     }
                 }
-                collisions
+                new_collisions
             })
             .into_iter()
             .flatten();
@@ -392,9 +388,16 @@ fn collect_collisions(
                         position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
                     let position2 =
                         position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
+
+                    let during_previous_frame = collisions
+                        .get_internal()
+                        .get(&(*entity1, *entity2))
+                        .map_or(false, |c| c.during_previous_frame);
+
                     let contacts = Contacts {
                         entity1: *entity1,
                         entity2: *entity2,
+                        during_previous_frame,
                         during_current_frame: true,
                         during_current_substep: true,
                         manifolds: contact_query::contact_manifolds(
