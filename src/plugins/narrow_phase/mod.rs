@@ -9,7 +9,7 @@ pub use contact_query::*;
 use crate::prelude::*;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
-use bevy::{ecs::query::Has, prelude::*, utils::HashSet};
+use bevy::{prelude::*, utils::HashSet};
 use indexmap::IndexMap;
 
 /// Computes contacts between entities and sends collision events.
