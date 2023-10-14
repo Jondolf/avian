@@ -4,7 +4,7 @@
 //! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::query::Has, prelude::*};
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
@@ -93,21 +93,22 @@ fn update_aabb(
     }
 }
 
+/// True if the rigid body is static or sleeping.
+type IsBodyInactive = bool;
+
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
-struct AabbIntervals(Vec<(Entity, ColliderAabb, RigidBody, CollisionLayers)>);
+struct AabbIntervals(Vec<(Entity, ColliderAabb, CollisionLayers, IsBodyInactive)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 fn update_aabb_intervals(
-    aabbs: Query<(&ColliderAabb, Option<&RigidBody>)>,
+    aabbs: Query<(&ColliderAabb, Option<&RigidBody>, Has<Sleeping>)>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    intervals.0.retain_mut(|(entity, aabb, rb, _)| {
-        if let Ok((new_aabb, new_rb)) = aabbs.get(*entity) {
+    intervals.0.retain_mut(|(entity, aabb, _, is_inactive)| {
+        if let Ok((new_aabb, rb, sleeping)) = aabbs.get(*entity) {
             *aabb = *new_aabb;
-            if let Some(new_rb) = new_rb {
-                *rb = *new_rb;
-            }
+            *is_inactive = rb.map_or(false, |rb| rb.is_static()) || sleeping;
             true
         } else {
             false
@@ -115,25 +116,18 @@ fn update_aabb_intervals(
     });
 }
 
-type AabbIntervalComponents = (
-    Entity,
-    &'static ColliderAabb,
-    Option<&'static RigidBody>,
-    Option<&'static CollisionLayers>,
-);
-
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
 fn add_new_aabb_intervals(
-    aabbs: Query<AabbIntervalComponents, Added<ColliderAabb>>,
+    aabbs: Query<(Entity, &ColliderAabb, Option<&CollisionLayers>), Added<ColliderAabb>>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    let aabbs = aabbs.iter().map(|(ent, aabb, rb, layers)| {
+    let aabbs = aabbs.iter().map(|(ent, aabb, layers)| {
         (
             ent,
             *aabb,
             // Default to treating collider as immovable/static for filtering unnecessary collision checks
-            rb.map_or(RigidBody::Static, |rb| *rb),
             layers.map_or(CollisionLayers::default(), |layers| *layers),
+            false,
         )
     });
     intervals.0.extend(aabbs);
@@ -161,10 +155,10 @@ fn sweep_and_prune(
     broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
-    for (i, (ent1, aabb1, rb1, layers1)) in intervals.0.iter().enumerate() {
-        for (ent2, aabb2, rb2, layers2) in intervals.0.iter().skip(i + 1) {
-            // No static-static collisions or collisions with incompatible layers
-            if (rb1.is_static() && rb2.is_static()) || !layers1.interacts_with(*layers2) {
+    for (i, (ent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
+        for (ent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
+            // No collisions between static or sleeping bodies or colliders with incompatible layers
+            if (*inactive1 && *inactive2) || !layers1.interacts_with(*layers2) {
                 continue;
             }
 

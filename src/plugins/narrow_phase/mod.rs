@@ -124,13 +124,10 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 #[allow(clippy::type_complexity)]
 fn collect_collisions(
     bodies: Query<(
-        Option<&RigidBody>,
         &Position,
         Option<&AccumulatedTranslation>,
         &Rotation,
         &Collider,
-        Option<&CollisionLayers>,
-        Option<&Sleeping>,
     )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut collisions: ResMut<Collisions>,
@@ -146,58 +143,38 @@ fn collect_collisions(
                 let mut new_collisions: Vec<Contacts> = vec![];
                 for (entity1, entity2) in chunks {
                     if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
-                        let (
-                            rb1,
-                            position1,
-                            accumulated_translation1,
-                            rotation1,
-                            collider1,
-                            layers1,
-                            sleeping1,
-                        ) = bundle1;
-                        let (
-                            rb2,
-                            position2,
-                            accumulated_translation2,
-                            rotation2,
-                            collider2,
-                            layers2,
-                            sleeping2,
-                        ) = bundle2;
+                        let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
+                        let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
 
-                        if check_collision_validity(
-                            rb1, rb2, layers1, layers2, sleeping1, sleeping2,
-                        ) {
-                            let position1 = position1.0
-                                + accumulated_translation1.copied().unwrap_or_default().0;
-                            let position2 = position2.0
-                                + accumulated_translation2.copied().unwrap_or_default().0;
+                        let position1 =
+                            position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
+                        let position2 =
+                            position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
 
-                            let during_previous_frame = collisions
-                                .get_internal()
-                                .get(&(*entity1, *entity2))
-                                .map_or(false, |c| c.during_previous_frame);
+                        let during_previous_frame = collisions
+                            .get_internal()
+                            .get(&(*entity1, *entity2))
+                            .map_or(false, |c| c.during_previous_frame);
 
-                            let contacts = Contacts {
-                                entity1: *entity1,
-                                entity2: *entity2,
-                                during_current_frame: true,
-                                during_current_substep: true,
-                                during_previous_frame,
-                                manifolds: contact_query::contact_manifolds(
-                                    collider1,
-                                    position1,
-                                    *rotation1,
-                                    collider2,
-                                    position2,
-                                    *rotation2,
-                                    narrow_phase_config.prediction_distance,
-                                ),
-                            };
+                        let contacts = Contacts {
+                            entity1: *entity1,
+                            entity2: *entity2,
+                            during_current_frame: true,
+                            during_current_substep: true,
+                            during_previous_frame,
+                            manifolds: contact_query::contact_manifolds(
+                                collider1,
+                                position1,
+                                *rotation1,
+                                collider2,
+                                position2,
+                                *rotation2,
+                                narrow_phase_config.prediction_distance,
+                            ),
+                        };
 
-                            if !contacts.manifolds.is_empty() {
-                                new_collisions.push(contacts);
-                            }
+                        if !contacts.manifolds.is_empty() {
+                            new_collisions.push(contacts);
                         }
                     }
                 }
@@ -211,87 +188,42 @@ fn collect_collisions(
     {
         for (entity1, entity2) in broad_collision_pairs.0.iter() {
             if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
-                let (
-                    rb1,
-                    position1,
-                    accumulated_translation1,
-                    rotation1,
-                    collider1,
-                    layers1,
-                    sleeping1,
-                ) = bundle1;
-                let (
-                    rb2,
-                    position2,
-                    accumulated_translation2,
-                    rotation2,
-                    collider2,
-                    layers2,
-                    sleeping2,
-                ) = bundle2;
+                let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
+                let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
 
-                if check_collision_validity(rb1, rb2, layers1, layers2, sleeping1, sleeping2) {
-                    let position1 =
-                        position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
-                    let position2 =
-                        position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
+                let position1 =
+                    position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
+                let position2 =
+                    position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
 
-                    let during_previous_frame = collisions
-                        .get_internal()
-                        .get(&(*entity1, *entity2))
-                        .map_or(false, |c| c.during_previous_frame);
+                let during_previous_frame = collisions
+                    .get_internal()
+                    .get(&(*entity1, *entity2))
+                    .map_or(false, |c| c.during_previous_frame);
 
-                    let contacts = Contacts {
-                        entity1: *entity1,
-                        entity2: *entity2,
-                        during_current_frame: true,
-                        during_current_substep: true,
-                        during_previous_frame,
-                        manifolds: contact_query::contact_manifolds(
-                            collider1,
-                            position1,
-                            *rotation1,
-                            collider2,
-                            position2,
-                            *rotation2,
-                            narrow_phase_config.prediction_distance,
-                        ),
-                    };
+                let contacts = Contacts {
+                    entity1: *entity1,
+                    entity2: *entity2,
+                    during_current_frame: true,
+                    during_current_substep: true,
+                    during_previous_frame,
+                    manifolds: contact_query::contact_manifolds(
+                        collider1,
+                        position1,
+                        *rotation1,
+                        collider2,
+                        position2,
+                        *rotation2,
+                        narrow_phase_config.prediction_distance,
+                    ),
+                };
 
-                    if !contacts.manifolds.is_empty() {
-                        collisions.insert_collision_pair(contacts);
-                    }
+                if !contacts.manifolds.is_empty() {
+                    collisions.insert_collision_pair(contacts);
                 }
             }
         }
     }
-}
-
-fn check_collision_validity(
-    rb1: Option<&RigidBody>,
-    rb2: Option<&RigidBody>,
-    layers1: Option<&CollisionLayers>,
-    layers2: Option<&CollisionLayers>,
-    sleeping1: Option<&Sleeping>,
-    sleeping2: Option<&Sleeping>,
-) -> bool {
-    let layers1 = layers1.map_or(CollisionLayers::default(), |l| *l);
-    let layers2 = layers2.map_or(CollisionLayers::default(), |l| *l);
-
-    // Skip collision if collision layers are incompatible
-    if !layers1.interacts_with(layers2) {
-        return false;
-    }
-
-    let inactive1 = rb1.map_or(false, |rb| rb.is_static()) || sleeping1.is_some();
-    let inactive2 = rb2.map_or(false, |rb| rb.is_static()) || sleeping2.is_some();
-
-    // No collision if the bodies are static or sleeping
-    if inactive1 && inactive2 {
-        return false;
-    }
-
-    true
 }
 
 fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
