@@ -166,7 +166,6 @@ impl Collisions {
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
         // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
         // entity ID. This requires changes elsewhere as well though.
-        // Todo: Handle during_previous_frame nicer
         self.0
             .insert((contacts.entity1, contacts.entity2), contacts)
     }
