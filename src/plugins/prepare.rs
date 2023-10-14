@@ -67,6 +67,8 @@ impl Plugin for PreparePlugin {
                     .run_if(any_new_physics_entities),
                 update_mass_properties,
                 clamp_restitution,
+                // all the components we added above must exist before we can simulate the bodies
+                apply_deferred,
             )
                 .chain()
                 .in_set(PhysicsSet::Prepare),

@@ -259,14 +259,14 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<FixedTime>().period.as_secs_f32()
     } else {
         world.resource::<Time>().delta_seconds()
     };
 
     #[cfg(feature = "f64")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<FixedTime>().period.as_secs_f64()
     } else {
         world.resource::<Time>().delta_seconds_f64()
@@ -281,6 +281,14 @@ fn run_physics_schedule(world: &mut World) {
         PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
         PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
+
+    // On the first ever call to app.update() delta_seconds would be 0.
+    // In that case, replace it with the Fixed/FixedOnce amount.
+    // With Variable timestep, the physics accumulator won't increase until the second update().
+    if world.resource::<Time>().first_update() == world.resource::<Time>().last_update() {
+        delta_seconds = raw_dt;
+    }
+
     let dt = raw_dt * time_scale;
     world.resource_mut::<DeltaTime>().0 = dt;
 

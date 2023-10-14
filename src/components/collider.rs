@@ -159,9 +159,6 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// ## Collision events
 ///
 /// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
-/// You can listen to these events as you normally would.
-///
-/// For example, you could read [contacts](Contacts) between entities like this:
 ///
 /// ```
 /// # use bevy::prelude::*;
@@ -183,8 +180,12 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// The entities that are colliding with a given entity can also be accessed using
 /// the [`CollidingEntities`] component.
 ///
-/// For even more control, you can use the [`Collisions`] resource to get, iterate, filter and modify
-/// collisions.
+/// ## Querying and modifying contacts
+///
+/// The [`Collisions`] resource grants access to all collisions.
+/// It can be used to get, modify, filter and add collisions.
+///
+/// See [`Collisions`] for more details.
 ///
 /// ## Advanced usage
 ///

@@ -92,14 +92,14 @@ fn penetration_constraints(
         (Without<RigidBody>, With<Parent>),
     >,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
-    collisions: Res<Collisions>,
+    mut collisions: ResMut<Collisions>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     penetration_constraints.0.clear();
 
     for ((entity1, entity2), contacts) in collisions
-        .0
-        .iter()
+        .get_internal_mut()
+        .iter_mut()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
         let (collider_offset1, collider_entity1, collider_is_sensor1, friction1, restitution1) =
@@ -125,6 +125,10 @@ fn penetration_constraints(
         if entity1 == entity2 {
             continue;
         }
+
+        // Reset penetration state for this substep.
+        // This is set to true if any of the contacts is penetrating.
+        contacts.during_current_substep = false;
 
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([entity1, entity2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
@@ -180,6 +184,13 @@ fn penetration_constraints(
                     };
                     constraint.solve([&mut body1, &mut body2], sub_dt.0);
                     penetration_constraints.0.push(constraint);
+
+                    // Set collision as penetrating for this frame and substep.
+                    // This is used for detecting when the collision has started or ended.
+                    if contact.penetration > Scalar::EPSILON {
+                        contacts.during_current_frame = true;
+                        contacts.during_current_substep = true;
+                    }
                 }
             }
         }
@@ -281,7 +292,11 @@ fn update_lin_vel(
 
         if rb.is_dynamic() {
             // v = (x - x_prev) / h
-            lin_vel.0 = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+            let new_lin_vel = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+            // avoid triggering bevy's change detection unnecessarily
+            if new_lin_vel != lin_vel.0 {
+                lin_vel.0 = new_lin_vel;
+            }
         }
     }
 }
@@ -310,7 +325,11 @@ fn update_ang_vel(
         pre_solve_ang_vel.0 = ang_vel.0;
 
         if rb.is_dynamic() {
-            ang_vel.0 = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+            let new_ang_vel = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+            // avoid triggering bevy's change detection unnecessarily
+            if new_ang_vel != ang_vel.0 {
+                ang_vel.0 = new_ang_vel;
+            }
         }
     }
 }
@@ -340,10 +359,13 @@ fn update_ang_vel(
 
         if rb.is_dynamic() {
             let delta_rot = rot.mul_quat(prev_rot.inverse().0);
-            ang_vel.0 = 2.0 * delta_rot.xyz() / sub_dt.0;
-
+            let mut new_ang_vel = 2.0 * delta_rot.xyz() / sub_dt.0;
             if delta_rot.w < 0.0 {
-                ang_vel.0 = -ang_vel.0;
+                new_ang_vel = -new_ang_vel;
+            }
+            // avoid triggering bevy's change detection unnecessarily
+            if new_ang_vel != ang_vel.0 {
+                ang_vel.0 = new_ang_vel;
             }
         }
     }
@@ -434,12 +456,26 @@ fn solve_vel(
             }
 
             if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += p * inv_mass1;
-                body1.angular_velocity.0 += compute_delta_ang_vel(inv_inertia1, r1, p);
+                let delta_lin_vel = p * inv_mass1;
+                let delta_ang_vel = compute_delta_ang_vel(inv_inertia1, r1, p);
+
+                if delta_lin_vel != Vector::ZERO {
+                    body1.linear_velocity.0 += delta_lin_vel;
+                }
+                if delta_ang_vel != AngularVelocity::ZERO.0 {
+                    body1.angular_velocity.0 += delta_ang_vel;
+                }
             }
             if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 -= p * inv_mass2;
-                body2.angular_velocity.0 -= compute_delta_ang_vel(inv_inertia2, r2, p);
+                let delta_lin_vel = p * inv_mass2;
+                let delta_ang_vel = compute_delta_ang_vel(inv_inertia2, r2, p);
+
+                if delta_lin_vel != Vector::ZERO {
+                    body2.linear_velocity.0 -= delta_lin_vel;
+                }
+                if delta_ang_vel != AngularVelocity::ZERO.0 {
+                    body2.angular_velocity.0 -= delta_ang_vel;
+                }
             }
         }
     }

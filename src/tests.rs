@@ -91,6 +91,32 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn body_with_velocity_moves_on_first_frame() {
+    let mut app = create_app();
+
+    app.insert_resource(Gravity::ZERO);
+
+    app.add_systems(Startup, |mut commands: Commands| {
+        // move right at 1 unit per second
+        commands.spawn((
+            SpatialBundle::default(),
+            RigidBody::Dynamic,
+            LinearVelocity(Vector::X),
+            Position(Vector::ZERO),
+        ));
+    });
+
+    // one tick only.
+    tick_60_fps(&mut app);
+
+    let mut app_query = app.world.query::<(&Position, &RigidBody)>();
+
+    let (pos, _body) = app_query.single(&app.world);
+
+    assert!(pos.x > 0.0);
+}
+
+#[test]
 fn body_with_velocity_moves() {
     let mut app = create_app();
 

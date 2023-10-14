@@ -106,20 +106,8 @@ impl Plugin for SyncPlugin {
         substep_schedule.add_systems(
             (update_collider_offset, update_child_collider_position)
                 .chain()
-                .chain()
                 .after(SubstepSet::Integrate)
                 .before(SubstepSet::NarrowPhase),
-        );
-
-        // Update child colliders after substepping loop
-        let physics_schedule = app
-            .get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first");
-        physics_schedule.add_systems(
-            (update_collider_offset, update_child_collider_position)
-                .chain()
-                .after(PhysicsStepSet::Substeps)
-                .before(PhysicsStepSet::Sleeping),
         );
     }
 }
