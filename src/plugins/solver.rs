@@ -88,7 +88,7 @@ fn penetration_constraints(
     penetration_constraints.0.clear();
 
     for ((entity1, entity2), contacts) in collisions
-        .0
+        .get_internal()
         .iter()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {

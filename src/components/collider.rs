@@ -50,9 +50,6 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// ## Collision events
 ///
 /// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
-/// You can listen to these events as you normally would.
-///
-/// For example, you could read [contacts](Contact) like this:
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -67,6 +64,13 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///     }
 /// }
 /// ```
+///
+/// ## Querying and modifying contacts
+///
+/// The [`Collisions`] resource grants access to all collisions.
+/// It can be used to get, modify, filter and add collisions.
+///
+/// See [`Collisions`] for more details.
 ///
 /// ## Advanced usage
 ///
