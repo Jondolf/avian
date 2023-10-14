@@ -73,7 +73,9 @@ impl<'w> RigidBodyQueryItem<'w> {
     }
 
     /// Returns the [dominance](Dominance) of the body.
-    /// If it isn't specified, the default of `0` is returned.
+    ///
+    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX` (`127`) is always returned instead.
     pub fn dominance(&self) -> i8 {
         if !self.rb.is_dynamic() {
             i8::MAX
