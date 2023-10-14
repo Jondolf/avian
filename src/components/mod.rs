@@ -547,6 +547,20 @@ pub struct LinearDamping(pub Scalar);
 #[reflect(Component)]
 pub struct AngularDamping(pub Scalar);
 
+/// **Dominance** allows [dynamic rigid bodies](RigidBody::Dynamic) to dominate
+/// each other during physical interactions.
+/// 
+/// The body with a higher dominance acts as if it had infinite mass, and will be unaffected during
+/// collisions and other interactions, while the other body will be affected normally.
+/// 
+/// The dominance must be between `-127` and `127`, and the default value is `0`.
+/// Note that static and kinematic rigid bodies will always have a higher dominance value
+/// than dynamic bodies regardless of the value of this component.
+#[rustfmt::skip]
+#[derive(Component, Reflect, Debug, Clone, Copy, Default, Deref, DerefMut, From, PartialEq, PartialOrd, Eq, Ord)]
+#[reflect(Component)]
+pub struct Dominance(pub i8);
+
 #[cfg(test)]
 mod tests {
     use crate::prelude::*;
