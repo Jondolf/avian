@@ -89,19 +89,74 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
-// Collisions are currently stored in an `IndexMap` that uses fxhash.
-// It should have faster iteration than `HashMap` while mostly retaining other performance characteristics.
-// In a simple benchmark, the difference seemed pretty negligible though.
+// Collisions are stored in an `IndexMap` that uses fxhash.
+// It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.
 //
-// `IndexMap` preserves insertion order, which affects the order in which collisions are detected.
-// This can be good or bad depending on the situation, but it can make spawned stacks appear more
-// consistent and uniform, for example in the `move_marbles` example.
+// `IndexMap` also preserves insertion order. This can be good or bad depending on the situation,
+// but it can make spawned stacks appear more consistent and uniform, for example in the `move_marbles` example.
 // ==========================================
-/// All collision pairs.
+/// A resource that stores all collision pairs.
+///
+/// Each colliding entity pair is associated with [`Contacts`] that can be accessed and modified
+/// using the various associated methods.
+///
+/// ## Querying collisions
+///
+/// The following methods can be used for querying existing collisions:
+///
+/// - [`get`](#method.get) and [`get_mut`](#method.get_mut)
+/// - [`iter`](#method.iter) and [`iter_mut`](#method.iter_mut)
+/// - [`contains`](#method.contains)
+/// - [`collisions_with_entity`](#method.collisions_with_entity) and
+/// [`collisions_with_entity_mut`](#method.collisions_with_entity_mut)
+///
+/// The collisions can be accessed at any time, but modifications to contacts should be performed
+/// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
+///
+/// ## Filtering and removing collisions
+///
+/// The following methods can be used for filtering or removing existing collisions:
+///
+/// - [`retain`](#method.retain)
+/// - [`remove_collision_pair`](#method.remove_collision_pair)
+/// - [`remove_collisions_with_entity`](#method.remove_collisions_with_entity)
+///
+/// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
+/// Otherwise, the physics solver will use the old contact data.
+///
+/// ## Adding new collisions
+///
+/// The following methods can be used for adding new collisions:
+///
+/// - [`insert_collision_pair`](#method.insert_collision_pair)
+/// - [`extend`](#method.extend)
+///
+/// The most convenient place for adding new collisions is in the [`PostProcessCollisions`] schedule.
+/// Otherwise, the physics solver might not have access to them in time.
+///
+/// ## Implementation details
+///
+/// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
+/// and the previous frame, which is used for things like [collision events](Collider#collision-events).
+///
+/// However, the public methods only use the current frame's collisions. To access the internal data structure,
+/// you can use [`get_internal`](#method.get_internal) or [`get_internal_mut`](#method.get_internal_mut).
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
 pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
+    /// Returns a reference to the internal `IndexMap`.
+    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+        &self.0
+    }
+
+    /// Returns a mutable reference to the internal `IndexMap`.
+    pub fn get_internal_mut(
+        &mut self,
+    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+        &mut self.0
+    }
+
     /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
     /// else returns `None`.
     ///
@@ -135,16 +190,13 @@ impl Collisions {
         }
     }
 
-    /// Returns a reference to the internal `IndexMap`.
-    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &self.0
-    }
-
-    /// Returns a mutable reference to the internal `IndexMap`.
-    pub fn get_internal_mut(
-        &mut self,
-    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &mut self.0
+    /// Returns `true` if the given entities have been in contact during this frame.
+    ///
+    /// The order of the entities does not matter.
+    pub fn contains(&self, entity1: Entity, entity2: Entity) -> bool {
+        // We can't use `contains` directly because we only want to
+        // count collisions that happened during this frame.
+        self.get(entity1, entity2).is_some()
     }
 
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
@@ -235,6 +287,15 @@ impl Collisions {
         F: FnMut(&mut Contacts) -> bool,
     {
         self.0.retain(|_, contacts| keep(contacts));
+    }
+
+    /// Removes a collision between two entites and returns its value.
+    ///
+    /// The order of the entities does not matter.
+    pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
+        self.0
+            .remove(&(entity1, entity2))
+            .or_else(|| self.0.remove(&(entity2, entity1)))
     }
 
     /// Removes collisions against the given entity from the `HashMap`.
