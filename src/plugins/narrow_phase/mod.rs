@@ -2,15 +2,16 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
+mod contact_data;
 pub mod contact_query;
 
+use bevy::utils::HashSet;
+pub use contact_data::*;
 pub use contact_query::*;
 
 use crate::prelude::*;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
-use bevy::{prelude::*, utils::HashSet};
-use indexmap::IndexMap;
 
 /// Computes contacts between entities and sends collision events.
 ///
@@ -107,160 +108,6 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
-// Collisions are currently stored in an `IndexMap` that uses fxhash.
-// It should have faster iteration than `HashMap` while mostly retaining other performance characteristics.
-// In a simple benchmark, the difference seemed pretty negligible though.
-//
-// `IndexMap` preserves insertion order, which affects the order in which collisions are detected.
-// This can be good or bad depending on the situation, but it can make spawned stacks appear more
-// consistent and uniform, for example in the `move_marbles` example.
-// ==========================================
-/// All collision pairs.
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
-pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
-
-impl Collisions {
-    /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
-    /// else returns `None`.
-    ///
-    /// The order of the entities does not matter.
-    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
-        self.0
-            .get(&(entity1, entity2))
-            .filter(|contacts| contacts.during_current_frame)
-            .or_else(|| {
-                self.0
-                    .get(&(entity2, entity1))
-                    .filter(|contacts| contacts.during_current_frame)
-            })
-    }
-
-    /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
-    /// else returns `None`.
-    ///
-    /// The order of the entities does not matter.
-    pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
-        // For lifetime reasons, the mutable borrows can't be in the same scope,
-        // so we check if the key exists first (there's probably a better way though)
-        if self.0.contains_key(&(entity1, entity2)) {
-            self.0
-                .get_mut(&(entity1, entity2))
-                .filter(|contacts| contacts.during_current_frame)
-        } else {
-            self.0
-                .get_mut(&(entity2, entity1))
-                .filter(|contacts| contacts.during_current_frame)
-        }
-    }
-
-    /// Returns a reference to the internal `IndexMap`.
-    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &self.0
-    }
-
-    /// Returns a mutable reference to the internal `IndexMap`.
-    pub fn get_internal_mut(
-        &mut self,
-    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &mut self.0
-    }
-
-    /// Returns an iterator over the current collisions that have happened during the current physics frame.
-    pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
-        self.0
-            .values()
-            .filter(|collision| collision.during_current_frame)
-    }
-
-    /// Returns a mutable iterator over the collisions that have happened during the current physics frame.
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
-        self.0
-            .values_mut()
-            .filter(|collision| collision.during_current_frame)
-    }
-
-    /// Returns an iterator over all collisions with a given entity.
-    pub fn collisions_with_entity(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
-        self.0
-            .iter()
-            .filter_map(move |((entity1, entity2), contacts)| {
-                if contacts.during_current_frame && (*entity1 == entity || *entity2 == entity) {
-                    Some(contacts)
-                } else {
-                    None
-                }
-            })
-    }
-
-    /// Returns an iterator over all collisions with a given entity.
-    pub fn collisions_with_entity_mut(
-        &mut self,
-        entity: Entity,
-    ) -> impl Iterator<Item = &mut Contacts> {
-        self.0
-            .iter_mut()
-            .filter_map(move |((entity1, entity2), contacts)| {
-                if contacts.during_current_frame && (*entity1 == entity || *entity2 == entity) {
-                    Some(contacts)
-                } else {
-                    None
-                }
-            })
-    }
-
-    /// Inserts contact data for a collision between two entities.
-    ///
-    /// If a collision entry with the same entities already exists, it will be overwritten,
-    /// and the old value will be returned. Otherwise, `None` is returned.
-    ///
-    /// **Note**: Manually inserting collisions can be error prone and should generally be avoided.
-    /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](#method.get_mut)
-    /// or [`iter_mut`](#method.iter_mut).
-    pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
-        // entity ID. This requires changes elsewhere as well though.
-        // Todo: Handle during_previous_frame nicer
-        self.0
-            .insert((contacts.entity1, contacts.entity2), contacts)
-    }
-
-    /// Extends [`Collisions`] with all collision pairs in the given iterable.
-    ///
-    /// This is mostly equivalent to calling [`insert_collision_pair`](#method.insert_collision_pair)
-    /// for each of the collision pairs.
-    pub fn extend<I: IntoIterator<Item = Contacts>>(&mut self, collisions: I) {
-        // (Note: this is a copy of `std`/`hashbrown`/`indexmap`'s reservation logic.)
-        // Keys may be already present or show multiple times in the iterator.
-        // Reserve the entire hint lower bound if the map is empty.
-        // Otherwise reserve half the hint (rounded up), so the map
-        // will only resize twice in the worst case.
-        let iter = collisions.into_iter();
-        let reserve = if self.get_internal().is_empty() {
-            iter.size_hint().0
-        } else {
-            (iter.size_hint().0 + 1) / 2
-        };
-        self.get_internal_mut().reserve(reserve);
-        iter.for_each(move |contacts| {
-            self.insert_collision_pair(contacts);
-        });
-    }
-
-    /// Retains only the collisions for which the specified predicate returns `true`.
-    /// Collisions for which the predicate returns `false` are removed from the `HashMap`.
-    pub fn retain<F>(&mut self, keep: F)
-    where
-        F: FnMut(&(Entity, Entity), &mut Contacts) -> bool,
-    {
-        self.0.retain(keep);
-    }
-
-    /// Removes collisions against the given entity from the `HashMap`.
-    fn remove_collisions_with_entity(&mut self, entity: Entity) {
-        self.retain(|(entity1, entity2), _| *entity1 != entity && *entity2 != entity);
-    }
-}
-
 /// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
 #[derive(Event, Clone, Debug, PartialEq)]
 pub struct Collision(pub Contacts);
@@ -334,9 +181,9 @@ fn collect_collisions(
                             let contacts = Contacts {
                                 entity1: *entity1,
                                 entity2: *entity2,
-                                during_previous_frame,
                                 during_current_frame: true,
                                 during_current_substep: true,
+                                during_previous_frame,
                                 manifolds: contact_query::contact_manifolds(
                                     collider1,
                                     position1,
@@ -397,9 +244,9 @@ fn collect_collisions(
                     let contacts = Contacts {
                         entity1: *entity1,
                         entity2: *entity2,
-                        during_previous_frame,
                         during_current_frame: true,
                         during_current_substep: true,
+                        during_previous_frame,
                         manifolds: contact_query::contact_manifolds(
                             collider1,
                             position1,
@@ -520,7 +367,7 @@ fn send_collision_events(
     );
 
     // Clear collisions at the end of each frame to avoid unnecessary iteration and memory usage
-    collisions.retain(|key, _| !ended_collisions.contains(key));
+    collisions.retain(|contacts| !ended_collisions.contains(&(contacts.entity1, contacts.entity2)));
 }
 
 fn wake_up_on_collision_ended(
@@ -548,81 +395,5 @@ fn wake_up_on_collision_ended(
             commands.entity(*entity2).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
-    }
-}
-
-/// All contacts between two colliders.
-///
-/// The contacts are stored in contact manifolds.
-/// Each manifold contains one or more contact points, and each contact
-/// in a given manifold shares the same contact normal.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Contacts {
-    /// First entity in the contact.
-    pub entity1: Entity,
-    /// Second entity in the contact.
-    pub entity2: Entity,
-    /// A list of contact manifolds between two colliders.
-    /// Each manifold contains one or more contact points, but each contact
-    /// in a given manifold shares the same contact normal.
-    pub manifolds: Vec<ContactManifold>,
-    /// True if the bodies were in contact during the previous frame.
-    pub during_previous_frame: bool,
-    /// True if the bodies have been in contact during this frame.
-    pub during_current_frame: bool,
-    /// True if the bodies have been in contact during this substep.
-    pub during_current_substep: bool,
-}
-
-/// A contact manifold between two colliders, containing a set of contact points.
-/// Each contact in a manifold shares the same contact normal.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ContactManifold {
-    /// The contacts in this manifold.
-    pub contacts: Vec<ContactData>,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the second entity.
-    pub normal2: Vector,
-}
-
-/// Data related to a contact between two bodies.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ContactData {
-    /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
-    /// Penetration depth.
-    pub penetration: Scalar,
-}
-
-impl ContactData {
-    /// Returns the global contact point on the first entity,
-    /// transforming the local point by the given entity position and rotation.
-    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation.rotate(self.point1)
-    }
-
-    /// Returns the global contact point on the second entity,
-    /// transforming the local point by the given entity position and rotation.
-    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation.rotate(self.point2)
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation.rotate(self.normal1)
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation.rotate(self.normal2)
     }
 }
