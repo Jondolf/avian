@@ -50,11 +50,6 @@ impl Plugin for NarrowPhasePlugin {
                 })
                 .after(PhysicsStepSet::BroadPhase)
                 .before(PhysicsStepSet::Substeps),
-                // Wake up sleeping bodies when the other body moves or despawns
-                (apply_deferred, wake_up_on_collision_ended)
-                    .chain()
-                    .after(PhysicsStepSet::Substeps)
-                    .before(PhysicsStepSet::Sleeping),
                 // Send collision events
                 send_collision_events
                     .after(PhysicsStepSet::Sleeping)
@@ -368,32 +363,4 @@ fn send_collision_events(
 
     // Clear collisions at the end of each frame to avoid unnecessary iteration and memory usage
     collisions.retain(|contacts| !ended_collisions.contains(&(contacts.entity1, contacts.entity2)));
-}
-
-fn wake_up_on_collision_ended(
-    mut commands: Commands,
-    mut colliding: Query<&CollidingEntities, (Changed<Position>, Without<Sleeping>)>,
-    mut collision_ended_ev_reader: EventReader<CollisionEnded>,
-    mut sleeping: Query<(Entity, &CollidingEntities, &mut TimeSleeping), With<Sleeping>>,
-) {
-    // Wake up bodies when a body they're colliding with moves
-    for colliding_entities1 in colliding.iter_mut() {
-        let mut query = sleeping.iter_many_mut(colliding_entities1.iter());
-        if let Some((entity2, _, mut time_sleeping)) = query.fetch_next() {
-            commands.entity(entity2).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
-        }
-    }
-
-    // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
-    for CollisionEnded(entity1, entity2) in collision_ended_ev_reader.iter() {
-        if let Ok((_, _, mut time_sleeping)) = sleeping.get_mut(*entity1) {
-            commands.entity(*entity1).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
-        }
-        if let Ok((_, _, mut time_sleeping)) = sleeping.get_mut(*entity2) {
-            commands.entity(*entity2).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
-        }
-    }
 }
