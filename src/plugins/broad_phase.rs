@@ -4,7 +4,7 @@
 //! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*};
+use bevy::prelude::*;
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
@@ -93,7 +93,7 @@ fn update_aabb(
     }
 }
 
-/// True if the rigid body is static or sleeping.
+/// True if the rigid body hasn't moved.
 type IsBodyInactive = bool;
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
@@ -102,13 +102,13 @@ struct AabbIntervals(Vec<(Entity, ColliderAabb, CollisionLayers, IsBodyInactive)
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 fn update_aabb_intervals(
-    aabbs: Query<(&ColliderAabb, Option<&RigidBody>, Has<Sleeping>)>,
+    aabbs: Query<(&ColliderAabb, Ref<Position>, Ref<Rotation>)>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(|(entity, aabb, _, is_inactive)| {
-        if let Ok((new_aabb, rb, sleeping)) = aabbs.get(*entity) {
+        if let Ok((new_aabb, position, rotation)) = aabbs.get(*entity) {
             *aabb = *new_aabb;
-            *is_inactive = rb.map_or(false, |rb| rb.is_static()) || sleeping;
+            *is_inactive = !position.is_changed() && !rotation.is_changed();
             true
         } else {
             false
@@ -157,7 +157,7 @@ fn sweep_and_prune(
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (ent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
         for (ent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
-            // No collisions between static or sleeping bodies or colliders with incompatible layers
+            // No collisions between that haven't moved or colliders with incompatible layers
             if (*inactive1 && *inactive2) || !layers1.interacts_with(*layers2) {
                 continue;
             }
