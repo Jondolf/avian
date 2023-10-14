@@ -61,6 +61,7 @@ use bevy::prelude::*;
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`IntegratorPlugin`]: Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
+/// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
