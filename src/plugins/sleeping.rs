@@ -26,7 +26,7 @@ impl Plugin for SleepingPlugin {
                 (apply_deferred, wake_up_on_collision_ended)
                     .chain()
                     .after(PhysicsStepSet::Substeps)
-                    .before(PhysicsStepSet::Sleeping),
+                    .before(PhysicsStepSet::ReportContacts),
             )
             .add_systems(
                 (

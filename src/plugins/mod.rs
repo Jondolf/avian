@@ -21,6 +21,7 @@
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
 pub mod broad_phase;
+pub mod contact_reporting;
 #[cfg(feature = "debug-plugin")]
 pub mod debug;
 pub mod integrator;
@@ -33,6 +34,7 @@ pub mod spatial_query;
 pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
+pub use contact_reporting::*;
 #[cfg(feature = "debug-plugin")]
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
@@ -197,6 +199,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(NarrowPhasePlugin)
+            .add(ContactReportingPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin::new(self.schedule.dyn_clone()))
