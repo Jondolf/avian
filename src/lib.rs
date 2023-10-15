@@ -28,10 +28,11 @@
 //!     - [Contact and time of impact queries](narrow_phase::contact_query)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
-//! - [Gravity] and [gravity scale](GravityScale)
 //! - External [forces](ExternalForce), [torque](ExternalTorque), [impulses](ExternalImpulse) and
 //! [angular impulses](ExternalAngularImpulse)
+//! - [Gravity] and [gravity scale](GravityScale)
 //! - [Locking](LockedAxes) translational and rotational axes
+//! - [Dominance]
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
 //! - [Spatial queries](spatial_query)

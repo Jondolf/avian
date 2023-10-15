@@ -104,6 +104,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
             .register_type::<LockedAxes>()
+            .register_type::<Dominance>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()

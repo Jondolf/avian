@@ -394,7 +394,7 @@ fn solve_vel(
                 p += friction_impulse * tangent_dir;
             }
 
-            if body1.rb.is_dynamic() {
+            if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
                 let delta_lin_vel = p * inv_mass1;
                 let delta_ang_vel = compute_delta_ang_vel(inv_inertia1, r1, p);
 
@@ -405,7 +405,7 @@ fn solve_vel(
                     body1.angular_velocity.0 += delta_ang_vel;
                 }
             }
-            if body2.rb.is_dynamic() {
+            if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
                 let delta_lin_vel = p * inv_mass2;
                 let delta_ang_vel = compute_delta_ang_vel(inv_inertia2, r2, p);
 
@@ -421,6 +421,7 @@ fn solve_vel(
 }
 
 /// Applies velocity corrections caused by joint damping.
+#[allow(clippy::type_complexity)]
 pub fn joint_damping<T: Joint>(
     mut bodies: Query<
         (
@@ -428,6 +429,7 @@ pub fn joint_damping<T: Joint>(
             &mut LinearVelocity,
             &mut AngularVelocity,
             &InverseMass,
+            Option<&Dominance>,
         ),
         Without<Sleeping>,
     >,
@@ -436,7 +438,7 @@ pub fn joint_damping<T: Joint>(
 ) {
     for joint in &joints {
         if let Ok(
-            [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2)],
+            [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2, dominance2)],
         ) = bodies.get_many_mut(joint.entities())
         {
             let delta_omega =
@@ -460,10 +462,13 @@ pub fn joint_damping<T: Joint>(
 
             let p = delta_v / (w1 + w2);
 
-            if rb1.is_dynamic() {
+            let dominance1 = dominance1.map_or(0, |dominance| dominance.0);
+            let dominance2 = dominance2.map_or(0, |dominance| dominance.0);
+
+            if rb1.is_dynamic() && (!rb2.is_dynamic() || dominance1 <= dominance2) {
                 lin_vel1.0 += p * inv_mass1.0;
             }
-            if rb2.is_dynamic() {
+            if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
                 lin_vel2.0 -= p * inv_mass2.0;
             }
         }
