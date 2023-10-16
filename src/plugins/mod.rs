@@ -20,12 +20,10 @@
 //! - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
-pub mod broad_phase;
-pub mod contact_reporting;
+pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug;
 pub mod integrator;
-pub mod narrow_phase;
 pub mod prepare;
 pub mod setup;
 pub mod sleeping;
@@ -33,12 +31,15 @@ pub mod solver;
 pub mod spatial_query;
 pub mod sync;
 
-pub use broad_phase::BroadPhasePlugin;
-pub use contact_reporting::*;
+pub use collision::{
+    broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
+    contact_reporting::{Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin},
+    narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
+    *,
+};
 #[cfg(feature = "debug-plugin")]
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
-pub use narrow_phase::{contact_data::*, contact_query::*, NarrowPhaseConfig, NarrowPhasePlugin};
 pub use prepare::PreparePlugin;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;

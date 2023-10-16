@@ -1,3 +1,20 @@
+//! Collision detection is used to detect and compute intersections between [`Collider`]s.
+//!
+//! In bevy_xpbd, collision detection is split into three plugins:
+//!
+//! - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`].
+//! - [`NarrowPhasePlugin`]: Computes contacts for broad phase collision pairs and adds them to [`Collisions`].
+//! - [`ContactReportingPlugin`] (optional): Sends collision events and updates [`CollidingEntities`] based on [`Collisions`].
+//!
+//! Spatial queries are handled by the [`SpatialQueryPlugin`].
+//!
+//! You can also find several utility methods for computing contacts in [`contact_query`].
+
+pub mod broad_phase;
+pub mod contact_query;
+pub mod contact_reporting;
+pub mod narrow_phase;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;

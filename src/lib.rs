@@ -20,12 +20,12 @@
 //! Below are some of the features of Bevy XPBD.
 //!
 //! - Dynamic, kinematic and static [rigid bodies](RigidBody)
-//! - [Colliders](Collider) powered by [parry](parry)
+//! - [Collision detection](collision) and [`Collider`]s powered by [parry](parry)
 //!     - Collision events: [`Collision`], [`CollisionStarted`], [`CollisionEnded`]
 //!     - Access to [colliding entities](CollidingEntities)
 //!     - [Sensor colliders](Sensor)
 //!     - [Collision layers](CollisionLayers)
-//!     - [Contact and time of impact queries](narrow_phase::contact_query)
+//!     - [Contact and time of impact queries](collision::contact_query)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
 //! - External [forces](ExternalForce), [torque](ExternalTorque), [impulses](ExternalImpulse) and
