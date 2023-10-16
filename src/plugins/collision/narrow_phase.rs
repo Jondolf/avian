@@ -76,9 +76,10 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
+/// Computes contacts based on [`BroadCollisionPairs`] and adds them to [`Collisions`].
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn collect_collisions(
+pub fn collect_collisions(
     bodies: Query<(
         &Position,
         Option<&AccumulatedTranslation>,
