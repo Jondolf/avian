@@ -5,6 +5,7 @@
 mod contact_data;
 pub mod contact_query;
 
+use bevy::ecs::query::Has;
 pub use contact_data::*;
 pub use contact_query::*;
 
@@ -26,51 +27,35 @@ impl Plugin for NarrowPhasePlugin {
             .init_resource::<Collisions>()
             .register_type::<NarrowPhaseConfig>();
 
-        let physics_schedule = app
-            .get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first");
+        // Manage collision states like `during_current_frame` and remove old contacts
+        // Todo: It would be nice not to have collision state logic in the narrow phase
+        app.get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first")
+            .add_systems(
+                (
+                    // Reset collision states before the substepping loop
+                    reset_collision_states
+                        .after(PhysicsStepSet::BroadPhase)
+                        .before(PhysicsStepSet::Substeps),
+                    // Remove ended collisions after contact reporting
+                    ((|mut collisions: ResMut<Collisions>| {
+                        collisions.retain(|contacts| contacts.during_current_frame)
+                    }),)
+                        .chain()
+                        .after(PhysicsStepSet::ReportContacts)
+                        .before(PhysicsStepSet::Sleeping),
+                )
+                    .chain(),
+            );
 
-        physics_schedule.add_systems(
-            (
-                // Reset collision states before the narrow phase
-                (|mut collisions: ResMut<Collisions>| {
-                    collisions.iter_mut().for_each(|contacts| {
-                        contacts.during_previous_frame = contacts.during_current_frame;
-                        contacts.during_current_frame = false;
-                        contacts.during_current_substep = false;
-                    })
-                })
-                .after(PhysicsStepSet::BroadPhase)
-                .before(PhysicsStepSet::Substeps),
-                // Remove ended collisions
-                (|mut collisions: ResMut<Collisions>| {
-                    collisions.retain(|contacts| contacts.during_current_frame)
-                })
-                .after(PhysicsStepSet::ReportContacts)
-                .before(PhysicsStepSet::Sleeping),
-            )
-                .chain(),
-        );
-
-        let substep_schedule = app
-            .get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first");
-
-        substep_schedule.add_systems(
-            (reset_substep_collision_states, collect_collisions)
-                .chain()
-                .in_set(SubstepSet::NarrowPhase),
-        );
-
-        // Remove collisions against removed colliders from `Collisions`
-        app.add_systems(
-            Last,
-            |mut removals: RemovedComponents<Collider>, mut collisions: ResMut<Collisions>| {
-                for removed in removals.iter() {
-                    collisions.remove_collisions_with_entity(removed);
-                }
-            },
-        );
+        // Reset substep collision states and collect contacts into `Collisions`
+        app.get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first")
+            .add_systems(
+                (reset_substep_collision_states, collect_collisions)
+                    .chain()
+                    .in_set(SubstepSet::NarrowPhase),
+            );
     }
 }
 
@@ -128,17 +113,15 @@ fn collect_collisions(
                         let position2 =
                             position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
 
-                        let during_previous_frame = collisions
-                            .get_internal()
-                            .get(&(*entity1, *entity2))
-                            .map_or(false, |c| c.during_previous_frame);
+                        let previous_contact = collisions.get_internal().get(&(*entity1, *entity2));
 
                         let contacts = Contacts {
                             entity1: *entity1,
                             entity2: *entity2,
                             during_current_frame: true,
                             during_current_substep: true,
-                            during_previous_frame,
+                            during_previous_frame: previous_contact
+                                .map_or(false, |c| c.during_previous_frame),
                             manifolds: contact_query::contact_manifolds(
                                 collider1,
                                 position1,
@@ -173,17 +156,15 @@ fn collect_collisions(
                 let position2 =
                     position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
 
-                let during_previous_frame = collisions
-                    .get_internal()
-                    .get(&(*entity1, *entity2))
-                    .map_or(false, |c| c.during_previous_frame);
+                let previous_contact = collisions.get_internal().get(&(*entity1, *entity2));
 
                 let contacts = Contacts {
                     entity1: *entity1,
                     entity2: *entity2,
                     during_current_frame: true,
                     during_current_substep: true,
-                    during_previous_frame,
+                    during_previous_frame: previous_contact
+                        .map_or(false, |c| c.during_previous_frame),
                     manifolds: contact_query::contact_manifolds(
                         collider1,
                         position1,
@@ -203,6 +184,37 @@ fn collect_collisions(
     }
 }
 
+// TODO: The collision state handling feels a bit confusing and error-prone.
+//       Ideally, the narrow phase wouldn't need to handle it at all, or it would at least be simpler.
+/// Resets collision states like `during_current_frame` and `during_previous_frame`.
+fn reset_collision_states(
+    mut collisions: ResMut<Collisions>,
+    query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
+) {
+    for contacts in collisions.get_internal_mut().values_mut() {
+        if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
+            query.get_many([contacts.entity1, contacts.entity2])
+        {
+            let active1 = !rb1.map_or(true, |rb| rb.is_static()) && !sleeping1;
+            let active2 = !rb2.map_or(true, |rb| rb.is_static()) && !sleeping2;
+
+            // Reset collision states if either of the bodies is active (not static or sleeping)
+            // Otherwise, the bodies are still in contact.
+            if active1 || active2 {
+                contacts.during_previous_frame = true;
+                contacts.during_current_frame = false;
+                contacts.during_current_substep = false;
+            } else {
+                contacts.during_previous_frame = true;
+                contacts.during_current_frame = true;
+            }
+        } else {
+            contacts.during_current_frame = false;
+        }
+    }
+}
+
+/// Reset `during_current_substep` for each collision in [`Collisions`].
 fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
     for contacts in collisions.get_internal_mut().values_mut() {
         contacts.during_current_substep = false;
