@@ -27,6 +27,7 @@ pub struct RigidBodyQuery {
     pub friction: &'static mut Friction,
     pub restitution: &'static mut Restitution,
     pub locked_axes: Option<&'static LockedAxes>,
+    pub dominance: Option<&'static Dominance>,
 }
 
 impl<'w> RigidBodyQueryItem<'w> {
@@ -69,6 +70,18 @@ impl<'w> RigidBodyQueryItem<'w> {
     /// [`AccumulatedTranslation`] components.
     pub fn current_position(&self) -> Vector {
         self.position.0 + self.accumulated_translation.0
+    }
+
+    /// Returns the [dominance](Dominance) of the body.
+    ///
+    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX` (`127`) is always returned instead.
+    pub fn dominance(&self) -> i8 {
+        if !self.rb.is_dynamic() {
+            i8::MAX
+        } else {
+            self.dominance.map_or(0, |dominance| dominance.0)
+        }
     }
 }
 
