@@ -2,14 +2,8 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
-pub(super) mod contact_data;
-pub mod contact_query;
-
-use bevy::ecs::query::Has;
-pub use contact_data::*;
-pub use contact_query::*;
-
 use crate::prelude::*;
+use bevy::ecs::query::Has;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 
