@@ -135,8 +135,6 @@ impl RigidBody {
 /// collisions or other constraints, or when gravity changes, or when the body's
 /// position, rotation, velocity, or external forces are modified.
 ///
-/// Note that sleeping can cause unrealistic behaviour in some cases.
-/// For example, removing the floor under sleeping bodies can leave them floating in the air.
 /// Sleeping can be disabled for specific entities with the [`SleepingDisabled`] component,
 /// or for all entities by setting the [`SleepingThreshold`] to a negative value.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]

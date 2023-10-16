@@ -21,6 +21,7 @@
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
 pub mod broad_phase;
+pub mod contact_reporting;
 #[cfg(feature = "debug-plugin")]
 pub mod debug;
 pub mod integrator;
@@ -33,10 +34,11 @@ pub mod spatial_query;
 pub mod sync;
 
 pub use broad_phase::BroadPhasePlugin;
+pub use contact_reporting::*;
 #[cfg(feature = "debug-plugin")]
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
-pub use narrow_phase::*;
+pub use narrow_phase::{contact_data::*, contact_query::*, NarrowPhaseConfig, NarrowPhasePlugin};
 pub use prepare::PreparePlugin;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;
@@ -59,6 +61,7 @@ use bevy::prelude::*;
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`IntegratorPlugin`]: Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
+/// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
@@ -197,6 +200,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(NarrowPhasePlugin)
+            .add(ContactReportingPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin::new(self.schedule.dyn_clone()))

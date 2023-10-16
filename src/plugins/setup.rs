@@ -145,6 +145,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 PhysicsStepSet::BroadPhase,
                 PhysicsStepSet::Substeps,
+                PhysicsStepSet::ReportContacts,
                 PhysicsStepSet::Sleeping,
                 PhysicsStepSet::SpatialQuery,
             )

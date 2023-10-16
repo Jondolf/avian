@@ -22,12 +22,7 @@ impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_systems(
-                (apply_deferred, wake_up_on_collision_ended)
-                    .chain()
-                    .after(PhysicsStepSet::Substeps)
-                    .before(PhysicsStepSet::Sleeping),
-            )
+            .add_systems(wake_up_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
             .add_systems(
                 (
                     mark_sleeping_bodies,
@@ -130,27 +125,37 @@ fn wake_all_sleeping_bodies(
 /// Wakes up bodies when they stop colliding.
 fn wake_up_on_collision_ended(
     mut commands: Commands,
-    mut colliding: Query<&CollidingEntities, (Changed<Position>, Without<Sleeping>)>,
-    mut collision_ended_ev_reader: EventReader<CollisionEnded>,
-    mut sleeping: Query<(Entity, &CollidingEntities, &mut TimeSleeping), With<Sleeping>>,
+    moved_bodies: Query<(), (Changed<Position>, Without<Sleeping>)>,
+    collisions: Res<Collisions>,
+    mut sleeping: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
 ) {
-    // Wake up bodies when a body they're colliding with moves
-    for colliding_entities1 in colliding.iter_mut() {
-        let mut query = sleeping.iter_many_mut(colliding_entities1.iter());
-        if let Some((entity2, _, mut time_sleeping)) = query.fetch_next() {
-            commands.entity(entity2).remove::<Sleeping>();
+    // Wake up bodies when a body they're colliding with moves.
+    for (entity, mut time_sleeping) in &mut sleeping {
+        // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
+        let mut colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
+            if entity == c.entity1 {
+                c.entity2
+            } else {
+                c.entity1
+            }
+        });
+        if colliding_entities.any(|entity| moved_bodies.contains(entity)) {
+            commands.entity(entity).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
     }
 
     // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
-    for CollisionEnded(entity1, entity2) in collision_ended_ev_reader.iter() {
-        if let Ok((_, _, mut time_sleeping)) = sleeping.get_mut(*entity1) {
-            commands.entity(*entity1).remove::<Sleeping>();
+    for contacts in collisions.get_internal().values() {
+        if contacts.during_current_frame || !contacts.during_previous_frame {
+            continue;
+        }
+        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity1) {
+            commands.entity(contacts.entity1).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
-        if let Ok((_, _, mut time_sleeping)) = sleeping.get_mut(*entity2) {
-            commands.entity(*entity2).remove::<Sleeping>();
+        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity2) {
+            commands.entity(contacts.entity2).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
     }
