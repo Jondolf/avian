@@ -38,7 +38,7 @@ pub use contact_reporting::*;
 #[cfg(feature = "debug-plugin")]
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
-pub use narrow_phase::*;
+pub use narrow_phase::{contact_data::*, contact_query::*, NarrowPhaseConfig, NarrowPhasePlugin};
 pub use prepare::PreparePlugin;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;

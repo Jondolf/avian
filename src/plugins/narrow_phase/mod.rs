@@ -2,7 +2,7 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
-mod contact_data;
+pub(super) mod contact_data;
 pub mod contact_query;
 
 use bevy::ecs::query::Has;
@@ -187,7 +187,7 @@ fn collect_collisions(
 // TODO: The collision state handling feels a bit confusing and error-prone.
 //       Ideally, the narrow phase wouldn't need to handle it at all, or it would at least be simpler.
 /// Resets collision states like `during_current_frame` and `during_previous_frame`.
-fn reset_collision_states(
+pub fn reset_collision_states(
     mut collisions: ResMut<Collisions>,
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
@@ -215,7 +215,7 @@ fn reset_collision_states(
 }
 
 /// Reset `during_current_substep` for each collision in [`Collisions`].
-fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
+pub fn reset_substep_collision_states(mut collisions: ResMut<Collisions>) {
     for contacts in collisions.get_internal_mut().values_mut() {
         contacts.during_current_substep = false;
     }
