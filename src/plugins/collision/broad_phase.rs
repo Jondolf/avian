@@ -36,6 +36,11 @@ impl Plugin for BroadPhasePlugin {
     }
 }
 
+/// A list of entity pairs for potential collisions collected during the broad phase.
+#[derive(Reflect, Resource, Default, Debug)]
+#[reflect(Resource)]
+pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
+
 type AABBChanged = Or<(
     Changed<Position>,
     Changed<Rotation>,

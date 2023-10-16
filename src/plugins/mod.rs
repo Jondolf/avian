@@ -32,7 +32,7 @@ pub mod spatial_query;
 pub mod sync;
 
 pub use collision::{
-    broad_phase::BroadPhasePlugin,
+    broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
     contact_reporting::{Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin},
     narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
     *,
