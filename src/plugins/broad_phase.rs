@@ -117,17 +117,26 @@ fn update_aabb_intervals(
 }
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
+#[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
-    aabbs: Query<(Entity, &ColliderAabb, Option<&CollisionLayers>), Added<ColliderAabb>>,
+    aabbs: Query<
+        (
+            Entity,
+            &ColliderAabb,
+            Option<&RigidBody>,
+            Option<&CollisionLayers>,
+        ),
+        Added<ColliderAabb>,
+    >,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    let aabbs = aabbs.iter().map(|(ent, aabb, layers)| {
+    let aabbs = aabbs.iter().map(|(ent, aabb, rb, layers)| {
         (
             ent,
             *aabb,
             // Default to treating collider as immovable/static for filtering unnecessary collision checks
             layers.map_or(CollisionLayers::default(), |layers| *layers),
-            false,
+            rb.map_or(false, |rb| rb.is_static()),
         )
     });
     intervals.0.extend(aabbs);
