@@ -23,7 +23,7 @@ jobs:
     name: Test Suite
     strategy:
       matrix:
-        # Todo: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
+        # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60

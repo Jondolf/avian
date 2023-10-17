@@ -65,7 +65,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_aabbs,
                     debug_render_colliders,
                     debug_render_contacts,
-                    // Todo: Refactor joints to allow iterating over all of them without generics
+                    // TODO: Refactor joints to allow iterating over all of them without generics
                     debug_render_joints::<FixedJoint>,
                     debug_render_joints::<PrismaticJoint>,
                     debug_render_joints::<DistanceJoint>,

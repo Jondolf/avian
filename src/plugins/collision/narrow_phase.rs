@@ -22,7 +22,7 @@ impl Plugin for NarrowPhasePlugin {
             .register_type::<NarrowPhaseConfig>();
 
         // Manage collision states like `during_current_frame` and remove old contacts
-        // Todo: It would be nice not to have collision state logic in the narrow phase
+        // TODO: It would be nice not to have collision state logic in the narrow phase
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
@@ -93,7 +93,7 @@ pub fn collect_collisions(
     #[cfg(feature = "parallel")]
     {
         let pool = ComputeTaskPool::get();
-        // Todo: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
+        // TODO: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
         let new_collisions = broad_collision_pairs
             .0
             .par_splat_map(pool, None, |chunks| {

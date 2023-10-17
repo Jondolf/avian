@@ -181,7 +181,7 @@ impl Collisions {
     /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](#method.get_mut)
     /// or [`iter_mut`](#method.iter_mut).
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
+        // TODO: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
         // entity ID. This requires changes elsewhere as well though.
         self.0
             .insert((contacts.entity1, contacts.entity2), contacts)

@@ -82,7 +82,7 @@ fn update_aabb(
         let half_extents = Vector::from(computed_aabb.half_extents());
         let center = Vector::from(computed_aabb.center());
 
-        // Todo: Somehow consider the shape of the object for the safety margin
+        // TODO: Somehow consider the shape of the object for the safety margin
         // caused by angular velocity. For example, balls shouldn't get any safety margin.
         let ang_vel_safety_margin = safety_margin_factor * ang_vel_magnitude;
 

@@ -165,7 +165,7 @@ mod tests {
     use approx::assert_relative_eq;
     use bevy::prelude::*;
 
-    // Todo: Test if inertia values are correct
+    // TODO: Test if inertia values are correct
     #[test]
     fn mass_properties_add_assign_works() {
         // Create app
@@ -204,7 +204,7 @@ mod tests {
         );
     }
 
-    // Todo: Test if inertia values are correct
+    // TODO: Test if inertia values are correct
     #[test]
     fn mass_properties_sub_assign_works() {
         // Create app
