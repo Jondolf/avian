@@ -213,7 +213,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
-    /// for each hit. The ray cast stops when `callback` returns false or all hits have been found.
+    /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
     ///
@@ -378,7 +378,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shape cast stops when
+    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments

@@ -382,7 +382,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         }
     }
 
-    /// Draws the results of a [ray cast](SpatialQuery#ray-casting).
+    /// Draws the results of a [raycast](SpatialQuery#ray-casting).
     #[allow(clippy::too_many_arguments)]
     pub fn draw_ray_cast(
         &mut self,

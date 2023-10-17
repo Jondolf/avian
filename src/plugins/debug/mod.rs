@@ -236,13 +236,13 @@ fn debug_render_ray_casts(
 ) {
     for (ray, hits) in &rays {
         let ray_color = config
-            .ray_cast_color
+            .raycast_color
             .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
         let point_color = config
-            .ray_cast_point_color
+            .raycast_point_color
             .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
         let normal_color = config
-            .ray_cast_normal_color
+            .raycast_normal_color
             .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
 
         debug_renderer.draw_ray_cast(

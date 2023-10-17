@@ -21,12 +21,12 @@ pub struct PhysicsDebugConfig {
     pub joint_anchor_color: Option<Color>,
     /// The color of the lines drawn between joint anchors, indicating the separation.
     pub joint_separation_color: Option<Color>,
-    /// The color used for the rays in [ray casts](spatial_query#ray-casting).
-    pub ray_cast_color: Option<Color>,
-    /// The color used for the hit points in [ray casts](spatial_query#ray-casting).
-    pub ray_cast_point_color: Option<Color>,
-    /// The color used for the hit normals in [ray casts](spatial_query#ray-casting).
-    pub ray_cast_normal_color: Option<Color>,
+    /// The color used for the rays in [raycasts](spatial_query#ray-casting).
+    pub raycast_color: Option<Color>,
+    /// The color used for the hit points in [raycasts](spatial_query#ray-casting).
+    pub raycast_point_color: Option<Color>,
+    /// The color used for the hit normals in [raycasts](spatial_query#ray-casting).
+    pub raycast_normal_color: Option<Color>,
     /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
     /// which will only show the debug renders.
     pub hide_meshes: bool,
@@ -45,9 +45,9 @@ impl Default for PhysicsDebugConfig {
             contact_color: None,
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
-            ray_cast_color: Some(Color::RED),
-            ray_cast_point_color: Some(Color::YELLOW),
-            ray_cast_normal_color: Some(Color::PINK),
+            raycast_color: Some(Color::RED),
+            raycast_point_color: Some(Color::YELLOW),
+            raycast_normal_color: Some(Color::PINK),
             hide_meshes: false,
         }
     }
@@ -67,9 +67,9 @@ impl PhysicsDebugConfig {
             contact_color: Some(Color::CYAN),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
-            ray_cast_color: Some(Color::RED),
-            ray_cast_point_color: Some(Color::YELLOW),
-            ray_cast_normal_color: Some(Color::PINK),
+            raycast_color: Some(Color::RED),
+            raycast_point_color: Some(Color::YELLOW),
+            raycast_normal_color: Some(Color::PINK),
             hide_meshes: true,
         }
     }
@@ -86,9 +86,9 @@ impl PhysicsDebugConfig {
             contact_color: None,
             joint_anchor_color: None,
             joint_separation_color: None,
-            ray_cast_color: None,
-            ray_cast_point_color: None,
-            ray_cast_normal_color: None,
+            raycast_color: None,
+            raycast_point_color: None,
+            raycast_normal_color: None,
             hide_meshes: false,
         }
     }
