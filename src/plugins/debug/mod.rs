@@ -20,6 +20,7 @@ use bevy::prelude::*;
 /// - [Collider] wireframes
 /// - [Contact] points
 /// - [Joints](joints)
+/// - [`RayCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
 /// By default, only axes, colliders and joints are debug rendered. You can use the [`PhysicsDebugConfig`]
@@ -71,6 +72,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
+                    debug_render_ray_casts,
                     change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -224,6 +226,35 @@ fn debug_render_joints<T: Joint>(
                 );
             }
         }
+    }
+}
+
+fn debug_render_ray_casts(
+    rays: Query<(&RayCaster, &RayHits)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (ray, hits) in &rays {
+        let ray_color = config
+            .ray_cast_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let point_color = config
+            .ray_cast_point_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let normal_color = config
+            .ray_cast_normal_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+
+        debug_renderer.draw_ray_cast(
+            ray.global_origin(),
+            ray.global_direction(),
+            // f32::MAX renders nothing, but this number seems to be fine :P
+            ray.max_time_of_impact.min(1_000_000_000_000_000_000.0),
+            hits.as_slice(),
+            ray_color,
+            point_color,
+            normal_color,
+        );
     }
 }
 
