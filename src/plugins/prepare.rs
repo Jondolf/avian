@@ -110,7 +110,7 @@ fn any_new_physics_entities(query: Query<(), Or<(Added<RigidBody>, Added<Collide
     !query.is_empty()
 }
 
-// Todo: This system feels very overengineered. Try to clean it up?
+// TODO: This system feels very overengineered. Try to clean it up?
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa.
 fn init_transforms(
     mut commands: Commands,
@@ -435,7 +435,7 @@ fn handle_rigid_body_removals(
 
     for (collider_entity, collider_parent) in &colliders {
         // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and reset ColliderOffset.
+        // remove ColliderParent and ColliderOffset.
         if !bodies.contains(collider_parent.get()) {
             commands.entity(collider_entity).remove::<(
                 ColliderParent,
@@ -449,7 +449,8 @@ fn handle_rigid_body_removals(
 /// Updates [`ColliderStorageMap`], a resource that stores some collider properties that need
 /// to be handled when colliders are removed from entities.
 fn update_collider_storage(
-    // Todo: Maybe it's enough to store only colliders that aren't on rigid body entities directly (i.e. child colliders)
+    // TODO: Maybe it's enough to store only colliders that aren't on rigid body entities
+    //       directly (i.e. child colliders)
     colliders: Query<
         (
             Entity,
@@ -540,6 +541,7 @@ fn update_mass_properties(
         }
     }
 
+    // Subtract mass properties of removed colliders
     for entity in removed_colliders.iter() {
         if let Some((collider_parent, collider_mass_properties, collider_offset)) =
             collider_map.get(&entity)
