@@ -22,7 +22,7 @@ impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_systems(wake_up_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
+            .add_systems(wake_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
             .add_systems(
                 (
                     mark_sleeping_bodies,
@@ -157,7 +157,7 @@ fn wake_all_sleeping_bodies(
 }
 
 /// Wakes up bodies when they stop colliding.
-fn wake_up_on_collision_ended(
+fn wake_on_collision_ended(
     mut commands: Commands,
     moved_bodies: Query<(), (Changed<Position>, Without<Sleeping>)>,
     collisions: Res<Collisions>,
