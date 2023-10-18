@@ -60,7 +60,7 @@ impl Plugin for PreparePlugin {
                 apply_deferred,
                 init_transforms,
                 (
-                    sync::update_collider_offset,
+                    sync::propagate_collider_offsets,
                     sync::update_child_collider_position,
                 )
                     .chain()

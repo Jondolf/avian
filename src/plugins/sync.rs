@@ -4,7 +4,7 @@
 //! See [`SyncPlugin`].
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::query::Has, prelude::*};
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
@@ -104,7 +104,7 @@ impl Plugin for SyncPlugin {
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
         substep_schedule.add_systems(
-            (update_collider_offset, update_child_collider_position)
+            (propagate_collider_offsets, update_child_collider_position)
                 .chain()
                 .after(SubstepSet::Integrate)
                 .before(SubstepSet::NarrowPhase),
@@ -184,39 +184,158 @@ pub(crate) fn update_child_collider_position(
     }
 }
 
+// TODO: Support rotation in ColliderOffset
+/// Updates [`ColliderOffset`}s based on entity hierarchies. Each offset is computed by recursively
+/// traversing the children of each rigid body and adding their transforms together to form
+/// the total offset relative to the body.
+///
+/// This is largely a clone of `propagate_transforms` in `bevy_transform`.
 #[allow(clippy::type_complexity)]
-pub(crate) fn update_collider_offset(
-    transformed_colliders: Query<Entity, (With<Collider>, Without<RigidBody>, Changed<Transform>)>,
-    children: Query<&Children, With<Collider>>,
-    bodies: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
-    mut child_colliders: Query<
+pub(crate) fn propagate_collider_offsets(
+    mut root_query: Query<(Entity, &Children), Without<Parent>>,
+    transform_query: Query<
         (
-            &mut ColliderOffset,
-            &Position,
             Ref<Transform>,
-            &ColliderParent,
+            Option<&mut ColliderOffset>,
+            Option<&Children>,
         ),
-        (With<Parent>, Without<RigidBody>),
+        With<Parent>,
     >,
+    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
 ) {
-    for (mut collider_offset, position, transform, collider_parent) in &mut child_colliders {
-        if !transform.is_changed() {
-            continue;
-        }
-        if let Ok((parent_pos, parent_rot)) = bodies.get(collider_parent.get()) {
-            collider_offset.0 = parent_rot.inverse().rotate(position.0 - parent_pos.0);
-        }
-    }
-
-    for entity in &transformed_colliders {
-        for child in children.iter_descendants(entity) {
-            if let Ok((mut collider_offset, position, _, collider_parent)) =
-                child_colliders.get_mut(child)
-            {
-                if let Ok((parent_pos, parent_rot)) = bodies.get(collider_parent.get()) {
-                    collider_offset.0 = parent_rot.inverse().rotate(position.0 - parent_pos.0);
+    root_query.par_iter_mut().for_each_mut(
+        |(entity, children)| {
+            for (child, child_transform,is_child_rb,parent) in parent_query.iter_many(children) {
+                assert_eq!(
+                    parent.get(), entity,
+                    "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
+                );
+                // SAFETY:
+                // - `child` must have consistent parentage, or the above assertion would panic.
+                // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
+                // - We may operate as if all descendants are consistent, since `propagate_collider_offset_recursive` will panic before 
+                //   continuing to propagate if it encounters an entity with inconsistent parentage.
+                // - Since each root entity is unique and the hierarchy is consistent and forest-like,
+                //   other root entities' `propagate_collider_offset_recursive` calls will not conflict with this one.
+                // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
+                unsafe {
+                    propagate_collider_offsets_recursive(
+                        if is_child_rb{
+                            Transform::default()
+                        } else {
+                            *child_transform
+                        },
+                        &transform_query,
+                        &parent_query,
+                        child,
+                    );
                 }
             }
+        },
+    );
+}
+
+/// Recursively computes the [`ColliderOffset`] for `entity` and all of its descendants
+/// by propagating transforms.
+///
+/// This is largely a clone of `propagate_recursive` in `bevy_transform`.
+///
+/// # Panics
+///
+/// If `entity`'s descendants have a malformed hierarchy, this function will panic occur before propagating
+/// the transforms of any malformed entities and their descendants.
+///
+/// # Safety
+///
+/// - While this function is running, `transform_query` must not have any fetches for `entity`,
+/// nor any of its descendants.
+/// - The caller must ensure that the hierarchy leading to `entity`
+/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
+#[allow(clippy::type_complexity)]
+unsafe fn propagate_collider_offsets_recursive(
+    new_transform: Transform,
+    transform_query: &Query<
+        (
+            Ref<Transform>,
+            Option<&mut ColliderOffset>,
+            Option<&Children>,
+        ),
+        With<Parent>,
+    >,
+    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
+    entity: Entity,
+) {
+    let (transform, children) = {
+        // SAFETY: This call cannot create aliased mutable references.
+        //   - The top level iteration parallelizes on the roots of the hierarchy.
+        //   - The caller ensures that each child has one and only one unique parent throughout the entire
+        //     hierarchy.
+        //
+        // For example, consider the following malformed hierarchy:
+        //
+        //     A
+        //   /   \
+        //  B     C
+        //   \   /
+        //     D
+        //
+        // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
+        // the above check will panic as the origin parent does match the recorded parent.
+        //
+        // Also consider the following case, where A and B are roots:
+        //
+        //  A       B
+        //   \     /
+        //    C   D
+        //     \ /
+        //      E
+        //
+        // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
+        // to mutably access E.
+        let Ok((transform, offset, children)) = (unsafe { transform_query.get_unchecked(entity) })
+        else {
+            return;
+        };
+
+        if let Some(mut offset) = offset {
+            #[cfg(feature = "2d")]
+            {
+                offset.0 = new_transform.translation.truncate().adjust_precision();
+            }
+            #[cfg(feature = "3d")]
+            {
+                offset.0 = new_transform.translation.adjust_precision();
+            }
+        }
+
+        (transform, children)
+    };
+
+    let Some(children) = children else { return };
+    for (child, _, is_rb, actual_parent) in parent_query.iter_many(children) {
+        assert_eq!(
+            actual_parent.get(), entity,
+            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
+        );
+        // SAFETY: The caller guarantees that `transform_query` will not be fetched
+        // for any descendants of `entity`, so it is safe to call `propagate_collider_offsets_recursive` for each child.
+        //
+        // The above assertion ensures that each child has one and only one unique parent throughout the
+        // entire hierarchy.
+        unsafe {
+            propagate_collider_offsets_recursive(
+                if is_rb {
+                    Transform::default()
+                } else {
+                    Transform::from_translation(
+                        new_transform.translation
+                            + new_transform.rotation.inverse() * transform.translation,
+                    )
+                },
+                transform_query,
+                parent_query,
+                child,
+            );
         }
     }
 }
