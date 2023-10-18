@@ -22,6 +22,7 @@ impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
+            .add_systems(wake_up_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
             .add_systems(
                 (
                     mark_sleeping_bodies,
@@ -148,5 +149,44 @@ fn wake_all_sleeping_bodies(
     for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();
         time_sleeping.0 = 0.0;
+    }
+}
+
+/// Wakes up bodies when they stop colliding.
+fn wake_up_on_collision_ended(
+    mut commands: Commands,
+    moved_bodies: Query<(), (Changed<Position>, Without<Sleeping>)>,
+    collisions: Res<Collisions>,
+    mut sleeping: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
+) {
+    // Wake up bodies when a body they're colliding with moves.
+    for (entity, mut time_sleeping) in &mut sleeping {
+        // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
+        let mut colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
+            if entity == c.entity1 {
+                c.entity2
+            } else {
+                c.entity1
+            }
+        });
+        if colliding_entities.any(|entity| moved_bodies.contains(entity)) {
+            commands.entity(entity).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
+        }
+    }
+
+    // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
+    for contacts in collisions.get_internal().values() {
+        if contacts.during_current_frame || !contacts.during_previous_frame {
+            continue;
+        }
+        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity1) {
+            commands.entity(contacts.entity1).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
+        }
+        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity2) {
+            commands.entity(contacts.entity2).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
+        }
     }
 }

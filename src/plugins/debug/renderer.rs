@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
 use parry::shape::{SharedShape, TypedShape};
 
-// Todo: Allow custom rendering backends through generics
+// TODO: Allow custom rendering backends through generics
 /// A `SystemParam` for physics debug rendering.
 #[derive(SystemParam)]
 pub struct PhysicsDebugRenderer<'w, 's> {

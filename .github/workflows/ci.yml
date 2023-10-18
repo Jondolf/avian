@@ -15,19 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
-
       - uses: dtolnay/rust-toolchain@stable
-
       - name: Run cargo check
         run: cargo check
 
@@ -35,25 +23,13 @@ jobs:
     name: Test Suite
     strategy:
       matrix:
-        # Todo: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
+        # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v3
-      
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
-
       - uses: dtolnay/rust-toolchain@stable
-
       - name: Run cargo test
         run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
 
@@ -62,21 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-build-stable-${{ hashFiles('**/Cargo.toml') }}
-      
       - uses: dtolnay/rust-toolchain@stable
-
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
-
       - name: Run cargo clippy
         run: cargo clippy -- -D warnings

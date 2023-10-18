@@ -1,3 +1,20 @@
+//! Collision detection is used to detect and compute intersections between [`Collider`]s.
+//!
+//! In bevy_xpbd, collision detection is split into three plugins:
+//!
+//! - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`].
+//! - [`NarrowPhasePlugin`]: Computes contacts for broad phase collision pairs and adds them to [`Collisions`].
+//! - [`ContactReportingPlugin`] (optional): Sends collision events and updates [`CollidingEntities`] based on [`Collisions`].
+//!
+//! Spatial queries are handled by the [`SpatialQueryPlugin`].
+//!
+//! You can also find several utility methods for computing contacts in [`contact_query`].
+
+pub mod broad_phase;
+pub mod contact_query;
+pub mod contact_reporting;
+pub mod narrow_phase;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
@@ -164,7 +181,7 @@ impl Collisions {
     /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](#method.get_mut)
     /// or [`iter_mut`](#method.iter_mut).
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // Todo: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
+        // TODO: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
         // entity ID. This requires changes elsewhere as well though.
         self.0
             .insert((contacts.entity1, contacts.entity2), contacts)

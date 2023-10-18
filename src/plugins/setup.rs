@@ -107,6 +107,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PreviousColliderMassProperties>()
             .register_type::<LockedAxes>()
             .register_type::<ColliderParent>()
+            .register_type::<Dominance>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
@@ -149,6 +150,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 PhysicsStepSet::BroadPhase,
                 PhysicsStepSet::Substeps,
+                PhysicsStepSet::ReportContacts,
                 PhysicsStepSet::Sleeping,
                 PhysicsStepSet::SpatialQuery,
             )

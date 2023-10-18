@@ -138,11 +138,6 @@ impl Default for SubstepCount {
     }
 }
 
-/// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Reflect, Resource, Default, Debug)]
-#[reflect(Resource)]
-pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
-
 /// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
 ///
 /// Setting a negative sleeping threshold disables sleeping entirely.

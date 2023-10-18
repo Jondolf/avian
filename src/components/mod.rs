@@ -135,8 +135,6 @@ impl RigidBody {
 /// collisions or other constraints, or when gravity changes, or when the body's
 /// position, rotation, velocity, or external forces are modified.
 ///
-/// Note that sleeping can cause unrealistic behaviour in some cases.
-/// For example, removing the floor under sleeping bodies can leave them floating in the air.
 /// Sleeping can be disabled for specific entities with the [`SleepingDisabled`] component,
 /// or for all entities by setting the [`SleepingThreshold`] to a negative value.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
@@ -546,6 +544,39 @@ pub struct LinearDamping(pub Scalar);
 )]
 #[reflect(Component)]
 pub struct AngularDamping(pub Scalar);
+
+/// **Dominance** allows [dynamic rigid bodies](RigidBody::Dynamic) to dominate
+/// each other during physical interactions.
+/// 
+/// The body with a higher dominance acts as if it had infinite mass, and will be unaffected during
+/// collisions and other interactions, while the other body will be affected normally.
+/// 
+/// The dominance must be between `-127` and `127`, and the default value is `0`.
+/// Note that static and kinematic bodies will always have a higher dominance value
+/// than dynamic bodies regardless of the value of this component.
+/// 
+/// ## Example
+/// 
+/// ```
+/// use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// // Player dominates all dynamic bodies with a dominance lower than 5
+/// fn spawn_player(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(1.0, 0.4),
+///         Dominance(5),
+///     ));
+/// }
+/// ```
+#[rustfmt::skip]
+#[derive(Component, Reflect, Debug, Clone, Copy, Default, Deref, DerefMut, From, PartialEq, PartialOrd, Eq, Ord)]
+#[reflect(Component)]
+pub struct Dominance(pub i8);
 
 #[cfg(test)]
 mod tests {

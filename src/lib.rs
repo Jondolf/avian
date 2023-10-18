@@ -20,18 +20,19 @@
 //! Below are some of the features of Bevy XPBD.
 //!
 //! - Dynamic, kinematic and static [rigid bodies](RigidBody)
-//! - [Colliders](Collider) powered by [parry](parry)
+//! - [Collision detection](collision) and [`Collider`]s powered by [parry](parry)
 //!     - Collision events: [`Collision`], [`CollisionStarted`], [`CollisionEnded`]
 //!     - Access to [colliding entities](CollidingEntities)
 //!     - [Sensor colliders](Sensor)
 //!     - [Collision layers](CollisionLayers)
-//!     - [Contact and time of impact queries](narrow_phase::contact_query)
+//!     - [Contact and time of impact queries](collision::contact_query)
 //! - Material properties like [restitution](Restitution) and [friction](Friction)
 //! - [Linear damping](LinearDamping) and [angular damping](AngularDamping) for simulating drag
-//! - [Gravity] and [gravity scale](GravityScale)
 //! - External [forces](ExternalForce), [torque](ExternalTorque), [impulses](ExternalImpulse) and
 //! [angular impulses](ExternalAngularImpulse)
+//! - [Gravity] and [gravity scale](GravityScale)
 //! - [Locking](LockedAxes) translational and rotational axes
+//! - [Dominance]
 //! - [Joints](joints)
 //! - Built-in [constraints] and support for [custom constraints](constraints#custom-constraints)
 //! - [Spatial queries](spatial_query)
@@ -517,8 +518,9 @@ pub enum PhysicsSet {
 ///     3. Solve positional and angular constraints
 ///     4. Update velocities
 ///     5. Solve velocity constraints (dynamic friction and restitution)
-/// 3. Sleeping
-/// 4. Spatial queries
+/// 3. Report contacts (send collision events)
+/// 4. Sleeping
+/// 5. Spatial queries
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
@@ -530,6 +532,10 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SubstepSet`] and [`SubstepSchedule`].
     Substeps,
+    /// Responsible for sending collision events and updating [`CollidingEntities`].
+    ///
+    /// See [`ContactReportingPlugin`].
+    ReportContacts,
     /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
     ///
     /// See [`SleepingPlugin`].

@@ -113,7 +113,7 @@ pub fn contact(
     })
 }
 
-// Todo: Add a persistent version of this that tries to reuse previous contact manifolds
+// TODO: Add a persistent version of this that tries to reuse previous contact manifolds
 // by exploiting spatial and temporal coherence. This is supported by Parry's contact_manifolds,
 // but requires using Parry's ContactManifold type.
 /// Computes all [`ContactManifold`]s between two [`Collider`]s.
@@ -165,7 +165,7 @@ pub fn contact_manifolds(
     let isometry2 = utils::make_isometry(position2.into(), rotation2.into());
     let isometry12 = isometry1.inv_mul(&isometry2);
 
-    // Todo: Reuse manifolds from previous frame to improve performance
+    // TODO: Reuse manifolds from previous frame to improve performance
     let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
     let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
         &isometry12,
