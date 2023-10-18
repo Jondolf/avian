@@ -264,7 +264,7 @@ fn run_physics_schedule(world: &mut World) {
 
     #[cfg(feature = "f64")]
     let delta_seconds = if physics_loop.fixed_update {
-        world.resource::<Time<Fixed>>().delta_seconds()
+        world.resource::<Time<Fixed>>().delta_seconds_f64()
     } else {
         world.resource::<Time>().delta_seconds_f64()
     };
