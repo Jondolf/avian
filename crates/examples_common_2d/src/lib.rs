@@ -1,7 +1,6 @@
 use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
-    text::DEFAULT_FONT_HANDLE,
 };
 use bevy_xpbd_2d::prelude::*;
 
@@ -56,7 +55,7 @@ fn setup(mut commands: Commands) {
         TextBundle::from_section(
             "FPS: ",
             TextStyle {
-                font: DEFAULT_FONT_HANDLE.typed(),
+                font: default(),
                 font_size: 20.0,
                 color: Color::TOMATO,
             },
