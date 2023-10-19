@@ -78,7 +78,7 @@ fn update_aabb(
             {
                 utils::make_isometry(
                     pos.0 + lin_vel.0 * safety_margin_factor,
-                    *rot + Rotation::from_radians(dt.0 * ang_vel.0),
+                    *rot + Rotation::from_radians(safety_margin_factor * ang_vel.0),
                 )
             }
             #[cfg(feature = "3d")]
