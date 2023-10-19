@@ -68,33 +68,39 @@ fn update_aabb(
     let safety_margin_factor = 2.0 * dt.0;
 
     for (collider, mut aabb, pos, rot, lin_vel, ang_vel) in &mut bodies {
-        let lin_vel = lin_vel.map_or(Vector::ZERO, |v| v.0);
+        let lin_vel = lin_vel.copied().unwrap_or_default();
+        let ang_vel = ang_vel.copied().unwrap_or_default();
 
-        #[cfg(feature = "2d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.abs());
-        #[cfg(feature = "3d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.length());
+        // Compute current isometry and predicted isometry for next feame
+        let start_iso = utils::make_isometry(*pos, *rot);
+        let end_iso = {
+            #[cfg(feature = "2d")]
+            {
+                utils::make_isometry(
+                    pos.0 + lin_vel.0 * safety_margin_factor,
+                    *rot + Rotation::from_radians(dt.0 * ang_vel.0),
+                )
+            }
+            #[cfg(feature = "3d")]
+            {
+                let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
+                let (x, y, z, w) = (
+                    rot.x + safety_margin_factor * 0.5 * q.x,
+                    rot.y + safety_margin_factor * 0.5 * q.y,
+                    rot.z + safety_margin_factor * 0.5 * q.z,
+                    rot.w + safety_margin_factor * 0.5 * q.w,
+                );
+                utils::make_isometry(
+                    pos.0 + lin_vel.0 * safety_margin_factor,
+                    Quaternion::from_xyzw(x, y, z, w).normalize(),
+                )
+            }
+        };
 
-        // Compute AABB half extents and center
-        let computed_aabb = collider
+        // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
+        aabb.0 = collider
             .get_shape()
-            .compute_aabb(&utils::make_isometry(*pos, *rot));
-        let half_extents = Vector::from(computed_aabb.half_extents());
-        let center = Vector::from(computed_aabb.center());
-
-        // TODO: Somehow consider the shape of the object for the safety margin
-        // caused by angular velocity. For example, balls shouldn't get any safety margin.
-        let ang_vel_safety_margin = safety_margin_factor * ang_vel_magnitude;
-
-        // Compute AABB mins and maxs, extending them by a safety margin that depends on the velocity
-        // of the body. Linear velocity only extends the AABB in the movement direction.
-        let mut mins = center - half_extents - ang_vel_safety_margin;
-        mins += safety_margin_factor * lin_vel.min(Vector::ZERO);
-        let mut maxs = center + half_extents + ang_vel_safety_margin;
-        maxs += safety_margin_factor * lin_vel.max(Vector::ZERO);
-
-        aabb.mins.coords = mins.into();
-        aabb.maxs.coords = maxs.into();
+            .compute_swept_aabb(&start_iso, &end_iso);
     }
 }
 
