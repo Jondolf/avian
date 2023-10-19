@@ -375,7 +375,7 @@ fn init_colliders(
 ) {
     for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
         commands.entity(entity).insert((
-            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
+            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
             *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
             *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
                 ColliderMassProperties::ZERO,

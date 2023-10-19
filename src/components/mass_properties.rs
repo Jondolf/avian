@@ -272,7 +272,7 @@ impl ColliderMassProperties {
 impl ColliderMassProperties {
     /// Computes mass properties from a given [`Collider`] and density.
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
-        let props = collider.mass_properties(density);
+        let props = collider.shape_scaled().mass_properties(density);
 
         Self {
             mass: Mass(props.mass()),
