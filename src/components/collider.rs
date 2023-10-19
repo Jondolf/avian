@@ -550,13 +550,33 @@ impl ColliderParent {
     }
 }
 
-/// The positional offset of a collider relative to the rigid body it's attached to.
+/// The transform of a collider relative to the rigid body it's attached to.
 /// This is in the local space of the body, not the collider itself.
 ///
-/// The offset is used for computing things like contact positions and a body's center of mass
+/// This is used for computing things like contact positions and a body's center of mass
 /// without having to traverse deeply nested hierarchies.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-pub(crate) struct ColliderOffset(pub(crate) Vector);
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
+pub(crate) struct ColliderTransform {
+    pub translation: Vector,
+    pub rotation: Rotation,
+    pub scale: Vector,
+}
+
+impl From<Transform> for ColliderTransform {
+    fn from(value: Transform) -> Self {
+        Self {
+            #[cfg(feature = "2d")]
+            translation: value.translation.truncate().adjust_precision(),
+            #[cfg(feature = "3d")]
+            translation: value.translation.adjust_precision(),
+            rotation: Rotation::from(value.rotation.adjust_precision()),
+            #[cfg(feature = "2d")]
+            scale: value.scale.truncate().adjust_precision(),
+            #[cfg(feature = "3d")]
+            scale: value.scale.adjust_precision(),
+        }
+    }
+}
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///

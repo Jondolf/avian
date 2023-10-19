@@ -178,7 +178,7 @@ impl Add<Self> for Rotation {
 impl Add<Self> for Rotation {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        Rotation(self.0 + rhs.0)
+        Rotation(self.mul_quat(rhs.0))
     }
 }
 

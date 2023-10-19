@@ -104,7 +104,10 @@ impl Plugin for SyncPlugin {
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
         substep_schedule.add_systems(
-            (propagate_collider_offsets, update_child_collider_position)
+            (
+                propagate_collider_transforms,
+                update_child_collider_position,
+            )
                 .chain()
                 .after(SubstepSet::Integrate)
                 .before(SubstepSet::NarrowPhase),
@@ -155,8 +158,7 @@ fn init_previous_global_transform(
 pub(crate) fn update_child_collider_position(
     mut colliders: Query<
         (
-            &Transform,
-            &ColliderOffset,
+            &ColliderTransform,
             &mut Position,
             &mut Rotation,
             &ColliderParent,
@@ -165,38 +167,37 @@ pub(crate) fn update_child_collider_position(
     >,
     parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
-    for (transform, offset, mut position, mut rotation, parent) in &mut colliders {
+    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
         let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
             continue;
         };
 
-        position.0 = parent_pos.0 + parent_rot.rotate(offset.0);
+        position.0 = parent_pos.0 + parent_rot.rotate(collider_transform.translation);
         #[cfg(feature = "2d")]
         {
-            *rotation = *parent_rot + Rotation::from(transform.rotation);
+            *rotation = *parent_rot + collider_transform.rotation;
         }
         #[cfg(feature = "3d")]
         {
-            *rotation = (parent_rot.0 * transform.rotation.adjust_precision())
+            *rotation = (parent_rot.0 * collider_transform.rotation.0)
                 .normalize()
                 .into();
         }
     }
 }
 
-// TODO: Support rotation in ColliderOffset
-/// Updates [`ColliderOffset`}s based on entity hierarchies. Each offset is computed by recursively
+/// Updates [`ColliderTransform`]s based on entity hierarchies. Each transform is computed by recursively
 /// traversing the children of each rigid body and adding their transforms together to form
-/// the total offset relative to the body.
+/// the total transform relative to the body.
 ///
 /// This is largely a clone of `propagate_transforms` in `bevy_transform`.
 #[allow(clippy::type_complexity)]
-pub(crate) fn propagate_collider_offsets(
+pub(crate) fn propagate_collider_transforms(
     mut root_query: Query<(Entity, &Children), Without<Parent>>,
     transform_query: Query<
         (
             Ref<Transform>,
-            Option<&mut ColliderOffset>,
+            Option<&mut ColliderTransform>,
             Option<&Children>,
         ),
         With<Parent>,
@@ -213,17 +214,17 @@ pub(crate) fn propagate_collider_offsets(
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
                 // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
-                // - We may operate as if all descendants are consistent, since `propagate_collider_offset_recursive` will panic before 
+                // - We may operate as if all descendants are consistent, since `propagate_collider_transform_recursive` will panic before 
                 //   continuing to propagate if it encounters an entity with inconsistent parentage.
                 // - Since each root entity is unique and the hierarchy is consistent and forest-like,
-                //   other root entities' `propagate_collider_offset_recursive` calls will not conflict with this one.
+                //   other root entities' `propagate_collider_transform_recursive` calls will not conflict with this one.
                 // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
                 unsafe {
-                    propagate_collider_offsets_recursive(
+                    propagate_collider_transforms_recursive(
                         if is_child_rb{
-                            Transform::default()
+                            ColliderTransform::default()
                         } else {
-                            *child_transform
+                            (*child_transform).into()
                         },
                         &transform_query,
                         &parent_query,
@@ -235,7 +236,7 @@ pub(crate) fn propagate_collider_offsets(
     );
 }
 
-/// Recursively computes the [`ColliderOffset`] for `entity` and all of its descendants
+/// Recursively computes the [`ColliderTransform`] for `entity` and all of its descendants
 /// by propagating transforms.
 ///
 /// This is largely a clone of `propagate_recursive` in `bevy_transform`.
@@ -252,12 +253,12 @@ pub(crate) fn propagate_collider_offsets(
 /// - The caller must ensure that the hierarchy leading to `entity`
 /// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
 #[allow(clippy::type_complexity)]
-unsafe fn propagate_collider_offsets_recursive(
-    new_transform: Transform,
+unsafe fn propagate_collider_transforms_recursive(
+    new_transform: ColliderTransform,
     transform_query: &Query<
         (
             Ref<Transform>,
-            Option<&mut ColliderOffset>,
+            Option<&mut ColliderTransform>,
             Option<&Children>,
         ),
         With<Parent>,
@@ -292,20 +293,15 @@ unsafe fn propagate_collider_offsets_recursive(
         //
         // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
         // to mutably access E.
-        let Ok((transform, offset, children)) = (unsafe { transform_query.get_unchecked(entity) })
+        let Ok((transform, collider_transform, children)) =
+            (unsafe { transform_query.get_unchecked(entity) })
         else {
             return;
         };
 
-        if let Some(mut offset) = offset {
-            #[cfg(feature = "2d")]
-            {
-                offset.0 = new_transform.translation.truncate().adjust_precision();
-            }
-            #[cfg(feature = "3d")]
-            {
-                offset.0 = new_transform.translation.adjust_precision();
-            }
+        if let Some(mut collider_transform) = collider_transform {
+            *collider_transform = new_transform;
+            println!("{:?}", new_transform);
         }
 
         (transform, children)
@@ -318,19 +314,24 @@ unsafe fn propagate_collider_offsets_recursive(
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
         // SAFETY: The caller guarantees that `transform_query` will not be fetched
-        // for any descendants of `entity`, so it is safe to call `propagate_collider_offsets_recursive` for each child.
+        // for any descendants of `entity`, so it is safe to call `propagate_collider_transforms_recursive` for each child.
         //
         // The above assertion ensures that each child has one and only one unique parent throughout the
         // entire hierarchy.
         unsafe {
-            propagate_collider_offsets_recursive(
+            propagate_collider_transforms_recursive(
                 if is_rb {
-                    Transform::default()
+                    ColliderTransform::default()
                 } else {
-                    Transform::from_translation(
-                        new_transform.translation
-                            + new_transform.rotation.inverse() * transform.translation,
-                    )
+                    let new = ColliderTransform::from(*transform);
+                    ColliderTransform {
+                        translation: new_transform.translation
+                            + new_transform
+                                .rotation
+                                .rotate(new_transform.scale * new.translation),
+                        rotation: new_transform.rotation + new.rotation,
+                        scale: new_transform.scale * new.scale,
+                    }
                 },
                 transform_query,
                 parent_query,

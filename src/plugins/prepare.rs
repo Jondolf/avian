@@ -60,7 +60,7 @@ impl Plugin for PreparePlugin {
                 apply_deferred,
                 init_transforms,
                 (
-                    sync::propagate_collider_offsets,
+                    sync::propagate_collider_transforms,
                     sync::update_child_collider_position,
                 )
                     .chain()
@@ -87,7 +87,7 @@ impl Plugin for PreparePlugin {
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub(crate) struct PreviousColliderOffset(Vector);
+pub(crate) struct PreviousColliderTransform(ColliderTransform);
 
 // Todo: Does this make sense in this file? It would also be nice to find an alternative approach.
 /// A hash map that stores some collider data that is needed when colliders are removed from
@@ -101,7 +101,7 @@ pub(crate) struct PreviousColliderOffset(Vector);
 #[derive(Resource, Reflect, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Resource)]
 pub(crate) struct ColliderStorageMap(
-    HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderOffset)>,
+    HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
 );
 
 /// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
@@ -399,8 +399,8 @@ fn update_collider_parents(
                 commands.entity(entity).insert((
                     ColliderParent(entity),
                     // Todo: This probably causes a one frame delay. Compute real value?
-                    ColliderOffset::default(),
-                    PreviousColliderOffset::default(),
+                    ColliderTransform::default(),
+                    PreviousColliderTransform::default(),
                 ));
             }
         }
@@ -412,8 +412,8 @@ fn update_collider_parents(
                     commands.entity(child).insert((
                         ColliderParent(entity),
                         // Todo: This probably causes a one frame delay. Compute real value?
-                        ColliderOffset::default(),
-                        PreviousColliderOffset::default(),
+                        ColliderTransform::default(),
+                        PreviousColliderTransform::default(),
                     ));
                 }
             }
@@ -435,12 +435,12 @@ fn handle_rigid_body_removals(
 
     for (collider_entity, collider_parent) in &colliders {
         // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderOffset.
+        // remove ColliderParent and ColliderTransform.
         if !bodies.contains(collider_parent.get()) {
             commands.entity(collider_entity).remove::<(
                 ColliderParent,
-                ColliderOffset,
-                PreviousColliderOffset,
+                ColliderTransform,
+                PreviousColliderTransform,
             )>();
         }
     }
@@ -456,7 +456,7 @@ fn update_collider_storage(
             Entity,
             &ColliderParent,
             &ColliderMassProperties,
-            &ColliderOffset,
+            &ColliderTransform,
         ),
         (
             With<Collider>,
@@ -465,10 +465,10 @@ fn update_collider_storage(
     >,
     mut storage: ResMut<ColliderStorageMap>,
 ) {
-    for (entity, parent, collider_mass_properties, collider_offset) in &colliders {
+    for (entity, parent, collider_mass_properties, collider_transform) in &colliders {
         storage.insert(
             entity,
-            (*parent, *collider_mass_properties, *collider_offset),
+            (*parent, *collider_mass_properties, *collider_transform),
         );
     }
 }
@@ -490,8 +490,8 @@ fn update_mass_properties(
     mut bodies: Query<(Entity, &RigidBody, MassPropertiesQuery)>,
     mut colliders: Query<
         (
-            &ColliderOffset,
-            &mut PreviousColliderOffset,
+            &ColliderTransform,
+            &mut PreviousColliderTransform,
             &ColliderParent,
             &Collider,
             &mut ColliderMassProperties,
@@ -499,7 +499,7 @@ fn update_mass_properties(
         ),
         Or<(
             Changed<Collider>,
-            Changed<ColliderOffset>,
+            Changed<ColliderTransform>,
             Changed<ColliderMassProperties>,
         )>,
     >,
@@ -507,8 +507,8 @@ fn update_mass_properties(
     mut removed_colliders: RemovedComponents<Collider>,
 ) {
     for (
-        collider_offset,
-        mut previous_collider_offset,
+        collider_transform,
+        mut previous_collider_transform,
         collider_parent,
         collider,
         mut collider_mass_properties,
@@ -519,12 +519,13 @@ fn update_mass_properties(
             // Subtract previous collider mass props from the body's mass props
             mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    previous_collider_offset.0 + previous_collider_mass_properties.center_of_mass.0,
+                    previous_collider_transform.translation
+                        + previous_collider_mass_properties.center_of_mass.0,
                 ),
                 ..previous_collider_mass_properties.0
             });
 
-            previous_collider_offset.0 = collider_offset.0;
+            previous_collider_transform.0 = *collider_transform;
 
             // Update previous and current collider mass props
             previous_collider_mass_properties.0 = *collider_mass_properties;
@@ -534,7 +535,7 @@ fn update_mass_properties(
             // Add new collider mass props to the body's mass props
             mass_properties += ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    collider_offset.0 + collider_mass_properties.center_of_mass.0,
+                    collider_transform.translation + collider_mass_properties.center_of_mass.0,
                 ),
                 ..*collider_mass_properties
             };
@@ -543,13 +544,13 @@ fn update_mass_properties(
 
     // Subtract mass properties of removed colliders
     for entity in removed_colliders.iter() {
-        if let Some((collider_parent, collider_mass_properties, collider_offset)) =
+        if let Some((collider_parent, collider_mass_properties, collider_transform)) =
             collider_map.get(&entity)
         {
             if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
                 mass_properties -= ColliderMassProperties {
                     center_of_mass: CenterOfMass(
-                        collider_offset.0 + collider_mass_properties.center_of_mass.0,
+                        collider_transform.translation + collider_mass_properties.center_of_mass.0,
                     ),
                     ..*collider_mass_properties
                 };

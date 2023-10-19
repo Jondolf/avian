@@ -83,7 +83,7 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 struct ColliderQuery<'w> {
     entity: Entity,
     parent: &'w ColliderParent,
-    offset: &'w ColliderOffset,
+    transform: &'w ColliderTransform,
     is_sensor: Has<Sensor>,
     friction: Option<&'w Friction>,
     restitution: Option<&'w Restitution>,
@@ -167,10 +167,12 @@ fn penetration_constraints(
             // Create and solve penetration constraints for each contact.
             for contact_manifold in contacts.manifolds.iter() {
                 for contact in contact_manifold.contacts.iter() {
-                    // Add collider offsets to local contact points
+                    // Add collider transforms to local contact points
                     let contact = ContactData {
-                        point1: contact.point1 + collider1.offset.0,
-                        point2: contact.point2 + collider2.offset.0,
+                        point1: collider1.transform.rotation.rotate(contact.point1)
+                            + collider1.transform.translation,
+                        point2: collider2.transform.rotation.rotate(contact.point2)
+                            + collider2.transform.translation,
                         ..*contact
                     };
 

@@ -115,7 +115,7 @@ fn wake_on_changed(
 type ColliderTransformedFilter = Or<(
     Changed<Collider>,
     Changed<Transform>,
-    Changed<ColliderOffset>,
+    Changed<ColliderTransform>,
 )>;
 
 /// Removes the [`Sleeping`] component from sleeping bodies when any of their
