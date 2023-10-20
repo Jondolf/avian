@@ -664,7 +664,7 @@ fn scale_shape(
             Some(scaled) => Ok(SharedShape::new(scaled)),
         },
         TypedShape::HeightField(h) => Ok(SharedShape::new(h.clone().scaled(&scale.into()))),
-        #[cfg(feature = "dim2")]
+        #[cfg(feature = "2d")]
         TypedShape::ConvexPolygon(cp) => match cp.clone().scaled(&scale.into()) {
             None => {
                 log::error!("Failed to apply scale {} to ConvexPolygon shape.", scale);
@@ -672,7 +672,7 @@ fn scale_shape(
             }
             Some(scaled) => Ok(SharedShape::new(scaled)),
         },
-        #[cfg(feature = "dim2")]
+        #[cfg(feature = "2d")]
         TypedShape::RoundConvexPolygon(cp) => match cp.inner_shape.clone().scaled(&scale.into()) {
             None => {
                 log::error!(
@@ -686,7 +686,7 @@ fn scale_shape(
                 inner_shape: scaled,
             })),
         },
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::ConvexPolyhedron(cp) => match cp.clone().scaled(&scale.into()) {
             None => {
                 log::error!("Failed to apply scale {} to ConvexPolyhedron shape.", scale);
@@ -694,7 +694,7 @@ fn scale_shape(
             }
             Some(scaled) => Ok(SharedShape::new(scaled)),
         },
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::RoundConvexPolyhedron(cp) => {
             match cp.clone().inner_shape.scaled(&scale.into()) {
                 None => {
@@ -710,7 +710,7 @@ fn scale_shape(
                 })),
             }
         }
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::Cylinder(c) => match c.scaled(&scale.into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Cylinder shape.", scale);
@@ -719,7 +719,7 @@ fn scale_shape(
             Some(Either::Left(b)) => Ok(SharedShape::new(b)),
             Some(Either::Right(b)) => Ok(SharedShape::new(b)),
         },
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::RoundCylinder(c) => {
             match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
                 None => {
@@ -736,16 +736,16 @@ fn scale_shape(
                 })),
             }
         }
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::Cone(c) => match c.scaled(&scale.into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Cone shape.", scale);
-                SharedShape::ball(0.0)
+                Ok(SharedShape::ball(0.0))
             }
-            Some(Either::Left(b)) => SharedShape::new(b),
-            Some(Either::Right(b)) => SharedShape::new(b),
+            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
         },
-        #[cfg(feature = "dim3")]
+        #[cfg(feature = "3d")]
         TypedShape::RoundCone(c) => match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to RoundCone shape.", scale);
