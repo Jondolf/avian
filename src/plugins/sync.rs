@@ -358,7 +358,10 @@ unsafe fn propagate_collider_transforms_recursive(
                             + transform
                                 .rotation
                                 .rotate(transform.scale * child_transform.translation),
+                        #[cfg(feature = "2d")]
                         rotation: transform.rotation + child_transform.rotation,
+                        #[cfg(feature = "3d")]
+                        rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
                         scale: (transform.scale * child_transform.scale)
                             .max(Vector::splat(Scalar::EPSILON)),
                     }
