@@ -784,10 +784,33 @@ fn scale_shape(
     }
 }
 
-/// A component that will generate colliders for children with meshes
-/// once the scene has been loaded.
-///
+/// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
 /// The type of the generated collider can be specified using [`ComputedCollider`].
+///
+/// ## Example
+///
+/// ```rust
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
+///     // Spawn a cube with a convex hull collider generated from the mesh
+///     commands.spawn((
+///         AsyncCollider(ComputedCollider::ConvexHull),
+///         PbrBundle {
+///             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+///             ..default(),
+///         },
+///     ));
+/// }
+/// ```
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
+pub struct AsyncCollider(pub ComputedCollider);
+
+/// A component that will automatically generate colliders for the meshes in a scene
+/// once the scene has been loaded. The type of the generated collider can be specified
+/// using [`ComputedCollider`].
 ///
 /// ## Example
 ///
@@ -825,7 +848,7 @@ fn scale_shape(
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Debug, Default, Clone)]
+#[derive(Component, Clone, Debug, Default)]
 pub struct AsyncSceneCollider {
     /// The default collider type used for each mesh that isn't included in [`named_shapes`].
     /// If `None`, all meshes except the ones in [`named_shapes`] will be skipped.

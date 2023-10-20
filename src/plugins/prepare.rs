@@ -88,7 +88,10 @@ impl Plugin for PreparePlugin {
         #[cfg(all(feature = "3d", feature = "async-collider"))]
         app.add_systems(
             Update,
-            init_async_scene_colliders.after(bevy::scene::scene_spawner_system),
+            (
+                init_async_colliders,
+                init_async_scene_colliders.after(bevy::scene::scene_spawner_system),
+            ),
         );
     }
 }
@@ -390,6 +393,28 @@ fn init_colliders(
             )),
             CollidingEntities::default(),
         ));
+    }
+}
+
+/// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+pub fn init_async_colliders(
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+    async_colliders: Query<(Entity, &Handle<Mesh>, &AsyncCollider)>,
+) {
+    for (entity, mesh_handle, async_collider) in async_colliders.iter() {
+        if let Some(mesh) = meshes.get(mesh_handle) {
+            match Collider::from_mesh(mesh, &async_collider.0) {
+                Some(collider) => {
+                    commands
+                        .entity(entity)
+                        .insert(collider)
+                        .remove::<AsyncCollider>();
+                }
+                None => error!("Unable to generate collider from mesh {:?}", mesh),
+            }
+        }
     }
 }
 
