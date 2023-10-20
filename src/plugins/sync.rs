@@ -301,7 +301,6 @@ unsafe fn propagate_collider_transforms_recursive(
 
         if let Some(mut collider_transform) = collider_transform {
             *collider_transform = new_transform;
-            println!("{:?}", new_transform);
         }
 
         (transform, children)
@@ -329,7 +328,10 @@ unsafe fn propagate_collider_transforms_recursive(
                             + new_transform
                                 .rotation
                                 .rotate(new_transform.scale * new.translation),
+                        #[cfg(feature = "2d")]
                         rotation: new_transform.rotation + new.rotation,
+                        #[cfg(feature = "3d")]
+                        rotation: Rotation(new_transform.rotation.0 * new.rotation.0),
                         scale: new_transform.scale * new.scale,
                     }
                 },
