@@ -203,6 +203,8 @@ pub(crate) fn update_collider_scale(
         #[cfg(feature = "3d")]
         let scale = transform.scale.adjust_precision();
         if scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
             collider.set_scale(scale, 10);
         }
     }
@@ -210,6 +212,8 @@ pub(crate) fn update_collider_scale(
     // Update collider scale for child colliders
     for (collider_transform, mut collider) in &mut colliders.p1() {
         if collider_transform.scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
             collider.set_scale(collider_transform.scale, 10);
         }
     }
