@@ -12,7 +12,7 @@ keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "async-collider", "parallel"]
+default = ["2d", "f32", "parallel"]
 2d = []
 f32 = ["dep:parry2d"]
 f64 = ["dep:parry2d-f64"]
@@ -24,8 +24,6 @@ enhanced-determinism = [
     "parry2d-f64?/enhanced-determinism",
     "glam/libm",
 ]
-collider-from-mesh = ["bevy/bevy_render"]
-async-collider = ["bevy/bevy_scene", "bevy/bevy_gltf", "collider-from-mesh"]
 
 [lib]
 name = "bevy_xpbd_2d"
