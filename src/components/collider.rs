@@ -784,6 +784,79 @@ fn scale_shape(
     }
 }
 
+/// A component that will generate colliders for children with meshes
+/// once the scene has been loaded.
+///
+/// The type of the generated collider can be specified using [`ComputedCollider`].
+///
+/// ## Example
+///
+/// ```rust
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
+///     let scene = SceneBundle {
+///         scene: assets.load("my_model.gltf#Scene0"),
+///         ..default()
+///     };
+///
+///     // Spawn the scene and automatically generate triangle mesh colliders.
+///     commands.spawn((
+///         scene.clone(),
+///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
+///     ));
+///
+///     // In addition to the default collider type, you can specify collider types
+///     // for specific meshes by name.
+///     commands.spawn((
+///         scene.clone(),
+///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
+///             .with_named_shape("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///     ));
+///
+///     // Using `None` skips collider generation for meshes.
+///     commands.spawn((
+///         scene.clone(),
+///         // Only create collider for "Tree" mesh
+///         AsyncSceneCollider::new(None)
+///             .with_named_shape("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///     ));
+/// }
+/// ```
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Component, Debug, Default, Clone)]
+pub struct AsyncSceneCollider {
+    /// The default collider type used for each mesh that isn't included in [`named_shapes`].
+    /// If `None`, all meshes except the ones in [`named_shapes`] will be skipped.
+    pub default_shape: Option<ComputedCollider>,
+    /// Specifies collider types for meshes by name. If a shape is `None`, it will be skipped.
+    /// For the meshes not found in this `HashMap`, [`default_shape`] is used instead.
+    pub named_shapes: HashMap<String, Option<ComputedCollider>>,
+}
+
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+impl AsyncSceneCollider {
+    /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
+    /// meshes set to the given `default_shape`.
+    ///
+    /// If the given collider type is `None`, all meshes except the ones in [`named_shapes`]
+    /// will be skipped. You can add named shapes using [`with_named_shape`](#method.with_named_shape).
+    pub fn new(default_shape: Option<ComputedCollider>) -> Self {
+        Self {
+            default_shape,
+            named_shapes: default(),
+        }
+    }
+
+    /// Specifies the collider type used for a mesh with the given `name`.
+    /// If it is `None`, the mesh won't have a collider.
+    pub fn with_named_shape(mut self, name: String, shape: Option<ComputedCollider>) -> Self {
+        self.named_shapes.insert(name, shape);
+        self
+    }
+}
+
 /// Determines how a [`Collider`] is generated from a `Mesh`.
 ///
 /// Colliders can be created from meshes with the following components and methods:

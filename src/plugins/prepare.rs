@@ -6,6 +6,8 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+use bevy::scene::SceneInstance;
 use bevy::{ecs::query::Has, prelude::*, utils::HashMap};
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
@@ -81,6 +83,12 @@ impl Plugin for PreparePlugin {
                 handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
                 handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
             ),
+        );
+
+        #[cfg(all(feature = "3d", feature = "async-collider"))]
+        app.add_systems(
+            Update,
+            init_async_scene_colliders.after(bevy::scene::scene_spawner_system),
         );
     }
 }
@@ -382,6 +390,48 @@ fn init_colliders(
             )),
             CollidingEntities::default(),
         ));
+    }
+}
+
+/// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+pub fn init_async_scene_colliders(
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+    scene_spawner: Res<SceneSpawner>,
+    async_colliders: Query<(Entity, &SceneInstance, &AsyncSceneCollider)>,
+    children: Query<&Children>,
+    mesh_handles: Query<(&Name, &Handle<Mesh>)>,
+) {
+    for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
+        if scene_spawner.instance_is_ready(**scene_instance) {
+            for child_entity in children.iter_descendants(scene_entity) {
+                if let Ok((name, handle)) = mesh_handles.get(child_entity) {
+                    let Some(shape) = async_scene_collider
+                        .named_shapes
+                        .get(name.as_str())
+                        .unwrap_or(&async_scene_collider.default_shape)
+                    else {
+                        continue;
+                    };
+
+                    let mesh = meshes.get(handle).expect("mesh should already be loaded");
+                    match Collider::from_mesh(mesh, shape) {
+                        Some(collider) => {
+                            commands
+                                .entity(child_entity)
+                                .insert((collider, ColliderMassProperties::ZERO));
+                        }
+                        None => error!(
+                            "unable to generate collider from mesh {:?} with name {}",
+                            mesh, name
+                        ),
+                    }
+                }
+            }
+
+            commands.entity(scene_entity).remove::<AsyncSceneCollider>();
+        }
     }
 }
 
