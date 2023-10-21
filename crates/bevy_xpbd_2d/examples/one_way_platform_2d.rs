@@ -60,7 +60,7 @@ fn setup(
         },
         RigidBody::Static,
         Position(Vector::Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -71,7 +71,7 @@ fn setup(
         },
         RigidBody::Static,
         Position(Vector::NEG_Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -82,7 +82,7 @@ fn setup(
         },
         RigidBody::Static,
         Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -93,7 +93,7 @@ fn setup(
         },
         RigidBody::Static,
         Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
 
     // For one-way platforms
@@ -113,7 +113,7 @@ fn setup(
             },
             RigidBody::Static,
             Position(Vector::Y * 16.0 * 6.0 * y as Scalar),
-            Collider::cuboid(25.0 * 20.0, 25.0),
+            Collider::cuboid(50.0, 50.0),
             OneWayPlatform::default(),
         ));
     }
