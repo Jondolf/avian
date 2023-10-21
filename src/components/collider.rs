@@ -557,7 +557,7 @@ impl Collider {
     ///         Collider::from_mesh(&mesh, &ComputedCollider::ConvexHull),
     ///         PbrBundle {
     ///             mesh: meshes.add(mesh),
-    ///             ..default(),
+    ///             ..default()
     ///         },
     ///     ));
     /// }
