@@ -57,7 +57,7 @@ fn update_aabb(
             &mut ColliderAabb,
             &Position,
             &Rotation,
-            &ColliderParent,
+            Option<&ColliderParent>,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -75,8 +75,8 @@ fn update_aabb(
     for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Ok((parent_pos, Some(lin_vel), Some(ang_vel))) =
-            parent_velocity.get(collider_parent.0)
+        } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
+            collider_parent.map(|p| parent_velocity.get(p.get()))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
             // which affects their linear velocities. We need to compute the linear velocity
