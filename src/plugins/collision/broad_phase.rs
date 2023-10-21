@@ -46,6 +46,7 @@ type AABBChanged = Or<(
     Changed<Rotation>,
     Changed<LinearVelocity>,
     Changed<AngularVelocity>,
+    Changed<Collider>,
 )>;
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
@@ -123,7 +124,7 @@ fn update_aabb(
 
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         aabb.0 = collider
-            .get_shape()
+            .shape_scaled()
             .compute_swept_aabb(&start_iso, &end_iso);
     }
 }

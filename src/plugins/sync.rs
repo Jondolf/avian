@@ -93,6 +93,7 @@ impl Plugin for SyncPlugin {
                 )
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                update_collider_scale,
             )
                 .chain()
                 .in_set(PhysicsSet::Sync)
@@ -182,6 +183,38 @@ pub(crate) fn update_child_collider_position(
             *rotation = (parent_rot.0 * collider_transform.rotation.0)
                 .normalize()
                 .into();
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub(crate) fn update_collider_scale(
+    mut colliders: ParamSet<(
+        // Root bodies
+        Query<(&Transform, &mut Collider), Without<Parent>>,
+        // Child colliders
+        Query<(&ColliderTransform, &mut Collider), With<Parent>>,
+    )>,
+) {
+    // Update collider scale for root bodies
+    for (transform, mut collider) in &mut colliders.p0() {
+        #[cfg(feature = "2d")]
+        let scale = transform.scale.truncate().adjust_precision();
+        #[cfg(feature = "3d")]
+        let scale = transform.scale.adjust_precision();
+        if scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(scale, 10);
+        }
+    }
+
+    // Update collider scale for child colliders
+    for (collider_transform, mut collider) in &mut colliders.p1() {
+        if collider_transform.scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(collider_transform.scale, 10);
         }
     }
 }
@@ -345,10 +378,7 @@ unsafe fn propagate_collider_transforms_recursive(
                     }
                 } else {
                     ColliderTransform {
-                        translation: transform.translation
-                            + transform
-                                .rotation
-                                .rotate(transform.scale * child_transform.translation),
+                        translation: transform.transform_point(child_transform.translation),
                         #[cfg(feature = "2d")]
                         rotation: transform.rotation + child_transform.rotation,
                         #[cfg(feature = "3d")]

@@ -334,7 +334,7 @@ fn init_rigid_bodies(
     }
 }
 
-/// Initializes missing mass properties for [rigid bodies](RigidBody) and [colliders](Collider).
+/// Initializes missing mass properties for [rigid bodies](RigidBody).
 fn init_mass_properties(
     mut commands: Commands,
     mass_properties: Query<
@@ -381,7 +381,7 @@ fn init_colliders(
 ) {
     for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
         commands.entity(entity).insert((
-            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.get_shape())),
+            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
             *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
             *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
                 ColliderMassProperties::ZERO,
@@ -466,7 +466,11 @@ fn update_collider_storage(
         ),
         (
             With<Collider>,
-            Or<(Changed<ColliderParent>, Changed<ColliderMassProperties>)>,
+            Or<(
+                Changed<ColliderParent>,
+                Changed<ColliderTransform>,
+                Changed<ColliderMassProperties>,
+            )>,
         ),
     >,
     mut storage: ResMut<ColliderStorageMap>,
@@ -525,8 +529,8 @@ fn update_mass_properties(
             // Subtract previous collider mass props from the body's mass props
             mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    previous_collider_transform.translation
-                        + previous_collider_mass_properties.center_of_mass.0,
+                    previous_collider_transform
+                        .transform_point(previous_collider_mass_properties.center_of_mass.0),
                 ),
                 ..previous_collider_mass_properties.0
             });
@@ -541,7 +545,7 @@ fn update_mass_properties(
             // Add new collider mass props to the body's mass props
             mass_properties += ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    collider_transform.translation + collider_mass_properties.center_of_mass.0,
+                    collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
                 ),
                 ..*collider_mass_properties
             };
@@ -556,7 +560,8 @@ fn update_mass_properties(
             if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
                 mass_properties -= ColliderMassProperties {
                     center_of_mass: CenterOfMass(
-                        collider_transform.translation + collider_mass_properties.center_of_mass.0,
+                        collider_transform
+                            .transform_point(collider_mass_properties.center_of_mass.0),
                     ),
                     ..*collider_mass_properties
                 };
