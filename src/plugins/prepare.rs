@@ -236,7 +236,7 @@ fn init_transforms(
 
         // Compute Transform based on Rotation or vice versa
         let new_rotation = if let Some(rot) = rot {
-            if let Some(mut transform) = transform {
+            if let Some(ref mut transform) = transform {
                 // Initialize new rotation as global rotation
                 let mut new_rotation = Quaternion::from(*rot).as_f32();
 
@@ -284,11 +284,14 @@ fn init_transforms(
                 *previous_pos.unwrap_or(&PreviousPosition(new_position)),
                 new_rotation,
                 *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                transform.map_or(Transform::default(), |t| *t),
             ));
         } else {
-            commands
-                .entity(entity)
-                .insert((Position(new_position), new_rotation));
+            commands.entity(entity).insert((
+                Position(new_position),
+                new_rotation,
+                transform.map_or(Transform::default(), |t| *t),
+            ));
         }
     }
 }
