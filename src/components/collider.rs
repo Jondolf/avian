@@ -781,9 +781,23 @@ impl ColliderParent {
 /// without having to traverse deeply nested hierarchies.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 pub(crate) struct ColliderTransform {
+    /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
+    /// The rotation of a collider in a rigid body's frame of reference.
     pub rotation: Rotation,
+    /// The global scale of a collider. Equivalent to the `GlobalTransform` scale.
     pub scale: Vector,
+}
+
+impl ColliderTransform {
+    /// Transforms a given point by applying the translation, rotation and scale of
+    /// this [`ColliderTransform`].
+    pub fn transform_point(&self, mut point: Vector) -> Vector {
+        point *= self.scale;
+        point = self.rotation.rotate(point);
+        point += self.translation;
+        point
+    }
 }
 
 impl Default for ColliderTransform {

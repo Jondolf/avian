@@ -378,10 +378,7 @@ unsafe fn propagate_collider_transforms_recursive(
                     }
                 } else {
                     ColliderTransform {
-                        translation: transform.translation
-                            + transform
-                                .rotation
-                                .rotate(transform.scale * child_transform.translation),
+                        translation: transform.transform_point(child_transform.translation),
                         #[cfg(feature = "2d")]
                         rotation: transform.rotation + child_transform.rotation,
                         #[cfg(feature = "3d")]
