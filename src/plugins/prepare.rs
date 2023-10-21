@@ -124,7 +124,6 @@ fn init_transforms(
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
-            Option<&ColliderParent>,
             Has<RigidBody>,
         ),
         Or<(Added<RigidBody>, Added<Collider>)>,
@@ -147,7 +146,6 @@ fn init_transforms(
         rot,
         previous_rot,
         parent,
-        collider_parent,
         is_rb,
     ) in &mut query
     {
