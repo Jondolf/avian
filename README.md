@@ -161,7 +161,6 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - Joint motors
 - Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
-- Multiple colliders per body and colliders as children
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)
