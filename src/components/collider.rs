@@ -789,7 +789,7 @@ fn scale_shape(
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```
 /// use bevy::prelude::*;
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -814,7 +814,7 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///
 /// ## Example
 ///
-/// ```rust
+/// ```
 /// use bevy::prelude::*;
 /// use bevy_xpbd_3d::prelude::*;
 ///
