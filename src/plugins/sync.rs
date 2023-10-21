@@ -203,6 +203,8 @@ pub(crate) fn update_collider_scale(
         #[cfg(feature = "3d")]
         let scale = transform.scale.adjust_precision();
         if scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
             collider.set_scale(scale, 10);
         }
     }
@@ -210,6 +212,8 @@ pub(crate) fn update_collider_scale(
     // Update collider scale for child colliders
     for (collider_transform, mut collider) in &mut colliders.p1() {
         if collider_transform.scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
             collider.set_scale(collider_transform.scale, 10);
         }
     }
@@ -223,7 +227,14 @@ pub(crate) fn update_collider_scale(
 #[allow(clippy::type_complexity)]
 pub(crate) fn propagate_collider_transforms(
     mut root_query: Query<(Entity, Ref<Transform>, &Children), Without<Parent>>,
-    collider_query: Query<(Option<&mut ColliderTransform>, Option<&Children>), With<Parent>>,
+    collider_query: Query<
+        (
+            Ref<Transform>,
+            Option<&mut ColliderTransform>,
+            Option<&Children>,
+        ),
+        With<Parent>,
+    >,
     parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
 ) {
     root_query.par_iter_mut().for_each_mut(
@@ -262,6 +273,7 @@ pub(crate) fn propagate_collider_transforms(
                         &collider_query,
                         &parent_query,
                         child,
+                        parent.is_changed()
                     );
                 }
             }
@@ -288,9 +300,17 @@ pub(crate) fn propagate_collider_transforms(
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_collider_transforms_recursive(
     transform: ColliderTransform,
-    collider_query: &Query<(Option<&mut ColliderTransform>, Option<&Children>), With<Parent>>,
+    collider_query: &Query<
+        (
+            Ref<Transform>,
+            Option<&mut ColliderTransform>,
+            Option<&Children>,
+        ),
+        With<Parent>,
+    >,
     parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
     entity: Entity,
+    mut changed: bool,
 ) {
     let children = {
         // SAFETY: This call cannot create aliased mutable references.
@@ -319,22 +339,26 @@ unsafe fn propagate_collider_transforms_recursive(
         //
         // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
         // to mutably access E.
-        let Ok((collider_transform, children)) = (unsafe { collider_query.get_unchecked(entity) })
+        let Ok((transform_ref, collider_transform, children)) =
+            (unsafe { collider_query.get_unchecked(entity) })
         else {
             return;
         };
 
-        if let Some(mut collider_transform) = collider_transform {
-            *collider_transform = transform;
+        changed |= transform_ref.is_changed();
+        if changed {
+            if let Some(mut collider_transform) = collider_transform {
+                *collider_transform = transform;
+            }
         }
 
         children
     };
 
     let Some(children) = children else { return };
-    for (child, child_transform, is_rb, actual_parent) in parent_query.iter_many(children) {
+    for (child, child_transform, is_rb, parent) in parent_query.iter_many(children) {
         assert_eq!(
-            actual_parent.get(), entity,
+            parent.get(), entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 
@@ -354,10 +378,7 @@ unsafe fn propagate_collider_transforms_recursive(
                     }
                 } else {
                     ColliderTransform {
-                        translation: transform.translation
-                            + transform
-                                .rotation
-                                .rotate(transform.scale * child_transform.translation),
+                        translation: transform.transform_point(child_transform.translation),
                         #[cfg(feature = "2d")]
                         rotation: transform.rotation + child_transform.rotation,
                         #[cfg(feature = "3d")]
@@ -369,6 +390,7 @@ unsafe fn propagate_collider_transforms_recursive(
                 collider_query,
                 parent_query,
                 child,
+                changed || parent.is_changed(),
             );
         }
     }

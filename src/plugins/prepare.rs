@@ -135,7 +135,6 @@ fn init_transforms(
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
-            Option<&ColliderParent>,
             Has<RigidBody>,
         ),
         Or<(Added<RigidBody>, Added<Collider>)>,
@@ -158,12 +157,10 @@ fn init_transforms(
         rot,
         previous_rot,
         parent,
-        collider_parent,
         is_rb,
     ) in &mut query
     {
-        let parent = collider_parent.map_or(parent.map(|p| p.get()), |p| Some(p.get()));
-        let parent_position = parent.map(|parent| parents.get(parent));
+        let parent_position = parent.map(|parent| parents.get(parent.get()));
 
         // Compute Transform based on Position or vice versa
         let new_position = if let Some(pos) = pos {
@@ -246,12 +243,11 @@ fn init_transforms(
                 // If the body is a child, subtract the parent's global rotation
                 // to get the local rotation
                 if let Some(parent) = parent {
-                    if let Ok((_, parent_rot, parent_transform)) = parents.get(parent) {
+                    if let Ok((_, parent_rot, parent_transform)) = parents.get(parent.get()) {
                         if let Some(parent_rot) = parent_rot {
-                            new_rotation = new_rotation - Quaternion::from(*parent_rot).as_f32();
+                            new_rotation *= Quaternion::from(*parent_rot).as_f32().inverse();
                         } else if let Some(parent_transform) = parent_transform {
-                            new_rotation =
-                                new_rotation - parent_transform.compute_transform().rotation;
+                            new_rotation *= parent_transform.compute_transform().rotation.inverse();
                         }
                     }
                 }
@@ -262,8 +258,15 @@ fn init_transforms(
             let parent_rot = parent_rot.copied().unwrap_or(Rotation::from(
                 parent_transform.map_or(default(), |t| t.compute_transform().rotation),
             ));
-            let rot = transform.as_ref().map_or(default(), |t| t.rotation).into();
-            parent_rot + rot
+            let rot = Rotation::from(transform.as_ref().map_or(default(), |t| t.rotation));
+            #[cfg(feature = "2d")]
+            {
+                parent_rot + rot
+            }
+            #[cfg(feature = "3d")]
+            {
+                Rotation(parent_rot.0 * rot.0)
+            }
         } else {
             global_transform.map_or(Rotation::default(), |t| {
                 t.compute_transform().rotation.into()
@@ -339,7 +342,7 @@ fn init_rigid_bodies(
     }
 }
 
-/// Initializes missing mass properties for [rigid bodies](RigidBody) and [colliders](Collider).
+/// Initializes missing mass properties for [rigid bodies](RigidBody).
 fn init_mass_properties(
     mut commands: Commands,
     mass_properties: Query<
@@ -535,7 +538,11 @@ fn update_collider_storage(
         ),
         (
             With<Collider>,
-            Or<(Changed<ColliderParent>, Changed<ColliderMassProperties>)>,
+            Or<(
+                Changed<ColliderParent>,
+                Changed<ColliderTransform>,
+                Changed<ColliderMassProperties>,
+            )>,
         ),
     >,
     mut storage: ResMut<ColliderStorageMap>,
@@ -594,8 +601,8 @@ fn update_mass_properties(
             // Subtract previous collider mass props from the body's mass props
             mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    previous_collider_transform.translation
-                        + previous_collider_mass_properties.center_of_mass.0,
+                    previous_collider_transform
+                        .transform_point(previous_collider_mass_properties.center_of_mass.0),
                 ),
                 ..previous_collider_mass_properties.0
             });
@@ -610,7 +617,7 @@ fn update_mass_properties(
             // Add new collider mass props to the body's mass props
             mass_properties += ColliderMassProperties {
                 center_of_mass: CenterOfMass(
-                    collider_transform.translation + collider_mass_properties.center_of_mass.0,
+                    collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
                 ),
                 ..*collider_mass_properties
             };
@@ -625,7 +632,8 @@ fn update_mass_properties(
             if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
                 mass_properties -= ColliderMassProperties {
                     center_of_mass: CenterOfMass(
-                        collider_transform.translation + collider_mass_properties.center_of_mass.0,
+                        collider_transform
+                            .transform_point(collider_mass_properties.center_of_mass.0),
                     ),
                     ..*collider_mass_properties
                 };

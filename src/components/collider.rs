@@ -208,7 +208,7 @@ pub struct Collider {
     /// If the scale is `Vector::ONE`, this will be `None` and `unscaled_shape`
     /// will be used instead.
     scaled_shape: SharedShape,
-    /// The scale used for the collider shape.
+    /// The global scale used for the collider shape.
     scale: Vector,
 }
 
@@ -295,13 +295,13 @@ impl Collider {
         self.shape = shape;
     }
 
-    /// Set the scaling factor of this shape.
+    /// Set the global scaling factor of this shape.
     ///
-    /// If the scaling factor is non-uniform, and the scaled shape can’t be
-    /// represented as a supported smooth shape (for example scalling a Ball
-    /// with a non-uniform scale results in an ellipse which isn’t supported),
-    /// the shape is approximated by a convex polygon/convex polyhedron using
-    /// `num_subdivisions` subdivisions.
+    /// If the scaling factor is not uniform, and the scaled shape can’t be
+    /// represented as a supported shape, the shape is approximated as
+    /// a convex polygon or polyhedron using `num_subdivisions`.
+    ///
+    /// For example, if a ball was scaled to an ellipse, the new shape would be approximated.
     pub fn set_scale(&mut self, scale: Vector, num_subdivisions: u32) {
         if scale == self.scale {
             return;
@@ -944,9 +944,23 @@ impl ColliderParent {
 /// without having to traverse deeply nested hierarchies.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 pub(crate) struct ColliderTransform {
+    /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
+    /// The rotation of a collider in a rigid body's frame of reference.
     pub rotation: Rotation,
+    /// The global scale of a collider. Equivalent to the `GlobalTransform` scale.
     pub scale: Vector,
+}
+
+impl ColliderTransform {
+    /// Transforms a given point by applying the translation, rotation and scale of
+    /// this [`ColliderTransform`].
+    pub fn transform_point(&self, mut point: Vector) -> Vector {
+        point *= self.scale;
+        point = self.rotation.rotate(point);
+        point += self.translation;
+        point
+    }
 }
 
 impl Default for ColliderTransform {
