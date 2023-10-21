@@ -82,7 +82,7 @@ pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 #[derive(WorldQuery)]
 struct ColliderQuery<'w> {
     entity: Entity,
-    parent: &'w ColliderParent,
+    parent: Option<&'w ColliderParent>,
     transform: &'w ColliderTransform,
     is_sensor: Has<Sensor>,
     friction: Option<&'w Friction>,
@@ -118,13 +118,14 @@ fn penetration_constraints(
             continue;
         };
 
+        let collider_parent1 = collider1.parent.map_or(*collider_entity1, |p| p.get());
+        let collider_parent2 = collider2.parent.map_or(*collider_entity2, |p| p.get());
+
         // Reset penetration state for this substep.
         // This is set to true if any of the contacts is penetrating.
         contacts.during_current_substep = false;
 
-        if let Ok([bundle1, bundle2]) =
-            bodies.get_many_mut([collider1.parent.get(), collider2.parent.get()])
-        {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([collider_parent1, collider_parent2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
 
