@@ -240,7 +240,7 @@ impl MassPropertiesBundle {
 /// These will be added to the body's actual [`Mass`], [`InverseMass`], [`Inertia`], [`InverseInertia`] and [`CenterOfMass`] components.
 ///
 /// You should generally not create or modify this directly. Instead, you can generate this automatically using a given collider shape and density with the associated `from_shape_and_density` method.
-#[derive(Reflect, Clone, Copy, Component, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[reflect(Component)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
@@ -302,5 +302,6 @@ impl Default for ColliderMassProperties {
 }
 
 /// The previous [`ColliderMassProperties`].
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
 pub(crate) struct PreviousColliderMassProperties(pub ColliderMassProperties);

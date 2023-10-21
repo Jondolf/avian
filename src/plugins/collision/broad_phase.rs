@@ -51,25 +51,49 @@ type AABBChanged = Or<(
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
 fn update_aabb(
-    mut bodies: Query<
+    mut colliders: Query<
         (
             &Collider,
             &mut ColliderAabb,
             &Position,
             &Rotation,
+            Option<&ColliderParent>,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
         AABBChanged,
+    >,
+    parent_velocity: Query<
+        (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
+        With<Children>,
     >,
     dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.0;
 
-    for (collider, mut aabb, pos, rot, lin_vel, ang_vel) in &mut bodies {
-        let lin_vel = lin_vel.copied().unwrap_or_default();
-        let ang_vel = ang_vel.copied().unwrap_or_default();
+    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
+        let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
+            (*lin_vel, *ang_vel)
+        } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
+            collider_parent.map(|p| parent_velocity.get(p.get()))
+        {
+            // If the rigid body is rotating, off-center colliders will orbit around it,
+            // which affects their linear velocities. We need to compute the linear velocity
+            // at the offset position.
+            // TODO: This assumes that the colliders would continue moving in the same direction,
+            //       but because they are orbiting, the direction will change. We should take
+            //       into account the uniform circular motion.
+            let offset = pos.0 - parent_pos.0;
+            #[cfg(feature = "2d")]
+            let vel_at_offset =
+                lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
+            #[cfg(feature = "3d")]
+            let vel_at_offset = lin_vel.0 + ang_vel.cross(offset);
+            (LinearVelocity(vel_at_offset), *ang_vel)
+        } else {
+            (LinearVelocity::ZERO, AngularVelocity::ZERO)
+        };
 
         // Compute current isometry and predicted isometry for next feame
         let start_iso = utils::make_isometry(*pos, *rot);

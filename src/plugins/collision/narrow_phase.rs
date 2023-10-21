@@ -190,8 +190,8 @@ pub fn reset_collision_states(
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
             query.get_many([contacts.entity1, contacts.entity2])
         {
-            let active1 = !rb1.map_or(true, |rb| rb.is_static()) && !sleeping1;
-            let active2 = !rb2.map_or(true, |rb| rb.is_static()) && !sleeping2;
+            let active1 = !rb1.map_or(false, |rb| rb.is_static()) && !sleeping1;
+            let active2 = !rb2.map_or(false, |rb| rb.is_static()) && !sleeping2;
 
             // Reset collision states if either of the bodies is active (not static or sleeping)
             // Otherwise, the bodies are still in contact.

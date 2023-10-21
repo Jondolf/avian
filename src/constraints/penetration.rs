@@ -24,6 +24,12 @@ pub struct PenetrationConstraint {
     pub tangent_lagrange: Scalar,
     /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The coefficient of [dynamic friction](Friction) in this contact.
+    pub dynamic_friction_coefficient: Scalar,
+    /// The coefficient of [static friction](Friction) in this contact.
+    pub static_friction_coefficient: Scalar,
+    /// The coefficient of [restitution](Restitution) in this contact.
+    pub restitution_coefficient: Scalar,
     /// Normal force acting along the constraint.
     pub normal_force: Vector,
     /// Static friction force acting along this constraint.
@@ -77,6 +83,9 @@ impl PenetrationConstraint {
             normal_lagrange: 0.0,
             tangent_lagrange: 0.0,
             compliance: 0.0,
+            dynamic_friction_coefficient: 0.0,
+            static_friction_coefficient: 0.0,
+            restitution_coefficient: 0.0,
             normal_force: Vector::ZERO,
             static_friction_force: Vector::ZERO,
         }
@@ -156,11 +165,8 @@ impl PenetrationConstraint {
         let gradients = [tangent, -tangent];
         let w = [w1, w2];
 
-        // Compute combined friction coefficients
-        let static_coefficient = body1.friction.combine(*body2.friction).static_coefficient;
-
         // Apply static friction if |delta_x_perp| < mu_s * d
-        if sliding_len < static_coefficient * penetration {
+        if sliding_len < self.static_friction_coefficient * penetration {
             // Compute Lagrange multiplier update for static friction
             let delta_lagrange =
                 self.compute_lagrange_update(lagrange, sliding_len, &gradients, &w, compliance, dt);
