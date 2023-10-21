@@ -14,7 +14,6 @@ use parry::{
     shape::{RoundShape, SharedShape, TypedShape},
 };
 
-#[cfg(feature = "collider-from-mesh")]
 pub use parry::transformation::vhacd::VHACDParameters;
 
 /// Flags used for the preprocessing of a triangle mesh collider.
