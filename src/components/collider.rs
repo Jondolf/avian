@@ -554,7 +554,7 @@ impl Collider {
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
     ///     commands.spawn((
-    ///         Collider::from_mesh(&mesh, &ComputedCollider::ConvexHull),
+    ///         Collider::from_mesh(&mesh, &ComputedCollider::ConvexHull).unwrap(),
     ///         PbrBundle {
     ///             mesh: meshes.add(mesh),
     ///             ..default()
