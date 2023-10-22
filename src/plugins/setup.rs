@@ -103,6 +103,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<ColliderDensity>()
             .register_type::<ColliderMassProperties>()
             .register_type::<PreviousColliderMassProperties>()
             .register_type::<LockedAxes>()

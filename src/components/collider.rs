@@ -340,6 +340,11 @@ impl Collider {
         )
     }
 
+    /// Computes the collider's mass properties based on its shape and a given density.
+    pub fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
+        ColliderMassProperties::new(self, density)
+    }
+
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,

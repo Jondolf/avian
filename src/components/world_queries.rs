@@ -257,8 +257,7 @@ mod tests {
         app.world.spawn(original_mass_props.clone());
 
         // Create collider mass properties
-        let collider_mass_props =
-            ColliderMassProperties::new_computed(&Collider::capsule(7.4, 2.1), 14.3);
+        let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world.query::<MassPropertiesQuery>();
