@@ -1,7 +1,7 @@
 //! [`DistanceJoint`] component.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::entity::MapEntities, prelude::*};
 
 /// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
 ///
@@ -193,3 +193,10 @@ impl DistanceJoint {
 impl PositionConstraint for DistanceJoint {}
 
 impl AngularConstraint for DistanceJoint {}
+
+impl MapEntities for DistanceJoint {
+    fn map_entities(&mut self, entity_mapper: &mut bevy::ecs::entity::EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    }
+}
