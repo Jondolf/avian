@@ -1,7 +1,7 @@
 //! [`FixedJoint`] component.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::entity::MapEntities, prelude::*};
 
 /// A fixed joint prevents any relative movement of the attached bodies.
 ///
@@ -152,3 +152,10 @@ impl FixedJoint {
 impl PositionConstraint for FixedJoint {}
 
 impl AngularConstraint for FixedJoint {}
+
+impl MapEntities for FixedJoint {
+    fn map_entities(&mut self, entity_mapper: &mut bevy::ecs::entity::EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    }
+}
