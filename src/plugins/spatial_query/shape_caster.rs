@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 
 /// A component used for [shape casting](spatial_query#shape-casting).
@@ -363,6 +366,14 @@ impl ShapeHits {
     }
 }
 
+impl MapEntities for ShapeHits {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for hit in &mut self.vector {
+            hit.map_entities(entity_mapper);
+        }
+    }
+}
+
 /// Data related to a hit during a [shape cast](spatial_query#shape-casting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShapeHitData {
@@ -383,4 +394,10 @@ pub struct ShapeHitData {
     /// The outward normal on the cast shape, at the time of impact,
     /// expressed in the local space of the cast shape.
     pub normal2: Vector,
+}
+
+impl MapEntities for ShapeHitData {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity = entity_mapper.get_or_reserve(self.entity);
+    }
 }
