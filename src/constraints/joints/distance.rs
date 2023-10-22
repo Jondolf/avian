@@ -2,7 +2,10 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::{entity::MapEntities, reflect::ReflectMapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
 
@@ -199,7 +202,7 @@ impl PositionConstraint for DistanceJoint {}
 impl AngularConstraint for DistanceJoint {}
 
 impl MapEntities for DistanceJoint {
-    fn map_entities(&mut self, entity_mapper: &mut bevy::ecs::entity::EntityMapper) {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
         self.entity1 = entity_mapper.get_or_reserve(self.entity1);
         self.entity2 = entity_mapper.get_or_reserve(self.entity2);
     }

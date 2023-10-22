@@ -1,7 +1,10 @@
 //! Penetration constraint.
 
 use crate::prelude::*;
-use bevy::{ecs::entity::MapEntities, prelude::*};
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// A constraint between two bodies that prevents overlap with a given compliance.
 ///
@@ -184,7 +187,7 @@ impl PenetrationConstraint {
 impl PositionConstraint for PenetrationConstraint {}
 
 impl MapEntities for PenetrationConstraint {
-    fn map_entities(&mut self, entity_mapper: &mut bevy::ecs::entity::EntityMapper) {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
         self.entity1 = entity_mapper.get_or_reserve(self.entity1);
         self.entity2 = entity_mapper.get_or_reserve(self.entity2);
     }
