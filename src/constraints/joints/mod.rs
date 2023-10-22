@@ -96,10 +96,10 @@ pub use revolute::*;
 pub use spherical::*;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::entity::MapEntities, prelude::*};
 
 /// A trait for [joints].
-pub trait Joint: Component + PositionConstraint + AngularConstraint {
+pub trait Joint: Component + PositionConstraint + AngularConstraint + MapEntities {
     /// Creates a new joint between two entities.
     fn new(entity1: Entity, entity2: Entity) -> Self;
 
