@@ -30,6 +30,14 @@ pub struct PhysicsDebugConfig {
     pub raycast_point_color: Option<Color>,
     /// The color used for the hit normals in [raycasts](spatial_query#ray-casting).
     pub raycast_normal_color: Option<Color>,
+    /// The color used for the ray in [shapecasts](spatial_query#shape-casting).
+    pub shapecast_color: Option<Color>,
+    /// The color used for the shape in [shapecasts](spatial_query#shape-casting).
+    pub shapecast_shape_color: Option<Color>,
+    /// The color used for the hit points in [shapecasts](spatial_query#shape-casting).
+    pub shapecast_point_color: Option<Color>,
+    /// The color used for the hit normals in [shapecasts](spatial_query#shape-casting).
+    pub shapecast_normal_color: Option<Color>,
     /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
     /// which will only show the debug renders.
     pub hide_meshes: bool,
@@ -52,6 +60,10 @@ impl Default for PhysicsDebugConfig {
             raycast_color: Some(Color::RED),
             raycast_point_color: Some(Color::YELLOW),
             raycast_normal_color: Some(Color::PINK),
+            shapecast_color: Some(Color::RED),
+            shapecast_shape_color: Some(Color::rgb(0.4, 0.6, 1.0)),
+            shapecast_point_color: Some(Color::YELLOW),
+            shapecast_normal_color: Some(Color::PINK),
             hide_meshes: false,
         }
     }
@@ -75,6 +87,10 @@ impl PhysicsDebugConfig {
             raycast_color: Some(Color::RED),
             raycast_point_color: Some(Color::YELLOW),
             raycast_normal_color: Some(Color::PINK),
+            shapecast_color: Some(Color::RED),
+            shapecast_shape_color: Some(Color::rgb(0.4, 0.6, 1.0)),
+            shapecast_point_color: Some(Color::YELLOW),
+            shapecast_normal_color: Some(Color::PINK),
             hide_meshes: true,
         }
     }
@@ -95,6 +111,10 @@ impl PhysicsDebugConfig {
             raycast_color: None,
             raycast_point_color: None,
             raycast_normal_color: None,
+            shapecast_color: None,
+            shapecast_shape_color: None,
+            shapecast_point_color: None,
+            shapecast_normal_color: None,
             hide_meshes: false,
         }
     }
@@ -137,10 +157,10 @@ impl PhysicsDebugConfig {
 
     /// Creates a [`PhysicsDebugConfig`] configuration with given colors for
     /// joint anchors and separation distances. Other debug rendering options will be disabled.
-    pub fn joints(anchor_color: Color, separation_color: Color) -> Self {
+    pub fn joints(anchor_color: Option<Color>, separation_color: Option<Color>) -> Self {
         Self {
-            joint_anchor_color: Some(anchor_color),
-            joint_separation_color: Some(separation_color),
+            joint_anchor_color: anchor_color,
+            joint_separation_color: separation_color,
             ..Self::none()
         }
     }
@@ -172,6 +192,43 @@ impl PhysicsDebugConfig {
     /// Sets the contact color.
     pub fn with_contact_color(mut self, color: Color) -> Self {
         self.contact_color = Some(color);
+        self
+    }
+
+    /// Sets the colors used for debug rendering joints.
+    pub fn with_joint_colors(anchor_color: Option<Color>, separation_color: Option<Color>) -> Self {
+        Self {
+            joint_anchor_color: anchor_color,
+            joint_separation_color: separation_color,
+            ..Self::none()
+        }
+    }
+
+    /// Sets the colors used for debug rendering raycasts.
+    pub fn with_raycast_colors(
+        mut self,
+        ray: Option<Color>,
+        hit_point: Option<Color>,
+        hit_normal: Option<Color>,
+    ) -> Self {
+        self.raycast_color = ray;
+        self.raycast_point_color = hit_point;
+        self.raycast_normal_color = hit_normal;
+        self
+    }
+
+    /// Sets the colors used for debug rendering shapecasts.
+    pub fn with_shapecast_colors(
+        mut self,
+        ray: Option<Color>,
+        shape: Option<Color>,
+        hit_point: Option<Color>,
+        hit_normal: Option<Color>,
+    ) -> Self {
+        self.shapecast_color = ray;
+        self.shapecast_shape_color = shape;
+        self.shapecast_point_color = hit_point;
+        self.shapecast_normal_color = hit_normal;
         self
     }
 
@@ -209,6 +266,23 @@ impl PhysicsDebugConfig {
     pub fn without_joints(mut self) -> Self {
         self.joint_anchor_color = None;
         self.joint_separation_color = None;
+        self
+    }
+
+    /// Disables raycast debug rendering.
+    pub fn without_raycasts(mut self) -> Self {
+        self.raycast_color = None;
+        self.raycast_point_color = None;
+        self.raycast_normal_color = None;
+        self
+    }
+
+    /// Disables shapecast debug rendering.
+    pub fn without_shapecasts(mut self) -> Self {
+        self.shapecast_color = None;
+        self.shapecast_shape_color = None;
+        self.shapecast_point_color = None;
+        self.shapecast_normal_color = None;
         self
     }
 }
