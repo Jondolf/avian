@@ -16,12 +16,12 @@ use parry::query::{
 /// and add them to the [`RayHits`] component. Each hit has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
-/// The [`RayCaster`] is the easiest way to handle simple ray casts. If you want more control and don't want to
-/// perform ray casts every frame, consider using the [`SpatialQuery`] system parameter.
+/// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
+/// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Hit count and order
 ///
-/// The results of a ray cast are in an arbitrary order by default. You can iterate over them in the order of
+/// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
 /// time of impact with the [`RayHits::iter_sorted`](RayHits#method.iter_sorted) method.
 ///
 /// You can configure the maximum amount of hits for a ray using `max_hits`. By default this is unbounded,
@@ -158,7 +158,7 @@ impl RayCaster {
     }
 
     /// Sets the ray caster's [query filter](SpatialQueryFilter) that controls which colliders
-    /// should be included or excluded by ray casts.
+    /// should be included or excluded by raycasts.
     pub fn with_query_filter(mut self, query_filter: SpatialQueryFilter) -> Self {
         self.query_filter = query_filter;
         self
@@ -356,7 +356,7 @@ impl MapEntities for RayHits {
     }
 }
 
-/// Data related to a hit during a [ray cast](spatial_query#ray-casting).
+/// Data related to a hit during a [raycast](spatial_query#ray-casting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.

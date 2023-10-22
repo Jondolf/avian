@@ -66,6 +66,47 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         }
     }
 
+    /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`
+    /// and a width of `head_width`.
+    pub fn draw_arrow(
+        &mut self,
+        a: Vector,
+        b: Vector,
+        head_length: Scalar,
+        head_width: Scalar,
+        color: Color,
+    ) {
+        self.draw_line(a, b, color);
+
+        let dir = (b - a).normalize_or_zero();
+
+        #[cfg(feature = "2d")]
+        {
+            let v = head_width * 0.5 * Vector::new(-dir.y, dir.x);
+            self.draw_line(b, b - head_length * dir + v, color);
+            self.draw_line(b, b - head_length * dir - v, color);
+        }
+
+        #[cfg(feature = "3d")]
+        {
+            let back = Vector::NEG_Z;
+            let up = dir.try_normalize().unwrap_or(Vector::Y);
+            let right = up
+                .cross(back)
+                .try_normalize()
+                .unwrap_or_else(|| up.any_orthonormal_vector());
+            let up = back.cross(right);
+            let q = Quaternion::from_mat3(&Matrix3::from_cols(right, up, back));
+
+            self.draw_collider(
+                &Collider::cone(head_length, head_width * 0.5),
+                &Position(b - dir * head_length * 0.5),
+                &Rotation(q),
+                color,
+            );
+        }
+    }
+
     /// Draws a collider shape with a given position and rotation.
     #[allow(clippy::unnecessary_cast)]
     pub fn draw_collider(
@@ -338,6 +379,121 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
                 );
             }
             TypedShape::Custom(_) => (),
+        }
+    }
+
+    /// Draws the results of a [raycast](SpatialQuery#ray-casting).
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_raycast(
+        &mut self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        hits: &[RayHitData],
+        ray_color: Color,
+        point_color: Color,
+        normal_color: Color,
+    ) {
+        let max_toi = hits
+            .iter()
+            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
+            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+
+        // Draw ray as arrow
+        #[cfg(feature = "2d")]
+        self.draw_arrow(origin, origin + direction * max_toi, 8.0, 8.0, ray_color);
+        #[cfg(feature = "3d")]
+        self.draw_arrow(origin, origin + direction * max_toi, 0.1, 0.1, ray_color);
+
+        // Draw all hit points and normals
+        for hit in hits {
+            let point = origin + direction * hit.time_of_impact;
+
+            // Draw hit point
+            #[cfg(feature = "2d")]
+            self.gizmos
+                .circle_2d(point.adjust_precision(), 3.0, point_color);
+            #[cfg(feature = "3d")]
+            self.gizmos
+                .sphere(point.adjust_precision(), default(), 0.025, point_color);
+
+            // Draw hit normal as arrow
+            #[cfg(feature = "2d")]
+            self.draw_arrow(point, point + hit.normal * 30.0, 8.0, 8.0, normal_color);
+            #[cfg(feature = "3d")]
+            self.draw_arrow(point, point + hit.normal * 0.5, 0.1, 0.1, normal_color);
+        }
+    }
+
+    /// Draws the results of a [shapecast](SpatialQuery#shape-casting).
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_shapecast(
+        &mut self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: impl Into<Rotation>,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        hits: &[ShapeHitData],
+        ray_color: Color,
+        shape_color: Color,
+        point_color: Color,
+        normal_color: Color,
+    ) {
+        let shape_rotation = shape_rotation.into();
+        #[cfg(feature = "3d")]
+        let shape_rotation = Rotation(shape_rotation.normalize());
+
+        let max_toi = hits
+            .iter()
+            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
+            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+
+        // Draw collider at origin
+        self.draw_collider(shape, &Position(origin), &shape_rotation, shape_color);
+
+        // Draw arrow from origin to position of shape at final hit
+        // TODO: We could render the swept collider outline instead
+        #[cfg(feature = "2d")]
+        self.draw_arrow(origin, origin + max_toi * direction, 8.0, 8.0, ray_color);
+        #[cfg(feature = "3d")]
+        self.draw_arrow(origin, origin + max_toi * direction, 0.1, 0.1, ray_color);
+
+        // Draw all hit points, normals and the shape at the hit points
+        for hit in hits {
+            // Draw hit point
+            #[cfg(feature = "2d")]
+            self.gizmos
+                .circle_2d(hit.point1.adjust_precision(), 3.0, point_color);
+            #[cfg(feature = "3d")]
+            self.gizmos
+                .sphere(hit.point1.adjust_precision(), default(), 0.025, point_color);
+
+            // Draw hit normal as arrow
+            #[cfg(feature = "2d")]
+            self.draw_arrow(
+                hit.point1,
+                hit.point1 + hit.normal1 * 30.0,
+                8.0,
+                8.0,
+                normal_color,
+            );
+            #[cfg(feature = "3d")]
+            self.draw_arrow(
+                hit.point1,
+                hit.point1 + hit.normal1 * 0.5,
+                0.1,
+                0.1,
+                normal_color,
+            );
+
+            // Draw collider at hit point
+            self.draw_collider(
+                shape,
+                &Position(origin + hit.time_of_impact * direction),
+                &shape_rotation,
+                Color::rgba(shape_color.r(), shape_color.g(), shape_color.b(), 0.3),
+            );
         }
     }
 }

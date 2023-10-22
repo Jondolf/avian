@@ -18,7 +18,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///     - Shape intersections: [`shape_intersections`](SpatialQuery#method.shape_intersections)
 /// [`shape_intersections_callback`](SpatialQuery#method.shape_intersections_callback)
 ///
-/// For simple ray casts and shape casts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
+/// For simple raycasts and shapecasts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
 /// provide a more ECS-based approach and perform casts on every frame.
 ///
 /// ## Ray casting example
@@ -195,7 +195,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 
     /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
-    /// for each hit. The ray cast stops when `callback` returns false or all hits have been found.
+    /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
     ///
@@ -395,7 +395,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 
     /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shape cast stops when
+    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments
