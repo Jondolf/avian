@@ -1,7 +1,10 @@
 //! [`SphericalJoint`] component.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
@@ -259,3 +262,10 @@ impl SphericalJoint {
 impl PositionConstraint for SphericalJoint {}
 
 impl AngularConstraint for SphericalJoint {}
+
+impl MapEntities for SphericalJoint {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    }
+}

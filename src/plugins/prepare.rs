@@ -66,6 +66,7 @@ impl Plugin for PreparePlugin {
                     .chain()
                     .run_if(any_new_physics_entities),
                 update_mass_properties,
+                clamp_collider_density,
                 clamp_restitution,
                 // all the components we added above must exist before we can simulate the bodies
                 apply_deferred,
@@ -373,16 +374,21 @@ fn init_colliders(
             Entity,
             &Collider,
             Option<&ColliderAabb>,
+            Option<&ColliderDensity>,
             Option<&ColliderMassProperties>,
             Option<&PreviousColliderMassProperties>,
         ),
         Added<Collider>,
     >,
 ) {
-    for (entity, collider, aabb, mass_properties, previous_mass_properties) in &mut colliders {
+    for (entity, collider, aabb, density, mass_properties, previous_mass_properties) in
+        &mut colliders
+    {
+        let density = *density.unwrap_or(&ColliderDensity::default());
         commands.entity(entity).insert((
             *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
-            *mass_properties.unwrap_or(&ColliderMassProperties::new_computed(collider, 1.0)),
+            density,
+            *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
             *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
                 ColliderMassProperties::ZERO,
             )),
@@ -504,12 +510,14 @@ fn update_mass_properties(
             &mut PreviousColliderTransform,
             &ColliderParent,
             &Collider,
+            &ColliderDensity,
             &mut ColliderMassProperties,
             &mut PreviousColliderMassProperties,
         ),
         Or<(
             Changed<Collider>,
             Changed<ColliderTransform>,
+            Changed<ColliderDensity>,
             Changed<ColliderMassProperties>,
         )>,
     >,
@@ -521,6 +529,7 @@ fn update_mass_properties(
         mut previous_collider_transform,
         collider_parent,
         collider,
+        density,
         mut collider_mass_properties,
         mut previous_collider_mass_properties,
     ) in &mut colliders
@@ -539,8 +548,7 @@ fn update_mass_properties(
 
             // Update previous and current collider mass props
             previous_collider_mass_properties.0 = *collider_mass_properties;
-            *collider_mass_properties =
-                ColliderMassProperties::new_computed(collider, collider_mass_properties.density);
+            *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
             // Add new collider mass props to the body's mass props
             mass_properties += ColliderMassProperties {
@@ -600,5 +608,12 @@ fn update_mass_properties(
 fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
     for mut restitution in &mut query {
         restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
+    }
+}
+
+/// Clamps [`ColliderDensity`] to be above 0.0.
+fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
+    for mut density in &mut query {
+        density.0 = density.max(Scalar::EPSILON);
     }
 }

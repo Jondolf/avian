@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use parry::query::{
     details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
@@ -345,6 +348,14 @@ impl RayHits {
     }
 }
 
+impl MapEntities for RayHits {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for hit in &mut self.vector {
+            hit.map_entities(entity_mapper);
+        }
+    }
+}
+
 /// Data related to a hit during a [raycast](spatial_query#ray-casting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
@@ -354,4 +365,10 @@ pub struct RayHitData {
     pub time_of_impact: Scalar,
     /// The normal at the point of intersection.
     pub normal: Vector,
+}
+
+impl MapEntities for RayHitData {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity = entity_mapper.get_or_reserve(self.entity);
+    }
 }
