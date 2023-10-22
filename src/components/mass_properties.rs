@@ -259,6 +259,11 @@ impl MassPropertiesBundle {
 #[reflect(Component)]
 pub struct ColliderDensity(pub Scalar);
 
+impl ColliderDensity {
+    /// The density of the [`Collider`] is zero. It has no mass.
+    pub const ZERO: Self = Self(0.0);
+}
+
 impl Default for ColliderDensity {
     fn default() -> Self {
         Self(1.0)
@@ -295,9 +300,7 @@ impl ColliderMassProperties {
         inverse_inertia: InverseInertia::ZERO,
         center_of_mass: CenterOfMass::ZERO,
     };
-}
 
-impl ColliderMassProperties {
     /// Computes mass properties from a given [`Collider`] and density.
     ///
     /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually
