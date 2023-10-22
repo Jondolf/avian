@@ -823,38 +823,46 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///         ..default()
 ///     };
 ///
-///     // Spawn the scene and automatically generate triangle mesh colliders.
+///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         scene.clone(),
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
 ///     ));
 ///
-///     // In addition to the default collider type, you can specify collider types
-///     // for specific meshes by name.
+///     // Specify collider types and collision layers for specific meshes by name
 ///     commands.spawn((
 ///         scene.clone(),
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
-///             .with_named_shape("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
+///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010)),
 ///     ));
 ///
-///     // Using `None` skips collider generation for meshes.
+///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
 ///         scene.clone(),
-///         // Only create collider for "Tree" mesh
 ///         AsyncSceneCollider::new(None)
-///             .with_named_shape("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///             .with_shape_for_name("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///     ));
+///
+///     // Generate colliders for everything except specific meshes by name
+///     commands.spawn((
+///         scene,
+///         AsyncSceneCollider::new(ComputedCollider::TriMesh)
+///             .without_shape_for_name("Tree"),
 ///     ));
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 #[derive(Component, Clone, Debug, Default)]
 pub struct AsyncSceneCollider {
-    /// The default collider type used for each mesh that isn't included in [`named_shapes`].
-    /// If `None`, all meshes except the ones in [`named_shapes`] will be skipped.
+    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`].
+    /// If `None`, all meshes except the ones in [`meshes_by_name`] will be skipped.
     pub default_shape: Option<ComputedCollider>,
-    /// Specifies collider types for meshes by name. If a shape is `None`, it will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`] is used instead.
-    pub named_shapes: HashMap<String, Option<ComputedCollider>>,
+    /// Specifies collider types and [`CollisionLayers`] for meshes by name.
+    /// Entries with a `None` value will be skipped.
+    /// For the meshes not found in this `HashMap`, [`default_shape`] and all collision layers
+    /// will be used instead.
+    pub meshes_by_name: HashMap<String, Option<(ComputedCollider, CollisionLayers)>>,
 }
 
 #[cfg(all(feature = "3d", feature = "async-collider"))]
@@ -862,19 +870,43 @@ impl AsyncSceneCollider {
     /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
-    /// If the given collider type is `None`, all meshes except the ones in [`named_shapes`]
-    /// will be skipped. You can add named shapes using [`with_named_shape`](#method.with_named_shape).
+    /// If the given collider type is `None`, all meshes except the ones in [`meshes_by_name`]
+    /// will be skipped. You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
     pub fn new(default_shape: Option<ComputedCollider>) -> Self {
         Self {
             default_shape,
-            named_shapes: default(),
+            meshes_by_name: default(),
         }
     }
 
     /// Specifies the collider type used for a mesh with the given `name`.
-    /// If it is `None`, the mesh won't have a collider.
-    pub fn with_named_shape(mut self, name: String, shape: Option<ComputedCollider>) -> Self {
-        self.named_shapes.insert(name, shape);
+    pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
+        if let Some(Some(named_shape)) = self.meshes_by_name.get_mut(name) {
+            named_shape.0 = shape;
+        } else {
+            self.meshes_by_name
+                .insert(name.to_string(), Some((shape, CollisionLayers::default())));
+        }
+        self
+    }
+
+    /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
+    pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
+        if let Some(Some(named_shape)) = self.meshes_by_name.get_mut(name) {
+            named_shape.1 = layers;
+        } else {
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some((ComputedCollider::default(), layers)),
+            );
+        }
+        self
+    }
+
+    /// Sets collider for the mesh associated with the given `name` to `None`, skipping
+    /// collider generation for it.
+    pub fn without_shape_with_name(mut self, name: &str) -> Self {
+        self.meshes_by_name.insert(name.to_string(), None);
         self
     }
 }
