@@ -65,26 +65,54 @@ use derive_more::From;
 ///
 /// ## Adding mass properties
 ///
-/// You should always give dynamic rigid bodies mass properties. The easiest way to do this is to [add a collider](Collider), since colliders
-/// by default have [their own mass properties](ColliderMassProperties) that are added to the body's own mass properties.
+/// You should always give dynamic rigid bodies mass properties so that forces are applied to them correctly.
+///
+/// The easiest way to add mass properties is to simply [add a collider](Collider):
 ///
 /// ```ignore
-/// // The mass properties will be computed from a ball shape with a radius of 0.5 and a density of 1.
 /// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
 /// ```
 ///
-/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`] with the mass properties computed from a collider
-/// shape using the [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
+/// This will automatically compute the [collider's mass properties](ColliderMassProperties)
+/// and add them to the body's own mass properties like [`Mass`], [`Inertia`] and so on.
+///
+/// By default, each collider has a density of `1.0`. This can be configured with
+/// the [`ColliderDensity`] component:
+///
+/// ```ignore
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::ball(0.5),
+///     ColliderDensity(2.5),
+/// ));
+/// ```
+///
+/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`]
+/// with the mass properties computed from a collider shape using the
+/// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
 ///
 /// ```ignore
 /// // This is equivalent to the earlier approach, but no collider will be added.
-/// commands.spawn((RigidBody::Dynamic, MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0)));
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     MassPropertiesBundle::new_computed(&Collider::ball(0.5), 2.5),
+/// ));
 /// ```
 ///
-/// If you want, you can also define the mass properties explicitly by adding the components manually.
-/// Note that the mass properties of colliders are added on top of the existing mass properties, so if you
-/// want to define the body's mass properties explicitly, you might want to add
-/// [`ColliderMassProperties::ZERO`](ColliderMassProperties#associatedconstant.ZERO) to the colliders.
+/// You can also specify the exact values of the mass properties by adding the components manually.
+/// To avoid the collider mass properties from being added to the body's own mass properties,
+/// you can simply set the collider's density to zero.
+///
+/// ```ignore
+/// // Create a rigid body with a mass of 5.0 and a collider with no mass
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::ball(0.5),
+///     ColliderDensity(0.0),
+///     Mass(5.0),
+///     // ...the rest of the mass properties
+/// ));
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
