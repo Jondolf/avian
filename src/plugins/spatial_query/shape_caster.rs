@@ -272,7 +272,7 @@ impl ShapeCaster {
                 &shape_isometry,
                 &shape_direction,
                 &pipeline_shape,
-                &**self.shape.get_shape(),
+                &**self.shape.shape_scaled(),
                 self.max_time_of_impact,
                 !self.ignore_origin_penetration,
             );

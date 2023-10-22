@@ -119,7 +119,7 @@ impl SpatialQueryPipeline {
                 for (entity, co) in self.0.iter() {
                     // Compute and return AABB
                     let (iso, shape, _) = co;
-                    let aabb = shape.get_shape().compute_aabb(iso);
+                    let aabb = shape.shape_scaled().compute_aabb(iso);
                     f(entity.index(), aabb)
                 }
             }
@@ -245,9 +245,12 @@ impl SpatialQueryPipeline {
             let entity = self.entity_from_index(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {
-                    if let Some(hit) =
-                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                    {
+                    if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
+                        iso,
+                        &ray,
+                        max_time_of_impact,
+                        solid,
+                    ) {
                         let hit = RayHitData {
                             entity,
                             time_of_impact: hit.toi,
@@ -313,7 +316,7 @@ impl SpatialQueryPipeline {
             &shape_isometry,
             &shape_direction,
             &pipeline_shape,
-            &**shape.get_shape(),
+            &**shape.shape_scaled(),
             max_time_of_impact,
             !ignore_origin_penetration,
         );
@@ -427,7 +430,7 @@ impl SpatialQueryPipeline {
                 &shape_isometry,
                 &shape_direction,
                 &pipeline_shape,
-                &**shape.get_shape(),
+                &**shape.shape_scaled(),
                 max_time_of_impact,
                 !ignore_origin_penetration,
             );
@@ -530,7 +533,9 @@ impl SpatialQueryPipeline {
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((isometry, shape, layers)) = self.colliders.get(&entity) {
-                if query_filter.test(entity, *layers) && shape.contains_point(isometry, &point) {
+                if query_filter.test(entity, *layers)
+                    && shape.shape_scaled().contains_point(isometry, &point)
+                {
                     return callback(entity);
                 }
             }
@@ -651,8 +656,8 @@ impl SpatialQueryPipeline {
 
                     if dispatcher.intersection_test(
                         &isometry,
-                        &**shape.get_shape(),
-                        &**collider.get_shape(),
+                        &**shape.shape_scaled(),
+                        &**collider.shape_scaled(),
                     ) == Ok(true)
                     {
                         return callback(entity);
@@ -662,7 +667,7 @@ impl SpatialQueryPipeline {
             true
         };
 
-        let shape_aabb = shape.get_shape().compute_aabb(&shape_isometry);
+        let shape_aabb = shape.shape_scaled().compute_aabb(&shape_isometry);
         let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
     }
@@ -692,7 +697,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
                 ))
         {
             if self.query_filter.test(*entity, *layers) {
-                f(Some(iso), &**shape.get_shape());
+                f(Some(iso), &**shape.shape_scaled());
             }
         }
     }

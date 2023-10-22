@@ -24,8 +24,8 @@ pub struct RigidBodyQuery {
     pub inertia: &'static mut Inertia,
     pub inverse_inertia: &'static mut InverseInertia,
     pub center_of_mass: &'static mut CenterOfMass,
-    pub friction: &'static mut Friction,
-    pub restitution: &'static mut Restitution,
+    pub friction: &'static Friction,
+    pub restitution: &'static Restitution,
     pub locked_axes: Option<&'static LockedAxes>,
     pub dominance: Option<&'static Dominance>,
 }

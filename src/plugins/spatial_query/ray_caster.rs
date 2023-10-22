@@ -226,7 +226,7 @@ impl RayCaster {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
                     if self.query_filter.test(entity, *layers) {
-                        if let Some(hit) = shape.cast_ray_and_get_normal(
+                        if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,
                             self.max_time_of_impact,

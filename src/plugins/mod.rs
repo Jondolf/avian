@@ -40,7 +40,7 @@ pub use collision::{
 #[cfg(feature = "debug-plugin")]
 pub use debug::*;
 pub use integrator::IntegratorPlugin;
-pub use prepare::PreparePlugin;
+pub use prepare::*;
 pub use setup::*;
 pub use sleeping::SleepingPlugin;
 pub use solver::{solve_constraint, SolverPlugin};

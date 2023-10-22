@@ -1,49 +1,159 @@
 use std::fmt;
 
-use crate::prelude::*;
+use crate::{prelude::*, utils::make_isometry};
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-use bevy::{prelude::*, utils::HashSet};
-use derive_more::From;
+use bevy::{log, prelude::*, utils::HashSet};
+use collision::contact_query::UnsupportedShape;
+use itertools::Either;
 use parry::{
     bounding_volume::Aabb,
-    shape::{SharedShape, TypedShape},
+    shape::{RoundShape, SharedShape, TypedShape},
 };
 
 /// Flags used for the preprocessing of a triangle mesh collider.
 pub type TriMeshFlags = parry::shape::TriMeshFlags;
 
-/// A collider used for collision detection.
-///
-/// By default, colliders generate [collision events](#collision-events) and cause a collision response for
-/// [rigid bodies](RigidBody). If you only want collision events, you can add a [`Sensor`] component.
+/// A collider used for detecting collisions and generating contacts.
 ///
 /// ## Creation
 ///
-/// `Collider` has tons of methods for creating colliders of various shapes.
-/// For example, to add a ball collider to a [rigid body](RigidBody), use [`Collider::ball`](#method.ball):
+/// `Collider` has tons of methods for creating colliders of various shapes:
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Create a ball collider with a given radius
+/// commands.spawn(Collider::ball(0.5));
+/// // Create a capsule collider with a given height and radius
+/// commands.spawn(Collider::capsule(2.0, 0.5));
+/// # }
+/// ```
 ///
+/// Colliders on their own only detect contacts and generate [collision events](#collision-events).
+/// To make colliders apply contact forces, they have to be attached to [rigid bodies](RigidBody):
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         Transform::from_xyz(0.0, 2.0, 0.0),
+///     ));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5, 5.0)));"
+)]
 /// }
 /// ```
 ///
-/// In addition, Bevy XPBD will automatically add some other components, like the following:
+/// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
+/// [`Sensor`], and [`CollisionLayers`].
+///
+/// In addition, Bevy XPBD automatically adds some other components for colliders, like the following:
 ///
 /// - [`ColliderAabb`]
 /// - [`CollidingEntities`]
 /// - [`ColliderMassProperties`]
 ///
+/// ## Multiple colliders
+///
+/// It can often be useful to attach multiple colliders to the same rigid body.
+///
+/// This can be done in two ways. Either use [`Collider::compound`] to have one collider that consists of many
+/// shapes, or for more control, spawn several collider entities as the children of a rigid body:
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // Spawn a rigid body with one collider on the same entity and two as children
+///     commands
+///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+///         .with_children(|children| {
+///             // Spawn the child colliders positioned relative to the rigid body
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///         });
+/// }
+/// ```
+///
+/// Colliders can be arbitrarily nested and transformed relative to the parent.
+/// The rigid body that a collider is attached to can be accessed using the [`ColliderParent`] component.
+///
+/// The benefit of using separate entities for the colliders is that each collider can have its own
+/// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
+/// and other configuration options, and they send separate [collision events](#collision-events).
+///
+/// ## Sensors
+///
+/// If you want a collider to be attached to a rigid body but don't want it to apply forces on
+/// contact, you can add a [`Sensor`] component to make the collider only send
+/// [collision events](#collision-events):
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // This body will pass through objects but still generate collision events
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::ball(0.5),
+///     Sensor,
+/// ));
+/// # }
+/// ```
+///
 /// ## Collision layers
 ///
-/// You can use collsion layers to configure which entities can collide with each other.
+/// Collision layers can be used to configure which entities can collide with each other.
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// #[derive(PhysicsLayer)]
+/// enum Layer {
+///     Player,
+///     Enemy,
+///     Ground,
+/// }
+///
+/// fn spawn(mut commands: Commands) {
+///     commands.spawn((
+///         Collider::ball(0.5),
+///         // Player collides with enemies and the ground, but not with other players
+///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
+///     ));
+/// }
+/// ```
 ///
 /// See [`CollisionLayers`] for more information and examples.
 ///
@@ -52,18 +162,24 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
-///
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
 /// fn my_system(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contact) in collision_event_reader.iter() {
-///         println!("{:?} and {:?} are colliding", contact.entity1, contact.entity2);
+///     for Collision(contact_pair) in collision_event_reader.iter() {
+///         println!(
+///             "{:?} and {:?} are colliding",
+///             contact_pair.entity1, contact_pair.entity2
+///         );
 ///     }
 /// }
 /// ```
+///
+/// The entities that are colliding with a given entity can also be accessed using
+/// the [`CollidingEntities`] component.
 ///
 /// ## Querying and modifying contacts
 ///
@@ -78,25 +194,45 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
 ///
 /// To get a reference to the internal [`SharedShape`], you can use the [`get_shape`](#method.get_shape) method.
-#[derive(Clone, Component, Deref, DerefMut, From)]
-pub struct Collider(SharedShape);
+#[derive(Clone, Component)]
+pub struct Collider {
+    /// The raw unscaled collider shape.
+    shape: SharedShape,
+    /// The scaled version of the collider shape.
+    ///
+    /// If the scale is `Vector::ONE`, this will be `None` and `unscaled_shape`
+    /// will be used instead.
+    scaled_shape: SharedShape,
+    /// The global scale used for the collider shape.
+    scale: Vector,
+}
+
+impl From<SharedShape> for Collider {
+    fn from(value: SharedShape) -> Self {
+        Self {
+            shape: value.clone(),
+            scaled_shape: value,
+            scale: Vector::ONE,
+        }
+    }
+}
 
 impl Default for Collider {
     fn default() -> Self {
         #[cfg(feature = "2d")]
         {
-            Self(SharedShape::cuboid(0.5, 0.5))
+            Self::cuboid(0.5, 0.5)
         }
         #[cfg(feature = "3d")]
         {
-            Self(SharedShape::cuboid(0.5, 0.5, 0.5))
+            Self::cuboid(0.5, 0.5, 0.5)
         }
     }
 }
 
 impl fmt::Debug for Collider {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_typed_shape() {
+        match self.shape_scaled().as_typed_shape() {
             TypedShape::Ball(shape) => write!(f, "{:?}", shape),
             TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
             TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
@@ -131,20 +267,60 @@ impl fmt::Debug for Collider {
 }
 
 impl Collider {
-    /// Returns the raw shape of the collider. The shapes are provided by [`parry`].
-    pub fn get_shape(&self) -> &SharedShape {
-        &self.0
+    /// Returns the raw unscaled shape of the collider.
+    pub fn shape(&self) -> &SharedShape {
+        &self.shape
     }
 
-    /// Returns a mutable reference to the raw shape of the collider. The shapes are provided by [`parry`].
-    pub fn get_shape_mut(&mut self) -> &mut SharedShape {
-        &mut self.0
+    /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
+    pub fn shape_scaled(&self) -> &SharedShape {
+        &self.scaled_shape
+    }
+
+    /// Returns the global scale of the collider.
+    pub fn scale(&self) -> Vector {
+        self.scale
+    }
+
+    /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
+    pub fn set_shape(&mut self, shape: SharedShape) {
+        if self.scale != Vector::ONE {
+            self.scaled_shape = shape.clone();
+        }
+        self.shape = shape;
+    }
+
+    /// Set the global scaling factor of this shape.
+    ///
+    /// If the scaling factor is not uniform, and the scaled shape can’t be
+    /// represented as a supported shape, the shape is approximated as
+    /// a convex polygon or polyhedron using `num_subdivisions`.
+    ///
+    /// For example, if a ball was scaled to an ellipse, the new shape would be approximated.
+    pub fn set_scale(&mut self, scale: Vector, num_subdivisions: u32) {
+        if scale == self.scale {
+            return;
+        }
+
+        if scale == Vector::ONE {
+            // Trivial case.
+            self.scaled_shape = self.shape.clone();
+            self.scale = Vector::ONE;
+            return;
+        }
+
+        if let Ok(scaled) = scale_shape(&self.shape, scale, num_subdivisions) {
+            self.scaled_shape = scaled;
+            self.scale = scale;
+        } else {
+            log::error!("Failed to create convex hull for scaled collider.");
+        }
     }
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
     #[cfg(feature = "2d")]
     pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
-        ColliderAabb(self.get_shape().compute_aabb(&utils::make_isometry(
+        ColliderAabb(self.shape_scaled().compute_aabb(&utils::make_isometry(
             position,
             Rotation::from_radians(rotation),
         )))
@@ -154,7 +330,7 @@ impl Collider {
     #[cfg(feature = "3d")]
     pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
         ColliderAabb(
-            self.get_shape()
+            self.shape_scaled()
                 .compute_aabb(&utils::make_isometry(position, Rotation(rotation))),
         )
     }
@@ -178,7 +354,7 @@ impl Collider {
             .map(|(p, r, c)| {
                 (
                     utils::make_isometry(*p.into(), r.into()),
-                    c.into().get_shape().clone(),
+                    c.into().shape_scaled().clone(),
                 )
             })
             .collect::<Vec<_>>();
@@ -394,6 +570,260 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     };
 
     Some((vtx, idx))
+}
+
+fn scale_shape(
+    shape: &SharedShape,
+    scale: Vector,
+    num_subdivisions: u32,
+) -> Result<SharedShape, UnsupportedShape> {
+    match shape.as_typed_shape() {
+        TypedShape::Cuboid(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
+        TypedShape::RoundCuboid(s) => Ok(SharedShape::new(RoundShape {
+            border_radius: s.border_radius,
+            inner_shape: s.inner_shape.scaled(&scale.into()),
+        })),
+        TypedShape::Capsule(c) => match c.scaled(&scale.into(), num_subdivisions) {
+            None => {
+                log::error!("Failed to apply scale {} to Capsule shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+        },
+        TypedShape::Ball(b) => match b.scaled(&scale.into(), num_subdivisions) {
+            None => {
+                log::error!("Failed to apply scale {} to Ball shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+        },
+        TypedShape::Segment(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
+        TypedShape::Triangle(t) => Ok(SharedShape::new(t.scaled(&scale.into()))),
+        TypedShape::RoundTriangle(t) => Ok(SharedShape::new(RoundShape {
+            border_radius: t.border_radius,
+            inner_shape: t.inner_shape.scaled(&scale.into()),
+        })),
+        TypedShape::TriMesh(t) => Ok(SharedShape::new(t.clone().scaled(&scale.into()))),
+        TypedShape::Polyline(p) => Ok(SharedShape::new(p.clone().scaled(&scale.into()))),
+        TypedShape::HalfSpace(h) => match h.scaled(&scale.into()) {
+            None => {
+                log::error!("Failed to apply scale {} to HalfSpace shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(scaled) => Ok(SharedShape::new(scaled)),
+        },
+        TypedShape::HeightField(h) => Ok(SharedShape::new(h.clone().scaled(&scale.into()))),
+        #[cfg(feature = "2d")]
+        TypedShape::ConvexPolygon(cp) => match cp.clone().scaled(&scale.into()) {
+            None => {
+                log::error!("Failed to apply scale {} to ConvexPolygon shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(scaled) => Ok(SharedShape::new(scaled)),
+        },
+        #[cfg(feature = "2d")]
+        TypedShape::RoundConvexPolygon(cp) => match cp.inner_shape.clone().scaled(&scale.into()) {
+            None => {
+                log::error!(
+                    "Failed to apply scale {} to RoundConvexPolygon shape.",
+                    scale
+                );
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(scaled) => Ok(SharedShape::new(RoundShape {
+                border_radius: cp.border_radius,
+                inner_shape: scaled,
+            })),
+        },
+        #[cfg(feature = "3d")]
+        TypedShape::ConvexPolyhedron(cp) => match cp.clone().scaled(&scale.into()) {
+            None => {
+                log::error!("Failed to apply scale {} to ConvexPolyhedron shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(scaled) => Ok(SharedShape::new(scaled)),
+        },
+        #[cfg(feature = "3d")]
+        TypedShape::RoundConvexPolyhedron(cp) => {
+            match cp.clone().inner_shape.scaled(&scale.into()) {
+                None => {
+                    log::error!(
+                        "Failed to apply scale {} to RoundConvexPolyhedron shape.",
+                        scale
+                    );
+                    Ok(SharedShape::ball(0.0))
+                }
+                Some(scaled) => Ok(SharedShape::new(RoundShape {
+                    border_radius: cp.border_radius,
+                    inner_shape: scaled,
+                })),
+            }
+        }
+        #[cfg(feature = "3d")]
+        TypedShape::Cylinder(c) => match c.scaled(&scale.into(), num_subdivisions) {
+            None => {
+                log::error!("Failed to apply scale {} to Cylinder shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+        },
+        #[cfg(feature = "3d")]
+        TypedShape::RoundCylinder(c) => {
+            match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
+                None => {
+                    log::error!("Failed to apply scale {} to RoundCylinder shape.", scale);
+                    Ok(SharedShape::ball(0.0))
+                }
+                Some(Either::Left(scaled)) => Ok(SharedShape::new(RoundShape {
+                    border_radius: c.border_radius,
+                    inner_shape: scaled,
+                })),
+                Some(Either::Right(scaled)) => Ok(SharedShape::new(RoundShape {
+                    border_radius: c.border_radius,
+                    inner_shape: scaled,
+                })),
+            }
+        }
+        #[cfg(feature = "3d")]
+        TypedShape::Cone(c) => match c.scaled(&scale.into(), num_subdivisions) {
+            None => {
+                log::error!("Failed to apply scale {} to Cone shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+        },
+        #[cfg(feature = "3d")]
+        TypedShape::RoundCone(c) => match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
+            None => {
+                log::error!("Failed to apply scale {} to RoundCone shape.", scale);
+                Ok(SharedShape::ball(0.0))
+            }
+            Some(Either::Left(scaled)) => Ok(SharedShape::new(RoundShape {
+                border_radius: c.border_radius,
+                inner_shape: scaled,
+            })),
+            Some(Either::Right(scaled)) => Ok(SharedShape::new(RoundShape {
+                border_radius: c.border_radius,
+                inner_shape: scaled,
+            })),
+        },
+        TypedShape::Compound(c) => {
+            let mut scaled = Vec::with_capacity(c.shapes().len());
+
+            for (iso, shape) in c.shapes() {
+                scaled.push((
+                    #[cfg(feature = "2d")]
+                    make_isometry(
+                        Vector::from(iso.translation) * scale,
+                        Rotation::from_radians(iso.rotation.angle()),
+                    ),
+                    #[cfg(feature = "3d")]
+                    make_isometry(
+                        Vector::from(iso.translation) * scale,
+                        Quaternion::from(iso.rotation),
+                    ),
+                    scale_shape(shape, scale, num_subdivisions)?,
+                ));
+            }
+            Ok(SharedShape::compound(scaled))
+        }
+        _ => Err(parry::query::Unsupported),
+    }
+}
+
+/// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
+///
+/// If the collider is a child of a rigid body, this points to the body's `Entity` ID.
+/// If the [`Collider`] component is instead on the same entity as the [`RigidBody`] component,
+/// this points to the collider's own `Entity` ID.
+///
+/// This component is added and updated automatically based on entity hierarchies and should not
+/// be modified directly.
+///
+/// ## Example
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // Spawn a rigid body with one collider on the same entity and two as children.
+///     // Each entity will have a ColliderParent component that has the same rigid body entity.
+///     commands
+///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+///         .with_children(|children| {
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///         });
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
+pub struct ColliderParent(pub(crate) Entity);
+
+impl ColliderParent {
+    /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
+    pub const fn get(&self) -> Entity {
+        self.0
+    }
+}
+
+/// The transform of a collider relative to the rigid body it's attached to.
+/// This is in the local space of the body, not the collider itself.
+///
+/// This is used for computing things like contact positions and a body's center of mass
+/// without having to traverse deeply nested hierarchies.
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
+pub(crate) struct ColliderTransform {
+    /// The translation of a collider in a rigid body's frame of reference.
+    pub translation: Vector,
+    /// The rotation of a collider in a rigid body's frame of reference.
+    pub rotation: Rotation,
+    /// The global scale of a collider. Equivalent to the `GlobalTransform` scale.
+    pub scale: Vector,
+}
+
+impl ColliderTransform {
+    /// Transforms a given point by applying the translation, rotation and scale of
+    /// this [`ColliderTransform`].
+    pub fn transform_point(&self, mut point: Vector) -> Vector {
+        point *= self.scale;
+        point = self.rotation.rotate(point);
+        point += self.translation;
+        point
+    }
+}
+
+impl Default for ColliderTransform {
+    fn default() -> Self {
+        Self {
+            translation: Vector::ZERO,
+            rotation: Rotation::default(),
+            scale: Vector::ONE,
+        }
+    }
+}
+
+impl From<Transform> for ColliderTransform {
+    fn from(value: Transform) -> Self {
+        Self {
+            #[cfg(feature = "2d")]
+            translation: value.translation.truncate().adjust_precision(),
+            #[cfg(feature = "3d")]
+            translation: value.translation.adjust_precision(),
+            rotation: Rotation::from(value.rotation.adjust_precision()),
+            #[cfg(feature = "2d")]
+            scale: value.scale.truncate().adjust_precision(),
+            #[cfg(feature = "3d")]
+            scale: value.scale.adjust_precision(),
+        }
+    }
 }
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.

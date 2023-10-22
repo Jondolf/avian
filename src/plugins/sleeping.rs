@@ -22,11 +22,12 @@ impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
-            .add_systems(wake_up_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
+            .add_systems(wake_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
             .add_systems(
                 (
                     mark_sleeping_bodies,
-                    wake_up_bodies,
+                    wake_on_changed,
+                    wake_on_collider_removed,
                     wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>()),
                 )
                     .chain()
@@ -100,13 +101,46 @@ type WokeUpFilter = Or<(
 
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed.
-fn wake_up_bodies(
+#[allow(clippy::type_complexity)]
+fn wake_on_changed(
     mut commands: Commands,
     mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, WokeUpFilter)>,
 ) {
     for (entity, mut time_sleeping) in &mut bodies {
         commands.entity(entity).remove::<Sleeping>();
         time_sleeping.0 = 0.0;
+    }
+}
+
+type ColliderTransformedFilter = Or<(
+    Changed<Collider>,
+    Changed<Transform>,
+    Changed<ColliderTransform>,
+)>;
+
+/// Removes the [`Sleeping`] component from sleeping bodies when any of their
+/// colliders have been removed.
+#[allow(clippy::type_complexity)]
+fn wake_on_collider_removed(
+    mut commands: Commands,
+    mut bodies: Query<(Entity, &mut TimeSleeping), With<RigidBody>>,
+    all_colliders: Query<&ColliderParent>,
+    child_colliders: Query<&ColliderParent, (Without<RigidBody>, ColliderTransformedFilter)>,
+    mut removed_colliders: RemovedComponents<Collider>,
+    // This stores some collider data so that we can access it even though the entity has been removed
+    collider_storage: Res<ColliderStorageMap>,
+) {
+    let removed_colliders_iter =
+        all_colliders.iter_many(removed_colliders.iter().filter_map(|entity| {
+            collider_storage
+                .get(&entity)
+                .map(|(rb_entity, _, _)| rb_entity.get())
+        }));
+    for collider_parent in child_colliders.iter().chain(removed_colliders_iter) {
+        if let Ok((entity, mut time_sleeping)) = bodies.get_mut(collider_parent.get()) {
+            commands.entity(entity).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
+        }
     }
 }
 
@@ -123,7 +157,7 @@ fn wake_all_sleeping_bodies(
 }
 
 /// Wakes up bodies when they stop colliding.
-fn wake_up_on_collision_ended(
+fn wake_on_collision_ended(
     mut commands: Commands,
     moved_bodies: Query<(), (Changed<Position>, Without<Sleeping>)>,
     collisions: Res<Collisions>,

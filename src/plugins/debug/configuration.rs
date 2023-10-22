@@ -15,6 +15,9 @@ pub struct PhysicsDebugConfig {
     pub aabb_color: Option<Color>,
     /// The color of the [collider](Collider) wireframes. If `None`, the colliders will not be rendered.
     pub collider_color: Option<Color>,
+    /// The colors (in HSLA) for [sleeping](Sleeping) bodies will be multiplied by this array.
+    /// If `None`, sleeping will have no effect on the colors.
+    pub sleeping_color_multiplier: Option<[f32; 4]>,
     /// The color of the contact points. If `None`, the contact points will not be rendered.
     pub contact_color: Option<Color>,
     /// The color of the lines drawn from the centers of bodies to their joint anchors.
@@ -42,6 +45,7 @@ impl Default for PhysicsDebugConfig {
             axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: None,
             collider_color: Some(Color::ORANGE),
+            sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             contact_color: None,
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
@@ -64,6 +68,7 @@ impl PhysicsDebugConfig {
             axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: Some(Color::rgb(0.8, 0.8, 0.8)),
             collider_color: Some(Color::ORANGE),
+            sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             contact_color: Some(Color::CYAN),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
@@ -83,6 +88,7 @@ impl PhysicsDebugConfig {
             axis_lengths: None,
             aabb_color: None,
             collider_color: None,
+            sleeping_color_multiplier: None,
             contact_color: None,
             joint_anchor_color: None,
             joint_separation_color: None,
@@ -157,6 +163,12 @@ impl PhysicsDebugConfig {
         self
     }
 
+    /// Sets the multiplier used for the colors (in HSLA) of [sleeping](Sleeping) bodies.
+    pub fn with_sleeping_color_multiplier(mut self, color_multiplier: [f32; 4]) -> Self {
+        self.sleeping_color_multiplier = Some(color_multiplier);
+        self
+    }
+
     /// Sets the contact color.
     pub fn with_contact_color(mut self, color: Color) -> Self {
         self.contact_color = Some(color);
@@ -213,6 +225,9 @@ pub struct DebugRender {
     pub aabb_color: Option<Color>,
     /// The color of the [collider](Collider) wireframe. If `None`, the collider will not be rendered.
     pub collider_color: Option<Color>,
+    /// If the entity is [sleeping](Sleeping), its colors (in HSLA) will be multiplied by this array.
+    /// If `None`, sleeping will have no effect on the colors.
+    pub sleeping_color_multiplier: Option<[f32; 4]>,
     /// Determines if the entity's visibility should be set to `Visibility::Hidden`, which will only show the debug render.
     pub hide_mesh: bool,
 }
@@ -226,6 +241,7 @@ impl Default for DebugRender {
             axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: None,
             collider_color: Some(Color::ORANGE),
+            sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             hide_mesh: false,
         }
     }
@@ -241,6 +257,7 @@ impl DebugRender {
             axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
             aabb_color: Some(Color::rgb(0.8, 0.8, 0.8)),
             collider_color: Some(Color::ORANGE),
+            sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             hide_mesh: true,
         }
     }
@@ -251,6 +268,7 @@ impl DebugRender {
             axis_lengths: None,
             aabb_color: None,
             collider_color: None,
+            sleeping_color_multiplier: None,
             hide_mesh: false,
         }
     }
@@ -297,6 +315,12 @@ impl DebugRender {
     /// Sets the collider color.
     pub fn with_collider_color(mut self, color: Color) -> Self {
         self.collider_color = Some(color);
+        self
+    }
+
+    /// Sets the multiplier used for the colors (in HSLA) of [sleeping](Sleeping) bodies.
+    pub fn with_sleeping_color_multiplier(mut self, color_multiplier: [f32; 4]) -> Self {
+        self.sleeping_color_multiplier = Some(color_multiplier);
         self
     }
 
