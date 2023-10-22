@@ -46,7 +46,7 @@ Below are some of the current features of Bevy XPBD.
   - Shape casting
   - Point projection
   - Intersection tests
-- Debug rendering colliders, AABBs, contacts, joints and axes
+- Debug rendering colliders, AABBs, contacts, joints, rigid body axes, and spatial queries
 - Automatically deactivating bodies with `Sleeping`
 - Configurable timesteps and substepping
 - `f32`/`f64` precision (`f32` by default)
