@@ -1,12 +1,16 @@
 //! [`DistanceJoint`] component.
 
 use crate::prelude::*;
-use bevy::{ecs::entity::MapEntities, prelude::*};
+use bevy::{
+    ecs::{entity::MapEntities, reflect::ReflectMapEntities},
+    prelude::*,
+};
 
 /// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
 ///
 /// Distance joints can be useful for things like springs, muscles, and mass-spring networks.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(MapEntities)]
 pub struct DistanceJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
