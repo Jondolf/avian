@@ -91,6 +91,10 @@ required-features = ["3d"]
 name = "trimesh_shapes_3d"
 required-features = ["3d"]
 
+[[example]]
+name = "async_colliders"
+required-features = ["3d", "async-collider"]
+
 [[bench]]
 name = "cubes"
 harness = false
