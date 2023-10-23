@@ -834,12 +834,13 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
 ///     ));
 ///
-///     // Specify collider types and collision layers for specific meshes by name
+///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         scene.clone(),
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
 ///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
-///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010)),
+///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010))
+///             .with_density_for_name("Tree", 2.5),
 ///     ));
 ///
 ///     // Only generate colliders for specific meshes by name
@@ -858,16 +859,16 @@ pub struct AsyncCollider(pub ComputedCollider);
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default)]
+#[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AsyncSceneCollider {
     /// The default collider type used for each mesh that isn't included in [`meshes_by_name`].
     /// If `None`, all meshes except the ones in [`meshes_by_name`] will be skipped.
     pub default_shape: Option<ComputedCollider>,
-    /// Specifies collider types and [`CollisionLayers`] for meshes by name.
+    /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_shape`] and all collision layers
     /// will be used instead.
-    pub meshes_by_name: HashMap<String, Option<(ComputedCollider, CollisionLayers)>>,
+    pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
 }
 
 #[cfg(all(feature = "3d", feature = "async-collider"))]
@@ -886,23 +887,44 @@ impl AsyncSceneCollider {
 
     /// Specifies the collider type used for a mesh with the given `name`.
     pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
-        if let Some(Some(named_shape)) = self.meshes_by_name.get_mut(name) {
-            named_shape.0 = shape;
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.shape = shape;
         } else {
-            self.meshes_by_name
-                .insert(name.to_string(), Some((shape, CollisionLayers::default())));
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some(AsyncSceneColliderData { shape, ..default() }),
+            );
         }
         self
     }
 
     /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
     pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
-        if let Some(Some(named_shape)) = self.meshes_by_name.get_mut(name) {
-            named_shape.1 = layers;
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.layers = layers;
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some((ComputedCollider::default(), layers)),
+                Some(AsyncSceneColliderData {
+                    layers,
+                    ..default()
+                }),
+            );
+        }
+        self
+    }
+
+    /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
+    pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.density = density;
+        } else {
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some(AsyncSceneColliderData {
+                    density,
+                    ..default()
+                }),
             );
         }
         self
@@ -913,6 +935,29 @@ impl AsyncSceneCollider {
     pub fn without_shape_with_name(mut self, name: &str) -> Self {
         self.meshes_by_name.insert(name.to_string(), None);
         self
+    }
+}
+
+/// Configuration for a specific collider generated from a scene using [`AsyncSceneCollider`].
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct AsyncSceneColliderData {
+    /// The type of collider generated for the mesh.
+    pub shape: ComputedCollider,
+    /// The [`CollisionLayers`] used for this collider.
+    pub layers: CollisionLayers,
+    /// The [`CollisionDensity`] used for this collider.
+    pub density: Scalar,
+}
+
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+impl Default for AsyncSceneColliderData {
+    fn default() -> Self {
+        Self {
+            shape: ComputedCollider::TriMesh,
+            layers: CollisionLayers::default(),
+            density: 1.0,
+        }
     }
 }
 

@@ -444,7 +444,7 @@ pub fn init_async_scene_colliders(
         if scene_spawner.instance_is_ready(**scene_instance) {
             for child_entity in children.iter_descendants(scene_entity) {
                 if let Ok((name, handle)) = mesh_handles.get(child_entity) {
-                    let Some((shape, layers)) = async_scene_collider
+                    let Some(collider_data) = async_scene_collider
                         .meshes_by_name
                         .get(name.as_str())
                         .cloned()
@@ -452,16 +452,20 @@ pub fn init_async_scene_colliders(
                             async_scene_collider
                                 .default_shape
                                 .clone()
-                                .map(|shape| (shape, CollisionLayers::default())),
+                                .map(|shape| AsyncSceneColliderData { shape, ..default() }),
                         )
                     else {
                         continue;
                     };
 
                     let mesh = meshes.get(handle).expect("mesh should already be loaded");
-                    match Collider::from_mesh(mesh, &shape) {
+                    match Collider::from_mesh(mesh, &collider_data.shape) {
                         Some(collider) => {
-                            commands.entity(child_entity).insert((collider, layers));
+                            commands.entity(child_entity).insert((
+                                collider,
+                                collider_data.layers,
+                                ColliderDensity(collider_data.density),
+                            ));
                         }
                         None => error!(
                             "unable to generate collider from mesh {:?} with name {}",
