@@ -45,8 +45,8 @@ fn setup(
             VHACDParameters::default(),
         )))
         // Make the arms heavier to make it easier to stand upright
-        .with_density_for_name("armL_mesh", 2.0)
-        .with_density_for_name("armR_mesh", 2.0),
+        .with_density_for_name("armL_mesh", 5.0)
+        .with_density_for_name("armR_mesh", 5.0),
         RigidBody::Dynamic,
     ));
 
