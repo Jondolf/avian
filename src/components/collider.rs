@@ -681,11 +681,6 @@ impl Collider {
     ///             ..default()
     ///         },
     ///     ));
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
-    ///     ));
     /// }
     /// ```
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
