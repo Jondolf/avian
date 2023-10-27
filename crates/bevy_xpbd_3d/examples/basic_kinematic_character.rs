@@ -39,6 +39,7 @@ fn setup(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },
         RigidBody::Static,
@@ -56,7 +57,6 @@ fn setup(
             ..default()
         },
         RigidBody::Kinematic,
-        Position(Vector::Y * 1.0),
         Collider::capsule(1.0, 0.4),
         // Cast the player shape downwards to detect when the player is grounded
         ShapeCaster::new(

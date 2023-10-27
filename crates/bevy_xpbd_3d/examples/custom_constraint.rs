@@ -97,19 +97,29 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube_mesh = PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-        ..default()
-    };
+    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length
-    let static_cube = commands.spawn((cube_mesh.clone(), RigidBody::Static)).id();
+    let static_cube = commands
+        .spawn((
+            PbrBundle {
+                mesh: cube_mesh.clone_weak(),
+                material: cube_material.clone_weak(),
+                ..default()
+            },
+            RigidBody::Static,
+        ))
+        .id();
     let dynamic_cube = commands
         .spawn((
-            cube_mesh,
+            PbrBundle {
+                mesh: cube_mesh,
+                material: cube_material,
+                transform: Transform::from_xyz(3.0, 3.5, 0.0),
+                ..default()
+            },
             RigidBody::Dynamic,
-            Position(Vector::new(3.0, 3.5, 0.0)),
             MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
