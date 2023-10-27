@@ -1,7 +1,7 @@
 //! **Spatial queries** are a way to get information about the environment. They perform geometric queries
 //! on [colliders](Collider) and retrieve data about intersections.
 //!
-//! There are four types of spatial queries: [ray casts](#ray-casting), [shape casts](#shape-casting),
+//! There are four types of spatial queries: [raycasts](#ray-casting), [shapecasts](#shape-casting),
 //! [point projection](#point-projection) and [intersection tests](#intersection-tests).
 //! All spatial queries can be done using the various methods provided by the [`SpatialQuery`] system parameter.
 //!
@@ -19,9 +19,9 @@
 //! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
 //! the point of intersection.
 //!
-//! There are two ways to perform ray casts.
+//! There are two ways to perform raycasts.
 //!
-//! 1. For simple ray casts, use the [`RayCaster`] component. It returns the results of the ray cast
+//! 1. For simple raycasts, use the [`RayCaster`] component. It returns the results of the raycast
 //! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the ray casting methods provided by
@@ -74,9 +74,9 @@
 //! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
 //! hit, which is essentially the distance from the shape origin to the global point of intersection.
 //!
-//! There are two ways to perform shape casts.
+//! There are two ways to perform shapecasts.
 //!
-//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the results of the shape cast
+//! 1. For simple shapecasts, use the [`ShapeCaster`] component. It returns the results of the shapecast
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the shape casting methods provided by

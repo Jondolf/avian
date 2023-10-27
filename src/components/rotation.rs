@@ -218,6 +218,13 @@ impl From<Rotation> for Scalar {
 }
 
 #[cfg(feature = "2d")]
+impl From<Scalar> for Rotation {
+    fn from(radians: Scalar) -> Self {
+        Self::from_radians(radians)
+    }
+}
+
+#[cfg(feature = "2d")]
 impl From<Rotation> for Quaternion {
     fn from(rot: Rotation) -> Self {
         let z = rot.sin().signum() * ((1.0 - rot.cos()) / 2.0).abs().sqrt();

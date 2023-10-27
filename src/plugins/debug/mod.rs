@@ -21,6 +21,8 @@ use bevy::{ecs::query::Has, prelude::*};
 /// - Use different colors for [sleeping](Sleeping) bodies
 /// - [Contacts]
 /// - [Joints](joints)
+/// - [`RayCaster`]
+/// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
 /// By default, only axes, colliders and joints are debug rendered. You can use the [`PhysicsDebugConfig`]
@@ -72,6 +74,8 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
+                    debug_render_raycasts,
+                    debug_render_shapecasts,
                     change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -304,6 +308,70 @@ fn debug_render_joints<T: Joint>(
                 );
             }
         }
+    }
+}
+
+fn debug_render_raycasts(
+    query: Query<(&RayCaster, &RayHits)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (ray, hits) in &query {
+        let ray_color = config
+            .raycast_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let point_color = config
+            .raycast_point_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let normal_color = config
+            .raycast_normal_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+
+        debug_renderer.draw_raycast(
+            ray.global_origin(),
+            ray.global_direction(),
+            // f32::MAX renders nothing, but this number seems to be fine :P
+            ray.max_time_of_impact.min(1_000_000_000_000_000_000.0),
+            hits.as_slice(),
+            ray_color,
+            point_color,
+            normal_color,
+        );
+    }
+}
+
+fn debug_render_shapecasts(
+    query: Query<(&ShapeCaster, &ShapeHits)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (shape_caster, hits) in &query {
+        let ray_color = config
+            .shapecast_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let shape_color = config
+            .shapecast_shape_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let point_color = config
+            .shapecast_point_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let normal_color = config
+            .shapecast_normal_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+
+        debug_renderer.draw_shapecast(
+            &shape_caster.shape,
+            shape_caster.global_origin(),
+            shape_caster.global_shape_rotation(),
+            shape_caster.global_direction(),
+            // f32::MAX renders nothing, but this number seems to be fine :P
+            shape_caster.max_time_of_impact.min(1_000_000_000_000_000.0),
+            hits.as_slice(),
+            ray_color,
+            shape_color,
+            point_color,
+            normal_color,
+        );
     }
 }
 

@@ -121,10 +121,10 @@ impl Plugin for SyncPlugin {
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
-    position_to_transform: bool,
+    pub position_to_transform: bool,
     /// Updates [`Position`] and [`Rotation`] based on transform changes,
     /// allowing you to move bodies using `Transform`. Defaults to true.
-    transform_to_position: bool,
+    pub transform_to_position: bool,
 }
 
 impl Default for SyncConfig {

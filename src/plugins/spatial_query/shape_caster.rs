@@ -11,7 +11,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// line and computes hits with colliders. This is often used to determine how far an object can move
 /// in a direction before it hits something.
 ///
-/// Each shape cast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
+/// Each shapecast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
 /// a local `direction`. The [`ShapeCaster`] will find each hit and add them to the [`ShapeHits`] component in
 /// the order of the time of impact.
 ///
@@ -19,7 +19,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// is one by default. This can be configured through the `max_hits` property.
 ///
 /// The [`ShapeCaster`] is the easiest way to handle simple shape casting. If you want more control and don't want
-/// to perform shape casts on every frame, consider using the [`SpatialQuery`] system parameter.
+/// to perform shapecasts on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Example
 ///
@@ -80,23 +80,23 @@ pub struct ShapeCaster {
     /// The global rotation of the shape.
     #[cfg(feature = "3d")]
     global_shape_rotation: Quaternion,
-    /// The local direction of the shape cast relative to the [`Rotation`] of the shape caster entity or its parent.
+    /// The local direction of the shapecast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
     pub direction: Vector,
-    /// The global direction of the shape cast.
+    /// The global direction of the shapecast.
     global_direction: Vector,
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
     /// until a hit is found.
     pub max_time_of_impact: Scalar,
     /// The maximum number of hits allowed. By default this is one and only the first hit is returned.
     pub max_hits: u32,
-    /// Controls how the shape cast behaves when the shape is already penetrating a [collider](Collider)
+    /// Controls how the shapecast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
     /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
-    /// the shape cast will not stop immediately, and will instead continue until another hit.\
-    /// If set to false, the shape cast will stop immediately and return the hit. This is the default.
+    /// the shapecast will not stop immediately, and will instead continue until another hit.\
+    /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub ignore_origin_penetration: bool,
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
@@ -168,12 +168,12 @@ impl ShapeCaster {
         self
     }
 
-    /// Controls how the shape cast behaves when the shape is already penetrating a [collider](Collider)
+    /// Controls how the shapecast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
     /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
-    /// the shape cast will not stop immediately, and will instead continue until another hit.\
-    /// If set to false, the shape cast will stop immediately and return the hit. This is the default.
+    /// the shapecast will not stop immediately, and will instead continue until another hit.\
+    /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub fn with_ignore_origin_penetration(mut self, ignore: bool) -> Self {
         self.ignore_origin_penetration = ignore;
         self
@@ -192,7 +192,7 @@ impl ShapeCaster {
     }
 
     /// Sets the shape caster's [query filter](SpatialQueryFilter) that controls which colliders
-    /// should be included or excluded by shape casts.
+    /// should be included or excluded by shapecasts.
     pub fn with_query_filter(mut self, query_filter: SpatialQueryFilter) -> Self {
         self.query_filter = query_filter;
         self
@@ -338,7 +338,7 @@ pub struct ShapeHits {
 }
 
 impl ShapeHits {
-    /// Returns a slice over the shape cast hits.
+    /// Returns a slice over the shapecast hits.
     pub fn as_slice(&self) -> &[ShapeHitData] {
         &self.vector[0..self.count as usize]
     }
@@ -374,7 +374,7 @@ impl MapEntities for ShapeHits {
     }
 }
 
-/// Data related to a hit during a [shape cast](spatial_query#shape-casting).
+/// Data related to a hit during a [shapecast](spatial_query#shape-casting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
