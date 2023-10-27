@@ -415,7 +415,7 @@ pub fn init_async_colliders(
                 ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
                 ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
                 ComputedCollider::ConvexDecomposition(params) => {
-                    Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
+                    Collider::convex_decomposition_from_mesh_with_config(mesh, params)
                 }
             };
             if let Some(collider) = collider {
