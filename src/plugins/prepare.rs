@@ -411,14 +411,20 @@ pub fn init_async_colliders(
 ) {
     for (entity, mesh_handle, async_collider) in async_colliders.iter() {
         if let Some(mesh) = meshes.get(mesh_handle) {
-            match Collider::from_mesh(mesh, &async_collider.0) {
-                Some(collider) => {
-                    commands
-                        .entity(entity)
-                        .insert(collider)
-                        .remove::<AsyncCollider>();
+            let collider = match &async_collider.0 {
+                ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
+                ComputedCollider::ConvexDecomposition(params) => {
+                    Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
                 }
-                None => error!("Unable to generate collider from mesh {:?}", mesh),
+            };
+            if let Some(collider) = collider {
+                commands
+                    .entity(entity)
+                    .insert(collider)
+                    .remove::<AsyncCollider>();
+            } else {
+                error!("Unable to generate collider from mesh {:?}", mesh);
             }
         }
     }
@@ -453,18 +459,25 @@ pub fn init_async_scene_colliders(
                     };
 
                     let mesh = meshes.get(handle).expect("mesh should already be loaded");
-                    match Collider::from_mesh(mesh, &collider_data.shape) {
-                        Some(collider) => {
-                            commands.entity(child_entity).insert((
-                                collider,
-                                collider_data.layers,
-                                ColliderDensity(collider_data.density),
-                            ));
+
+                    let collider = match collider_data.shape {
+                        ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                        ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
+                        ComputedCollider::ConvexDecomposition(params) => {
+                            Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
                         }
-                        None => error!(
+                    };
+                    if let Some(collider) = collider {
+                        commands.entity(child_entity).insert((
+                            collider,
+                            collider_data.layers,
+                            ColliderDensity(collider_data.density),
+                        ));
+                    } else {
+                        error!(
                             "unable to generate collider from mesh {:?} with name {}",
                             mesh, name
-                        ),
+                        );
                     }
                 }
             }
@@ -612,6 +625,7 @@ fn update_mass_properties(
         if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
             // Subtract previous collider mass props from the body's own mass props,
             // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
+            info!("a");
             if !collider.is_added() {
                 mass_properties -= ColliderMassProperties {
                     center_of_mass: CenterOfMass(

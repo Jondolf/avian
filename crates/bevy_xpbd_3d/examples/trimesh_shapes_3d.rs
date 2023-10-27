@@ -48,7 +48,7 @@ fn setup(
     for (i, shape) in shapes.into_iter().enumerate() {
         commands.spawn((
             RigidBody::Dynamic,
-            Collider::from_mesh(&shape, &ComputedCollider::TriMesh).unwrap(),
+            Collider::trimesh_from_mesh(&shape).unwrap(),
             Position(Vector::new(
                 -14.5 / 2.0 + i as Scalar / (num_shapes - 1) as Scalar * 14.5,
                 2.0,
