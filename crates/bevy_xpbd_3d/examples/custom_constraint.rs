@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 
 fn main() {
@@ -79,6 +82,13 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
 
         // Apply positional correction (method from PositionConstraint)
         self.apply_positional_correction(body1, body2, delta_lagrange, n, r1, r2);
+    }
+}
+
+impl MapEntities for CustomDistanceConstraint {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
     }
 }
 

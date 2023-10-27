@@ -72,14 +72,12 @@ fn follow_mouse(
         let (camera, camera_transform) = camera.single();
         let mut follower_position = follower.single_mut();
 
-        // Set position of follower to cursor position in world coordinates
-        // https://bevy-cheatbook.github.io/cookbook/cursor2world.html
-        if let Some(pos) = window.cursor_position() {
-            let window_size = Vec2::new(window.width(), window.height());
-            let ndc = (pos / window_size) * 2.0 - Vec2::ONE;
-            let ndc_to_world =
-                camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-            follower_position.translation = ndc_to_world.project_point3(ndc.extend(-1.0));
+        if let Some(cursor_world_pos) = window
+            .cursor_position()
+            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
+        {
+            follower_position.translation =
+                cursor_world_pos.extend(follower_position.translation.z);
         }
     }
 }

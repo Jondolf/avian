@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use parry::query::{
     details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
@@ -226,7 +229,7 @@ impl RayCaster {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
                     if self.query_filter.test(entity, *layers) {
-                        if let Some(hit) = shape.cast_ray_and_get_normal(
+                        if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,
                             self.max_time_of_impact,
@@ -345,8 +348,16 @@ impl RayHits {
     }
 }
 
+impl MapEntities for RayHits {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for hit in &mut self.vector {
+            hit.map_entities(entity_mapper);
+        }
+    }
+}
+
 /// Data related to a hit during a [ray cast](spatial_query#ray-casting).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
@@ -354,4 +365,10 @@ pub struct RayHitData {
     pub time_of_impact: Scalar,
     /// The normal at the point of intersection.
     pub normal: Vector,
+}
+
+impl MapEntities for RayHitData {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity = entity_mapper.get_or_reserve(self.entity);
+    }
 }

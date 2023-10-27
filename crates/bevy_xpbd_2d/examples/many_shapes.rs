@@ -40,7 +40,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -62,7 +62,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -73,7 +73,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
 
     let ball = (

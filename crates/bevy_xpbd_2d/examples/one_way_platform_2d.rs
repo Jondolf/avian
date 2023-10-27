@@ -60,7 +60,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -71,7 +71,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -82,7 +82,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -93,7 +93,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
 
     // For one-way platforms
@@ -113,7 +113,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Static,
-            Collider::cuboid(25.0 * 20.0, 25.0),
+            Collider::cuboid(50.0, 50.0),
             OneWayPlatform::default(),
         ));
     }
@@ -164,12 +164,17 @@ fn movement(
 }
 
 fn pass_through_one_way_platform(
+    mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    mut actors: Query<&mut PassThroughOneWayPlatform, With<Actor>>,
+    mut actors: Query<(Entity, &mut PassThroughOneWayPlatform), With<Actor>>,
 ) {
-    for mut pass_through_one_way_platform in &mut actors {
+    for (entity, mut pass_through_one_way_platform) in &mut actors {
         if keyboard_input.pressed(KeyCode::Down) && keyboard_input.pressed(KeyCode::Space) {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::Always;
+
+            // Wake up body when it's allowed to drop down.
+            // Otherwise it won't fall because gravity isn't simulated.
+            commands.entity(entity).remove::<Sleeping>();
         } else {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::ByNormal;
         }
@@ -237,7 +242,7 @@ fn one_way_platform(
 ) {
     // This assumes that Collisions contains empty entries for entities
     // that were once colliding but no longer are.
-    collisions.retain(|(entity1, entity2), contacts| {
+    collisions.retain(|contacts| {
         // This is used in a couple of if statements below; writing here for brevity below.
         fn any_penetrating(contacts: &Contacts) -> bool {
             contacts.manifolds.iter().any(|manifold| {
@@ -257,34 +262,34 @@ fn one_way_platform(
         // First, figure out which entity is the one-way platform, and which is the other.
         // Choose the appropriate normal for pass-through depending on which is which.
         let (mut one_way_platform, other_entity, relevant_normal) =
-            if let Ok(one_way_platform) = one_way_platforms_query.get_mut(*entity1) {
-                (one_way_platform, entity2, RelevantNormal::Normal1)
-            } else if let Ok(one_way_platform) = one_way_platforms_query.get_mut(*entity2) {
-                (one_way_platform, entity1, RelevantNormal::Normal2)
+            if let Ok(one_way_platform) = one_way_platforms_query.get_mut(contacts.entity1) {
+                (one_way_platform, contacts.entity2, RelevantNormal::Normal1)
+            } else if let Ok(one_way_platform) = one_way_platforms_query.get_mut(contacts.entity2) {
+                (one_way_platform, contacts.entity1, RelevantNormal::Normal2)
             } else {
                 // Neither is a one-way-platform, so accept the collision:
                 // we're done here.
                 return true;
             };
 
-        if one_way_platform.0.contains(other_entity) {
+        if one_way_platform.0.contains(&other_entity) {
             // If we were already allowing a collision for a particular entity,
             // and if it is penetrating us still, continue to allow it to do so.
             if any_penetrating(contacts) {
                 return false;
             } else {
                 // If it's no longer penetrating us, forget it.
-                one_way_platform.0.remove(other_entity);
+                one_way_platform.0.remove(&other_entity);
             }
         }
 
-        match other_colliders_query.get(*other_entity) {
+        match other_colliders_query.get(other_entity) {
             // Pass-through is set to never, so accept the collision.
             Ok(Some(PassThroughOneWayPlatform::Never)) => true,
             // Pass-through is set to always, so always ignore this collision
             // and register it as an entity that's currently penetrating.
             Ok(Some(PassThroughOneWayPlatform::Always)) => {
-                one_way_platform.0.insert(*other_entity);
+                one_way_platform.0.insert(other_entity);
                 false
             }
             // Default behaviour is "by normal".
@@ -303,7 +308,7 @@ fn one_way_platform(
                 } else if any_penetrating(contacts) {
                     // If it's already penetrating, ignore the collision and register
                     // the other entity as one that's currently penetrating.
-                    one_way_platform.0.insert(*other_entity);
+                    one_way_platform.0.insert(other_entity);
                     false
                 } else {
                     // In all other cases, allow this collision.

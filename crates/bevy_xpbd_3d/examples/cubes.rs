@@ -34,7 +34,7 @@ fn setup(
         },
         RigidBody::Static,
         Position(Vector::NEG_Y * 2.0),
-        Collider::cuboid(100.0, 1.0, 100.0),
+        Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
     let cube_size = 2.0;
@@ -57,7 +57,7 @@ fn setup(
                     },
                     RigidBody::Dynamic,
                     Position(pos + Vector::Y * 5.0),
-                    Collider::cuboid(cube_size, cube_size, cube_size),
+                    Collider::cuboid(1.0, 1.0, 1.0),
                     Cube,
                 ));
             }

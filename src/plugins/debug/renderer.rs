@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
 use parry::shape::{SharedShape, TypedShape};
 
-// Todo: Allow custom rendering backends through generics
+// TODO: Allow custom rendering backends through generics
 /// A `SystemParam` for physics debug rendering.
 #[derive(SystemParam)]
 pub struct PhysicsDebugRenderer<'w, 's> {
@@ -77,7 +77,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     ) {
         let nalgebra_to_glam =
             |points: &[_]| points.iter().map(|p| Vector::from(*p)).collect::<Vec<_>>();
-        match collider.as_typed_shape() {
+        match collider.shape_scaled().as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
                 self.gizmos.circle(

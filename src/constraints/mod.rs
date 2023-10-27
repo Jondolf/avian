@@ -207,9 +207,10 @@ pub use penetration::*;
 pub use position_constraint::PositionConstraint;
 
 use crate::prelude::*;
+use bevy::ecs::entity::MapEntities;
 
 /// A trait for all XPBD [constraints].
-pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
+pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// The entities participating in the constraint.
     fn entities(&self) -> [Entity; ENTITY_COUNT];
 

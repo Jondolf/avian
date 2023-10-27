@@ -1,7 +1,10 @@
 //! [`PrismaticJoint`] component.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// A prismatic joint prevents relative movement of the attached bodies, except for translation along one `free_axis`.
 ///
@@ -248,3 +251,10 @@ impl PrismaticJoint {
 impl PositionConstraint for PrismaticJoint {}
 
 impl AngularConstraint for PrismaticJoint {}
+
+impl MapEntities for PrismaticJoint {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    }
+}

@@ -28,23 +28,24 @@ Below are some of the current features of Bevy XPBD.
 
 - Dynamic, kinematic and static rigid bodies
 - Colliders powered by [parry](https://parry.rs)
-    - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
-    - Access to colliding entities with `CollidingEntities`
-    - Sensor colliders
-    - Collision layers
-    - Filtering and modifying collisions with custom systems
+  - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
+  - Access to colliding entities with `CollidingEntities`
+  - Sensor colliders
+  - Collision layers
+  - Filtering and modifying collisions with custom systems
 - Material properties like restitution and friction
 - Linear and angular velocity damping for simulating drag
 - External forces, torque and impulses
 - Gravity and gravity scale for specific entities
+- Locking translational and rotational axes with `LockedAxes`
+- Rigid body dominance
 - Joints
 - Built-in constraints and support for custom constraints
 - Spatial queries
-    - Ray casting
-    - Shape casting
-    - Point projection
-    - Intersection tests
-- Locking translational and rotational axes with `LockedAxes`
+  - Ray casting
+  - Shape casting
+  - Point projection
+  - Intersection tests
 - Debug rendering colliders, AABBs, contacts, joints and axes
 - Automatically deactivating bodies with `Sleeping`
 - Configurable timesteps and substepping
@@ -131,7 +132,7 @@ fn setup(
 }
 ```
 
-https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4
+<https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4>
 
 ## More examples
 
@@ -143,7 +144,7 @@ In actual usage these are not needed, so you can just use `f32` or `f64` types d
 By default the examples use `f32`. To run the `f64` versions, you need to disable default features and manually choose the dimension
 and precision:
 
-```
+```shell
 cargo run --example cubes --no-default-features --features "3d f64"
 ```
 
@@ -160,7 +161,6 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - Joint motors
 - Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
-- Multiple colliders per body and colliders as children
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)
@@ -180,7 +180,7 @@ where you can find me as `Jondolf`.
 
 Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
 
-- MIT License ([LICENSE-MIT](/LICENSE-MIT) or http://opensource.org/licenses/MIT)
-- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT License ([LICENSE-MIT](/LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
 
 at your option.

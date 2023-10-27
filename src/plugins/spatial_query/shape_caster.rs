@@ -1,5 +1,8 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 
 /// A component used for [shape casting](spatial_query#shape-casting).
@@ -261,7 +264,7 @@ impl ShapeCaster {
             shape_rotation = Rotation::from(self.global_shape_rotation());
         }
 
-        let shape_isometry = utils::make_isometry(self.global_origin(), &shape_rotation);
+        let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
         let shape_direction = self.global_direction().into();
 
         let mut query_filter = self.query_filter.clone();
@@ -272,7 +275,7 @@ impl ShapeCaster {
                 &shape_isometry,
                 &shape_direction,
                 &pipeline_shape,
-                &**self.shape.get_shape(),
+                &**self.shape.shape_scaled(),
                 self.max_time_of_impact,
                 !self.ignore_origin_penetration,
             );
@@ -290,7 +293,7 @@ impl ShapeCaster {
                 if (hits.vector.len() as u32) < hits.count + 1 {
                     hits.vector.push(hit);
                 } else {
-                    hits.vector[0] = hit;
+                    hits.vector[hits.count as usize] = hit;
                 }
 
                 hits.count += 1;
@@ -363,24 +366,38 @@ impl ShapeHits {
     }
 }
 
+impl MapEntities for ShapeHits {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for hit in &mut self.vector {
+            hit.map_entities(entity_mapper);
+        }
+    }
+}
+
 /// Data related to a hit during a [shape cast](spatial_query#shape-casting).
-#[derive(Component, Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShapeHitData {
-    /// The entity of the collider that was hit by the ray.
+    /// The entity of the collider that was hit by the shape.
     pub entity: Entity,
     /// How long the shape travelled before the initial hit,
     /// i.e. the distance between the origin and the point of intersection.
     pub time_of_impact: Scalar,
+    /// The closest point on the collider that was hit by the shapecast, at the time of impact,
+    /// expressed in the local space of the collider shape.
+    pub point1: Vector,
     /// The closest point on the cast shape, at the time of impact,
     /// expressed in the local space of the cast shape.
-    pub point1: Vector,
-    /// The closest point on the collider that was hit by the shape cast, at the time of impact,
-    /// expressed in the local space of the collider shape.
     pub point2: Vector,
+    /// The outward normal on the collider that was hit by the shapecast, at the time of impact,
+    /// expressed in the local space of the collider shape.
+    pub normal1: Vector,
     /// The outward normal on the cast shape, at the time of impact,
     /// expressed in the local space of the cast shape.
-    pub normal1: Vector,
-    /// The outward normal on the collider that was hit by the shape cast, at the time of impact,
-    /// expressed in the local space of the collider shape.
     pub normal2: Vector,
+}
+
+impl MapEntities for ShapeHitData {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity = entity_mapper.get_or_reserve(self.entity);
+    }
 }
