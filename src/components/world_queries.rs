@@ -101,7 +101,6 @@ pub(crate) struct ColliderQuery {
     pub collider: &'static mut Collider,
     pub aabb: &'static mut ColliderAabb,
     pub mass_properties: &'static mut ColliderMassProperties,
-    pub previous_mass_properties: &'static mut PreviousColliderMassProperties,
 }
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {

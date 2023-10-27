@@ -273,7 +273,7 @@ pub(crate) fn propagate_collider_transforms(
                         &collider_query,
                         &parent_query,
                         child,
-                        parent.is_changed()
+                        transform.is_changed() || parent.is_changed()
                     );
                 }
             }
@@ -348,7 +348,9 @@ unsafe fn propagate_collider_transforms_recursive(
         changed |= transform_ref.is_changed();
         if changed {
             if let Some(mut collider_transform) = collider_transform {
-                *collider_transform = transform;
+                if *collider_transform != transform {
+                    *collider_transform = transform;
+                }
             }
         }
 

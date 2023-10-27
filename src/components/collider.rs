@@ -1,15 +1,23 @@
 use std::fmt;
 
 use crate::{prelude::*, utils::make_isometry};
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{log, prelude::*, utils::HashSet};
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+use bevy::{
+    render::mesh::{Indices, VertexAttributeValues},
+    utils::HashMap,
+};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{
     bounding_volume::Aabb,
     shape::{RoundShape, SharedShape, TypedShape},
 };
+
+/// Parameters controlling the VHACD convex decomposition algorithm.
+///
+/// See https://github.com/Unity-Technologies/VHACD#parameters for details.
+pub type VHACDParameters = parry::transformation::vhacd::VHACDParameters;
 
 /// Flags used for the preprocessing of a triangle mesh collider.
 pub type TriMeshFlags = parry::shape::TriMeshFlags;
@@ -439,40 +447,13 @@ impl Collider {
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
     /// and flags controlling the preprocessing.
-    pub fn trimesh_with_flags(
+    pub fn trimesh_with_config(
         vertices: Vec<Vector>,
         indices: Vec<[u32; 3]>,
         flags: TriMeshFlags,
     ) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         SharedShape::trimesh_with_flags(vertices, indices, flags).into()
-    }
-
-    /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh`.
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-    pub fn trimesh_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
-        use parry::shape::TriMeshFlags;
-
-        let vertices_indices = extract_mesh_vertices_indices(mesh);
-        vertices_indices.map(|(v, i)| {
-            SharedShape::trimesh_with_flags(v, i, TriMeshFlags::MERGE_DUPLICATE_VERTICES).into()
-        })
-    }
-
-    /// Creates a collider with a triangle mesh shape built from a given Bevy `Mesh` and flags
-    /// controlling its preprocessing.
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-    pub fn trimesh_from_bevy_mesh_with_flags(mesh: &Mesh, flags: TriMeshFlags) -> Option<Self> {
-        let vertices_indices = extract_mesh_vertices_indices(mesh);
-        vertices_indices.map(|(v, i)| SharedShape::trimesh_with_flags(v, i, flags).into())
-    }
-
-    /// Creates a collider with a compound shape obtained from the decomposition of a triangle mesh
-    /// built from a given Bevy `Mesh`.
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-    pub fn convex_decomposition_from_bevy_mesh(mesh: &Mesh) -> Option<Self> {
-        let vertices_indices = extract_mesh_vertices_indices(mesh);
-        vertices_indices.map(|(v, i)| SharedShape::convex_decomposition(&v, &i).into())
     }
 
     /// Creates a collider shape with a compound shape obtained from the decomposition of a given polyline
@@ -489,6 +470,32 @@ impl Collider {
     pub fn convex_decomposition(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
         SharedShape::convex_decomposition(&vertices, &indices).into()
+    }
+
+    /// Creates a collider shape with a compound shape obtained from the decomposition of a given polyline
+    /// defined by its vertex and index buffers. The given [`VHACDParameters`] are used for configuring
+    /// the decomposition process.
+    #[cfg(feature = "2d")]
+    pub fn convex_decomposition_with_config(
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 2]>,
+        params: &VHACDParameters,
+    ) -> Self {
+        let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
+        SharedShape::convex_decomposition_with_params(&vertices, &indices, params).into()
+    }
+
+    /// Creates a collider shape with a compound shape obtained from the decomposition of a given trimesh
+    /// defined by its vertex and index buffers. The given [`VHACDParameters`] are used for configuring
+    /// the decomposition process.
+    #[cfg(feature = "3d")]
+    pub fn convex_decomposition_with_config(
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+        params: &VHACDParameters,
+    ) -> Self {
+        let vertices = vertices.iter().map(|v| (*v).into()).collect::<Vec<_>>();
+        SharedShape::convex_decomposition_with_params(&vertices, &indices, params).into()
     }
 
     /// Creates a collider with a [convex polygon](https://en.wikipedia.org/wiki/Convex_polygon) shape obtained after computing
@@ -541,6 +548,149 @@ impl Collider {
 
         let heights = nalgebra::DMatrix::from_vec(row_count, column_count, data);
         SharedShape::heightfield(heights, scale.into()).into()
+    }
+
+    /// Creates a collider with a triangle mesh shape from a `Mesh`.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use bevy::prelude::*;
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     commands.spawn((
+    ///         Collider::trimesh_from_mesh(&mesh).unwrap(),
+    ///         PbrBundle {
+    ///             mesh: meshes.add(mesh),
+    ///             ..default()
+    ///         },
+    ///     ));
+    /// }
+    /// ```
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn trimesh_from_mesh(mesh: &Mesh) -> Option<Self> {
+        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
+            SharedShape::trimesh_with_flags(
+                vertices,
+                indices,
+                TriMeshFlags::MERGE_DUPLICATE_VERTICES,
+            )
+            .into()
+        })
+    }
+
+    /// Creates a collider with a triangle mesh shape from a `Mesh` using the given [`TriMeshFlags`]
+    /// for controlling the preprocessing.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use bevy::prelude::*;
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     commands.spawn((
+    ///         Collider::trimesh_from_mesh_with_config(&mesh, TriMeshFlags::all()).unwrap(),
+    ///         PbrBundle {
+    ///             mesh: meshes.add(mesh),
+    ///             ..default()
+    ///         },
+    ///     ));
+    /// }
+    /// ```
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn trimesh_from_mesh_with_config(mesh: &Mesh, flags: TriMeshFlags) -> Option<Self> {
+        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
+            SharedShape::trimesh_with_flags(vertices, indices, flags).into()
+        })
+    }
+
+    /// Creates a collider with a convex polygon shape obtained from the convex hull of a `Mesh`.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use bevy::prelude::*;
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     commands.spawn((
+    ///         Collider::convex_hull_from_mesh(&mesh).unwrap(),
+    ///         PbrBundle {
+    ///             mesh: meshes.add(mesh),
+    ///             ..default()
+    ///         },
+    ///     ));
+    /// }
+    /// ```
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn convex_hull_from_mesh(mesh: &Mesh) -> Option<Self> {
+        extract_mesh_vertices_indices(mesh)
+            .and_then(|(vertices, _)| SharedShape::convex_hull(&vertices).map(|shape| shape.into()))
+    }
+
+    /// Creates a compound shape obtained from the decomposition of a `Mesh`.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use bevy::prelude::*;
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     commands.spawn((
+    ///         Collider::convex_decomposition_from_mesh(&mesh).unwrap(),
+    ///         PbrBundle {
+    ///             mesh: meshes.add(mesh),
+    ///             ..default()
+    ///         },
+    ///     ));
+    /// }
+    /// ```
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn convex_decomposition_from_mesh(mesh: &Mesh) -> Option<Self> {
+        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
+            SharedShape::convex_decomposition(&vertices, &indices).into()
+        })
+    }
+
+    /// Creates a compound shape obtained from the decomposition of a `Mesh`
+    /// with the given [`VHACDParameters`] passed to the decomposition algorithm.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use bevy::prelude::*;
+    /// use bevy_xpbd_3d::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
+    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let config = VHACDParameters {
+    ///         convex_hull_approximation: false,
+    ///         ..default()
+    ///     };
+    ///     commands.spawn((
+    ///         Collider::convex_decomposition_from_mesh_with_config(&mesh, &config).unwrap(),
+    ///         PbrBundle {
+    ///             mesh: meshes.add(mesh),
+    ///             ..default()
+    ///         },
+    ///     ));
+    /// }
+    /// ```
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    pub fn convex_decomposition_from_mesh_with_config(
+        mesh: &Mesh,
+        parameters: &VHACDParameters,
+    ) -> Option<Self> {
+        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
+            SharedShape::convex_decomposition_with_params(&vertices, &indices, parameters).into()
+        })
     }
 }
 
@@ -738,6 +888,198 @@ fn scale_shape(
         }
         _ => Err(parry::query::Unsupported),
     }
+}
+
+/// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
+/// The type of the generated collider can be specified using [`ComputedCollider`].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
+///     // Spawn a cube with a convex hull collider generated from the mesh
+///     commands.spawn((
+///         AsyncCollider(ComputedCollider::ConvexHull),
+///         PbrBundle {
+///             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+///             ..default(),
+///         },
+///     ));
+/// }
+/// ```
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
+pub struct AsyncCollider(pub ComputedCollider);
+
+/// A component that will automatically generate colliders for the meshes in a scene
+/// once the scene has been loaded. The type of the generated collider can be specified
+/// using [`ComputedCollider`].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
+///     let scene = SceneBundle {
+///         scene: assets.load("my_model.gltf#Scene0"),
+///         ..default()
+///     };
+///
+///     // Spawn the scene and automatically generate triangle mesh colliders
+///     commands.spawn((
+///         scene.clone(),
+///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
+///     ));
+///
+///     // Specify configuration for specific meshes by name
+///     commands.spawn((
+///         scene.clone(),
+///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
+///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
+///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010))
+///             .with_density_for_name("Tree", 2.5),
+///     ));
+///
+///     // Only generate colliders for specific meshes by name
+///     commands.spawn((
+///         scene.clone(),
+///         AsyncSceneCollider::new(None)
+///             .with_shape_for_name("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///     ));
+///
+///     // Generate colliders for everything except specific meshes by name
+///     commands.spawn((
+///         scene,
+///         AsyncSceneCollider::new(ComputedCollider::TriMesh)
+///             .without_shape_for_name("Tree"),
+///     ));
+/// }
+/// ```
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Component, Clone, Debug, Default, PartialEq)]
+pub struct AsyncSceneCollider {
+    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`].
+    /// If `None`, all meshes except the ones in [`meshes_by_name`] will be skipped.
+    pub default_shape: Option<ComputedCollider>,
+    /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
+    /// Entries with a `None` value will be skipped.
+    /// For the meshes not found in this `HashMap`, [`default_shape`] and all collision layers
+    /// will be used instead.
+    pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
+}
+
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+impl AsyncSceneCollider {
+    /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
+    /// meshes set to the given `default_shape`.
+    ///
+    /// If the given collider type is `None`, all meshes except the ones in [`meshes_by_name`]
+    /// will be skipped. You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
+    pub fn new(default_shape: Option<ComputedCollider>) -> Self {
+        Self {
+            default_shape,
+            meshes_by_name: default(),
+        }
+    }
+
+    /// Specifies the collider type used for a mesh with the given `name`.
+    pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.shape = shape;
+        } else {
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some(AsyncSceneColliderData { shape, ..default() }),
+            );
+        }
+        self
+    }
+
+    /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
+    pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.layers = layers;
+        } else {
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some(AsyncSceneColliderData {
+                    layers,
+                    ..default()
+                }),
+            );
+        }
+        self
+    }
+
+    /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
+    pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
+        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+            data.density = density;
+        } else {
+            self.meshes_by_name.insert(
+                name.to_string(),
+                Some(AsyncSceneColliderData {
+                    density,
+                    ..default()
+                }),
+            );
+        }
+        self
+    }
+
+    /// Sets collider for the mesh associated with the given `name` to `None`, skipping
+    /// collider generation for it.
+    pub fn without_shape_with_name(mut self, name: &str) -> Self {
+        self.meshes_by_name.insert(name.to_string(), None);
+        self
+    }
+}
+
+/// Configuration for a specific collider generated from a scene using [`AsyncSceneCollider`].
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct AsyncSceneColliderData {
+    /// The type of collider generated for the mesh.
+    pub shape: ComputedCollider,
+    /// The [`CollisionLayers`] used for this collider.
+    pub layers: CollisionLayers,
+    /// The [`CollisionDensity`] used for this collider.
+    pub density: Scalar,
+}
+
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+impl Default for AsyncSceneColliderData {
+    fn default() -> Self {
+        Self {
+            shape: ComputedCollider::TriMesh,
+            layers: CollisionLayers::default(),
+            density: 1.0,
+        }
+    }
+}
+
+/// Determines how a [`Collider`] is generated from a `Mesh`.
+///
+/// Colliders can be created from meshes with the following components and methods:
+///
+/// - [`AsyncSceneCollider`] (requires `3d` and `async-collider` features)
+/// - [`Collider::from_mesh`]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[derive(Component, Clone, Debug, Default, PartialEq)]
+pub enum ComputedCollider {
+    /// A triangle mesh.
+    #[default]
+    TriMesh,
+    /// A convex hull.
+    ConvexHull,
+    /// A compound shape obtained from a decomposition into convex parts using the specified
+    /// [`VHACDParameters`].
+    ConvexDecomposition(VHACDParameters),
 }
 
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.

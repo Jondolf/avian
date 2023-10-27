@@ -105,7 +105,6 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CenterOfMass>()
             .register_type::<ColliderDensity>()
             .register_type::<ColliderMassProperties>()
-            .register_type::<PreviousColliderMassProperties>()
             .register_type::<LockedAxes>()
             .register_type::<ColliderParent>()
             .register_type::<Dominance>()

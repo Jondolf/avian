@@ -6,6 +6,8 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+use bevy::scene::SceneInstance;
 use bevy::{ecs::query::Has, prelude::*, utils::HashMap};
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
@@ -81,6 +83,15 @@ impl Plugin for PreparePlugin {
                 update_collider_storage.before(PhysicsStepSet::BroadPhase),
                 handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
                 handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
+            ),
+        );
+
+        #[cfg(all(feature = "3d", feature = "async-collider"))]
+        app.add_systems(
+            Update,
+            (
+                init_async_colliders,
+                init_async_scene_colliders.after(bevy::scene::scene_spawner_system),
             ),
         );
     }
@@ -376,24 +387,103 @@ fn init_colliders(
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
             Option<&ColliderMassProperties>,
-            Option<&PreviousColliderMassProperties>,
         ),
         Added<Collider>,
     >,
 ) {
-    for (entity, collider, aabb, density, mass_properties, previous_mass_properties) in
-        &mut colliders
-    {
+    for (entity, collider, aabb, density, mass_properties) in &mut colliders {
         let density = *density.unwrap_or(&ColliderDensity::default());
         commands.entity(entity).insert((
             *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
             density,
             *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
-            *previous_mass_properties.unwrap_or(&PreviousColliderMassProperties(
-                ColliderMassProperties::ZERO,
-            )),
             CollidingEntities::default(),
         ));
+    }
+}
+
+/// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+pub fn init_async_colliders(
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+    async_colliders: Query<(Entity, &Handle<Mesh>, &AsyncCollider)>,
+) {
+    for (entity, mesh_handle, async_collider) in async_colliders.iter() {
+        if let Some(mesh) = meshes.get(mesh_handle) {
+            let collider = match &async_collider.0 {
+                ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
+                ComputedCollider::ConvexDecomposition(params) => {
+                    Collider::convex_decomposition_from_mesh_with_config(mesh, params)
+                }
+            };
+            if let Some(collider) = collider {
+                commands
+                    .entity(entity)
+                    .insert(collider)
+                    .remove::<AsyncCollider>();
+            } else {
+                error!("Unable to generate collider from mesh {:?}", mesh);
+            }
+        }
+    }
+}
+
+/// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+pub fn init_async_scene_colliders(
+    mut commands: Commands,
+    meshes: Res<Assets<Mesh>>,
+    scene_spawner: Res<SceneSpawner>,
+    async_colliders: Query<(Entity, &SceneInstance, &AsyncSceneCollider)>,
+    children: Query<&Children>,
+    mesh_handles: Query<(&Name, &Handle<Mesh>)>,
+) {
+    for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
+        if scene_spawner.instance_is_ready(**scene_instance) {
+            for child_entity in children.iter_descendants(scene_entity) {
+                if let Ok((name, handle)) = mesh_handles.get(child_entity) {
+                    let Some(collider_data) = async_scene_collider
+                        .meshes_by_name
+                        .get(name.as_str())
+                        .cloned()
+                        .unwrap_or(
+                            async_scene_collider
+                                .default_shape
+                                .clone()
+                                .map(|shape| AsyncSceneColliderData { shape, ..default() }),
+                        )
+                    else {
+                        continue;
+                    };
+
+                    let mesh = meshes.get(handle).expect("mesh should already be loaded");
+
+                    let collider = match collider_data.shape {
+                        ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                        ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
+                        ComputedCollider::ConvexDecomposition(params) => {
+                            Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
+                        }
+                    };
+                    if let Some(collider) = collider {
+                        commands.entity(child_entity).insert((
+                            collider,
+                            collider_data.layers,
+                            ColliderDensity(collider_data.density),
+                        ));
+                    } else {
+                        error!(
+                            "unable to generate collider from mesh {:?} with name {}",
+                            mesh, name
+                        );
+                    }
+                }
+            }
+
+            commands.entity(scene_entity).remove::<AsyncSceneCollider>();
+        }
     }
 }
 
@@ -509,10 +599,9 @@ fn update_mass_properties(
             &ColliderTransform,
             &mut PreviousColliderTransform,
             &ColliderParent,
-            &Collider,
+            Ref<Collider>,
             &ColliderDensity,
             &mut ColliderMassProperties,
-            &mut PreviousColliderMassProperties,
         ),
         Or<(
             Changed<Collider>,
@@ -531,23 +620,25 @@ fn update_mass_properties(
         collider,
         density,
         mut collider_mass_properties,
-        mut previous_collider_mass_properties,
     ) in &mut colliders
     {
         if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
-            // Subtract previous collider mass props from the body's mass props
-            mass_properties -= *PreviousColliderMassProperties(ColliderMassProperties {
-                center_of_mass: CenterOfMass(
-                    previous_collider_transform
-                        .transform_point(previous_collider_mass_properties.center_of_mass.0),
-                ),
-                ..previous_collider_mass_properties.0
-            });
+            // Subtract previous collider mass props from the body's own mass props,
+            // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
+            info!("a");
+            if !collider.is_added() {
+                mass_properties -= ColliderMassProperties {
+                    center_of_mass: CenterOfMass(
+                        previous_collider_transform
+                            .transform_point(collider_mass_properties.center_of_mass.0),
+                    ),
+                    ..*collider_mass_properties
+                };
+            }
 
             previous_collider_transform.0 = *collider_transform;
 
-            // Update previous and current collider mass props
-            previous_collider_mass_properties.0 = *collider_mass_properties;
+            // Update collider mass props
             *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
             // Add new collider mass props to the body's mass props

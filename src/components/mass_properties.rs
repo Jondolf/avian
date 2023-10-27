@@ -371,8 +371,3 @@ impl Default for ColliderMassProperties {
         Self::ZERO
     }
 }
-
-/// The previous [`ColliderMassProperties`].
-#[derive(Reflect, Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderMassProperties(pub ColliderMassProperties);
