@@ -51,7 +51,7 @@ fn setup(
                 PbrBundle {
                     mesh: particle_mesh.clone_weak(),
                     material: particle_material.clone_weak(),
-                    transform: Transform::from_xyz(0.0, -i as Scalar * particle_radius * 2.2, 0.0),
+                    transform: Transform::from_xyz(0.0, -i as f32 * particle_radius * 2.2, 0.0),
                     ..default()
                 },
                 RigidBody::Dynamic,
