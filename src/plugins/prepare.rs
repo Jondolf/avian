@@ -625,7 +625,6 @@ fn update_mass_properties(
         if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
             // Subtract previous collider mass props from the body's own mass props,
             // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
-            info!("a");
             if !collider.is_added() {
                 mass_properties -= ColliderMassProperties {
                     center_of_mass: CenterOfMass(
