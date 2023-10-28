@@ -81,10 +81,8 @@ use bevy::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -107,10 +105,14 @@ use bevy::prelude::*;
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
+)]
 ///
 /// pub struct CustomBroadPhasePlugin;
 ///
@@ -135,10 +137,8 @@ use bevy::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// # struct CustomBroadPhasePlugin;
 /// # impl Plugin for CustomBroadPhasePlugin {
