@@ -411,11 +411,10 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.gizmos
-                .circle_2d(point.adjust_precision(), 3.0, point_color);
+            self.gizmos.circle_2d(point.as_f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
             self.gizmos
-                .sphere(point.adjust_precision(), default(), 0.025, point_color);
+                .sphere(point.as_f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]
@@ -463,11 +462,10 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.gizmos
-                .circle_2d(hit.point1.adjust_precision(), 3.0, point_color);
+            self.gizmos.circle_2d(hit.point1.as_f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
             self.gizmos
-                .sphere(hit.point1.adjust_precision(), default(), 0.025, point_color);
+                .sphere(hit.point1.as_f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]
