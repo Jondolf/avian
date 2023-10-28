@@ -213,7 +213,7 @@ use derive_more::From;
 ///
 /// ## See more
 ///
-/// - [Gravity]
+/// - [Gravity] and [gravity scale](GravityScale)
 /// - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
@@ -259,7 +259,7 @@ impl RigidBody {
     }
 }
 
-/// Indicates that a body is not simulated by the physics engine until woken up again.
+/// Indicates that a [rigid body](RigidBody) is not simulated by the physics engine until woken up again.
 /// This is done to improve performance and to help prevent small jitter that is typically present in collisions.
 ///
 /// Bodies are marked as sleeping when their linear and angular velocity is below the [`SleepingThreshold`] for a time
@@ -337,7 +337,7 @@ impl Position {
     }
 }
 
-/// The previous position of a body.
+/// The position of a [rigid body](RigidBody) at the start of a substep.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct PreviousPosition(pub Vector);
@@ -353,7 +353,21 @@ pub struct PreviousPosition(pub Vector);
 #[reflect(Component)]
 pub struct AccumulatedTranslation(pub Vector);
 
-/// The linear velocity of a body.
+/// The linear velocity of a [rigid body](RigidBody).
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn accelerate_bodies(mut query: Query<&mut LinearVelocity>) {
+///     for mut linear_velocity in query.iter_mut() {
+///         linear_velocity.x += 0.05;
+///     }
+/// }
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct LinearVelocity(pub Vector);
@@ -363,18 +377,46 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
-/// The linear velocity of a body before the velocity solve is performed.
+/// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub(crate) struct PreSolveLinearVelocity(pub Vector);
 
-/// The angular velocity of a body in radians. Positive values will result in counterclockwise rotation.
+/// The angular velocity of a [rigid body](RigidBody) in radians per second.
+/// Positive values will result in counterclockwise rotation.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_2d::prelude::*;
+///
+/// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
+///     for mut angular_velocity in query.iter_mut() {
+///         angular_velocity.0 += 0.05;
+///     }
+/// }
+/// ```
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
 pub struct AngularVelocity(pub Scalar);
 
-/// The angular velocity of a body in radians.
+/// The angular velocity of a [rigid body](RigidBody) as a rotation axis
+/// multiplied by the angular speed in radians per second.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
+///     for mut angular_velocity in query.iter_mut() {
+///         angular_velocity.z += 0.05;
+///     }
+/// }
+/// ```
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -389,13 +431,15 @@ impl AngularVelocity {
     pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
 }
 
-/// The angular velocity of a body in radians before the velocity solve is performed. Positive values will result in counter-clockwise rotation.
+/// The angular velocity of a [rigid body](RigidBody) in radians per second, before
+/// the velocity solve is performed. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
 pub(crate) struct PreSolveAngularVelocity(pub Scalar);
 
-/// The angular velocity of a body in radians before the velocity solve is performed.
+/// The angular velocity of a [rigid body](RigidBody) as a rotation axis
+/// multiplied by the angular speed in radians per second, before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -405,15 +449,33 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 ///
 /// A gravity scale of `0.0` will disable gravity, while `2.0` will double the gravity.
 /// Using a negative value will flip the direction of the gravity.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// // Spawn a body with 1.5 times the normal gravity
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         GravityScale(1.5),
+///     ));
+/// }
+/// ```
 #[derive(
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[reflect(Component)]
 pub struct GravityScale(pub Scalar);
 
-/// Determines how coefficients are combined. The default is `Average`.
+/// Determines how coefficients are combined for [`Restitution`] and [`Friction`].
+/// The default is `Average`.
 ///
-/// When combine rules clash with each other, the following priority order is used: `Max > Multiply > Min > Average`.
+/// When combine rules clash with each other, the following priority order is used:
+/// `Max > Multiply > Min > Average`.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CoefficientCombine {
     // The discriminants allow priority ordering to work automatically via comparison methods
@@ -429,7 +491,7 @@ pub enum CoefficientCombine {
 }
 
 /// A component for the [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
-/// This controls how bouncy a body is.
+/// This controls how bouncy a [rigid body](RigidBody) is.
 ///
 /// The coefficient is between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
 /// to a **perfectly elastic collision** that preserves all kinetic energy. The default coefficient is 0.3, and it currently
@@ -454,10 +516,8 @@ pub enum CoefficientCombine {
 /// Combine the properties of two [`Restitution`] components:
 ///
 /// ```
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
@@ -592,10 +652,8 @@ impl From<Scalar> for Restitution {
 /// Combine the properties of two [`Friction`] components:
 ///
 /// ```
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
@@ -703,20 +761,50 @@ impl From<Scalar> for Friction {
     }
 }
 
-/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [linear velocity](LinearVelocity)
-/// each frame. This can be used to simulate air resistance.
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing its
+/// [linear velocity](LinearVelocity) each frame. This can be used to simulate air resistance.
 ///
 /// The default linear damping coefficient is `0.0`, which corresponds to no damping.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         LinearDamping(0.8),
+///     ));
+/// }
+/// ```
 #[derive(
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[reflect(Component)]
 pub struct LinearDamping(pub Scalar);
 
-/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing it's [angular velocity](AngularVelocity)
-/// each frame. This can be used to simulate air resistance.
+/// Automatically slows down a dynamic [rigid body](RigidBody), decreasing its
+/// [angular velocity](AngularVelocity) each frame. This can be used to simulate air resistance.
 ///
 /// The default angular damping coefficient is `0.0`, which corresponds to no damping.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         AngularDamping(1.6),
+///     ));
+/// }
+/// ```
 #[derive(
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]

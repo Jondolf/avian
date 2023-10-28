@@ -113,7 +113,7 @@
 //! - [Movement](RigidBody#movement)
 //!     - [Linear](LinearVelocity) and [angular](AngularVelocity) velocity
 //!     - [Forces](ExternalForce), [torque](ExternalTorque), and [linear](ExternalImpulse) and [angular](ExternalAngularImpulse) impulses
-//! - [Gravity]
+//! - [Gravity] and [gravity scale](GravityScale)
 //! - [Mass properties](RigidBody#mass-properties)
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 //! - [Lock translational and rotational axes](LockedAxes)
