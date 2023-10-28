@@ -60,7 +60,7 @@ fn setup(
     ));
 
     let marble_radius = 7.5;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius as f32).into());
+    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
 
     // Spawn blue marbles that belong on the blue layer and collide with blue
     let blue_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
@@ -78,7 +78,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Blue], [Layer::Blue]),
             ));
         }
@@ -100,7 +100,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Red], [Layer::Red]),
             ));
         }
