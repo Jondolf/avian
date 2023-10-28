@@ -5,27 +5,23 @@ use crate::prelude::*;
 
 /// A component that specifies which translational and rotational axes of a [rigid body](RigidBody) are locked.
 ///
-/// The axes are represented using a total of six bits, one for each axis. The easiest way is to lock or unlock
-/// specific axes is to use the methods like [`lock_translation_x`](#method.lock_translation_x), but you can also
+/// The axes are represented using a total of six bits, one for each axis. The easiest way to lock or unlock
+/// specific axes is to use methods like [`lock_translation_x`](#method.lock_translation_x), but you can also
 /// use bits directly with the [`from_bits`](#method.from_bits) and [`to_bits`](#method.to_bits) methods.
 ///
 /// ## Example
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
-/// # #[cfg(feature = "3d")]
 /// fn spawn(mut commands: Commands) {
-///     // Spawn a capsule that only rotates around the Y axis
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
 ///         Collider::capsule(1.0, 0.5),
-///         // In 2D, use LockedAxes::new().lock_rotation()
-///         LockedAxes::new().lock_rotation_x().lock_rotation_z(),
+#[cfg_attr(feature = "2d", doc = "        LockedAxes::ROTATION_LOCKED,")]
+#[cfg_attr(feature = "3d", doc = "        LockedAxes::new().lock_rotation_z(),")]
 ///     ));
 /// }
 /// ```
