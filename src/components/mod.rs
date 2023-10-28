@@ -286,7 +286,7 @@ pub struct TimeSleeping(pub Scalar);
 #[reflect(Component)]
 pub struct SleepingDisabled;
 
-/// The global position of a [rigid body](RigidBody) or [collider](Collider).
+/// The global position of a [rigid body](RigidBody) or a [collider](Collider).
 ///
 /// ## Relation to `Transform` and `GlobalTransform`
 ///
