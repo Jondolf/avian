@@ -24,19 +24,19 @@ pub struct PhysicsDebugConfig {
     pub joint_anchor_color: Option<Color>,
     /// The color of the lines drawn between joint anchors, indicating the separation.
     pub joint_separation_color: Option<Color>,
-    /// The color used for the rays in [raycasts](spatial_query#ray-casting).
+    /// The color used for the rays in [raycasts](spatial_query#raycasting).
     pub raycast_color: Option<Color>,
-    /// The color used for the hit points in [raycasts](spatial_query#ray-casting).
+    /// The color used for the hit points in [raycasts](spatial_query#raycasting).
     pub raycast_point_color: Option<Color>,
-    /// The color used for the hit normals in [raycasts](spatial_query#ray-casting).
+    /// The color used for the hit normals in [raycasts](spatial_query#raycasting).
     pub raycast_normal_color: Option<Color>,
-    /// The color used for the ray in [shapecasts](spatial_query#shape-casting).
+    /// The color used for the ray in [shapecasts](spatial_query#shapecasting).
     pub shapecast_color: Option<Color>,
-    /// The color used for the shape in [shapecasts](spatial_query#shape-casting).
+    /// The color used for the shape in [shapecasts](spatial_query#shapecasting).
     pub shapecast_shape_color: Option<Color>,
-    /// The color used for the hit points in [shapecasts](spatial_query#shape-casting).
+    /// The color used for the hit points in [shapecasts](spatial_query#shapecasting).
     pub shapecast_point_color: Option<Color>,
-    /// The color used for the hit normals in [shapecasts](spatial_query#shape-casting).
+    /// The color used for the hit normals in [shapecasts](spatial_query#shapecasting).
     pub shapecast_normal_color: Option<Color>,
     /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
     /// which will only show the debug renders.

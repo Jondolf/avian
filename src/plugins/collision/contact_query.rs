@@ -11,7 +11,7 @@
 //! | [`intersection_test`] | Tests whether two [`Collider`]s are intersecting each other.              |
 //! | [`time_of_impact`]    | Computes when two moving [`Collider`]s hit each other for the first time. |
 //!
-//! For geometric queries that query the entire world for intersections, like ray casting, shape casting
+//! For geometric queries that query the entire world for intersections, like raycasting, shapecasting
 //! and point projection, see [spatial queries](spatial_query).
 
 use crate::prelude::*;

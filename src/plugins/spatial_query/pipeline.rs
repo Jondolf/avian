@@ -133,7 +133,7 @@ impl SpatialQueryPipeline {
         utils::entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
+    /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
     /// ## Arguments
@@ -172,7 +172,7 @@ impl SpatialQueryPipeline {
             })
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData) until `max_hits` is reached.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
@@ -212,7 +212,7 @@ impl SpatialQueryPipeline {
         hits
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData), calling the given `callback`
     /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
@@ -269,7 +269,7 @@ impl SpatialQueryPipeline {
         self.qbvh.traverse_depth_first(&mut visitor);
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
@@ -333,7 +333,7 @@ impl SpatialQueryPipeline {
             })
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact until `max_hits` is reached.
     ///
     /// ## Arguments
@@ -380,7 +380,7 @@ impl SpatialQueryPipeline {
         hits
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///

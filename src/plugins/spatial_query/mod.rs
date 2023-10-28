@@ -1,21 +1,21 @@
 //! **Spatial queries** are a way to get information about the environment. They perform geometric queries
 //! on [colliders](Collider) and retrieve data about intersections.
 //!
-//! There are four types of spatial queries: [raycasts](#ray-casting), [shapecasts](#shape-casting),
+//! There are four types of spatial queries: [raycasts](#raycasting), [shapecasts](#shapecasting),
 //! [point projection](#point-projection) and [intersection tests](#intersection-tests).
 //! All spatial queries can be done using the various methods provided by the [`SpatialQuery`] system parameter.
 //!
-//! Ray casting and shape casting can also be done with a component-based approach using the [`RayCaster`] and
+//! Raycasting and shapecasting can also be done with a component-based approach using the [`RayCaster`] and
 //! [`ShapeCaster`] components. They enable performing casts every frame in a way that is often more convenient
 //! than the normal [`SpatialQuery`] methods. See their documentation for more information.
 //!
-//! ## Ray casting
+//! ## Raycasting
 //!
-//! **Ray casting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
+//! **Raycasting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
 //! a variety of things like getting information about the environment for character controllers and AI,
 //! and even rendering using ray tracing.
 //!
-//! For each hit during ray casting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
+//! For each hit during raycasting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
 //! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
 //! the point of intersection.
 //!
@@ -24,7 +24,7 @@
 //! 1. For simple raycasts, use the [`RayCaster`] component. It returns the results of the raycast
 //! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the ray casting methods provided by
+//! 2. When you need more control or don't want to cast every frame, use the raycasting methods provided by
 //! [`SpatialQuery`], like [`cast_ray`](SpatialQuery#method.cast_ray), [`ray_hits`](SpatialQuery#method.ray_hits) or
 //! [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback).
 //!
@@ -63,14 +63,14 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Shape casting
+//! ## Shapecasting
 //!
-//! **Shape casting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
-//! that is travelling along a half-line. It is very similar to [ray casting](#ray-casting), but instead of a "point"
+//! **Shapecasting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
+//! that is travelling along a half-line. It is very similar to [raycasting](#raycasting), but instead of a "point"
 //! we have an entire shape travelling along a half-line. One use case is determining how far an object can move
 //! before it hits the environment.
 //!
-//! For each hit during shape casting, the hit entity, the *time of impact*, two local points of intersection and two local
+//! For each hit during shapecasting, the hit entity, the *time of impact*, two local points of intersection and two local
 //! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
 //! hit, which is essentially the distance from the shape origin to the global point of intersection.
 //!
@@ -79,7 +79,7 @@
 //! 1. For simple shapecasts, use the [`ShapeCaster`] component. It returns the results of the shapecast
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the shape casting methods provided by
+//! 2. When you need more control or don't want to cast every frame, use the shapecasting methods provided by
 //! [`SpatialQuery`], like [`cast_shape`](SpatialQuery#method.cast_shape), [`shape_hits`](SpatialQuery#method.shape_hits) or
 //! [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback).
 //!
@@ -162,7 +162,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
-/// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
+/// like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting) with
 /// [`RayCaster`] and [`ShapeCaster`].
 pub struct SpatialQueryPlugin {
     schedule: Box<dyn ScheduleLabel>,

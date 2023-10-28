@@ -152,7 +152,7 @@ fn movement(
         }
 
         // Assume "mostly stopped" to mean "grounded".
-        // You should use ray casting, shape casting or sensor colliders
+        // You should use raycasting, shapecasting or sensor colliders
         // for more robust ground detection.
         if linear_velocity.y.abs() < 0.1
             && !keyboard_input.pressed(KeyCode::Down)

@@ -42,8 +42,8 @@ Below are some of the current features of Bevy XPBD.
 - Joints
 - Built-in constraints and support for custom constraints
 - Spatial queries
-  - Ray casting
-  - Shape casting
+  - Raycasting
+  - Shapecasting
   - Point projection
   - Intersection tests
 - Debug rendering colliders, AABBs, contacts, joints, rigid body axes, and spatial queries

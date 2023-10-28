@@ -5,9 +5,9 @@ use bevy::{
 };
 use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 
-/// A component used for [shape casting](spatial_query#shape-casting).
+/// A component used for [shapecasting](spatial_query#shapecasting).
 ///
-/// **Shape casting** is a type of [spatial query](spatial_query) where a shape travels along a straight
+/// **Shapecasting** is a type of [spatial query](spatial_query) where a shape travels along a straight
 /// line and computes hits with colliders. This is often used to determine how far an object can move
 /// in a direction before it hits something.
 ///
@@ -18,7 +18,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// Computing lots of hits can be expensive, especially against complex geometry, so the maximum number of hits
 /// is one by default. This can be configured through the `max_hits` property.
 ///
-/// The [`ShapeCaster`] is the easiest way to handle simple shape casting. If you want more control and don't want
+/// The [`ShapeCaster`] is the easiest way to handle simple shapecasting. If you want more control and don't want
 /// to perform shapecasts on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Example
@@ -329,7 +329,7 @@ impl ShapeCaster {
 /// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of time of impact.
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`ShapeCaster`]. By default only
-/// one hit is computed, as shape casting for many results can be expensive.
+/// one hit is computed, as shapecasting for many results can be expensive.
 ///
 /// ## Example
 ///
@@ -395,7 +395,7 @@ impl MapEntities for ShapeHits {
     }
 }
 
-/// Data related to a hit during a [shapecast](spatial_query#shape-casting).
+/// Data related to a hit during a [shapecast](spatial_query#shapecasting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.

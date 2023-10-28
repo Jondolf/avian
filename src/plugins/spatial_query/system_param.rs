@@ -5,9 +5,9 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///
 /// ## Methods
 ///
-/// - [Ray casting](spatial_query#ray-casting): [`cast_ray`](SpatialQuery#method.cast_ray),
+/// - [Raycasting](spatial_query#raycasting): [`cast_ray`](SpatialQuery#method.cast_ray),
 /// [`ray_hits`](SpatialQuery#method.ray_hits), [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback)
-/// - [Shape casting](spatial_query#shape-casting): [`cast_shape`](SpatialQuery#method.cast_shape),
+/// - [Shapecasting](spatial_query#shapecasting): [`cast_shape`](SpatialQuery#method.cast_shape),
 /// [`shape_hits`](SpatialQuery#method.shape_hits), [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback)
 /// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery#method.project_point)
 /// - [Intersection tests](spatial_query#intersection-tests)
@@ -21,7 +21,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 /// For simple raycasts and shapecasts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
 /// provide a more ECS-based approach and perform casts on every frame.
 ///
-/// ## Ray casting example
+/// ## Raycasting example
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -86,7 +86,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             .update(self.colliders.iter(), self.added_colliders.iter());
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
+    /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
     /// ## Arguments
@@ -133,7 +133,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             .cast_ray(origin, direction, max_time_of_impact, solid, query_filter)
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData) until `max_hits` is reached.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
@@ -194,7 +194,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData), calling the given `callback`
     /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
@@ -260,7 +260,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
@@ -324,7 +324,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact until `max_hits` is reached.
     ///
     /// ## Arguments
@@ -394,7 +394,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///

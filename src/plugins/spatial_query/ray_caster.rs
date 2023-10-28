@@ -7,9 +7,9 @@ use parry::query::{
     details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
 
-/// A component used for [ray casting](spatial_query#ray-casting).
+/// A component used for [raycasting](spatial_query#raycasting).
 ///
-/// **Ray casting** is a type of [spatial query](spatial_query) that finds one or more hits
+/// **Raycasting** is a type of [spatial query](spatial_query) that finds one or more hits
 /// between a ray and a set of colliders.
 ///
 /// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each hit
@@ -378,7 +378,7 @@ impl MapEntities for RayHits {
     }
 }
 
-/// Data related to a hit during a [raycast](spatial_query#ray-casting).
+/// Data related to a hit during a [raycast](spatial_query#raycasting).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.

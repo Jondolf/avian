@@ -66,7 +66,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
-/// - [`SpatialQueryPlugin`]: Handles spatial queries like [ray casting](RayCaster) and shape casting.
+/// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](RayCaster) and shapecasting.
 /// - [`SyncPlugin`]: Keeps [`Position`] and [`Rotation`] in sync with `Transform`.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
