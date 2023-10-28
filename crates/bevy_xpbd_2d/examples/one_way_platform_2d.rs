@@ -108,7 +108,7 @@ fn setup(
         commands.spawn((
             SpriteBundle {
                 sprite: one_way_sprite.clone(),
-                transform: Transform::from_xyz(0.0, y as Scalar * 16.0 * 6.0, 0.0)
+                transform: Transform::from_xyz(0.0, y as f32 * 16.0 * 6.0, 0.0)
                     .with_scale(Vec3::new(10.0, 0.5, 1.0)),
                 ..default()
             },
