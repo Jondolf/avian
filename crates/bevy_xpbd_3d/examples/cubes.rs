@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use bevy::prelude::*;
-use bevy_xpbd_3d::{math::*, prelude::*};
+use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
 fn main() {
@@ -29,11 +29,10 @@ fn setup(
         PbrBundle {
             mesh: cube_mesh.clone(),
             material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
-            transform: Transform::from_scale(Vec3::new(100.0, 1.0, 100.0)),
+            transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 2.0),
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
@@ -43,20 +42,16 @@ fn setup(
     for x in -2..2 {
         for y in -2..2 {
             for z in -2..2 {
-                let pos = Vector::new(
-                    x as Scalar * (cube_size + 0.05),
-                    y as Scalar * (cube_size + 0.05),
-                    z as Scalar * (cube_size + 0.05),
-                );
+                let position = Vec3::new(x as f32, y as f32 + 5.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
                     PbrBundle {
                         mesh: cube_mesh.clone(),
                         material: materials.add(Color::rgb(0.2, 0.7, 0.9).into()),
-                        transform: Transform::from_scale(Vec3::splat(cube_size as f32)),
+                        transform: Transform::from_translation(position)
+                            .with_scale(Vec3::splat(cube_size as f32)),
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(1.0, 1.0, 1.0),
                     Cube,
                 ));

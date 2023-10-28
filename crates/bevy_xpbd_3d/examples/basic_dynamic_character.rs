@@ -44,10 +44,10 @@ fn setup(
                 ..default()
             })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },
         RigidBody::Dynamic,
-        Position(Vector::Y * 1.0),
         Collider::capsule(1.0, 0.4),
         // Prevent the player from falling over
         LockedAxes::new().lock_rotation_x().lock_rotation_z(),

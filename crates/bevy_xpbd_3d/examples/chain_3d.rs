@@ -30,17 +30,14 @@ fn setup(
 ) {
     let particle_count = 100;
     let particle_radius = 0.06;
-    let particle_mesh = PbrBundle {
-        mesh: meshes.add(
-            Mesh::try_from(shape::Icosphere {
-                radius: particle_radius as f32,
-                ..default()
-            })
-            .unwrap(),
-        ),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
-        ..default()
-    };
+    let particle_mesh = meshes.add(
+        Mesh::try_from(shape::Icosphere {
+            radius: particle_radius as f32,
+            ..default()
+        })
+        .unwrap(),
+    );
+    let particle_material = materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands
@@ -51,9 +48,17 @@ fn setup(
     for i in 1..particle_count {
         let current_particle = commands
             .spawn((
-                particle_mesh.clone(),
+                PbrBundle {
+                    mesh: particle_mesh.clone_weak(),
+                    material: particle_material.clone_weak(),
+                    transform: Transform::from_xyz(
+                        0.0,
+                        -i as f32 * particle_radius as f32 * 2.2,
+                        0.0,
+                    ),
+                    ..default()
+                },
                 RigidBody::Dynamic,
-                Position(i as Scalar * Vector::NEG_Y * (particle_radius * 2.2)),
                 MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
             ))
             .id();

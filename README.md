@@ -94,25 +94,25 @@ fn setup(
 ) {
     // Plane
     commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(8.0, 0.002, 8.0),
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(8.0, 0.002, 8.0),
     ));
     // Cube
     commands.spawn((
+        RigidBody::Dynamic,
+        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
+        Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
-        RigidBody::Dynamic,
-        Position(Vec3::Y * 4.0),
-        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
-        Collider::cuboid(1.0, 1.0, 1.0),
     ));
     // Light
     commands.spawn(PointLightBundle {

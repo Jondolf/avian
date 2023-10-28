@@ -1,12 +1,11 @@
 use std::fmt;
 
 use crate::{prelude::*, utils::make_isometry};
-use bevy::{log, prelude::*, utils::HashSet};
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-use bevy::{
-    render::mesh::{Indices, VertexAttributeValues},
-    utils::HashMap,
-};
+use bevy::render::mesh::{Indices, VertexAttributeValues};
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+use bevy::utils::HashMap;
+use bevy::{log, prelude::*, utils::HashSet};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{

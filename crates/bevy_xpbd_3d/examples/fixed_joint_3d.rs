@@ -17,16 +17,18 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube = PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-        material: materials.add(Color::rgb(0.2, 0.7, 0.9).into()),
-        ..default()
-    };
+    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
 
     // Kinematic rotating "anchor" object
     let anchor = commands
         .spawn((
-            cube.clone(),
+            PbrBundle {
+                mesh: cube_mesh.clone_weak(),
+                material: cube_material.clone_weak(),
+                transform: Transform::from_xyz(3.0, 3.5, 0.0),
+                ..default()
+            },
             RigidBody::Kinematic,
             AngularVelocity(Vector::Z * 1.5),
         ))
@@ -35,9 +37,13 @@ fn setup(
     // Dynamic object rotating around anchor
     let object = commands
         .spawn((
-            cube,
+            PbrBundle {
+                mesh: cube_mesh,
+                material: cube_material,
+                transform: Transform::from_xyz(1.5, 0.0, 0.0),
+                ..default()
+            },
             RigidBody::Dynamic,
-            Position(Vector::X * 1.5),
             MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
