@@ -162,20 +162,27 @@
 //! - [Physics timestep](PhysicsTimestep)
 //! - [Speed up or slow down time](PhysicsTimescale)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
-//! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
-//! - [Running physics manually](PhysicsSchedule#run-physics-manually)
-//! - [Usage on servers](#can-the-engine-be-used-on-servers)
-//! - [Custom plugins](PhysicsPlugins#custom-plugins)
 //!
-//! ### Architecture
+//! ### Scheduling
 //!
-//! - [List of plugins and their responsibilities](PhysicsPlugins)
 //! - Schedules and sets
 //!     - [`PhysicsSet`]
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
 //!     - [`PostProcessCollisions`] schedule
+//! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
+//! - [Pausing, resuming and stepping the physics loop](PhysicsLoop)
+//! - [Running physics manually](PhysicsPlugins#running-physics-manually)
+//! - [Usage on servers](#can-the-engine-be-used-on-servers)
+//!
+//! ### Architecture
+//!
+//! - [List of plugins and their responsibilities](PhysicsPlugins)
 //! - [What is Extended Position Based Dynamics?](#what-is-xpbd)
+//! - Extending and modifying the engine
+//!     - [Custom plugins](PhysicsPlugins#custom-plugins)
+//!     - [Custom constraints](constraints#custom-constraints)
+//!     - [Custom joints](joints#custom-joints)
 //!
 //! ## Frequently asked questions
 //!

@@ -95,6 +95,36 @@ use bevy::prelude::*;
 /// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
 /// when you need to keep the client and server in sync.
 ///
+/// ## Running physics manually
+///
+/// You can pause, step and resume the simulation with the [`PhysicsLoop`] resource, but the changes
+/// only take affect the next frame.
+///
+/// To advance the simulation by a certain amount of time instantly, you can set the value of
+/// the [`DeltaTime`] resource and manually run the [`PhysicsSchedule`] in an exclusive system:
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
+)]
+///
+/// fn run_physics(world: &mut World) {
+///     // Set the amount of time a step should take
+///     world.resource_mut::<DeltaTime>().0 = 1.0 / 120.0;
+///
+///     // Advance the simulation by 10 steps at 120 Hz
+///     for _ in 0..10 {
+///         world.run_schedule(PhysicsSchedule);
+///     }
+/// }
+/// ```
+///
 /// ## Custom plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
