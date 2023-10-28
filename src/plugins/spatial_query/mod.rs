@@ -159,13 +159,13 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::intern::Interned};
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
 /// [`RayCaster`] and [`ShapeCaster`].
 pub struct SpatialQueryPlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl SpatialQueryPlugin {
@@ -174,7 +174,7 @@ impl SpatialQueryPlugin {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -188,7 +188,7 @@ impl Default for SpatialQueryPlugin {
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpatialQueryPipeline>().add_systems(
-            self.schedule.dyn_clone(),
+            self.schedule,
             (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
         );
 

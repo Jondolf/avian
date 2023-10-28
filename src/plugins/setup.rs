@@ -10,6 +10,7 @@ use bevy::{
 use crate::prelude::*;
 
 use super::sync::PreviousGlobalTransform;
+use bevy::utils::intern::Interned;
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
@@ -33,7 +34,7 @@ use super::sync::PreviousGlobalTransform;
 /// - [`PostProcessCollisions`]: Responsible for running collision post-processing systems.
 /// Empty by default.
 pub struct PhysicsSetupPlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PhysicsSetupPlugin {
@@ -42,7 +43,7 @@ impl PhysicsSetupPlugin {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -111,9 +112,9 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Sensor>();
 
         // Configure higher level system sets for the given schedule
-        let schedule = &self.schedule;
+        let schedule = self.schedule;
         app.configure_sets(
-            schedule.dyn_clone(),
+            schedule,
             (
                 PhysicsSet::Prepare,
                 PhysicsSet::StepSimulation,
@@ -124,7 +125,7 @@ impl Plugin for PhysicsSetupPlugin {
         );
 
         // Check and store if schedule is configured to run in FixedUpdate.
-        let fixed_update = schedule.inner_type_id() == FixedUpdate::inner_type_id(&FixedUpdate);
+        let fixed_update = schedule == FixedUpdate.intern();
 
         app.insert_resource(PhysicsLoop {
             fixed_update,
@@ -155,7 +156,7 @@ impl Plugin for PhysicsSetupPlugin {
         app.add_schedule(physics_schedule);
 
         app.add_systems(
-            schedule.dyn_clone(),
+            schedule,
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
         );
 
