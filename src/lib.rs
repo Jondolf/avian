@@ -165,7 +165,7 @@
 //!
 //! ### Scheduling
 //!
-//! - Schedules and sets
+//! - [Schedules and sets](PhysicsSetupPlugin#schedules-and-sets)
 //!     - [`PhysicsSet`]
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
