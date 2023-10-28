@@ -183,6 +183,16 @@
 //!
 //! ## Frequently asked questions
 //!
+//! - [How does Bevy XPBD compare to Rapier and bevy_rapier?](#how-does-bevy-xpbd-compare-to-rapier-and-bevy_rapier)
+//! - [Why is nothing happening?](#why-is-nothing-happening)
+//! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
+//! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
+//! - [Why is performance so bad?](#why-is-performance-so-bad)
+//! - [Is there a character controller?](#is-there-a-character-controller)
+//! - [Why are there separate `Position` and `Rotation` components?](#why-are-there-separate-position-and-rotation-components)
+//! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
+//! - [Something else?](#something-else)
+//!
 //! ### How does Bevy XPBD compare to Rapier and bevy_rapier?
 //!
 //! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
@@ -257,6 +267,42 @@
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
+//! ### Is there a character controller?
+//!
+//! Bevy XPBD does not have a built-in character controller, so if you need one,
+//! you will need to implement it yourself. However, third party character controllers
+//! like [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
+//! are also likely to get Bevy XPBD support soon.
+//!
+//! For custom character controllers, you can take a look at the [`basic_dynamic_character`]
+//! and [`basic_kinematic_character`] examples to get started.
+//!
+//! [`basic_dynamic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_dynamic_character.rs
+//! [`basic_kinematic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_kinematic_character.rs
+//!
+//! ### Why are there separate `Position` and `Rotation` components?
+//!
+//! While `Transform` can be used for the vast majority of things, Bevy XPBD internally
+//! uses separate [`Position`] and [`Rotation`] components. These are automatically
+//! kept in sync by the [`SyncPlugin`].
+//!
+//! There are several reasons why the separate components are currently used.
+//!
+//! - Position and rotation should be global from the physics engine's point of view.
+//! - Transform scale and shearing can cause issues and rounding errors in physics.
+//! - Transform hierarchies can be problematic.
+//! - There is no `f64` version of `Transform`.
+//! - There is no 2D version of `Transform` (yet), and having a 2D version can optimize several computations.
+//! - When position and rotation are separate, we can technically have more systems running in parallel.
+//! - Only rigid bodies have rotation, particles typically don't (although we don't make a distinction yet).
+//!
+//! In external projects however, using [`Position`] and [`Rotation`] is only necessary when you
+//! need to manage positions in the [`SubstepSchedule`]. Elsewhere, you should be able to use `Transform`.
+//!
+//! There is also a possibility that we will revisit this if/when Bevy has a `Transform2d` component.
+//! Using `Transform` feels more idiomatic and simple, so it would be nice if it could be used directly
+//! as long as we can get around the drawbacks.
+//!
 //! ### Can the engine be used on servers?
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
@@ -271,7 +317,7 @@
 //!
 //! ### Something else?
 //!
-//! Physics engines are very large and Bevy XPBD is very young, so stability issues and bugs are to be expected.
+//! Physics engines are very large and Bevy XPBD is young, so stability issues and bugs are to be expected.
 //!
 //! If you encounter issues, please consider first taking a look at the
 //! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
@@ -532,7 +578,7 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SleepingPlugin`].
     Sleeping,
-    /// Responsible for spatial queries like [ray casting](`RayCaster`) and shape casting.
+    /// Responsible for spatial queries like [raycasting](`RayCaster`) and shapecasting.
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
