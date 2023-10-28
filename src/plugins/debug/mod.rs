@@ -142,15 +142,23 @@ fn debug_render_axes(
 }
 
 fn debug_render_aabbs(
-    aabbs: Query<(&ColliderAabb, Option<&DebugRender>, Has<Sleeping>)>,
+    aabbs: Query<(
+        Entity,
+        &ColliderAabb,
+        Option<&ColliderParent>,
+        Option<&DebugRender>,
+    )>,
+    sleeping: Query<(), With<Sleeping>>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
     #[cfg(feature = "2d")]
-    for (aabb, render_config, sleeping) in &aabbs {
+    for (entity, aabb, collider_parent, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -168,10 +176,12 @@ fn debug_render_aabbs(
     }
 
     #[cfg(feature = "3d")]
-    for (aabb, render_config, sleeping) in &aabbs {
+    for (entity, aabb, collider_parent, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -192,19 +202,23 @@ fn debug_render_aabbs(
 #[allow(clippy::type_complexity)]
 fn debug_render_colliders(
     mut colliders: Query<(
+        Entity,
         &Collider,
         &Position,
         &Rotation,
+        Option<&ColliderParent>,
         Option<&DebugRender>,
-        Has<Sleeping>,
     )>,
+    sleeping: Query<(), With<Sleeping>>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
-    for (collider, position, rotation, render_config, sleeping) in &mut colliders {
+    for (entity, collider, position, rotation, collider_parent, render_config) in &mut colliders {
         if let Some(mut color) = render_config.map_or(config.collider_color, |c| c.collider_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
