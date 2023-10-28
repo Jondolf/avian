@@ -42,7 +42,7 @@ impl LockedAxes {
     pub const ALL_LOCKED: Self = Self(0b111_111);
 
     /// Creates a new [`LockedAxes`] configuration with all axes unlocked by default.
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self(0)
     }
 
@@ -50,7 +50,7 @@ impl LockedAxes {
     ///
     /// The first three bits correspond to translational axes, while the last three bits correspond to rotational
     /// axes. For example, `0b100_010` would lock translation along the `X` axis and rotation around the `Y` axis.
-    pub fn from_bits(bits: u8) -> Self {
+    pub const fn from_bits(bits: u8) -> Self {
         Self(bits)
     }
 
@@ -59,141 +59,141 @@ impl LockedAxes {
     /// The first three bits correspond to translational axes, while the last three bits correspond to rotational
     /// axes. For example, `0b100_010` would mean that translation along the `X` axis and rotation around the `Y` axis
     /// are locked.
-    pub fn to_bits(&self) -> u8 {
+    pub const fn to_bits(&self) -> u8 {
         self.0
     }
 
     /// Locks translation along the `X` axis.
-    pub fn lock_translation_x(mut self) -> Self {
+    pub const fn lock_translation_x(mut self) -> Self {
         self.0 |= 0b100_000;
         self
     }
 
     /// Locks translation along the `Y` axis.
-    pub fn lock_translation_y(mut self) -> Self {
+    pub const fn lock_translation_y(mut self) -> Self {
         self.0 |= 0b010_000;
         self
     }
 
     /// Locks translation along the `Z` axis.
     #[cfg(feature = "3d")]
-    pub fn lock_translation_z(mut self) -> Self {
+    pub const fn lock_translation_z(mut self) -> Self {
         self.0 |= 0b001_000;
         self
     }
 
     /// Locks rotation around the `X` axis.
     #[cfg(feature = "3d")]
-    pub fn lock_rotation_x(mut self) -> Self {
+    pub const fn lock_rotation_x(mut self) -> Self {
         self.0 |= 0b000_100;
         self
     }
 
     /// Locks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
-    pub fn lock_rotation_y(mut self) -> Self {
+    pub const fn lock_rotation_y(mut self) -> Self {
         self.0 |= 0b000_010;
         self
     }
 
     /// Locks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
-    pub fn lock_rotation_z(mut self) -> Self {
+    pub const fn lock_rotation_z(mut self) -> Self {
         self.0 |= 0b000_001;
         self
     }
 
     /// Locks all rotation.
     #[cfg(feature = "2d")]
-    pub fn lock_rotation(mut self) -> Self {
+    pub const fn lock_rotation(mut self) -> Self {
         self.0 |= 0b000_001;
         self
     }
 
     /// Unlocks translation along the `X` axis.
-    pub fn unlock_translation_x(mut self) -> Self {
+    pub const fn unlock_translation_x(mut self) -> Self {
         self.0 &= !0b100_000;
         self
     }
 
     /// Unlocks translation along the `Y` axis.
-    pub fn unlock_translation_y(mut self) -> Self {
+    pub const fn unlock_translation_y(mut self) -> Self {
         self.0 &= !0b010_000;
         self
     }
 
     /// Unlocks translation along the `Z` axis.
     #[cfg(feature = "3d")]
-    pub fn unlock_translation_z(mut self) -> Self {
+    pub const fn unlock_translation_z(mut self) -> Self {
         self.0 &= !0b001_000;
         self
     }
 
     /// Unlocks rotation around the `X` axis.
     #[cfg(feature = "3d")]
-    pub fn unlock_rotation_x(mut self) -> Self {
+    pub const fn unlock_rotation_x(mut self) -> Self {
         self.0 &= !0b000_100;
         self
     }
 
     /// Unlocks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
-    pub fn unlock_rotation_y(mut self) -> Self {
+    pub const fn unlock_rotation_y(mut self) -> Self {
         self.0 &= !0b000_010;
         self
     }
 
     /// Unlocks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
-    pub fn unlock_rotation_z(mut self) -> Self {
+    pub const fn unlock_rotation_z(mut self) -> Self {
         self.0 &= !0b000_001;
         self
     }
 
     /// Unlocks all rotation.
     #[cfg(feature = "2d")]
-    pub fn unlock_rotation(mut self) -> Self {
+    pub const fn unlock_rotation(mut self) -> Self {
         self.0 &= !0b000_001;
         self
     }
 
     /// Returns true if translation is locked along the `X` axis.
-    pub fn is_translation_x_locked(&self) -> bool {
+    pub const fn is_translation_x_locked(&self) -> bool {
         (self.0 & 0b100_000) != 0
     }
 
     /// Returns true if translation is locked along the `X` axis.
-    pub fn is_translation_y_locked(&self) -> bool {
+    pub const fn is_translation_y_locked(&self) -> bool {
         (self.0 & 0b010_000) != 0
     }
 
     /// Returns true if translation is locked along the `X` axis.
     #[cfg(feature = "3d")]
-    pub fn is_translation_z_locked(&self) -> bool {
+    pub const fn is_translation_z_locked(&self) -> bool {
         (self.0 & 0b001_000) != 0
     }
 
     /// Returns true if rotation is locked around the `X` axis.
     #[cfg(feature = "3d")]
-    pub fn is_rotation_x_locked(&self) -> bool {
+    pub const fn is_rotation_x_locked(&self) -> bool {
         (self.0 & 0b000_100) != 0
     }
 
     /// Returns true if rotation is locked around the `Y` axis.
     #[cfg(feature = "3d")]
-    pub fn is_rotation_y_locked(&self) -> bool {
+    pub const fn is_rotation_y_locked(&self) -> bool {
         (self.0 & 0b000_010) != 0
     }
 
     /// Returns true if rotation is locked around the `Z` axis.
     #[cfg(feature = "3d")]
-    pub fn is_rotation_z_locked(&self) -> bool {
+    pub const fn is_rotation_z_locked(&self) -> bool {
         (self.0 & 0b000_001) != 0
     }
 
     /// Returns true if all rotation is locked.
     #[cfg(feature = "2d")]
-    pub fn is_rotation_locked(&self) -> bool {
+    pub const fn is_rotation_locked(&self) -> bool {
         (self.0 & 0b000_001) != 0
     }
 
