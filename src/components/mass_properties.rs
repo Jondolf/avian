@@ -240,12 +240,12 @@ impl MassPropertiesBundle {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
+/// # use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
 /// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// # use bevy_xpbd_3d::prelude::*;
-///
+/// #
 /// // Spawn a body with a collider that has a density of 2.5
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
