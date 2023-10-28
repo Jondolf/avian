@@ -1226,9 +1226,10 @@ impl Default for ColliderAabb {
     }
 }
 
-/// Contains the entities that are colliding with an entity.
+/// A component that stores the entities that are colliding with an entity.
 ///
-/// This component is automatically added for all entities with a [`Collider`].
+/// This component is automatically added for all entities with a [`Collider`],
+/// but it will only be filled if the [`ContactReportingPlugin`] is enabled (by default, it is).
 ///
 /// ## Example
 ///

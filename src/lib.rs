@@ -133,7 +133,7 @@
     doc = "    - Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
-//! - [Collision events](collision#collision-events)
+//! - [Collision events](ContactReportingPlugin#collision-events)
 //! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
 //!
