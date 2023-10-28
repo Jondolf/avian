@@ -284,7 +284,7 @@ pub struct SleepingDisabled;
 /// for everything.
 ///
 /// The reasons why the engine uses a separate [`Position`] component can be found
-/// [here](crate##why-are-there-separate-position-and-rotation-components).
+/// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
 /// ## Example
 ///

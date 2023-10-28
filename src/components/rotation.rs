@@ -31,7 +31,7 @@ pub(crate) type RotationValue = Quaternion;
 /// for everything.
 ///
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
-/// [here](crate##why-are-there-separate-position-and-rotation-components).
+/// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
 /// ## Example
 ///
@@ -65,7 +65,7 @@ pub struct Rotation {
 /// for everything.
 ///
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
-/// [here](crate##why-are-there-separate-position-and-rotation-components).
+/// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
 /// ## Example
 ///
