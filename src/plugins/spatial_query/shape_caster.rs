@@ -98,6 +98,8 @@ pub struct ShapeCaster {
     /// the shapecast will not stop immediately, and will instead continue until another hit.\
     /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub ignore_origin_penetration: bool,
+    /// If true, the shape caster ignores hits against its own [`Collider`]. This is the default.
+    pub ignore_self: bool,
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
 }
@@ -122,6 +124,7 @@ impl Default for ShapeCaster {
             max_time_of_impact: Scalar::MAX,
             max_hits: 1,
             ignore_origin_penetration: false,
+            ignore_self: true,
             query_filter: SpatialQueryFilter::default(),
         }
     }
@@ -176,6 +179,13 @@ impl ShapeCaster {
     /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub fn with_ignore_origin_penetration(mut self, ignore: bool) -> Self {
         self.ignore_origin_penetration = ignore;
+        self
+    }
+
+    /// Sets if the shape caster should ignore hits against its own [`Collider`].
+    /// The default is true.
+    pub fn with_ignore_self(mut self, ignore: bool) -> Self {
+        self.ignore_self = ignore;
         self
     }
 
@@ -252,8 +262,20 @@ impl ShapeCaster {
         self.global_direction = global_direction;
     }
 
-    pub(crate) fn cast(&self, hits: &mut ShapeHits, query_pipeline: &SpatialQueryPipeline) {
+    pub(crate) fn cast(
+        &self,
+        caster_entity: Entity,
+        hits: &mut ShapeHits,
+        query_pipeline: &SpatialQueryPipeline,
+    ) {
+        let mut query_filter = self.query_filter.clone();
+
+        if self.ignore_self {
+            query_filter.excluded_entities.insert(caster_entity);
+        }
+
         hits.count = 0;
+
         let shape_rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -267,7 +289,6 @@ impl ShapeCaster {
         let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
         let shape_direction = self.global_direction().into();
 
-        let mut query_filter = self.query_filter.clone();
         while hits.count < self.max_hits {
             let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(

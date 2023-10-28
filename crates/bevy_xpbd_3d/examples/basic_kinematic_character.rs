@@ -65,7 +65,6 @@ fn setup(
             Quaternion::default(),
             Vector::NEG_Y,
         )
-        .with_ignore_origin_penetration(true) // Don't count player's collider
         .with_max_time_of_impact(0.11)
         .with_max_hits(1),
         Player,

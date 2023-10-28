@@ -93,6 +93,8 @@ pub struct RayCaster {
     /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
     /// will be at the collider shape's boundary.
     pub solid: bool,
+    /// If true, the ray caster ignores hits against its own [`Collider`]. This is the default.
+    pub ignore_self: bool,
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
 }
@@ -108,6 +110,7 @@ impl Default for RayCaster {
             max_time_of_impact: Scalar::MAX,
             max_hits: u32::MAX,
             solid: true,
+            ignore_self: true,
             query_filter: SpatialQueryFilter::default(),
         }
     }
@@ -142,6 +145,13 @@ impl RayCaster {
     /// will be at the collider shape's boundary.
     pub fn with_solidness(mut self, solid: bool) -> Self {
         self.solid = solid;
+        self
+    }
+
+    /// Sets if the ray caster should ignore hits against its own [`Collider`].
+    /// The default is true.
+    pub fn with_ignore_self(mut self, ignore: bool) -> Self {
+        self.ignore_self = ignore;
         self
     }
 
@@ -194,10 +204,22 @@ impl RayCaster {
         self.global_direction = global_direction;
     }
 
-    pub(crate) fn cast(&self, hits: &mut RayHits, query_pipeline: &SpatialQueryPipeline) {
+    pub(crate) fn cast(
+        &self,
+        caster_entity: Entity,
+        hits: &mut RayHits,
+        query_pipeline: &SpatialQueryPipeline,
+    ) {
+        let mut query_filter = self.query_filter.clone();
+
+        if self.ignore_self {
+            query_filter.excluded_entities.insert(caster_entity);
+        }
+
         hits.count = 0;
+
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(self.query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(query_filter);
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
@@ -228,7 +250,7 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_index: &u32| {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if self.query_filter.test(entity, *layers) {
+                    if query_filter.test(entity, *layers) {
                         if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,

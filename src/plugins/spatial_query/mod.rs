@@ -363,10 +363,10 @@ fn update_shape_caster_positions(
     }
 }
 
-fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
-    for (ray, mut hits) in &mut rays {
+fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
+    for (entity, ray, mut hits) in &mut rays {
         if ray.enabled {
-            ray.cast(&mut hits, &spatial_query.query_pipeline);
+            ray.cast(entity, &mut hits, &spatial_query.query_pipeline);
         } else if !hits.is_empty() {
             hits.clear();
         }
@@ -374,12 +374,12 @@ fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQu
 }
 
 fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHits)>,
+    mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
 ) {
-    for (shape_caster, mut hits) in &mut shape_casters {
+    for (entity, shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
-            shape_caster.cast(&mut hits, &spatial_query.query_pipeline);
+            shape_caster.cast(entity, &mut hits, &spatial_query.query_pipeline);
         } else if !hits.is_empty() {
             hits.clear();
         }
