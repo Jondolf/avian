@@ -197,10 +197,8 @@ impl CenterOfMass {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -246,12 +244,10 @@ impl MassPropertiesBundle {
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// // Spawn a body with a collider that has a density of 2.5
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((

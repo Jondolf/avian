@@ -12,10 +12,8 @@ use crate::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -67,10 +65,8 @@ impl Default for PhysicsTimestep {
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -116,10 +112,8 @@ pub struct SubDeltaTime(pub Scalar);
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -186,7 +180,7 @@ impl Default for DeactivationTime {
 ///
 /// ## Example
 ///
-/// ```
+/// ```no_run
 /// use bevy::prelude::*;
 #[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]

@@ -29,10 +29,8 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a ball collider with a given radius
@@ -46,12 +44,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// To make colliders apply contact forces, they have to be attached to [rigid bodies](RigidBody):
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -94,12 +90,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// shapes, or for more control, spawn several collider entities as the children of a rigid body:
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children
 ///     commands
@@ -121,6 +115,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// ## See more
 ///
+/// - [Rigid bodies](RigidBody)
 /// - [Density](ColliderDensity)
 /// - [Friction] and [restitution](Restitution) (bounciness)
 /// - [Collision layers](CollisionLayers)
@@ -1037,12 +1032,10 @@ pub enum ComputedCollider {
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
@@ -1126,10 +1119,8 @@ impl From<Transform> for ColliderTransform {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
@@ -1142,7 +1133,7 @@ impl From<Transform> for ColliderTransform {
 #[reflect(Component)]
 pub struct Sensor;
 
-/// The Axis-Aligned Bounding Box of a collider.
+/// The Axis-Aligned Bounding Box of a [collider](Collider).
 #[derive(Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 pub struct ColliderAabb(pub Aabb);
 
@@ -1168,10 +1159,8 @@ impl Default for ColliderAabb {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {

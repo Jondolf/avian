@@ -26,12 +26,10 @@
 //! to the `new` method.
 //!
 //! ```
-//! # use bevy::prelude::*;
-//! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
-//! # #[cfg(feature = "3d")]
-//! # use bevy_xpbd_3d::prelude::*;
-//! #
+//! use bevy::prelude::*;
+#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
