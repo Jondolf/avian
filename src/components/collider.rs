@@ -15,7 +15,7 @@ use parry::{
 
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
-/// See https://github.com/Unity-Technologies/VHACD#parameters for details.
+/// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.
 pub type VHACDParameters = parry::transformation::vhacd::VHACDParameters;
 
 /// Flags used for the preprocessing of a triangle mesh collider.
@@ -75,8 +75,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// In addition, Bevy XPBD automatically adds some other components for colliders, like the following:
 ///
+/// - [`ColliderParent`]
 /// - [`ColliderAabb`]
 /// - [`CollidingEntities`]
+/// - [`ColliderDensity`]
 /// - [`ColliderMassProperties`]
 ///
 #[cfg_attr(
@@ -967,13 +969,13 @@ pub struct AsyncCollider(pub ComputedCollider);
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AsyncSceneCollider {
-    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`].
-    /// If `None`, all meshes except the ones in [`meshes_by_name`] will be skipped.
+    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
+    /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     pub default_shape: Option<ComputedCollider>,
     /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`] and all collision layers
-    /// will be used instead.
+    /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
+    /// and all collision layers will be used instead.
     pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
 }
 
@@ -982,8 +984,9 @@ impl AsyncSceneCollider {
     /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
-    /// If the given collider type is `None`, all meshes except the ones in [`meshes_by_name`]
-    /// will be skipped. You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
+    /// If the given collider type is `None`, all meshes except the ones in
+    /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
+    /// You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
     pub fn new(default_shape: Option<ComputedCollider>) -> Self {
         Self {
             default_shape,
@@ -1052,7 +1055,7 @@ pub struct AsyncSceneColliderData {
     pub shape: ComputedCollider,
     /// The [`CollisionLayers`] used for this collider.
     pub layers: CollisionLayers,
-    /// The [`CollisionDensity`] used for this collider.
+    /// The [`ColliderDensity`] used for this collider.
     pub density: Scalar,
 }
 
@@ -1071,8 +1074,11 @@ impl Default for AsyncSceneColliderData {
 ///
 /// Colliders can be created from meshes with the following components and methods:
 ///
-/// - [`AsyncSceneCollider`] (requires `3d` and `async-collider` features)
-/// - [`Collider::from_mesh`]
+/// - [`AsyncCollider`] (requires `async-collider` features)
+/// - [`AsyncSceneCollider`] (requires `async-collider` features)
+/// - [`Collider::trimesh_from_mesh`]
+/// - [`Collider::convex_hull_from_mesh`]
+/// - [`Collider::convex_decomposition_from_mesh`]
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub enum ComputedCollider {
