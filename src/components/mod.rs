@@ -286,10 +286,56 @@ pub struct TimeSleeping(pub Scalar);
 #[reflect(Component)]
 pub struct SleepingDisabled;
 
-/// The position of a body.
+/// The global position of a [rigid body](RigidBody) or [collider](Collider).
+///
+/// ## Relation to `Transform` and `GlobalTransform`
+///
+/// [`Position`] is used for physics internally and kept in sync with `Transform`
+/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// be used for almost everything. Using [`Position`] should only be required for managing positions
+/// in systems running in the [`SubstepSchedule`]. However, if you prefer, you can also use [`Position`]
+/// for everything.
+///
+/// The reasons why the engine uses a separate [`Position`] component can be found
+/// [here](crate##why-are-there-separate-position-and-rotation-components).
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+#[cfg_attr(feature = "2d", doc = "         Position::from_xy(0.0, 20.0),")]
+#[cfg_attr(feature = "3d", doc = "         Position::from_xyz(0.0, 2.0, 0.0),")]
+///     ));
+/// }
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
 pub struct Position(pub Vector);
+
+impl Position {
+    /// Creates a [`Position`] component with the given global `position`.
+    pub fn new(position: Vector) -> Self {
+        Self(position)
+    }
+
+    /// Creates a [`Position`] component with the global position `(x, y)`.
+    #[cfg(feature = "2d")]
+    pub fn from_xy(x: Scalar, y: Scalar) -> Self {
+        Self(Vector::new(x, y))
+    }
+
+    /// Creates a [`Position`] component with the global position `(x, y, z)`.
+    #[cfg(feature = "3d")]
+    pub fn from_xyz(x: Scalar, y: Scalar, z: Scalar) -> Self {
+        Self(Vector::new(x, y, z))
+    }
+}
 
 /// The previous position of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
