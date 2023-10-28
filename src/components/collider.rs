@@ -79,6 +79,11 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// - [`CollidingEntities`]
 /// - [`ColliderMassProperties`]
 ///
+#[cfg_attr(
+    feature = "3d",
+    doc = "Colliders can also be generated automatically from meshes and scenes. See [`AsyncCollider`] and [`AsyncSceneCollider`]."
+)]
+///
 /// ## Multiple colliders
 ///
 /// It can often be useful to attach multiple colliders to the same rigid body.
