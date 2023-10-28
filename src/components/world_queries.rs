@@ -9,7 +9,7 @@ use std::ops::{AddAssign, SubAssign};
 #[world_query(mutable)]
 pub struct RigidBodyQuery {
     pub entity: Entity,
-    pub rb: &'static mut RigidBody,
+    pub rb: Ref<'static, RigidBody>,
     pub position: &'static mut Position,
     pub rotation: &'static mut Rotation,
     pub previous_position: &'static mut PreviousPosition,

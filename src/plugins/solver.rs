@@ -153,6 +153,13 @@ fn penetration_constraints(
                 commands.entity(body2.entity).remove::<Sleeping>();
             }
 
+            if body1.rb.is_added() || body2.rb.is_added() {
+                warn!(
+                    "{:?} and {:?} are overlapping at spawn, which can result in explosive behavior.",
+                    body1.entity, body2.entity,
+                );
+            }
+
             // Get combined friction and restitution coefficients of the colliders
             // or the bodies they are attached to.
             let friction = collider1
