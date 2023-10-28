@@ -186,23 +186,26 @@ impl Default for DeactivationTime {
 ///
 /// ## Example
 ///
-/// You can change gravity by simply inserting the [`Gravity`] resource:
-///
-/// ```no_run
+/// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
-/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # #[cfg(feature = "f32")]
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
+#[cfg_attr(
+    feature = "2d",
+    doc = "         .insert_resource(Gravity(Vec2::NEG_Y * 100.0))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))"
+)]
 ///         .run();
 /// }
-/// # #[cfg(not(all(feature = "3d", feature = "f32")))]
+/// # #[cfg(not(feature = "f32"))]
 /// # fn main() {} // Doc test needs main
 /// ```
 ///
