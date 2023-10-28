@@ -77,7 +77,7 @@ fn setup(
     ));
 
     let marble_radius = 5.0;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius as f32).into());
+    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
     let marble_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn stacks of marbles
@@ -95,7 +95,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 Marble,
             ));
         }
