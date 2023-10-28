@@ -119,95 +119,28 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
 /// and other configuration options, and they send separate [collision events](#collision-events).
 ///
-/// ## Sensors
+/// ## See more
 ///
-/// If you want a collider to be attached to a rigid body but don't want it to apply forces on
-/// contact, you can add a [`Sensor`] component to make the collider only send
-/// [collision events](#collision-events):
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-/// // This body will pass through objects but still generate collision events
-/// commands.spawn((
-///     RigidBody::Dynamic,
-///     Collider::ball(0.5),
-///     Sensor,
-/// ));
-/// # }
-/// ```
-///
-/// ## Collision layers
-///
-/// Collision layers can be used to configure which entities can collide with each other.
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// #[derive(PhysicsLayer)]
-/// enum Layer {
-///     Player,
-///     Enemy,
-///     Ground,
-/// }
-///
-/// fn spawn(mut commands: Commands) {
-///     commands.spawn((
-///         Collider::ball(0.5),
-///         // Player collides with enemies and the ground, but not with other players
-///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
-///     ));
-/// }
-/// ```
-///
-/// See [`CollisionLayers`] for more information and examples.
-///
-/// ## Collision events
-///
-/// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// fn my_system(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contact_pair) in collision_event_reader.iter() {
-///         println!(
-///             "{:?} and {:?} are colliding",
-///             contact_pair.entity1, contact_pair.entity2
-///         );
-///     }
-/// }
-/// ```
-///
-/// The entities that are colliding with a given entity can also be accessed using
-/// the [`CollidingEntities`] component.
-///
-/// ## Querying and modifying contacts
-///
-/// The [`Collisions`] resource grants access to all collisions.
-/// It can be used to get, modify, filter and add collisions.
-///
-/// See [`Collisions`] for more details.
+/// - [Density](ColliderDensity)
+/// - [Friction] and [restitution](Restitution) (bounciness)
+/// - [Collision layers](CollisionLayers)
+/// - [Sensors](Sensor)
+#[cfg_attr(
+    feature = "3d",
+    doc = "- Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+)]
+/// - [Get colliding entities](CollidingEntities)
+/// - [Collision events](ContactReportingPlugin#collision-events)
+/// - [Accessing, filtering and modifying collisions](Collisions)
+/// - [Manual contact queries](contact_query)
 ///
 /// ## Advanced usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
 ///
-/// To get a reference to the internal [`SharedShape`], you can use the [`get_shape`](#method.get_shape) method.
+/// To get a reference to the internal [`SharedShape`], you can use the [`shape`](#method.shape)
+/// or [`shape_scaled`](#method.shape_scaled) method.
 #[derive(Clone, Component)]
 pub struct Collider {
     /// The raw unscaled collider shape.
