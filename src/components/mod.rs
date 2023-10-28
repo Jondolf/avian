@@ -22,6 +22,8 @@ use derive_more::From;
 
 /// A non-deformable body used for the simulation of most physics objects.
 ///
+/// ## Rigid body types
+///
 /// A rigid body can be either dynamic, kinematic or static.
 ///
 /// - **Dynamic bodies** are similar to real life objects and are affected by forces and contacts.
@@ -40,7 +42,11 @@ use derive_more::From;
 /// use bevy_xpbd_3d::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn(RigidBody::Dynamic);
+///     // Spawn a dynamic rigid body and specify its position (optional)
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         TransformBundle::from_transform(Transform::from_xyz(0.0, 3.0, 0.0)),
+///     ));
 /// }
 /// ```
 ///
@@ -60,50 +66,139 @@ use derive_more::From;
 ///
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
 ///
-/// Note that by default, rigid bodies don't have any mass, so dynamic bodies will gain infinite velocity upon any interaction.
-/// See the [section below](#adding-mass-properties) for how to add mass properties.
+/// Note that by default, rigid bodies don't have any mass, so dynamic bodies can
+/// gain infinite velocity during interactions. See [mass properties](#mass-properties).
 ///
-/// ## Adding mass properties
+/// ## Movement
 ///
-/// You should always give dynamic rigid bodies mass properties so that forces are applied to them correctly.
+/// A rigid body can be moved in three ways: by modifying its position directly,
+/// by changing its velocity, or by applying forces or impulses.
 ///
-/// The easiest way to add mass properties is to simply [add a collider](Collider):
+/// To change the position of a rigid body, you can simply modify its `Transform`:
 ///
-/// ```ignore
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// fn move_bodies(mut query: Query<&mut Transform, With<RigidBody>>) {
+///     for mut transform in query.iter_mut() {
+///         transform.translation.x += 0.1;
+///     }
+/// }
+/// ```
+///
+/// However, moving a dynamic body by changing its position directly is similar
+/// to teleporting the body, which can result in unexpected behavior since the body can move
+/// inside walls.
+///
+/// You can instead change the velocity of a dynamic or kinematic body with the [`LinearVelocity`]
+/// and [`AngularVelocity`] components:
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// fn accelerate_bodies(mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>) {
+///     for (mut linear_velocity, mut angular_velocity) in query.iter_mut() {
+///         linear_velocity.x += 0.05;
+#[cfg_attr(feature = "2d", doc = "         angular_velocity.0 += 0.05;")]
+#[cfg_attr(feature = "3d", doc = "         angular_velocity.z += 0.05;")]
+///     }
+/// }
+/// ```
+///
+/// For applying forces and impulses to dynamic bodies, see the [`ExternalForce`], [`ExternalTorque`],
+/// [`ExternalImpulse`] and [`ExternalAngularImpulse`] components.
+///
+/// Bevy XPBD does not have a built-in character controller, so if you need one,
+/// you will need to implement it yourself or use a third party option.
+/// You can take a look at the [`basic_dynamic_character`] and [`basic_kinematic_character`]
+/// examples for a simple implementation.
+///
+/// [`basic_dynamic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_dynamic_character.rs
+/// [`basic_kinematic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_kinematic_character.rs
+///
+/// ## Mass properties
+///
+/// The mass properties of a rigid body consist of its [`Mass`], [`Inertia`]
+/// and local [`CenterOfMass`]. They control how forces and torques impact a rigid body
+/// and how it affects other bodies.
+///
+/// You should always give dynamic rigid bodies mass properties so that forces
+/// are applied to them correctly. The easiest way to do that is to simply [add a collider](Collider):
+///
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
 /// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// # }
 /// ```
 ///
 /// This will automatically compute the [collider's mass properties](ColliderMassProperties)
-/// and add them to the body's own mass properties like [`Mass`], [`Inertia`] and so on.
+/// and add them to the body's own mass properties.
 ///
 /// By default, each collider has a density of `1.0`. This can be configured with
 /// the [`ColliderDensity`] component:
 ///
-/// ```ignore
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::ball(0.5),
 ///     ColliderDensity(2.5),
 /// ));
+/// # }
 /// ```
 ///
 /// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`]
 /// with the mass properties computed from a collider shape using the
 /// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
 ///
-/// ```ignore
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
 /// // This is equivalent to the earlier approach, but no collider will be added.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     MassPropertiesBundle::new_computed(&Collider::ball(0.5), 2.5),
 /// ));
+/// # }
 /// ```
 ///
 /// You can also specify the exact values of the mass properties by adding the components manually.
 /// To avoid the collider mass properties from being added to the body's own mass properties,
 /// you can simply set the collider's density to zero.
 ///
-/// ```ignore
+/// ```
+/// # use bevy::prelude::*;
+/// # #[cfg(feature = "2d")]
+/// # use bevy_xpbd_2d::prelude::*;
+/// # #[cfg(feature = "3d")]
+/// # use bevy_xpbd_3d::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
 /// // Create a rigid body with a mass of 5.0 and a collider with no mass
 /// commands.spawn((
 ///     RigidBody::Dynamic,
@@ -112,14 +207,21 @@ use derive_more::From;
 ///     Mass(5.0),
 ///     // ...the rest of the mass properties
 /// ));
+/// # }
+///
 /// ```
+///
+/// ## See more
+///
+/// - [Gravity]
+/// - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
+/// - [Lock translational and rotational axes](LockedAxes)
+/// - [Dominance]
+/// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
-    ///
-    /// You should generally move dynamic bodies by modifying the [`ExternalForce`], [`ExternalTorque`], [`LinearVelocity`] and [`AngularVelocity`] components.
-    /// Directly changing the [`Position`] or [`Rotation`] works as well, but it may cause unwanted behaviour if the body happens to teleport into the colliders of other bodies.
     #[default]
     Dynamic,
 
@@ -131,10 +233,12 @@ pub enum RigidBody {
     /// Static bodies are typically used for things like the ground, walls and any other objects that you don't want to move.
     Static,
 
-    /// Kinematic bodies are bodies that are not affected by any external forces or collisions. They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
+    /// Kinematic bodies are bodies that are not affected by any external forces or collisions.
+    /// They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
     ///
-    /// Unlike static bodies, the [`Position`], [`LinearVelocity`] and [`AngularVelocity`] components will move kinematic bodies as expected.
-    /// These components will never be altered by the physics engine, so you can move kinematic bodies freely.
+    /// Unlike static bodies, kinematic bodies can have velocity.
+    /// The engine doesn't modify the values of a kinematic body's components,
+    /// so you have full control of them.
     Kinematic,
 }
 
