@@ -166,7 +166,7 @@ fn keyboard_input(
     let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
 
     let horizontal = right as i8 - left as i8;
-    let vertical = down as i8 - up as i8;
+    let vertical = up as i8 - down as i8;
     let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
@@ -232,7 +232,7 @@ fn movement(
             match event {
                 MovementAction::Move(direction) => {
                     linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
-                    linear_velocity.z += direction.y * movement_acceleration.0 * delta_time;
+                    linear_velocity.z -= direction.y * movement_acceleration.0 * delta_time;
                 }
                 MovementAction::Jump => {
                     if !ground_hits.is_empty() {
@@ -264,6 +264,7 @@ fn apply_gravity(
 
 fn apply_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>) {
     for (damping_factor, mut linear_velocity) in &mut query {
+        // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
         linear_velocity.x *= damping_factor.0;
         linear_velocity.z *= damping_factor.0;
     }
