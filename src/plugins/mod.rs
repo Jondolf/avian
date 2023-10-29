@@ -32,19 +32,17 @@ pub mod spatial_query;
 pub mod sync;
 
 pub use collision::{
-    broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
-    contact_reporting::{Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin},
-    narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
-    *,
+    broad_phase::BroadPhasePlugin, contact_reporting::ContactReportingPlugin,
+    narrow_phase::NarrowPhasePlugin,
 };
 #[cfg(feature = "debug-plugin")]
-pub use debug::*;
+pub use debug::PhysicsDebugPlugin;
 pub use integrator::IntegratorPlugin;
-pub use prepare::*;
-pub use setup::*;
+pub use prepare::PreparePlugin;
+pub use setup::PhysicsSetupPlugin;
 pub use sleeping::SleepingPlugin;
-pub use solver::{solve_constraint, SolverPlugin};
-pub use spatial_query::*;
+pub use solver::SolverPlugin;
+pub use spatial_query::SpatialQueryPlugin;
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]

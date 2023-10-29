@@ -473,12 +473,26 @@ pub mod resources;
 
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
+    #[cfg(feature = "debug-plugin")]
+    pub use crate::plugins::debug::*;
     pub use crate::{
         components::*,
         constraints::{joints::*, *},
-        plugins::*,
+        plugins::{
+            collision::{
+                broad_phase::BroadCollisionPairs,
+                contact_reporting::{Collision, CollisionEnded, CollisionStarted},
+                narrow_phase::NarrowPhaseConfig,
+                *,
+            },
+            prepare::*,
+            setup::*,
+            solver::solve_constraint,
+            spatial_query::*,
+            *,
+        },
         resources::*,
-        PhysicsSet,
+        PhysicsSet, PostProcessCollisions,
     };
     pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;
@@ -521,7 +535,7 @@ pub struct SubstepSchedule;
 ///
 /// Below is an example of how you could add a system that filters collisions.
 ///
-/// ```
+/// ```no_run
 /// use bevy::prelude::*;
 #[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
