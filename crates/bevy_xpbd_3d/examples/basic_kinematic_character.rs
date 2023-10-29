@@ -1,5 +1,5 @@
-//! A very basic implementation of a character controller for a kinematic rigid body.
-//! Supports directional movement and jumping.
+//! A basic implementation of a character controller for a kinematic rigid body.
+//! Supports directional movement and jumping with both keyboard and gamepad input.
 //!
 //! Bevy XPBD does not have a built-in character controller yet, so you will have to implement
 //! the logic yourself. For kinematic bodies, collision response has to be handled manually, as shown in
@@ -14,14 +14,32 @@ use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_event::<MovementInputEvent>()
         .add_systems(Startup, setup)
-        .add_systems(Update, movement)
+        .add_systems(
+            Update,
+            (
+                keyboard_input,
+                gamepad_input,
+                apply_gravity,
+                movement,
+                apply_damping,
+            )
+                .chain(),
+        )
         .add_systems(
             // Run collision handling in substep schedule
             SubstepSchedule,
             kinematic_collision.in_set(SubstepSet::SolveUserConstraints),
         )
         .run();
+}
+
+/// An event sent for a movement input action.
+#[derive(Event)]
+enum MovementInputEvent {
+    Move(Vector2),
+    Jump,
 }
 
 /// The acceleration used for character movement.
@@ -138,14 +156,67 @@ fn setup(
     });
 }
 
+fn keyboard_input(
+    mut movement_event_writer: EventWriter<MovementInputEvent>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
+    let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
+    let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+    let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+
+    let horizontal = right as i8 - left as i8;
+    let vertical = down as i8 - up as i8;
+    let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
+
+    if direction != Vector2::ZERO {
+        movement_event_writer.send(MovementInputEvent::Move(direction));
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        movement_event_writer.send(MovementInputEvent::Jump);
+    }
+}
+
+fn gamepad_input(
+    mut movement_event_writer: EventWriter<MovementInputEvent>,
+    gamepads: Res<Gamepads>,
+    axes: Res<Axis<GamepadAxis>>,
+    buttons: Res<Input<GamepadButton>>,
+) {
+    for gamepad in gamepads.iter() {
+        let axis_lx = GamepadAxis {
+            gamepad,
+            axis_type: GamepadAxisType::LeftStickX,
+        };
+        let axis_ly = GamepadAxis {
+            gamepad,
+            axis_type: GamepadAxisType::LeftStickY,
+        };
+
+        if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
+            movement_event_writer.send(MovementInputEvent::Move(
+                Vector2::new(x, y).clamp_length_max(1.0),
+            ));
+        }
+
+        let jump_button = GamepadButton {
+            gamepad,
+            button_type: GamepadButtonType::South,
+        };
+
+        if buttons.just_pressed(jump_button) {
+            movement_event_writer.send(MovementInputEvent::Jump);
+        }
+    }
+}
+
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    mut movement_event_reader: EventReader<MovementInputEvent>,
     mut controllers: Query<(
         &MovementAcceleration,
-        &MovementDampingFactor,
         &JumpImpulse,
-        &ControllerGravity,
         &ShapeHits,
         &mut LinearVelocity,
     )>,
@@ -154,44 +225,47 @@ fn movement(
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    for (
-        movement_acceleration,
-        damping_factor,
-        jump_impulse,
-        gravity,
-        ground_hits,
-        mut linear_velocity,
-    ) in &mut controllers
-    {
-        // Reset vertical valocity if grounded, otherwise apply gravity
+    for event in movement_event_reader.iter() {
+        for (movement_acceleration, jump_impulse, ground_hits, mut linear_velocity) in
+            &mut controllers
+        {
+            match event {
+                MovementInputEvent::Move(direction) => {
+                    linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
+                    linear_velocity.z += direction.y * movement_acceleration.0 * delta_time;
+                }
+                MovementInputEvent::Jump => {
+                    if !ground_hits.is_empty() {
+                        linear_velocity.y = jump_impulse.0;
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn apply_gravity(
+    time: Res<Time>,
+    mut controllers: Query<(&ControllerGravity, &ShapeHits, &mut LinearVelocity)>,
+) {
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
+    for (gravity, ground_hits, mut linear_velocity) in &mut controllers {
+        // Reset vertical velocity if grounded, otherwise apply gravity
         if !ground_hits.is_empty() {
             linear_velocity.y = 0.0;
         } else {
             linear_velocity.0 += gravity.0 * delta_time;
         }
+    }
+}
 
-        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
-        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
-
-        let horizontal = right as i8 - left as i8;
-        let vertical = down as i8 - up as i8;
-        let direction =
-            Vector::new(horizontal as Scalar, 0.0, vertical as Scalar).normalize_or_zero();
-
-        // Move in input direction
-        linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
-        linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
-
-        // Apply movement damping
+fn apply_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>) {
+    for (damping_factor, mut linear_velocity) in &mut query {
         linear_velocity.x *= damping_factor.0;
         linear_velocity.z *= damping_factor.0;
-
-        // Jump if Space is pressed and the player is close enough to the ground
-        if keyboard_input.just_pressed(KeyCode::Space) && !ground_hits.is_empty() {
-            linear_velocity.y = jump_impulse.0;
-        }
     }
 }
 
