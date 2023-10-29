@@ -157,7 +157,7 @@ fn movement(
         let x_axis_input = right as i8 - left as i8;
 
         // Move in input direction
-        linear_velocity.x = x_axis_input as f32 * movement_speed.0;
+        linear_velocity.x = x_axis_input as Scalar * movement_speed.0;
 
         // Assume "mostly stopped" to mean "grounded".
         // You should use raycasting, shapecasting or sensor colliders
