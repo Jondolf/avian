@@ -1,9 +1,38 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Controls the global physics debug configuration.
+/// Controls the global physics debug configuration. See [`PhysicsDebugPlugin`]
 ///
 /// To configure the debug rendering of specific entities, use the [`DebugRender`] component.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         // Overwrite default debug configuration (optional)
+///         .insert_resource(PhysicsDebugConfig {
+///             aabb_color: Some(Color::WHITE),
+///             ..default()
+///         })
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// }
+/// ```
 #[derive(Reflect, Resource)]
 #[reflect(Resource)]
 pub struct PhysicsDebugConfig {
@@ -287,9 +316,38 @@ impl PhysicsDebugConfig {
     }
 }
 
-/// A component for the debug render configuration of an entity.
+/// A component for the debug render configuration of an entity. See [`PhysicsDebugPlugin`].
 ///
 /// This overwrites the global [`PhysicsDebugConfig`] for this specific entity.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         // Overwrite default collider color (optional)
+///         DebugRender::default().with_collider_color(Color::RED),
+///     ));
+/// }
+/// ```
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
 #[reflect(Component)]
 pub struct DebugRender {

@@ -11,23 +11,58 @@ pub use renderer::*;
 use crate::prelude::*;
 use bevy::{ecs::query::Has, prelude::*};
 
-/// Renders physics objects and properties for debugging purposes.
+/// A plugin that renders physics objects and properties for debugging purposes.
+/// It is not enabled by default and must be added manually.
 ///
 /// Currently, the following are supported for debug rendering:
 ///
-/// - Entity axes
+/// - The axes and center of mass of [rigid bodies](RigidBody)
 /// - [AABBs](ColliderAabb)
 /// - [Collider] wireframes
-/// - Use different colors for [sleeping](Sleeping) bodies
+/// - Using different colors for [sleeping](Sleeping) bodies
 /// - [Contacts]
 /// - [Joints](joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
-/// By default, only axes, colliders and joints are debug rendered. You can use the [`PhysicsDebugConfig`]
-/// resource for the global configuration and the [`DebugRender`] component
-/// for entity-level configuration.
+/// By default, [AABBs](ColliderAabb) and [contacts](Contacts) are not debug rendered.
+/// You can use the [`PhysicsDebugConfig`] resource for the global configuration and the
+/// [`DebugRender`] component for entity-level configuration.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         // Overwrite default debug configuration (optional)
+///         .insert_resource(PhysicsDebugConfig {
+///             aabb_color: Some(Color::WHITE),
+///             ..default()
+///         })
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         // Overwrite default collider color (optional)
+///         DebugRender::default().with_collider_color(Color::RED),
+///     ));
+/// }
+/// ```
 pub struct PhysicsDebugPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }

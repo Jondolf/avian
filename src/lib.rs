@@ -59,7 +59,7 @@
     feature = "3d",
     doc = "| `async-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
 )]
-//! | `debug-plugin`         | Enables the `PhysicsDebugPlugin` used for rendering physics objects and properties.                                              | No                      |
+//! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
 //! | `simd`                 | Enables [SIMD] optimizations.                                                                                                    | No                      |
@@ -167,6 +167,7 @@
 //! - [Physics timestep](PhysicsTimestep)
 //! - [Speed up or slow down time](PhysicsTimescale)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
+//! - [Render physics objects for debugging](PhysicsDebugPlugin)
 //!
 //! ### Scheduling
 //!
