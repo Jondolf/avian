@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use approx::assert_relative_eq;
-use bevy::{log::LogPlugin, prelude::*, time::TimeUpdateStrategy, utils::Instant};
+use bevy::{prelude::*, time::TimeUpdateStrategy, utils::Instant};
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
 use std::time::Duration;
@@ -23,12 +23,7 @@ macro_rules! setup_insta {
 
 fn create_app() -> App {
     let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        TransformPlugin,
-        LogPlugin::default(),
-        PhysicsPlugins::default(),
-    ));
+    app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
     app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }
@@ -102,7 +97,7 @@ fn body_with_velocity_moves_on_first_frame() {
             SpatialBundle::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
-            Position(Vector::ZERO),
+            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
         ));
     });
 
@@ -128,6 +123,7 @@ fn body_with_velocity_moves() {
             SpatialBundle::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
+            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
         ));
     });
 
