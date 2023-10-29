@@ -215,15 +215,7 @@ impl Default for PhysicsPlugins {
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
-        #[allow(unused_mut)]
-        let mut builder = PluginGroupBuilder::start::<Self>();
-
-        #[cfg(feature = "debug-plugin")]
-        {
-            builder = builder.add(PhysicsDebugPlugin::default());
-        }
-
-        builder
+        PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule.dyn_clone()))
             .add(PreparePlugin::new(self.schedule.dyn_clone()))
             .add(BroadPhasePlugin)
