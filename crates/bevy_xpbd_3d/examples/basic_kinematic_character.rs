@@ -14,7 +14,7 @@ use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-        .add_event::<MovementInputEvent>()
+        .add_event::<MovementAction>()
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -37,7 +37,7 @@ fn main() {
 
 /// An event sent for a movement input action.
 #[derive(Event)]
-enum MovementInputEvent {
+enum MovementAction {
     Move(Vector2),
     Jump,
 }
@@ -157,7 +157,7 @@ fn setup(
 }
 
 fn keyboard_input(
-    mut movement_event_writer: EventWriter<MovementInputEvent>,
+    mut movement_event_writer: EventWriter<MovementAction>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
@@ -170,16 +170,16 @@ fn keyboard_input(
     let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
-        movement_event_writer.send(MovementInputEvent::Move(direction));
+        movement_event_writer.send(MovementAction::Move(direction));
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_event_writer.send(MovementInputEvent::Jump);
+        movement_event_writer.send(MovementAction::Jump);
     }
 }
 
 fn gamepad_input(
-    mut movement_event_writer: EventWriter<MovementInputEvent>,
+    mut movement_event_writer: EventWriter<MovementAction>,
     gamepads: Res<Gamepads>,
     axes: Res<Axis<GamepadAxis>>,
     buttons: Res<Input<GamepadButton>>,
@@ -195,7 +195,7 @@ fn gamepad_input(
         };
 
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
-            movement_event_writer.send(MovementInputEvent::Move(
+            movement_event_writer.send(MovementAction::Move(
                 Vector2::new(x, y).clamp_length_max(1.0),
             ));
         }
@@ -206,14 +206,14 @@ fn gamepad_input(
         };
 
         if buttons.just_pressed(jump_button) {
-            movement_event_writer.send(MovementInputEvent::Jump);
+            movement_event_writer.send(MovementAction::Jump);
         }
     }
 }
 
 fn movement(
     time: Res<Time>,
-    mut movement_event_reader: EventReader<MovementInputEvent>,
+    mut movement_event_reader: EventReader<MovementAction>,
     mut controllers: Query<(
         &MovementAcceleration,
         &JumpImpulse,
@@ -230,11 +230,11 @@ fn movement(
             &mut controllers
         {
             match event {
-                MovementInputEvent::Move(direction) => {
+                MovementAction::Move(direction) => {
                     linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
                     linear_velocity.z += direction.y * movement_acceleration.0 * delta_time;
                 }
-                MovementInputEvent::Jump => {
+                MovementAction::Jump => {
                     if !ground_hits.is_empty() {
                         linear_velocity.y = jump_impulse.0;
                     }
