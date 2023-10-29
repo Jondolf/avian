@@ -13,11 +13,7 @@ use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 
 fn main() {
     App::new()
-        .add_plugins((
-            DefaultPlugins,
-            PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
-        ))
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .add_systems(Startup, setup)
         .add_systems(Update, movement)
         .add_systems(
@@ -111,7 +107,7 @@ fn setup(
                 ..default()
             })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(0.0, 1.0, 0.0),
+            transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
         CharacterControllerBundle::new(
