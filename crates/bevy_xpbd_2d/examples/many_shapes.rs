@@ -136,21 +136,27 @@ fn setup(
 }
 
 fn movement(
+    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut marbles: Query<&mut LinearVelocity, With<Controllable>>,
 ) {
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
     for mut linear_velocity in &mut marbles {
-        if keyboard_input.pressed(KeyCode::Up) {
-            linear_velocity.y += 50.0;
+        if keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]) {
+            // Use a higher acceleration for upwards movement to overcome gravity
+            linear_velocity.y += 2500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Down) {
-            linear_velocity.y -= 10.0;
+        if keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]) {
+            linear_velocity.y -= 500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Left) {
-            linear_velocity.x -= 10.0;
+        if keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]) {
+            linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Right) {
-            linear_velocity.x += 10.0;
+        if keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]) {
+            linear_velocity.x += 500.0 * delta_time;
         }
     }
 }

@@ -43,7 +43,7 @@ fn setup(
             FollowMouse,
             MaterialMesh2dBundle {
                 mesh: particle_mesh.clone(),
-                material: particle_material.clone_weak(),
+                material: particle_material.clone(),
                 ..default()
             },
         ))
@@ -57,7 +57,7 @@ fn setup(
                 MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
                 MaterialMesh2dBundle {
                     mesh: particle_mesh.clone(),
-                    material: particle_material.clone_weak(),
+                    material: particle_material.clone(),
                     transform: Transform::from_xyz(
                         0.0,
                         i as f32 * (particle_radius as f32 * 2.0 + 1.0),
