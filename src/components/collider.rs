@@ -40,8 +40,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// # }
 /// ```
 ///
-/// Colliders on their own only detect contacts and generate [collision events](#collision-events).
-/// To make colliders apply contact forces, they have to be attached to [rigid bodies](RigidBody):
+/// Colliders on their own only detect contacts and generate
+/// [collision events](ContactReportingPlugin#collision-events).
+/// To make colliders apply contact forces, they have to be attached
+/// to [rigid bodies](RigidBody):
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -111,7 +113,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
-/// and other configuration options, and they send separate [collision events](#collision-events).
+/// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
 ///
 /// ## See more
 ///
@@ -488,7 +490,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -520,7 +522,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -546,7 +548,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -571,7 +573,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -598,7 +600,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -1111,7 +1113,7 @@ impl From<Transform> for ColliderTransform {
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///
-/// Sensor colliders send [collision events](Collider#collision-events) and register intersections,
+/// Sensor colliders send [collision events](ContactReportingPlugin#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///

@@ -103,8 +103,8 @@ use derive_more::From;
 /// fn accelerate_bodies(mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>) {
 ///     for (mut linear_velocity, mut angular_velocity) in query.iter_mut() {
 ///         linear_velocity.x += 0.05;
-#[cfg_attr(feature = "2d", doc = "         angular_velocity.0 += 0.05;")]
-#[cfg_attr(feature = "3d", doc = "         angular_velocity.z += 0.05;")]
+#[cfg_attr(feature = "2d", doc = "        angular_velocity.0 += 0.05;")]
+#[cfg_attr(feature = "3d", doc = "        angular_velocity.z += 0.05;")]
 ///     }
 /// }
 /// ```
@@ -169,7 +169,7 @@ use derive_more::From;
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // This is equivalent to the earlier approach, but no collider will be added.
+/// // This is equivalent to the earlier approach, but no collider will be added
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     MassPropertiesBundle::new_computed(&Collider::ball(0.5), 2.5),

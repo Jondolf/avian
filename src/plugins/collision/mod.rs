@@ -67,7 +67,7 @@ use indexmap::IndexMap;
 /// ## Implementation details
 ///
 /// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
-/// and the previous frame, which is used for things like [collision events](Collider#collision-events).
+/// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
 ///
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](#method.get_internal) or [`get_internal_mut`](#method.get_internal_mut).
