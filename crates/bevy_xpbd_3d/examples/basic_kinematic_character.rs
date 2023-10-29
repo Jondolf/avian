@@ -39,7 +39,6 @@ fn setup(
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
-            transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },
         RigidBody::Static,
@@ -54,6 +53,7 @@ fn setup(
                 ..default()
             })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 1.0, 0.0),
             ..default()
         },
         RigidBody::Kinematic,
