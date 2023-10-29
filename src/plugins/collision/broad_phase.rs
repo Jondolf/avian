@@ -137,19 +137,28 @@ type IsBodyInactive = bool;
 struct AabbIntervals(Vec<(Entity, ColliderAabb, CollisionLayers, IsBodyInactive)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
+#[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
-    aabbs: Query<(&ColliderAabb, Ref<Position>, Ref<Rotation>)>,
+    aabbs: Query<(
+        &ColliderAabb,
+        Option<&CollisionLayers>,
+        Ref<Position>,
+        Ref<Rotation>,
+    )>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    intervals.0.retain_mut(|(entity, aabb, _, is_inactive)| {
-        if let Ok((new_aabb, position, rotation)) = aabbs.get(*entity) {
-            *aabb = *new_aabb;
-            *is_inactive = !position.is_changed() && !rotation.is_changed();
-            true
-        } else {
-            false
-        }
-    });
+    intervals
+        .0
+        .retain_mut(|(entity, aabb, layers, is_inactive)| {
+            if let Ok((new_aabb, new_layers, position, rotation)) = aabbs.get(*entity) {
+                *aabb = *new_aabb;
+                *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
+                *is_inactive = !position.is_changed() && !rotation.is_changed();
+                true
+            } else {
+                false
+            }
+        });
 }
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
