@@ -56,6 +56,8 @@ use derive_more::From;
 /// - [`AngularVelocity`]
 /// - [`ExternalForce`]
 /// - [`ExternalTorque`]
+/// - [`ExternalImpulse`]
+/// - [`ExternalAngularImpulse`]
 /// - [`Friction`]
 /// - [`Restitution`]
 /// - [`Mass`]
