@@ -23,6 +23,12 @@ fn main() {
 #[derive(Component)]
 struct Actor;
 
+#[derive(Component)]
+struct MovementSpeed(Scalar);
+
+#[derive(Component)]
+struct JumpImpulse(Scalar);
+
 #[derive(Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct OneWayPlatform(HashSet<Entity>);
 
@@ -136,20 +142,22 @@ fn setup(
         Collider::cuboid(actor_size.x, actor_size.y),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
+        MovementSpeed(250.0),
+        JumpImpulse(450.0),
     ));
 }
 
 fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut actors: Query<&mut LinearVelocity, With<Actor>>,
+    mut actors: Query<(&mut LinearVelocity, &MovementSpeed, &JumpImpulse), With<Actor>>,
 ) {
-    for mut linear_velocity in &mut actors {
-        if keyboard_input.pressed(KeyCode::Left) {
-            linear_velocity.x -= 10.0;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            linear_velocity.x += 10.0;
-        }
+    for (mut linear_velocity, movement_speed, jump_impulse) in &mut actors {
+        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let x_axis_input = right as i8 - left as i8;
+
+        // Move in input direction
+        linear_velocity.x = x_axis_input as f32 * movement_speed.0;
 
         // Assume "mostly stopped" to mean "grounded".
         // You should use raycasting, shapecasting or sensor colliders
@@ -158,7 +166,7 @@ fn movement(
             && !keyboard_input.pressed(KeyCode::Down)
             && keyboard_input.just_pressed(KeyCode::Space)
         {
-            linear_velocity.y = 450.0;
+            linear_velocity.y = jump_impulse.0;
         }
     }
 }
