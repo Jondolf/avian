@@ -154,10 +154,10 @@ fn movement(
     for (mut linear_velocity, movement_speed, jump_impulse) in &mut actors {
         let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
         let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
-        let x_axis_input = right as i8 - left as i8;
+        let horizontal = right as i8 - left as i8;
 
         // Move in input direction
-        linear_velocity.x = x_axis_input as Scalar * movement_speed.0;
+        linear_velocity.x = horizontal as Scalar * movement_speed.0;
 
         // Assume "mostly stopped" to mean "grounded".
         // You should use raycasting, shapecasting or sensor colliders
