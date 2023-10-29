@@ -148,7 +148,6 @@
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
 //!     - [Spherical joint](SphericalJoint)
-//! - [Custom joints](joints#custom-joints)
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
@@ -513,9 +512,38 @@ pub struct PhysicsSchedule;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 
-/// The schedule that runs in [`SubstepSet::PostProcessCollisions`].
+/// A schedule where you can add systems to filter or modify collisions
+/// using the [`Collisions`] resource.
 ///
-/// Empty by default.
+/// The schedule is empty by default and runs in [`SubstepSet::PostProcessCollisions`].
+///
+/// ## Example
+///
+/// Below is an example of how you could add a system that filters collisions.
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// #[derive(Component)]
+/// struct Invulnerable;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(PostProcessCollisions, filter_collisions)
+///         .run();
+/// }
+///
+/// fn filter_collisions(mut collisions: ResMut<Collisions>, query: Query<(), With<Invulnerable>>) {
+///     // Remove collisions where one of the colliders has an `Invulnerable` component.
+///     // In a real project, this could be done more efficiently with collision layers.
+///     collisions.retain(|contacts| {
+///         !query.contains(contacts.entity1) && !query.contains(contacts.entity2)
+///     });
+/// }
+/// ```
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PostProcessCollisions;
 
