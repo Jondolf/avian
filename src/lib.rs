@@ -51,8 +51,14 @@
 //! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                      | Yes (`bevy_xpbd_3d`)    |
 //! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                    | Yes                     |
 //! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                    | No                      |
-//! | `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |
-//! | `async-collider` (3D)  | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |
+#![cfg_attr(
+    feature = "3d",
+    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "| `async-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
+)]
 //! | `debug-plugin`         | Enables the `PhysicsDebugPlugin` used for rendering physics objects and properties.                                              | No                      |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
