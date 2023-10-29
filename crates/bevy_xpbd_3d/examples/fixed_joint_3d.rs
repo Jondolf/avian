@@ -24,8 +24,8 @@ fn setup(
     let anchor = commands
         .spawn((
             PbrBundle {
-                mesh: cube_mesh.clone_weak(),
-                material: cube_material.clone_weak(),
+                mesh: cube_mesh.clone(),
+                material: cube_material.clone(),
                 transform: Transform::from_xyz(3.0, 3.5, 0.0),
                 ..default()
             },
