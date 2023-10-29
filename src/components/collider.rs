@@ -15,7 +15,7 @@ use parry::{
 
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
-/// See https://github.com/Unity-Technologies/VHACD#parameters for details.
+/// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.
 pub type VHACDParameters = parry::transformation::vhacd::VHACDParameters;
 
 /// Flags used for the preprocessing of a triangle mesh collider.
@@ -29,10 +29,8 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// ```
 /// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a ball collider with a given radius
@@ -42,16 +40,16 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// # }
 /// ```
 ///
-/// Colliders on their own only detect contacts and generate [collision events](#collision-events).
-/// To make colliders apply contact forces, they have to be attached to [rigid bodies](RigidBody):
+/// Colliders on their own only detect contacts and generate
+/// [collision events](ContactReportingPlugin#collision-events).
+/// To make colliders apply contact forces, they have to be attached
+/// to [rigid bodies](RigidBody):
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -75,8 +73,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// In addition, Bevy XPBD automatically adds some other components for colliders, like the following:
 ///
+/// - [`ColliderParent`]
 /// - [`ColliderAabb`]
 /// - [`CollidingEntities`]
+/// - [`ColliderDensity`]
 /// - [`ColliderMassProperties`]
 ///
 #[cfg_attr(
@@ -92,12 +92,10 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// shapes, or for more control, spawn several collider entities as the children of a rigid body:
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children
 ///     commands
@@ -115,97 +113,31 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
-/// and other configuration options, and they send separate [collision events](#collision-events).
+/// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
 ///
-/// ## Sensors
+/// ## See more
 ///
-/// If you want a collider to be attached to a rigid body but don't want it to apply forces on
-/// contact, you can add a [`Sensor`] component to make the collider only send
-/// [collision events](#collision-events):
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-/// // This body will pass through objects but still generate collision events
-/// commands.spawn((
-///     RigidBody::Dynamic,
-///     Collider::ball(0.5),
-///     Sensor,
-/// ));
-/// # }
-/// ```
-///
-/// ## Collision layers
-///
-/// Collision layers can be used to configure which entities can collide with each other.
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// #[derive(PhysicsLayer)]
-/// enum Layer {
-///     Player,
-///     Enemy,
-///     Ground,
-/// }
-///
-/// fn spawn(mut commands: Commands) {
-///     commands.spawn((
-///         Collider::ball(0.5),
-///         // Player collides with enemies and the ground, but not with other players
-///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
-///     ));
-/// }
-/// ```
-///
-/// See [`CollisionLayers`] for more information and examples.
-///
-/// ## Collision events
-///
-/// There are currently three different collision events: [`Collision`], [`CollisionStarted`] and [`CollisionEnded`].
-///
-/// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
-/// fn my_system(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contact_pair) in collision_event_reader.iter() {
-///         println!(
-///             "{:?} and {:?} are colliding",
-///             contact_pair.entity1, contact_pair.entity2
-///         );
-///     }
-/// }
-/// ```
-///
-/// The entities that are colliding with a given entity can also be accessed using
-/// the [`CollidingEntities`] component.
-///
-/// ## Querying and modifying contacts
-///
-/// The [`Collisions`] resource grants access to all collisions.
-/// It can be used to get, modify, filter and add collisions.
-///
-/// See [`Collisions`] for more details.
+/// - [Rigid bodies](RigidBody)
+/// - [Density](ColliderDensity)
+/// - [Friction] and [restitution](Restitution) (bounciness)
+/// - [Collision layers](CollisionLayers)
+/// - [Sensors](Sensor)
+#[cfg_attr(
+    feature = "3d",
+    doc = "- Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+)]
+/// - [Get colliding entities](CollidingEntities)
+/// - [Collision events](ContactReportingPlugin#collision-events)
+/// - [Accessing, filtering and modifying collisions](Collisions)
+/// - [Manual contact queries](contact_query)
 ///
 /// ## Advanced usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
 ///
-/// To get a reference to the internal [`SharedShape`], you can use the [`get_shape`](#method.get_shape) method.
+/// To get a reference to the internal [`SharedShape`], you can use the [`shape`](#method.shape)
+/// or [`shape_scaled`](#method.shape_scaled) method.
 #[derive(Clone, Component)]
 pub struct Collider {
     /// The raw unscaled collider shape.
@@ -558,7 +490,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -590,7 +522,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -616,7 +548,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -641,7 +573,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -668,7 +600,7 @@ impl Collider {
     ///
     /// ## Example
     ///
-    /// ```rust
+    /// ```
     /// use bevy::prelude::*;
     /// use bevy_xpbd_3d::prelude::*;
     ///
@@ -967,13 +899,13 @@ pub struct AsyncCollider(pub ComputedCollider);
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub struct AsyncSceneCollider {
-    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`].
-    /// If `None`, all meshes except the ones in [`meshes_by_name`] will be skipped.
+    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
+    /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     pub default_shape: Option<ComputedCollider>,
     /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`] and all collision layers
-    /// will be used instead.
+    /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
+    /// and all collision layers will be used instead.
     pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
 }
 
@@ -982,8 +914,9 @@ impl AsyncSceneCollider {
     /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
-    /// If the given collider type is `None`, all meshes except the ones in [`meshes_by_name`]
-    /// will be skipped. You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
+    /// If the given collider type is `None`, all meshes except the ones in
+    /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
+    /// You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
     pub fn new(default_shape: Option<ComputedCollider>) -> Self {
         Self {
             default_shape,
@@ -1052,7 +985,7 @@ pub struct AsyncSceneColliderData {
     pub shape: ComputedCollider,
     /// The [`CollisionLayers`] used for this collider.
     pub layers: CollisionLayers,
-    /// The [`CollisionDensity`] used for this collider.
+    /// The [`ColliderDensity`] used for this collider.
     pub density: Scalar,
 }
 
@@ -1071,8 +1004,11 @@ impl Default for AsyncSceneColliderData {
 ///
 /// Colliders can be created from meshes with the following components and methods:
 ///
-/// - [`AsyncSceneCollider`] (requires `3d` and `async-collider` features)
-/// - [`Collider::from_mesh`]
+/// - [`AsyncCollider`] (requires `async-collider` features)
+/// - [`AsyncSceneCollider`] (requires `async-collider` features)
+/// - [`Collider::trimesh_from_mesh`]
+/// - [`Collider::convex_hull_from_mesh`]
+/// - [`Collider::convex_decomposition_from_mesh`]
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 #[derive(Component, Clone, Debug, Default, PartialEq)]
 pub enum ComputedCollider {
@@ -1098,12 +1034,10 @@ pub enum ComputedCollider {
 /// ## Example
 ///
 /// ```
-/// # use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// # use bevy_xpbd_3d::prelude::*;
-/// #
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
@@ -1179,7 +1113,7 @@ impl From<Transform> for ColliderTransform {
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///
-/// Sensor colliders send [collision events](Collider#collision-events) and register intersections,
+/// Sensor colliders send [collision events](ContactReportingPlugin#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///
@@ -1187,10 +1121,8 @@ impl From<Transform> for ColliderTransform {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
@@ -1203,7 +1135,7 @@ impl From<Transform> for ColliderTransform {
 #[reflect(Component)]
 pub struct Sensor;
 
-/// The Axis-Aligned Bounding Box of a collider.
+/// The Axis-Aligned Bounding Box of a [collider](Collider).
 #[derive(Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 pub struct ColliderAabb(pub Aabb);
 
@@ -1220,18 +1152,17 @@ impl Default for ColliderAabb {
     }
 }
 
-/// Contains the entities that are colliding with an entity.
+/// A component that stores the entities that are colliding with an entity.
 ///
-/// This component is automatically added for all entities with a [`Collider`].
+/// This component is automatically added for all entities with a [`Collider`],
+/// but it will only be filled if the [`ContactReportingPlugin`] is enabled (by default, it is).
 ///
 /// ## Example
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {

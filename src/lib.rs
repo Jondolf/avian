@@ -51,8 +51,14 @@
 //! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                      | Yes (`bevy_xpbd_3d`)    |
 //! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                    | Yes                     |
 //! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                    | No                      |
-//! | `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |
-//! | `async-collider` (3D)  | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |
+#![cfg_attr(
+    feature = "3d",
+    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "| `async-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
+)]
 //! | `debug-plugin`         | Enables the `PhysicsDebugPlugin` used for rendering physics objects and properties.                                              | No                      |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
@@ -68,10 +74,8 @@
 //!
 //! ```no_run
 //! use bevy::prelude::*;
-//! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
-//! # #[cfg(feature = "3d")]
-//! use bevy_xpbd_3d::prelude::*;
+#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn main() {
 //!     App::new()
@@ -87,12 +91,10 @@
 //! with the [`RigidBody`] and [`Collider`] components:
 //!
 //! ```
-//! # use bevy::prelude::*;
-//! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
-//! # #[cfg(feature = "3d")]
-//! # use bevy_xpbd_3d::prelude::*;
-//! #
+//! use bevy::prelude::*;
+#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+//!
 //! fn setup(mut commands: Commands) {
 //!     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
 //! }
@@ -113,7 +115,7 @@
 //! - [Movement](RigidBody#movement)
 //!     - [Linear](LinearVelocity) and [angular](AngularVelocity) velocity
 //!     - [Forces](ExternalForce), [torque](ExternalTorque), and [linear](ExternalImpulse) and [angular](ExternalAngularImpulse) impulses
-//! - [Gravity]
+//! - [Gravity] and [gravity scale](GravityScale)
 //! - [Mass properties](RigidBody#mass-properties)
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 //! - [Lock translational and rotational axes](LockedAxes)
@@ -125,7 +127,7 @@
 //! - [Colliders](Collider)
 //!     - [Creation](Collider#creation)
 //!     - [Density](ColliderDensity)
-//!     - [Friction] and [Restitution] (bounciness)
+//!     - [Friction] and [restitution](Restitution) (bounciness)
 //!     - [Collision layers](CollisionLayers)
 //!     - [Sensors](Sensor)
 #![cfg_attr(
@@ -133,7 +135,7 @@
     doc = "    - Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
-//! - [Collision events](collision#collision-events)
+//! - [Collision events](ContactReportingPlugin#collision-events)
 //! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
 //!
@@ -146,7 +148,6 @@
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
 //!     - [Spherical joint](SphericalJoint)
-//! - [Custom joints](joints#custom-joints)
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
@@ -166,20 +167,27 @@
 //! - [Physics timestep](PhysicsTimestep)
 //! - [Speed up or slow down time](PhysicsTimescale)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
-//! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
-//! - [Running physics manually](PhysicsSchedule#run-physics-manually)
-//! - [Usage on servers](#can-the-engine-be-used-on-servers)
-//! - [Custom plugins](PhysicsPlugins#custom-plugins)
 //!
-//! ### Architecture
+//! ### Scheduling
 //!
-//! - [List of plugins and their responsibilities](PhysicsPlugins)
-//! - Schedules and sets
+//! - [Schedules and sets](PhysicsSetupPlugin#schedules-and-sets)
 //!     - [`PhysicsSet`]
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
 //!     - [`PostProcessCollisions`] schedule
+//! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
+//! - [Pausing, resuming and stepping the physics loop](PhysicsLoop)
+//! - [Running physics manually](PhysicsPlugins#running-physics-manually)
+//! - [Usage on servers](#can-the-engine-be-used-on-servers)
+//!
+//! ### Architecture
+//!
+//! - [List of plugins and their responsibilities](PhysicsPlugins)
 //! - [What is Extended Position Based Dynamics?](#what-is-xpbd)
+//! - Extending and modifying the engine
+//!     - [Custom plugins](PhysicsPlugins#custom-plugins)
+//!     - [Custom constraints](constraints#custom-constraints)
+//!     - [Custom joints](joints#custom-joints)
 //!
 //! ## Frequently asked questions
 //!
@@ -465,12 +473,26 @@ pub mod resources;
 
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
+    #[cfg(feature = "debug-plugin")]
+    pub use crate::plugins::debug::*;
     pub use crate::{
         components::*,
         constraints::{joints::*, *},
-        plugins::*,
+        plugins::{
+            collision::{
+                broad_phase::BroadCollisionPairs,
+                contact_reporting::{Collision, CollisionEnded, CollisionStarted},
+                narrow_phase::NarrowPhaseConfig,
+                *,
+            },
+            prepare::*,
+            setup::*,
+            solver::solve_constraint,
+            spatial_query::*,
+            *,
+        },
         resources::*,
-        PhysicsSet,
+        PhysicsSet, PostProcessCollisions,
     };
     pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;
@@ -504,9 +526,38 @@ pub struct PhysicsSchedule;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
 
-/// The schedule that runs in [`SubstepSet::PostProcessCollisions`].
+/// A schedule where you can add systems to filter or modify collisions
+/// using the [`Collisions`] resource.
 ///
-/// Empty by default.
+/// The schedule is empty by default and runs in [`SubstepSet::PostProcessCollisions`].
+///
+/// ## Example
+///
+/// Below is an example of how you could add a system that filters collisions.
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// #[derive(Component)]
+/// struct Invulnerable;
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(PostProcessCollisions, filter_collisions)
+///         .run();
+/// }
+///
+/// fn filter_collisions(mut collisions: ResMut<Collisions>, query: Query<(), With<Invulnerable>>) {
+///     // Remove collisions where one of the colliders has an `Invulnerable` component.
+///     // In a real project, this could be done more efficiently with collision layers.
+///     collisions.retain(|contacts| {
+///         !query.contains(contacts.entity1) && !query.contains(contacts.entity2)
+///     });
+/// }
+/// ```
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PostProcessCollisions;
 

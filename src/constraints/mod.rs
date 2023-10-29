@@ -14,7 +14,7 @@
 //!
 //! Below are the currently implemented constraints.
 //!
-//! - [`PenetrationConstraint`](PenetrationConstraint)
+//! - [`PenetrationConstraint`]
 //! - [Joints](joints)
 //!     - [`FixedJoint`]
 //!     - [`DistanceJoint`]
@@ -34,10 +34,8 @@
 //!
 //! ```
 //! use bevy::prelude::*;
-//! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
-//! # #[cfg(feature = "3d")]
-//! use bevy_xpbd_3d::prelude::*;
+#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! struct CustomConstraint {
 //!     entity1: Entity,
@@ -159,7 +157,7 @@
 //!
 //! Unlike particles, [rigid bodies](RigidBody) also have angular quantities like [rotation](Rotation),
 //! [angular velocity](AngularVelocity) and [angular inertia](Inertia). In addition, constraints can be applied at specific
-//! points in the body, like [contact positions](Contact) or joint attachment positions, which also affects the orientation.
+//! points in the body, like contact positions or joint attachment positions, which also affects the orientation.
 //!
 //! When the constraint is not applied at the center of mass, the inverse mass in the computation of `Δλ` must
 //! be replaced with a *generalized inverse mass* that is essentially the effective mass when applying the constraint
