@@ -196,7 +196,7 @@ fn gamepad_input(
 
         if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
             movement_event_writer.send(MovementAction::Move(
-                Vector2::new(x, y).clamp_length_max(1.0),
+                Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
             ));
         }
 
