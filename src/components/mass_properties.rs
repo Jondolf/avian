@@ -35,7 +35,8 @@ pub struct Inertia(pub Scalar);
 ///
 /// This is computed in local-space, so the object's orientation is not taken into account.
 ///
-/// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
+/// To get the world-space version that takes the body's rotation into account,
+/// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
@@ -56,14 +57,16 @@ impl Inertia {
     #[cfg(feature = "3d")]
     pub const ZERO: Self = Self(Matrix3::ZERO);
 
-    /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.
+    /// In 2D this does nothing, but it is there for convenience so that
+    /// you don't have to handle 2D and 3D separately.
     #[cfg(feature = "2d")]
     #[allow(dead_code)]
     pub(crate) fn rotated(&self, _rot: &Rotation) -> Self {
         *self
     }
 
-    /// Returns the inertia tensor's world-space version that takes the body's orientation into account.
+    /// Returns the inertia tensor's world-space version that takes
+    /// the body's orientation into account.
     #[cfg(feature = "3d")]
     pub fn rotated(&self, rot: &Rotation) -> Self {
         Self(get_rotated_inertia_tensor(self.0, rot.0))
@@ -109,7 +112,8 @@ impl Inertia {
     }
 }
 
-/// The inverse moment of inertia of the body. This represents the inverse of the torque needed for a desired angular acceleration.
+/// The inverse moment of inertia of the body. This represents the inverse of
+/// the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
@@ -120,7 +124,8 @@ pub struct InverseInertia(pub Scalar);
 ///
 /// This is computed in local-space, so the object's orientation is not taken into account.
 ///
-/// To get the world-space version that takes the body's rotation into account, use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
+/// To get the world-space version that takes the body's rotation into account,
+/// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
@@ -141,7 +146,8 @@ impl InverseInertia {
     #[cfg(feature = "3d")]
     pub const ZERO: Self = Self(Matrix3::ZERO);
 
-    /// In 2D this does nothing, but it is there for convenience so that you don't have to handle 2D and 3D separately.
+    /// In 2D this does nothing, but it is there for convenience so that
+    /// you don't have to handle 2D and 3D separately.
     #[cfg(feature = "2d")]
     pub fn rotated(&self, _rot: &Rotation) -> Self {
         *self
@@ -191,10 +197,8 @@ impl CenterOfMass {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -214,7 +218,7 @@ pub struct MassPropertiesBundle {
 }
 
 impl MassPropertiesBundle {
-    /// Computes the mass properties from a given [`Collider`] and density.
+    /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
@@ -223,7 +227,7 @@ impl MassPropertiesBundle {
             inverse_inertia,
             center_of_mass,
             ..
-        } = ColliderMassProperties::new_computed(collider, density);
+        } = collider.mass_properties(density);
 
         Self {
             mass,
@@ -234,27 +238,85 @@ impl MassPropertiesBundle {
         }
     }
 }
+/// The density of a [`Collider`], 1.0 by default. This is used for computing
+/// the [`ColliderMassProperties`] for each collider.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// // Spawn a body with a collider that has a density of 2.5
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         ColliderDensity(2.5),
+///     ));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, PartialOrd)]
+#[reflect(Component)]
+pub struct ColliderDensity(pub Scalar);
 
-/// The mass properties derived from a given collider shape and density.
+impl ColliderDensity {
+    /// The density of the [`Collider`] is zero. It has no mass.
+    pub const ZERO: Self = Self(0.0);
+}
+
+impl Default for ColliderDensity {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+/// An automatically added component that contains the read-only mass properties of a [`Collider`].
+/// The density used for computing the mass properties can be configured using the [`ColliderDensity`]
+/// component.
 ///
-/// These will be added to the body's actual [`Mass`], [`InverseMass`], [`Inertia`], [`InverseInertia`] and [`CenterOfMass`] components.
+/// These mass properties will be added to the [rigid body's](RigidBody) actual [`Mass`],
+/// [`InverseMass`], [`Inertia`], [`InverseInertia`] and [`CenterOfMass`] components.
 ///
-/// You should generally not create or modify this directly. Instead, you can generate this automatically using a given collider shape and density with the associated `from_shape_and_density` method.
-#[derive(Reflect, Clone, Copy, Component, PartialEq)]
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(Startup, setup)
+///         .add_systems(Update, print_collider_masses)
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn(Collider::ball(0.5));
+/// }
+///
+/// fn print_collider_masses(query: Query<&ColliderMassProperties>) {
+///     for mass_props in &query {
+///         println!("{}", mass_props.mass());
+///     }
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[reflect(Component)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
-    pub mass: Mass,
+    pub(crate) mass: Mass,
     /// Inverse mass given by collider.
-    pub inverse_mass: InverseMass,
+    pub(crate) inverse_mass: InverseMass,
     /// Inertia given by collider.
-    pub inertia: Inertia,
+    pub(crate) inertia: Inertia,
     /// Inverse inertia given by collider.
-    pub inverse_inertia: InverseInertia,
+    pub(crate) inverse_inertia: InverseInertia,
     /// Local center of mass given by collider.
-    pub center_of_mass: CenterOfMass,
-    /// Density used for calculating other mass properties.
-    pub density: Scalar,
+    pub(crate) center_of_mass: CenterOfMass,
 }
 
 impl ColliderMassProperties {
@@ -265,14 +327,14 @@ impl ColliderMassProperties {
         inertia: Inertia::ZERO,
         inverse_inertia: InverseInertia::ZERO,
         center_of_mass: CenterOfMass::ZERO,
-        density: 0.0,
     };
-}
 
-impl ColliderMassProperties {
     /// Computes mass properties from a given [`Collider`] and density.
-    pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
-        let props = collider.mass_properties(density);
+    ///
+    /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually
+    /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
+    pub fn new(collider: &Collider, density: Scalar) -> Self {
+        let props = collider.shape_scaled().mass_properties(density);
 
         Self {
             mass: Mass(props.mass()),
@@ -289,9 +351,46 @@ impl ColliderMassProperties {
             inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
 
             center_of_mass: CenterOfMass(props.local_com.into()),
-
-            density,
         }
+    }
+
+    /// Get the [mass](Mass) of the [`Collider`].
+    pub fn mass(&self) -> Scalar {
+        self.mass.0
+    }
+
+    /// Get the [inverse mass](InverseMass) of the [`Collider`].
+    pub fn inverse_mass(&self) -> Scalar {
+        self.inverse_mass.0
+    }
+
+    /// Get the [inerta](Inertia) of the [`Collider`].
+    #[cfg(feature = "2d")]
+    pub fn inertia(&self) -> Scalar {
+        self.inertia.0
+    }
+
+    /// Get the [inertia tensor](InverseInertia) of the [`Collider`].
+    #[cfg(feature = "3d")]
+    pub fn inertia(&self) -> Matrix3 {
+        self.inertia.0
+    }
+
+    /// Get the [inverse inertia](InverseInertia) of the [`Collider`].
+    #[cfg(feature = "2d")]
+    pub fn inverse_inertia(&self) -> Scalar {
+        self.inverse_inertia.0
+    }
+
+    /// Get the [inverse inertia](InverseInertia) of the [`Collider`].
+    #[cfg(feature = "3d")]
+    pub fn inverse_inertia(&self) -> Matrix3 {
+        self.inverse_inertia.0
+    }
+
+    /// Get the [local center of mass](CenterOfMass) of the [`Collider`].
+    pub fn center_of_mass(&self) -> Vector {
+        self.center_of_mass.0
     }
 }
 
@@ -300,7 +399,3 @@ impl Default for ColliderMassProperties {
         Self::ZERO
     }
 }
-
-/// The previous [`ColliderMassProperties`].
-#[derive(Clone, Copy, Component, Default, Deref, DerefMut, PartialEq)]
-pub(crate) struct PreviousColliderMassProperties(pub ColliderMassProperties);

@@ -23,6 +23,12 @@ fn main() {
 #[derive(Component)]
 struct Actor;
 
+#[derive(Component)]
+struct MovementSpeed(Scalar);
+
+#[derive(Component)]
+struct JumpImpulse(Scalar);
+
 #[derive(Clone, Eq, PartialEq, Debug, Default, Component)]
 pub struct OneWayPlatform(HashSet<Entity>);
 
@@ -55,45 +61,45 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, 50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, -50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
 
     // For one-way platforms
@@ -108,20 +114,22 @@ fn setup(
         commands.spawn((
             SpriteBundle {
                 sprite: one_way_sprite.clone(),
-                transform: Transform::from_scale(Vec3::new(10.0, 0.5, 1.0)),
+                transform: Transform::from_xyz(0.0, y as f32 * 16.0 * 6.0, 0.0)
+                    .with_scale(Vec3::new(10.0, 0.5, 1.0)),
                 ..default()
             },
             RigidBody::Static,
-            Position(Vector::Y * 16.0 * 6.0 * y as Scalar),
-            Collider::cuboid(25.0 * 20.0, 25.0),
+            Collider::cuboid(50.0, 50.0),
             OneWayPlatform::default(),
         ));
     }
 
     // Spawn an actor for the user to control
-    let actor_size = Vec2::new(20.0, 20.0);
+    let actor_size = Vector::new(20.0, 20.0);
     let actor_mesh = MaterialMesh2dBundle {
-        mesh: meshes.add(shape::Quad::new(actor_size).into()).into(),
+        mesh: meshes
+            .add(shape::Quad::new(actor_size.as_f32()).into())
+            .into(),
         material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
         ..default()
     };
@@ -131,32 +139,34 @@ fn setup(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Collider::cuboid(actor_size.x.into(), actor_size.y.into()),
+        Collider::cuboid(actor_size.x, actor_size.y),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
+        MovementSpeed(250.0),
+        JumpImpulse(450.0),
     ));
 }
 
 fn movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut actors: Query<&mut LinearVelocity, With<Actor>>,
+    mut actors: Query<(&mut LinearVelocity, &MovementSpeed, &JumpImpulse), With<Actor>>,
 ) {
-    for mut linear_velocity in &mut actors {
-        if keyboard_input.pressed(KeyCode::Left) {
-            linear_velocity.x -= 10.0;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            linear_velocity.x += 10.0;
-        }
+    for (mut linear_velocity, movement_speed, jump_impulse) in &mut actors {
+        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let horizontal = right as i8 - left as i8;
+
+        // Move in input direction
+        linear_velocity.x = horizontal as Scalar * movement_speed.0;
 
         // Assume "mostly stopped" to mean "grounded".
-        // You should use ray casting, shape casting or sensor colliders
+        // You should use raycasting, shapecasting or sensor colliders
         // for more robust ground detection.
         if linear_velocity.y.abs() < 0.1
             && !keyboard_input.pressed(KeyCode::Down)
             && keyboard_input.just_pressed(KeyCode::Space)
         {
-            linear_velocity.y = 450.0;
+            linear_velocity.y = jump_impulse.0;
         }
     }
 }
@@ -247,7 +257,7 @@ fn one_way_platform(
                 manifold
                     .contacts
                     .iter()
-                    .any(|contact| contact.penetration > 0.)
+                    .any(|contact| contact.penetration > 0.0)
             })
         }
 

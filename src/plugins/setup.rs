@@ -103,12 +103,17 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<ColliderDensity>()
+            .register_type::<ColliderMassProperties>()
             .register_type::<LockedAxes>()
+            .register_type::<ColliderParent>()
             .register_type::<Dominance>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
-            .register_type::<Sensor>();
+            .register_type::<Sensor>()
+            .register_type::<ColliderTransform>()
+            .register_type::<PreviousColliderTransform>();
 
         // Configure higher level system sets for the given schedule
         let schedule = &self.schedule;
@@ -210,7 +215,38 @@ impl Plugin for PhysicsSetupPlugin {
     }
 }
 
-/// Data related to the physics simulation loop.
+/// Controls the physics simulation loop.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         // `pause` is a provided system that calls `PhysicsLoop::pause`
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .add_systems(Startup, bevy_xpbd_2d::pause)"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .add_systems(Startup, bevy_xpbd_3d::pause)"
+)]
+///         .add_systems(Update, step_manually)
+///         .run();
+/// }
+///
+/// fn step_manually(input: Res<Input<KeyCode>>, mut physics_loop: ResMut<PhysicsLoop>) {
+///     // Advance the simulation by one frame every time Space is pressed
+///     if input.just_pressed(KeyCode::Space) {
+///         physics_loop.step();
+///     }
+/// }
+/// ```
 #[derive(Reflect, Resource, Debug, Default)]
 #[reflect(Resource)]
 pub struct PhysicsLoop {

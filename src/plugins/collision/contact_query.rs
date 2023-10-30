@@ -11,7 +11,7 @@
 //! | [`intersection_test`] | Tests whether two [`Collider`]s are intersecting each other.              |
 //! | [`time_of_impact`]    | Computes when two moving [`Collider`]s hit each other for the first time. |
 //!
-//! For geometric queries that query the entire world for intersections, like ray casting, shape casting
+//! For geometric queries that query the entire world for intersections, like raycasting, shapecasting
 //! and point projection, see [spatial queries](spatial_query).
 
 use crate::prelude::*;
@@ -76,9 +76,9 @@ pub fn contact(
 
     parry::query::contact(
         &isometry1,
-        collider1.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
         &isometry2,
-        collider2.get_shape().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
         prediction_distance,
     )
     .map(|contact| {
@@ -169,8 +169,8 @@ pub fn contact_manifolds(
     let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
     let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
         &isometry12,
-        collider1.get_shape().0.as_ref(),
-        collider2.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
         prediction_distance,
         &mut manifolds,
         &mut None,
@@ -312,9 +312,9 @@ pub fn closest_points(
 
     parry::query::closest_points(
         &isometry1,
-        collider1.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
         &isometry2,
-        collider2.get_shape().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
         max_distance,
     )
     .map(|closest_points| match closest_points {
@@ -389,9 +389,9 @@ pub fn distance(
 
     parry::query::distance(
         &isometry1,
-        collider1.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
         &isometry2,
-        collider2.get_shape().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
     )
 }
 
@@ -457,9 +457,9 @@ pub fn intersection_test(
 
     parry::query::intersection_test(
         &isometry1,
-        collider1.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
         &isometry2,
-        collider2.get_shape().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
     )
 }
 
@@ -546,10 +546,10 @@ pub fn time_of_impact(
     parry::query::time_of_impact(
         &isometry1,
         &velocity1.0.into(),
-        collider1.get_shape().0.as_ref(),
+        collider1.shape_scaled().0.as_ref(),
         &isometry2,
         &velocity2.0.into(),
-        collider2.get_shape().0.as_ref(),
+        collider2.shape_scaled().0.as_ref(),
         max_time_of_impact,
         true,
     )

@@ -35,10 +35,10 @@ fn setup(
                 custom_size: Some(Vec2::new(500.0, 25.0)),
                 ..default()
             },
+            transform: Transform::from_xyz(0.0, -50.0, 0.0),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 50.0),
         Collider::cuboid(500.0, 25.0),
         CollisionLayers::new([Layer::Blue], [Layer::Blue]),
     ));
@@ -51,34 +51,34 @@ fn setup(
                 custom_size: Some(Vec2::new(500.0, 25.0)),
                 ..default()
             },
+            transform: Transform::from_xyz(0.0, -200.0, 0.0),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 200.0),
         Collider::cuboid(500.0, 25.0),
         CollisionLayers::new([Layer::Red], [Layer::Red]),
     ));
 
     let marble_radius = 7.5;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius as f32).into());
+    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
 
     // Spawn blue marbles that belong on the blue layer and collide with blue
     let blue_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
     for x in -6..6 {
         for y in 0..4 {
-            let position = Vector::new(
-                x as Scalar * (2.5 * marble_radius),
-                (y as Scalar) * (2.5 * marble_radius),
-            );
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: marble_mesh.clone().into(),
                     material: blue_material.clone(),
+                    transform: Transform::from_xyz(
+                        x as f32 * 2.5 * marble_radius,
+                        y as f32 * 2.5 * marble_radius + 200.0,
+                        0.0,
+                    ),
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Position(position + Vector::Y * 200.0),
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Blue], [Layer::Blue]),
             ));
         }
@@ -88,19 +88,19 @@ fn setup(
     let red_material = materials.add(ColorMaterial::from(Color::rgb(0.9, 0.3, 0.3)));
     for x in -6..6 {
         for y in -4..0 {
-            let position = Vector::new(
-                x as Scalar * (2.5 * marble_radius),
-                (y as Scalar) * (2.5 * marble_radius),
-            );
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: marble_mesh.clone().into(),
                     material: red_material.clone(),
+                    transform: Transform::from_xyz(
+                        x as f32 * 2.5 * marble_radius,
+                        y as f32 * 2.5 * marble_radius + 200.0,
+                        0.0,
+                    ),
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Position(position + Vector::Y * 200.0),
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Red], [Layer::Red]),
             ));
         }

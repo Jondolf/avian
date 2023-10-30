@@ -32,19 +32,17 @@ pub mod spatial_query;
 pub mod sync;
 
 pub use collision::{
-    broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
-    contact_reporting::{Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin},
-    narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
-    *,
+    broad_phase::BroadPhasePlugin, contact_reporting::ContactReportingPlugin,
+    narrow_phase::NarrowPhasePlugin,
 };
 #[cfg(feature = "debug-plugin")]
-pub use debug::*;
+pub use debug::PhysicsDebugPlugin;
 pub use integrator::IntegratorPlugin;
 pub use prepare::PreparePlugin;
-pub use setup::*;
+pub use setup::PhysicsSetupPlugin;
 pub use sleeping::SleepingPlugin;
-pub use solver::{solve_constraint, SolverPlugin};
-pub use spatial_query::*;
+pub use solver::SolverPlugin;
+pub use spatial_query::SpatialQueryPlugin;
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
@@ -66,7 +64,7 @@ use bevy::prelude::*;
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
-/// - [`SpatialQueryPlugin`]: Handles spatial queries like [ray casting](RayCaster) and shape casting.
+/// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](RayCaster) and shapecasting.
 /// - [`SyncPlugin`]: Keeps [`Position`] and [`Rotation`] in sync with `Transform`.
 /// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
@@ -81,10 +79,8 @@ use bevy::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -97,6 +93,36 @@ use bevy::prelude::*;
 /// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
 /// when you need to keep the client and server in sync.
 ///
+/// ## Running physics manually
+///
+/// You can pause, step and resume the simulation with the [`PhysicsLoop`] resource, but the changes
+/// only take affect the next frame.
+///
+/// To advance the simulation by a certain amount of time instantly, you can set the value of
+/// the [`DeltaTime`] resource and manually run the [`PhysicsSchedule`] in an exclusive system:
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
+)]
+///
+/// fn run_physics(world: &mut World) {
+///     // Set the amount of time a step should take
+///     world.resource_mut::<DeltaTime>().0 = 1.0 / 120.0;
+///
+///     // Advance the simulation by 10 steps at 120 Hz
+///     for _ in 0..10 {
+///         world.run_schedule(PhysicsSchedule);
+///     }
+/// }
+/// ```
+///
 /// ## Custom plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
@@ -107,10 +133,14 @@ use bevy::prelude::*;
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
+)]
 ///
 /// pub struct CustomBroadPhasePlugin;
 ///
@@ -135,10 +165,8 @@ use bevy::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// # struct CustomBroadPhasePlugin;
 /// # impl Plugin for CustomBroadPhasePlugin {
@@ -187,15 +215,7 @@ impl Default for PhysicsPlugins {
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
-        #[allow(unused_mut)]
-        let mut builder = PluginGroupBuilder::start::<Self>();
-
-        #[cfg(feature = "debug-plugin")]
-        {
-            builder = builder.add(PhysicsDebugPlugin::default());
-        }
-
-        builder
+        PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule.dyn_clone()))
             .add(PreparePlugin::new(self.schedule.dyn_clone()))
             .add(BroadPhasePlugin)

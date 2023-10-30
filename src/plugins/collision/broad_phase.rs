@@ -46,55 +46,86 @@ type AABBChanged = Or<(
     Changed<Rotation>,
     Changed<LinearVelocity>,
     Changed<AngularVelocity>,
+    Changed<Collider>,
 )>;
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
 fn update_aabb(
-    mut bodies: Query<
+    mut colliders: Query<
         (
             &Collider,
             &mut ColliderAabb,
             &Position,
             &Rotation,
+            Option<&ColliderParent>,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
         AABBChanged,
+    >,
+    parent_velocity: Query<
+        (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
+        With<Children>,
     >,
     dt: Res<DeltaTime>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.0;
 
-    for (collider, mut aabb, pos, rot, lin_vel, ang_vel) in &mut bodies {
-        let lin_vel = lin_vel.map_or(Vector::ZERO, |v| v.0);
+    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
+        let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
+            (*lin_vel, *ang_vel)
+        } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
+            collider_parent.map(|p| parent_velocity.get(p.get()))
+        {
+            // If the rigid body is rotating, off-center colliders will orbit around it,
+            // which affects their linear velocities. We need to compute the linear velocity
+            // at the offset position.
+            // TODO: This assumes that the colliders would continue moving in the same direction,
+            //       but because they are orbiting, the direction will change. We should take
+            //       into account the uniform circular motion.
+            let offset = pos.0 - parent_pos.0;
+            #[cfg(feature = "2d")]
+            let vel_at_offset =
+                lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
+            #[cfg(feature = "3d")]
+            let vel_at_offset = lin_vel.0 + ang_vel.cross(offset);
+            (LinearVelocity(vel_at_offset), *ang_vel)
+        } else {
+            (LinearVelocity::ZERO, AngularVelocity::ZERO)
+        };
 
-        #[cfg(feature = "2d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.abs());
-        #[cfg(feature = "3d")]
-        let ang_vel_magnitude = ang_vel.map_or(0.0, |v| v.0.length());
+        // Compute current isometry and predicted isometry for next feame
+        let start_iso = utils::make_isometry(*pos, *rot);
+        let end_iso = {
+            #[cfg(feature = "2d")]
+            {
+                utils::make_isometry(
+                    pos.0 + lin_vel.0 * safety_margin_factor,
+                    *rot + Rotation::from_radians(safety_margin_factor * ang_vel.0),
+                )
+            }
+            #[cfg(feature = "3d")]
+            {
+                let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
+                let (x, y, z, w) = (
+                    rot.x + safety_margin_factor * 0.5 * q.x,
+                    rot.y + safety_margin_factor * 0.5 * q.y,
+                    rot.z + safety_margin_factor * 0.5 * q.z,
+                    rot.w + safety_margin_factor * 0.5 * q.w,
+                );
+                utils::make_isometry(
+                    pos.0 + lin_vel.0 * safety_margin_factor,
+                    Quaternion::from_xyzw(x, y, z, w).normalize(),
+                )
+            }
+        };
 
-        // Compute AABB half extents and center
-        let computed_aabb = collider
-            .get_shape()
-            .compute_aabb(&utils::make_isometry(*pos, *rot));
-        let half_extents = Vector::from(computed_aabb.half_extents());
-        let center = Vector::from(computed_aabb.center());
-
-        // TODO: Somehow consider the shape of the object for the safety margin
-        // caused by angular velocity. For example, balls shouldn't get any safety margin.
-        let ang_vel_safety_margin = safety_margin_factor * ang_vel_magnitude;
-
-        // Compute AABB mins and maxs, extending them by a safety margin that depends on the velocity
-        // of the body. Linear velocity only extends the AABB in the movement direction.
-        let mut mins = center - half_extents - ang_vel_safety_margin;
-        mins += safety_margin_factor * lin_vel.min(Vector::ZERO);
-        let mut maxs = center + half_extents + ang_vel_safety_margin;
-        maxs += safety_margin_factor * lin_vel.max(Vector::ZERO);
-
-        aabb.mins.coords = mins.into();
-        aabb.maxs.coords = maxs.into();
+        // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
+        aabb.0 = collider
+            .shape_scaled()
+            .compute_swept_aabb(&start_iso, &end_iso);
     }
 }
 
@@ -106,19 +137,28 @@ type IsBodyInactive = bool;
 struct AabbIntervals(Vec<(Entity, ColliderAabb, CollisionLayers, IsBodyInactive)>);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
+#[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
-    aabbs: Query<(&ColliderAabb, Ref<Position>, Ref<Rotation>)>,
+    aabbs: Query<(
+        &ColliderAabb,
+        Option<&CollisionLayers>,
+        Ref<Position>,
+        Ref<Rotation>,
+    )>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    intervals.0.retain_mut(|(entity, aabb, _, is_inactive)| {
-        if let Ok((new_aabb, position, rotation)) = aabbs.get(*entity) {
-            *aabb = *new_aabb;
-            *is_inactive = !position.is_changed() && !rotation.is_changed();
-            true
-        } else {
-            false
-        }
-    });
+    intervals
+        .0
+        .retain_mut(|(entity, aabb, layers, is_inactive)| {
+            if let Ok((new_aabb, new_layers, position, rotation)) = aabbs.get(*entity) {
+                *aabb = *new_aabb;
+                *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
+                *is_inactive = !position.is_changed() && !rotation.is_changed();
+                true
+            } else {
+                false
+            }
+        });
 }
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].

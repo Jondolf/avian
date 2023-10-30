@@ -7,7 +7,10 @@ use crate::{
     prelude::*,
     utils::{compute_dynamic_friction, compute_restitution},
 };
-use bevy::prelude::*;
+use bevy::{
+    ecs::query::{Has, WorldQuery},
+    prelude::*,
+};
 use constraints::penetration::PenetrationConstraint;
 
 /// Solves positional and angular [constraints], updates velocities and solves velocity constraints
@@ -75,60 +78,128 @@ impl Plugin for SolverPlugin {
 #[derive(Resource, Debug, Default)]
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
+/// A [`WorldQuery`] to make code handling colliders in collisions cleaner.
+#[derive(WorldQuery)]
+struct ColliderQuery<'w> {
+    entity: Entity,
+    parent: Option<&'w ColliderParent>,
+    transform: Option<&'w ColliderTransform>,
+    is_sensor: Has<Sensor>,
+    friction: Option<&'w Friction>,
+    restitution: Option<&'w Restitution>,
+}
+
 /// Iterates through broad phase collision pairs, checks which ones are actually colliding, and uses [`PenetrationConstraint`]s to resolve the collisions.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
+    colliders: Query<ColliderQuery>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     mut collisions: ResMut<Collisions>,
     sub_dt: Res<SubDeltaTime>,
 ) {
     penetration_constraints.0.clear();
 
-    for ((entity1, entity2), contacts) in collisions
+    for ((collider_entity1, collider_entity2), contacts) in collisions
         .get_internal_mut()
         .iter_mut()
         .filter(|(_, contacts)| contacts.during_current_substep)
     {
+        // Don't collide with self
+        if collider_entity1 == collider_entity2 {
+            continue;
+        }
+
+        // Get colliders
+        let Ok([collider1, collider2]) = colliders.get_many([*collider_entity1, *collider_entity2])
+        else {
+            continue;
+        };
+
+        let collider_parent1 = collider1.parent.map_or(*collider_entity1, |p| p.get());
+        let collider_parent2 = collider2.parent.map_or(*collider_entity2, |p| p.get());
+
         // Reset penetration state for this substep.
         // This is set to true if any of the contacts is penetrating.
         contacts.during_current_substep = false;
 
-        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([*entity1, *entity2]) {
+        if let Ok([bundle1, bundle2]) = bodies.get_many_mut([collider_parent1, collider_parent2]) {
             let (mut body1, sensor1, sleeping1) = bundle1;
             let (mut body2, sensor2, sleeping2) = bundle2;
 
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
 
-            // No collision if one of the bodies is static and the other one is sleeping.
-            if inactive1 && inactive2 {
+            let body1_is_sensor = contacts.entity1 == body1.entity && sensor1.is_some();
+            let body2_is_sensor = contacts.entity2 == body2.entity && sensor2.is_some();
+
+            // No collision response if both bodies are static or sleeping
+            // or if either of the colliders is a sensor collider.
+            if (inactive1 && inactive2)
+                || body1_is_sensor
+                || body2_is_sensor
+                || collider1.is_sensor
+                || collider2.is_sensor
+            {
                 continue;
             }
 
-            // Create and solve constraint if both colliders are solid
-            if sensor1.is_none() && sensor2.is_none() {
-                // When an active body collides with a sleeping body, wake up the sleeping body
-                if sleeping1.is_some() {
-                    commands.entity(*entity1).remove::<Sleeping>();
-                } else if sleeping2.is_some() {
-                    commands.entity(*entity2).remove::<Sleeping>();
-                }
+            // When an active body collides with a sleeping body, wake up the sleeping body.
+            if sleeping1.is_some() {
+                commands.entity(body1.entity).remove::<Sleeping>();
+            } else if sleeping2.is_some() {
+                commands.entity(body2.entity).remove::<Sleeping>();
+            }
 
-                for contact_manifold in contacts.manifolds.iter() {
-                    for contact in contact_manifold.contacts.iter() {
-                        let mut constraint = PenetrationConstraint::new(&body1, &body2, *contact);
-                        constraint.solve([&mut body1, &mut body2], sub_dt.0);
-                        penetration_constraints.0.push(constraint);
+            if body1.rb.is_added() || body2.rb.is_added() {
+                warn!(
+                    "{:?} and {:?} are overlapping at spawn, which can result in explosive behavior.",
+                    body1.entity, body2.entity,
+                );
+            }
 
-                        // Set collision as penetrating for this frame and substep.
-                        // This is used for detecting when the collision has started or ended.
-                        if contact.penetration > Scalar::EPSILON {
-                            contacts.during_current_frame = true;
-                            contacts.during_current_substep = true;
-                        }
+            // Get combined friction and restitution coefficients of the colliders
+            // or the bodies they are attached to.
+            let friction = collider1
+                .friction
+                .unwrap_or(body1.friction)
+                .combine(*collider2.friction.unwrap_or(body2.friction));
+            let restitution_coefficient = collider1
+                .restitution
+                .unwrap_or(body1.restitution)
+                .combine(*collider2.restitution.unwrap_or(body2.restitution))
+                .coefficient;
+
+            // Create and solve penetration constraints for each contact.
+            for contact_manifold in contacts.manifolds.iter() {
+                for contact in contact_manifold.contacts.iter() {
+                    // Add collider transforms to local contact points
+                    let contact = ContactData {
+                        point1: collider1.transform.map_or(contact.point1, |t| {
+                            t.rotation.rotate(contact.point1) + t.translation
+                        }),
+                        point2: collider2.transform.map_or(contact.point2, |t| {
+                            t.rotation.rotate(contact.point2) + t.translation
+                        }),
+                        ..*contact
+                    };
+
+                    let mut constraint = PenetrationConstraint {
+                        dynamic_friction_coefficient: friction.dynamic_coefficient,
+                        static_friction_coefficient: friction.static_coefficient,
+                        restitution_coefficient,
+                        ..PenetrationConstraint::new(&body1, &body2, contact)
+                    };
+                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                    penetration_constraints.0.push(constraint);
+
+                    // Set collision as penetrating for this frame and substep.
+                    // This is used for detecting when the collision has started or ended.
+                    if contact.penetration > Scalar::EPSILON {
+                        contacts.during_current_frame = true;
+                        contacts.during_current_substep = true;
                     }
                 }
             }
@@ -369,7 +440,7 @@ fn solve_vel(
             let restitution_speed = compute_restitution(
                 normal_speed,
                 pre_solve_normal_speed,
-                body1.restitution.combine(*body2.restitution).coefficient,
+                constraint.restitution_coefficient,
                 gravity.0,
                 sub_dt.0,
             );
@@ -387,7 +458,7 @@ fn solve_vel(
                 let friction_impulse = compute_dynamic_friction(
                     tangent_speed,
                     w1 + w2,
-                    body1.friction.combine(*body2.friction).dynamic_coefficient,
+                    constraint.dynamic_friction_coefficient,
                     constraint.normal_lagrange,
                     sub_dt.0,
                 );

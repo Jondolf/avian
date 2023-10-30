@@ -9,7 +9,7 @@ use std::ops::{AddAssign, SubAssign};
 #[world_query(mutable)]
 pub struct RigidBodyQuery {
     pub entity: Entity,
-    pub rb: &'static mut RigidBody,
+    pub rb: Ref<'static, RigidBody>,
     pub position: &'static mut Position,
     pub rotation: &'static mut Rotation,
     pub previous_position: &'static mut PreviousPosition,
@@ -24,8 +24,8 @@ pub struct RigidBodyQuery {
     pub inertia: &'static mut Inertia,
     pub inverse_inertia: &'static mut InverseInertia,
     pub center_of_mass: &'static mut CenterOfMass,
-    pub friction: &'static mut Friction,
-    pub restitution: &'static mut Restitution,
+    pub friction: &'static Friction,
+    pub restitution: &'static Restitution,
     pub locked_axes: Option<&'static LockedAxes>,
     pub dominance: Option<&'static Dominance>,
 }
@@ -101,7 +101,6 @@ pub(crate) struct ColliderQuery {
     pub collider: &'static mut Collider,
     pub aabb: &'static mut ColliderAabb,
     pub mass_properties: &'static mut ColliderMassProperties,
-    pub previous_mass_properties: &'static mut PreviousColliderMassProperties,
 }
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
@@ -257,8 +256,7 @@ mod tests {
         app.world.spawn(original_mass_props.clone());
 
         // Create collider mass properties
-        let collider_mass_props =
-            ColliderMassProperties::new_computed(&Collider::capsule(7.4, 2.1), 14.3);
+        let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world.query::<MassPropertiesQuery>();

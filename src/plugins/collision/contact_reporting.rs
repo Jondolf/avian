@@ -6,11 +6,39 @@ use crate::prelude::*;
 
 /// Sends collision events and updates [`CollidingEntities`].
 ///
-/// The following collision events are sent each frame in [`PhysicsStepSet::ReportContacts`]:
+/// ## Collision events
+///
+/// If the [`ContactReportingPlugin`] is enabled (the default), the following
+/// collision events are sent each frame in [`PhysicsStepSet::ReportContacts`]:
 ///
 /// - [`Collision`]
 /// - [`CollisionStarted`]
 /// - [`CollisionEnded`]
+///
+/// You can listen to them with normal event readers:
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(Update, print_collisions)
+///         .run();
+/// }
+///
+/// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
+///     for Collision(contacts) in collision_event_reader.iter() {
+///         println!(
+///             "Entities {:?} and {:?} are colliding",
+///             contacts.entity1,
+///             contacts.entity2,
+///         );
+///     }
+/// }
+/// ```
 pub struct ContactReportingPlugin;
 
 impl Plugin for ContactReportingPlugin {
@@ -27,15 +55,93 @@ impl Plugin for ContactReportingPlugin {
     }
 }
 
-/// A [collision event](Collider#collision-events) that is sent for each contact pair during the narrow phase.
+/// A [collision event](ContactReportingPlugin#collision-events)
+/// that is sent for each collision.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(Update, print_collisions)
+///         .run();
+/// }
+///
+/// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
+///     for Collision(contacts) in collision_event_reader.iter() {
+///         println!(
+///             "Entities {:?} and {:?} are colliding",
+///             contacts.entity1,
+///             contacts.entity2,
+///         );
+///     }
+/// }
+/// ```
 #[derive(Event, Clone, Debug, PartialEq)]
 pub struct Collision(pub Contacts);
 
-/// A [collision event](Collider#collision-events) that is sent when two entities start colliding.
+/// A [collision event](ContactReportingPlugin#collision-events)
+/// that is sent when two entities start colliding.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(Update, print_started_collisions)
+///         .run();
+/// }
+///
+/// fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
+///     for CollisionStarted(entity1, entity2) in collision_event_reader.iter() {
+///         println!(
+///             "Entities {:?} and {:?} started colliding",
+///             entity1,
+///             entity2,
+///         );
+///     }
+/// }
+/// ```
 #[derive(Event, Clone, Debug, PartialEq)]
 pub struct CollisionStarted(pub Entity, pub Entity);
 
-/// A [collision event](Collider#collision-events) that is sent when two entities stop colliding.
+/// A [collision event](ContactReportingPlugin#collision-events)
+/// that is sent when two entities stop colliding.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .add_systems(Update, print_ended_collisions)
+///         .run();
+/// }
+///
+/// fn print_ended_collisions(mut collision_event_reader: EventReader<CollisionEnded>) {
+///     for CollisionEnded(entity1, entity2) in collision_event_reader.iter() {
+///         println!(
+///             "Entities {:?} and {:?} stopped colliding",
+///             entity1,
+///             entity2,
+///         );
+///     }
+/// }
+/// ```
 #[derive(Event, Clone, Debug, PartialEq)]
 pub struct CollisionEnded(pub Entity, pub Entity);
 
