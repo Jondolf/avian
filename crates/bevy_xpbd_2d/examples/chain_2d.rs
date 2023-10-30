@@ -1,6 +1,10 @@
 #![allow(clippy::unnecessary_cast)]
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
+use bevy::{
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    window::PrimaryWindow,
+};
 use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
@@ -27,27 +31,40 @@ fn setup(
 
     let particle_count = 100;
     let particle_radius = 1.2;
-    let particle_mesh = MaterialMesh2dBundle {
-        mesh: meshes
-            .add(shape::Circle::new(particle_radius as f32).into())
-            .into(),
-        material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
-        ..default()
-    };
+    let particle_mesh: Mesh2dHandle = meshes
+        .add(shape::Circle::new(particle_radius as f32).into())
+        .into();
+    let particle_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands
-        .spawn((particle_mesh.clone(), RigidBody::Kinematic, FollowMouse))
+        .spawn((
+            RigidBody::Kinematic,
+            FollowMouse,
+            MaterialMesh2dBundle {
+                mesh: particle_mesh.clone(),
+                material: particle_material.clone(),
+                ..default()
+            },
+        ))
         .id();
 
     // Spawn the rest of the particles, connecting each one to the previous one with joints
     for i in 1..particle_count {
         let current_particle = commands
             .spawn((
-                particle_mesh.clone(),
                 RigidBody::Dynamic,
-                Position(i as Scalar * Vector::NEG_Y * (particle_radius * 2.0 + 1.0)),
                 MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
+                MaterialMesh2dBundle {
+                    mesh: particle_mesh.clone(),
+                    material: particle_material.clone(),
+                    transform: Transform::from_xyz(
+                        0.0,
+                        i as f32 * (particle_radius as f32 * 2.0 + 1.0),
+                        0.0,
+                    ),
+                    ..default()
+                },
             ))
             .id();
 
@@ -65,22 +82,19 @@ fn follow_mouse(
     buttons: Res<Input<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    mut follower: Query<&mut Position, With<FollowMouse>>,
+    mut follower: Query<&mut Transform, With<FollowMouse>>,
 ) {
     if buttons.pressed(MouseButton::Left) {
         let window = windows.single();
         let (camera, camera_transform) = camera.single();
         let mut follower_position = follower.single_mut();
 
-        // Set position of follower to cursor position in world coordinates
-        // https://bevy-cheatbook.github.io/cookbook/cursor2world.html
-        if let Some(pos) = window.cursor_position() {
-            let window_size = Vec2::new(window.width(), window.height());
-            let ndc = (pos / window_size) * 2.0 - Vec2::ONE;
-            let ndc_to_world =
-                camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-            let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-            follower_position.0 = world_pos.truncate().adjust_precision();
+        if let Some(cursor_world_pos) = window
+            .cursor_position()
+            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
+        {
+            follower_position.translation =
+                cursor_world_pos.extend(follower_position.translation.z);
         }
     }
 }

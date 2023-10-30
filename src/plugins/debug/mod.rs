@@ -11,21 +11,58 @@ pub use renderer::*;
 use crate::prelude::*;
 use bevy::{ecs::query::Has, prelude::*};
 
-/// Renders physics objects and properties for debugging purposes.
+/// A plugin that renders physics objects and properties for debugging purposes.
+/// It is not enabled by default and must be added manually.
 ///
 /// Currently, the following are supported for debug rendering:
 ///
-/// - Entity axes
+/// - The axes and center of mass of [rigid bodies](RigidBody)
 /// - [AABBs](ColliderAabb)
 /// - [Collider] wireframes
-/// - Use different colors for [sleeping](Sleeping) bodies
+/// - Using different colors for [sleeping](Sleeping) bodies
 /// - [Contacts]
 /// - [Joints](joints)
+/// - [`RayCaster`]
+/// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
-/// By default, only axes, colliders and joints are debug rendered. You can use the [`PhysicsDebugConfig`]
-/// resource for the global configuration and the [`DebugRender`] component
-/// for entity-level configuration.
+/// By default, [AABBs](ColliderAabb) and [contacts](Contacts) are not debug rendered.
+/// You can use the [`PhysicsDebugConfig`] resource for the global configuration and the
+/// [`DebugRender`] component for entity-level configuration.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         // Overwrite default debug configuration (optional)
+///         .insert_resource(PhysicsDebugConfig {
+///             aabb_color: Some(Color::WHITE),
+///             ..default()
+///         })
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         // Overwrite default collider color (optional)
+///         DebugRender::default().with_collider_color(Color::RED),
+///     ));
+/// }
+/// ```
 pub struct PhysicsDebugPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
@@ -72,6 +109,8 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
+                    debug_render_raycasts,
+                    debug_render_shapecasts,
                     change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -138,15 +177,23 @@ fn debug_render_axes(
 }
 
 fn debug_render_aabbs(
-    aabbs: Query<(&ColliderAabb, Option<&DebugRender>, Has<Sleeping>)>,
+    aabbs: Query<(
+        Entity,
+        &ColliderAabb,
+        Option<&ColliderParent>,
+        Option<&DebugRender>,
+    )>,
+    sleeping: Query<(), With<Sleeping>>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
     #[cfg(feature = "2d")]
-    for (aabb, render_config, sleeping) in &aabbs {
+    for (entity, aabb, collider_parent, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -164,10 +211,12 @@ fn debug_render_aabbs(
     }
 
     #[cfg(feature = "3d")]
-    for (aabb, render_config, sleeping) in &aabbs {
+    for (entity, aabb, collider_parent, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -188,19 +237,23 @@ fn debug_render_aabbs(
 #[allow(clippy::type_complexity)]
 fn debug_render_colliders(
     mut colliders: Query<(
+        Entity,
         &Collider,
         &Position,
         &Rotation,
+        Option<&ColliderParent>,
         Option<&DebugRender>,
-        Has<Sleeping>,
     )>,
+    sleeping: Query<(), With<Sleeping>>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
-    for (collider, position, rotation, render_config, sleeping) in &mut colliders {
+    for (entity, collider, position, rotation, collider_parent, render_config) in &mut colliders {
         if let Some(mut color) = render_config.map_or(config.collider_color, |c| c.collider_color) {
+            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping {
+            if sleeping.contains(collider_parent) {
                 let [h, s, l, a] = color.as_hsla_f32();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -304,6 +357,70 @@ fn debug_render_joints<T: Joint>(
                 );
             }
         }
+    }
+}
+
+fn debug_render_raycasts(
+    query: Query<(&RayCaster, &RayHits)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (ray, hits) in &query {
+        let ray_color = config
+            .raycast_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let point_color = config
+            .raycast_point_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let normal_color = config
+            .raycast_normal_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+
+        debug_renderer.draw_raycast(
+            ray.global_origin(),
+            ray.global_direction(),
+            // f32::MAX renders nothing, but this number seems to be fine :P
+            ray.max_time_of_impact.min(1_000_000_000_000_000_000.0),
+            hits.as_slice(),
+            ray_color,
+            point_color,
+            normal_color,
+        );
+    }
+}
+
+fn debug_render_shapecasts(
+    query: Query<(&ShapeCaster, &ShapeHits)>,
+    mut debug_renderer: PhysicsDebugRenderer,
+    config: Res<PhysicsDebugConfig>,
+) {
+    for (shape_caster, hits) in &query {
+        let ray_color = config
+            .shapecast_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let shape_color = config
+            .shapecast_shape_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let point_color = config
+            .shapecast_point_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let normal_color = config
+            .shapecast_normal_color
+            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+
+        debug_renderer.draw_shapecast(
+            &shape_caster.shape,
+            shape_caster.global_origin(),
+            shape_caster.global_shape_rotation(),
+            shape_caster.global_direction(),
+            // f32::MAX renders nothing, but this number seems to be fine :P
+            shape_caster.max_time_of_impact.min(1_000_000_000_000_000.0),
+            hits.as_slice(),
+            ray_color,
+            shape_color,
+            point_color,
+            normal_color,
+        );
     }
 }
 

@@ -14,8 +14,9 @@ fn main() {
         .run();
 }
 
+/// The acceleration used for movement.
 #[derive(Component)]
-struct Cube;
+struct MovementAcceleration(Scalar);
 
 fn setup(
     mut commands: Commands,
@@ -29,12 +30,11 @@ fn setup(
         PbrBundle {
             mesh: cube_mesh.clone(),
             material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
-            transform: Transform::from_scale(Vec3::new(100.0, 1.0, 100.0)),
+            transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 2.0),
-        Collider::cuboid(100.0, 1.0, 100.0),
+        Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
     let cube_size = 2.0;
@@ -43,22 +43,18 @@ fn setup(
     for x in -2..2 {
         for y in -2..2 {
             for z in -2..2 {
-                let pos = Vector::new(
-                    x as Scalar * (cube_size + 0.05),
-                    y as Scalar * (cube_size + 0.05),
-                    z as Scalar * (cube_size + 0.05),
-                );
+                let position = Vec3::new(x as f32, y as f32 + 5.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
                     PbrBundle {
                         mesh: cube_mesh.clone(),
                         material: materials.add(Color::rgb(0.2, 0.7, 0.9).into()),
-                        transform: Transform::from_scale(Vec3::splat(cube_size as f32)),
+                        transform: Transform::from_translation(position)
+                            .with_scale(Vec3::splat(cube_size as f32)),
                         ..default()
                     },
                     RigidBody::Dynamic,
-                    Position(pos + Vector::Y * 5.0),
-                    Collider::cuboid(cube_size, cube_size, cube_size),
-                    Cube,
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    MovementAcceleration(10.0),
                 ));
             }
         }
@@ -84,21 +80,27 @@ fn setup(
 }
 
 fn movement(
+    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<&mut LinearVelocity, With<Cube>>,
+    mut query: Query<(&MovementAcceleration, &mut LinearVelocity)>,
 ) {
-    for mut lin_vel in &mut query {
-        if keyboard_input.pressed(KeyCode::Up) {
-            lin_vel.z -= 0.15;
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            lin_vel.z += 0.15;
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            lin_vel.x -= 0.15;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            lin_vel.x += 0.15;
-        }
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
+    for (movement_acceleration, mut linear_velocity) in &mut query {
+        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
+        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
+        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+
+        let horizontal = right as i8 - left as i8;
+        let vertical = down as i8 - up as i8;
+        let direction =
+            Vector::new(horizontal as Scalar, 0.0, vertical as Scalar).normalize_or_zero();
+
+        // Move in input direction
+        linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
+        linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
     }
 }

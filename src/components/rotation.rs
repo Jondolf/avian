@@ -16,10 +16,22 @@ pub(crate) type RotationValue = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type RotationValue = Quaternion;
 
-/// The rotation of a body.
+/// The global rotation of a [rigid body](RigidBody) or a [collider](Collider).
 ///
-/// To speed up computation, the rotation is stored as the cosine and sine of the given angle in radians.
-/// You should use the associated methods to create, access and modify rotations with normal radians or degrees.
+/// The rotation is stored as the cosine and sine of an angle in radians.
+/// You should use the associated methods to create, access and modify rotations
+/// with normal radians or degrees.
+///
+/// ## Relation to `Transform` and `GlobalTransform`
+///
+/// [`Rotation`] is used for physics internally and kept in sync with `Transform`
+/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
+/// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
+/// for everything.
+///
+/// The reasons why the engine uses a separate [`Rotation`] component can be found
+/// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
 /// ## Example
 ///
@@ -42,7 +54,18 @@ pub struct Rotation {
     sin: Scalar,
 }
 
-/// The rotation of a body represented as a [`Quat`].
+/// The global rotation of a [rigid body](RigidBody) or a [collider](Collider).
+///
+/// ## Relation to `Transform` and `GlobalTransform`
+///
+/// [`Rotation`] is used for physics internally and kept in sync with `Transform`
+/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
+/// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
+/// for everything.
+///
+/// The reasons why the engine uses a separate [`Rotation`] component can be found
+/// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
 /// ## Example
 ///
@@ -214,6 +237,13 @@ impl SubAssign<Self> for Rotation {
 impl From<Rotation> for Scalar {
     fn from(rot: Rotation) -> Self {
         rot.as_radians()
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Scalar> for Rotation {
+    fn from(radians: Scalar) -> Self {
+        Self::from_radians(radians)
     }
 }
 

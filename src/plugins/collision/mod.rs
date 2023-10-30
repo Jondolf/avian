@@ -30,7 +30,13 @@ use indexmap::IndexMap;
 /// Each colliding entity pair is associated with [`Contacts`] that can be accessed and modified
 /// using the various associated methods.
 ///
-/// ## Querying collisions
+/// ## Usage
+///
+/// [`Collisions`] can be accessed at almost anytime, but for modifying and filtering collisions,
+/// it is recommended to use the [`PostProcessCollisions`] schedule. See its documentation
+/// for more information.
+///
+/// ### Querying collisions
 ///
 /// The following methods can be used for querying existing collisions:
 ///
@@ -43,7 +49,7 @@ use indexmap::IndexMap;
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
 ///
-/// ## Filtering and removing collisions
+/// ### Filtering and removing collisions
 ///
 /// The following methods can be used for filtering or removing existing collisions:
 ///
@@ -54,7 +60,7 @@ use indexmap::IndexMap;
 /// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver will use the old contact data.
 ///
-/// ## Adding new collisions
+/// ### Adding new collisions
 ///
 /// The following methods can be used for adding new collisions:
 ///
@@ -67,7 +73,7 @@ use indexmap::IndexMap;
 /// ## Implementation details
 ///
 /// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
-/// and the previous frame, which is used for things like [collision events](Collider#collision-events).
+/// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
 ///
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](#method.get_internal) or [`get_internal_mut`](#method.get_internal_mut).

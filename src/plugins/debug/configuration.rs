@@ -1,9 +1,38 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Controls the global physics debug configuration.
+/// Controls the global physics debug configuration. See [`PhysicsDebugPlugin`]
 ///
 /// To configure the debug rendering of specific entities, use the [`DebugRender`] component.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         // Overwrite default debug configuration (optional)
+///         .insert_resource(PhysicsDebugConfig {
+///             aabb_color: Some(Color::WHITE),
+///             ..default()
+///         })
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+/// }
+/// ```
 #[derive(Reflect, Resource)]
 #[reflect(Resource)]
 pub struct PhysicsDebugConfig {
@@ -24,6 +53,20 @@ pub struct PhysicsDebugConfig {
     pub joint_anchor_color: Option<Color>,
     /// The color of the lines drawn between joint anchors, indicating the separation.
     pub joint_separation_color: Option<Color>,
+    /// The color used for the rays in [raycasts](spatial_query#raycasting).
+    pub raycast_color: Option<Color>,
+    /// The color used for the hit points in [raycasts](spatial_query#raycasting).
+    pub raycast_point_color: Option<Color>,
+    /// The color used for the hit normals in [raycasts](spatial_query#raycasting).
+    pub raycast_normal_color: Option<Color>,
+    /// The color used for the ray in [shapecasts](spatial_query#shapecasting).
+    pub shapecast_color: Option<Color>,
+    /// The color used for the shape in [shapecasts](spatial_query#shapecasting).
+    pub shapecast_shape_color: Option<Color>,
+    /// The color used for the hit points in [shapecasts](spatial_query#shapecasting).
+    pub shapecast_point_color: Option<Color>,
+    /// The color used for the hit normals in [shapecasts](spatial_query#shapecasting).
+    pub shapecast_normal_color: Option<Color>,
     /// Determines if the visibility of entities with [colliders](Collider) should be set to `Visibility::Hidden`,
     /// which will only show the debug renders.
     pub hide_meshes: bool,
@@ -43,6 +86,13 @@ impl Default for PhysicsDebugConfig {
             contact_color: None,
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
+            raycast_color: Some(Color::RED),
+            raycast_point_color: Some(Color::YELLOW),
+            raycast_normal_color: Some(Color::PINK),
+            shapecast_color: Some(Color::RED),
+            shapecast_shape_color: Some(Color::rgb(0.4, 0.6, 1.0)),
+            shapecast_point_color: Some(Color::YELLOW),
+            shapecast_normal_color: Some(Color::PINK),
             hide_meshes: false,
         }
     }
@@ -63,6 +113,13 @@ impl PhysicsDebugConfig {
             contact_color: Some(Color::CYAN),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
+            raycast_color: Some(Color::RED),
+            raycast_point_color: Some(Color::YELLOW),
+            raycast_normal_color: Some(Color::PINK),
+            shapecast_color: Some(Color::RED),
+            shapecast_shape_color: Some(Color::rgb(0.4, 0.6, 1.0)),
+            shapecast_point_color: Some(Color::YELLOW),
+            shapecast_normal_color: Some(Color::PINK),
             hide_meshes: true,
         }
     }
@@ -80,6 +137,13 @@ impl PhysicsDebugConfig {
             contact_color: None,
             joint_anchor_color: None,
             joint_separation_color: None,
+            raycast_color: None,
+            raycast_point_color: None,
+            raycast_normal_color: None,
+            shapecast_color: None,
+            shapecast_shape_color: None,
+            shapecast_point_color: None,
+            shapecast_normal_color: None,
             hide_meshes: false,
         }
     }
@@ -122,10 +186,10 @@ impl PhysicsDebugConfig {
 
     /// Creates a [`PhysicsDebugConfig`] configuration with given colors for
     /// joint anchors and separation distances. Other debug rendering options will be disabled.
-    pub fn joints(anchor_color: Color, separation_color: Color) -> Self {
+    pub fn joints(anchor_color: Option<Color>, separation_color: Option<Color>) -> Self {
         Self {
-            joint_anchor_color: Some(anchor_color),
-            joint_separation_color: Some(separation_color),
+            joint_anchor_color: anchor_color,
+            joint_separation_color: separation_color,
             ..Self::none()
         }
     }
@@ -157,6 +221,43 @@ impl PhysicsDebugConfig {
     /// Sets the contact color.
     pub fn with_contact_color(mut self, color: Color) -> Self {
         self.contact_color = Some(color);
+        self
+    }
+
+    /// Sets the colors used for debug rendering joints.
+    pub fn with_joint_colors(anchor_color: Option<Color>, separation_color: Option<Color>) -> Self {
+        Self {
+            joint_anchor_color: anchor_color,
+            joint_separation_color: separation_color,
+            ..Self::none()
+        }
+    }
+
+    /// Sets the colors used for debug rendering raycasts.
+    pub fn with_raycast_colors(
+        mut self,
+        ray: Option<Color>,
+        hit_point: Option<Color>,
+        hit_normal: Option<Color>,
+    ) -> Self {
+        self.raycast_color = ray;
+        self.raycast_point_color = hit_point;
+        self.raycast_normal_color = hit_normal;
+        self
+    }
+
+    /// Sets the colors used for debug rendering shapecasts.
+    pub fn with_shapecast_colors(
+        mut self,
+        ray: Option<Color>,
+        shape: Option<Color>,
+        hit_point: Option<Color>,
+        hit_normal: Option<Color>,
+    ) -> Self {
+        self.shapecast_color = ray;
+        self.shapecast_shape_color = shape;
+        self.shapecast_point_color = hit_point;
+        self.shapecast_normal_color = hit_normal;
         self
     }
 
@@ -196,11 +297,57 @@ impl PhysicsDebugConfig {
         self.joint_separation_color = None;
         self
     }
+
+    /// Disables raycast debug rendering.
+    pub fn without_raycasts(mut self) -> Self {
+        self.raycast_color = None;
+        self.raycast_point_color = None;
+        self.raycast_normal_color = None;
+        self
+    }
+
+    /// Disables shapecast debug rendering.
+    pub fn without_shapecasts(mut self) -> Self {
+        self.shapecast_color = None;
+        self.shapecast_shape_color = None;
+        self.shapecast_point_color = None;
+        self.shapecast_normal_color = None;
+        self
+    }
 }
 
-/// A component for the debug render configuration of an entity.
+/// A component for the debug render configuration of an entity. See [`PhysicsDebugPlugin`].
 ///
 /// This overwrites the global [`PhysicsDebugConfig`] for this specific entity.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::ball(0.5),
+///         // Overwrite default collider color (optional)
+///         DebugRender::default().with_collider_color(Color::RED),
+///     ));
+/// }
+/// ```
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
 #[reflect(Component)]
 pub struct DebugRender {

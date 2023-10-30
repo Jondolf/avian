@@ -1,4 +1,4 @@
-//! A simple ray casting example that uses the [`RayCaster`] component.
+//! A simple raycasting example that uses the [`RayCaster`] component.
 //!
 //! An alternative, more controlled approach is to use the methods of
 //! the [`SpatialQuery`] system parameter.

@@ -35,68 +35,67 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, 50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+            transform: Transform::from_xyz(0.0, -50.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
         SpriteBundle {
             sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+            transform: Transform::from_xyz(50.0 * 9.5, 0.0, 0.0)
+                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
         RigidBody::Static,
-        Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
+        Collider::cuboid(50.0, 50.0),
     ));
 
     let marble_radius = 5.0;
-    let marble_mesh = MaterialMesh2dBundle {
-        mesh: meshes
-            .add(shape::Circle::new(marble_radius as f32).into())
-            .into(),
-        material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
-        ..default()
-    };
+    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
+    let marble_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn stacks of marbles
     for x in -20..20 {
-        for y in -19..19 {
-            let position = Vector::new(
-                x as Scalar * (2.5 * marble_radius),
-                y as Scalar * (2.5 * marble_radius),
-            );
+        for y in -20..20 {
             commands.spawn((
-                marble_mesh.clone(),
+                MaterialMesh2dBundle {
+                    mesh: marble_mesh.clone().into(),
+                    material: marble_material.clone(),
+                    transform: Transform::from_xyz(
+                        x as f32 * 2.5 * marble_radius,
+                        y as f32 * 2.5 * marble_radius,
+                        0.0,
+                    ),
+                    ..default()
+                },
                 RigidBody::Dynamic,
-                Position(position),
-                Collider::ball(marble_radius),
+                Collider::ball(marble_radius as Scalar),
                 Marble,
             ));
         }
@@ -104,21 +103,27 @@ fn setup(
 }
 
 fn movement(
+    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
     mut marbles: Query<&mut LinearVelocity, With<Marble>>,
 ) {
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
     for mut linear_velocity in &mut marbles {
-        if keyboard_input.pressed(KeyCode::Up) {
-            linear_velocity.y += 50.0;
+        if keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]) {
+            // Use a higher acceleration for upwards movement to overcome gravity
+            linear_velocity.y += 2500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Down) {
-            linear_velocity.y -= 10.0;
+        if keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]) {
+            linear_velocity.y -= 500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Left) {
-            linear_velocity.x -= 10.0;
+        if keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]) {
+            linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.pressed(KeyCode::Right) {
-            linear_velocity.x += 10.0;
+        if keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]) {
+            linear_velocity.x += 500.0 * delta_time;
         }
     }
 }

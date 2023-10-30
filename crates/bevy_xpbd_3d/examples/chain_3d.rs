@@ -20,8 +20,9 @@ fn main() {
         .run();
 }
 
+/// The acceleration used for movement.
 #[derive(Component)]
-struct Controllable;
+struct MovementAcceleration(Scalar);
 
 fn setup(
     mut commands: Commands,
@@ -30,31 +31,44 @@ fn setup(
 ) {
     let particle_count = 100;
     let particle_radius = 0.06;
-    let particle_mesh = PbrBundle {
-        mesh: meshes.add(
-            Mesh::try_from(shape::Icosphere {
-                radius: particle_radius as f32,
-                ..default()
-            })
-            .unwrap(),
-        ),
-        material: materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
-        ..default()
-    };
+    let particle_mesh = meshes.add(
+        Mesh::try_from(shape::Icosphere {
+            radius: particle_radius as f32,
+            ..default()
+        })
+        .unwrap(),
+    );
+    let particle_material = materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands
-        .spawn((particle_mesh.clone(), RigidBody::Kinematic, Controllable))
+        .spawn((
+            RigidBody::Kinematic,
+            MovementAcceleration(25.0),
+            PbrBundle {
+                mesh: particle_mesh.clone(),
+                material: particle_material.clone(),
+                ..default()
+            },
+        ))
         .id();
 
     // Spawn the rest of the particles, connecting each one to the previous one with joints
     for i in 1..particle_count {
         let current_particle = commands
             .spawn((
-                particle_mesh.clone(),
                 RigidBody::Dynamic,
-                Position(i as Scalar * Vector::NEG_Y * (particle_radius * 2.2)),
                 MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
+                PbrBundle {
+                    mesh: particle_mesh.clone(),
+                    material: particle_material.clone(),
+                    transform: Transform::from_xyz(
+                        0.0,
+                        -i as f32 * particle_radius as f32 * 2.2,
+                        0.0,
+                    ),
+                    ..default()
+                },
             ))
             .id();
 
@@ -76,22 +90,30 @@ fn setup(
 }
 
 fn movement(
+    time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut marbles: Query<&mut LinearVelocity, With<Controllable>>,
+    mut query: Query<(&MovementAcceleration, &mut LinearVelocity)>,
 ) {
-    for mut linear_velocity in &mut marbles {
-        if keyboard_input.pressed(KeyCode::Up) {
-            linear_velocity.z -= 0.75;
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            linear_velocity.z += 0.75;
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            linear_velocity.x -= 0.75;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            linear_velocity.x += 0.75;
-        }
+    // Precision is adjusted so that the example works with
+    // both the `f32` and `f64` features. Otherwise you don't need this.
+    let delta_time = time.delta_seconds_f64().adjust_precision();
+
+    for (movement_acceleration, mut linear_velocity) in &mut query {
+        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
+        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
+        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
+        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+
+        let horizontal = right as i8 - left as i8;
+        let vertical = down as i8 - up as i8;
+        let direction =
+            Vector::new(horizontal as Scalar, 0.0, vertical as Scalar).normalize_or_zero();
+
+        // Move in input direction
+        linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
+        linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
+
+        // Slow down movement
         linear_velocity.0 *= 0.9;
     }
 }
@@ -117,7 +139,7 @@ fn ui(mut commands: Commands) {
             // text
             parent.spawn((
                 TextBundle::from_section(
-                    "Use Arrow Keys to Move The Chain",
+                    "Use Arrow Keys or WASD to Move The Chain",
                     TextStyle {
                         font_size: 20.0,
                         color: Color::WHITE,

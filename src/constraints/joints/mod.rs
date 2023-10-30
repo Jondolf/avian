@@ -1,5 +1,3 @@
-//! Contains joints.
-//!
 //! **Joints** are a way to connect entities in a way that restricts their movement relative to each other.
 //! They act as [constraints] that restrict different *Degrees Of Freedom* depending on the joint type.
 //!
@@ -28,12 +26,10 @@
 //! to the `new` method.
 //!
 //! ```
-//! # use bevy::prelude::*;
-//! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
-//! # #[cfg(feature = "3d")]
-//! # use bevy_xpbd_3d::prelude::*;
-//! #
+//! use bevy::prelude::*;
+#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
@@ -233,7 +229,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 pub struct DistanceLimit {
     /// The minimum distance between two points.
     pub min: Scalar,
