@@ -286,21 +286,30 @@ pub fn resume(mut physics_loop: ResMut<PhysicsLoop>) {
     physics_loop.resume();
 }
 
+/// True if a system is running for the first time.
+struct IsFirstRun(bool);
+
+impl Default for IsFirstRun {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
 /// Runs the [`PhysicsSchedule`].
-fn run_physics_schedule(world: &mut World) {
+fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let mut physics_loop = world
         .remove_resource::<PhysicsLoop>()
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<Time<Fixed>>().delta_seconds()
     } else {
         world.resource::<Time>().delta_seconds()
     };
 
     #[cfg(feature = "f64")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<Time<Fixed>>().delta_seconds_f64()
     } else {
         world.resource::<Time>().delta_seconds_f64()
@@ -315,6 +324,15 @@ fn run_physics_schedule(world: &mut World) {
         PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
         PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
+
+    // On the first run of the schedule, `delta_seconds` could be 0.0.
+    // In that case, replace it with the fixed timestep amount.
+    // With a variable timestep, the physics accumulator might not increase
+    // until the second run of the system.
+    if is_first_run.0 {
+        delta_seconds = raw_dt;
+        is_first_run.0 = false;
+    }
 
     let dt = raw_dt * time_scale;
     world.resource_mut::<DeltaTime>().0 = dt;
