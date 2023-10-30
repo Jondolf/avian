@@ -27,29 +27,36 @@ with their own implementations.
 Below are some of the current features of Bevy XPBD.
 
 - Dynamic, kinematic and static rigid bodies
-- Colliders powered by [parry](https://parry.rs)
-  - Collision events: `Collision`, `CollisionStarted`, `CollisionEnded`
-  - Access to colliding entities with `CollidingEntities`
-  - Sensor colliders
-  - Collision layers
+  - Linear and angular velocity
+  - External forces, torque and impulses
+  - Gravity and gravity scale
+  - Linear and angular damping
+  - Locking translational and rotational axes
+  - Rigid body dominance
+  - Automatic deactivation with sleeping
+- Collision detection powered by [Parry](https://parry.rs)
+  - Colliders with configurable collision layers, density, material properties and more
+  - Collision events
+  - Access to colliding entities
   - Filtering and modifying collisions with custom systems
-- Material properties like restitution and friction
-- Linear and angular velocity damping for simulating drag
-- External forces, torque and impulses
-- Gravity and gravity scale for specific entities
-- Locking translational and rotational axes with `LockedAxes`
-- Rigid body dominance
-- Joints
-- Built-in constraints and support for custom constraints
+  - Manual contact queries and intersection tests
+- Constraints and joints
+  - Flexible API for creating position-based constraints
+  - Several built-in joint types: fixed, distance, prismatic, revolute, spherical
+  - Support for custom joints and other constraints
 - Spatial queries
-  - Raycasting
-  - Shapecasting
-  - Point projection
-  - Intersection tests
-- Debug rendering colliders, AABBs, contacts, joints, rigid body axes, and spatial queries
-- Automatically deactivating bodies with `Sleeping`
-- Configurable timesteps and substepping
+  - Raycasting, shapecasting, point projection and intersection tests
+  - Ergonomic component-based API for raycasts and shapecasts
+  - Flexible `SpatialQuery` system parameter
+  - Spatial query filters
+- Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
+- Configurable scheduling and high customizability
+- Highly modular plugin architecture, freely extend and replace parts of the engine
 - `f32`/`f64` precision (`f32` by default)
+
+You can find a more complete list along with documentation in the
+[Table of contents](https://docs.rs/bevy_xpbd_3d/0.3.0/bevy_xpbd_3d/#table-of-contents)
+on docs.rs.
 
 ## Documentation
 
@@ -63,11 +70,11 @@ First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`
 ```toml
 # For 2D applications:
 [dependencies]
-bevy_xpbd_2d = "0.2"
+bevy_xpbd_2d = "0.3"
 
 # For 3D applications:
 [dependencies]
-bevy_xpbd_3d = "0.2"
+bevy_xpbd_3d = "0.3"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -76,7 +83,7 @@ bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 
 Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
 
-```rs
+```rust
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
 
@@ -152,12 +159,12 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 | Bevy | Bevy XPBD |
 | ---- | --------- |
+| 0.12 | 0.3       |
 | 0.11 | 0.2       |
 | 0.10 | 0.1       |
 
 ## Future features
 
-- On-demand simulation stepping
 - Joint motors
 - Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
