@@ -217,8 +217,8 @@ impl Default for PhysicsPlugins {
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
-            .add(PhysicsSetupPlugin::new(self.schedule.dyn_clone()))
-            .add(PreparePlugin::new(self.schedule.dyn_clone()))
+            .add(PhysicsSetupPlugin::new(self.schedule))
+            .add(PreparePlugin::new(self.schedule))
             .add(BroadPhasePlugin)
             .add(IntegratorPlugin)
             .add(NarrowPhasePlugin)
