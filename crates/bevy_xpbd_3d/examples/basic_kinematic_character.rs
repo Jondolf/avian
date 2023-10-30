@@ -8,7 +8,7 @@
 //! Using dynamic bodies is often easier, as they handle most of the physics for you.
 //! For a dynamic character controller, see the `basic_dynamic_character` example.
 
-use bevy::prelude::*;
+use bevy::{ecs::query::Has, prelude::*};
 use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 
 fn main() {
@@ -21,16 +21,18 @@ fn main() {
             (
                 keyboard_input,
                 gamepad_input,
+                update_grounded,
+                apply_deferred,
                 apply_gravity,
                 movement,
-                apply_damping,
+                apply_movement_damping,
             )
                 .chain(),
         )
         .add_systems(
             // Run collision handling in substep schedule
             SubstepSchedule,
-            kinematic_collision.in_set(SubstepSet::SolveUserConstraints),
+            kinematic_controller_collisions.in_set(SubstepSet::SolveUserConstraints),
         )
         .run();
 }
@@ -41,6 +43,15 @@ enum MovementAction {
     Move(Vector2),
     Jump,
 }
+
+/// A marker component indicating that an entity is using a character controller.
+#[derive(Component)]
+struct CharacterController;
+
+/// A marker component indicating that an entity is on the ground.
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+struct Grounded;
 
 /// The acceleration used for character movement.
 #[derive(Component)]
@@ -62,6 +73,7 @@ struct ControllerGravity(Vector);
 /// kinematic character controller.
 #[derive(Bundle)]
 struct CharacterControllerBundle {
+    character_controller: CharacterController,
     rigid_body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
@@ -79,11 +91,12 @@ impl CharacterControllerBundle {
         gravity: Vector,
         collider: Collider,
     ) -> Self {
-        // Create shape caster as a slightly smaller version of the collider
+        // Create shape caster as a slightly smaller version of collider
         let mut caster_shape = collider.clone();
         caster_shape.set_scale(Vector::ONE * 0.99, 10);
 
         Self {
+            character_controller: CharacterController,
             rigid_body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(
@@ -130,7 +143,7 @@ fn setup(
         },
         CharacterControllerBundle::new(
             30.0,
-            0.9,
+            0.92,
             8.0,
             // Two times the normal gravity
             Vector::NEG_Y * 9.81 * 2.0,
@@ -156,6 +169,7 @@ fn setup(
     });
 }
 
+/// Sends [`MovementAction`] events based on keyboard input.
 fn keyboard_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     keyboard_input: Res<Input<KeyCode>>,
@@ -178,6 +192,7 @@ fn keyboard_input(
     }
 }
 
+/// Sends [`MovementAction`] events based on gamepad input.
 fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     gamepads: Res<Gamepads>,
@@ -211,14 +226,29 @@ fn gamepad_input(
     }
 }
 
+/// Updates the [`Grounded`] status for character controllers.
+fn update_grounded(
+    mut commands: Commands,
+    mut query: Query<(Entity, &ShapeHits), With<CharacterController>>,
+) {
+    for (entity, hits) in &mut query {
+        if !hits.is_empty() {
+            commands.entity(entity).insert(Grounded);
+        } else {
+            commands.entity(entity).remove::<Grounded>();
+        }
+    }
+}
+
+/// Responds to [`MovementAction`] events and moves character controllers accordingly.
 fn movement(
     time: Res<Time>,
     mut movement_event_reader: EventReader<MovementAction>,
     mut controllers: Query<(
         &MovementAcceleration,
         &JumpImpulse,
-        &ShapeHits,
         &mut LinearVelocity,
+        Has<Grounded>,
     )>,
 ) {
     // Precision is adjusted so that the example works with
@@ -226,7 +256,7 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for event in movement_event_reader.iter() {
-        for (movement_acceleration, jump_impulse, ground_hits, mut linear_velocity) in
+        for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
             &mut controllers
         {
             match event {
@@ -235,7 +265,7 @@ fn movement(
                     linear_velocity.z -= direction.y * movement_acceleration.0 * delta_time;
                 }
                 MovementAction::Jump => {
-                    if !ground_hits.is_empty() {
+                    if is_grounded {
                         linear_velocity.y = jump_impulse.0;
                     }
                 }
@@ -244,17 +274,18 @@ fn movement(
     }
 }
 
+/// Applies [`ControllerGravity`] to character controllers.
 fn apply_gravity(
     time: Res<Time>,
-    mut controllers: Query<(&ControllerGravity, &ShapeHits, &mut LinearVelocity)>,
+    mut controllers: Query<(&ControllerGravity, &mut LinearVelocity, Has<Grounded>)>,
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    for (gravity, ground_hits, mut linear_velocity) in &mut controllers {
+    for (gravity, mut linear_velocity, is_grounded) in &mut controllers {
         // Reset vertical velocity if grounded, otherwise apply gravity
-        if !ground_hits.is_empty() {
+        if is_grounded {
             linear_velocity.y = 0.0;
         } else {
             linear_velocity.0 += gravity.0 * delta_time;
@@ -262,7 +293,8 @@ fn apply_gravity(
     }
 }
 
-fn apply_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>) {
+/// Slows down movement in the XZ plane.
+fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>) {
     for (damping_factor, mut linear_velocity) in &mut query {
         // We could use `LinearDamping`, but we don't want to dampen movement along the Y axis
         linear_velocity.x *= damping_factor.0;
@@ -270,9 +302,15 @@ fn apply_damping(mut query: Query<(&MovementDampingFactor, &mut LinearVelocity)>
     }
 }
 
-fn kinematic_collision(
+/// Kinematic bodies do not get pushed by collisions by default,
+/// so it needs to be done manually.
+///
+/// This system performs very basic collision response for kinematic
+/// character controllers by pushing them along their contact normals
+/// by the current penetration depths.
+fn kinematic_controller_collisions(
     collisions: Res<Collisions>,
-    mut bodies: Query<(&RigidBody, &mut Position, &Rotation)>,
+    mut bodies: Query<(&RigidBody, &mut Position, &Rotation), With<CharacterController>>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
