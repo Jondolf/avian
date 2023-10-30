@@ -131,7 +131,7 @@ fn wake_on_collider_removed(
     collider_storage: Res<ColliderStorageMap>,
 ) {
     let removed_colliders_iter =
-        all_colliders.iter_many(removed_colliders.iter().filter_map(|entity| {
+        all_colliders.iter_many(removed_colliders.read().filter_map(|entity| {
             collider_storage
                 .get(&entity)
                 .map(|(rb_entity, _, _)| rb_entity.get())

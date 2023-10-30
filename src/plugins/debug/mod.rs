@@ -275,7 +275,7 @@ fn debug_render_contacts(
     let Some(color) = config.contact_color else {
         return;
     };
-    for Collision(contacts) in collisions.iter() {
+    for Collision(contacts) in collisions.read() {
         let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
             continue;
         };

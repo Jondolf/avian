@@ -237,7 +237,7 @@ pub(crate) fn propagate_collider_transforms(
     >,
     parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
 ) {
-    root_query.par_iter_mut().for_each_mut(
+    root_query.par_iter_mut().for_each(
         |(entity, transform,children)| {
             for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
                 assert_eq!(
