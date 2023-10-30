@@ -31,6 +31,7 @@ pub mod solver;
 pub mod spatial_query;
 pub mod sync;
 
+use bevy::utils::intern::Interned;
 pub use collision::{
     broad_phase::BroadPhasePlugin, contact_reporting::ContactReportingPlugin,
     narrow_phase::NarrowPhasePlugin,
@@ -193,7 +194,7 @@ use bevy::prelude::*;
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_broad_phase.rs).
 pub struct PhysicsPlugins {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PhysicsPlugins {
@@ -202,7 +203,7 @@ impl PhysicsPlugins {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -224,7 +225,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(ContactReportingPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
-            .add(SpatialQueryPlugin::new(self.schedule.dyn_clone()))
+            .add(SpatialQueryPlugin::new(self.schedule))
             .add(SyncPlugin::new(self.schedule))
     }
 }

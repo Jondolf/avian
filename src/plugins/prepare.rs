@@ -8,7 +8,7 @@
 use crate::prelude::*;
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::scene::SceneInstance;
-use bevy::{ecs::query::Has, prelude::*, utils::HashMap};
+use bevy::{ecs::query::Has, prelude::*, utils::{HashMap, intern::Interned}};
 
 /// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
 /// and [colliders](Collider) and updates components.
@@ -21,7 +21,7 @@ use bevy::{ecs::query::Has, prelude::*, utils::HashMap};
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PreparePlugin {
@@ -30,7 +30,7 @@ impl PreparePlugin {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -44,7 +44,7 @@ impl Default for PreparePlugin {
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderStorageMap>().add_systems(
-            self.schedule.dyn_clone(),
+            self.schedule,
             (
                 apply_deferred,
                 // Run transform propagation if new bodies or colliders have been added
