@@ -100,7 +100,9 @@ fn movement(
             Vector::new(horizontal as Scalar, 0.0, vertical as Scalar).normalize_or_zero();
 
         // Move in input direction
-        linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
-        linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
+        if direction != Vector::ZERO {
+            linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
+            linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
+        }
     }
 }
