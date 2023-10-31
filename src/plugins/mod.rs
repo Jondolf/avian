@@ -100,7 +100,7 @@ use bevy::prelude::*;
 /// only take affect the next frame.
 ///
 /// To advance the simulation by a certain amount of time instantly, you can set the value of
-/// the [`DeltaTime`] resource and manually run the [`PhysicsSchedule`] in an exclusive system:
+/// the [`Time<Physics>`] clock and manually run the [`PhysicsSchedule`] in an exclusive system:
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -114,11 +114,11 @@ use bevy::prelude::*;
 )]
 ///
 /// fn run_physics(world: &mut World) {
-///     // Set the amount of time a step should take
-///     world.resource_mut::<DeltaTime>().0 = 1.0 / 120.0;
-///
 ///     // Advance the simulation by 10 steps at 120 Hz
 ///     for _ in 0..10 {
+///         world
+///             .resource_mut::<Time<Physics>>()
+///             .advance_by(Duration::from_secs_f64(1.0 / 120.0));
 ///         world.run_schedule(PhysicsSchedule);
 ///     }
 /// }

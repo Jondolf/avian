@@ -393,7 +393,7 @@
 //!         solve_velocities(particles and bodies)
 //! ```
 //!
-//! where `h` is the [substep size](SubDeltaTime), `q` is the [rotation](Rotation) as a quaternion,
+//! where `h` is the substep size, `q` is the [rotation](Rotation) as a quaternion,
 //! `ω` is the [angular velocity](AngularVelocity), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
 //! [external torque](ExternalTorque).
 //!
