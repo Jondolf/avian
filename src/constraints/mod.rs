@@ -133,7 +133,7 @@
 //! ```
 //!
 //! where `w_i` is the inverse mass of particle `i`, `|▽C_i|` is the length of the gradient vector for particle `i`,
-//! `α` is the constraint's compliance (inverse of stiffness) and `h` is the [substep size](SubDeltaTime). Using `α = 0`
+//! `α` is the constraint's compliance (inverse of stiffness) and `h` is the substep size. Using `α = 0`
 //! corresponds to infinite stiffness.
 //!
 //! The minus sign is there because the gradients point in the direction in which `C` increases the most,

@@ -4,53 +4,12 @@ use bevy::prelude::Resource;
 
 use crate::prelude::*;
 
-/// Configures how many times per second the physics simulation is run.
-///
-/// ## Example
-///
-/// You can change the timestep by inserting the [`PhysicsTimestep`] resource:
-///
-/// ```no_run
-/// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // Use a 120 Hz fixed timestep instead of the default 60 Hz
-///         .insert_resource(PhysicsTimestep::Fixed(1.0 / 120.0))
-///         .run();
-/// }
-/// ```
-#[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
-#[reflect(Resource)]
-pub enum PhysicsTimestep {
-    /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
-    Fixed(Scalar),
-    /// **Fixed delta, once per frame**: the physics simulation will be advanced by a fixed value `dt` once every frame. This should only be used in cases where you can guarantee a fixed number of executions, like in FixedUpdate or on a server.
-    FixedOnce(Scalar),
-    /// **Variable timestep**: the physics simulation will be advanced by `Time::delta_seconds().min(max_dt)` seconds at each Bevy tick.
-    Variable {
-        /// The maximum amount of time the physics simulation can be advanced at each Bevy tick. This makes sure that the simulation doesn't break when the delta time is large.
-        ///
-        /// A good default is `1.0 / 60.0` (60 Hz)
-        max_dt: Scalar,
-    },
-}
-
-impl Default for PhysicsTimestep {
-    fn default() -> Self {
-        Self::Fixed(1.0 / 60.0)
-    }
-}
-
 /// Configures the ratio of physics seconds per real second.
 ///
 /// The default time scale is 1.0, meaning the simulation runs in real time.
 /// Reduce this for slow motion, increase for fast forward.
 ///
-/// This changes the [`DeltaTime`] that the simulation is advanced by for each
+/// This changes the [`Time`] that the simulation is advanced by for each
 /// iteration. The frequency of physics updates, set using [`PhysicsTimestep`],
 /// remains unchanged.
 ///
@@ -86,19 +45,9 @@ impl Default for PhysicsTimescale {
     }
 }
 
-/// How much time the previous physics frame took. The timestep can be configured with the [`PhysicsTimestep`] resource.
-#[derive(Reflect, Resource, Default)]
-#[reflect(Resource)]
-pub struct DeltaTime(pub Scalar);
-
-/// How much time the previous physics substep took. This depends on the [`DeltaTime`] and [`SubstepCount`] resources.
-#[derive(Reflect, Resource, Default)]
-#[reflect(Resource)]
-pub struct SubDeltaTime(pub Scalar);
-
 /// The number of substeps used in the simulation.
 ///
-/// A higher number of substeps reduces the value of [`SubDeltaTime`],
+/// A higher number of substeps reduces the value of [`Time`],
 /// which results in a more accurate simulation, but also reduces performance. The default
 /// substep count is currently 12.
 ///

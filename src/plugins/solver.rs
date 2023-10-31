@@ -98,8 +98,10 @@ fn penetration_constraints(
     colliders: Query<ColliderQuery>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     mut collisions: ResMut<Collisions>,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     penetration_constraints.0.clear();
 
     for ((collider_entity1, collider_entity2), contacts) in collisions
@@ -192,7 +194,7 @@ fn penetration_constraints(
                         restitution_coefficient,
                         ..PenetrationConstraint::new(&body1, &body2, contact)
                     };
-                    constraint.solve([&mut body1, &mut body2], sub_dt.0);
+                    constraint.solve([&mut body1, &mut body2], delta_secs);
                     penetration_constraints.0.push(constraint);
 
                     // Set collision as penetrating for this frame and substep.
@@ -235,8 +237,10 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     // Clear Lagrange multipliers
     constraints
         .iter_mut()
@@ -270,7 +274,7 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
                 .collect::<Vec<&mut RigidBodyQueryItem>>()
                 .try_into()
             {
-                constraint.solve(bodies, sub_dt.0);
+                constraint.solve(bodies, delta_secs);
             }
         }
     }
@@ -290,8 +294,10 @@ fn update_lin_vel(
         ),
         Without<Sleeping>,
     >,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     for (rb, pos, prev_pos, translation, mut lin_vel, mut pre_solve_lin_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() && lin_vel.0 != Vector::ZERO {
@@ -302,9 +308,9 @@ fn update_lin_vel(
 
         if rb.is_dynamic() {
             // v = (x - x_prev) / h
-            let new_lin_vel = (pos.0 - prev_pos.0 + translation.0) / sub_dt.0;
+            let new_lin_vel = (pos.0 - prev_pos.0 + translation.0) / delta_secs;
             // avoid triggering bevy's change detection unnecessarily
-            if new_lin_vel != lin_vel.0 {
+            if new_lin_vel != lin_vel.0 && new_lin_vel.is_finite() {
                 lin_vel.0 = new_lin_vel;
             }
         }
@@ -324,8 +330,10 @@ fn update_ang_vel(
         ),
         Without<Sleeping>,
     >,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() && ang_vel.0 != 0.0 {
@@ -335,9 +343,9 @@ fn update_ang_vel(
         pre_solve_ang_vel.0 = ang_vel.0;
 
         if rb.is_dynamic() {
-            let new_ang_vel = (rot.mul(prev_rot.inverse())).as_radians() / sub_dt.0;
+            let new_ang_vel = (rot.mul(prev_rot.inverse())).as_radians() / delta_secs;
             // avoid triggering bevy's change detection unnecessarily
-            if new_ang_vel != ang_vel.0 {
+            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
                 ang_vel.0 = new_ang_vel;
             }
         }
@@ -357,8 +365,10 @@ fn update_ang_vel(
         ),
         Without<Sleeping>,
     >,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     for (rb, rot, prev_rot, mut ang_vel, mut pre_solve_ang_vel) in &mut bodies {
         // Static bodies have no velocity
         if rb.is_static() && ang_vel.0 != Vector::ZERO {
@@ -369,12 +379,12 @@ fn update_ang_vel(
 
         if rb.is_dynamic() {
             let delta_rot = rot.mul_quat(prev_rot.inverse().0);
-            let mut new_ang_vel = 2.0 * delta_rot.xyz() / sub_dt.0;
+            let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
             if delta_rot.w < 0.0 {
                 new_ang_vel = -new_ang_vel;
             }
             // avoid triggering bevy's change detection unnecessarily
-            if new_ang_vel != ang_vel.0 {
+            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
                 ang_vel.0 = new_ang_vel;
             }
         }
@@ -387,8 +397,10 @@ fn solve_vel(
     mut bodies: Query<RigidBodyQuery, Without<Sleeping>>,
     penetration_constraints: Res<PenetrationConstraints>,
     gravity: Res<Gravity>,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     for constraint in penetration_constraints.0.iter() {
         if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
@@ -442,7 +454,7 @@ fn solve_vel(
                 pre_solve_normal_speed,
                 constraint.restitution_coefficient,
                 gravity.0,
-                sub_dt.0,
+                delta_secs,
             );
             if restitution_speed.abs() > Scalar::EPSILON {
                 let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
@@ -460,7 +472,7 @@ fn solve_vel(
                     w1 + w2,
                     constraint.dynamic_friction_coefficient,
                     constraint.normal_lagrange,
-                    sub_dt.0,
+                    delta_secs,
                 );
                 p += friction_impulse * tangent_dir;
             }
@@ -505,15 +517,17 @@ pub fn joint_damping<T: Joint>(
         Without<Sleeping>,
     >,
     joints: Query<&T, Without<RigidBody>>,
-    sub_dt: Res<SubDeltaTime>,
+    time: Res<Time>,
 ) {
+    let delta_secs = time.delta_seconds_adjusted();
+
     for joint in &joints {
         if let Ok(
             [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2, dominance2)],
         ) = bodies.get_many_mut(joint.entities())
         {
             let delta_omega =
-                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * sub_dt.0).min(1.0);
+                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * delta_secs).min(1.0);
 
             if rb1.is_dynamic() {
                 ang_vel1.0 += delta_omega;
@@ -522,7 +536,8 @@ pub fn joint_damping<T: Joint>(
                 ang_vel2.0 -= delta_omega;
             }
 
-            let delta_v = (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * sub_dt.0).min(1.0);
+            let delta_v =
+                (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
 
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
