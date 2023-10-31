@@ -310,7 +310,7 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// by the current penetration depths.
 fn kinematic_controller_collisions(
     collisions: Res<Collisions>,
-    mut bodies: Query<(&RigidBody, &mut Position, &Rotation), With<CharacterController>>,
+    mut bodies: Query<(&RigidBody, &mut Position, &Rotation)>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
