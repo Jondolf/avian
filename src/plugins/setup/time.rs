@@ -11,6 +11,8 @@ use crate::prelude::*;
 ///
 /// The clock is automatically set as the generic `Time` resource for
 /// the [`SubstepSchedule`].
+///
+/// By default, a fixed timestep of 60 Hz is used.
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 pub enum Physics {
     /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
@@ -28,8 +30,11 @@ pub enum Physics {
 
 impl Default for Physics {
     fn default() -> Self {
-        // Corresponds to 64 Hz.
-        Self::Fixed(Duration::from_micros(15625))
+        // Corresponds to 60 Hz.
+        // TODO: Bevy's fixed timestep is 64 Hz, but it causes physics
+        //       to be run twice in a single frame every 0.25 seconds.
+        //       It would be nice to have the timestep be more unified though.
+        Self::Fixed(Duration::from_secs_adjusted(1.0 / 60.0))
     }
 }
 
