@@ -304,9 +304,9 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let mut delta_seconds = world.resource::<Time<Virtual>>().delta_seconds();
+    let mut delta_seconds = world.resource::<Time<Real>>().delta_seconds();
     #[cfg(feature = "f64")]
-    let mut delta_seconds = world.resource::<Time<Virtual>>().delta_seconds_f64();
+    let mut delta_seconds = world.resource::<Time<Real>>().delta_seconds_f64();
 
     let physics_clock = world.resource_mut::<Time<Physics>>();
 
