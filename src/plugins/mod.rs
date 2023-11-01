@@ -103,7 +103,7 @@ use bevy::prelude::*;
 /// the [`Time<Physics>`] clock and manually run the [`PhysicsSchedule`] in an exclusive system:
 ///
 /// ```
-/// use bevy::prelude::*;
+/// use bevy::{prelude::*, utils::Duration};
 #[cfg_attr(
     feature = "2d",
     doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
