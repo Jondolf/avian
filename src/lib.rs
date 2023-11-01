@@ -446,7 +446,7 @@
 //! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
-#![warn(missing_docs)]
+#![warn(clippy::doc_markdown, missing_docs)]
 
 #[cfg(all(feature = "f32", feature = "f64"))]
 compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
