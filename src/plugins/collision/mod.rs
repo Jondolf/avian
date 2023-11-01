@@ -1,6 +1,6 @@
 //! Collision detection is used to detect and compute intersections between [`Collider`]s.
 //!
-//! In bevy_xpbd, collision detection is split into three plugins:
+//! In `bevy_xpbd`, collision detection is split into three plugins:
 //!
 //! - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`].
 //! - [`NarrowPhasePlugin`]: Computes contacts for broad phase collision pairs and adds them to [`Collisions`].
