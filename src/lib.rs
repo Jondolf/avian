@@ -164,7 +164,7 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [Physics timestep](PhysicsTimestep)
+//! - [Physics timestep](Physics)
 //! - [Speed up or slow down time](PhysicsTimescale)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
@@ -318,7 +318,7 @@
 //! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
 //! to whatever you want.
 //!
-//! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
+//! One configuration is to run the client in `FixedUpdate`, and to use [`Physics::FixedOnce`] for `Time<Physics>` on both the
 //! server and the client to make sure the physics simulation is only advanced by one step each time the schedule runs.
 //!
 //! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different

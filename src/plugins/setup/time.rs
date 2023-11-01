@@ -10,9 +10,40 @@ use crate::prelude::*;
 /// Can be configured to use a fixed or variable timestep.
 ///
 /// The clock is automatically set as the generic `Time` resource for
-/// the [`SubstepSchedule`].
+/// the [`PhysicsSchedule`].
 ///
 /// By default, a fixed timestep of 60 Hz is used.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::{prelude::*, utils::Duration};
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
+)]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         // Overwrite default timestep used for physics
+///         .insert_resource(Time::new_with(Physics::fixed_hz(1.0 / 144.0)))
+///         // In `Update`, `Time` is `Time<Virtual>`
+///         .add_systems(Update, print_delta_time)
+///         // In `PhysicsSchedule`, `Time` is `Time<Physics>`
+///         .add_systems(PhysicsSchedule, print_delta_time.before(PhysicsStepSet::Substeps))
+///         .run();
+/// }
+///
+/// fn print_delta_time(time: Res<Time>) {
+///     println!("{}", time.delta_seconds());
+/// }
+/// ```
+// TODO: Document when to multiply by delta time
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 pub enum Physics {
     /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
@@ -35,6 +66,53 @@ impl Default for Physics {
         //       to be run twice in a single frame every 0.25 seconds.
         //       It would be nice to have the timestep be more unified though.
         Self::Fixed(Duration::from_secs_adjusted(1.0 / 60.0))
+    }
+}
+
+impl Physics {
+    /// Returns a new [`Time<Physics>`](Physics) clock with a fixed timestep using
+    /// the given frequency in Hertz (1/second).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `hz` is zero, negative or not finite.
+    pub fn fixed_hz(hz: f64) -> Self {
+        assert!(hz > 0.0, "Hz less than or equal to zero");
+        assert!(hz.is_finite(), "Hz is infinite");
+        Self::Fixed(Duration::from_secs_f64(hz))
+    }
+
+    /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::FixedOnce`] timestep
+    /// using the given frequency in Hertz (1/second).
+    ///
+    /// Unlike with [`Physics::Fixed`], the [`PhysicsSchedule`] will only be run once per frame
+    /// instead of accumulating time and running physics until the accumulator has been consumed.
+    /// This can be useful for [server usage](crate#can-the-engine-be-used-on-servers)
+    /// where the server and client must be kept in sync.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `hz` is zero, negative or not finite.
+    pub fn fixed_once_hz(hz: f64) -> Self {
+        assert!(hz > 0.0, "Hz less than or equal to zero");
+        assert!(hz.is_finite(), "Hz is infinite");
+        Self::FixedOnce(Duration::from_secs_f64(hz))
+    }
+
+    /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::Variable`] timestep using
+    /// the given frequency in Hertz (1/second).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_delta_seconds` is zero or negative.
+    pub fn variable(max_delta_seconds: f64) -> Self {
+        assert!(
+            max_delta_seconds > 0.0,
+            "max delta less than or equal to zero"
+        );
+        Self::Variable {
+            max_dt: Duration::from_secs_f64(max_delta_seconds),
+        }
     }
 }
 
