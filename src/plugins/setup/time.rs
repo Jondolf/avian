@@ -65,7 +65,7 @@ impl Default for Physics {
         // TODO: Bevy's fixed timestep is 64 Hz, but it causes physics
         //       to be run twice in a single frame every 0.25 seconds.
         //       It would be nice to have the timestep be more unified though.
-        Self::Fixed(Duration::from_secs_adjusted(1.0 / 60.0))
+        Self::fixed_hz(1.0 / 60.0)
     }
 }
 
