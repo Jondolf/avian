@@ -20,11 +20,11 @@ use crate::prelude::*;
 /// use bevy::{prelude::*, utils::Duration};
 #[cfg_attr(
     feature = "2d",
-    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
 )]
 ///
 /// fn main() {
