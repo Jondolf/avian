@@ -207,7 +207,7 @@
 //! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
 //! the most mature and feature-rich option.
 //!
-//! bevy_rapier is a great physics integration for Bevy, but it does have several problems:
+//! `bevy_rapier` is a great physics integration for Bevy, but it does have several problems:
 //!
 //! - It has to maintain a separate physics world and synchronize a ton of data with Bevy each frame
 //! - The source code is difficult to inspect, as the vast majority of it is glue code and wrappers
@@ -235,7 +235,7 @@
 //! rapidly, and it is already pretty close to feature-parity with Rapier.
 //!
 //! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
-//! physics integration, bevy_rapier is the better choice, but if you prefer an engine with less overhead
+//! physics integration, `bevy_rapier` is the better choice, but if you prefer an engine with less overhead
 //! and a more native Bevy integration, consider using Bevy XPBD. Their core APIs are also quite similar,
 //! so switching between them should be straightforward.
 //!
@@ -446,7 +446,7 @@
 //! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
-#![warn(missing_docs)]
+#![warn(clippy::doc_markdown, missing_docs)]
 
 #[cfg(all(feature = "f32", feature = "f64"))]
 compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
