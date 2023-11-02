@@ -25,8 +25,8 @@
 //! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the raycasting methods provided by
-//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery#method.cast_ray), [`ray_hits`](SpatialQuery#method.ray_hits) or
-//! [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback).
+//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery::cast_ray), [`ray_hits`](SpatialQuery::ray_hits) or
+//! [`ray_hits_callback`](SpatialQuery::ray_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -80,8 +80,8 @@
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the shapecasting methods provided by
-//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery#method.cast_shape), [`shape_hits`](SpatialQuery#method.shape_hits) or
-//! [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback).
+//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery::cast_shape), [`shape_hits`](SpatialQuery::shape_hits) or
+//! [`shape_hits_callback`](SpatialQuery::shape_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -122,7 +122,7 @@
 //! **Point projection** is a spatial query that projects a point on the closest collider. It returns the collider's
 //! entity, the projected point, and whether the point is inside of the collider.
 //!
-//! Point projection can be done with the [`project_point`](SpatialQuery#method.project_point) method of the [`SpatialQuery`]
+//! Point projection can be done with the [`project_point`](SpatialQuery::project_point) method of the [`SpatialQuery`]
 //! system parameter. See its documentation for more information.
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
@@ -135,11 +135,11 @@
 //! There are three types of intersection tests. They are all methods of the [`SpatialQuery`] system parameter,
 //! and they all have callback variants that call a given callback on each intersection.
 //!
-//! - [`point_intersections`](SpatialQuery#method.point_intersections): Finds all entities with a collider that contains
+//! - [`point_intersections`](SpatialQuery::point_intersections): Finds all entities with a collider that contains
 //! the given point.
-//! - [`aabb_intersections_with_aabb`](SpatialQuery#method.aabb_intersections_with_aabb):
+//! - [`aabb_intersections_with_aabb`](SpatialQuery::aabb_intersections_with_aabb):
 //! Finds all entities with a [`ColliderAabb`] that is intersecting the given [`ColliderAabb`].
-//! - [`shape_intersections`](SpatialQuery#method.shape_intersections): Finds all entities with a [collider](Collider)
+//! - [`shape_intersections`](SpatialQuery::shape_intersections): Finds all entities with a [collider](Collider)
 //! that is intersecting the given shape.
 //!
 //! See the documentation of the components and methods for more information.

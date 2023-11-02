@@ -6,8 +6,8 @@ use crate::prelude::*;
 /// A component that specifies which translational and rotational axes of a [rigid body](RigidBody) are locked.
 ///
 /// The axes are represented using a total of six bits, one for each axis. The easiest way to lock or unlock
-/// specific axes is to use methods like [`lock_translation_x`](#method.lock_translation_x), but you can also
-/// use bits directly with the [`from_bits`](#method.from_bits) and [`to_bits`](#method.to_bits) methods.
+/// specific axes is to use methods like [`lock_translation_x`](Self::lock_translation_x), but you can also
+/// use bits directly with the [`from_bits`](Self::from_bits) and [`to_bits`](Self::to_bits) methods.
 ///
 /// ## Example
 ///
