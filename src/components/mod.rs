@@ -161,7 +161,7 @@ use derive_more::From;
 ///
 /// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`]
 /// with the mass properties computed from a collider shape using the
-/// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle#method.new_computed) method.
+/// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle::new_computed) method.
 ///
 /// ```
 /// # use bevy::prelude::*;

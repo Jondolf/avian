@@ -23,7 +23,7 @@ impl FloatZero for Scalar {
 /// use the body's rotation to [transform the local force into world space](#local-forces).
 ///
 /// By default, the force persists across frames. You can clear the force manually using
-/// [`clear`](#method.clear) or set `persistent` to false.
+/// [`clear`](Self::clear) or set `persistent` to false.
 ///
 /// ## Example
 ///
@@ -86,7 +86,7 @@ impl FloatZero for Scalar {
 ///
 /// Note that the actual force stored in `ExternalForce` is still in world space.
 /// If you want to apply a force in the same local direction every frame,
-/// consider setting `persistent` to `false` and running [`apply_force`](#method.apply_force) in a system.
+/// consider setting `persistent` to `false` and running [`apply_force`](Self::apply_force) in a system.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[reflect(Component)]
 pub struct ExternalForce {
@@ -94,10 +94,10 @@ pub struct ExternalForce {
     force: Vector,
     /// True if the force persists across frames, and false if the force is automatically cleared every physics frame.
     ///
-    /// If you clear the force manually, use the [`clear`](#method.clear) method. This will clear the force and
+    /// If you clear the force manually, use the [`clear`](Self::clear) method. This will clear the force and
     /// the torque that is applied when the force is not applied at the center of mass.
     pub persistent: bool,
-    /// The torque caused by forces applied at certain points using [`apply_force_at_point`](#method.apply_force_at_point).
+    /// The torque caused by forces applied at certain points using [`apply_force_at_point`](Self::apply_force_at_point).
     torque: Torque,
 }
 
@@ -175,7 +175,7 @@ impl ExternalForce {
     }
 
     /// Returns the torque caused by forces applied at certain points using
-    /// [`apply_force_at_point`](#method.apply_force_at_point).
+    /// [`apply_force_at_point`](Self::apply_force_at_point).
     pub fn torque(&self) -> Torque {
         self.torque
     }
@@ -197,7 +197,7 @@ impl ExternalForce {
 /// An external torque applied continuously to a dynamic [rigid body](RigidBody).
 ///
 /// By default, the torque persists across frames. You can clear the torque manually using
-/// [`clear`](#method.clear) or set `persistent` to false.
+/// [`clear`](Self::clear) or set `persistent` to false.
 ///
 /// ## Example
 ///
@@ -375,10 +375,10 @@ pub struct ExternalImpulse {
     impulse: Vector,
     /// True if the impulse persists across frames, and false if the impulse is automatically cleared every physics frame.
     ///
-    /// If you clear the impulse manually, use the [`clear`](#method.clear) method. This will clear the impulse and
+    /// If you clear the impulse manually, use the [`clear`](Self::clear) method. This will clear the impulse and
     /// the angular impulse that is applied when the impulse is not applied at the center of mass.
     pub persistent: bool,
-    /// The angular impulse caused by impulses applied at certain points using [`apply_impulse_at_point`](#method.apply_impulse_at_point).
+    /// The angular impulse caused by impulses applied at certain points using [`apply_impulse_at_point`](Self::apply_impulse_at_point).
     angular_impulse: Torque,
 }
 
@@ -459,7 +459,7 @@ impl ExternalImpulse {
     }
 
     /// Returns the angular impulse caused by impulses applied at certain points using
-    /// [`apply_impulse_at_point`](#method.apply_impulse_at_point).
+    /// [`apply_impulse_at_point`](Self::apply_impulse_at_point).
     pub fn angular_impulse(&self) -> Torque {
         self.angular_impulse
     }

@@ -136,8 +136,8 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
 ///
-/// To get a reference to the internal [`SharedShape`], you can use the [`shape`](#method.shape)
-/// or [`shape_scaled`](#method.shape_scaled) method.
+/// To get a reference to the internal [`SharedShape`], you can use the [`Collider::shape()`]
+/// or [`Collider::shape_scaled()`] methods.
 #[derive(Clone, Component)]
 pub struct Collider {
     /// The raw unscaled collider shape.
@@ -290,7 +290,7 @@ impl Collider {
     /// because convex shapes typically provide more reliable results.
     ///
     /// If you want to create a compound shape from a 3D triangle mesh or 2D polyline, consider using the
-    /// [`Collider::convex_decomposition`](#method.convex_decomposition) method.
+    /// [`Collider::convex_decomposition`] method.
     pub fn compound(
         shapes: Vec<(
             impl Into<Position>,
@@ -916,7 +916,7 @@ impl AsyncSceneCollider {
     ///
     /// If the given collider type is `None`, all meshes except the ones in
     /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    /// You can add named shapes using [`with_shape_for_name`](#method.with_shape_for_name).
+    /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
     pub fn new(default_shape: Option<ComputedCollider>) -> Self {
         Self {
             default_shape,
