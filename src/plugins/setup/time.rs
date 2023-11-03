@@ -220,8 +220,8 @@ impl Physics {
         }
     }
 
-    /// Returns a new [`Time<Physics>`](Physics) clock with a fixed timestep using
-    /// the given frequency in Hertz (1/second).
+    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::Fixed`]
+    /// using the given frequency in Hertz (1/second).
     ///
     /// # Panics
     ///
@@ -235,10 +235,10 @@ impl Physics {
         })
     }
 
-    /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::FixedOnce`] timestep
+    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::FixedOnce`]
     /// using the given frequency in Hertz (1/second).
     ///
-    /// Unlike with [`Physics::Fixed`], the [`PhysicsSchedule`] will only be run once per frame
+    /// Unlike with [`TimestepMode::Fixed`], the [`PhysicsSchedule`] will only be run once per frame
     /// instead of accumulating time and running physics until the accumulator has been consumed.
     /// This can be useful for [server usage](crate#can-the-engine-be-used-on-servers)
     /// where the server and client must be kept in sync.
@@ -254,8 +254,8 @@ impl Physics {
         })
     }
 
-    /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::Variable`] timestep using
-    /// the given frequency in Hertz (1/second).
+    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::Variable`]
+    /// using the given frequency in Hertz (1/second).
     ///
     /// # Panics
     ///
