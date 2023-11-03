@@ -2,15 +2,20 @@
 //!
 //! See [`PhysicsSetupPlugin`].
 
-use bevy::{
-    ecs::schedule::{ExecutorKind, ScheduleBuildSettings},
-    transform::TransformSystem,
-};
+mod time;
 
-use crate::prelude::*;
+use std::time::Duration;
+
+pub use time::*;
 
 use super::sync::PreviousGlobalTransform;
-use bevy::utils::intern::Interned;
+use crate::prelude::*;
+use bevy::{
+    ecs::schedule::{ExecutorKind, ScheduleBuildSettings},
+    prelude::*,
+    transform::TransformSystem,
+    utils::intern::Interned,
+};
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
@@ -57,24 +62,19 @@ impl Default for PhysicsSetupPlugin {
 impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
-        app.init_resource::<PhysicsTimestep>()
-            .init_resource::<PhysicsTimescale>()
-            .init_resource::<DeltaTime>()
-            .init_resource::<SubDeltaTime>()
+        app.insert_resource(Time::new_with(Physics::default()))
+            .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>()
             .init_resource::<BroadCollisionPairs>()
             .init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
             .init_resource::<Gravity>()
-            .register_type::<PhysicsTimestep>()
-            .register_type::<PhysicsTimescale>()
-            .register_type::<DeltaTime>()
-            .register_type::<SubDeltaTime>()
+            .register_type::<Time<Physics>>()
+            .register_type::<Time<Substeps>>()
             .register_type::<SubstepCount>()
             .register_type::<BroadCollisionPairs>()
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
-            .register_type::<PhysicsLoop>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
             .register_type::<Sleeping>()
@@ -128,14 +128,6 @@ impl Plugin for PhysicsSetupPlugin {
                 .chain()
                 .before(TransformSystem::TransformPropagate),
         );
-
-        // Check and store if schedule is configured to run in FixedUpdate.
-        let fixed_update = schedule == FixedUpdate.intern();
-
-        app.insert_resource(PhysicsLoop {
-            fixed_update,
-            ..Default::default()
-        });
 
         // Create physics schedule, the schedule that advances the physics simulation
         let mut physics_schedule = Schedule::new(PhysicsSchedule);
@@ -216,76 +208,6 @@ impl Plugin for PhysicsSetupPlugin {
     }
 }
 
-/// Controls the physics simulation loop.
-///
-/// ## Example
-///
-/// ```no_run
-/// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // `pause` is a provided system that calls `PhysicsLoop::pause`
-#[cfg_attr(
-    feature = "2d",
-    doc = "        .add_systems(Startup, bevy_xpbd_2d::pause)"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "        .add_systems(Startup, bevy_xpbd_3d::pause)"
-)]
-///         .add_systems(Update, step_manually)
-///         .run();
-/// }
-///
-/// fn step_manually(input: Res<Input<KeyCode>>, mut physics_loop: ResMut<PhysicsLoop>) {
-///     // Advance the simulation by one frame every time Space is pressed
-///     if input.just_pressed(KeyCode::Space) {
-///         physics_loop.step();
-///     }
-/// }
-/// ```
-#[derive(Reflect, Resource, Debug, Default)]
-#[reflect(Resource)]
-pub struct PhysicsLoop {
-    /// Time accumulated into the physics loop. This is consumed by the [`PhysicsSchedule`].
-    pub accumulator: Scalar,
-    /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
-    pub queued_steps: u32,
-    /// If [`PhysicsSchedule`] runs in [`FixedUpdate`]. Determines the delta time for the simulation.
-    pub(crate) fixed_update: bool,
-    /// Determines if the simulation is paused.
-    pub paused: bool,
-}
-
-impl PhysicsLoop {
-    /// Add a step to be run on the next run of the [`PhysicsSchedule`].
-    pub fn step(&mut self) {
-        self.queued_steps += 1;
-    }
-    /// Pause the simulation.
-    pub fn pause(&mut self) {
-        self.paused = true;
-    }
-    /// Resume the simulation.
-    pub fn resume(&mut self) {
-        self.paused = false;
-    }
-}
-
-/// Pause the simulation.
-pub fn pause(mut physics_loop: ResMut<PhysicsLoop>) {
-    physics_loop.pause();
-}
-
-/// Resume the simulation.
-pub fn resume(mut physics_loop: ResMut<PhysicsLoop>) {
-    physics_loop.resume();
-}
-
 /// True if a system is running for the first time.
 struct IsFirstRun(bool);
 
@@ -297,90 +219,92 @@ impl Default for IsFirstRun {
 
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
-    let mut physics_loop = world
-        .remove_resource::<PhysicsLoop>()
-        .expect("no PhysicsLoop resource");
+    let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
+        let real_delta = world.resource::<Time<Real>>().delta();
+        let old_delta = world.resource::<Time<Physics>>().delta();
+        let is_paused = world.resource::<Time<Physics>>().is_paused();
+        let physics_clock = world.resource_mut::<Time<Physics>>();
 
-    #[cfg(feature = "f32")]
-    let mut delta_seconds = if physics_loop.fixed_update {
-        world.resource::<Time<Fixed>>().delta_seconds()
-    } else {
-        world.resource::<Time>().delta_seconds()
-    };
-
-    #[cfg(feature = "f64")]
-    let mut delta_seconds = if physics_loop.fixed_update {
-        world.resource::<Time<Fixed>>().delta_seconds_f64()
-    } else {
-        world.resource::<Time>().delta_seconds_f64()
-    };
-
-    let time_step = *world.resource::<PhysicsTimestep>();
-    let time_scale = world.resource::<PhysicsTimescale>().0.max(0.0);
-
-    // Update `DeltaTime` according to the `PhysicsTimestep` configuration
-    let (raw_dt, accumulate) = match time_step {
-        PhysicsTimestep::Fixed(fixed_delta_seconds) => (fixed_delta_seconds, true),
-        PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
-        PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
-    };
-
-    // On the first run of the schedule, `delta_seconds` could be 0.0.
-    // In that case, replace it with the fixed timestep amount.
-    // With a variable timestep, the physics accumulator might not increase
-    // until the second run of the system.
-    if is_first_run.0 {
-        delta_seconds = raw_dt;
-        is_first_run.0 = false;
-    }
-
-    let dt = raw_dt * time_scale;
-    world.resource_mut::<DeltaTime>().0 = dt;
-
-    match accumulate {
-        false if physics_loop.paused && physics_loop.queued_steps == 0 => {}
-        false => {
-            if physics_loop.queued_steps > 0 {
-                physics_loop.queued_steps -= 1;
+        // Get the scaled timestep delta time based on the timestep mode.
+        let timestep = match physics_clock.timestep_mode() {
+            TimestepMode::Fixed { delta, .. } => delta.mul_f64(physics_clock.relative_speed_f64()),
+            TimestepMode::FixedOnce { delta } => delta.mul_f64(physics_clock.relative_speed_f64()),
+            TimestepMode::Variable { max_delta } => {
+                let scaled_delta = real_delta.mul_f64(physics_clock.relative_speed_f64());
+                scaled_delta.min(max_delta)
             }
-            debug!("running PhysicsSchedule");
-            world.run_schedule(PhysicsSchedule);
-        }
-        true => {
-            // Add time to the accumulator
-            if physics_loop.paused {
-                physics_loop.accumulator += dt * physics_loop.queued_steps as Scalar;
-                physics_loop.queued_steps = 0;
+        };
+
+        // How many steps should be run during this frame.
+        // For `TimestepMode::Fixed`, this is computed using the accumulated overstep.
+        let mut queued_steps = 1;
+
+        if let TimestepMode::Fixed { delta, overstep } =
+            world.resource_mut::<Time<Physics>>().timestep_mode_mut()
+        {
+            // If paused, add the `Physics` delta time, otherwise add real time.
+            if is_paused {
+                *overstep += old_delta;
             } else {
-                physics_loop.accumulator += delta_seconds * time_scale;
+                // TODO: This should probably use real time and not the fixed timestep,
+                //       but it seems to quickly lag and fall into the "spiral of death".
+                *overstep += timestep;
             }
 
-            // Step the simulation until the accumulator has been consumed.
-            // Note that a small remainder may be passed on to the next run of the physics schedule.
-            while physics_loop.accumulator >= dt && dt > 0.0 {
+            // Consume as many steps as possible with the fixed `delta`.
+            queued_steps = (overstep.as_secs_f64() / delta.as_secs_f64()) as usize;
+            *overstep -= delta.mul_f64(queued_steps as f64);
+        };
+
+        // Advance physics clock by timestep if not paused.
+        if !is_paused {
+            world.resource_mut::<Time<Physics>>().advance_by(timestep);
+        }
+
+        if world.resource::<Time<Physics>>().delta() >= timestep {
+            // Set generic `Time` resource to `Time<Physics>`.
+            *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
+
+            // Advance simulation by the number of queued steps.
+            for _ in 0..queued_steps {
                 debug!("running PhysicsSchedule");
-                world.run_schedule(PhysicsSchedule);
-                physics_loop.accumulator -= dt;
+                schedule.run(world);
             }
         }
-    }
 
-    world.insert_resource(physics_loop);
+        // If physics is paused, reset delta time to stop simulation
+        // unless users manually advance `Time<Physics>`.
+        if is_paused {
+            world
+                .resource_mut::<Time<Physics>>()
+                .advance_by(Duration::ZERO);
+        }
+    });
+
+    is_first_run.0 = false;
+
+    // Set generic `Time` resource back to `Time<Virtual>`.
+    *world.resource_mut::<Time>() = world.resource::<Time<Virtual>>().as_generic();
 }
 
 /// Runs the [`SubstepSchedule`].
 fn run_substep_schedule(world: &mut World) {
+    let delta = world.resource::<Time<Physics>>().delta();
     let SubstepCount(substeps) = *world.resource::<SubstepCount>();
-    let dt = world.resource::<DeltaTime>().0;
+    let sub_delta = delta.div_f64(substeps as f64);
 
-    // Update `SubDeltaTime`
-    let mut sub_delta_time = world.resource_mut::<SubDeltaTime>();
-    sub_delta_time.0 = dt / substeps as Scalar;
+    let mut sub_delta_time = world.resource_mut::<Time<Substeps>>();
+    sub_delta_time.advance_by(sub_delta);
 
-    for i in 0..substeps {
-        debug!("running SubstepSchedule: {i}");
-        world.run_schedule(SubstepSchedule);
-    }
+    let _ = world.try_schedule_scope(SubstepSchedule, |world, schedule| {
+        for i in 0..substeps {
+            debug!("running SubstepSchedule: {i}");
+            *world.resource_mut::<Time>() = world.resource::<Time<Substeps>>().as_generic();
+            schedule.run(world);
+        }
+    });
+
+    *world.resource_mut::<Time>() = world.resource::<Time<Virtual>>().as_generic();
 }
 
 /// Runs the [`PostProcessCollisions`] schedule.

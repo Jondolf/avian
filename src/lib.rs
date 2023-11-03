@@ -164,8 +164,8 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [Physics timestep](PhysicsTimestep)
-//! - [Speed up or slow down time](PhysicsTimescale)
+//! - [Physics timestep](Physics#usage)
+//! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
 //!
@@ -177,8 +177,7 @@
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
 //!     - [`PostProcessCollisions`] schedule
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
-//! - [Pausing, resuming and stepping the physics loop](PhysicsLoop)
-//! - [Running physics manually](PhysicsPlugins#running-physics-manually)
+//! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //!
 //! ### Architecture
@@ -315,11 +314,12 @@
 //! ### Can the engine be used on servers?
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
-//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics)
 //! to whatever you want.
 //!
-//! One configuration is to run the client in `FixedUpdate`, and to use [`PhysicsTimestep::FixedOnce`] on both the
-//! server and the client to make sure the physics simulation is only advanced by one step each time the schedule runs.
+//! One configuration is to run the client in `FixedUpdate`, and to use a fixed timestep for `Time<Physics>`
+//! on both the server and the client to make sure the physics simulation is only advanced by one step
+//! each time the schedule runs.
 //!
 //! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different
 //! machines.
@@ -393,7 +393,7 @@
 //!         solve_velocities(particles and bodies)
 //! ```
 //!
-//! where `h` is the [substep size](SubDeltaTime), `q` is the [rotation](Rotation) as a quaternion,
+//! where `h` is the substep size, `q` is the [rotation](Rotation) as a quaternion,
 //! `ω` is the [angular velocity](AngularVelocity), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
 //! [external torque](ExternalTorque).
 //!
@@ -498,7 +498,6 @@ pub mod prelude {
     pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;
 }
-pub use prelude::setup::{pause, resume};
 
 mod utils;
 

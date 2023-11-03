@@ -238,7 +238,7 @@ fn movement(
     // both the `f32` and `f64` features. Otherwise you don't need this.
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
-    for event in movement_event_reader.iter() {
+    for event in movement_event_reader.read() {
         for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
             &mut controllers
         {
