@@ -4,47 +4,6 @@ use bevy::prelude::Resource;
 
 use crate::prelude::*;
 
-/// Configures the ratio of physics seconds per real second.
-///
-/// The default time scale is 1.0, meaning the simulation runs in real time.
-/// Reduce this for slow motion, increase for fast forward.
-///
-/// This changes the [`Time`] that the simulation is advanced by for each
-/// iteration. The frequency of physics updates, set using [`PhysicsTimestep`],
-/// remains unchanged.
-///
-/// The time scale impacts the accuracy of the simulation and large values may
-/// cause jittering or missed collisions. You may keep a consistent simulation
-/// behaviour by adjusting your [timestep](`PhysicsTimestep::Fixed`)
-/// at the cost of performance.
-///
-/// ## Example
-///
-/// You can change the time scale by inserting the [`PhysicsTimescale`] resource:
-///
-/// ```no_run
-/// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // Run the simulation at half speed, in slow motion
-///         .insert_resource(PhysicsTimescale(0.5))
-///         .run();
-/// }
-/// ```
-#[derive(Reflect, Resource, Clone, Copy, Debug, PartialEq)]
-#[reflect(Resource)]
-pub struct PhysicsTimescale(pub Scalar);
-
-impl Default for PhysicsTimescale {
-    fn default() -> Self {
-        Self(1.0)
-    }
-}
-
 /// The number of substeps used in the simulation.
 ///
 /// A higher number of substeps reduces the value of [`Time`],

@@ -6,6 +6,42 @@ use bevy::prelude::*;
 
 use crate::prelude::*;
 
+/// The type of timestep used for the [`Time<Physics>`](Physics) clock.
+#[derive(Reflect, Clone, Copy, Debug, PartialEq)]
+pub enum TimestepMode {
+    /// **Fixed timestep**: The physics simulation will be advanced by a fixed `delta`
+    /// amount of time every frame until the accumulated `overstep` value has been consumed.
+    /// This means that physics can run 0, 1, 2 or more times per frame based on how long the
+    /// previous frames took.
+    ///
+    /// A fixed timestep allows consistent behavior across different machines and frame rates.
+    Fixed {
+        /// The amount of time that the simulation should be advanced by during a step.
+        delta: Duration,
+        /// The amount of accumulated time. The simulation will consume it in steps of `delta`
+        /// to try to catch up to real time.
+        overstep: Duration,
+    },
+    /// **Fixed delta, once per frame**: The physics simulation will be advanced by
+    /// a fixed `delta` amount of time once per frame. This should only be used
+    /// in cases where you can guarantee a fixed number of executions,
+    /// like in `FixedUpdate` or on a server.
+    FixedOnce {
+        /// The amount of time that the simulation should be advanced by during a step.
+        delta: Duration,
+    },
+    /// **Variable timestep**: The physics simulation will be advanced by
+    /// `Time::delta_seconds().min(max_delta)` seconds at each Bevy tick.
+    /// Frame rate will affect the simulation result.
+    Variable {
+        /// The maximum amount of time the physics simulation can be advanced at once.
+        /// This makes sure that the simulation doesn't break when the delta time is large.
+        ///
+        /// A good default is `1.0 / 60.0` (60 Hz)
+        max_delta: Duration,
+    },
+}
+
 /// The clock representing physics time, following `Time<Virtual>`.
 /// Can be configured to use a fixed or variable timestep.
 ///
@@ -45,18 +81,10 @@ use crate::prelude::*;
 /// ```
 // TODO: Document when to multiply by delta time
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
-pub enum Physics {
-    /// **Fixed timestep**: the physics simulation will be advanced by a fixed value `dt` for every `dt` seconds passed since the previous physics frame. This allows consistent behavior across different machines and framerates.
-    Fixed(Duration),
-    /// **Fixed delta, once per frame**: the physics simulation will be advanced by a fixed value `dt` once every frame. This should only be used in cases where you can guarantee a fixed number of executions, like in FixedUpdate or on a server.
-    FixedOnce(Duration),
-    /// **Variable timestep**: the physics simulation will be advanced by `Time::delta_seconds().min(max_dt)` seconds at each Bevy tick.
-    Variable {
-        /// The maximum amount of time the physics simulation can be advanced at each Bevy tick. This makes sure that the simulation doesn't break when the delta time is large.
-        ///
-        /// A good default is `1.0 / 60.0` (60 Hz)
-        max_dt: Duration,
-    },
+pub struct Physics {
+    timestep_mode: TimestepMode,
+    paused: bool,
+    relative_speed: f64,
 }
 
 impl Default for Physics {
@@ -70,6 +98,15 @@ impl Default for Physics {
 }
 
 impl Physics {
+    /// Creates a new [`Physics`] clock with the given type of [timestep](TimestepMode).
+    pub const fn from_timestep(timestep_mode: TimestepMode) -> Self {
+        Self {
+            timestep_mode,
+            paused: false,
+            relative_speed: 1.0,
+        }
+    }
+
     /// Returns a new [`Time<Physics>`](Physics) clock with a fixed timestep using
     /// the given frequency in Hertz (1/second).
     ///
@@ -79,7 +116,10 @@ impl Physics {
     pub fn fixed_hz(hz: f64) -> Self {
         assert!(hz > 0.0, "Hz less than or equal to zero");
         assert!(hz.is_finite(), "Hz is infinite");
-        Self::Fixed(Duration::from_secs_f64(hz))
+        Self::from_timestep(TimestepMode::Fixed {
+            delta: Duration::from_secs_f64(hz),
+            overstep: Duration::ZERO,
+        })
     }
 
     /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::FixedOnce`] timestep
@@ -96,7 +136,9 @@ impl Physics {
     pub fn fixed_once_hz(hz: f64) -> Self {
         assert!(hz > 0.0, "Hz less than or equal to zero");
         assert!(hz.is_finite(), "Hz is infinite");
-        Self::FixedOnce(Duration::from_secs_f64(hz))
+        Self::from_timestep(TimestepMode::FixedOnce {
+            delta: Duration::from_secs_f64(hz),
+        })
     }
 
     /// Returns a new [`Time<Physics>`](Physics) clock with a [`Physics::Variable`] timestep using
@@ -110,9 +152,166 @@ impl Physics {
             max_delta_seconds > 0.0,
             "max delta less than or equal to zero"
         );
-        Self::Variable {
-            max_dt: Duration::from_secs_f64(max_delta_seconds),
-        }
+        Self::from_timestep(TimestepMode::Variable {
+            max_delta: Duration::from_secs_f64(max_delta_seconds),
+        })
+    }
+}
+
+/// An extension trait for [`Time<Physics>`](Physics).
+pub trait PhysicsTime {
+    /// Creates a new [`Time<Physics>`](Physics) clock with the given type
+    /// of [timestep](TimestepMode).
+    fn from_timestep(timestep_mode: TimestepMode) -> Self;
+
+    /// Gets the type of [timestep](TimestepMode) used for running physics.
+    fn timestep_mode(&self) -> TimestepMode;
+
+    /// Mutably gets the type of [timestep](TimestepMode) used for running physics.
+    fn timestep_mode_mut(&mut self) -> &mut TimestepMode;
+
+    /// Sets the type of [timestep](TimestepMode) used for running physics.
+    fn set_timestep_mode(&mut self, timestep_mode: TimestepMode);
+
+    /// Returns the speed of physics relative to your system clock as an `f32`.
+    /// This is also known as "time scaling" or "time dilation" in other engines.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    fn relative_speed(&self) -> f32;
+
+    /// Returns the speed of physics relative to your system clock as an `f64`.
+    /// This is also known as "time scaling" or "time dilation" in other engines.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    fn relative_speed_f64(&self) -> f64;
+
+    /// Sets the speed of physics relative to your system clock, given as an `f32`.
+    ///
+    /// For example, setting this to `2.0` will make the physics clock advance twice
+    /// as fast as your system clock.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ratio` is negative or not finite.
+    fn with_relative_speed(self, ratio: f32) -> Self;
+
+    /// Sets the speed of physics relative to your system clock, given as an `f64`.
+    ///
+    /// For example, setting this to `2.0` will make the physics clock advance twice
+    /// as fast as your system clock.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ratio` is negative or not finite.
+    fn with_relative_speed_f64(self, ratio: f64) -> Self;
+
+    /// Sets the speed of physics relative to your system clock, given as an `f32`.
+    ///
+    /// For example, setting this to `2.0` will make the physics clock advance twice
+    /// as fast as your system clock.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ratio` is negative or not finite.
+    fn set_relative_speed(&mut self, ratio: f32);
+
+    /// Sets the speed of physics relative to your system clock, given as an `f64`.
+    ///
+    /// For example, setting this to `2.0` will make the physics clock advance twice
+    /// as fast as your system clock.
+    ///
+    /// The speed impacts the accuracy of the simulation, and large values may
+    /// cause jittering or missed collisions. You can improve simulation consistency
+    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `ratio` is negative or not finite.
+    fn set_relative_speed_f64(&mut self, ratio: f64);
+
+    /// Returns `true` if the physics clock is currently paused.
+    fn is_paused(&self) -> bool;
+
+    /// Stops the clock, preventing the physics simulation from advancing until resumed.
+    fn pause(&mut self);
+
+    /// Resumes the clock if paused.
+    #[doc(alias = "resume")]
+    fn unpause(&mut self);
+}
+
+impl PhysicsTime for Time<Physics> {
+    fn from_timestep(timestep_mode: TimestepMode) -> Self {
+        Self::new_with(Physics::from_timestep(timestep_mode))
+    }
+
+    fn timestep_mode(&self) -> TimestepMode {
+        self.context().timestep_mode
+    }
+
+    fn timestep_mode_mut(&mut self) -> &mut TimestepMode {
+        &mut self.context_mut().timestep_mode
+    }
+
+    fn set_timestep_mode(&mut self, timestep_mode: TimestepMode) {
+        self.context_mut().timestep_mode = timestep_mode;
+    }
+
+    fn with_relative_speed(self, ratio: f32) -> Self {
+        self.with_relative_speed_f64(ratio as f64)
+    }
+
+    fn with_relative_speed_f64(mut self, ratio: f64) -> Self {
+        assert!(ratio.is_finite(), "tried to go infinitely fast");
+        assert!(ratio >= 0.0, "tried to go back in time");
+        self.context_mut().relative_speed = ratio;
+        self
+    }
+
+    fn relative_speed(&self) -> f32 {
+        self.relative_speed_f64() as f32
+    }
+
+    fn relative_speed_f64(&self) -> f64 {
+        self.context().relative_speed
+    }
+
+    fn set_relative_speed(&mut self, ratio: f32) {
+        self.set_relative_speed_f64(ratio as f64);
+    }
+
+    fn set_relative_speed_f64(&mut self, ratio: f64) {
+        assert!(ratio.is_finite(), "tried to go infinitely fast");
+        assert!(ratio >= 0.0, "tried to go back in time");
+        self.context_mut().relative_speed = ratio;
+    }
+
+    fn pause(&mut self) {
+        self.context_mut().paused = true;
+    }
+
+    fn unpause(&mut self) {
+        self.context_mut().paused = false;
+    }
+
+    fn is_paused(&self) -> bool {
+        self.context().paused
     }
 }
 

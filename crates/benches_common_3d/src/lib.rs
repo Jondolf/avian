@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use bevy::{app::PluginsState, prelude::*};
 use bevy_xpbd_3d::prelude::*;
 use criterion::{measurement::Measurement, BatchSize, Bencher};
@@ -20,9 +18,7 @@ pub fn bench_app<M: Measurement>(
                 PhysicsPlugins::default(),
             ));
 
-            app.insert_resource(Time::new_with(Physics::FixedOnce(Duration::from_secs_f64(
-                1.0 / 64.0,
-            ))));
+            app.insert_resource(Time::new_with(Physics::fixed_once_hz(1.0 / 60.0)));
 
             setup(&mut app);
 

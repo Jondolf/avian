@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
@@ -12,8 +14,14 @@ impl Plugin for XpbdExamplePlugin {
         app.add_plugins((PhysicsPlugins::default(), FrameTimeDiagnosticsPlugin))
             .add_state::<AppState>()
             .add_systems(Startup, setup)
-            .add_systems(OnEnter(AppState::Paused), bevy_xpbd_2d::pause)
-            .add_systems(OnExit(AppState::Paused), bevy_xpbd_2d::resume)
+            .add_systems(
+                OnEnter(AppState::Paused),
+                |mut time: ResMut<Time<Physics>>| time.pause(),
+            )
+            .add_systems(
+                OnExit(AppState::Paused),
+                |mut time: ResMut<Time<Physics>>| time.unpause(),
+            )
             .add_systems(Update, update_fps_text)
             .add_systems(Update, pause_button)
             .add_systems(Update, step_button.run_if(in_state(AppState::Paused)));
@@ -41,9 +49,9 @@ fn pause_button(
     }
 }
 
-fn step_button(mut physics_loop: ResMut<PhysicsLoop>, keys: Res<Input<KeyCode>>) {
+fn step_button(mut time: ResMut<Time<Physics>>, keys: Res<Input<KeyCode>>) {
     if keys.just_pressed(KeyCode::Return) {
-        physics_loop.step();
+        time.advance_by(Duration::from_secs_f64(1.0 / 60.0));
     }
 }
 
