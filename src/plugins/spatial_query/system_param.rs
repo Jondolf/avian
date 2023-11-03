@@ -1,37 +1,27 @@
 use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-type ColliderChangedFilter = (
-    Or<(
-        Changed<Position>,
-        Changed<Rotation>,
-        Changed<Collider>,
-        Changed<CollisionLayers>,
-    )>,
-    With<Collider>,
-);
-
 /// A system parameter for performing [spatial queries](spatial_query).
 ///
 /// ## Methods
 ///
-/// - [Ray casting](spatial_query#ray-casting): [`cast_ray`](SpatialQuery#method.cast_ray),
-/// [`ray_hits`](SpatialQuery#method.ray_hits), [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback)
-/// - [Shape casting](spatial_query#shape-casting): [`cast_shape`](SpatialQuery#method.cast_shape),
-/// [`shape_hits`](SpatialQuery#method.shape_hits), [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback)
-/// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery#method.project_point)
+/// - [Raycasting](spatial_query#raycasting): [`cast_ray`](SpatialQuery::cast_ray),
+/// [`ray_hits`](SpatialQuery::ray_hits), [`ray_hits_callback`](SpatialQuery::ray_hits_callback)
+/// - [Shapecasting](spatial_query#shapecasting): [`cast_shape`](SpatialQuery::cast_shape),
+/// [`shape_hits`](SpatialQuery::shape_hits), [`shape_hits_callback`](SpatialQuery::shape_hits_callback)
+/// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery::project_point)
 /// - [Intersection tests](spatial_query#intersection-tests)
-///     - Point intersections: [`point_intersections`](SpatialQuery#method.point_intersections),
-/// [`point_intersections_callback`](SpatialQuery#method.point_intersections_callback)
-///     - AABB intersections: [`aabb_intersections_with_aabb`](SpatialQuery#method.aabb_intersections_with_aabb),
-/// [`aabb_intersections_with_aabb_callback`](SpatialQuery#method.aabb_intersections_with_aabb_callback)
-///     - Shape intersections: [`shape_intersections`](SpatialQuery#method.shape_intersections)
-/// [`shape_intersections_callback`](SpatialQuery#method.shape_intersections_callback)
+///     - Point intersections: [`point_intersections`](SpatialQuery::point_intersections),
+/// [`point_intersections_callback`](SpatialQuery::point_intersections_callback)
+///     - AABB intersections: [`aabb_intersections_with_aabb`](SpatialQuery::aabb_intersections_with_aabb),
+/// [`aabb_intersections_with_aabb_callback`](SpatialQuery::aabb_intersections_with_aabb_callback)
+///     - Shape intersections: [`shape_intersections`](SpatialQuery::shape_intersections)
+/// [`shape_intersections_callback`](SpatialQuery::shape_intersections_callback)
 ///
-/// For simple ray casts and shape casts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
+/// For simple raycasts and shapecasts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
 /// provide a more ECS-based approach and perform casts on every frame.
 ///
-/// ## Ray casting example
+/// ## Raycasting example
 ///
 /// ```
 /// use bevy::prelude::*;
@@ -83,8 +73,6 @@ pub struct SpatialQuery<'w, 's> {
         ),
     >,
     pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
-    pub(crate) changed_colliders: Query<'w, 's, Entity, ColliderChangedFilter>,
-    pub(crate) removed_colliders: ResMut<'w, spatial_query::RemovedColliders>,
     /// The [`SpatialQueryPipeline`].
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
@@ -94,16 +82,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
     /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].
     pub fn update_pipeline(&mut self) {
-        self.query_pipeline.update_incremental(
-            self.colliders.iter(),
-            self.added_colliders.iter(),
-            self.changed_colliders.iter(),
-            self.removed_colliders.drain(),
-            true,
-        );
+        self.query_pipeline
+            .update(self.colliders.iter(), self.added_colliders.iter());
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
+    /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
     /// ## Arguments
@@ -150,7 +133,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             .cast_ray(origin, direction, max_time_of_impact, solid, query_filter)
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData) until `max_hits` is reached.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
@@ -211,8 +194,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
-    /// for each hit. The ray cast stops when `callback` returns false or all hits have been found.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData), calling the given `callback`
+    /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
     ///
@@ -277,7 +260,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
@@ -341,7 +324,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact until `max_hits` is reached.
     ///
     /// ## Arguments
@@ -411,8 +394,8 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shape cast stops when
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments

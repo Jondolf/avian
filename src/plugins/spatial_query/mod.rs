@@ -1,32 +1,32 @@
 //! **Spatial queries** are a way to get information about the environment. They perform geometric queries
 //! on [colliders](Collider) and retrieve data about intersections.
 //!
-//! There are four types of spatial queries: [ray casts](#ray-casting), [shape casts](#shape-casting),
+//! There are four types of spatial queries: [raycasts](#raycasting), [shapecasts](#shapecasting),
 //! [point projection](#point-projection) and [intersection tests](#intersection-tests).
 //! All spatial queries can be done using the various methods provided by the [`SpatialQuery`] system parameter.
 //!
-//! Ray casting and shape casting can also be done with a component-based approach using the [`RayCaster`] and
+//! Raycasting and shapecasting can also be done with a component-based approach using the [`RayCaster`] and
 //! [`ShapeCaster`] components. They enable performing casts every frame in a way that is often more convenient
 //! than the normal [`SpatialQuery`] methods. See their documentation for more information.
 //!
-//! ## Ray casting
+//! ## Raycasting
 //!
-//! **Ray casting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
+//! **Raycasting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
 //! a variety of things like getting information about the environment for character controllers and AI,
 //! and even rendering using ray tracing.
 //!
-//! For each hit during ray casting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
+//! For each hit during raycasting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
 //! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
 //! the point of intersection.
 //!
-//! There are two ways to perform ray casts.
+//! There are two ways to perform raycasts.
 //!
-//! 1. For simple ray casts, use the [`RayCaster`] component. It returns the results of the ray cast
+//! 1. For simple raycasts, use the [`RayCaster`] component. It returns the results of the raycast
 //! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the ray casting methods provided by
-//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery#method.cast_ray), [`ray_hits`](SpatialQuery#method.ray_hits) or
-//! [`ray_hits_callback`](SpatialQuery#method.ray_hits_callback).
+//! 2. When you need more control or don't want to cast every frame, use the raycasting methods provided by
+//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery::cast_ray), [`ray_hits`](SpatialQuery::ray_hits) or
+//! [`ray_hits_callback`](SpatialQuery::ray_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -63,25 +63,25 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Shape casting
+//! ## Shapecasting
 //!
-//! **Shape casting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
-//! that is travelling along a half-line. It is very similar to [ray casting](#ray-casting), but instead of a "point"
+//! **Shapecasting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
+//! that is travelling along a half-line. It is very similar to [raycasting](#raycasting), but instead of a "point"
 //! we have an entire shape travelling along a half-line. One use case is determining how far an object can move
 //! before it hits the environment.
 //!
-//! For each hit during shape casting, the hit entity, the *time of impact*, two local points of intersection and two local
+//! For each hit during shapecasting, the hit entity, the *time of impact*, two local points of intersection and two local
 //! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
 //! hit, which is essentially the distance from the shape origin to the global point of intersection.
 //!
-//! There are two ways to perform shape casts.
+//! There are two ways to perform shapecasts.
 //!
-//! 1. For simple shape casts, use the [`ShapeCaster`] component. It returns the results of the shape cast
+//! 1. For simple shapecasts, use the [`ShapeCaster`] component. It returns the results of the shapecast
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
-//! 2. When you need more control or don't want to cast every frame, use the shape casting methods provided by
-//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery#method.cast_shape), [`shape_hits`](SpatialQuery#method.shape_hits) or
-//! [`shape_hits_callback`](SpatialQuery#method.shape_hits_callback).
+//! 2. When you need more control or don't want to cast every frame, use the shapecasting methods provided by
+//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery::cast_shape), [`shape_hits`](SpatialQuery::shape_hits) or
+//! [`shape_hits_callback`](SpatialQuery::shape_hits_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -122,7 +122,7 @@
 //! **Point projection** is a spatial query that projects a point on the closest collider. It returns the collider's
 //! entity, the projected point, and whether the point is inside of the collider.
 //!
-//! Point projection can be done with the [`project_point`](SpatialQuery#method.project_point) method of the [`SpatialQuery`]
+//! Point projection can be done with the [`project_point`](SpatialQuery::project_point) method of the [`SpatialQuery`]
 //! system parameter. See its documentation for more information.
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
@@ -135,11 +135,11 @@
 //! There are three types of intersection tests. They are all methods of the [`SpatialQuery`] system parameter,
 //! and they all have callback variants that call a given callback on each intersection.
 //!
-//! - [`point_intersections`](SpatialQuery#method.point_intersections): Finds all entities with a collider that contains
+//! - [`point_intersections`](SpatialQuery::point_intersections): Finds all entities with a collider that contains
 //! the given point.
-//! - [`aabb_intersections_with_aabb`](SpatialQuery#method.aabb_intersections_with_aabb):
+//! - [`aabb_intersections_with_aabb`](SpatialQuery::aabb_intersections_with_aabb):
 //! Finds all entities with a [`ColliderAabb`] that is intersecting the given [`ColliderAabb`].
-//! - [`shape_intersections`](SpatialQuery#method.shape_intersections): Finds all entities with a [collider](Collider)
+//! - [`shape_intersections`](SpatialQuery::shape_intersections): Finds all entities with a [collider](Collider)
 //! that is intersecting the given shape.
 //!
 //! See the documentation of the components and methods for more information.
@@ -159,10 +159,10 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
-/// like [ray casting](spatial_query#ray-casting) and [shape casting](spatial_query#shape-casting) with
+/// like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting) with
 /// [`RayCaster`] and [`ShapeCaster`].
 pub struct SpatialQueryPlugin {
     schedule: Box<dyn ScheduleLabel>,
@@ -187,14 +187,10 @@ impl Default for SpatialQueryPlugin {
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>()
-            .init_resource::<RemovedColliders>()
-            .add_systems(Last, update_removed_colliders)
-            .add_systems(
-                self.schedule.dyn_clone(),
-                (init_ray_hits, init_shape_hit, update_removed_colliders)
-                    .in_set(PhysicsSet::Prepare),
-            );
+        app.init_resource::<SpatialQueryPipeline>().add_systems(
+            self.schedule.dyn_clone(),
+            (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
+        );
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -205,7 +201,6 @@ impl Plugin for SpatialQueryPlugin {
                 update_ray_caster_positions,
                 update_shape_caster_positions,
                 |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
-                |mut removed: ResMut<RemovedColliders>| removed.clear(),
                 raycast,
                 shapecast,
             )
@@ -214,9 +209,6 @@ impl Plugin for SpatialQueryPlugin {
         );
     }
 }
-
-#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
-pub(crate) struct RemovedColliders(HashSet<Entity>);
 
 fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added<RayCaster>>) {
     for (entity, ray) in &rays {
@@ -371,10 +363,10 @@ fn update_shape_caster_positions(
     }
 }
 
-fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
-    for (ray, mut hits) in &mut rays {
+fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
+    for (entity, ray, mut hits) in &mut rays {
         if ray.enabled {
-            ray.cast(&mut hits, &spatial_query.query_pipeline);
+            ray.cast(entity, &mut hits, &spatial_query.query_pipeline);
         } else if !hits.is_empty() {
             hits.clear();
         }
@@ -382,21 +374,14 @@ fn raycast(mut rays: Query<(&RayCaster, &mut RayHits)>, spatial_query: SpatialQu
 }
 
 fn shapecast(
-    mut shape_casters: Query<(&ShapeCaster, &mut ShapeHits)>,
+    mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
 ) {
-    for (shape_caster, mut hits) in &mut shape_casters {
+    for (entity, shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
-            shape_caster.cast(&mut hits, &spatial_query.query_pipeline);
+            shape_caster.cast(entity, &mut hits, &spatial_query.query_pipeline);
         } else if !hits.is_empty() {
             hits.clear();
         }
     }
-}
-
-fn update_removed_colliders(
-    mut removals: RemovedComponents<Collider>,
-    mut removed_colliders: ResMut<RemovedColliders>,
-) {
-    removed_colliders.extend(removals.iter());
 }

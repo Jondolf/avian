@@ -1,25 +1,28 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 use parry::query::{
     details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
 
-/// A component used for [ray casting](spatial_query#ray-casting).
+/// A component used for [raycasting](spatial_query#raycasting).
 ///
-/// **Ray casting** is a type of [spatial query](spatial_query) that finds one or more hits
+/// **Raycasting** is a type of [spatial query](spatial_query) that finds one or more hits
 /// between a ray and a set of colliders.
 ///
 /// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each hit
 /// and add them to the [`RayHits`] component. Each hit has a `time_of_impact` property
 /// which refers to how long the ray travelled, i.e. the distance between the `origin` and the point of intersection.
 ///
-/// The [`RayCaster`] is the easiest way to handle simple ray casts. If you want more control and don't want to
-/// perform ray casts every frame, consider using the [`SpatialQuery`] system parameter.
+/// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
+/// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
 /// ## Hit count and order
 ///
-/// The results of a ray cast are in an arbitrary order by default. You can iterate over them in the order of
-/// time of impact with the [`RayHits::iter_sorted`](RayHits#method.iter_sorted) method.
+/// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
+/// time of impact with the [`RayHits::iter_sorted`] method.
 ///
 /// You can configure the maximum amount of hits for a ray using `max_hits`. By default this is unbounded,
 /// so you will get all hits. When the number or complexity of colliders is large, this can be very
@@ -90,6 +93,8 @@ pub struct RayCaster {
     /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
     /// will be at the collider shape's boundary.
     pub solid: bool,
+    /// If true, the ray caster ignores hits against its own [`Collider`]. This is the default.
+    pub ignore_self: bool,
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
 }
@@ -105,6 +110,7 @@ impl Default for RayCaster {
             max_time_of_impact: Scalar::MAX,
             max_hits: u32::MAX,
             solid: true,
+            ignore_self: true,
             query_filter: SpatialQueryFilter::default(),
         }
     }
@@ -142,6 +148,13 @@ impl RayCaster {
         self
     }
 
+    /// Sets if the ray caster should ignore hits against its own [`Collider`].
+    /// The default is true.
+    pub fn with_ignore_self(mut self, ignore: bool) -> Self {
+        self.ignore_self = ignore;
+        self
+    }
+
     /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
     pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
         self.max_time_of_impact = max_time_of_impact;
@@ -155,7 +168,7 @@ impl RayCaster {
     }
 
     /// Sets the ray caster's [query filter](SpatialQueryFilter) that controls which colliders
-    /// should be included or excluded by ray casts.
+    /// should be included or excluded by raycasts.
     pub fn with_query_filter(mut self, query_filter: SpatialQueryFilter) -> Self {
         self.query_filter = query_filter;
         self
@@ -191,10 +204,22 @@ impl RayCaster {
         self.global_direction = global_direction;
     }
 
-    pub(crate) fn cast(&self, hits: &mut RayHits, query_pipeline: &SpatialQueryPipeline) {
+    pub(crate) fn cast(
+        &self,
+        caster_entity: Entity,
+        hits: &mut RayHits,
+        query_pipeline: &SpatialQueryPipeline,
+    ) {
+        let mut query_filter = self.query_filter.clone();
+
+        if self.ignore_self {
+            query_filter.excluded_entities.insert(caster_entity);
+        }
+
         hits.count = 0;
+
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(self.query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(query_filter);
             let ray =
                 parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
@@ -225,8 +250,8 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_index: &u32| {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if self.query_filter.test(entity, *layers) {
-                        if let Some(hit) = shape.cast_ray_and_get_normal(
+                    if query_filter.test(entity, *layers) {
+                        if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,
                             self.max_time_of_impact,
@@ -345,8 +370,16 @@ impl RayHits {
     }
 }
 
-/// Data related to a hit during a [ray cast](spatial_query#ray-casting).
-#[derive(Clone, Copy, Debug)]
+impl MapEntities for RayHits {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for hit in &mut self.vector {
+            hit.map_entities(entity_mapper);
+        }
+    }
+}
+
+/// Data related to a hit during a [raycast](spatial_query#raycasting).
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
@@ -354,4 +387,10 @@ pub struct RayHitData {
     pub time_of_impact: Scalar,
     /// The normal at the point of intersection.
     pub normal: Vector,
+}
+
+impl MapEntities for RayHitData {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity = entity_mapper.get_or_reserve(self.entity);
+    }
 }

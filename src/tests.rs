@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use approx::assert_relative_eq;
-use bevy::{log::LogPlugin, prelude::*, time::TimeUpdateStrategy, utils::Instant};
+use bevy::{prelude::*, time::TimeUpdateStrategy, utils::Instant};
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
 use std::time::Duration;
@@ -23,12 +23,7 @@ macro_rules! setup_insta {
 
 fn create_app() -> App {
     let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        TransformPlugin,
-        LogPlugin::default(),
-        PhysicsPlugins::default(),
-    ));
+    app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
     app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }
@@ -91,6 +86,32 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn body_with_velocity_moves_on_first_frame() {
+    let mut app = create_app();
+
+    app.insert_resource(Gravity::ZERO);
+
+    app.add_systems(Startup, |mut commands: Commands| {
+        // move right at 1 unit per second
+        commands.spawn((
+            SpatialBundle::default(),
+            RigidBody::Dynamic,
+            LinearVelocity(Vector::X),
+            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
+        ));
+    });
+
+    // one tick only.
+    tick_60_fps(&mut app);
+
+    let mut app_query = app.world.query::<(&Position, &RigidBody)>();
+
+    let (pos, _body) = app_query.single(&app.world);
+
+    assert!(pos.x > 0.0);
+}
+
+#[test]
 fn body_with_velocity_moves() {
     let mut app = create_app();
 
@@ -102,6 +123,7 @@ fn body_with_velocity_moves() {
             SpatialBundle::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
+            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
         ));
     });
 
@@ -136,7 +158,6 @@ fn body_with_velocity_moves() {
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
 struct Id(usize);
 
-#[ignore = "determinism across machines doesn't work yet"]
 #[cfg(all(feature = "3d", feature = "enhanced-determinism"))]
 #[test]
 fn cubes_simulation_is_deterministic_across_machines() {

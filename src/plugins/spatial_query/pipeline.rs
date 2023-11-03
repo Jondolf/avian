@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
-    partitioning::{Qbvh, QbvhUpdateWorkspace},
+    partitioning::Qbvh,
     query::{
         details::{
             RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
@@ -26,7 +26,6 @@ use parry::{
 pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
-    pub(crate) workspace: QbvhUpdateWorkspace,
     pub(crate) colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pub(crate) entity_generations: HashMap<u32, u32>,
 }
@@ -36,7 +35,6 @@ impl Default for SpatialQueryPipeline {
         Self {
             qbvh: Qbvh::new(),
             dispatcher: Arc::new(DefaultQueryDispatcher),
-            workspace: QbvhUpdateWorkspace::default(),
             colliders: HashMap::default(),
             entity_generations: HashMap::default(),
         }
@@ -44,7 +42,7 @@ impl Default for SpatialQueryPipeline {
 }
 
 impl SpatialQueryPipeline {
-    /// Creates a new [SpatialQueryPipeline].
+    /// Creates a new [`SpatialQueryPipeline`].
     pub fn new() -> SpatialQueryPipeline {
         SpatialQueryPipeline::default()
     }
@@ -61,7 +59,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Updates the associated acceleration structures with a new set of entities.
-    pub fn update_incremental<'a>(
+    pub fn update<'a>(
         &mut self,
         colliders: impl Iterator<
             Item = (
@@ -73,36 +71,27 @@ impl SpatialQueryPipeline {
             ),
         >,
         added_colliders: impl Iterator<Item = Entity>,
-        changed_colliders: impl Iterator<Item = Entity>,
-        removed_colliders: impl Iterator<Item = Entity>,
-        refit_and_balance: bool,
     ) {
         let colliders = colliders
             .map(|(entity, position, rotation, collider, layers)| {
                 (
                     entity,
                     (
-                        utils::make_isometry(position.0, rotation),
+                        utils::make_isometry(position.0, *rotation),
                         collider.clone(),
                         layers.map_or(CollisionLayers::default(), |layers| *layers),
                     ),
                 )
             })
             .collect();
-        let added = added_colliders.collect::<Vec<_>>();
-        let modified = changed_colliders.collect::<Vec<_>>();
-        let removed = removed_colliders.collect::<Vec<_>>();
 
-        self.update_incremental_internal(colliders, &added, &modified, &removed, refit_and_balance)
+        self.update_internal(colliders, added_colliders)
     }
 
-    fn update_incremental_internal(
+    fn update_internal(
         &mut self,
         colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
-        added: &[Entity],
-        modified: &[Entity],
-        removed: &[Entity],
-        refit_and_balance: bool,
+        added: impl Iterator<Item = Entity>,
     ) {
         self.colliders = colliders;
 
@@ -116,35 +105,35 @@ impl SpatialQueryPipeline {
             }
         }
 
-        for removed in removed {
-            self.qbvh.remove(removed.index());
-        }
+        struct DataGenerator<'a>(
+            &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        );
 
-        for modified in modified {
-            if self.colliders.contains_key(modified) {
-                self.qbvh.pre_update_or_insert(modified.index());
+        impl<'a> parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'a> {
+            fn size_hint(&self) -> usize {
+                self.0.len()
+            }
+
+            #[inline(always)]
+            fn for_each(&mut self, mut f: impl FnMut(u32, parry::bounding_volume::Aabb)) {
+                for (entity, co) in self.0.iter() {
+                    // Compute and return AABB
+                    let (iso, shape, _) = co;
+                    let aabb = shape.shape_scaled().compute_aabb(iso);
+                    f(entity.index(), aabb)
+                }
             }
         }
 
-        if refit_and_balance {
-            let _ = self.qbvh.refit(0.0, &mut self.workspace, |entity_index| {
-                // Construct entity ID
-                let generation = self.entity_generations.get(entity_index).map_or(0, |i| *i);
-                let entity = utils::entity_from_index_and_gen(*entity_index, generation);
-                // Compute and return AABB
-                let (iso, shape, _) = self.colliders.get(&entity).unwrap();
-                let aabb = shape.get_shape().compute_aabb(iso);
-                aabb
-            });
-            self.qbvh.rebalance(0.0, &mut self.workspace);
-        }
+        self.qbvh
+            .clear_and_rebuild(DataGenerator(&self.colliders), 0.01);
     }
 
     pub(crate) fn entity_from_index(&self, index: u32) -> Entity {
         utils::entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes the closest [hit](RayHitData) with a collider.
+    /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
     /// ## Arguments
@@ -156,7 +145,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::cast_ray]
+    /// See also: [`SpatialQuery::cast_ray`]
     pub fn cast_ray(
         &self,
         origin: Vector,
@@ -183,7 +172,7 @@ impl SpatialQueryPipeline {
             })
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData) until `max_hits` is reached.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
@@ -198,7 +187,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::ray_hits]
+    /// See also: [`SpatialQuery::ray_hits`]
     pub fn ray_hits(
         &self,
         origin: Vector,
@@ -223,8 +212,8 @@ impl SpatialQueryPipeline {
         hits
     }
 
-    /// Casts a [ray](spatial_query#ray-casting) and computes all [hits](RayHitData), calling the given `callback`
-    /// for each hit. The ray cast stops when `callback` returns false or all hits have been found.
+    /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData), calling the given `callback`
+    /// for each hit. The raycast stops when `callback` returns false or all hits have been found.
     ///
     /// Note that the order of the results is not guaranteed.
     ///
@@ -238,7 +227,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::ray_hits_callback]
+    /// See also: [`SpatialQuery::ray_hits_callback`]
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
@@ -256,9 +245,12 @@ impl SpatialQueryPipeline {
             let entity = self.entity_from_index(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
                 if query_filter.test(entity, *layers) {
-                    if let Some(hit) =
-                        shape.cast_ray_and_get_normal(iso, &ray, max_time_of_impact, solid)
-                    {
+                    if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
+                        iso,
+                        &ray,
+                        max_time_of_impact,
+                        solid,
+                    ) {
                         let hit = RayHitData {
                             entity,
                             time_of_impact: hit.toi,
@@ -277,7 +269,7 @@ impl SpatialQueryPipeline {
         self.qbvh.traverse_depth_first(&mut visitor);
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes the closest [hit](ShapeHits)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
@@ -294,7 +286,7 @@ impl SpatialQueryPipeline {
     /// hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::cast_shape]
+    /// See also: [`SpatialQuery::cast_shape`]
     #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
@@ -316,7 +308,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(origin, &rotation);
+        let shape_isometry = utils::make_isometry(origin, rotation);
         let shape_direction = direction.into();
         let pipeline_shape = self.as_composite_shape(query_filter);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
@@ -324,7 +316,7 @@ impl SpatialQueryPipeline {
             &shape_isometry,
             &shape_direction,
             &pipeline_shape,
-            &**shape.get_shape(),
+            &**shape.shape_scaled(),
             max_time_of_impact,
             !ignore_origin_penetration,
         );
@@ -341,7 +333,7 @@ impl SpatialQueryPipeline {
             })
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact until `max_hits` is reached.
     ///
     /// ## Arguments
@@ -358,7 +350,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::shape_hits]
+    /// See also: [`SpatialQuery::shape_hits`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits(
         &self,
@@ -388,8 +380,8 @@ impl SpatialQueryPipeline {
         hits
     }
 
-    /// Casts a [shape](spatial_query#shape-casting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shape cast stops when
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
+    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments
@@ -405,7 +397,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::shape_hits_callback]
+    /// See also: [`SpatialQuery::shape_hits_callback`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits_callback(
         &self,
@@ -428,7 +420,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(origin, &rotation);
+        let shape_isometry = utils::make_isometry(origin, rotation);
         let shape_direction = direction.into();
 
         loop {
@@ -438,7 +430,7 @@ impl SpatialQueryPipeline {
                 &shape_isometry,
                 &shape_direction,
                 &pipeline_shape,
-                &**shape.get_shape(),
+                &**shape.shape_scaled(),
                 max_time_of_impact,
                 !ignore_origin_penetration,
             );
@@ -476,7 +468,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::project_point]
+    /// See also: [`SpatialQuery::project_point`]
     pub fn project_point(
         &self,
         point: Vector,
@@ -505,7 +497,7 @@ impl SpatialQueryPipeline {
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::point_intersections]
+    /// See also: [`SpatialQuery::point_intersections`]
     pub fn point_intersections(
         &self,
         point: Vector,
@@ -529,7 +521,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// See also: [SpatialQuery::point_intersections_callback]
+    /// See also: [`SpatialQuery::point_intersections_callback`]
     pub fn point_intersections_callback(
         &self,
         point: Vector,
@@ -541,7 +533,9 @@ impl SpatialQueryPipeline {
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((isometry, shape, layers)) = self.colliders.get(&entity) {
-                if query_filter.test(entity, *layers) && shape.contains_point(isometry, &point) {
+                if query_filter.test(entity, *layers)
+                    && shape.shape_scaled().contains_point(isometry, &point)
+                {
                     return callback(entity);
                 }
             }
@@ -555,7 +549,7 @@ impl SpatialQueryPipeline {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
     /// that is intersecting the given `aabb`.
     ///
-    /// See also: [SpatialQuery::point_intersections_callback]
+    /// See also: [`SpatialQuery::point_intersections_callback`]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
         let mut intersections = vec![];
         self.aabb_intersections_with_aabb_callback(aabb, |e| {
@@ -569,7 +563,7 @@ impl SpatialQueryPipeline {
     /// that is intersecting the given `aabb`, calling `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// See also: [SpatialQuery::aabb_intersections_with_aabb_callback]
+    /// See also: [`SpatialQuery::aabb_intersections_with_aabb_callback`]
     pub fn aabb_intersections_with_aabb_callback(
         &self,
         aabb: ColliderAabb,
@@ -594,7 +588,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::shape_intersections]
+    /// See also: [`SpatialQuery::shape_intersections`]
     pub fn shape_intersections(
         &self,
         shape: &Collider,
@@ -628,7 +622,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// See also: [SpatialQuery::shape_intersections_callback]
+    /// See also: [`SpatialQuery::shape_intersections_callback`]
     pub fn shape_intersections_callback(
         &self,
         shape: &Collider,
@@ -648,7 +642,7 @@ impl SpatialQueryPipeline {
             rotation = Rotation::from(shape_rotation);
         }
 
-        let shape_isometry = utils::make_isometry(shape_position, &rotation);
+        let shape_isometry = utils::make_isometry(shape_position, rotation);
         let inverse_shape_isometry = shape_isometry.inverse();
 
         let dispatcher = &*self.dispatcher;
@@ -662,8 +656,8 @@ impl SpatialQueryPipeline {
 
                     if dispatcher.intersection_test(
                         &isometry,
-                        &**shape.get_shape(),
-                        &**collider.get_shape(),
+                        &**shape.shape_scaled(),
+                        &**collider.shape_scaled(),
                     ) == Ok(true)
                     {
                         return callback(entity);
@@ -673,7 +667,7 @@ impl SpatialQueryPipeline {
             true
         };
 
-        let shape_aabb = shape.get_shape().compute_aabb(&shape_isometry);
+        let shape_aabb = shape.shape_scaled().compute_aabb(&shape_isometry);
         let mut visitor = BoundingVolumeIntersectionsVisitor::new(&shape_aabb, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
     }
@@ -703,7 +697,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
                 ))
         {
             if self.query_filter.test(*entity, *layers) {
-                f(Some(iso), &**shape.get_shape());
+                f(Some(iso), &**shape.shape_scaled());
             }
         }
     }

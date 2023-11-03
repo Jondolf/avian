@@ -36,25 +36,23 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// ## Creation
 ///
-/// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`](#method.new) method
+/// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`] method
 /// that takes in a list of groups and masks. Additional groups and masks can be added and removed by calling methods like
-/// [`add_groups`](#method.add_groups), [`add_masks`](#method.add_masks), [`remove_groups`](#method.remove_groups) and
-/// [`remove_masks`](#method.remove_masks).
+/// [`add_groups`](Self::add_groups), [`add_masks`](Self::add_masks), [`remove_groups`](Self::remove_groups) and
+/// [`remove_masks`](Self::remove_masks).
 ///
 /// These methods require the layers to implement [`PhysicsLayer`]. The easiest way to define the physics layers is to
 /// create an enum with `#[derive(PhysicsLayer)]`.
 ///
-/// Internally, the groups and masks are represented as bitmasks, so you can also use [`CollisionLayers::from_bits()`](#method.from_bits)
+/// Internally, the groups and masks are represented as bitmasks, so you can also use [`CollisionLayers::from_bits()`]
 /// to create collision layers.
 ///
 /// ## Example
 ///
 /// ```
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// #[derive(PhysicsLayer)]
 /// enum Layer {

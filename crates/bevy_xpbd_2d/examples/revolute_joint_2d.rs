@@ -15,24 +15,31 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2dBundle::default());
 
-    let square = SpriteBundle {
-        sprite: Sprite {
-            color: Color::rgb(0.2, 0.7, 0.9),
-            custom_size: Some(Vec2::splat(50.0)),
-            ..default()
-        },
+    let square_sprite = Sprite {
+        color: Color::rgb(0.2, 0.7, 0.9),
+        custom_size: Some(Vec2::splat(50.0)),
         ..default()
     };
 
     let anchor = commands
-        .spawn((square.clone(), RigidBody::Kinematic, AngularVelocity(1.5)))
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite.clone(),
+                ..default()
+            },
+            RigidBody::Kinematic,
+            AngularVelocity(1.5),
+        ))
         .id();
 
     let object = commands
         .spawn((
-            square,
+            SpriteBundle {
+                sprite: square_sprite,
+                transform: Transform::from_xyz(0.0, -100.0, 0.0),
+                ..default()
+            },
             RigidBody::Dynamic,
-            Position(Vector::NEG_Y * 100.0),
             MassPropertiesBundle::new_computed(&Collider::cuboid(50.0, 50.0), 1.0),
         ))
         .id();

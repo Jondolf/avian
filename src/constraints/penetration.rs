@@ -1,7 +1,10 @@
 //! Penetration constraint.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// A constraint between two bodies that prevents overlap with a given compliance.
 ///
@@ -24,6 +27,12 @@ pub struct PenetrationConstraint {
     pub tangent_lagrange: Scalar,
     /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
+    /// The coefficient of [dynamic friction](Friction) in this contact.
+    pub dynamic_friction_coefficient: Scalar,
+    /// The coefficient of [static friction](Friction) in this contact.
+    pub static_friction_coefficient: Scalar,
+    /// The coefficient of [restitution](Restitution) in this contact.
+    pub restitution_coefficient: Scalar,
     /// Normal force acting along the constraint.
     pub normal_force: Vector,
     /// Static friction force acting along this constraint.
@@ -44,19 +53,9 @@ impl XpbdConstraint<2> for PenetrationConstraint {
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
         let [body1, body2] = bodies;
 
-        // For convex-convex collider contacts, we can compute the penetration at the current state
-        // using the contact points like the XPBD paper suggests, which reduces explosiveness.
-        //
-        // However, non-convex colliders cause convex colliders to sink into them unless we use
-        // the penetration depth provided by Parry.
-        //
-        // Todo: Figure out why this is and use the method below for all collider types in order to fix
-        // explosions for all contacts.
-        if self.contact.convex {
-            let p1 = body1.current_position() + body1.rotation.rotate(self.r1);
-            let p2 = body2.current_position() + body2.rotation.rotate(self.r2);
-            self.contact.penetration = (p1 - p2).dot(self.contact.global_normal(&body1.rotation));
-        }
+        let p1 = body1.current_position() + body1.rotation.rotate(self.contact.point1);
+        let p2 = body2.current_position() + body2.rotation.rotate(self.contact.point2);
+        self.contact.penetration = (p1 - p2).dot(self.contact.global_normal1(&body1.rotation));
 
         // If penetration depth is under 0, skip the collision
         if self.contact.penetration <= Scalar::EPSILON {
@@ -87,6 +86,9 @@ impl PenetrationConstraint {
             normal_lagrange: 0.0,
             tangent_lagrange: 0.0,
             compliance: 0.0,
+            dynamic_friction_coefficient: 0.0,
+            static_friction_coefficient: 0.0,
+            restitution_coefficient: 0.0,
             normal_force: Vector::ZERO,
             static_friction_force: Vector::ZERO,
         }
@@ -103,7 +105,7 @@ impl PenetrationConstraint {
         let compliance = self.compliance;
         let lagrange = self.normal_lagrange;
         let penetration = self.contact.penetration;
-        let normal = self.contact.global_normal(&body1.rotation);
+        let normal = self.contact.global_normal1(&body1.rotation);
         let r1 = body1.rotation.rotate(self.r1);
         let r2 = body2.rotation.rotate(self.r2);
 
@@ -137,15 +139,17 @@ impl PenetrationConstraint {
         let compliance = self.compliance;
         let lagrange = self.tangent_lagrange;
         let penetration = self.contact.penetration;
-        let normal = self.contact.global_normal(&body1.rotation);
+        let normal = self.contact.global_normal1(&body1.rotation);
         let r1 = body1.rotation.rotate(self.r1);
         let r2 = body2.rotation.rotate(self.r2);
 
         // Compute relative motion of the contact points and get the tangential component
-        let delta_p1 = body1.current_position() - body1.previous_position.0 + r1
-            - body1.previous_rotation.rotate(self.r1);
-        let delta_p2 = body2.current_position() - body2.previous_position.0 + r2
-            - body2.previous_rotation.rotate(self.r2);
+        let delta_p1 = body1.current_position() - body1.previous_position.0
+            + body1.rotation.rotate(self.contact.point1)
+            - body1.previous_rotation.rotate(self.contact.point1);
+        let delta_p2 = body2.current_position() - body2.previous_position.0
+            + body2.rotation.rotate(self.contact.point2)
+            - body2.previous_rotation.rotate(self.contact.point2);
         let delta_p = delta_p1 - delta_p2;
         let delta_p_tangent = delta_p - delta_p.dot(normal) * normal;
 
@@ -164,11 +168,8 @@ impl PenetrationConstraint {
         let gradients = [tangent, -tangent];
         let w = [w1, w2];
 
-        // Compute combined friction coefficients
-        let static_coefficient = body1.friction.combine(*body2.friction).static_coefficient;
-
         // Apply static friction if |delta_x_perp| < mu_s * d
-        if sliding_len < static_coefficient * penetration {
+        if sliding_len < self.static_friction_coefficient * penetration {
             // Compute Lagrange multiplier update for static friction
             let delta_lagrange =
                 self.compute_lagrange_update(lagrange, sliding_len, &gradients, &w, compliance, dt);
@@ -184,3 +185,10 @@ impl PenetrationConstraint {
 }
 
 impl PositionConstraint for PenetrationConstraint {}
+
+impl MapEntities for PenetrationConstraint {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    }
+}

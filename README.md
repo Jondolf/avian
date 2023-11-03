@@ -32,19 +32,21 @@ Below are some of the current features of Bevy XPBD.
   - Access to colliding entities with `CollidingEntities`
   - Sensor colliders
   - Collision layers
+  - Filtering and modifying collisions with custom systems
 - Material properties like restitution and friction
 - Linear and angular velocity damping for simulating drag
 - External forces, torque and impulses
 - Gravity and gravity scale for specific entities
+- Locking translational and rotational axes with `LockedAxes`
+- Rigid body dominance
 - Joints
 - Built-in constraints and support for custom constraints
 - Spatial queries
-  - Ray casting
-  - Shape casting
+  - Raycasting
+  - Shapecasting
   - Point projection
   - Intersection tests
-- Locking translational and rotational axes with `LockedAxes`
-- Debug rendering colliders, AABBs, contacts, joints and axes
+- Debug rendering colliders, AABBs, contacts, joints, rigid body axes, and spatial queries
 - Automatically deactivating bodies with `Sleeping`
 - Configurable timesteps and substepping
 - `f32`/`f64` precision (`f32` by default)
@@ -92,25 +94,25 @@ fn setup(
 ) {
     // Plane
     commands.spawn((
+        RigidBody::Static,
+        Collider::cuboid(8.0, 0.002, 8.0),
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(8.0, 0.002, 8.0),
     ));
     // Cube
     commands.spawn((
+        RigidBody::Dynamic,
+        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
+        Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
-        RigidBody::Dynamic,
-        Position(Vec3::Y * 4.0),
-        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
-        Collider::cuboid(1.0, 1.0, 1.0),
     ));
     // Light
     commands.spawn(PointLightBundle {
@@ -159,8 +161,8 @@ cargo run --example cubes --no-default-features --features "3d f64"
 - Joint motors
 - Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
-- Multiple colliders per body and colliders as children
-- Collision filters, i.e. excluding certain entities or rigid body types
+- Per-entity collision hooks or callbacks
+- Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)
 - Proper cross-platform determinism
 - Soft bodies (cloth and deformable solids)

@@ -9,6 +9,8 @@ use bevy::{
 
 use crate::prelude::*;
 
+use super::sync::PreviousGlobalTransform;
+
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.
 ///
 /// This plugin does *not* initialize any other plugins or physics systems.
@@ -28,6 +30,8 @@ use crate::prelude::*;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 /// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
 /// the constraint solver.
+/// - [`PostProcessCollisions`]: Responsible for running collision post-processing systems.
+/// Empty by default.
 pub struct PhysicsSetupPlugin {
     schedule: Box<dyn ScheduleLabel>,
 }
@@ -79,6 +83,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Rotation>()
             .register_type::<PreviousPosition>()
             .register_type::<PreviousRotation>()
+            .register_type::<PreviousGlobalTransform>()
             .register_type::<AccumulatedTranslation>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
@@ -98,11 +103,17 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<Inertia>()
             .register_type::<InverseInertia>()
             .register_type::<CenterOfMass>()
+            .register_type::<ColliderDensity>()
+            .register_type::<ColliderMassProperties>()
             .register_type::<LockedAxes>()
+            .register_type::<ColliderParent>()
+            .register_type::<Dominance>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
-            .register_type::<Sensor>();
+            .register_type::<Sensor>()
+            .register_type::<ColliderTransform>()
+            .register_type::<PreviousColliderTransform>();
 
         // Configure higher level system sets for the given schedule
         let schedule = &self.schedule;
@@ -139,6 +150,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 PhysicsStepSet::BroadPhase,
                 PhysicsStepSet::Substeps,
+                PhysicsStepSet::ReportContacts,
                 PhysicsStepSet::Sleeping,
                 PhysicsStepSet::SpatialQuery,
             )
@@ -166,6 +178,7 @@ impl Plugin for PhysicsSetupPlugin {
             (
                 SubstepSet::Integrate,
                 SubstepSet::NarrowPhase,
+                SubstepSet::PostProcessCollisions,
                 SubstepSet::SolveConstraints,
                 SubstepSet::SolveUserConstraints,
                 SubstepSet::UpdateVelocities,
@@ -181,17 +194,66 @@ impl Plugin for PhysicsSetupPlugin {
             PhysicsSchedule,
             run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
+
+        // Create the PostProcessCollisions schedule for user-defined systems
+        // that filter and modify collisions.
+        let mut post_process_collisions_schedule = Schedule::default();
+
+        post_process_collisions_schedule
+            .set_executor_kind(ExecutorKind::SingleThreaded)
+            .set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+
+        app.add_schedule(PostProcessCollisions, post_process_collisions_schedule);
+
+        app.add_systems(
+            SubstepSchedule,
+            run_post_process_collisions_schedule.in_set(SubstepSet::PostProcessCollisions),
+        );
     }
 }
 
-/// Data related to the physics simulation loop.
+/// Controls the physics simulation loop.
+///
+/// ## Example
+///
+/// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         // `pause` is a provided system that calls `PhysicsLoop::pause`
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .add_systems(Startup, bevy_xpbd_2d::pause)"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .add_systems(Startup, bevy_xpbd_3d::pause)"
+)]
+///         .add_systems(Update, step_manually)
+///         .run();
+/// }
+///
+/// fn step_manually(input: Res<Input<KeyCode>>, mut physics_loop: ResMut<PhysicsLoop>) {
+///     // Advance the simulation by one frame every time Space is pressed
+///     if input.just_pressed(KeyCode::Space) {
+///         physics_loop.step();
+///     }
+/// }
+/// ```
 #[derive(Reflect, Resource, Debug, Default)]
 #[reflect(Resource)]
 pub struct PhysicsLoop {
     /// Time accumulated into the physics loop. This is consumed by the [`PhysicsSchedule`].
-    pub(crate) accumulator: Scalar,
+    pub accumulator: Scalar,
     /// Number of steps queued by the user. Time will be added to the accumulator according to the number of queued step.
-    pub(crate) queued_steps: u32,
+    pub queued_steps: u32,
     /// If [`PhysicsSchedule`] runs in [`FixedUpdate`]. Determines the delta time for the simulation.
     pub(crate) fixed_update: bool,
     /// Determines if the simulation is paused.
@@ -230,14 +292,14 @@ fn run_physics_schedule(world: &mut World) {
         .expect("no PhysicsLoop resource");
 
     #[cfg(feature = "f32")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<FixedTime>().period.as_secs_f32()
     } else {
         world.resource::<Time>().delta_seconds()
     };
 
     #[cfg(feature = "f64")]
-    let delta_seconds = if physics_loop.fixed_update {
+    let mut delta_seconds = if physics_loop.fixed_update {
         world.resource::<FixedTime>().period.as_secs_f64()
     } else {
         world.resource::<Time>().delta_seconds_f64()
@@ -252,6 +314,14 @@ fn run_physics_schedule(world: &mut World) {
         PhysicsTimestep::FixedOnce(fixed_delta_seconds) => (fixed_delta_seconds, false),
         PhysicsTimestep::Variable { max_dt } => (delta_seconds.min(max_dt), true),
     };
+
+    // On the first ever call to app.update() delta_seconds would be 0.
+    // In that case, replace it with the Fixed/FixedOnce amount.
+    // With Variable timestep, the physics accumulator won't increase until the second update().
+    if world.resource::<Time>().first_update() == world.resource::<Time>().last_update() {
+        delta_seconds = raw_dt;
+    }
+
     let dt = raw_dt * time_scale;
     world.resource_mut::<DeltaTime>().0 = dt;
 
@@ -299,4 +369,10 @@ fn run_substep_schedule(world: &mut World) {
         debug!("running SubstepSchedule: {i}");
         world.run_schedule(SubstepSchedule);
     }
+}
+
+/// Runs the [`PostProcessCollisions`] schedule.
+fn run_post_process_collisions_schedule(world: &mut World) {
+    debug!("running PostProcessCollisions");
+    world.run_schedule(PostProcessCollisions);
 }

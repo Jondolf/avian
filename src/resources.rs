@@ -12,10 +12,8 @@ use crate::prelude::*;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -67,10 +65,8 @@ impl Default for PhysicsTimestep {
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -116,10 +112,8 @@ pub struct SubDeltaTime(pub Scalar);
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -137,11 +131,6 @@ impl Default for SubstepCount {
         Self(12)
     }
 }
-
-/// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Reflect, Resource, Default, Debug)]
-#[reflect(Resource)]
-pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// A threshold that indicates the maximum linear and angular velocity allowed for a body to be deactivated.
 ///
@@ -191,23 +180,26 @@ impl Default for DeactivationTime {
 ///
 /// ## Example
 ///
-/// You can change gravity by simply inserting the [`Gravity`] resource:
-///
 /// ```no_run
 /// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
-/// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
-/// # #[cfg(all(feature = "3d", feature = "f32"))]
+/// # #[cfg(feature = "f32")]
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))
+#[cfg_attr(
+    feature = "2d",
+    doc = "         .insert_resource(Gravity(Vec2::NEG_Y * 100.0))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "         .insert_resource(Gravity(Vec3::NEG_Y * 19.6))"
+)]
 ///         .run();
 /// }
-/// # #[cfg(not(all(feature = "3d", feature = "f32")))]
+/// # #[cfg(not(feature = "f32"))]
 /// # fn main() {} // Doc test needs main
 /// ```
 ///

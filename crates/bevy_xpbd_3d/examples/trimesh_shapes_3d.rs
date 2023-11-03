@@ -1,4 +1,4 @@
-//! This example is a version of Bevy's 3d_shapes example that uses trimesh colliders for the shapes.
+//! This example is a version of Bevy's `3d_shapes` example that uses trimesh colliders for the shapes.
 //!
 //! You could also use convex decomposition to generate compound shapes from Bevy meshes.
 //! The decomposition algorithm can be slow, but the generated colliders are often faster and more robust
@@ -8,7 +8,7 @@ use bevy::{
     prelude::*,
     render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
-use bevy_xpbd_3d::{math::*, prelude::*};
+use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
 
 fn main() {
@@ -48,16 +48,16 @@ fn setup(
     for (i, shape) in shapes.into_iter().enumerate() {
         commands.spawn((
             RigidBody::Dynamic,
-            Collider::trimesh_from_bevy_mesh(&shape).unwrap(),
-            Position(Vector::new(
-                -14.5 / 2.0 + i as Scalar / (num_shapes - 1) as Scalar * 14.5,
-                2.0,
-                0.0,
-            )),
-            Rotation(Quaternion::from_rotation_x(0.4)),
+            Collider::trimesh_from_mesh(&shape).unwrap(),
             PbrBundle {
                 mesh: meshes.add(shape),
                 material: debug_material.clone(),
+                transform: Transform::from_xyz(
+                    -14.5 / 2.0 + i as f32 / (num_shapes - 1) as f32 * 14.5,
+                    2.0,
+                    0.0,
+                )
+                .with_rotation(Quat::from_rotation_x(0.4)),
                 ..default()
             },
         ));
@@ -67,10 +67,10 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(50.0, 0.1, 50.0),
-        Position(Vector::NEG_Y),
         PbrBundle {
             mesh: meshes.add(shape::Plane::from_size(50.0).into()),
             material: materials.add(Color::SILVER.into()),
+            transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         },
     ));
