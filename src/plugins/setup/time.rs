@@ -42,7 +42,7 @@ pub enum TimestepMode {
     },
 }
 
-/// The clock representing physics time, following `Time<Virtual>`.
+/// The clock representing physics time, following `Time<Real>`.
 /// Can be configured to use a fixed or variable timestep.
 ///
 /// The clock is automatically set as the generic `Time` resource for
@@ -50,7 +50,42 @@ pub enum TimestepMode {
 ///
 /// By default, a fixed timestep of 60 Hz is used.
 ///
-/// ## Example
+/// ## Usage
+///
+/// The timestep used for advancing the simulation can be configured by overwriting
+/// the [`Time<Physics>`](Physics) resource:
+///
+/// ```no_run
+/// use bevy::{prelude::*, utils::Duration};
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn main() {
+///     App::new()
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+///         .insert_resource(Time::new_with(Physics::fixed_hz(1.0 / 144.0)))
+///         .run();
+/// }
+///```
+///
+/// In the [`PhysicsSchedule`], the generic `Time` resource is automatically
+/// replaced by [`Time<Physics>`](Physics), so time works in a unified
+/// way across schedules:
+///
+/// ```
+/// # use bevy::prelude::*;
+/// #
+/// // In `Update`, `Time` is `Time<Virtual>`, but in `PhysicsSchedule` it's `Time<Physics>`
+/// fn print_delta_time(time: Res<Time>) {
+///     println!("{}", time.delta_seconds());
+/// }
+/// ```
+///
+/// ### Physics speed
+///
+/// The relative speed of physics can be configured at startup using
+/// [`with_relative_speed`](PhysicsTime::with_relative_speed) or when the app is running
+/// using [`set_relative_speed`](PhysicsTime::set_relative_speed):
 ///
 /// ```no_run
 /// use bevy::{prelude::*, utils::Duration};
@@ -66,20 +101,98 @@ pub enum TimestepMode {
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // Overwrite default timestep used for physics
-///         .insert_resource(Time::new_with(Physics::fixed_hz(1.0 / 144.0)))
-///         // In `Update`, `Time` is `Time<Virtual>`
-///         .add_systems(Update, print_delta_time)
-///         // In `PhysicsSchedule`, `Time` is `Time<Physics>`
-///         .add_systems(PhysicsSchedule, print_delta_time.before(PhysicsStepSet::Substeps))
+///         // Run physics at 0.5 speed
+///         .insert_resource(Time::<Physics>::default().with_relative_speed(0.5))
 ///         .run();
 /// }
+///```
 ///
-/// fn print_delta_time(time: Res<Time>) {
-///     println!("{}", time.delta_seconds());
+/// ### Pausing, resuming and stepping physics
+///
+/// [`Time<Physics>`](Physics) can be used to pause and resume the simulation:
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn pause(mut time: ResMut<Time<Physics>>) {
+///     time.pause();
+/// }
+///
+/// fn unpause(mut time: ResMut<Time<Physics>>) {
+///     time.unpause();
 /// }
 /// ```
-// TODO: Document when to multiply by delta time
+///
+/// To advance the simulation by a certain amount of time instantly, you can advance the
+/// [`Time<Physics>`] clock and manually run the [`PhysicsSchedule`] in an exclusive system:
+///
+/// ```
+/// use bevy::{prelude::*, utils::Duration};
+#[cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
+)]
+///
+/// fn run_physics(world: &mut World) {
+///     // Advance the simulation by 10 steps at 120 Hz
+///     for _ in 0..10 {
+///         world
+///             .resource_mut::<Time<Physics>>()
+///             .advance_by(Duration::from_secs_f64(1.0 / 120.0));
+///         world.run_schedule(PhysicsSchedule);
+///     }
+/// }
+/// ```
+///
+/// ## When to multiply by delta time?
+///
+/// Schedules like `Update` use a variable timestep, which can often cause frame rate dependent
+/// behavior when moving bodies. One way to help address the issue is by multiplying by delta time.
+///
+/// In general, if you're doing a *continuous* operation, you should always multiply by delta time,
+/// but for *instantaneous* operations it's not necessary.
+///
+/// Continuous operations move or accelerate bodies over time:
+///
+/// ```
+/// # use bevy::math::Vec3;
+/// #
+/// # let mut position = Vec3::default();
+/// # let mut velocity = Vec3::default();
+/// # let mut acceleration = Vec3::default();
+/// # let mut delta_time = 1.0 / 60.0;
+/// #
+/// // Move continuously over time
+/// position += velocity * delta_time;
+/// // Accelerate continuously
+/// velocity += acceleration * delta_time;
+/// ```
+///
+/// Instantaneous operations apply a singular sudden burst of velocity
+/// or set it to a specific value:
+///
+/// ```
+/// # use bevy::math::Vec3;
+/// #
+/// # let mut velocity = Vec3::default();
+/// # let mut impulse = Vec3::default();
+/// # let mut target_velocity = Vec3::default();
+/// #
+/// // Apply a burst of speed once (jumps, explosions and so on)
+/// velocity += impulse;
+/// // Set velocity to a specific value
+/// velocity = target_velocity;
+/// ```
+///
+/// For systems using a fixed timestep, using delta time is not necessary for frame rate
+/// independence, but it's still recommended so that the physical units are more logical.
+
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 pub struct Physics {
     timestep_mode: TimestepMode,

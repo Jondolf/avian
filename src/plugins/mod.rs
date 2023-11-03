@@ -90,39 +90,9 @@ use bevy::prelude::*;
 /// }
 /// ```
 ///
-/// Note that using `FixedUpdate` with [`PhysicsTimestep::Fixed`] can produce unexpected results due to two separate
+/// Note that using `FixedUpdate` with a fixed [physics timestep](Physics) can produce unexpected results due to two separate
 /// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
 /// when you need to keep the client and server in sync.
-///
-/// ## Running physics manually
-///
-/// You can pause, step and resume the simulation with the [`PhysicsLoop`] resource, but the changes
-/// only take affect the next frame.
-///
-/// To advance the simulation by a certain amount of time instantly, you can set the value of
-/// the [`Time<Physics>`] clock and manually run the [`PhysicsSchedule`] in an exclusive system:
-///
-/// ```
-/// use bevy::{prelude::*, utils::Duration};
-#[cfg_attr(
-    feature = "2d",
-    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
-)]
-///
-/// fn run_physics(world: &mut World) {
-///     // Advance the simulation by 10 steps at 120 Hz
-///     for _ in 0..10 {
-///         world
-///             .resource_mut::<Time<Physics>>()
-///             .advance_by(Duration::from_secs_f64(1.0 / 120.0));
-///         world.run_schedule(PhysicsSchedule);
-///     }
-/// }
-/// ```
 ///
 /// ## Custom plugins
 ///

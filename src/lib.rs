@@ -164,8 +164,8 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [Physics timestep](Physics)
-//! - [Speed up or slow down time](PhysicsTimescale)
+//! - [Physics timestep](Physics#usage)
+//! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
 //!
@@ -177,8 +177,7 @@
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
 //!     - [`PostProcessCollisions`] schedule
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
-//! - [Pausing, resuming and stepping the physics loop](PhysicsLoop)
-//! - [Running physics manually](PhysicsPlugins#running-physics-manually)
+//! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //!
 //! ### Architecture
@@ -315,7 +314,7 @@
 //! ### Can the engine be used on servers?
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
-//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](PhysicsTimestep)
+//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics)
 //! to whatever you want.
 //!
 //! One configuration is to run the client in `FixedUpdate`, and to use [`Physics::FixedOnce`] for `Time<Physics>` on both the
