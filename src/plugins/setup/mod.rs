@@ -245,10 +245,10 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
             // If paused, add the `Physics` delta time, otherwise add real time.
             if is_paused {
                 *overstep += old_delta;
-            } else if is_first_run.0 {
-                *overstep += timestep;
             } else {
-                *overstep += real_delta;
+                // TODO: This should probably use real time and not the fixed timestep,
+                //       but it seems to quickly lag and fall into the "spiral of death".
+                *overstep += timestep;
             }
 
             // Consume as many steps as possible with the fixed `delta`.
