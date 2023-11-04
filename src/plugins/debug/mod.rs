@@ -9,7 +9,7 @@ pub use configuration::*;
 pub use renderer::*;
 
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*};
+use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 
 /// A plugin that renders physics objects and properties for debugging purposes.
 /// It is not enabled by default and must be added manually.
@@ -64,7 +64,7 @@ use bevy::{ecs::query::Has, prelude::*};
 /// }
 /// ```
 pub struct PhysicsDebugPlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PhysicsDebugPlugin {
@@ -73,7 +73,7 @@ impl PhysicsDebugPlugin {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -97,7 +97,7 @@ impl Plugin for PhysicsDebugPlugin {
             .register_type::<PhysicsDebugConfig>()
             .register_type::<DebugRender>()
             .add_systems(
-                self.schedule.dyn_clone(),
+                self.schedule,
                 (
                     debug_render_axes,
                     debug_render_aabbs,
@@ -275,7 +275,7 @@ fn debug_render_contacts(
     let Some(color) = config.contact_color else {
         return;
     };
-    for Collision(contacts) in collisions.iter() {
+    for Collision(contacts) in collisions.read() {
         let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
             continue;
         };

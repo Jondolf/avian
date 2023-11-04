@@ -51,7 +51,7 @@ fn mark_sleeping_bodies(
     mut bodies: Query<SleepingQueryComponents, (Without<Sleeping>, Without<SleepingDisabled>)>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
-    dt: Res<DeltaTime>,
+    dt: Res<Time>,
 ) {
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut bodies {
         // Only dynamic bodies can sleep.
@@ -73,7 +73,7 @@ fn mark_sleeping_bodies(
         // If linear and angular velocity are below the sleeping threshold,
         // add delta time to the time sleeping, i.e. the time that the body has remained still.
         if lin_vel_sq < lin_sleeping_threshold_sq && ang_vel_sq < ang_sleeping_threshold_sq {
-            time_sleeping.0 += dt.0;
+            time_sleeping.0 += dt.delta_seconds_adjusted();
         } else {
             time_sleeping.0 = 0.0;
         }
@@ -131,7 +131,7 @@ fn wake_on_collider_removed(
     collider_storage: Res<ColliderStorageMap>,
 ) {
     let removed_colliders_iter =
-        all_colliders.iter_many(removed_colliders.iter().filter_map(|entity| {
+        all_colliders.iter_many(removed_colliders.read().filter_map(|entity| {
             collider_storage
                 .get(&entity)
                 .map(|(rb_entity, _, _)| rb_entity.get())

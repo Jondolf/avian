@@ -68,10 +68,10 @@ fn update_aabb(
         (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
         With<Children>,
     >,
-    dt: Res<DeltaTime>,
+    dt: Res<Time>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * dt.0;
+    let safety_margin_factor = 2.0 * dt.delta_seconds_adjusted();
 
     for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {

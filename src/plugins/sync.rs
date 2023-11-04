@@ -4,7 +4,7 @@
 //! See [`SyncPlugin`].
 
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*};
+use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
@@ -27,7 +27,7 @@ use bevy::{ecs::query::Has, prelude::*};
 /// If you would like a child entity to be rigidly attached to its parent, you could use a [`FixedJoint`]
 /// or write your own system to handle hierarchies differently.
 pub struct SyncPlugin {
-    schedule: Box<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl SyncPlugin {
@@ -36,7 +36,7 @@ impl SyncPlugin {
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
-            schedule: Box::new(schedule),
+            schedule: schedule.intern(),
         }
     }
 }
@@ -55,7 +55,7 @@ impl Plugin for SyncPlugin {
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
         // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
-            self.schedule.dyn_clone(),
+            self.schedule,
             ((
                 bevy::transform::systems::sync_simple_transforms,
                 bevy::transform::systems::propagate_transforms,
@@ -73,7 +73,7 @@ impl Plugin for SyncPlugin {
 
         // Apply `Transform`, `Position` and `Rotation` changes that happened during the physics frame.
         app.add_systems(
-            self.schedule.dyn_clone(),
+            self.schedule,
             (
                 (
                     // Apply `Transform` changes to `Position` and `Rotation`
@@ -237,7 +237,7 @@ pub(crate) fn propagate_collider_transforms(
     >,
     parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
 ) {
-    root_query.par_iter_mut().for_each_mut(
+    root_query.par_iter_mut().for_each(
         |(entity, transform,children)| {
             for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
                 assert_eq!(
