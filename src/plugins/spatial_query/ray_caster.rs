@@ -22,7 +22,7 @@ use parry::query::{
 /// ## Hit count and order
 ///
 /// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
-/// time of impact with the [`RayHits::iter_sorted`](RayHits#method.iter_sorted) method.
+/// time of impact with the [`RayHits::iter_sorted`] method.
 ///
 /// You can configure the maximum amount of hits for a ray using `max_hits`. By default this is unbounded,
 /// so you will get all hits. When the number or complexity of colliders is large, this can be very

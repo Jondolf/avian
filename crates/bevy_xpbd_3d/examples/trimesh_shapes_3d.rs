@@ -1,4 +1,4 @@
-//! This example is a version of Bevy's 3d_shapes example that uses trimesh colliders for the shapes.
+//! This example is a version of Bevy's `3d_shapes` example that uses trimesh colliders for the shapes.
 //!
 //! You could also use convex decomposition to generate compound shapes from Bevy meshes.
 //! The decomposition algorithm can be slow, but the generated colliders are often faster and more robust

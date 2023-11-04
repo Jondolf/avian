@@ -211,14 +211,14 @@ fn sweep_and_prune(
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (ent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
         for (ent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
+            // x doesn't intersect; check this first so we can discard as soon as possible
+            if aabb2.mins.x > aabb1.maxs.x {
+                break;
+            }
+
             // No collisions between bodies that haven't moved or colliders with incompatible layers
             if (*inactive1 && *inactive2) || !layers1.interacts_with(*layers2) {
                 continue;
-            }
-
-            // x doesn't intersect
-            if aabb2.mins.x > aabb1.maxs.x {
-                break;
             }
 
             // y doesn't intersect

@@ -1,6 +1,6 @@
 //! Collision detection is used to detect and compute intersections between [`Collider`]s.
 //!
-//! In bevy_xpbd, collision detection is split into three plugins:
+//! In `bevy_xpbd`, collision detection is split into three plugins:
 //!
 //! - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`].
 //! - [`NarrowPhasePlugin`]: Computes contacts for broad phase collision pairs and adds them to [`Collisions`].
@@ -40,11 +40,11 @@ use indexmap::IndexMap;
 ///
 /// The following methods can be used for querying existing collisions:
 ///
-/// - [`get`](#method.get) and [`get_mut`](#method.get_mut)
-/// - [`iter`](#method.iter) and [`iter_mut`](#method.iter_mut)
-/// - [`contains`](#method.contains)
-/// - [`collisions_with_entity`](#method.collisions_with_entity) and
-/// [`collisions_with_entity_mut`](#method.collisions_with_entity_mut)
+/// - [`get`](Self::get) and [`get_mut`](Self::get_mut)
+/// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
+/// - [`contains`](Self::contains)
+/// - [`collisions_with_entity`](Self::collisions_with_entity) and
+/// [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
 ///
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
@@ -53,9 +53,9 @@ use indexmap::IndexMap;
 ///
 /// The following methods can be used for filtering or removing existing collisions:
 ///
-/// - [`retain`](#method.retain)
-/// - [`remove_collision_pair`](#method.remove_collision_pair)
-/// - [`remove_collisions_with_entity`](#method.remove_collisions_with_entity)
+/// - [`retain`](Self::retain)
+/// - [`remove_collision_pair`](Self::remove_collision_pair)
+/// - [`remove_collisions_with_entity`](Self::remove_collisions_with_entity)
 ///
 /// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver will use the old contact data.
@@ -64,8 +64,8 @@ use indexmap::IndexMap;
 ///
 /// The following methods can be used for adding new collisions:
 ///
-/// - [`insert_collision_pair`](#method.insert_collision_pair)
-/// - [`extend`](#method.extend)
+/// - [`insert_collision_pair`](Self::insert_collision_pair)
+/// - [`extend`](Self::extend)
 ///
 /// The most convenient place for adding new collisions is in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver might not have access to them in time.
@@ -76,7 +76,7 @@ use indexmap::IndexMap;
 /// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
 ///
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
-/// you can use [`get_internal`](#method.get_internal) or [`get_internal_mut`](#method.get_internal_mut).
+/// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
 pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
@@ -184,8 +184,8 @@ impl Collisions {
     /// and the old value will be returned. Otherwise, `None` is returned.
     ///
     /// **Note**: Manually inserting collisions can be error prone and should generally be avoided.
-    /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](#method.get_mut)
-    /// or [`iter_mut`](#method.iter_mut).
+    /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](Self::get_mut)
+    /// or [`iter_mut`](Self::iter_mut).
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
         // TODO: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
         // entity ID. This requires changes elsewhere as well though.
@@ -195,7 +195,7 @@ impl Collisions {
 
     /// Extends [`Collisions`] with all collision pairs in the given iterable.
     ///
-    /// This is mostly equivalent to calling [`insert_collision_pair`](#method.insert_collision_pair)
+    /// This is mostly equivalent to calling [`insert_collision_pair`](Self::insert_collision_pair)
     /// for each of the collision pairs.
     pub fn extend<I: IntoIterator<Item = Contacts>>(&mut self, collisions: I) {
         // (Note: this is a copy of `std`/`hashbrown`/`indexmap`'s reservation logic.)

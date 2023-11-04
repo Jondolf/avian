@@ -42,7 +42,7 @@ impl Default for SpatialQueryPipeline {
 }
 
 impl SpatialQueryPipeline {
-    /// Creates a new [SpatialQueryPipeline].
+    /// Creates a new [`SpatialQueryPipeline`].
     pub fn new() -> SpatialQueryPipeline {
         SpatialQueryPipeline::default()
     }
@@ -145,7 +145,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::cast_ray]
+    /// See also: [`SpatialQuery::cast_ray`]
     pub fn cast_ray(
         &self,
         origin: Vector,
@@ -187,7 +187,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::ray_hits]
+    /// See also: [`SpatialQuery::ray_hits`]
     pub fn ray_hits(
         &self,
         origin: Vector,
@@ -227,7 +227,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::ray_hits_callback]
+    /// See also: [`SpatialQuery::ray_hits_callback`]
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
@@ -286,7 +286,7 @@ impl SpatialQueryPipeline {
     /// hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::cast_shape]
+    /// See also: [`SpatialQuery::cast_shape`]
     #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
@@ -350,7 +350,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::shape_hits]
+    /// See also: [`SpatialQuery::shape_hits`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits(
         &self,
@@ -397,7 +397,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [SpatialQuery::shape_hits_callback]
+    /// See also: [`SpatialQuery::shape_hits_callback`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits_callback(
         &self,
@@ -468,7 +468,7 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::project_point]
+    /// See also: [`SpatialQuery::project_point`]
     pub fn project_point(
         &self,
         point: Vector,
@@ -497,7 +497,7 @@ impl SpatialQueryPipeline {
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::point_intersections]
+    /// See also: [`SpatialQuery::point_intersections`]
     pub fn point_intersections(
         &self,
         point: Vector,
@@ -521,7 +521,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// See also: [SpatialQuery::point_intersections_callback]
+    /// See also: [`SpatialQuery::point_intersections_callback`]
     pub fn point_intersections_callback(
         &self,
         point: Vector,
@@ -549,7 +549,7 @@ impl SpatialQueryPipeline {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
     /// that is intersecting the given `aabb`.
     ///
-    /// See also: [SpatialQuery::point_intersections_callback]
+    /// See also: [`SpatialQuery::point_intersections_callback`]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
         let mut intersections = vec![];
         self.aabb_intersections_with_aabb_callback(aabb, |e| {
@@ -563,7 +563,7 @@ impl SpatialQueryPipeline {
     /// that is intersecting the given `aabb`, calling `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// See also: [SpatialQuery::aabb_intersections_with_aabb_callback]
+    /// See also: [`SpatialQuery::aabb_intersections_with_aabb_callback`]
     pub fn aabb_intersections_with_aabb_callback(
         &self,
         aabb: ColliderAabb,
@@ -588,7 +588,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [SpatialQuery::shape_intersections]
+    /// See also: [`SpatialQuery::shape_intersections`]
     pub fn shape_intersections(
         &self,
         shape: &Collider,
@@ -622,7 +622,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// See also: [SpatialQuery::shape_intersections_callback]
+    /// See also: [`SpatialQuery::shape_intersections_callback`]
     pub fn shape_intersections_callback(
         &self,
         shape: &Collider,
