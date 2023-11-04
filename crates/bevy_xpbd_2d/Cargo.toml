@@ -48,6 +48,14 @@ approx = "0.5"
 insta = "1.0"
 
 [[example]]
+name = "dynamic_character_2d"
+required-features = ["2d"]
+
+[[example]]
+name = "kinematic_character_2d"
+required-features = ["2d"]
+
+[[example]]
 name = "chain_2d"
 required-features = ["2d"]
 

@@ -177,11 +177,28 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 ## Contributing
 
-If you encounter any problems, feel free to open issues. Creating pull requests is encouraged
-as well, but especially for larger changes and additions it's better to open an issue first.
+If you encounter any problems, feel free to open issues or create pull requests.
+For larger changes and additions, it's better to open an issue or ask me for input
+before making a pull request.
 
-You can also ask for help or ask questions on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph)
-where you can find me as `Jondolf`.
+You can also ask for help or ask questions on the [Bevy Discord](https://discord.com/invite/gMUk5Ph)
+server's `bevy_xpbd` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
+
+## Acknowledgements
+
+Huge thanks to the entire Bevy community for the incredible support!
+All of your contributions, insight and requests are a massive help
+in driving the state of physics in Bevy forward, and it's what
+keeps me motivated to build the best engine I can.
+
+I would also like to give a special thanks to [Johan Helsing][johan-helsing]
+for inspiring this project and helping me significantly in the early stages.
+His original [tutorial series][johan-xpbd-tutorial] is the reason `bevy_xpbd`
+exists in the first place, and without his support and contributions,
+the project wouldn't be anywhere near where it is today.
+
+[johan-helsing]: https://github.com/johanhelsing
+[johan-xpbd-tutorial]: https://johanhelsing.studio/posts/bevy-xpbd
 
 ## License
 
