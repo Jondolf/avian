@@ -53,11 +53,11 @@ insta = "1.0"
 
 [[example]]
 name = "dynamic_character"
-required-features = ["3d"]
+required-features = ["3d", "async-collider"]
 
 [[example]]
 name = "kinematic_character"
-required-features = ["3d"]
+required-features = ["3d", "async-collider"]
 
 [[example]]
 name = "chain_3d"
