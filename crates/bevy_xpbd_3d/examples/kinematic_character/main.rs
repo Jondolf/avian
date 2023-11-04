@@ -47,7 +47,19 @@ fn setup(
             ..default()
         },
         CharacterControllerBundle::new(Collider::capsule(1.0, 0.4), Vector::NEG_Y * 9.81 * 2.0)
-            .with_movement(30.0, 0.92, 7.0, PI * 0.2),
+            .with_movement(30.0, 0.92, 7.0, (30.0 as Scalar).to_radians()),
+    ));
+
+    // A cube to move around
+    commands.spawn((
+        RigidBody::Dynamic,
+        Collider::cuboid(1.0, 1.0, 1.0),
+        PbrBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            transform: Transform::from_xyz(3.0, 2.0, 3.0),
+            ..default()
+        },
     ));
 
     // Environment (see `async_colliders` example for creating colliders from scenes)
@@ -59,18 +71,6 @@ fn setup(
         },
         AsyncSceneCollider::new(Some(ComputedCollider::ConvexHull)),
         RigidBody::Static,
-    ));
-
-    // A cube to play around with
-    commands.spawn((
-        RigidBody::Dynamic,
-        Collider::cuboid(1.0, 1.0, 1.0),
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-            transform: Transform::from_xyz(3.0, 2.0, 3.0),
-            ..default()
-        },
     ));
 
     // Light

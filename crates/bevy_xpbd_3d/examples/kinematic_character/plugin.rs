@@ -211,7 +211,7 @@ fn update_grounded(
         // that isn't too steep.
         let is_grounded = hits.iter().any(|hit| {
             if let Some(angle) = max_slope_angle {
-                rotation.rotate(-hit.normal2).angle_between(Vector::Y) <= angle.0
+                rotation.rotate(-hit.normal2).angle_between(Vector::Y).abs() <= angle.0
             } else {
                 true
             }
@@ -352,7 +352,7 @@ fn kinematic_controller_collisions(
 
             // If the slope isn't too steep to walk on but the character
             // is falling, reset vertical velocity.
-            if max_slope_angle.is_some_and(|angle| normal.angle_between(Vector::Y) <= angle.0)
+            if max_slope_angle.is_some_and(|angle| normal.angle_between(Vector::Y).abs() <= angle.0)
                 && linear_velocity.y < 0.0
             {
                 linear_velocity.y = linear_velocity.y.max(0.0);
