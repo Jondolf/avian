@@ -317,7 +317,7 @@
 //! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics)
 //! to whatever you want.
 //!
-//! One configuration is to run the client in `FixedUpdate`, and to use a fixed timestep for `Time<Physics>`
+//! One configuration is to run the client in `FixedUpdate`, and to use a fixed timestep for [`Time<Physics>`](Physics)
 //! on both the server and the client to make sure the physics simulation is only advanced by one step
 //! each time the schedule runs.
 //!
