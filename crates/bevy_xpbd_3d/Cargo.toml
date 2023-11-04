@@ -52,11 +52,11 @@ criterion = { version = "0.4", features = ["html_reports"] }
 insta = "1.0"
 
 [[example]]
-name = "dynamic_character"
+name = "dynamic_character_3d"
 required-features = ["3d", "async-collider"]
 
 [[example]]
-name = "kinematic_character"
+name = "kinematic_character_3d"
 required-features = ["3d", "async-collider"]
 
 [[example]]
