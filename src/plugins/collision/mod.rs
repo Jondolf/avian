@@ -281,6 +281,18 @@ pub struct ContactManifold {
     pub normal2: Vector,
 }
 
+impl ContactManifold {
+    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
+    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal1)
+    }
+
+    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal2)
+    }
+}
+
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContactData {
