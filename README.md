@@ -176,6 +176,22 @@ as well, but especially for larger changes and additions it's better to open an 
 You can also ask for help or ask questions on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph)
 where you can find me as `Jondolf`.
 
+## Acknowledgements
+
+Huge thanks to the entire Bevy community for the incredible support!
+All of your contributions, insight and requests are a massive help
+in driving the state of physics in Bevy forward, and it's what
+keeps me motivated to build the best engine I can.
+
+I would also like to give a special thanks to [Johan Helsing][johan-helsing]
+for inspiring this project and helping me significantly in the early stages.
+His original [tutorial series][johan-xpbd-tutorial] is the reason `bevy_xpbd`
+exists in the first place, and without his support and contributions,
+the project wouldn't be anywhere near where it is today.
+
+[johan-helsing]: https://github.com/johanhelsing
+[johan-xpbd-tutorial]: https://johanhelsing.studio/posts/bevy-xpbd
+
 ## License
 
 Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
