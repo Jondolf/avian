@@ -170,11 +170,12 @@ cargo run --example cubes --no-default-features --features "3d f64"
 
 ## Contributing
 
-If you encounter any problems, feel free to open issues. Creating pull requests is encouraged
-as well, but especially for larger changes and additions it's better to open an issue first.
+If you encounter any problems, feel free to open issues or create pull requests.
+For larger changes and additions, it's better to open an issue or ask me for input
+before making a pull request.
 
-You can also ask for help or ask questions on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph)
-where you can find me as `Jondolf`.
+You can also ask for help or ask questions on the [Bevy Discord](https://discord.com/invite/gMUk5Ph)
+server's `bevy_xpbd` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
 
 ## Acknowledgements
 
