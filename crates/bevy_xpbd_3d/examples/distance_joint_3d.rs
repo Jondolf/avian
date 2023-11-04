@@ -2,13 +2,10 @@ use bevy::prelude::*;
 use bevy_xpbd_3d::{math::*, prelude::*};
 
 fn main() {
-    let mut app = App::new();
-
-    // Add plugins and startup system
-    app.add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-        .add_systems(Startup, setup);
-    // Run the app
-    app.run();
+    App::new()
+        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_systems(Startup, setup)
+        .run();
 }
 
 fn setup(

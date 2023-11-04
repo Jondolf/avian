@@ -35,7 +35,7 @@ fn setup(mut commands: Commands) {
         .spawn((
             SpriteBundle {
                 sprite: square_sprite,
-                transform: Transform::from_xyz(0.0, -100.0, 0.0),
+                transform: Transform::from_xyz(100.0, 0.0, 0.0),
                 ..default()
             },
             RigidBody::Dynamic,
