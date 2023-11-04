@@ -126,7 +126,7 @@ pub enum TimestepMode {
 /// ```
 ///
 /// To advance the simulation by a certain amount of time instantly, you can advance the
-/// [`Time<Physics>`] clock and manually run the [`PhysicsSchedule`] in an exclusive system:
+/// [`Time<Physics>`](Physics) clock and manually run the [`PhysicsSchedule`] in an exclusive system:
 ///
 /// ```
 /// use bevy::{prelude::*, utils::Duration};
