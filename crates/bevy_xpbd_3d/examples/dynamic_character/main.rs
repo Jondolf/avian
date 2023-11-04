@@ -45,8 +45,12 @@ fn setup(
             transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
-        CharacterControllerBundle::new(Collider::capsule(1.0, 0.4), Vector::NEG_Y * 9.81 * 2.0)
-            .with_movement(30.0, 0.92, 7.0, PI * 0.2),
+        CharacterControllerBundle::new(Collider::capsule(1.0, 0.4)).with_movement(
+            30.0,
+            0.92,
+            7.0,
+            PI * 0.2,
+        ),
         Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
         GravityScale(2.0),

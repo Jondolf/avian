@@ -47,10 +47,6 @@ pub struct MovementDampingFactor(Scalar);
 #[derive(Component)]
 pub struct JumpImpulse(Scalar);
 
-/// The gravitational acceleration used for a character controller.
-#[derive(Component)]
-pub struct ControllerGravity(Vector);
-
 /// The maximum angle a slope can have for a character controller
 /// to be able to climb and jump. If the slope is steeper than this angle,
 /// the character will slide down.
@@ -66,7 +62,6 @@ pub struct CharacterControllerBundle {
     collider: Collider,
     ground_caster: ShapeCaster,
     locked_axes: LockedAxes,
-    gravity: ControllerGravity,
     movement: MovementBundle,
 }
 
@@ -102,7 +97,7 @@ impl Default for MovementBundle {
 }
 
 impl CharacterControllerBundle {
-    pub fn new(collider: Collider, gravity: Vector) -> Self {
+    pub fn new(collider: Collider) -> Self {
         // Create shape caster as a slightly smaller version of collider
         let mut caster_shape = collider.clone();
         caster_shape.set_scale(Vector::ONE * 0.99, 10);
@@ -119,7 +114,6 @@ impl CharacterControllerBundle {
             )
             .with_max_time_of_impact(0.2),
             locked_axes: LockedAxes::ROTATION_LOCKED,
-            gravity: ControllerGravity(gravity),
             movement: MovementBundle::default(),
         }
     }
