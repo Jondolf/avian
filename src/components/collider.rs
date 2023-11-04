@@ -1063,9 +1063,10 @@ impl ColliderParent {
 /// This is in the local space of the body, not the collider itself.
 ///
 /// This is used for computing things like contact positions and a body's center of mass
-/// without having to traverse deeply nested hierarchies.
+/// without having to traverse deeply nested hierarchies. It's updated automatically,
+/// so you shouldn't modify it manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
-pub(crate) struct ColliderTransform {
+pub struct ColliderTransform {
     /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
     /// The rotation of a collider in a rigid body's frame of reference.
