@@ -239,16 +239,17 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
         // For `TimestepMode::Fixed`, this is computed using the accumulated overstep.
         let mut queued_steps = 1;
 
-        if let TimestepMode::Fixed { delta, overstep } =
-            world.resource_mut::<Time<Physics>>().timestep_mode_mut()
+        if let TimestepMode::Fixed {
+            delta,
+            overstep,
+            max_delta_overstep,
+        } = world.resource_mut::<Time<Physics>>().timestep_mode_mut()
         {
             // If paused, add the `Physics` delta time, otherwise add real time.
             if is_paused {
                 *overstep += old_delta;
             } else {
-                // TODO: This should probably use real time and not the fixed timestep,
-                //       but it seems to quickly lag and fall into the "spiral of death".
-                *overstep += timestep;
+                *overstep += real_delta.min(*max_delta_overstep);
             }
 
             // Consume as many steps as possible with the fixed `delta`.
