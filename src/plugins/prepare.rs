@@ -91,13 +91,7 @@ impl Plugin for PreparePlugin {
         );
 
         #[cfg(all(feature = "3d", feature = "async-collider"))]
-        app.add_systems(
-            Update,
-            (
-                init_async_colliders,
-                init_async_scene_colliders.after(bevy::scene::scene_spawner_system),
-            ),
-        );
+        app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
     }
 }
 
