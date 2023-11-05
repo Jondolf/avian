@@ -239,23 +239,25 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
         // For `TimestepMode::Fixed`, this is computed using the accumulated overstep.
         let mut queued_steps = 1;
 
-        if let TimestepMode::Fixed {
-            delta,
-            overstep,
-            max_delta_overstep,
-        } = world.resource_mut::<Time<Physics>>().timestep_mode_mut()
-        {
-            // If paused, add the `Physics` delta time, otherwise add real time.
-            if is_paused {
-                *overstep += old_delta;
-            } else {
-                *overstep += real_delta.min(*max_delta_overstep);
-            }
+        if !is_first_run.0 {
+            if let TimestepMode::Fixed {
+                delta,
+                overstep,
+                max_delta_overstep,
+            } = world.resource_mut::<Time<Physics>>().timestep_mode_mut()
+            {
+                // If paused, add the `Physics` delta time, otherwise add real time.
+                if is_paused {
+                    *overstep += old_delta;
+                } else {
+                    *overstep += real_delta.min(*max_delta_overstep);
+                }
 
-            // Consume as many steps as possible with the fixed `delta`.
-            queued_steps = (overstep.as_secs_f64() / delta.as_secs_f64()) as usize;
-            *overstep -= delta.mul_f64(queued_steps as f64);
-        };
+                // Consume as many steps as possible with the fixed `delta`.
+                queued_steps = (overstep.as_secs_f64() / delta.as_secs_f64()) as usize;
+                *overstep -= delta.mul_f64(queued_steps as f64);
+            }
+        }
 
         // Advance physics clock by timestep if not paused.
         if !is_paused {
