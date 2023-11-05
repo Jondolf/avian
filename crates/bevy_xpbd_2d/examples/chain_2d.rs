@@ -60,7 +60,7 @@ fn setup(
                     material: particle_material.clone(),
                     transform: Transform::from_xyz(
                         0.0,
-                        i as f32 * (particle_radius as f32 * 2.0 + 1.0),
+                        -i as f32 * (particle_radius as f32 * 2.0 + 1.0),
                         0.0,
                     ),
                     ..default()
