@@ -69,6 +69,7 @@ fn update_aabb(
         With<Children>,
     >,
     dt: Res<Time>,
+    narrow_phase_config: Option<Res<NarrowPhaseConfig>>,
 ) {
     // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
     let safety_margin_factor = 2.0 * dt.delta_seconds_adjusted();
@@ -126,6 +127,29 @@ fn update_aabb(
         aabb.0 = collider
             .shape_scaled()
             .compute_swept_aabb(&start_iso, &end_iso);
+
+        // Add narrow phase prediction distance to AABBs to avoid missed collisions
+        let prediction_distance = if let Some(ref config) = narrow_phase_config {
+            config.prediction_distance
+        } else {
+            #[cfg(feature = "2d")]
+            {
+                1.0
+            }
+            #[cfg(feature = "3d")]
+            {
+                0.005
+            }
+        };
+        aabb.maxs.x += prediction_distance;
+        aabb.mins.x -= prediction_distance;
+        aabb.maxs.y += prediction_distance;
+        aabb.mins.y -= prediction_distance;
+        #[cfg(feature = "3d")]
+        {
+            aabb.maxs.z += prediction_distance;
+            aabb.mins.z -= prediction_distance;
+        }
     }
 }
 
