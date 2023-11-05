@@ -113,8 +113,7 @@ pub fn collect_collisions(
                         let contacts = Contacts {
                             entity1: *entity1,
                             entity2: *entity2,
-                            during_current_frame: previous_contact
-                                .map_or(false, |c| c.during_current_frame),
+                            during_current_frame: true,
                             during_current_substep: true,
                             during_previous_frame: previous_contact
                                 .map_or(false, |c| c.during_previous_frame),
@@ -157,8 +156,7 @@ pub fn collect_collisions(
                 let contacts = Contacts {
                     entity1: *entity1,
                     entity2: *entity2,
-                    during_current_frame: previous_contact
-                        .map_or(false, |c| c.during_current_frame),
+                    during_current_frame: true,
                     during_current_substep: true,
                     during_previous_frame: previous_contact
                         .map_or(false, |c| c.during_previous_frame),
