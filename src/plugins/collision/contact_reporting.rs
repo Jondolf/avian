@@ -158,7 +158,7 @@ pub fn report_contacts(
             collision_ev_writer.send(Collision(contacts.clone()));
 
             // Collision started
-            if contacts.during_current_frame && !contacts.during_previous_frame {
+            if !contacts.during_previous_frame {
                 collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
 
                 if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
@@ -171,7 +171,7 @@ pub fn report_contacts(
         }
 
         // Collision ended
-        if !contacts.during_current_frame {
+        if !contacts.during_current_frame && contacts.during_previous_frame {
             collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
 
             if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
