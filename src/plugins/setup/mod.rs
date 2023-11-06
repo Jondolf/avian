@@ -270,7 +270,7 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
 
             // Advance simulation by the number of queued steps.
             for _ in 0..queued_steps {
-                debug!("running PhysicsSchedule");
+                trace!("running PhysicsSchedule");
                 schedule.run(world);
             }
         }
@@ -301,7 +301,7 @@ fn run_substep_schedule(world: &mut World) {
 
     let _ = world.try_schedule_scope(SubstepSchedule, |world, schedule| {
         for i in 0..substeps {
-            debug!("running SubstepSchedule: {i}");
+            trace!("running SubstepSchedule: {i}");
             *world.resource_mut::<Time>() = world.resource::<Time<Substeps>>().as_generic();
             schedule.run(world);
         }
@@ -312,6 +312,6 @@ fn run_substep_schedule(world: &mut World) {
 
 /// Runs the [`PostProcessCollisions`] schedule.
 fn run_post_process_collisions_schedule(world: &mut World) {
-    debug!("running PostProcessCollisions");
+    trace!("running PostProcessCollisions");
     world.run_schedule(PostProcessCollisions);
 }
