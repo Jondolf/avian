@@ -94,7 +94,12 @@ struct ColliderQuery<'w> {
 #[allow(clippy::type_complexity)]
 fn penetration_constraints(
     mut commands: Commands,
-    mut bodies: Query<(RigidBodyQuery, Option<&Sensor>, Option<&Sleeping>)>,
+    mut bodies: Query<(
+        RigidBodyQuery,
+        Option<&Name>,
+        Option<&Sensor>,
+        Option<&Sleeping>,
+    )>,
     colliders: Query<ColliderQuery>,
     mut penetration_constraints: ResMut<PenetrationConstraints>,
     mut collisions: ResMut<Collisions>,
@@ -128,8 +133,8 @@ fn penetration_constraints(
         contacts.during_current_substep = false;
 
         if let Ok([bundle1, bundle2]) = bodies.get_many_mut([collider_parent1, collider_parent2]) {
-            let (mut body1, sensor1, sleeping1) = bundle1;
-            let (mut body2, sensor2, sleeping2) = bundle2;
+            let (mut body1, name1, sensor1, sleeping1) = bundle1;
+            let (mut body2, name2, sensor2, sleeping2) = bundle2;
 
             let inactive1 = body1.rb.is_static() || sleeping1.is_some();
             let inactive2 = body2.rb.is_static() || sleeping2.is_some();
@@ -156,10 +161,21 @@ fn penetration_constraints(
             }
 
             if body1.rb.is_added() || body2.rb.is_added() {
+                // if the RigidBody entity has a name, use that for debug.
+                let debug_id1 = match name1 {
+                    Some(n) => format!("{:?} ({n})", body1.entity),
+                    None => format!("{:?}", body1.entity),
+                };
+                let debug_id2 = match name2 {
+                    Some(n) => format!("{:?} ({n})", body2.entity),
+                    None => format!("{:?}", body2.entity),
+                };
                 warn!(
-                    "{:?} and {:?} are overlapping at spawn, which can result in explosive behavior.",
-                    body1.entity, body2.entity,
+                    "{} and {} are overlapping at spawn, which can result in explosive behavior.",
+                    debug_id1, debug_id2,
                 );
+                debug!("{} is at {}", debug_id1, body1.position.0);
+                debug!("{} is at {}", debug_id2, body2.position.0);
             }
 
             // Get combined friction and restitution coefficients of the colliders
