@@ -160,24 +160,6 @@ fn penetration_constraints(
                 commands.entity(body2.entity).remove::<Sleeping>();
             }
 
-            if body1.rb.is_added() || body2.rb.is_added() {
-                // if the RigidBody entity has a name, use that for debug.
-                let debug_id1 = match name1 {
-                    Some(n) => format!("{:?} ({n})", body1.entity),
-                    None => format!("{:?}", body1.entity),
-                };
-                let debug_id2 = match name2 {
-                    Some(n) => format!("{:?} ({n})", body2.entity),
-                    None => format!("{:?}", body2.entity),
-                };
-                warn!(
-                    "{} and {} are overlapping at spawn, which can result in explosive behavior.",
-                    debug_id1, debug_id2,
-                );
-                debug!("{} is at {}", debug_id1, body1.position.0);
-                debug!("{} is at {}", debug_id2, body2.position.0);
-            }
-
             // Get combined friction and restitution coefficients of the colliders
             // or the bodies they are attached to.
             let friction = collider1
@@ -220,6 +202,24 @@ fn penetration_constraints(
                         contacts.during_current_substep = true;
                     }
                 }
+            }
+
+            if contacts.during_current_substep && body1.rb.is_added() || body2.rb.is_added() {
+                // if the RigidBody entity has a name, use that for debug.
+                let debug_id1 = match name1 {
+                    Some(n) => format!("{:?} ({n})", body1.entity),
+                    None => format!("{:?}", body1.entity),
+                };
+                let debug_id2 = match name2 {
+                    Some(n) => format!("{:?} ({n})", body2.entity),
+                    None => format!("{:?}", body2.entity),
+                };
+                warn!(
+                    "{} and {} are overlapping at spawn, which can result in explosive behavior.",
+                    debug_id1, debug_id2,
+                );
+                debug!("{} is at {}", debug_id1, body1.position.0);
+                debug!("{} is at {}", debug_id2, body2.position.0);
             }
         }
     }
