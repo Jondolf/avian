@@ -83,7 +83,7 @@ impl Default for TimestepMode {
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(Time::new_with(Physics::fixed_hz(1.0 / 144.0)))
+///         .insert_resource(Time::new_with(Physics::fixed_hz(144.0)))
 ///         .run();
 /// }
 ///```
@@ -226,7 +226,7 @@ impl Default for Physics {
         // TODO: Bevy's fixed timestep is 64 Hz, but it causes physics
         //       to be run twice in a single frame every 0.25 seconds.
         //       It would be nice to have the timestep be more unified though.
-        Self::fixed_hz(1.0 / 60.0)
+        Self::fixed_hz(60.0)
     }
 }
 
@@ -250,7 +250,7 @@ impl Physics {
         assert!(hz > 0.0, "Hz less than or equal to zero");
         assert!(hz.is_finite(), "Hz is infinite");
         Self::from_timestep(TimestepMode::Fixed {
-            delta: Duration::from_secs_f64(hz),
+            delta: Duration::from_secs_f64(1.0 / hz),
             overstep: Duration::ZERO,
             max_delta_overstep: Duration::from_secs_f64(1.0 / 60.0),
         })
@@ -271,12 +271,13 @@ impl Physics {
         assert!(hz > 0.0, "Hz less than or equal to zero");
         assert!(hz.is_finite(), "Hz is infinite");
         Self::from_timestep(TimestepMode::FixedOnce {
-            delta: Duration::from_secs_f64(hz),
+            delta: Duration::from_secs_f64(1.0 / hz),
         })
     }
 
     /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::Variable`]
-    /// using the given frequency in Hertz (1/second).
+    /// using the given maximum duration that the simulation can be advanced by during
+    /// a single frame in seconds.
     ///
     /// # Panics
     ///
