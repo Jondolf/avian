@@ -45,8 +45,15 @@ impl Default for PreparePlugin {
     }
 }
 
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum PrepareSet {
+    Init,
+}
+
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
+        app.configure_sets(self.schedule, PrepareSet::Init.in_set(PhysicsSet::Prepare));
+
         app.init_resource::<ColliderStorageMap>().add_systems(
             self.schedule,
             (
@@ -78,6 +85,7 @@ impl Plugin for PreparePlugin {
                 apply_deferred,
             )
                 .chain()
+                .after(PrepareSet::Init)
                 .in_set(PhysicsSet::Prepare),
         );
 
