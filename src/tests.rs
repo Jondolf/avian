@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use approx::assert_relative_eq;
-use bevy::{prelude::*, time::TimeUpdateStrategy, utils::Instant};
+use bevy::{
+    ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
+};
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
 use std::time::Duration;
@@ -212,4 +214,23 @@ fn cubes_simulation_is_locally_deterministic() {
     for (a, b) in (0..4).map(|_| run_cubes()).tuple_windows() {
         assert_eq!(a, b);
     }
+}
+
+#[test]
+fn no_ambiguity_errors() {
+    #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
+    struct DeterministicSchedule;
+
+    App::new()
+        .add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)))
+        .edit_schedule(DeterministicSchedule, |s| {
+            s.set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+        })
+        .add_systems(Update, |w: &mut World| {
+            w.run_schedule(DeterministicSchedule);
+        })
+        .update();
 }
