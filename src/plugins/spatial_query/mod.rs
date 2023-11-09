@@ -189,7 +189,7 @@ impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpatialQueryPipeline>().add_systems(
             self.schedule,
-            (init_ray_hits, init_shape_hit).in_set(PhysicsSet::Prepare),
+            (init_ray_hits, init_shape_hit).in_set(PrepareSet::Init),
         );
 
         let physics_schedule = app
