@@ -66,8 +66,8 @@ use derive_more::From;
 ///
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
 ///
-/// Note that by default, rigid bodies don't have any mass, so dynamic bodies can
-/// gain infinite velocity during interactions. See [mass properties](#mass-properties).
+/// By default, rigid bodies will get a mass based on their collider and density.
+/// See [mass properties](#mass-properties).
 ///
 /// ## Movement
 ///
