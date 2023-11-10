@@ -129,77 +129,71 @@ impl Plugin for PhysicsSetupPlugin {
                 .before(TransformSystem::TransformPropagate),
         );
 
-        // Create physics schedule, the schedule that advances the physics simulation
-        let mut physics_schedule = Schedule::new(PhysicsSchedule);
+        // Set up the physics schedule, the schedule that advances the physics simulation
+        app.edit_schedule(PhysicsSchedule, |schedule| {
+            schedule
+                .set_executor_kind(ExecutorKind::SingleThreaded)
+                .set_build_settings(ScheduleBuildSettings {
+                    ambiguity_detection: LogLevel::Error,
+                    ..default()
+                });
 
-        physics_schedule
-            .set_executor_kind(ExecutorKind::SingleThreaded)
-            .set_build_settings(ScheduleBuildSettings {
-                ambiguity_detection: LogLevel::Error,
-                ..default()
-            });
-
-        physics_schedule.configure_sets(
-            (
-                PhysicsStepSet::BroadPhase,
-                PhysicsStepSet::Substeps,
-                PhysicsStepSet::ReportContacts,
-                PhysicsStepSet::Sleeping,
-                PhysicsStepSet::SpatialQuery,
-            )
-                .chain(),
-        );
-
-        app.add_schedule(physics_schedule);
+            schedule.configure_sets(
+                (
+                    PhysicsStepSet::BroadPhase,
+                    PhysicsStepSet::Substeps,
+                    PhysicsStepSet::ReportContacts,
+                    PhysicsStepSet::Sleeping,
+                    PhysicsStepSet::SpatialQuery,
+                )
+                    .chain(),
+            );
+        });
 
         app.add_systems(
             schedule,
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
         );
 
-        // Create substep schedule, the schedule that runs the inner substepping loop
-        let mut substep_schedule = Schedule::new(SubstepSchedule);
+        // Set up the substep schedule, the schedule that runs the inner substepping loop
+        app.edit_schedule(SubstepSchedule, |schedule| {
+            schedule
+                .set_executor_kind(ExecutorKind::SingleThreaded)
+                .set_build_settings(ScheduleBuildSettings {
+                    ambiguity_detection: LogLevel::Error,
+                    ..default()
+                });
 
-        substep_schedule
-            .set_executor_kind(ExecutorKind::SingleThreaded)
-            .set_build_settings(ScheduleBuildSettings {
-                ambiguity_detection: LogLevel::Error,
-                ..default()
-            });
-
-        substep_schedule.configure_sets(
-            (
-                SubstepSet::Integrate,
-                SubstepSet::NarrowPhase,
-                SubstepSet::PostProcessCollisions,
-                SubstepSet::SolveConstraints,
-                SubstepSet::SolveUserConstraints,
-                SubstepSet::UpdateVelocities,
-                SubstepSet::SolveVelocities,
-                SubstepSet::ApplyTranslation,
-            )
-                .chain(),
-        );
-
-        app.add_schedule(substep_schedule);
+            schedule.configure_sets(
+                (
+                    SubstepSet::Integrate,
+                    SubstepSet::NarrowPhase,
+                    SubstepSet::PostProcessCollisions,
+                    SubstepSet::SolveConstraints,
+                    SubstepSet::SolveUserConstraints,
+                    SubstepSet::UpdateVelocities,
+                    SubstepSet::SolveVelocities,
+                    SubstepSet::ApplyTranslation,
+                )
+                    .chain(),
+            );
+        });
 
         app.add_systems(
             PhysicsSchedule,
             run_substep_schedule.in_set(PhysicsStepSet::Substeps),
         );
 
-        // Create the PostProcessCollisions schedule for user-defined systems
+        // Set up the PostProcessCollisions schedule for user-defined systems
         // that filter and modify collisions.
-        let mut post_process_collisions_schedule = Schedule::new(PostProcessCollisions);
-
-        post_process_collisions_schedule
-            .set_executor_kind(ExecutorKind::SingleThreaded)
-            .set_build_settings(ScheduleBuildSettings {
-                ambiguity_detection: LogLevel::Error,
-                ..default()
-            });
-
-        app.add_schedule(post_process_collisions_schedule);
+        app.edit_schedule(PostProcessCollisions, |schedule| {
+            schedule
+                .set_executor_kind(ExecutorKind::SingleThreaded)
+                .set_build_settings(ScheduleBuildSettings {
+                    ambiguity_detection: LogLevel::Error,
+                    ..default()
+                });
+        });
 
         app.add_systems(
             SubstepSchedule,
