@@ -17,6 +17,9 @@ use crate::prelude::*;
 ///
 /// You can listen to them with normal event readers:
 ///
+/// Colliders are considered as colliding if they are closer than
+/// [`NarrowPhaseConfig::prediction_distance`] away from each other.
+///
 /// ```no_run
 /// use bevy::prelude::*;
 #[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
