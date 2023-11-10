@@ -34,10 +34,21 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
             body1.accumulated_translation.0 += p * inv_mass1;
             *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, r1, p);
+            // This isn't the optimal place to do this, but it prevents
+            // explosion. See https://github.com/Jondolf/bevy_xpbd/issues/235
+            // Code is repeated below for body2 and also in angular_constraints
+            #[cfg(feature = "3d")]
+            {
+                *body1.rotation.0 = *body1.rotation.0.normalize();
+            }
         }
         if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
             body2.accumulated_translation.0 -= p * inv_mass2;
             *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, r2, p);
+            #[cfg(feature = "3d")]
+            {
+                *body2.rotation.0 = *body2.rotation.0.normalize();
+            }
         }
 
         p

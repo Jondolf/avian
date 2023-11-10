@@ -67,9 +67,11 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Apply rotational updates
         if body1.rb.is_dynamic() {
             *body1.rotation += Self::get_delta_rot(rot1, inv_inertia1, p);
+            *body1.rotation.0 = *body1.rotation.0.normalize();
         }
         if body2.rb.is_dynamic() {
             *body2.rotation -= Self::get_delta_rot(rot2, inv_inertia2, p);
+            *body2.rotation.0 = *body2.rotation.0.normalize();
         }
 
         p
