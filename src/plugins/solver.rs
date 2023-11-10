@@ -183,6 +183,12 @@ fn penetration_constraints(
                         point2: collider2.transform.map_or(contact.point2, |t| {
                             t.rotation.rotate(contact.point2) + t.translation
                         }),
+                        normal1: collider1
+                            .transform
+                            .map_or(contact.normal1, |t| t.rotation.rotate(contact.normal1)),
+                        normal2: collider2
+                            .transform
+                            .map_or(contact.normal2, |t| t.rotation.rotate(contact.normal2)),
                         ..*contact
                     };
 
