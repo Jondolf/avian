@@ -6,12 +6,6 @@ pub type Scalar = f32;
 /// The PI constant.
 pub const PI: Scalar = std::f32::consts::PI;
 
-/// The vector type used by Bevy XPBD.
-#[cfg(feature = "2d")]
-pub type Vector = Vec2;
-/// The vector type used by Bevy XPBD.
-#[cfg(feature = "3d")]
-pub type Vector = Vec3;
 /// The vector type used by Bevy XPBD. This is always a 2D vector regardless of the chosen dimension.
 pub type Vector2 = Vec2;
 /// The vector type used by Bevy XPBD. This is always a 3D vector regardless of the chosen dimension.

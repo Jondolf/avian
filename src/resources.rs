@@ -114,15 +114,15 @@ impl Default for DeactivationTime {
 /// You can also modify gravity while the app is running.
 #[derive(Reflect, Resource, Debug)]
 #[reflect(Resource)]
-pub struct Gravity(pub Vector);
+pub struct Gravity(pub Vector3);
 
 impl Default for Gravity {
     fn default() -> Self {
-        Self(Vector::Y * -9.81)
+        Self(Vector3::Y * -9.81)
     }
 }
 
 impl Gravity {
     /// Zero gravity.
-    pub const ZERO: Gravity = Gravity(Vector::ZERO);
+    pub const ZERO: Gravity = Gravity(Vector3::ZERO);
 }

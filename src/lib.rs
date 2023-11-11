@@ -448,23 +448,17 @@
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(clippy::doc_markdown, missing_docs)]
 
-#[cfg(all(feature = "f32", feature = "f64"))]
-compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
-
-#[cfg(all(feature = "2d", feature = "3d"))]
-compile_error!("feature \"f2d\" and feature \"3d\" cannot be enabled at the same time");
-
 #[cfg(all(feature = "2d", feature = "f32"))]
-pub extern crate parry2d as parry;
+pub extern crate parry2d;
 
 #[cfg(all(feature = "2d", feature = "f64"))]
-pub extern crate parry2d_f64 as parry;
+pub extern crate parry2d_f64 as parry2d;
 
 #[cfg(all(feature = "3d", feature = "f32"))]
-pub extern crate parry3d as parry;
+pub extern crate parry3d;
 
 #[cfg(all(feature = "3d", feature = "f64"))]
-pub extern crate parry3d_f64 as parry;
+pub extern crate parry3d_f64 as parry3d;
 
 pub mod components;
 pub mod constraints;
@@ -509,7 +503,7 @@ use bevy::{
     ecs::schedule::{LogLevel, ScheduleLabel},
     prelude::*,
 };
-use parry::math::Isometry;
+use parry2d::math::Isometry;
 #[allow(unused_imports)]
 use prelude::*;
 

@@ -84,7 +84,8 @@ impl Plugin for SyncPlugin {
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
                 // Apply `Position` and `Rotation` changes to `Transform`
-                position_to_transform,
+                position2d_to_transform,
+                position3d_to_transform,
                 (
                     // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
                     bevy::transform::systems::sync_simple_transforms,
@@ -481,7 +482,7 @@ type ParentComponents = (
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
-fn position_to_transform(
+fn position2d_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {
@@ -528,7 +529,7 @@ fn position_to_transform(
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
-fn position_to_transform(
+fn position3d_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {

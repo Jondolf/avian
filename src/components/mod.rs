@@ -303,33 +303,49 @@ pub struct SleepingDisabled;
 ///     ));
 /// }
 /// ```
+#[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct Position(pub Vector);
+pub struct Position2d(pub Vector2);
 
-impl Position {
+#[cfg(feature = "3d")]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct Position3d(pub Vector3);
+
+impl Position2d {
     /// Creates a [`Position`] component with the given global `position`.
-    pub fn new(position: Vector) -> Self {
+    pub fn new(position: Vector2) -> Self {
         Self(position)
     }
 
     /// Creates a [`Position`] component with the global position `(x, y)`.
-    #[cfg(feature = "2d")]
     pub fn from_xy(x: Scalar, y: Scalar) -> Self {
-        Self(Vector::new(x, y))
+        Self(Vector2::new(x, y))
+    }
+}
+
+impl Position3d {
+    /// Creates a [`Position`] component with the given global `position`.
+    pub fn new(position: Vector3) -> Self {
+        Self(position)
     }
 
     /// Creates a [`Position`] component with the global position `(x, y, z)`.
-    #[cfg(feature = "3d")]
     pub fn from_xyz(x: Scalar, y: Scalar, z: Scalar) -> Self {
-        Self(Vector::new(x, y, z))
+        Self(Vector3::new(x, y, z))
     }
 }
 
 /// The position of a [rigid body](RigidBody) at the start of a substep.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct PreviousPosition(pub Vector);
+pub struct PreviousPosition2d(pub Vector2);
+
+/// The position of a [rigid body](RigidBody) at the start of a substep.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct PreviousPosition3d(pub Vector3);
 
 /// Translation accumulated during a sub-step.
 ///
@@ -340,7 +356,11 @@ pub struct PreviousPosition(pub Vector);
 /// After each substep, actual [`Position`] is updated during [`SubstepSet::ApplyTranslation`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct AccumulatedTranslation(pub Vector);
+pub struct AccumulatedTranslation2d(pub Vector2);
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct AccumulatedTranslation3d(pub Vector3);
 
 /// The linear velocity of a [rigid body](RigidBody).
 ///
@@ -359,17 +379,30 @@ pub struct AccumulatedTranslation(pub Vector);
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct LinearVelocity(pub Vector);
+pub struct LinearVelocity2d(pub Vector2);
 
-impl LinearVelocity {
+impl LinearVelocity2d {
     /// Zero linear velocity.
-    pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
+    pub const ZERO: LinearVelocity2d = LinearVelocity2d(Vector2::ZERO);
+}
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub struct LinearVelocity3d(pub Vector3);
+
+impl LinearVelocity3d {
+    /// Zero linear velocity.
+    pub const ZERO: LinearVelocity3d = LinearVelocity3d(Vector3::ZERO);
 }
 
 /// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub(crate) struct PreSolveLinearVelocity(pub Vector);
+pub(crate) struct PreSolveLinearVelocity2d(pub Vector2);
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[reflect(Component)]
+pub(crate) struct PreSolveLinearVelocity3d(pub Vector3);
 
 /// The angular velocity of a [rigid body](RigidBody) in radians per second.
 /// Positive values will result in counterclockwise rotation.
@@ -389,7 +422,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
-pub struct AngularVelocity(pub Scalar);
+pub struct AngularVelocity2d(pub Scalar);
 
 /// The angular velocity of a [rigid body](RigidBody) as a rotation axis
 /// multiplied by the angular speed in radians per second.
@@ -409,15 +442,18 @@ pub struct AngularVelocity(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub struct AngularVelocity(pub Vector);
+pub struct AngularVelocity3d(pub Vector3);
 
-impl AngularVelocity {
+#[cfg(feature = "2d")]
+impl AngularVelocity2d {
     /// Zero angular velocity.
-    #[cfg(feature = "2d")]
-    pub const ZERO: AngularVelocity = AngularVelocity(0.0);
+    pub const ZERO: AngularVelocity2d = AngularVelocity2d(0.0);
+}
+
+#[cfg(feature = "2d")]
+impl AngularVelocity3d {
     /// Zero angular velocity.
-    #[cfg(feature = "3d")]
-    pub const ZERO: AngularVelocity = AngularVelocity(Vector::ZERO);
+    pub const ZERO: AngularVelocity3d = AngularVelocity3d(0.0);
 }
 
 /// The angular velocity of a [rigid body](RigidBody) in radians per second, before
@@ -425,14 +461,14 @@ impl AngularVelocity {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[reflect(Component)]
-pub(crate) struct PreSolveAngularVelocity(pub Scalar);
+pub(crate) struct PreSolveAngularVelocity2d(pub Scalar);
 
 /// The angular velocity of a [rigid body](RigidBody) as a rotation axis
 /// multiplied by the angular speed in radians per second, before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
-pub(crate) struct PreSolveAngularVelocity(pub Vector);
+pub(crate) struct PreSolveAngularVelocity3d(pub Vector3);
 
 /// Controls how [gravity](Gravity) affects a specific [rigid body](RigidBody).
 ///

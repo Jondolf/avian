@@ -3,22 +3,22 @@
 use crate::prelude::*;
 
 #[cfg(feature = "2d")]
-pub(crate) fn make_isometry(
-    position: impl Into<Position>,
-    rotation: impl Into<Rotation>,
+pub(crate) fn make_isometry_2d(
+    position: impl Into<Position2d>,
+    rotation: impl Into<Rotation2d>,
 ) -> Isometry<Scalar> {
-    let position: Position = position.into();
-    let rotation: Rotation = rotation.into();
+    let position: Position2d = position.into();
+    let rotation: Rotation2d = rotation.into();
     Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
 #[cfg(feature = "3d")]
-pub(crate) fn make_isometry(
-    position: impl Into<Position>,
-    rotation: impl Into<Rotation>,
+pub(crate) fn make_isometry_3d(
+    position: impl Into<Position3d>,
+    rotation: impl Into<Rotation3d>,
 ) -> Isometry<Scalar> {
-    let position: Position = position.into();
-    let rotation: Rotation = rotation.into();
+    let position: Position3d = position.into();
+    let rotation: Rotation3d = rotation.into();
     Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
 
@@ -52,7 +52,7 @@ pub(crate) fn compute_restitution(
     normal_speed: Scalar,
     pre_solve_normal_speed: Scalar,
     coefficient: Scalar,
-    _gravity: Vector,
+    _gravity: Vector3,
     _sub_dt: Scalar,
 ) -> Scalar {
     // TODO: The XPBD paper has this, but it seems to be prevent bounces in cases

@@ -9,13 +9,6 @@ use nalgebra::Matrix3x1;
 
 use crate::prelude::*;
 
-/// Radians
-#[cfg(feature = "2d")]
-pub(crate) type RotationValue = Scalar;
-/// Quaternion
-#[cfg(feature = "3d")]
-pub(crate) type RotationValue = Quaternion;
-
 /// The global rotation of a [rigid body](RigidBody) or a [collider](Collider).
 ///
 /// The rotation is stored as the cosine and sine of an angle in radians.
@@ -47,7 +40,7 @@ pub(crate) type RotationValue = Quaternion;
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[reflect(Component)]
-pub struct Rotation {
+pub struct Rotation2d {
     /// The cosine of the rotation angle in radians.
     cos: Scalar,
     /// The sine of the rotation angle in radians.
@@ -82,11 +75,11 @@ pub struct Rotation {
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct Rotation(pub Quaternion);
+pub struct Rotation3d(pub Quaternion);
 
-impl Rotation {
+#[cfg(feature = "2d")]
+impl Rotation2d {
     /// Rotates the rotation by a 3D vector.
-    #[cfg(feature = "2d")]
     pub fn rotate_vec3(&self, vec: Vector3) -> Vector3 {
         Vector3::new(
             vec.x * self.cos() - vec.y * self.sin(),
@@ -94,15 +87,18 @@ impl Rotation {
             vec.z,
         )
     }
+}
+
+#[cfg(feature = "3d")]
+impl Rotation3d {
     /// Rotates the rotation by a 3D vector.
-    #[cfg(feature = "3d")]
-    pub fn rotate_vec3(&self, vec: Vector) -> Vector {
+    pub fn rotate_vec3(&self, vec: Vector3) -> Vector3 {
         self.0 * vec
     }
 }
 
 #[cfg(feature = "2d")]
-impl Rotation {
+impl Rotation2d {
     /// Zero rotation.
     pub const ZERO: Self = Self { cos: 1.0, sin: 0.0 };
 
@@ -145,8 +141,8 @@ impl Rotation {
     }
 
     /// Rotates the rotation by a given vector.
-    pub fn rotate(&self, vec: Vector) -> Vector {
-        Vector::new(
+    pub fn rotate(&self, vec: Vector2) -> Vector2 {
+        Vector2::new(
             vec.x * self.cos() - vec.y * self.sin(),
             vec.x * self.sin() + vec.y * self.cos(),
         )
@@ -170,9 +166,9 @@ impl Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl Rotation {
+impl Rotation3d {
     /// Rotates the rotation by a given vector,
-    pub fn rotate(&self, vec: Vector) -> Vector {
+    pub fn rotate(&self, vec: Vector3) -> Vector3 {
         self.0 * vec
     }
 
@@ -183,14 +179,14 @@ impl Rotation {
 }
 
 #[cfg(feature = "2d")]
-impl Default for Rotation {
+impl Default for Rotation2d {
     fn default() -> Self {
         Self::ZERO
     }
 }
 
 #[cfg(feature = "2d")]
-impl Add<Self> for Rotation {
+impl Add<Self> for Rotation2d {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
         self.mul(rhs)
@@ -198,21 +194,27 @@ impl Add<Self> for Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl Add<Self> for Rotation {
+impl Add<Self> for Rotation3d {
     type Output = Self;
     fn add(self, rhs: Self) -> Self::Output {
-        Rotation(self.0 + rhs.0)
+        Rotation3d(self.0 + rhs.0)
     }
 }
 
-impl AddAssign<Self> for Rotation {
+impl AddAssign<Self> for Rotation2d {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs;
+    }
+}
+
+impl AddAssign<Self> for Rotation3d {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs;
     }
 }
 
 #[cfg(feature = "2d")]
-impl Sub<Self> for Rotation {
+impl Sub<Self> for Rotation2d {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
         self.mul(rhs.inverse())
@@ -220,36 +222,42 @@ impl Sub<Self> for Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl Sub<Self> for Rotation {
+impl Sub<Self> for Rotation3d {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self::Output {
-        Rotation(self.0 - rhs.0)
+        Rotation3d(self.0 - rhs.0)
     }
 }
 
-impl SubAssign<Self> for Rotation {
+impl SubAssign<Self> for Rotation2d {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs;
+    }
+}
+
+impl SubAssign<Self> for Rotation3d {
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
     }
 }
 
 #[cfg(feature = "2d")]
-impl From<Rotation> for Scalar {
-    fn from(rot: Rotation) -> Self {
+impl From<Rotation2d> for Scalar {
+    fn from(rot: Rotation2d) -> Self {
         rot.as_radians()
     }
 }
 
 #[cfg(feature = "2d")]
-impl From<Scalar> for Rotation {
+impl From<Scalar> for Rotation2d {
     fn from(radians: Scalar) -> Self {
         Self::from_radians(radians)
     }
 }
 
 #[cfg(feature = "2d")]
-impl From<Rotation> for Quaternion {
-    fn from(rot: Rotation) -> Self {
+impl From<Rotation2d> for Quaternion {
+    fn from(rot: Rotation2d) -> Self {
         let z = rot.sin().signum() * ((1.0 - rot.cos()) / 2.0).abs().sqrt();
         let w = ((1.0 + rot.cos()) / 2.0).abs().sqrt();
         Quaternion::from_xyzw(0.0, 0.0, z, w)
@@ -257,26 +265,38 @@ impl From<Rotation> for Quaternion {
 }
 
 #[cfg(feature = "3d")]
-impl From<Rotation> for Quaternion {
-    fn from(rot: Rotation) -> Self {
+impl From<Rotation3d> for Quaternion {
+    fn from(rot: Rotation3d) -> Self {
         rot.0
     }
 }
 
-impl From<Transform> for Rotation {
+impl From<Transform> for Rotation2d {
     fn from(value: Transform) -> Self {
         Self::from(value.rotation)
     }
 }
 
-impl From<GlobalTransform> for Rotation {
+impl From<GlobalTransform> for Rotation2d {
+    fn from(value: GlobalTransform) -> Self {
+        Self::from(value.compute_transform().rotation)
+    }
+}
+
+impl From<Transform> for Rotation3d {
+    fn from(value: Transform) -> Self {
+        Self::from(value.rotation)
+    }
+}
+
+impl From<GlobalTransform> for Rotation3d {
     fn from(value: GlobalTransform) -> Self {
         Self::from(value.compute_transform().rotation)
     }
 }
 
 #[cfg(feature = "2d")]
-impl From<Quat> for Rotation {
+impl From<Quat> for Rotation2d {
     fn from(quat: Quat) -> Self {
         let angle = quat.to_euler(EulerRot::XYZ).2;
         Self::from_radians(angle as Scalar)
@@ -284,7 +304,7 @@ impl From<Quat> for Rotation {
 }
 
 #[cfg(feature = "2d")]
-impl From<DQuat> for Rotation {
+impl From<DQuat> for Rotation2d {
     fn from(quat: DQuat) -> Self {
         let angle = quat.to_euler(EulerRot::XYZ).2;
         Self::from_radians(angle as Scalar)
@@ -292,7 +312,7 @@ impl From<DQuat> for Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl From<Quat> for Rotation {
+impl From<Quat> for Rotation3d {
     fn from(quat: Quat) -> Self {
         Self(Quaternion::from_xyzw(
             quat.x as Scalar,
@@ -304,7 +324,7 @@ impl From<Quat> for Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl From<DQuat> for Rotation {
+impl From<DQuat> for Rotation3d {
     fn from(quat: DQuat) -> Self {
         Self(Quaternion::from_xyzw(
             quat.x as Scalar,
@@ -316,8 +336,8 @@ impl From<DQuat> for Rotation {
 }
 
 #[cfg(feature = "3d")]
-impl From<Rotation> for Matrix3x1<Scalar> {
-    fn from(rot: Rotation) -> Self {
+impl From<Rotation3d> for Matrix3x1<Scalar> {
+    fn from(rot: Rotation3d) -> Self {
         Matrix3x1::new(rot.x, rot.y, rot.z)
     }
 }
@@ -325,4 +345,9 @@ impl From<Rotation> for Matrix3x1<Scalar> {
 /// The previous rotation of a body. See [`Rotation`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct PreviousRotation(pub Rotation);
+pub struct PreviousRotation2d(pub Rotation2d);
+
+/// The previous rotation of a body. See [`Rotation`].
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
+pub struct PreviousRotation3d(pub Rotation3d);
