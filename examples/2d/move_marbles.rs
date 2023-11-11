@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_xpbd_2d::{math::*, prelude::*};
+use bevy_xpbd::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {
@@ -9,7 +9,7 @@ fn main() {
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
-        .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
+        .insert_resource(Gravity(Vector3::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
         .add_systems(Update, movement)
         .run();
@@ -39,8 +39,8 @@ fn setup(
                 .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        RigidBody2d::Static,
+        Collider2d::cuboid(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -50,8 +50,8 @@ fn setup(
                 .with_scale(Vec3::new(20.0, 1.0, 1.0)),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        RigidBody2d::Static,
+        Collider2d::cuboid(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -61,8 +61,8 @@ fn setup(
                 .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        RigidBody2d::Static,
+        Collider2d::cuboid(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -72,8 +72,8 @@ fn setup(
                 .with_scale(Vec3::new(1.0, 11.0, 1.0)),
             ..default()
         },
-        RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        RigidBody2d::Static,
+        Collider2d::cuboid(50.0, 50.0),
     ));
 
     let marble_radius = 5.0;
@@ -94,8 +94,8 @@ fn setup(
                     ),
                     ..default()
                 },
-                RigidBody::Dynamic,
-                Collider::ball(marble_radius as Scalar),
+                RigidBody2d::Dynamic,
+                Collider2d::ball(marble_radius as Scalar),
                 Marble,
             ));
         }
@@ -105,7 +105,7 @@ fn setup(
 fn movement(
     time: Res<Time>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut marbles: Query<&mut LinearVelocity, With<Marble>>,
+    mut marbles: Query<&mut LinearVelocity2d, With<Marble>>,
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.

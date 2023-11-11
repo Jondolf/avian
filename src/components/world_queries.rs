@@ -4,12 +4,24 @@ use crate::prelude::*;
 use bevy::ecs::query::WorldQuery;
 use std::ops::{AddAssign, SubAssign};
 
+#[derive(WorldQuery)]
+pub struct IsRigidBody {
+    rb_2d: Has<RigidBody2d>,
+    rb_3d: Has<RigidBody3d>,
+}
+
+impl<'w> IsRigidBodyItem<'w> {
+    pub fn get(&self) -> bool {
+        self.rb_2d || self.rb_3d
+    }
+}
+
 /// A [`WorldQuery`] to make querying and modifying rigid bodies more convenient.
 #[derive(WorldQuery)]
 #[world_query(mutable)]
 pub struct RigidBodyQuery2d {
     pub entity: Entity,
-    pub rb: Ref<'static, RigidBody>,
+    pub rb: Ref<'static, RigidBody2d>,
     pub position: &'static mut Position2d,
     pub rotation: &'static mut Rotation2d,
     pub previous_position: &'static mut PreviousPosition2d,
@@ -77,7 +89,7 @@ impl<'w> RigidBodyQuery2dItem<'w> {
 #[world_query(mutable)]
 pub struct RigidBodyQuery3d {
     pub entity: Entity,
-    pub rb: Ref<'static, RigidBody>,
+    pub rb: Ref<'static, RigidBody3d>,
     pub position: &'static mut Position3d,
     pub rotation: &'static mut Rotation3d,
     pub previous_position: &'static mut PreviousPosition3d,
@@ -300,7 +312,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         // Spawn an entity with mass properties
-        app.world.spawn(MassPropertiesBundle2d {
+        app.world.spawn(MassProperties2dBundle {
             mass: Mass(1.6),
             inverse_mass: InverseMass(1.0 / 1.6),
             center_of_mass: CenterOfMass2d(Vector2::NEG_X * 3.8),
@@ -339,7 +351,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         // Spawn an entity with mass properties
-        app.world.spawn(MassPropertiesBundle2d {
+        app.world.spawn(MassProperties2dBundle {
             mass: Mass(8.1),
             inverse_mass: InverseMass(1.0 / 8.1),
             center_of_mass: CenterOfMass2d(Vector2::NEG_X * 3.8),
@@ -378,13 +390,13 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         let original_mass_props =
-            MassPropertiesBundle2d::new_computed(&Collider::capsule(2.4, 0.6), 3.9);
+            MassProperties2dBundle::new_computed(&Collider2d::capsule(2.4, 0.6), 3.9);
 
         // Spawn an entity with mass properties
         app.world.spawn(original_mass_props.clone());
 
         // Create collider mass properties
-        let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
+        let collider_mass_props = Collider2d::capsule(7.4, 2.1).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world.query::<MassPropertiesQuery2d>();

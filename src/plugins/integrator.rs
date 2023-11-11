@@ -2,6 +2,8 @@
 //!
 //! See [`IntegratorPlugin`].
 
+#![allow(clippy::type_complexity)]
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -19,36 +21,54 @@ impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
         app.get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first")
-            .add_systems((integrate_pos, integrate_rot).in_set(SubstepSet::Integrate));
+            .add_systems(
+                (
+                    integrate_pos_2d,
+                    integrate_pos_3d,
+                    integrate_rot_2d,
+                    integrate_rot_3d,
+                )
+                    .in_set(SubstepSet::Integrate),
+            );
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                apply_impulses
+                (apply_impulses_2d, apply_impulses_3d)
                     .after(PhysicsStepSet::BroadPhase)
                     .before(PhysicsStepSet::Substeps),
             )
-            .add_systems(clear_forces_and_impulses.after(PhysicsStepSet::SpatialQuery));
+            .add_systems(
+                (clear_forces_and_impulses_2d, clear_forces_and_impulses_3d)
+                    .after(PhysicsStepSet::SpatialQuery),
+            );
+
+        app.get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first")
+            .add_systems(
+                (apply_translation_2d, apply_translation_3d).in_set(SubstepSet::ApplyTranslation),
+            );
     }
 }
 
-type PosIntegrationComponents = (
-    &'static RigidBody,
-    &'static Position,
-    &'static mut PreviousPosition,
-    &'static mut AccumulatedTranslation,
-    &'static mut LinearVelocity,
-    Option<&'static LinearDamping>,
-    Option<&'static GravityScale>,
-    &'static ExternalForce,
-    &'static Mass,
-    &'static InverseMass,
-    Option<&'static LockedAxes>,
-);
-
 /// Explicitly integrates the positions and linear velocities of bodies taking only external forces
 /// like gravity into account. This acts as a prediction for the next positions of the bodies.
-fn integrate_pos(
-    mut bodies: Query<PosIntegrationComponents, Without<Sleeping>>,
+fn integrate_pos_2d(
+    mut bodies: Query<
+        (
+            &RigidBody2d,
+            &mut Position2d,
+            &mut PreviousPosition2d,
+            &mut AccumulatedTranslation2d,
+            &mut LinearVelocity2d,
+            Option<&LinearDamping>,
+            Option<&GravityScale>,
+            &ExternalForce2d,
+            &Mass,
+            &InverseMass,
+            Option<&LockedAxes2d>,
+        ),
+        Without<Sleeping>,
+    >,
     gravity: Res<Gravity>,
     time: Res<Time>,
 ) {
@@ -74,7 +94,7 @@ fn integrate_pos(
             continue;
         }
 
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        let locked_axes = locked_axes.map_or(LockedAxes2d::default(), |locked_axes| *locked_axes);
 
         // Apply damping, gravity and other external forces
         if rb.is_dynamic() {
@@ -83,8 +103,81 @@ fn integrate_pos(
                 lin_vel.0 *= 1.0 / (1.0 + delta_secs * damping.0);
             }
 
-            let effective_mass = locked_axes.apply_to_vec(Vector::splat(mass.0));
-            let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass.0));
+            let effective_mass = locked_axes.apply_to_vec(Vector2::splat(mass.0));
+            let effective_inv_mass = locked_axes.apply_to_vec(Vector2::splat(inv_mass.0));
+
+            // Apply forces
+            let gravitation_force = effective_mass
+                * Vector2::from_math(gravity.0)
+                * gravity_scale.map_or(1.0, |scale| scale.0);
+            let external_forces = gravitation_force + external_force.force();
+            let delta_lin_vel = delta_secs * external_forces * effective_inv_mass;
+            // avoid triggering bevy's change detection unnecessarily
+            if delta_lin_vel != Vector2::ZERO {
+                lin_vel.0 += delta_lin_vel;
+            }
+        }
+        if lin_vel.0 != Vector2::ZERO {
+            translation.0 += locked_axes.apply_to_vec(delta_secs * lin_vel.0);
+        }
+    }
+}
+
+/// Explicitly integrates the positions and linear velocities of bodies taking only external forces
+/// like gravity into account. This acts as a prediction for the next positions of the bodies.
+fn integrate_pos_3d(
+    mut bodies: Query<
+        (
+            &RigidBody3d,
+            &mut Position3d,
+            &mut PreviousPosition3d,
+            &mut AccumulatedTranslation3d,
+            &mut LinearVelocity3d,
+            Option<&LinearDamping>,
+            Option<&GravityScale>,
+            &ExternalForce3d,
+            &Mass,
+            &InverseMass,
+            Option<&LockedAxes3d>,
+        ),
+        Without<Sleeping>,
+    >,
+    gravity: Res<Gravity>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for (
+        rb,
+        pos,
+        mut prev_pos,
+        mut translation,
+        mut lin_vel,
+        lin_damping,
+        gravity_scale,
+        external_force,
+        mass,
+        inv_mass,
+        locked_axes,
+    ) in &mut bodies
+    {
+        prev_pos.0 = pos.0;
+
+        if rb.is_static() {
+            continue;
+        }
+
+        let locked_axes = locked_axes.map_or(LockedAxes3d::default(), |locked_axes| *locked_axes);
+
+        // Apply damping, gravity and other external forces
+        if rb.is_dynamic() {
+            // Apply damping
+            if let Some(damping) = lin_damping {
+                lin_vel.0 *= 1.0 / (1.0 + delta_secs * damping.0);
+            }
+
+            let effective_mass = locked_axes.apply_to_vec(Vector3::splat(mass.0));
+            let effective_inv_mass = locked_axes.apply_to_vec(Vector3::splat(inv_mass.0));
 
             // Apply forces
             let gravitation_force =
@@ -92,33 +185,37 @@ fn integrate_pos(
             let external_forces = gravitation_force + external_force.force();
             let delta_lin_vel = delta_secs * external_forces * effective_inv_mass;
             // avoid triggering bevy's change detection unnecessarily
-            if delta_lin_vel != Vector::ZERO {
+            if delta_lin_vel != Vector3::ZERO {
                 lin_vel.0 += delta_lin_vel;
             }
         }
-        if lin_vel.0 != Vector::ZERO {
+        if lin_vel.0 != Vector3::ZERO {
             translation.0 += locked_axes.apply_to_vec(delta_secs * lin_vel.0);
         }
     }
 }
 
-type RotIntegrationComponents = (
-    &'static RigidBody,
-    &'static mut Rotation,
-    &'static mut PreviousRotation,
-    &'static mut AngularVelocity,
-    Option<&'static AngularDamping>,
-    &'static ExternalForce,
-    &'static ExternalTorque,
-    &'static Inertia,
-    &'static InverseInertia,
-    Option<&'static LockedAxes>,
-);
-
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account.
 /// This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "2d")]
-fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>, time: Res<Time>) {
+fn integrate_rot_2d(
+    mut bodies: Query<
+        (
+            &RigidBody2d,
+            &mut Rotation2d,
+            &mut PreviousRotation2d,
+            &mut AngularVelocity2d,
+            Option<&AngularDamping>,
+            &ExternalForce2d,
+            &ExternalTorque2d,
+            &Inertia2d,
+            &InverseInertia2d,
+            Option<&LockedAxes2d>,
+        ),
+        Without<Sleeping>,
+    >,
+    time: Res<Time>,
+) {
     let delta_secs = time.delta_seconds_adjusted();
 
     for (
@@ -140,7 +237,7 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
             continue;
         }
 
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        let locked_axes = locked_axes.map_or(LockedAxes2d::default(), |locked_axes| *locked_axes);
 
         // Apply damping and external torque
         if rb.is_dynamic() {
@@ -166,7 +263,7 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
         // avoid triggering bevy's change detection unnecessarily
         let delta = locked_axes.apply_to_angular_velocity(delta_secs * ang_vel.0);
         if delta != 0.0 {
-            *rot += Rotation::from_radians(delta);
+            *rot += Rotation2d::from_radians(delta);
         }
     }
 }
@@ -174,7 +271,24 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
 /// Explicitly integrates the rotations and angular velocities of bodies taking only external torque into account.
 /// This acts as a prediction for the next rotations of the bodies.
 #[cfg(feature = "3d")]
-fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>, time: Res<Time>) {
+fn integrate_rot_3d(
+    mut bodies: Query<
+        (
+            &RigidBody3d,
+            &mut Rotation3d,
+            &mut PreviousRotation3d,
+            &mut AngularVelocity3d,
+            Option<&AngularDamping>,
+            &ExternalForce3d,
+            &ExternalTorque3d,
+            &Inertia3d,
+            &InverseInertia3d,
+            Option<&LockedAxes3d>,
+        ),
+        Without<Sleeping>,
+    >,
+    time: Res<Time>,
+) {
     let delta_secs = time.delta_seconds_adjusted();
 
     for (
@@ -196,14 +310,14 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
             continue;
         }
 
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        let locked_axes = locked_axes.map_or(LockedAxes3d::default(), |locked_axes| *locked_axes);
 
         // Apply damping and external torque
         if rb.is_dynamic() {
             // Apply damping
             if let Some(damping) = ang_damping {
                 // avoid triggering bevy's change detection unnecessarily
-                if ang_vel.0 != Vector::ZERO && damping.0 != 0.0 {
+                if ang_vel.0 != Vector3::ZERO && damping.0 != 0.0 {
                     ang_vel.0 *= 1.0 / (1.0 + delta_secs * damping.0);
                 }
             }
@@ -217,7 +331,7 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
                 * ((external_torque.torque() + external_force.torque())
                     - ang_vel.0.cross(effective_inertia * ang_vel.0));
             // avoid triggering bevy's change detection unnecessarily
-            if delta_ang_vel != Vector::ZERO {
+            if delta_ang_vel != Vector3::ZERO {
                 ang_vel.0 += delta_ang_vel;
             }
         }
@@ -234,19 +348,63 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
     }
 }
 
-type ImpulseQueryComponents = (
-    &'static RigidBody,
-    &'static mut ExternalImpulse,
-    &'static mut ExternalAngularImpulse,
-    &'static mut LinearVelocity,
-    &'static mut AngularVelocity,
-    &'static Rotation,
-    &'static InverseMass,
-    &'static InverseInertia,
-    Option<&'static LockedAxes>,
-);
+fn apply_impulses_2d(
+    mut bodies: Query<
+        (
+            &RigidBody2d,
+            &mut ExternalImpulse2d,
+            &mut ExternalAngularImpulse2d,
+            &mut LinearVelocity2d,
+            &mut AngularVelocity2d,
+            &InverseMass,
+            &InverseInertia2d,
+            Option<&LockedAxes2d>,
+        ),
+        Without<Sleeping>,
+    >,
+) {
+    for (rb, impulse, ang_impulse, mut lin_vel, mut ang_vel, inv_mass, inv_inertia, locked_axes) in
+        &mut bodies
+    {
+        if !rb.is_dynamic() {
+            continue;
+        }
 
-fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) {
+        let locked_axes = locked_axes.map_or(LockedAxes2d::default(), |locked_axes| *locked_axes);
+
+        let effective_inv_mass = locked_axes.apply_to_vec(Vector2::splat(inv_mass.0));
+        let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.0);
+
+        // avoid triggering bevy's change detection unnecessarily
+        let delta_lin_vel = impulse.impulse() * effective_inv_mass;
+        let delta_ang_vel =
+            effective_inv_inertia * (ang_impulse.impulse() + impulse.angular_impulse());
+
+        if delta_lin_vel != Vector2::ZERO {
+            lin_vel.0 += delta_lin_vel;
+        }
+        if delta_ang_vel != AngularVelocity2d::ZERO.0 {
+            ang_vel.0 += delta_ang_vel;
+        }
+    }
+}
+
+fn apply_impulses_3d(
+    mut bodies: Query<
+        (
+            &RigidBody3d,
+            &mut ExternalImpulse3d,
+            &mut ExternalAngularImpulse3d,
+            &mut LinearVelocity3d,
+            &mut AngularVelocity3d,
+            &Rotation3d,
+            &InverseMass,
+            &InverseInertia3d,
+            Option<&LockedAxes3d>,
+        ),
+        Without<Sleeping>,
+    >,
+) {
     for (
         rb,
         impulse,
@@ -263,9 +421,9 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
             continue;
         }
 
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        let locked_axes = locked_axes.map_or(LockedAxes3d::default(), |locked_axes| *locked_axes);
 
-        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass.0));
+        let effective_inv_mass = locked_axes.apply_to_vec(Vector3::splat(inv_mass.0));
         let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.rotated(rotation).0);
 
         // avoid triggering bevy's change detection unnecessarily
@@ -273,29 +431,31 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
         let delta_ang_vel =
             effective_inv_inertia * (ang_impulse.impulse() + impulse.angular_impulse());
 
-        if delta_lin_vel != Vector::ZERO {
+        if delta_lin_vel != Vector3::ZERO {
             lin_vel.0 += delta_lin_vel;
         }
-        if delta_ang_vel != AngularVelocity::ZERO.0 {
+        if delta_ang_vel != AngularVelocity3d::ZERO.0 {
             ang_vel.0 += delta_ang_vel;
         }
     }
 }
 
-type ForceComponents = (
-    &'static mut ExternalForce,
-    &'static mut ExternalTorque,
-    &'static mut ExternalImpulse,
-    &'static mut ExternalAngularImpulse,
-);
-type ForceComponentsChanged = Or<(
-    Changed<ExternalForce>,
-    Changed<ExternalTorque>,
-    Changed<ExternalImpulse>,
-    Changed<ExternalAngularImpulse>,
-)>;
-
-fn clear_forces_and_impulses(mut forces: Query<ForceComponents, ForceComponentsChanged>) {
+fn clear_forces_and_impulses_2d(
+    mut forces: Query<
+        (
+            &mut ExternalForce2d,
+            &mut ExternalTorque2d,
+            &mut ExternalImpulse2d,
+            &mut ExternalAngularImpulse2d,
+        ),
+        Or<(
+            Changed<ExternalForce2d>,
+            Changed<ExternalTorque2d>,
+            Changed<ExternalImpulse2d>,
+            Changed<ExternalAngularImpulse2d>,
+        )>,
+    >,
+) {
     for (mut force, mut torque, mut impulse, mut angular_ímpulse) in &mut forces {
         if !force.persistent {
             force.clear();
@@ -309,5 +469,69 @@ fn clear_forces_and_impulses(mut forces: Query<ForceComponents, ForceComponentsC
         if !angular_ímpulse.persistent {
             angular_ímpulse.clear();
         }
+    }
+}
+
+fn clear_forces_and_impulses_3d(
+    mut forces: Query<
+        (
+            &mut ExternalForce3d,
+            &mut ExternalTorque3d,
+            &mut ExternalImpulse3d,
+            &mut ExternalAngularImpulse3d,
+        ),
+        Or<(
+            Changed<ExternalForce3d>,
+            Changed<ExternalTorque3d>,
+            Changed<ExternalImpulse3d>,
+            Changed<ExternalAngularImpulse3d>,
+        )>,
+    >,
+) {
+    for (mut force, mut torque, mut impulse, mut angular_ímpulse) in &mut forces {
+        if !force.persistent {
+            force.clear();
+        }
+        if !torque.persistent {
+            torque.clear();
+        }
+        if !impulse.persistent {
+            impulse.clear();
+        }
+        if !angular_ímpulse.persistent {
+            angular_ímpulse.clear();
+        }
+    }
+}
+
+fn apply_translation_2d(
+    mut bodies: Query<
+        (&RigidBody2d, &mut Position2d, &mut AccumulatedTranslation2d),
+        Changed<AccumulatedTranslation2d>,
+    >,
+) {
+    for (rb, mut pos, mut translation) in &mut bodies {
+        if rb.is_static() {
+            continue;
+        }
+
+        pos.0 += translation.0;
+        translation.0 = Vector2::ZERO;
+    }
+}
+
+fn apply_translation_3d(
+    mut bodies: Query<
+        (&RigidBody3d, &mut Position3d, &mut AccumulatedTranslation3d),
+        Changed<AccumulatedTranslation3d>,
+    >,
+) {
+    for (rb, mut pos, mut translation) in &mut bodies {
+        if rb.is_static() {
+            continue;
+        }
+
+        pos.0 += translation.0;
+        translation.0 = Vector3::ZERO;
     }
 }

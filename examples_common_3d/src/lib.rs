@@ -4,10 +4,10 @@ use bevy::{
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
-use bevy_xpbd_3d::prelude::*;
-use grabber::GrabberPlugin;
+use bevy_xpbd::prelude::*;
+//use grabber::GrabberPlugin;
 
-mod grabber;
+//mod grabber;
 
 #[derive(Default)]
 pub struct XpbdExamplePlugin;
@@ -17,7 +17,7 @@ impl Plugin for XpbdExamplePlugin {
         app.add_plugins((
             PhysicsPlugins::default(),
             FrameTimeDiagnosticsPlugin,
-            GrabberPlugin,
+            //GrabberPlugin,
         ))
         .add_state::<AppState>()
         .add_systems(Startup, setup)

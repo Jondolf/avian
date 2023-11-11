@@ -23,8 +23,8 @@
 pub mod collision;
 //#[cfg(feature = "debug-plugin")]
 //pub mod debug;
-//pub mod integrator;
-//pub mod prepare;
+pub mod integrator;
+pub mod prepare;
 pub mod setup;
 //pub mod sleeping;
 //pub mod solver;
@@ -38,8 +38,8 @@ pub use collision::{
 };
 //#[cfg(feature = "debug-plugin")]
 //pub use debug::PhysicsDebugPlugin;
-//pub use integrator::IntegratorPlugin;
-//pub use prepare::PreparePlugin;
+pub use integrator::IntegratorPlugin;
+pub use prepare::PreparePlugin;
 pub use setup::PhysicsSetupPlugin;
 //pub use sleeping::SleepingPlugin;
 //pub use solver::SolverPlugin;
@@ -188,14 +188,14 @@ impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule))
-            //.add(PreparePlugin::new(self.schedule))
+            .add(PreparePlugin::new(self.schedule))
             .add(BroadPhasePlugin)
-            //.add(IntegratorPlugin)
+            .add(IntegratorPlugin)
             .add(NarrowPhasePlugin)
             .add(ContactReportingPlugin)
-        /*.add(SolverPlugin)
-        .add(SleepingPlugin)
-        .add(SpatialQueryPlugin::new(self.schedule))
-        .add(SyncPlugin::new(self.schedule))*/
+            //.add(SolverPlugin)
+            //.add(SleepingPlugin)
+            //.add(SpatialQueryPlugin::new(self.schedule))
+            .add(SyncPlugin::new(self.schedule))
     }
 }

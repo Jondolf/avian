@@ -209,7 +209,7 @@ use derive_more::From;
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[reflect(Component)]
-pub enum RigidBody {
+pub enum RigidBody2d {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]
     Dynamic,
@@ -231,7 +231,48 @@ pub enum RigidBody {
     Kinematic,
 }
 
-impl RigidBody {
+impl RigidBody2d {
+    /// Checks if the rigid body is dynamic.
+    pub fn is_dynamic(&self) -> bool {
+        *self == Self::Dynamic
+    }
+
+    /// Checks if the rigid body is static.
+    pub fn is_static(&self) -> bool {
+        *self == Self::Static
+    }
+
+    /// Checks if the rigid body is kinematic.
+    pub fn is_kinematic(&self) -> bool {
+        *self == Self::Kinematic
+    }
+}
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
+#[reflect(Component)]
+pub enum RigidBody3d {
+    /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
+    #[default]
+    Dynamic,
+
+    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia.
+    /// The only way to move a static body is to manually change its position.
+    ///
+    /// Collisions with static bodies will affect dynamic bodies, but not other static bodies or kinematic bodies.
+    ///
+    /// Static bodies are typically used for things like the ground, walls and any other objects that you don't want to move.
+    Static,
+
+    /// Kinematic bodies are bodies that are not affected by any external forces or collisions.
+    /// They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
+    ///
+    /// Unlike static bodies, kinematic bodies can have velocity.
+    /// The engine doesn't modify the values of a kinematic body's components,
+    /// so you have full control of them.
+    Kinematic,
+}
+
+impl RigidBody3d {
     /// Checks if the rigid body is dynamic.
     pub fn is_dynamic(&self) -> bool {
         *self == Self::Dynamic

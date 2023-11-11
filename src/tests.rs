@@ -44,11 +44,11 @@ fn tick_60_fps(app: &mut App) {
 fn setup_cubes_simulation(mut commands: Commands) {
     let mut next_id = 0;
     // copied from "cubes" example
-    let floor_size = Vector::new(80.0, 1.0, 80.0);
+    let floor_size = Vector3::new(80.0, 1.0, 80.0);
     commands.spawn((
-        RigidBody::Static,
-        Position(Vector::NEG_Y),
-        Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
+        RigidBody3d::Static,
+        Position3d(Vector3::NEG_Y),
+        Collider3d::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
 
     let radius = 1.0;
@@ -58,16 +58,16 @@ fn setup_cubes_simulation(mut commands: Commands) {
     for y in 0..count_y {
         for x in 0..count_x {
             for z in 0..count_z {
-                let pos = Vector::new(
+                let pos = Vector3::new(
                     (x as Scalar - count_x as Scalar * 0.5) * 2.1 * radius,
                     10.0 * radius * y as Scalar,
                     (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands.spawn((
                     SpatialBundle::default(),
-                    RigidBody::Dynamic,
-                    Position(pos + Vector::Y * 5.0),
-                    Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
+                    RigidBody3d::Dynamic,
+                    Position3d(pos + Vector3::Y * 5.0),
+                    Collider3d::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
                     Id(next_id),
                 ));
                 next_id += 1;
@@ -97,16 +97,16 @@ fn body_with_velocity_moves_on_first_frame() {
         // move right at 1 unit per second
         commands.spawn((
             SpatialBundle::default(),
-            RigidBody::Dynamic,
-            LinearVelocity(Vector::X),
-            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
+            RigidBody3d::Dynamic,
+            LinearVelocity3d(Vector3::X),
+            MassProperties3dBundle::new_computed(&Collider3d::ball(0.5), 1.0),
         ));
     });
 
     // one tick only.
     tick_60_fps(&mut app);
 
-    let mut app_query = app.world.query::<(&Position, &RigidBody)>();
+    let mut app_query = app.world.query::<(&Position3d, &RigidBody3d)>();
 
     let (pos, _body) = app_query.single(&app.world);
 
@@ -123,9 +123,9 @@ fn body_with_velocity_moves() {
         // move right at 1 unit per second
         commands.spawn((
             SpatialBundle::default(),
-            RigidBody::Dynamic,
-            LinearVelocity(Vector::X),
-            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
+            RigidBody3d::Dynamic,
+            LinearVelocity3d(Vector3::X),
+            MassProperties3dBundle::new_computed(&Collider3d::ball(0.5), 1.0),
         ));
     });
 
@@ -135,7 +135,7 @@ fn body_with_velocity_moves() {
         tick_60_fps(&mut app);
     }
 
-    let mut app_query = app.world.query::<(&Transform, &RigidBody)>();
+    let mut app_query = app.world.query::<(&Transform, &RigidBody3d)>();
 
     let (transform, _body) = app_query.single(&app.world);
 

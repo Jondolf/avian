@@ -53,7 +53,9 @@ impl Plugin for ContactReportingPlugin {
             .expect("add PhysicsSchedule first");
 
         physics_schedule.add_systems(
-            (report_contacts_2d, report_contacts_3d).in_set(PhysicsStepSet::ReportContacts),
+            (report_contacts_2d, report_contacts_3d)
+                .chain()
+                .in_set(PhysicsStepSet::ReportContacts),
         );
     }
 }

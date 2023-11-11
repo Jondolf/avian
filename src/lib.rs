@@ -480,7 +480,7 @@ pub mod prelude {
                 narrow_phase::{NarrowPhaseConfig2d, NarrowPhaseConfig3d},
                 *,
             },
-            //prepare::*,
+            prepare::*,
             setup::*,
             //solver::solve_constraint,
             //spatial_query::*,
@@ -504,7 +504,6 @@ use bevy::{
     ecs::schedule::{LogLevel, ScheduleLabel},
     prelude::*,
 };
-use parry2d::math::Isometry;
 #[allow(unused_imports)]
 use prelude::*;
 

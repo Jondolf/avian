@@ -259,7 +259,7 @@ fn add_new_aabb_intervals_2d(
         (
             Entity,
             &ColliderAabb2d,
-            Option<&RigidBody>,
+            Option<&RigidBody2d>,
             Option<&CollisionLayers>,
         ),
         Added<ColliderAabb2d>,
@@ -358,7 +358,7 @@ fn add_new_aabb_intervals_3d(
         (
             Entity,
             &ColliderAabb3d,
-            Option<&RigidBody>,
+            Option<&RigidBody3d>,
             Option<&CollisionLayers>,
         ),
         Added<ColliderAabb3d>,

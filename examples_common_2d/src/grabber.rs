@@ -1,5 +1,5 @@
 use bevy::{prelude::*, window::PrimaryWindow};
-use bevy_xpbd_2d::{math::*, prelude::*};
+use bevy_xpbd::{math::*, prelude::*};
 
 #[derive(Default)]
 pub struct GrabberPlugin;
@@ -31,9 +31,9 @@ fn grab(
     buttons: Res<Input<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    mut grabber: Query<(Entity, &mut Position), (With<GrabPoint>, Without<Collider>)>,
+    mut grabber: Query<(Entity, &mut Position2d), (With<GrabPoint>, Without<Collider2d>)>,
     joints: Query<(Entity, &DistanceJoint), With<GrabberJoint>>,
-    bodies: Query<(&RigidBody, &Position, &Rotation), Without<GrabPoint>>,
+    bodies: Query<(&RigidBody, &Position2d, &Rotation2d), Without<GrabPoint>>,
     spatial_query: SpatialQuery,
 ) {
     // If grab button is pressed, spawn or update grab point and grabber joint if they don't exist
@@ -54,7 +54,11 @@ fn grab(
                 grabber_entity = entity;
             } else {
                 grabber_entity = commands
-                    .spawn((RigidBody::Kinematic, Position(cursor_world_pos), GrabPoint))
+                    .spawn((
+                        RigidBody::Kinematic,
+                        Position2d(cursor_world_pos),
+                        GrabPoint,
+                    ))
                     .id();
             }
 

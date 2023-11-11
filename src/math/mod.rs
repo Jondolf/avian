@@ -25,7 +25,7 @@ pub trait FromMath<T> {
     fn from_math(value: T) -> Self;
     fn into_math<K: FromMath<Self>>(&self) -> K
     where
-        Self: Sized,
+        Self: Clone + Copy + Sized,
     {
         K::from_math(*self)
     }

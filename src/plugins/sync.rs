@@ -3,8 +3,10 @@
 //!
 //! See [`SyncPlugin`].
 
+#![allow(clippy::type_complexity)]
+
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
+use bevy::{prelude::*, utils::intern::Interned};
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
@@ -149,7 +151,12 @@ impl Default for SyncConfig {
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
-type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider2d>, Added<Collider3d>)>;
+type PhysicsObjectAddedFilter = Or<(
+    Added<RigidBody2d>,
+    Added<RigidBody3d>,
+    Added<Collider2d>,
+    Added<Collider3d>,
+)>;
 
 fn init_previous_global_transform(
     mut commands: Commands,
@@ -162,7 +169,6 @@ fn init_previous_global_transform(
     }
 }
 
-#[allow(clippy::type_complexity)]
 pub(crate) fn update_child_collider_position_2d(
     mut colliders: Query<
         (
@@ -171,9 +177,9 @@ pub(crate) fn update_child_collider_position_2d(
             &mut Rotation2d,
             &ColliderParent,
         ),
-        Without<RigidBody>,
+        Without<RigidBody2d>,
     >,
-    parents: Query<(&Position2d, &Rotation2d), (With<RigidBody>, With<Children>)>,
+    parents: Query<(&Position2d, &Rotation2d), (With<RigidBody2d>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
         let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
@@ -185,7 +191,6 @@ pub(crate) fn update_child_collider_position_2d(
     }
 }
 
-#[allow(clippy::type_complexity)]
 pub(crate) fn update_child_collider_position_3d(
     mut colliders: Query<
         (
@@ -194,9 +199,9 @@ pub(crate) fn update_child_collider_position_3d(
             &mut Rotation3d,
             &ColliderParent,
         ),
-        Without<RigidBody>,
+        Without<RigidBody3d>,
     >,
-    parents: Query<(&Position3d, &Rotation3d), (With<RigidBody>, With<Children>)>,
+    parents: Query<(&Position3d, &Rotation3d), (With<RigidBody3d>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
         let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
@@ -210,7 +215,6 @@ pub(crate) fn update_child_collider_position_3d(
     }
 }
 
-#[allow(clippy::type_complexity)]
 pub(crate) fn update_collider_scale<C: Collider>(
     mut colliders: ParamSet<(
         // Root bodies
@@ -247,7 +251,6 @@ pub(crate) fn update_collider_scale<C: Collider>(
 /// the total transform relative to the body.
 ///
 /// This is largely a clone of `propagate_transforms` in `bevy_transform`.
-#[allow(clippy::type_complexity)]
 pub(crate) fn propagate_collider_transforms(
     mut root_query: Query<(Entity, Ref<Transform>, &Children), Without<Parent>>,
     collider_query: Query<
@@ -258,7 +261,7 @@ pub(crate) fn propagate_collider_transforms(
         ),
         With<Parent>,
     >,
-    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
+    parent_query: Query<(Entity, Ref<Transform>, IsRigidBody, Ref<Parent>)>,
 ) {
     root_query.par_iter_mut().for_each(
         |(entity, transform,children)| {
@@ -279,7 +282,7 @@ pub(crate) fn propagate_collider_transforms(
                 // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
                 unsafe {
                     propagate_collider_transforms_recursive(
-                        if is_child_rb {
+                        if is_child_rb.get() {
                             ColliderTransform {
                                 scale: child_transform.scale,
                                 ..default()
@@ -320,7 +323,6 @@ pub(crate) fn propagate_collider_transforms(
 /// nor any of its descendants.
 /// - The caller must ensure that the hierarchy leading to `entity`
 /// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
-#[allow(clippy::type_complexity)]
 unsafe fn propagate_collider_transforms_recursive(
     transform: ColliderTransform,
     collider_query: &Query<
@@ -331,7 +333,7 @@ unsafe fn propagate_collider_transforms_recursive(
         ),
         With<Parent>,
     >,
-    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
+    parent_query: &Query<(Entity, Ref<Transform>, IsRigidBody, Ref<Parent>)>,
     entity: Entity,
     mut changed: bool,
 ) {
@@ -396,7 +398,7 @@ unsafe fn propagate_collider_transforms_recursive(
         // entire hierarchy.
         unsafe {
             propagate_collider_transforms_recursive(
-                if is_rb {
+                if is_rb.get() {
                     ColliderTransform {
                         scale: child_transform.scale,
                         ..default()
@@ -508,7 +510,7 @@ fn position_2d_to_transform(
     mut query: Query<
         (&mut Transform, &Position2d, &Rotation2d, Option<&Parent>),
         (
-            With<RigidBody>,
+            With<RigidBody2d>,
             Or<(Changed<Position2d>, Changed<Rotation2d>)>,
         ),
     >,
@@ -561,7 +563,7 @@ fn position_3d_to_transform(
     mut query: Query<
         (&mut Transform, &Position3d, &Rotation3d, Option<&Parent>),
         (
-            With<RigidBody>,
+            With<RigidBody3d>,
             Or<(Changed<Position3d>, Changed<Rotation3d>)>,
         ),
     >,

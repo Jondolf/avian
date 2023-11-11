@@ -318,7 +318,7 @@ pub fn collect_collisions_3d(
 /// Resets collision states like `during_current_frame` and `during_previous_frame`.
 pub fn reset_collision_states_2d(
     mut collisions: ResMut<Collisions2d>,
-    query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
+    query: Query<(Option<&RigidBody2d>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
@@ -348,7 +348,7 @@ pub fn reset_collision_states_2d(
 /// Resets collision states like `during_current_frame` and `during_previous_frame`.
 pub fn reset_collision_states_3d(
     mut collisions: ResMut<Collisions3d>,
-    query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
+    query: Query<(Option<&RigidBody3d>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
