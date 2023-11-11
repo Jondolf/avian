@@ -384,6 +384,10 @@ pub struct LinearVelocity2d(pub Vector2);
 impl LinearVelocity2d {
     /// Zero linear velocity.
     pub const ZERO: LinearVelocity2d = LinearVelocity2d(Vector2::ZERO);
+
+    pub fn at_point(&self, point: Vector2, angular_velocity: Scalar) -> Vector2 {
+        self.0 + Vector2::new(-angular_velocity * point.y, angular_velocity * point.x)
+    }
 }
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -393,6 +397,10 @@ pub struct LinearVelocity3d(pub Vector3);
 impl LinearVelocity3d {
     /// Zero linear velocity.
     pub const ZERO: LinearVelocity3d = LinearVelocity3d(Vector3::ZERO);
+
+    pub fn at_point(&self, point: Vector3, angular_velocity: Vector3) -> Vector3 {
+        self.0 + angular_velocity.cross(point)
+    }
 }
 
 /// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
@@ -453,7 +461,7 @@ impl AngularVelocity2d {
 #[cfg(feature = "2d")]
 impl AngularVelocity3d {
     /// Zero angular velocity.
-    pub const ZERO: AngularVelocity3d = AngularVelocity3d(0.0);
+    pub const ZERO: AngularVelocity3d = AngularVelocity3d(Vector3::ZERO);
 }
 
 /// The angular velocity of a [rigid body](RigidBody) in radians per second, before

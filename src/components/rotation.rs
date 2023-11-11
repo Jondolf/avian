@@ -7,7 +7,7 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 #[cfg(feature = "3d")]
 use nalgebra::Matrix3x1;
 
-use crate::prelude::*;
+use crate::{math::FromMath, prelude::*};
 
 /// The global rotation of a [rigid body](RigidBody) or a [collider](Collider).
 ///
@@ -241,6 +241,18 @@ impl SubAssign<Self> for Rotation3d {
     }
 }
 
+impl From<Rotation2d> for Rotation3d {
+    fn from(value: Rotation2d) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<Rotation3d> for Rotation2d {
+    fn from(value: Rotation3d) -> Self {
+        Self::from(value.0)
+    }
+}
+
 #[cfg(feature = "2d")]
 impl From<Rotation2d> for Scalar {
     fn from(rot: Rotation2d) -> Self {
@@ -256,18 +268,36 @@ impl From<Scalar> for Rotation2d {
 }
 
 #[cfg(feature = "2d")]
-impl From<Rotation2d> for Quaternion {
+impl From<Rotation2d> for Quat {
     fn from(rot: Rotation2d) -> Self {
         let z = rot.sin().signum() * ((1.0 - rot.cos()) / 2.0).abs().sqrt();
         let w = ((1.0 + rot.cos()) / 2.0).abs().sqrt();
-        Quaternion::from_xyzw(0.0, 0.0, z, w)
+        Quat::from_xyzw(0.0, 0.0, z, w)
     }
 }
 
 #[cfg(feature = "3d")]
-impl From<Rotation3d> for Quaternion {
+impl From<Rotation3d> for Quat {
     fn from(rot: Rotation3d) -> Self {
         rot.0
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Rotation2d> for DQuat {
+    fn from(rot: Rotation2d) -> Self {
+        let sin = rot.sin() as f64;
+        let cos = rot.cos() as f64;
+        let z = sin.signum() * ((1.0 - cos) / 2.0).abs().sqrt();
+        let w = ((1.0 + cos) / 2.0).abs().sqrt();
+        DQuat::from_xyzw(0.0, 0.0, z, w)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl From<Rotation3d> for DQuat {
+    fn from(rot: Rotation3d) -> Self {
+        DQuat::from_math(rot.0)
     }
 }
 

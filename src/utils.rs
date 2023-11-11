@@ -6,20 +6,20 @@ use crate::prelude::*;
 pub(crate) fn make_isometry_2d(
     position: impl Into<Position2d>,
     rotation: impl Into<Rotation2d>,
-) -> Isometry<Scalar> {
+) -> parry2d::math::Isometry<Scalar> {
     let position: Position2d = position.into();
     let rotation: Rotation2d = rotation.into();
-    Isometry::<Scalar>::new(position.0.into(), rotation.into())
+    parry2d::math::Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
 #[cfg(feature = "3d")]
 pub(crate) fn make_isometry_3d(
     position: impl Into<Position3d>,
     rotation: impl Into<Rotation3d>,
-) -> Isometry<Scalar> {
+) -> parry3d::math::Isometry<Scalar> {
     let position: Position3d = position.into();
     let rotation: Rotation3d = rotation.into();
-    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
+    parry3d::math::Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
 
 pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {

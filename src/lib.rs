@@ -461,33 +461,34 @@ pub extern crate parry3d;
 pub extern crate parry3d_f64 as parry3d;
 
 pub mod components;
-pub mod constraints;
+//pub mod constraints;
 pub mod math;
 pub mod plugins;
 pub mod resources;
 
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
-    #[cfg(feature = "debug-plugin")]
-    pub use crate::plugins::debug::*;
+    //#[cfg(feature = "debug-plugin")]
+    //pub use crate::plugins::debug::*;
     pub use crate::{
         components::*,
-        constraints::{joints::*, *},
+        //constraints::{joints::*, *},
         plugins::{
             collision::{
-                broad_phase::BroadCollisionPairs,
-                contact_reporting::{Collision, CollisionEnded, CollisionStarted},
-                narrow_phase::NarrowPhaseConfig,
+                broad_phase::{BroadCollisionPairs2d, BroadCollisionPairs3d},
+                contact_reporting::{Collision2d, Collision3d, CollisionEnded, CollisionStarted},
+                narrow_phase::{NarrowPhaseConfig2d, NarrowPhaseConfig3d},
                 *,
             },
-            prepare::*,
+            //prepare::*,
             setup::*,
-            solver::solve_constraint,
-            spatial_query::*,
+            //solver::solve_constraint,
+            //spatial_query::*,
             *,
         },
         resources::*,
-        PhysicsSet, PostProcessCollisions,
+        PhysicsSet,
+        PostProcessCollisions,
     };
     pub(crate) use crate::{math::*, *};
     pub use bevy_xpbd_derive::*;

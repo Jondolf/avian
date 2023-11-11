@@ -60,7 +60,7 @@ impl Plugin for SyncPlugin {
                 bevy::transform::systems::sync_simple_transforms,
                 bevy::transform::systems::propagate_transforms,
                 init_previous_global_transform,
-                transform_to_position,
+                (transform_to_position_2d, transform_to_position_3d),
                 // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
                 update_previous_global_transforms,
             )
@@ -79,13 +79,13 @@ impl Plugin for SyncPlugin {
                     // Apply `Transform` changes to `Position` and `Rotation`
                     bevy::transform::systems::sync_simple_transforms,
                     bevy::transform::systems::propagate_transforms,
-                    transform_to_position,
+                    (transform_to_position_2d, transform_to_position_3d),
                 )
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
                 // Apply `Position` and `Rotation` changes to `Transform`
-                position2d_to_transform,
-                position3d_to_transform,
+                position_2d_to_transform,
+                position_3d_to_transform,
                 (
                     // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
                     bevy::transform::systems::sync_simple_transforms,
@@ -94,7 +94,10 @@ impl Plugin for SyncPlugin {
                 )
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
-                update_collider_scale,
+                (
+                    update_collider_scale::<Collider2d>,
+                    update_collider_scale::<Collider3d>,
+                ),
             )
                 .chain()
                 .in_set(PhysicsSet::Sync)
@@ -108,7 +111,10 @@ impl Plugin for SyncPlugin {
         substep_schedule.add_systems(
             (
                 propagate_collider_transforms,
-                update_child_collider_position,
+                (
+                    update_child_collider_position_2d,
+                    update_child_collider_position_3d,
+                ),
             )
                 .chain()
                 .after(SubstepSet::Integrate)
@@ -143,7 +149,7 @@ impl Default for SyncConfig {
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
-type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider>)>;
+type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider2d>, Added<Collider3d>)>;
 
 fn init_previous_global_transform(
     mut commands: Commands,
@@ -157,17 +163,40 @@ fn init_previous_global_transform(
 }
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn update_child_collider_position(
+pub(crate) fn update_child_collider_position_2d(
     mut colliders: Query<
         (
             &ColliderTransform,
-            &mut Position,
-            &mut Rotation,
+            &mut Position2d,
+            &mut Rotation2d,
             &ColliderParent,
         ),
         Without<RigidBody>,
     >,
-    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
+    parents: Query<(&Position2d, &Rotation2d), (With<RigidBody>, With<Children>)>,
+) {
+    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
+        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
+            continue;
+        };
+
+        position.0 = parent_pos.0 + parent_rot.rotate(collider_transform.translation.truncate());
+        *rotation = *parent_rot + Rotation2d::from(collider_transform.rotation);
+    }
+}
+
+#[allow(clippy::type_complexity)]
+pub(crate) fn update_child_collider_position_3d(
+    mut colliders: Query<
+        (
+            &ColliderTransform,
+            &mut Position3d,
+            &mut Rotation3d,
+            &ColliderParent,
+        ),
+        Without<RigidBody>,
+    >,
+    parents: Query<(&Position3d, &Rotation3d), (With<RigidBody>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
         let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
@@ -175,34 +204,26 @@ pub(crate) fn update_child_collider_position(
         };
 
         position.0 = parent_pos.0 + parent_rot.rotate(collider_transform.translation);
-        #[cfg(feature = "2d")]
-        {
-            *rotation = *parent_rot + collider_transform.rotation;
-        }
-        #[cfg(feature = "3d")]
-        {
-            *rotation = (parent_rot.0 * collider_transform.rotation.0)
-                .normalize()
-                .into();
-        }
+        *rotation = (parent_rot.0 * collider_transform.rotation.0)
+            .normalize()
+            .into();
     }
 }
 
 #[allow(clippy::type_complexity)]
-pub(crate) fn update_collider_scale(
+pub(crate) fn update_collider_scale<C: Collider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut Collider), Without<Parent>>,
+        Query<(&Transform, &mut C), Without<Parent>>,
         // Child colliders
-        Query<(&ColliderTransform, &mut Collider), With<Parent>>,
+        Query<(&ColliderTransform, &mut C), With<Parent>>,
     )>,
-) {
+) where
+    C::Vector: FromMath<Vector3>,
+{
     // Update collider scale for root bodies
     for (transform, mut collider) in &mut colliders.p0() {
-        #[cfg(feature = "2d")]
-        let scale = transform.scale.truncate().adjust_precision();
-        #[cfg(feature = "3d")]
-        let scale = transform.scale.adjust_precision();
+        let scale = C::Vector::from_math(transform.scale);
         if scale != collider.scale() {
             // TODO: Support configurable subdivision count for shapes that
             //       can't be represented without approximations after scaling.
@@ -212,10 +233,11 @@ pub(crate) fn update_collider_scale(
 
     // Update collider scale for child colliders
     for (collider_transform, mut collider) in &mut colliders.p1() {
-        if collider_transform.scale != collider.scale() {
+        let scale = C::Vector::from_math(collider_transform.scale);
+        if scale != collider.scale() {
             // TODO: Support configurable subdivision count for shapes that
             //       can't be represented without approximations after scaling.
-            collider.set_scale(collider_transform.scale, 10);
+            collider.set_scale(scale, 10);
         }
     }
 }
@@ -268,7 +290,7 @@ pub(crate) fn propagate_collider_transforms(
                             ColliderTransform {
                                 translation: transform.scale * child_transform.translation,
                                 rotation: child_transform.rotation,
-                                scale: (transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON)),
+                                scale: (transform.scale * child_transform.scale).max(Vector3::splat(Scalar::EPSILON)),
                             }
                         },
                         &collider_query,
@@ -382,12 +404,9 @@ unsafe fn propagate_collider_transforms_recursive(
                 } else {
                     ColliderTransform {
                         translation: transform.transform_point(child_transform.translation),
-                        #[cfg(feature = "2d")]
-                        rotation: transform.rotation + child_transform.rotation,
-                        #[cfg(feature = "3d")]
-                        rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
+                        rotation: Rotation3d(transform.rotation.0 * child_transform.rotation.0),
                         scale: (transform.scale * child_transform.scale)
-                            .max(Vector::splat(Scalar::EPSILON)),
+                            .max(Vector3::splat(Scalar::EPSILON)),
                     }
                 },
                 collider_query,
@@ -403,13 +422,13 @@ unsafe fn propagate_collider_transforms_recursive(
 /// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
-fn transform_to_position(
+fn transform_to_position_2d(
     mut query: Query<(
         &GlobalTransform,
         &PreviousGlobalTransform,
-        &mut Position,
-        Option<&AccumulatedTranslation>,
-        &mut Rotation,
+        &mut Position2d,
+        Option<&AccumulatedTranslation2d>,
+        &mut Rotation2d,
     )>,
 ) {
     for (
@@ -427,54 +446,57 @@ fn transform_to_position(
 
         let transform = global_transform.compute_transform();
         let previous_transform = previous_transform.compute_transform();
-        let pos = position.0 + accumulated_translation.map_or(Vector::ZERO, |t| t.0);
+        let pos = position.0 + accumulated_translation.map_or(Vector2::ZERO, |t| t.0);
 
-        #[cfg(feature = "2d")]
-        {
-            position.0 = (previous_transform.translation.truncate()
-                + (transform.translation - previous_transform.translation).truncate())
-            .adjust_precision()
-                + (pos - previous_transform.translation.truncate().adjust_precision());
-        }
-        #[cfg(feature = "3d")]
-        {
-            position.0 = (previous_transform.translation
-                + (transform.translation - previous_transform.translation))
-                .adjust_precision()
-                + (pos - previous_transform.translation.adjust_precision());
-        }
+        position.0 = (previous_transform.translation.truncate()
+            + (transform.translation - previous_transform.translation).truncate())
+        .adjust_precision()
+            + (pos - previous_transform.translation.truncate().adjust_precision());
 
-        #[cfg(feature = "2d")]
-        {
-            let rot = Rotation::from(transform.rotation.adjust_precision());
-            let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot + (rot - prev_rot) + (*rotation - prev_rot);
-        }
-        #[cfg(feature = "3d")]
-        {
-            rotation.0 = (previous_transform.rotation
-                + (transform.rotation - previous_transform.rotation)
-                + (rotation.as_f32() - previous_transform.rotation))
-                .normalize()
-                .adjust_precision();
-        }
+        let rot = Rotation2d::from(transform.rotation);
+        let prev_rot = Rotation2d::from(previous_transform.rotation);
+        *rotation = prev_rot + (rot - prev_rot) + (*rotation - prev_rot);
     }
 }
 
-type PosToTransformComponents = (
-    &'static mut Transform,
-    &'static Position,
-    &'static Rotation,
-    Option<&'static Parent>,
-);
+fn transform_to_position_3d(
+    mut query: Query<(
+        &GlobalTransform,
+        &PreviousGlobalTransform,
+        &mut Position3d,
+        Option<&AccumulatedTranslation3d>,
+        &mut Rotation3d,
+    )>,
+) {
+    for (
+        global_transform,
+        previous_transform,
+        mut position,
+        accumulated_translation,
+        mut rotation,
+    ) in &mut query
+    {
+        // Skip entity if the global transform value hasn't changed
+        if *global_transform == previous_transform.0 {
+            continue;
+        }
 
-type PosToTransformFilter = (With<RigidBody>, Or<(Changed<Position>, Changed<Rotation>)>);
+        let transform = global_transform.compute_transform();
+        let previous_transform = previous_transform.compute_transform();
+        let pos = position.0 + accumulated_translation.map_or(Vector3::ZERO, |t| t.0);
 
-type ParentComponents = (
-    &'static GlobalTransform,
-    Option<&'static Position>,
-    Option<&'static Rotation>,
-);
+        position.0 = (previous_transform.translation
+            + (transform.translation - previous_transform.translation))
+            .adjust_precision()
+            + (pos - previous_transform.translation.adjust_precision());
+
+        rotation.0 = (previous_transform.rotation
+            + (transform.rotation - previous_transform.rotation)
+            + (rotation.as_f32() - previous_transform.rotation))
+            .normalize()
+            .adjust_precision();
+    }
+}
 
 /// Copies [`Position`] and [`Rotation`] changes to `Transform`.
 /// This allows users and the engine to use these components for moving and positioning bodies.
@@ -482,9 +504,15 @@ type ParentComponents = (
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
-fn position2d_to_transform(
-    mut query: Query<PosToTransformComponents, PosToTransformFilter>,
-    parents: Query<ParentComponents, With<Children>>,
+fn position_2d_to_transform(
+    mut query: Query<
+        (&mut Transform, &Position2d, &Rotation2d, Option<&Parent>),
+        (
+            With<RigidBody>,
+            Or<(Changed<Position2d>, Changed<Rotation2d>)>,
+        ),
+    >,
+    parents: Query<(&GlobalTransform, Option<&Position2d>, Option<&Rotation2d>), With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
         if let Some(parent) = parent {
@@ -529,9 +557,15 @@ fn position2d_to_transform(
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
-fn position3d_to_transform(
-    mut query: Query<PosToTransformComponents, PosToTransformFilter>,
-    parents: Query<ParentComponents, With<Children>>,
+fn position_3d_to_transform(
+    mut query: Query<
+        (&mut Transform, &Position3d, &Rotation3d, Option<&Parent>),
+        (
+            With<RigidBody>,
+            Or<(Changed<Position3d>, Changed<Rotation3d>)>,
+        ),
+    >,
+    parents: Query<(&GlobalTransform, Option<&Position3d>, Option<&Rotation3d>), With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
         if let Some(parent) = parent {

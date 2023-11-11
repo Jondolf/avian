@@ -21,6 +21,112 @@ pub trait AdjustPrecision {
     fn adjust_precision(&self) -> Self::Adjusted;
 }
 
+pub trait FromMath<T> {
+    fn from_math(value: T) -> Self;
+    fn into_math<K: FromMath<Self>>(&self) -> K
+    where
+        Self: Sized,
+    {
+        K::from_math(*self)
+    }
+}
+
+impl FromMath<Vec2> for Vec2 {
+    fn from_math(value: Vec2) -> Self {
+        value
+    }
+}
+
+impl FromMath<Vec3> for Vec3 {
+    fn from_math(value: Vec3) -> Self {
+        value
+    }
+}
+
+impl FromMath<DVec2> for DVec2 {
+    fn from_math(value: DVec2) -> Self {
+        value
+    }
+}
+
+impl FromMath<DVec3> for DVec3 {
+    fn from_math(value: DVec3) -> Self {
+        value
+    }
+}
+
+impl FromMath<Vec2> for Vec3 {
+    fn from_math(value: Vec2) -> Self {
+        value.extend(0.0)
+    }
+}
+
+impl FromMath<Vec3> for Vec2 {
+    fn from_math(value: Vec3) -> Self {
+        value.truncate()
+    }
+}
+
+impl FromMath<DVec2> for DVec3 {
+    fn from_math(value: DVec2) -> Self {
+        value.extend(0.0)
+    }
+}
+
+impl FromMath<DVec3> for DVec2 {
+    fn from_math(value: DVec3) -> Self {
+        value.truncate()
+    }
+}
+
+impl FromMath<Vec2> for DVec3 {
+    fn from_math(value: Vec2) -> Self {
+        value.extend(0.0).as_dvec3()
+    }
+}
+
+impl FromMath<Vec3> for DVec2 {
+    fn from_math(value: Vec3) -> Self {
+        value.truncate().as_dvec2()
+    }
+}
+
+impl FromMath<DVec2> for Vec3 {
+    fn from_math(value: DVec2) -> Self {
+        value.extend(0.0).as_vec3()
+    }
+}
+
+impl FromMath<DVec3> for Vec2 {
+    fn from_math(value: DVec3) -> Self {
+        value.truncate().as_vec2()
+    }
+}
+
+impl FromMath<Quat> for Quat {
+    fn from_math(value: Quat) -> Self {
+        value
+    }
+}
+
+impl FromMath<DQuat> for DQuat {
+    fn from_math(value: DQuat) -> Self {
+        value
+    }
+}
+
+impl FromMath<Quat> for DQuat {
+    fn from_math(value: Quat) -> Self {
+        value.as_f64()
+    }
+}
+
+impl FromMath<DQuat> for Quat {
+    fn from_math(value: DQuat) -> Self {
+        value.as_f32()
+    }
+}
+
 /// Adjust the precision down to `f32` regardless of compilation.
 pub trait AsF32 {
     /// The `f32` version of a math construct.

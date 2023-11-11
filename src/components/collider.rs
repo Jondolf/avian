@@ -6,7 +6,7 @@ use bevy::render::mesh::{Indices, VertexAttributeValues};
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::utils::HashMap;
 use bevy::{log, prelude::*, utils::HashSet};
-use collision::contact_query::UnsupportedShape;
+use collision::contact_query::{UnsupportedShape2d, UnsupportedShape3d};
 use itertools::Either;
 
 /// Parameters controlling the VHACD convex decomposition algorithm.
@@ -30,6 +30,41 @@ pub type Shape3d = parry3d::shape::SharedShape;
 
 pub type TypedShape2d<'a> = parry2d::shape::TypedShape<'a>;
 pub type TypedShape3d<'a> = parry3d::shape::TypedShape<'a>;
+
+pub trait Collider: Component {
+    type Vector: Copy + Clone + PartialEq;
+    type Rotation: Copy + Clone + PartialEq;
+    type Shape;
+    type Aabb;
+    type MassProperties;
+
+    /// Returns the raw unscaled shape of the collider.
+    fn shape(&self) -> &Self::Shape;
+
+    /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
+    fn shape_scaled(&self) -> &Self::Shape;
+
+    /// Returns the global scale of the collider.
+    fn scale(&self) -> Self::Vector;
+
+    /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
+    fn set_shape(&mut self, shape: Self::Shape);
+
+    /// Set the global scaling factor of this shape.
+    ///
+    /// If the scaling factor is not uniform, and the scaled shape can’t be
+    /// represented as a supported shape, the shape is approximated as
+    /// a convex polygon or polyhedron using the number of `subdivisions`.
+    ///
+    /// For example, if a ball was scaled to an ellipse, the new shape would be approximated.
+    fn set_scale(&mut self, scale: Self::Vector, subdivisions: u32);
+
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    fn compute_aabb(&self, position: Self::Vector, rotation: Self::Rotation) -> Self::Aabb;
+
+    /// Computes the collider's mass properties based on its shape and a given density.
+    fn mass_properties(&self, density: Scalar) -> Self::MassProperties;
+}
 
 /// A collider used for detecting collisions and generating contacts.
 ///
@@ -193,21 +228,7 @@ impl fmt::Debug for Collider2d {
             TypedShape2d::HeightField(shape) => write!(f, "{:?}", shape),
             TypedShape2d::Compound(_) => write!(f, "Compound (not representable)"),
             TypedShape2d::Custom(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::Cylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::Cone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::RoundCylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::RoundCone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape3d::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
             TypedShape2d::ConvexPolygon(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
             TypedShape2d::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
         }
     }
@@ -222,7 +243,7 @@ pub struct Collider3d {
     /// will be used instead.
     scaled_shape: parry3d::shape::SharedShape,
     /// The global scale used for the collider shape.
-    scale: Vector2,
+    scale: Vector3,
 }
 
 impl From<Shape3d> for Collider3d {
@@ -230,7 +251,7 @@ impl From<Shape3d> for Collider3d {
         Self {
             shape: value.clone(),
             scaled_shape: value,
-            scale: Vector2::ONE,
+            scale: Vector3::ONE,
         }
     }
 }
@@ -273,38 +294,33 @@ impl fmt::Debug for Collider3d {
     }
 }
 
-impl Collider2d {
-    /// Returns the raw unscaled shape of the collider.
-    pub fn shape(&self) -> &Shape2d {
+impl Collider for Collider2d {
+    type Vector = Vector2;
+    type Rotation = Scalar;
+    type Shape = Shape2d;
+    type Aabb = ColliderAabb2d;
+    type MassProperties = ColliderMassProperties2d;
+
+    fn shape(&self) -> &Shape2d {
         &self.shape
     }
 
-    /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
-    pub fn shape_scaled(&self) -> &Shape2d {
+    fn shape_scaled(&self) -> &Shape2d {
         &self.scaled_shape
     }
 
-    /// Returns the global scale of the collider.
-    pub fn scale(&self) -> Vector2 {
+    fn scale(&self) -> Vector2 {
         self.scale
     }
 
-    /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
-    pub fn set_shape(&mut self, shape: Shape2d) {
+    fn set_shape(&mut self, shape: Shape2d) {
         if self.scale != Vector2::ONE {
             self.scaled_shape = shape.clone();
         }
         self.shape = shape;
     }
 
-    /// Set the global scaling factor of this shape.
-    ///
-    /// If the scaling factor is not uniform, and the scaled shape can’t be
-    /// represented as a supported shape, the shape is approximated as
-    /// a convex polygon or polyhedron using `num_subdivisions`.
-    ///
-    /// For example, if a ball was scaled to an ellipse, the new shape would be approximated.
-    pub fn set_scale(&mut self, scale: Vector2, num_subdivisions: u32) {
+    fn set_scale(&mut self, scale: Vector2, subdivisions: u32) {
         if scale == self.scale {
             return;
         }
@@ -316,7 +332,7 @@ impl Collider2d {
             return;
         }
 
-        if let Ok(scaled) = scale_shape_2d(&self.shape, scale, num_subdivisions) {
+        if let Ok(scaled) = scale_shape_2d(&self.shape, scale, subdivisions) {
             self.scaled_shape = scaled;
             self.scale = scale;
         } else {
@@ -324,19 +340,77 @@ impl Collider2d {
         }
     }
 
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    pub fn compute_aabb(&self, position: Vector2, rotation: Scalar) -> ColliderAabb2d {
+    fn compute_aabb(&self, position: Vector2, rotation: Scalar) -> ColliderAabb2d {
         ColliderAabb2d(self.shape_scaled().compute_aabb(&utils::make_isometry_2d(
             position,
             Rotation2d::from_radians(rotation),
         )))
     }
 
-    /// Computes the collider's mass properties based on its shape and a given density.
-    pub fn mass_properties(&self, density: Scalar) -> ColliderMassProperties2d {
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties2d {
         ColliderMassProperties2d::new(self, density)
     }
+}
 
+impl Collider for Collider3d {
+    type Vector = Vector3;
+    type Rotation = Quaternion;
+    type Shape = Shape3d;
+    type Aabb = ColliderAabb3d;
+    type MassProperties = ColliderMassProperties3d;
+
+    fn shape(&self) -> &Shape3d {
+        &self.shape
+    }
+
+    fn shape_scaled(&self) -> &Shape3d {
+        &self.scaled_shape
+    }
+
+    fn scale(&self) -> Vector3 {
+        self.scale
+    }
+
+    fn set_shape(&mut self, shape: Shape3d) {
+        if self.scale != Vector3::ONE {
+            self.scaled_shape = shape.clone();
+        }
+        self.shape = shape;
+    }
+
+    fn set_scale(&mut self, scale: Vector3, num_subdivisions: u32) {
+        if scale == self.scale {
+            return;
+        }
+
+        if scale == Vector3::ONE {
+            // Trivial case.
+            self.scaled_shape = self.shape.clone();
+            self.scale = Vector3::ONE;
+            return;
+        }
+
+        if let Ok(scaled) = scale_shape_3d(&self.shape, scale, num_subdivisions) {
+            self.scaled_shape = scaled;
+            self.scale = scale;
+        } else {
+            log::error!("Failed to create convex hull for scaled collider.");
+        }
+    }
+
+    fn compute_aabb(&self, position: Vector3, rotation: Quaternion) -> ColliderAabb3d {
+        ColliderAabb3d(
+            self.shape_scaled()
+                .compute_aabb(&utils::make_isometry_3d(position, Rotation3d(rotation))),
+        )
+    }
+
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties3d {
+        ColliderMassProperties3d::new(self, density)
+    }
+}
+
+impl Collider2d {
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,
@@ -464,69 +538,6 @@ impl Collider2d {
 }
 
 impl Collider3d {
-    /// Returns the raw unscaled shape of the collider.
-    pub fn shape(&self) -> &Shape3d {
-        &self.shape
-    }
-
-    /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
-    pub fn shape_scaled(&self) -> &Shape3d {
-        &self.scaled_shape
-    }
-
-    /// Returns the global scale of the collider.
-    pub fn scale(&self) -> Vector2 {
-        self.scale
-    }
-
-    /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
-    pub fn set_shape(&mut self, shape: Shape3d) {
-        if self.scale != Vector2::ONE {
-            self.scaled_shape = shape.clone();
-        }
-        self.shape = shape;
-    }
-
-    /// Set the global scaling factor of this shape.
-    ///
-    /// If the scaling factor is not uniform, and the scaled shape can’t be
-    /// represented as a supported shape, the shape is approximated as
-    /// a convex polygon or polyhedron using `num_subdivisions`.
-    ///
-    /// For example, if a ball was scaled to an ellipse, the new shape would be approximated.
-    pub fn set_scale(&mut self, scale: Vector2, num_subdivisions: u32) {
-        if scale == self.scale {
-            return;
-        }
-
-        if scale == Vector2::ONE {
-            // Trivial case.
-            self.scaled_shape = self.shape.clone();
-            self.scale = Vector2::ONE;
-            return;
-        }
-
-        if let Ok(scaled) = scale_shape_3d(&self.shape, scale, num_subdivisions) {
-            self.scaled_shape = scaled;
-            self.scale = scale;
-        } else {
-            log::error!("Failed to create convex hull for scaled collider.");
-        }
-    }
-
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    pub fn compute_aabb(&self, position: Vector3, rotation: Quaternion) -> ColliderAabb3d {
-        ColliderAabb3d(
-            self.shape_scaled()
-                .compute_aabb(&utils::make_isometry_3d(position, Rotation3d(rotation))),
-        )
-    }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    pub fn mass_properties(&self, density: Scalar) -> ColliderMassProperties3d {
-        ColliderMassProperties3d::new(self, density)
-    }
-
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,
@@ -576,41 +587,41 @@ impl Collider3d {
     /// Creates a collider with a capsule shape defined by its height along the `Y` axis and its radius.
     pub fn capsule(height: Scalar, radius: Scalar) -> Self {
         Shape3d::capsule(
-            (Vector2::Y * height * 0.5).into(),
-            (Vector2::NEG_Y * height * 0.5).into(),
+            (Vector3::Y * height * 0.5).into(),
+            (Vector3::NEG_Y * height * 0.5).into(),
             radius,
         )
         .into()
     }
 
     /// Creates a collider with a capsule shape defined by its end points `a` and `b` and its radius.
-    pub fn capsule_endpoints(a: Vector2, b: Vector2, radius: Scalar) -> Self {
+    pub fn capsule_endpoints(a: Vector3, b: Vector3, radius: Scalar) -> Self {
         Shape3d::capsule(a.into(), b.into(), radius).into()
     }
 
     /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape defined by the outward normal of its planar boundary.
-    pub fn halfspace(outward_normal: Vector2) -> Self {
+    pub fn halfspace(outward_normal: Vector3) -> Self {
         Shape3d::halfspace(nalgebra::Unit::new_normalize(outward_normal.into())).into()
     }
 
     /// Creates a collider with a segment shape defined by its endpoints `a` and `b`.
-    pub fn segment(a: Vector2, b: Vector2) -> Self {
+    pub fn segment(a: Vector3, b: Vector3) -> Self {
         Shape3d::segment(a.into(), b.into()).into()
     }
 
     /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
-    pub fn triangle(a: Vector2, b: Vector2, c: Vector2) -> Self {
+    pub fn triangle(a: Vector3, b: Vector3, c: Vector3) -> Self {
         Shape3d::triangle(a.into(), b.into(), c.into()).into()
     }
 
     /// Creates a collider with a polyline shape defined by its vertices and optionally an index buffer.
-    pub fn polyline(vertices: Vec<Vector2>, indices: Option<Vec<[u32; 2]>>) -> Self {
+    pub fn polyline(vertices: Vec<Vector3>, indices: Option<Vec<[u32; 2]>>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         Shape3d::polyline(vertices, indices).into()
     }
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers.
-    pub fn trimesh(vertices: Vec<Vector2>, indices: Vec<[u32; 3]>) -> Self {
+    pub fn trimesh(vertices: Vec<Vector3>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         Shape3d::trimesh(vertices, indices).into()
     }
@@ -618,7 +629,7 @@ impl Collider3d {
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
     /// and flags controlling the preprocessing.
     pub fn trimesh_with_config(
-        vertices: Vec<Vector2>,
+        vertices: Vec<Vector3>,
         indices: Vec<[u32; 3]>,
         flags: TriMeshFlags3d,
     ) -> Self {
@@ -851,7 +862,7 @@ fn scale_shape_2d(
     shape: &Shape2d,
     scale: Vector2,
     num_subdivisions: u32,
-) -> Result<Shape2d, UnsupportedShape> {
+) -> Result<Shape2d, UnsupportedShape2d> {
     match shape.as_typed_shape() {
         TypedShape2d::Cuboid(s) => Ok(Shape2d::new(s.scaled(&scale.into()))),
         TypedShape2d::RoundCuboid(s) => Ok(Shape2d::new(parry2d::shape::RoundShape {
@@ -932,9 +943,9 @@ fn scale_shape_2d(
 
 fn scale_shape_3d(
     shape: &Shape3d,
-    scale: Vector2,
+    scale: Vector3,
     num_subdivisions: u32,
-) -> Result<Shape3d, UnsupportedShape> {
+) -> Result<Shape3d, UnsupportedShape3d> {
     match shape.as_typed_shape() {
         TypedShape3d::Cuboid(s) => Ok(Shape3d::new(s.scaled(&scale.into()))),
         TypedShape3d::RoundCuboid(s) => Ok(Shape3d::new(parry3d::shape::RoundShape {
@@ -1047,8 +1058,8 @@ fn scale_shape_3d(
             for (iso, shape) in c.shapes() {
                 scaled.push((
                     utils::make_isometry_3d(
-                        Vector2::from(iso.translation) * scale,
-                        Rotation3d::from_radians(iso.rotation),
+                        Vector3::from(iso.translation) * scale,
+                        Rotation3d(iso.rotation.into()),
                     ),
                     scale_shape_3d(shape, scale, num_subdivisions)?,
                 ));
@@ -1332,14 +1343,8 @@ impl Default for ColliderTransform {
 impl From<Transform> for ColliderTransform {
     fn from(value: Transform) -> Self {
         Self {
-            #[cfg(feature = "2d")]
-            translation: value.translation.truncate().adjust_precision(),
-            #[cfg(feature = "3d")]
             translation: value.translation.adjust_precision(),
             rotation: Rotation3d::from(value.rotation.adjust_precision()),
-            #[cfg(feature = "2d")]
-            scale: value.scale.truncate().adjust_precision(),
-            #[cfg(feature = "3d")]
             scale: value.scale.adjust_precision(),
         }
     }

@@ -671,7 +671,7 @@ impl Default for ExternalForce3d {
         Self {
             force: Vector3::ZERO,
             persistent: true,
-            torque: 0.0,
+            torque: Vector3::ZERO,
         }
     }
 }
@@ -681,7 +681,7 @@ impl ExternalForce3d {
     pub const ZERO: Self = Self {
         force: Vector3::ZERO,
         persistent: true,
-        torque: 0.0,
+        torque: Vector3::ZERO,
     };
 
     /// Creates a new [`ExternalForce`] component with a given world-space `force`.
@@ -734,7 +734,7 @@ impl ExternalForce3d {
     /// Sets the force and the potential torque caused by the force to zero.
     pub fn clear(&mut self) {
         self.force = Vector3::ZERO;
-        self.torque = 0.0;
+        self.torque = Vector3::ZERO;
     }
 }
 
@@ -795,7 +795,7 @@ impl DerefMut for ExternalTorque3d {
 impl Default for ExternalTorque3d {
     fn default() -> Self {
         Self {
-            torque: 0.0,
+            torque: Vector3::ZERO,
             persistent: true,
         }
     }
@@ -804,7 +804,7 @@ impl Default for ExternalTorque3d {
 impl ExternalTorque3d {
     /// Zero external torque.
     pub const ZERO: Self = Self {
-        torque: 0.0,
+        torque: Vector3::ZERO,
         persistent: true,
     };
 
@@ -842,7 +842,7 @@ impl ExternalTorque3d {
 
     /// Sets the torque to zero.
     pub fn clear(&mut self) {
-        self.torque = 0.0;
+        self.torque = Vector3::ZERO;
     }
 }
 
@@ -945,7 +945,7 @@ impl Default for ExternalImpulse3d {
         Self {
             impulse: Vector3::ZERO,
             persistent: false,
-            angular_impulse: 0.0,
+            angular_impulse: Vector3::ZERO,
         }
     }
 }
@@ -955,7 +955,7 @@ impl ExternalImpulse3d {
     pub const ZERO: Self = Self {
         impulse: Vector3::ZERO,
         persistent: false,
-        angular_impulse: 0.0,
+        angular_impulse: Vector3::ZERO,
     };
 
     /// Creates a new [`ExternalImpulse`] component with a given world-space `impulse`.
@@ -1011,7 +1011,7 @@ impl ExternalImpulse3d {
     /// Sets the impulse and the potential angular impulse caused by the impulse to zero.
     pub fn clear(&mut self) {
         self.impulse = Vector3::ZERO;
-        self.angular_impulse = 0.0;
+        self.angular_impulse = Vector3::ZERO;
     }
 }
 
@@ -1074,7 +1074,7 @@ impl DerefMut for ExternalAngularImpulse3d {
 impl Default for ExternalAngularImpulse3d {
     fn default() -> Self {
         Self {
-            impulse: 0.0,
+            impulse: Vector3::ZERO,
             persistent: false,
         }
     }
@@ -1083,7 +1083,7 @@ impl Default for ExternalAngularImpulse3d {
 impl ExternalAngularImpulse3d {
     /// Zero external angular impulse.
     pub const ZERO: Self = Self {
-        impulse: 0.0,
+        impulse: Vector3::ZERO,
         persistent: false,
     };
 
@@ -1121,6 +1121,6 @@ impl ExternalAngularImpulse3d {
 
     /// Sets the angular impulse to zero.
     pub fn clear(&mut self) {
-        self.impulse = 0.0;
+        self.impulse = Vector3::ZERO;
     }
 }

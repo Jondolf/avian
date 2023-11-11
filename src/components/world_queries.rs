@@ -43,21 +43,8 @@ impl<'w> RigidBodyQuery2dItem<'w> {
     }
 
     /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
-    #[cfg(feature = "2d")]
     pub fn effective_world_inv_inertia(&self) -> Scalar {
         let mut inv_inertia = self.inverse_inertia.0;
-
-        if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
-        }
-
-        inv_inertia
-    }
-
-    /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
-    #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
-        let mut inv_inertia = self.inverse_inertia.rotated(&self.rotation).0;
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
@@ -136,7 +123,7 @@ impl<'w> RigidBodyQuery3dItem<'w> {
 
     /// Returns the current position of the body. This is a sum of the [`Position`] and
     /// [`AccumulatedTranslation`] components.
-    pub fn current_position(&self) -> Vector2 {
+    pub fn current_position(&self) -> Vector3 {
         self.position.0 + self.accumulated_translation.0
     }
 

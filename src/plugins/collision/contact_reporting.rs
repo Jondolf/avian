@@ -43,7 +43,8 @@ pub struct ContactReportingPlugin;
 
 impl Plugin for ContactReportingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<Collision>()
+        app.add_event::<Collision2d>()
+            .add_event::<Collision3d>()
             .add_event::<CollisionStarted>()
             .add_event::<CollisionEnded>();
 
@@ -51,7 +52,9 @@ impl Plugin for ContactReportingPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics_schedule.add_systems(report_contacts.in_set(PhysicsStepSet::ReportContacts));
+        physics_schedule.add_systems(
+            (report_contacts_2d, report_contacts_3d).in_set(PhysicsStepSet::ReportContacts),
+        );
     }
 }
 
@@ -83,7 +86,10 @@ impl Plugin for ContactReportingPlugin {
 /// }
 /// ```
 #[derive(Event, Clone, Debug, PartialEq)]
-pub struct Collision(pub Contacts);
+pub struct Collision2d(pub Contacts2d);
+
+#[derive(Event, Clone, Debug, PartialEq)]
+pub struct Collision3d(pub Contacts3d);
 
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent when two entities start colliding.
@@ -146,16 +152,55 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 pub struct CollisionEnded(pub Entity, pub Entity);
 
 /// Sends collision events and updates [`CollidingEntities`].
-pub fn report_contacts(
+pub fn report_contacts_2d(
     mut colliders: Query<&mut CollidingEntities>,
-    collisions: Res<Collisions>,
-    mut collision_ev_writer: EventWriter<Collision>,
+    collisions: Res<Collisions2d>,
+    mut collision_ev_writer: EventWriter<Collision2d>,
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
 ) {
     for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
         if contacts.during_current_frame {
-            collision_ev_writer.send(Collision(contacts.clone()));
+            collision_ev_writer.send(Collision2d(contacts.clone()));
+
+            // Collision started
+            if !contacts.during_previous_frame {
+                collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
+
+                if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
+                    colliding_entities1.insert(*entity2);
+                }
+                if let Ok(mut colliding_entities2) = colliders.get_mut(*entity2) {
+                    colliding_entities2.insert(*entity1);
+                }
+            }
+        }
+
+        // Collision ended
+        if !contacts.during_current_frame && contacts.during_previous_frame {
+            collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
+
+            if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
+                colliding_entities1.remove(entity2);
+            }
+            if let Ok(mut colliding_entities2) = colliders.get_mut(*entity2) {
+                colliding_entities2.remove(entity1);
+            }
+        }
+    }
+}
+
+/// Sends collision events and updates [`CollidingEntities`].
+pub fn report_contacts_3d(
+    mut colliders: Query<&mut CollidingEntities>,
+    collisions: Res<Collisions3d>,
+    mut collision_ev_writer: EventWriter<Collision3d>,
+    mut collision_started_ev_writer: EventWriter<CollisionStarted>,
+    mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+) {
+    for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
+        if contacts.during_current_frame {
+            collision_ev_writer.send(Collision3d(contacts.clone()));
 
             // Collision started
             if !contacts.during_previous_frame {

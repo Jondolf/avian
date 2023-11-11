@@ -21,14 +21,14 @@
 //! - [`SubstepSchedule`] and [`SubstepSet`]
 
 pub mod collision;
-#[cfg(feature = "debug-plugin")]
-pub mod debug;
-pub mod integrator;
-pub mod prepare;
+//#[cfg(feature = "debug-plugin")]
+//pub mod debug;
+//pub mod integrator;
+//pub mod prepare;
 pub mod setup;
-pub mod sleeping;
-pub mod solver;
-pub mod spatial_query;
+//pub mod sleeping;
+//pub mod solver;
+//pub mod spatial_query;
 pub mod sync;
 
 use bevy::utils::intern::Interned;
@@ -36,14 +36,14 @@ pub use collision::{
     broad_phase::BroadPhasePlugin, contact_reporting::ContactReportingPlugin,
     narrow_phase::NarrowPhasePlugin,
 };
-#[cfg(feature = "debug-plugin")]
-pub use debug::PhysicsDebugPlugin;
-pub use integrator::IntegratorPlugin;
-pub use prepare::PreparePlugin;
+//#[cfg(feature = "debug-plugin")]
+//pub use debug::PhysicsDebugPlugin;
+//pub use integrator::IntegratorPlugin;
+//pub use prepare::PreparePlugin;
 pub use setup::PhysicsSetupPlugin;
-pub use sleeping::SleepingPlugin;
-pub use solver::SolverPlugin;
-pub use spatial_query::SpatialQueryPlugin;
+//pub use sleeping::SleepingPlugin;
+//pub use solver::SolverPlugin;
+//pub use spatial_query::SpatialQueryPlugin;
 pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
@@ -188,14 +188,14 @@ impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule))
-            .add(PreparePlugin::new(self.schedule))
+            //.add(PreparePlugin::new(self.schedule))
             .add(BroadPhasePlugin)
-            .add(IntegratorPlugin)
+            //.add(IntegratorPlugin)
             .add(NarrowPhasePlugin)
             .add(ContactReportingPlugin)
-            .add(SolverPlugin)
-            .add(SleepingPlugin)
-            .add(SpatialQueryPlugin::new(self.schedule))
-            .add(SyncPlugin::new(self.schedule))
+        /*.add(SolverPlugin)
+        .add(SleepingPlugin)
+        .add(SpatialQueryPlugin::new(self.schedule))
+        .add(SyncPlugin::new(self.schedule))*/
     }
 }
