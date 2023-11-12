@@ -158,31 +158,43 @@ type IsBodyInactive = bool;
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
-struct AabbIntervals(Vec<(Entity, ColliderAabb, CollisionLayers, IsBodyInactive)>);
+struct AabbIntervals(
+    Vec<(
+        Entity,
+        ColliderParent,
+        ColliderAabb,
+        CollisionLayers,
+        IsBodyInactive,
+    )>,
+);
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 #[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
     aabbs: Query<(
         &ColliderAabb,
+        &ColliderParent,
         Option<&CollisionLayers>,
         Ref<Position>,
         Ref<Rotation>,
     )>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    intervals
-        .0
-        .retain_mut(|(entity, aabb, layers, is_inactive)| {
-            if let Ok((new_aabb, new_layers, position, rotation)) = aabbs.get(*entity) {
+    intervals.0.retain_mut(
+        |(collider_entity, collider_parent, aabb, layers, is_inactive)| {
+            if let Ok((new_aabb, new_parent, new_layers, position, rotation)) =
+                aabbs.get(*collider_entity)
+            {
                 *aabb = *new_aabb;
+                *collider_parent = *new_parent;
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
                 *is_inactive = !position.is_changed() && !rotation.is_changed();
                 true
             } else {
                 false
             }
-        });
+        },
+    );
 }
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
@@ -191,6 +203,7 @@ fn add_new_aabb_intervals(
     aabbs: Query<
         (
             Entity,
+            &ColliderParent,
             &ColliderAabb,
             Option<&RigidBody>,
             Option<&CollisionLayers>,
@@ -199,9 +212,10 @@ fn add_new_aabb_intervals(
     >,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    let aabbs = aabbs.iter().map(|(ent, aabb, rb, layers)| {
+    let aabbs = aabbs.iter().map(|(ent, parent, aabb, rb, layers)| {
         (
             ent,
+            *parent,
             *aabb,
             // Default to treating collider as immovable/static for filtering unnecessary collision checks
             layers.map_or(CollisionLayers::default(), |layers| *layers),
@@ -227,21 +241,22 @@ fn sweep_and_prune(
     broad_collision_pairs: &mut Vec<(Entity, Entity)>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
-    insertion_sort(&mut intervals.0, |a, b| a.1.mins.x > b.1.mins.x);
+    insertion_sort(&mut intervals.0, |a, b| a.2.mins.x > b.2.mins.x);
 
     // Clear broad phase collisions from previous iteration.
     broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
-    for (i, (ent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
-        for (ent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
+    for (i, (ent1, parent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
+        for (ent2, parent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect; check this first so we can discard as soon as possible
             if aabb2.mins.x > aabb1.maxs.x {
                 break;
             }
 
-            // No collisions between bodies that haven't moved or colliders with incompatible layers
-            if (*inactive1 && *inactive2) || !layers1.interacts_with(*layers2) {
+            // No collisions between bodies that haven't moved or colliders with incompatible layers or colliders with the same parent
+            if (*inactive1 && *inactive2) || !layers1.interacts_with(*layers2) || parent1 == parent2
+            {
                 continue;
             }
 
