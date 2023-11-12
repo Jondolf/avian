@@ -111,10 +111,13 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<SphericalJoint>,
                     debug_render_raycasts,
                     debug_render_shapecasts,
-                    change_mesh_visibility,
                 )
                     .after(PhysicsSet::StepSimulation)
                     .run_if(|config: Res<PhysicsDebugConfig>| config.enabled),
+            )
+            .add_systems(
+                self.schedule,
+                change_mesh_visibility.after(PhysicsSet::StepSimulation),
             );
     }
 }
@@ -435,7 +438,8 @@ fn change_mesh_visibility(
 ) {
     if config.is_changed() {
         for (mut visibility, render_config) in &mut meshes {
-            let hide_mesh = render_config.map_or(config.hide_meshes, |c| c.hide_mesh);
+            let hide_mesh =
+                config.enabled && render_config.map_or(config.hide_meshes, |c| c.hide_mesh);
             if hide_mesh {
                 *visibility = Visibility::Hidden;
             } else {
