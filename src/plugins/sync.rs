@@ -118,6 +118,7 @@ impl Plugin for SyncPlugin {
 
 /// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
@@ -139,6 +140,7 @@ impl Default for SyncConfig {
 /// The global transform of a body at the end of the previous frame.
 /// Used for detecting if the transform was modified before the start of the physics schedule.
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 

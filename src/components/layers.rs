@@ -70,6 +70,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CollisionLayers {
     groups: u32,

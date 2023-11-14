@@ -24,6 +24,12 @@ enhanced-determinism = [
     "parry2d-f64?/enhanced-determinism",
     "glam/libm",
 ]
+serialize = [
+    "dep:serde",
+    "bevy/serialize",
+    "parry2d?/serde-serialize",
+    "parry2d-f64?/serde-serialize",
+]
 
 [lib]
 name = "bevy_xpbd_2d"
@@ -37,6 +43,7 @@ parry2d = { version = "0.13", optional = true }
 parry2d-f64 = { version = "0.13", optional = true }
 nalgebra = { version = "0.32", features = ["convert-glam024"] }
 glam = { version = "0.24", features = ["approx"] }
+serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"

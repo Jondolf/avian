@@ -78,6 +78,7 @@ use indexmap::IndexMap;
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
@@ -250,6 +251,7 @@ pub(super) struct PreviousCollisions(Collisions);
 /// Each manifold contains one or more contact points, and each contact
 /// in a given manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Contacts {
     /// First entity in the contact.
     pub entity1: Entity,
@@ -270,6 +272,7 @@ pub struct Contacts {
 /// A contact manifold between two colliders, containing a set of contact points.
 /// Each contact in a manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
     /// The contacts in this manifold.
     pub contacts: Vec<ContactData>,
@@ -295,6 +298,7 @@ impl ContactManifold {
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactData {
     /// Contact point on the first entity in local coordinates.
     pub point1: Vector,

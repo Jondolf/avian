@@ -219,6 +219,7 @@ pub fn contact_manifolds(
 ///
 /// The closest points can be computed using [`closest_points`].
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub enum ClosestPoints {
     /// The two shapes are intersecting each other.
     Intersecting,
@@ -468,6 +469,7 @@ pub type TimeOfImpactStatus = parry::query::details::TOIStatus;
 
 /// The result of a [time of impact](time_of_impact) computation between two moving [`Collider`]s.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct TimeOfImpact {
     /// The time at which the colliders come into contact.
     pub time_of_impact: Scalar,
