@@ -78,7 +78,6 @@ use indexmap::IndexMap;
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
 
 impl Collisions {
