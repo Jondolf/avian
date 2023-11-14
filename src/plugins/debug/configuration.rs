@@ -34,6 +34,7 @@ use bevy::prelude::*;
 /// }
 /// ```
 #[derive(Reflect, Resource)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct PhysicsDebugConfig {
     /// Determines if debug rendering is enabled.
@@ -349,6 +350,7 @@ impl PhysicsDebugConfig {
 /// }
 /// ```
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct DebugRender {
     /// The lengths of the axes drawn for the entity at the center of mass.

@@ -24,6 +24,7 @@ use crate::prelude::*;
 /// }
 /// ```
 #[derive(Clone)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpatialQueryFilter {
     /// Specifies which [collision groups](CollisionLayers) will be included in a [spatial query](crate::spatial_query).
     pub masks: u32,

@@ -250,6 +250,7 @@ pub(super) struct PreviousCollisions(Collisions);
 /// Each manifold contains one or more contact points, and each contact
 /// in a given manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Contacts {
     /// First entity in the contact.
     pub entity1: Entity,
@@ -270,6 +271,7 @@ pub struct Contacts {
 /// A contact manifold between two colliders, containing a set of contact points.
 /// Each contact in a manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
     /// The contacts in this manifold.
     pub contacts: Vec<ContactData>,
@@ -295,6 +297,7 @@ impl ContactManifold {
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactData {
     /// Contact point on the first entity in local coordinates.
     pub point1: Vector,

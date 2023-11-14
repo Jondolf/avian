@@ -13,6 +13,7 @@ use bevy::{
 ///
 /// Distance joints can be useful for things like springs, muscles, and mass-spring networks.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(MapEntities)]
 pub struct DistanceJoint {
     /// First entity constrained by the joint.

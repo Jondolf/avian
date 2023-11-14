@@ -31,6 +31,7 @@ use crate::prelude::*;
 /// }
 /// ```
 #[derive(Reflect, Resource, Clone, Copy)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct SubstepCount(pub u32);
 
@@ -46,6 +47,7 @@ impl Default for SubstepCount {
 ///
 /// See [`Sleeping`] for further information about sleeping.
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct SleepingThreshold {
     /// The maximum linear velocity allowed for a body to be marked as sleeping.
@@ -68,6 +70,7 @@ impl Default for SleepingThreshold {
 ///
 /// See [`Sleeping`] for further information about sleeping.
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct DeactivationTime(pub Scalar);
 
@@ -113,6 +116,7 @@ impl Default for DeactivationTime {
 ///
 /// You can also modify gravity while the app is running.
 #[derive(Reflect, Resource, Debug)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct Gravity(pub Vector);
 

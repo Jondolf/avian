@@ -717,6 +717,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct PointProjection {
     /// The entity of the collider that the point was projected onto.
     pub entity: Entity,

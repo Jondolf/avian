@@ -38,6 +38,7 @@ impl Plugin for BroadPhasePlugin {
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
 #[derive(Reflect, Resource, Default, Debug)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
