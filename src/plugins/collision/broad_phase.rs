@@ -159,7 +159,6 @@ type IsBodyInactive = bool;
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 struct AabbIntervals(
     Vec<(
         Entity,
