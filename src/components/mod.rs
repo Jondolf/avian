@@ -435,6 +435,7 @@ impl AngularVelocity {
 /// the velocity solve is performed. Positive values will result in counterclockwise rotation.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub(crate) struct PreSolveAngularVelocity(pub Scalar);
 
@@ -442,6 +443,7 @@ pub(crate) struct PreSolveAngularVelocity(pub Scalar);
 /// multiplied by the angular speed in radians per second, before the velocity solve is performed.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub(crate) struct PreSolveAngularVelocity(pub Vector);
 

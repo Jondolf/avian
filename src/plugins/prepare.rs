@@ -104,6 +104,7 @@ impl Plugin for PreparePlugin {
 }
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub(crate) struct PreviousColliderTransform(ColliderTransform);
 
@@ -117,6 +118,7 @@ pub(crate) struct PreviousColliderTransform(ColliderTransform);
 /// Ideally, we would just have some entity removal event or callback, but that doesn't
 /// exist yet, and `RemovedComponents` only returns entities, not component data.
 #[derive(Resource, Reflect, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub(crate) struct ColliderStorageMap(
     HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
