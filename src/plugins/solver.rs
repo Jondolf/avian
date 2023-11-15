@@ -602,10 +602,9 @@ fn apply_translation(
             continue;
         }
 
-        let prev_global_com = pos.0 + prev_rot.0.rotate(center_of_mass.0);
-        let next_global_com = prev_global_com + translation.0;
-
-        pos.0 = next_global_com - rot.rotate(center_of_mass.0);
+        // We must also account for the translation caused by rotations around the center of mass,
+        // as it may be offset from `Position`.
+        pos.0 += translation.0 + prev_rot.0.rotate(center_of_mass.0) - rot.rotate(center_of_mass.0);
         translation.0 = Vector::ZERO;
     }
 }
