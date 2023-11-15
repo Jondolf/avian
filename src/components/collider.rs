@@ -892,7 +892,7 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         scene,
-///         AsyncSceneCollider::new(ComputedCollider::TriMesh)
+///         AsyncSceneCollider::new(ComputedCollider::TriMeshWithFlags(TriMeshFlags::MERGE_DUPLICATE_VERTICES))
 ///             .without_shape_for_name("Tree"),
 ///     ));
 /// }
@@ -1016,6 +1016,8 @@ pub enum ComputedCollider {
     /// A triangle mesh.
     #[default]
     TriMesh,
+    /// A triangle mesh with a custom configuration.
+    TriMeshWithFlags(TriMeshFlags),
     /// A convex hull.
     ConvexHull,
     /// A compound shape obtained from a decomposition into convex parts using the specified

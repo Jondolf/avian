@@ -419,6 +419,9 @@ pub fn init_async_colliders(
         if let Some(mesh) = meshes.get(mesh_handle) {
             let collider = match &async_collider.0 {
                 ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                ComputedCollider::TriMeshWithFlags(flags) => {
+                    Collider::trimesh_from_mesh_with_config(mesh, *flags)
+                }
                 ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
                 ComputedCollider::ConvexDecomposition(params) => {
                     Collider::convex_decomposition_from_mesh_with_config(mesh, params)
@@ -468,6 +471,9 @@ pub fn init_async_scene_colliders(
 
                     let collider = match collider_data.shape {
                         ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
+                        ComputedCollider::TriMeshWithFlags(flags) => {
+                            Collider::trimesh_from_mesh_with_config(mesh, flags)
+                        }
                         ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
                         ComputedCollider::ConvexDecomposition(params) => {
                             Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
