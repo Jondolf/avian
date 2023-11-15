@@ -584,6 +584,7 @@ pub fn joint_damping<T: Joint>(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn apply_translation(
     mut bodies: Query<
         (
