@@ -586,16 +586,26 @@ pub fn joint_damping<T: Joint>(
 
 fn apply_translation(
     mut bodies: Query<
-        (&RigidBody, &mut Position, &mut AccumulatedTranslation),
+        (
+            &RigidBody,
+            &mut Position,
+            &Rotation,
+            &PreviousRotation,
+            &mut AccumulatedTranslation,
+            &CenterOfMass,
+        ),
         Changed<AccumulatedTranslation>,
     >,
 ) {
-    for (rb, mut pos, mut translation) in &mut bodies {
+    for (rb, mut pos, rot, prev_rot, mut translation, center_of_mass) in &mut bodies {
         if rb.is_static() {
             continue;
         }
 
-        pos.0 += translation.0;
+        let prev_global_com = pos.0 + prev_rot.0.rotate(center_of_mass.0);
+        let next_global_com = prev_global_com + translation.0;
+
+        pos.0 = next_global_com - rot.rotate(center_of_mass.0);
         translation.0 = Vector::ZERO;
     }
 }
