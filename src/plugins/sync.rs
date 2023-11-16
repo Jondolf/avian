@@ -84,7 +84,8 @@ impl Plugin for SyncPlugin {
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
                 // Apply `Position` and `Rotation` changes to `Transform`
-                position_to_transform,
+                position_to_transform
+                    .run_if(|config: Res<SyncConfig>| config.position_to_transform),
                 (
                     // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
                     bevy::transform::systems::sync_simple_transforms,
@@ -96,8 +97,7 @@ impl Plugin for SyncPlugin {
                 update_collider_scale,
             )
                 .chain()
-                .in_set(PhysicsSet::Sync)
-                .run_if(|config: Res<SyncConfig>| config.position_to_transform),
+                .in_set(PhysicsSet::Sync),
         );
 
         // Update child colliders before narrow phase in substepping loop
@@ -118,7 +118,6 @@ impl Plugin for SyncPlugin {
 
 /// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
@@ -140,7 +139,6 @@ impl Default for SyncConfig {
 /// The global transform of a body at the end of the previous frame.
 /// Used for detecting if the transform was modified before the start of the physics schedule.
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
