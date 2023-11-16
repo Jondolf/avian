@@ -404,6 +404,7 @@ unsafe fn propagate_collider_transforms_recursive(
 /// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
+#[allow(clippy::type_complexity)]
 fn transform_to_position(
     mut query: Query<(
         &GlobalTransform,
