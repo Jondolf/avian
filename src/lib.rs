@@ -63,6 +63,7 @@
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
 //! | `simd`                 | Enables [SIMD] optimizations.                                                                                                    | No                      |
+//! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                               | No                      |
 //!
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
