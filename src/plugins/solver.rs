@@ -5,7 +5,7 @@
 
 use crate::{
     prelude::*,
-    utils::{compute_dynamic_friction, compute_restitution},
+    utils::{compute_dynamic_friction, compute_restitution, get_pos_translation},
 };
 use bevy::{
     ecs::query::{Has, WorldQuery},
@@ -605,7 +605,7 @@ fn apply_translation(
 
         // We must also account for the translation caused by rotations around the center of mass,
         // as it may be offset from `Position`.
-        pos.0 += translation.0 + prev_rot.0.rotate(center_of_mass.0) - rot.rotate(center_of_mass.0);
+        pos.0 += get_pos_translation(&translation, prev_rot, rot, center_of_mass);
         translation.0 = Vector::ZERO;
     }
 }
