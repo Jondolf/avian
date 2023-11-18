@@ -173,7 +173,7 @@ impl PrismaticJoint {
         }
         #[cfg(feature = "3d")]
         {
-            let axis2 = axis1.cross(Vector::Y);
+            let axis2 = axis1.any_orthogonal_vector();
             let axis3 = axis1.cross(axis2);
 
             delta_x += zero_distance_limit.compute_correction_along_axis(
