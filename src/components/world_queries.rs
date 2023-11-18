@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::prelude::*;
+use crate::{prelude::*, utils::get_pos_translation};
 use bevy::ecs::query::WorldQuery;
 use std::ops::{AddAssign, SubAssign};
 
@@ -69,7 +69,13 @@ impl<'w> RigidBodyQueryItem<'w> {
     /// Returns the current position of the body. This is a sum of the [`Position`] and
     /// [`AccumulatedTranslation`] components.
     pub fn current_position(&self) -> Vector {
-        self.position.0 + self.accumulated_translation.0
+        self.position.0
+            + get_pos_translation(
+                &self.accumulated_translation,
+                &self.previous_rotation,
+                &self.rotation,
+                &self.center_of_mass,
+            )
     }
 
     /// Returns the [dominance](Dominance) of the body.

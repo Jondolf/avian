@@ -5,7 +5,7 @@
 
 use crate::{
     prelude::*,
-    utils::{compute_dynamic_friction, compute_restitution},
+    utils::{compute_dynamic_friction, compute_restitution, get_pos_translation},
 };
 use bevy::{
     ecs::query::{Has, WorldQuery},
@@ -584,18 +584,28 @@ pub fn joint_damping<T: Joint>(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn apply_translation(
     mut bodies: Query<
-        (&RigidBody, &mut Position, &mut AccumulatedTranslation),
+        (
+            &RigidBody,
+            &mut Position,
+            &Rotation,
+            &PreviousRotation,
+            &mut AccumulatedTranslation,
+            &CenterOfMass,
+        ),
         Changed<AccumulatedTranslation>,
     >,
 ) {
-    for (rb, mut pos, mut translation) in &mut bodies {
+    for (rb, mut pos, rot, prev_rot, mut translation, center_of_mass) in &mut bodies {
         if rb.is_static() {
             continue;
         }
 
-        pos.0 += translation.0;
+        // We must also account for the translation caused by rotations around the center of mass,
+        // as it may be offset from `Position`.
+        pos.0 += get_pos_translation(&translation, prev_rot, rot, center_of_mass);
         translation.0 = Vector::ZERO;
     }
 }

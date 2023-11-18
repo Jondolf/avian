@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::prelude::*;
+use crate::{prelude::*, utils::get_pos_translation};
 use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
@@ -402,6 +402,7 @@ unsafe fn propagate_collider_transforms_recursive(
 /// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
+#[allow(clippy::type_complexity)]
 fn transform_to_position(
     mut query: Query<(
         &GlobalTransform,
@@ -409,6 +410,8 @@ fn transform_to_position(
         &mut Position,
         Option<&AccumulatedTranslation>,
         &mut Rotation,
+        &PreviousRotation,
+        &CenterOfMass,
     )>,
 ) {
     for (
@@ -417,6 +420,8 @@ fn transform_to_position(
         mut position,
         accumulated_translation,
         mut rotation,
+        previous_rotation,
+        center_of_mass,
     ) in &mut query
     {
         // Skip entity if the global transform value hasn't changed
@@ -426,7 +431,10 @@ fn transform_to_position(
 
         let transform = global_transform.compute_transform();
         let previous_transform = previous_transform.compute_transform();
-        let pos = position.0 + accumulated_translation.map_or(Vector::ZERO, |t| t.0);
+        let pos = position.0
+            + accumulated_translation.map_or(Vector::ZERO, |t| {
+                get_pos_translation(t, previous_rotation, &rotation, center_of_mass)
+            });
 
         #[cfg(feature = "2d")]
         {
