@@ -193,6 +193,11 @@ pub struct CenterOfMass(pub Vector);
 impl CenterOfMass {
     /// A center of mass set at the local origin.
     pub const ZERO: Self = Self(Vector::ZERO);
+
+		/// Get the inner [`Vector`] in local space of the [`CenterOfMass`]
+		pub fn inner(&self) -> Vector {
+			self.0
+		}
 }
 
 /// A bundle containing mass properties.
