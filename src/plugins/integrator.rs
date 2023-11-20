@@ -295,7 +295,11 @@ type ForceComponentsChanged = Or<(
     Changed<ExternalAngularImpulse>,
 )>;
 
-fn clear_forces_and_impulses(mut forces: Query<ForceComponents, ForceComponentsChanged>) {
+
+/// Responsible for clearing forces and impulses on bodies.
+/// 
+/// Public so external crates can order systems after this, runs in [`SubstepSchedule`], after [`PhysicsStepSet::SpatialQuery`]
+pub fn clear_forces_and_impulses(mut forces: Query<ForceComponents, ForceComponentsChanged>) {
     for (mut force, mut torque, mut impulse, mut angular_ímpulse) in &mut forces {
         if !force.persistent {
             force.clear();
