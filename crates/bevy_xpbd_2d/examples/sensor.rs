@@ -12,7 +12,8 @@ fn main() {
         .add_systems(
             Update,
             (
-                keyboard_input,
+                keyboard_input1,
+                keyboard_input2,
                 apply_deferred,
                 movement.run_if(has_movement), // don't mutably access the character if there is no movement
                 apply_movement_damping,
@@ -101,11 +102,13 @@ fn setup(
 
 #[derive(Event, Debug, Reflect)]
 pub enum MovementAction {
-    Move(Vec2),
+    Velocity(Vec2),
+    Offset(Vec2),
     Stop,
 }
 
-fn keyboard_input(
+// use velocity
+fn keyboard_input1(
     mut movement_event_writer: EventWriter<MovementAction>,
     keyboard_input: Res<Input<KeyCode>>,
     time: Res<Time<Physics>>,
@@ -113,20 +116,41 @@ fn keyboard_input(
     if time.is_paused() {
         return;
     }
-    let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-    let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
-    let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-    let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
     let space = keyboard_input.pressed(KeyCode::Space);
     if space {
         movement_event_writer.send(MovementAction::Stop);
         return;
     }
+
+    let left = keyboard_input.any_pressed([KeyCode::A]);
+    let right = keyboard_input.any_pressed([KeyCode::D]);
+    let up = keyboard_input.any_pressed([KeyCode::W]);
+    let down = keyboard_input.any_pressed([KeyCode::S]);
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
     let direction = Vec2::new(horizontal as Scalar, vertical as Scalar);
     if direction != Vec2::ZERO {
-        movement_event_writer.send(MovementAction::Move(direction));
+        movement_event_writer.send(MovementAction::Velocity(direction));
+    }
+}
+// use position offset
+fn keyboard_input2(
+    mut movement_event_writer: EventWriter<MovementAction>,
+    keyboard_input: Res<Input<KeyCode>>,
+    time: Res<Time<Physics>>,
+) {
+    if time.is_paused() {
+        return;
+    }
+    let left = keyboard_input.any_pressed([KeyCode::Left]);
+    let right = keyboard_input.any_pressed([KeyCode::Right]);
+    let up = keyboard_input.any_pressed([KeyCode::Up]);
+    let down = keyboard_input.any_pressed([KeyCode::Down]);
+    let horizontal = right as i8 - left as i8;
+    let vertical = up as i8 - down as i8;
+    let direction = Vec2::new(horizontal as Scalar, vertical as Scalar);
+    if direction != Vec2::ZERO {
+        movement_event_writer.send(MovementAction::Offset(direction));
     }
 }
 
@@ -136,20 +160,25 @@ fn has_movement(mut reader: EventReader<MovementAction>) -> bool {
 fn movement(
     time: Res<Time>,
     mut movement_event_reader: EventReader<MovementAction>,
-    mut controllers: Query<&mut LinearVelocity, With<Character>>,
+    mut controllers: Query<(&mut LinearVelocity, &mut Position), With<Character>>,
 ) {
     let delta_time = time.delta_seconds_f64().adjust_precision();
-    let movement_acceleration = 2000.0;
     for event in movement_event_reader.read() {
-        for mut linear_velocity in &mut controllers {
+        for (mut linear_velocity, mut position) in &mut controllers {
             match event {
                 MovementAction::Stop => {
                     linear_velocity.x = 0.0;
                     linear_velocity.y = 0.0;
                 }
-                MovementAction::Move(direction) => {
+                MovementAction::Velocity(direction) => {
+                    let movement_acceleration = 2000.0;
                     linear_velocity.x += direction.x * movement_acceleration * delta_time;
                     linear_velocity.y += direction.y * movement_acceleration * delta_time;
+                }
+                MovementAction::Offset(direction) => {
+                    let speed = 100.0;
+                    position.x += direction.x * speed * delta_time;
+                    position.y += direction.y * speed * delta_time;
                 }
             }
         }
