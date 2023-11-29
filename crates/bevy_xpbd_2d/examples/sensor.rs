@@ -202,7 +202,7 @@ fn update_velocity_text(
         pressure_plate_query.get_single(),
     ) {
         text_query.single_mut().sections[0].value = format!(
-            "Velocity: {}, {}\nCharacter sleeping:{}\nPressure plate sleeping: {}",
+            "Velocity: {:.4}, {:.4}\nCharacter sleeping:{}\nPressure plate sleeping: {}",
             velocity.x, velocity.y, character_sleeping, pressure_plate_sleeping
         );
     }
