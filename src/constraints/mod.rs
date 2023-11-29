@@ -33,7 +33,7 @@
 //! It should look similar to this:
 //!
 //! ```
-//! use bevy::prelude::*;
+//! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 #![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
@@ -53,6 +53,13 @@
 //!     }
 //!     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: f32) {
 //!         // Constraint solving logic goes here
+//!     }
+//! }
+//!
+//! impl MapEntities for CustomConstraint {
+//!     fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+//!        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
+//!        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
 //!     }
 //! }
 //! ```
