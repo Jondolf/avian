@@ -92,125 +92,135 @@ pub fn collect_collisions(
     mut collisions: ResMut<Collisions>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
 ) {
+    // we want to preserve collisions between entities that are both stationary
+    // they are not included in [`BroadCollisionPairs`], so we need to ensure they are still checked
+    let existing_stationary_collisions = collisions.0.keys().filter(|&&(e1, e2)| {
+        if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
+            let (position1, _, rotation1, _) = bundle1;
+            let (position2, _, rotation2, _) = bundle2;
+            !(position1.is_changed()
+                || rotation1.is_changed()
+                || position2.is_changed()
+                || rotation2.is_changed())
+        } else {
+            false
+        }
+    });
+
     #[cfg(feature = "parallel")]
     {
         let pool = ComputeTaskPool::get();
-        // TODO: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
-        let new_collisions = broad_collision_pairs
+        let new_collisions1 = broad_collision_pairs
             .0
             .par_splat_map(pool, None, |chunks| {
                 let mut new_collisions: Vec<Contacts> = vec![];
-                for (entity1, entity2) in chunks {
-                    if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
-                        let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
-                        let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
-                        
-                        let position1 =
-                            position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
-                        let position2 =
-                            position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
-
-                        let previous_contact = collisions.get_internal().get(&(*entity1, *entity2));
-
-                        let contacts = Contacts {
-                            entity1: *entity1,
-                            entity2: *entity2,
-                            during_current_frame: true,
-                            during_current_substep: true,
-                            during_previous_frame: previous_contact
-                                .map_or(false, |c| c.during_previous_frame),
-                            manifolds: contact_query::contact_manifolds(
-                                collider1,
-                                position1,
-                                *rotation1,
-                                collider2,
-                                position2,
-                                *rotation2,
-                                narrow_phase_config.prediction_distance,
-                            ),
-                        };
-
-                        if !contacts.manifolds.is_empty() {
+                for &(entity1, entity2) in chunks {
+                    process_collision_pair(
+                        entity1,
+                        entity2,
+                        &bodies,
+                        &collisions,
+                        &narrow_phase_config,
+                        |contacts| {
                             new_collisions.push(contacts);
-                        }
-                    }
+                        },
+                    );
                 }
                 new_collisions
             })
             .into_iter()
             .flatten();
-        collisions.extend(new_collisions);
 
-        let existing_unmoving_collisions = collisions
-            .0
-            .keys()
-            .map(|(e1, e2)| {
-                if let Ok([bundle1, bundle2]) = bodies.get_many([*e1, *e2]) {
-                    if bundle1.0.is_changed()
-                        || bundle1.2.is_changed()
-                        || bundle2.0.is_changed()
-                        || bundle2.2.is_changed()
-                    {
-                        None
-                    } else {
-                        // if the position and rotation have not changed for both bundles, renew the collision
-                        let previous_contact = collisions.get_internal().get(&(*e1, *e2));
-                        Some(Contacts {
-                            entity1: *e1,
-                            entity2: *e2,
-                            during_current_frame: true,
-                            during_current_substep: true,
-                            during_previous_frame: previous_contact
-                                .map_or(false, |c| c.during_previous_frame),
-                            manifolds: vec![],
-                        })
-                    }
-                } else {
-                    None
+        let new_collisions2 = existing_stationary_collisions
+            .cloned()
+            .collect_vec()
+            .par_splat_map(pool, None, |chunks| {
+                let mut new_collisions: Vec<Contacts> = vec![];
+                for &(entity1, entity2) in chunks {
+                    process_collision_pair(
+                        entity1,
+                        entity2,
+                        &bodies,
+                        &collisions,
+                        &narrow_phase_config,
+                        |contacts| {
+                            new_collisions.push(contacts);
+                        },
+                    );
                 }
+                new_collisions
             })
-            .filter(Option::is_some)
-            .map(Option::unwrap)
-            .collect_vec();
+            .into_iter()
+            .flatten();
 
-        collisions.extend(existing_unmoving_collisions);
+        collisions.extend(new_collisions1);
+        collisions.extend(new_collisions2);
     }
     #[cfg(not(feature = "parallel"))]
     {
-        for (entity1, entity2) in broad_collision_pairs.0.iter() {
-            if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
-                let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
-                let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
-
-                let position1 =
-                    position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
-                let position2 =
-                    position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
-
-                let previous_contact = collisions.get_internal().get(&(*entity1, *entity2));
-
-                let contacts = Contacts {
-                    entity1: *entity1,
-                    entity2: *entity2,
-                    during_current_frame: true,
-                    during_current_substep: true,
-                    during_previous_frame: previous_contact
-                        .map_or(false, |c| c.during_previous_frame),
-                    manifolds: contact_query::contact_manifolds(
-                        collider1,
-                        position1,
-                        *rotation1,
-                        collider2,
-                        position2,
-                        *rotation2,
-                        narrow_phase_config.prediction_distance,
-                    ),
-                };
-
-                if !contacts.manifolds.is_empty() {
+        for &(entity1, entity2) in broad_collision_pairs
+            .0
+            .iter()
+            .chain(existing_stationary_collisions)
+        {
+            process_collision_pair(
+                entity1,
+                entity2,
+                &bodies,
+                &collisions,
+                &narrow_phase_config,
+                |contacts| {
                     collisions.insert_collision_pair(contacts);
-                }
-            }
+                },
+            );
+        }
+    }
+}
+
+/// Helper method that calculates the intersection between two colliders to determine if they are in contact.
+fn process_collision_pair<F>(
+    entity1: Entity,
+    entity2: Entity,
+    bodies: &Query<(
+        Ref<Position>,
+        Option<&AccumulatedTranslation>,
+        Ref<Rotation>,
+        &Collider,
+    )>,
+    collisions: &ResMut<Collisions>,
+    narrow_phase_config: &Res<NarrowPhaseConfig>,
+    mut handle_collision: F,
+) where
+    F: FnMut(Contacts),
+{
+    if let Ok([bundle1, bundle2]) = bodies.get_many([entity1, entity2]) {
+        let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
+        let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
+
+        let position1 = position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
+        let position2 = position2.0 + accumulated_translation2.copied().unwrap_or_default().0;
+
+        let previous_contact = collisions.get_internal().get(&(entity1, entity2));
+
+        let contacts = Contacts {
+            entity1,
+            entity2,
+            during_current_frame: true,
+            during_current_substep: true,
+            during_previous_frame: previous_contact.map_or(false, |c| c.during_previous_frame),
+            manifolds: contact_query::contact_manifolds(
+                collider1,
+                position1,
+                *rotation1,
+                collider2,
+                position2,
+                *rotation2,
+                narrow_phase_config.prediction_distance,
+            ),
+        };
+
+        if !contacts.manifolds.is_empty() {
+            handle_collision(contacts);
         }
     }
 }
