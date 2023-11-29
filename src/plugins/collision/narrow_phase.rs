@@ -6,6 +6,7 @@ use crate::prelude::*;
 use bevy::ecs::query::Has;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
+use itertools::Itertools;
 
 /// Computes contacts between entities.
 ///
@@ -82,9 +83,9 @@ impl Default for NarrowPhaseConfig {
 #[allow(clippy::type_complexity)]
 pub fn collect_collisions(
     bodies: Query<(
-        &Position,
+        Ref<Position>,
         Option<&AccumulatedTranslation>,
-        &Rotation,
+        Ref<Rotation>,
         &Collider,
     )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
@@ -103,7 +104,7 @@ pub fn collect_collisions(
                     if let Ok([bundle1, bundle2]) = bodies.get_many([*entity1, *entity2]) {
                         let (position1, accumulated_translation1, rotation1, collider1) = bundle1;
                         let (position2, accumulated_translation2, rotation2, collider2) = bundle2;
-
+                        
                         let position1 =
                             position1.0 + accumulated_translation1.copied().unwrap_or_default().0;
                         let position2 =
@@ -139,6 +140,40 @@ pub fn collect_collisions(
             .into_iter()
             .flatten();
         collisions.extend(new_collisions);
+
+        let existing_unmoving_collisions = collisions
+            .0
+            .keys()
+            .map(|(e1, e2)| {
+                if let Ok([bundle1, bundle2]) = bodies.get_many([*e1, *e2]) {
+                    if bundle1.0.is_changed()
+                        || bundle1.2.is_changed()
+                        || bundle2.0.is_changed()
+                        || bundle2.2.is_changed()
+                    {
+                        None
+                    } else {
+                        // if the position and rotation have not changed for both bundles, renew the collision
+                        let previous_contact = collisions.get_internal().get(&(*e1, *e2));
+                        Some(Contacts {
+                            entity1: *e1,
+                            entity2: *e2,
+                            during_current_frame: true,
+                            during_current_substep: true,
+                            during_previous_frame: previous_contact
+                                .map_or(false, |c| c.during_previous_frame),
+                            manifolds: vec![],
+                        })
+                    }
+                } else {
+                    None
+                }
+            })
+            .filter(Option::is_some)
+            .map(Option::unwrap)
+            .collect_vec();
+
+        collisions.extend(existing_unmoving_collisions);
     }
     #[cfg(not(feature = "parallel"))]
     {
@@ -193,7 +228,7 @@ pub fn reset_collision_states(
         {
             let active1 = !rb1.map_or(false, |rb| rb.is_static()) && !sleeping1;
             let active2 = !rb2.map_or(false, |rb| rb.is_static()) && !sleeping2;
-
+            
             // Reset collision states if either of the bodies is active (not static or sleeping)
             // Otherwise, the bodies are still in contact.
             if active1 || active2 {
