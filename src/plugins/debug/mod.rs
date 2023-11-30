@@ -171,7 +171,7 @@ fn debug_render_axes(
             debug_renderer.gizmos.circle_2d(
                 global_com.as_f32(),
                 // Scale dot size based on axis lengths
-                (lengths.x + lengths.y) / 30.0,
+                (lengths.x + lengths.y) / 20.0,
                 center_color,
             );
             #[cfg(feature = "3d")]
