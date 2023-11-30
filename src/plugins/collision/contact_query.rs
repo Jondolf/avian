@@ -30,9 +30,9 @@ pub type UnsupportedShape = Unsupported;
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::contact, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::contact, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -126,9 +126,9 @@ pub fn contact(
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::contact_manifolds, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::contact_manifolds, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -242,9 +242,9 @@ pub enum ClosestPoints {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::*, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::*, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -337,9 +337,9 @@ pub fn closest_points(
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::distance, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::distance, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -405,9 +405,9 @@ pub fn distance(
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::intersection_test, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::intersection_test, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -498,9 +498,9 @@ pub struct TimeOfImpact {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::{contact_query::time_of_impact, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use bevy_xpbd_3d::prelude::{contact_query::time_of_impact, *};
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {

@@ -26,6 +26,14 @@ macro_rules! setup_insta {
 fn create_app() -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
+    #[cfg(feature = "async-collider")]
+    {
+        app.add_plugins((
+            bevy::asset::AssetPlugin::default(),
+            bevy::scene::ScenePlugin,
+        ))
+        .init_resource::<Assets<Mesh>>();
+    }
     app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }
@@ -221,16 +229,28 @@ fn no_ambiguity_errors() {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct DeterministicSchedule;
 
-    App::new()
-        .add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)))
-        .edit_schedule(DeterministicSchedule, |s| {
-            s.set_build_settings(ScheduleBuildSettings {
-                ambiguity_detection: LogLevel::Error,
-                ..default()
-            });
-        })
-        .add_systems(Update, |w: &mut World| {
-            w.run_schedule(DeterministicSchedule);
-        })
-        .update();
+    let mut app = App::new();
+
+    app.add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)));
+
+    #[cfg(feature = "async-collider")]
+    {
+        app.add_plugins((
+            bevy::asset::AssetPlugin::default(),
+            bevy::scene::ScenePlugin,
+        ))
+        .init_resource::<Assets<Mesh>>();
+    }
+
+    app.edit_schedule(DeterministicSchedule, |s| {
+        s.set_build_settings(ScheduleBuildSettings {
+            ambiguity_detection: LogLevel::Error,
+            ..default()
+        });
+    })
+    .add_systems(Update, |w: &mut World| {
+        w.run_schedule(DeterministicSchedule);
+    });
+
+    app.update();
 }
