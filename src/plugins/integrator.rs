@@ -295,7 +295,6 @@ type ForceComponentsChanged = Or<(
     Changed<ExternalAngularImpulse>,
 )>;
 
-
 /// Responsible for clearing forces and impulses on bodies.
 /// 
 /// Public so external crates can order systems after this, runs in [`PhysicsSchedule`], after [`PhysicsStepSet::SpatialQuery`]
