@@ -133,6 +133,19 @@ impl<'w, 's> SpatialQuery<'w, 's> {
             .raycast(origin, direction, max_time_of_impact, solid, query_filter)
     }
 
+    /// Deprecated, use [`SpatialQuery::raycast()`] instead.
+    #[deprecated(since = "0.4.0", note = "renamed, please use `raycast` instead")]
+    pub fn cast_ray(
+        &self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Option<RayHitData> {
+        self.raycast(origin, direction, max_time_of_impact, solid, query_filter)
+    }
+
     /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
     ///
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
@@ -185,6 +198,27 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         self.query_pipeline.raycast_many(
+            origin,
+            direction,
+            max_time_of_impact,
+            max_hits,
+            solid,
+            query_filter,
+        )
+    }
+
+    /// Deprecated, use [`SpatialQuery::raycast_many()`] instead.
+    #[deprecated(since = "0.4.0", note = "renamed, please use `raycast_many` instead")]
+    pub fn ray_hits(
+        &self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        max_hits: u32,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Vec<RayHitData> {
+        self.raycast_many(
             origin,
             direction,
             max_time_of_impact,
@@ -260,6 +294,30 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
+    /// Deprecated, use [`SpatialQuery::raycast_many()`] instead.
+    #[deprecated(
+        since = "0.4.0",
+        note = "renamed, please use `raycast_callback` instead"
+    )]
+    pub fn ray_hits_callback(
+        &self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+        callback: impl FnMut(RayHitData) -> bool,
+    ) {
+        self.raycast_callback(
+            origin,
+            direction,
+            max_time_of_impact,
+            solid,
+            query_filter,
+            callback,
+        )
+    }
+
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
     /// with a collider. If there are no hits, `None` is returned.
     ///
@@ -304,6 +362,30 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn shapecast(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Option<ShapeHitData> {
+        self.query_pipeline.shapecast(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            max_time_of_impact,
+            ignore_origin_penetration,
+            query_filter,
+        )
+    }
+
+    /// Deprecated, use [`SpatialQuery::shapecast()`] instead.
+    #[deprecated(since = "0.4.0", note = "renamed, please use `shapecast` instead")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn cast_shape(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -394,6 +476,32 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         )
     }
 
+    /// Deprecated, use [`SpatialQuery::shapecast_many()`] instead.
+    #[deprecated(since = "0.4.0", note = "renamed, please use `shapecast_many` instead")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn shape_hits(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        max_hits: u32,
+        ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
+    ) -> Vec<ShapeHitData> {
+        self.query_pipeline.shapecast_many(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            max_time_of_impact,
+            max_hits,
+            ignore_origin_penetration,
+            query_filter,
+        )
+    }
+
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
@@ -447,6 +555,35 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn shapecast_callback(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
+        callback: impl FnMut(ShapeHitData) -> bool,
+    ) {
+        self.query_pipeline.shapecast_callback(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            max_time_of_impact,
+            ignore_origin_penetration,
+            query_filter,
+            callback,
+        )
+    }
+
+    /// Deprecated, use [`SpatialQuery::shapecast_callback()`] instead.
+    #[deprecated(
+        since = "0.4.0",
+        note = "renamed, please use `shapecast_callback` instead"
+    )]
+    #[allow(clippy::too_many_arguments)]
+    pub fn shape_hits_callback(
         &self,
         shape: &Collider,
         origin: Vector,
