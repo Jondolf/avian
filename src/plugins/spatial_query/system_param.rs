@@ -5,10 +5,10 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///
 /// ## Methods
 ///
-/// - [Raycasting](spatial_query#raycasting): [`cast_ray`](SpatialQuery::cast_ray),
-/// [`ray_hits`](SpatialQuery::ray_hits), [`ray_hits_callback`](SpatialQuery::ray_hits_callback)
-/// - [Shapecasting](spatial_query#shapecasting): [`cast_shape`](SpatialQuery::cast_shape),
-/// [`shape_hits`](SpatialQuery::shape_hits), [`shape_hits_callback`](SpatialQuery::shape_hits_callback)
+/// - [Raycasting](spatial_query#raycasting): [`raycast`](SpatialQuery::raycast),
+/// [`raycast_many`](SpatialQuery::raycast_many), [`raycast_callback`](SpatialQuery::raycast_callback)
+/// - [Shapecasting](spatial_query#shapecasting): [`shapecast`](SpatialQuery::shapecast),
+/// [`shapecast_many`](SpatialQuery::shapecast_many), [`shapecast_callback`](SpatialQuery::shapecast_callback)
 /// - [Point projection](spatial_query#point-projection): [`project_point`](SpatialQuery::project_point)
 /// - [Intersection tests](spatial_query#intersection-tests)
 ///     - Point intersections: [`point_intersections`](SpatialQuery::point_intersections),
@@ -33,7 +33,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(spatial_query: SpatialQuery) {
 ///     // Cast ray and print first hit
-///     if let Some(first_hit) = spatial_query.cast_ray(
+///     if let Some(first_hit) = spatial_query.raycast(
 ///         Vec3::ZERO,                    // Origin
 ///         Vec3::X,                       // Direction
 ///         100.0,                         // Maximum time of impact (travel distance)
@@ -44,7 +44,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///     }
 ///
 ///     // Cast ray and get up to 20 hits
-///     let hits = spatial_query.ray_hits(
+///     let hits = spatial_query.raycast_many(
 ///         Vec3::ZERO,                    // Origin
 ///         Vec3::X,                       // Direction
 ///         100.0,                         // Maximum time of impact (travel distance)
@@ -110,7 +110,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast ray and print first hit
-    ///     if let Some(first_hit) = spatial_query.cast_ray(
+    ///     if let Some(first_hit) = spatial_query.raycast(
     ///         Vec3::ZERO,                    // Origin
     ///         Vec3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
@@ -121,7 +121,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     }
     /// }
     /// ```
-    pub fn cast_ray(
+    pub fn raycast(
         &self,
         origin: Vector,
         direction: Vector,
@@ -130,7 +130,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         query_filter: SpatialQueryFilter,
     ) -> Option<RayHitData> {
         self.query_pipeline
-            .cast_ray(origin, direction, max_time_of_impact, solid, query_filter)
+            .raycast(origin, direction, max_time_of_impact, solid, query_filter)
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.
@@ -160,7 +160,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast ray and get hits
-    ///     let hits = spatial_query.ray_hits(
+    ///     let hits = spatial_query.raycast_many(
     ///         Vec3::ZERO,                    // Origin
     ///         Vec3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
@@ -175,7 +175,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     }
     /// }
     /// ```
-    pub fn ray_hits(
+    pub fn raycast_many(
         &self,
         origin: Vector,
         direction: Vector,
@@ -184,7 +184,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         solid: bool,
         query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
-        self.query_pipeline.ray_hits(
+        self.query_pipeline.raycast_many(
             origin,
             direction,
             max_time_of_impact,
@@ -223,7 +223,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut hits = vec![];
     ///
     ///     // Cast ray and get all hits
-    ///     spatial_query.ray_hits_callback(
+    ///     spatial_query.raycast_callback(
     ///         Vec3::ZERO,                    // Origin
     ///         Vec3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
@@ -241,7 +241,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     }
     /// }
     /// ```
-    pub fn ray_hits_callback(
+    pub fn raycast_callback(
         &self,
         origin: Vector,
         direction: Vector,
@@ -250,7 +250,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(RayHitData) -> bool,
     ) {
-        self.query_pipeline.ray_hits_callback(
+        self.query_pipeline.raycast_callback(
             origin,
             direction,
             max_time_of_impact,
@@ -289,7 +289,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast ray and print first hit
-    ///     if let Some(first_hit) = spatial_query.cast_shape(
+    ///     if let Some(first_hit) = spatial_query.shapecast(
     ///         &Collider::ball(0.5),          // Shape
     ///         Vec3::ZERO,                    // Origin
     ///         Quat::default(),               // Shape rotation
@@ -303,7 +303,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
-    pub fn cast_shape(
+    pub fn shapecast(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -313,7 +313,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
-        self.query_pipeline.cast_shape(
+        self.query_pipeline.shapecast(
             shape,
             origin,
             shape_rotation,
@@ -353,7 +353,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast shape and get all hits
-    ///     let hits = spatial_query.shape_hits(
+    ///     let hits = spatial_query.shapecast_many(
     ///         &Collider::ball(0.5),          // Shape
     ///         Vec3::ZERO,                    // Origin
     ///         Quat::default(),               // Shape rotation
@@ -371,7 +371,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
-    pub fn shape_hits(
+    pub fn shapecast_many(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -382,7 +382,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
-        self.query_pipeline.shape_hits(
+        self.query_pipeline.shapecast_many(
             shape,
             origin,
             shape_rotation,
@@ -425,7 +425,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut hits = vec![];
     ///
     ///     // Cast shape and get all hits
-    ///     spatial_query.shape_hits_callback(
+    ///     spatial_query.shapecast_callback(
     ///         &Collider::ball(0.5),          // Shape
     ///         Vec3::ZERO,                    // Origin
     ///         Quat::default(),               // Shape rotation
@@ -446,7 +446,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// }
     /// ```
     #[allow(clippy::too_many_arguments)]
-    pub fn shape_hits_callback(
+    pub fn shapecast_callback(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -457,7 +457,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         query_filter: SpatialQueryFilter,
         callback: impl FnMut(ShapeHitData) -> bool,
     ) {
-        self.query_pipeline.shape_hits_callback(
+        self.query_pipeline.shapecast_callback(
             shape,
             origin,
             shape_rotation,
