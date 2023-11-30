@@ -168,13 +168,20 @@ fn debug_render_axes(
 
             // Draw dot at the center of mass
             #[cfg(feature = "2d")]
-            debug_renderer
-                .gizmos
-                .circle_2d(global_com.as_f32(), 0.5, center_color);
+            debug_renderer.gizmos.circle_2d(
+                global_com.as_f32(),
+                // Scale dot size based on axis lengths
+                (lengths.x + lengths.y) / 20.0,
+                center_color,
+            );
             #[cfg(feature = "3d")]
-            debug_renderer
-                .gizmos
-                .sphere(global_com.as_f32(), rot.as_f32(), 0.025, center_color);
+            debug_renderer.gizmos.sphere(
+                global_com.as_f32(),
+                rot.as_f32(),
+                // Scale dot size based on axis lengths
+                (lengths.x + lengths.y + lengths.z) / 30.0,
+                center_color,
+            );
         }
     }
 }
