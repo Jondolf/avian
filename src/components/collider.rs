@@ -836,13 +836,13 @@ fn scale_shape(
 /// use bevy::prelude::*;
 /// use bevy_xpbd_3d::prelude::*;
 ///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 ///     // Spawn a cube with a convex hull collider generated from the mesh
 ///     commands.spawn((
 ///         AsyncCollider(ComputedCollider::ConvexHull),
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-///             ..default(),
+///             ..default()
 ///         },
 ///     ));
 /// }
@@ -862,38 +862,37 @@ pub struct AsyncCollider(pub ComputedCollider);
 /// use bevy_xpbd_3d::prelude::*;
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
-///     let scene = SceneBundle {
-///         scene: assets.load("my_model.gltf#Scene0"),
-///         ..default()
-///     };
+///     let scene = assets.load("my_model.gltf#Scene0");
 ///
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
-///         scene.clone(),
+///         SceneBundle { scene: scene.clone(), ..default() },
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
-///         scene.clone(),
+///         SceneBundle { scene: scene.clone(), ..default() },
 ///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
 ///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
-///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010))
+///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
 ///     ));
 ///
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
-///         scene.clone(),
+///         SceneBundle { scene: scene.clone(), ..default() },
 ///         AsyncSceneCollider::new(None)
-///             .with_shape_for_name("Tree".to_string(), Some(ComputedCollider::ConvexHull)),
+///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull),
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
-///         scene,
-///         AsyncSceneCollider::new(ComputedCollider::TriMeshWithFlags(TriMeshFlags::MERGE_DUPLICATE_VERTICES))
-///             .without_shape_for_name("Tree"),
+///         SceneBundle { scene, ..default() },
+///         AsyncSceneCollider::new(Some(ComputedCollider::TriMeshWithFlags(
+///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
+///         )))
+///         .without_shape_with_name("Tree"),
 ///     ));
 /// }
 /// ```
