@@ -110,6 +110,7 @@ pub fn collect_collisions(
     #[cfg(feature = "parallel")]
     {
         let pool = ComputeTaskPool::get();
+        // TODO: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
         let new_collisions1 = broad_collision_pairs
             .0
             .par_splat_map(pool, None, |chunks| {
@@ -238,7 +239,7 @@ pub fn reset_collision_states(
         {
             let active1 = !rb1.map_or(false, |rb| rb.is_static()) && !sleeping1;
             let active2 = !rb2.map_or(false, |rb| rb.is_static()) && !sleeping2;
-            
+
             // Reset collision states if either of the bodies is active (not static or sleeping)
             // Otherwise, the bodies are still in contact.
             if active1 || active2 {
