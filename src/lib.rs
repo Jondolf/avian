@@ -280,8 +280,8 @@
 //!
 //! Bevy XPBD does not have a built-in character controller, so if you need one,
 //! you will need to implement it yourself. However, third party character controllers
-//! like [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
-//! are also likely to get Bevy XPBD support soon.
+//! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Bevy XPBD, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
+//! and others are also likely to get Bevy XPBD support soon.
 //!
 //! For custom character controllers, you can take a look at the [`basic_dynamic_character`]
 //! and [`basic_kinematic_character`] examples to get started.
