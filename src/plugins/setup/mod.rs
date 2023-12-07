@@ -62,7 +62,7 @@ impl Default for PhysicsSetupPlugin {
 impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
-        app.insert_resource(Time::new_with(Physics::default()))
+        app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>()
             .init_resource::<BroadCollisionPairs>()
