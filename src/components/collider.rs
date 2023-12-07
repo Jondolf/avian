@@ -5,7 +5,12 @@ use crate::{prelude::*, utils::make_isometry};
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::utils::HashMap;
-use bevy::{log, prelude::*, utils::HashSet};
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    log,
+    prelude::*,
+    utils::HashSet,
+};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{
@@ -1062,6 +1067,12 @@ impl ColliderParent {
     }
 }
 
+impl MapEntities for ColliderParent {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.0 = entity_mapper.get_or_reserve(self.0)
+    }
+}
+
 /// The transform of a collider relative to the rigid body it's attached to.
 /// This is in the local space of the body, not the collider itself.
 ///
@@ -1185,3 +1196,14 @@ impl Default for ColliderAabb {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
+
+impl MapEntities for CollidingEntities {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.0 = self
+            .0
+            .clone()
+            .into_iter()
+            .map(|e| entity_mapper.get_or_reserve(e))
+            .collect()
+    }
+}
