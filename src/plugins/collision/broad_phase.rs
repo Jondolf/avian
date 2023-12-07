@@ -4,7 +4,10 @@
 //! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
@@ -168,6 +171,14 @@ struct AabbIntervals(
         IsBodyInactive,
     )>,
 );
+
+impl MapEntities for AabbIntervals {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for interval in self.0.iter_mut() {
+            interval.0 = entity_mapper.get_or_reserve(interval.0);
+        }
+    }
+}
 
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 #[allow(clippy::type_complexity)]
