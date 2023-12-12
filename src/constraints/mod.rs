@@ -220,6 +220,27 @@ use bevy::ecs::{
 /// A list of entities participating in a [constraint](constraints).
 ///
 /// The default value is a list of `Entity::PLACEHOLDER`.
+///
+/// ## Example
+///
+/// [Joints](joints) use [`ConstraintEntities`] to connect bodies to each other.
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Connect the bodies with a fixed joint
+///     commands.spawn((
+///         FixedJoint::new(),
+///         ConstraintEntities([entity1, entity2]),
+///     ));
+/// }
+/// ```
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Eq, Reflect)]
 #[reflect(MapEntities)]
 pub struct ConstraintEntities<const N: usize>(pub [Entity; N]);
