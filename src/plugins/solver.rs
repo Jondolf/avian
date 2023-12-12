@@ -245,10 +245,12 @@ fn penetration_constraints(
 ///     .expect("add SubstepSchedule first");
 ///
 /// substeps.add_systems(
-///     solve_constraint::<YourConstraint, ENTITY_COUNT>
+///     solve_constraint::<MyConstraint, MyInput, ENTITY_COUNT>
 ///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
 /// ```
+///
+/// `MyInput` is some component that contains data that is passed to `MyConstraint::solve`.
 pub fn solve_constraint<
     C: XpbdConstraint<ENTITY_COUNT, SolveInput = SolveInput> + Component,
     SolveInput: Component + Clone + Default,

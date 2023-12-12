@@ -70,8 +70,10 @@
 //! a component like most of Bevy XPBD's constraints, you can use the generic [`solve_constraint`] system that handles
 //! some of the background work for you.
 //!
-//! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the
-//! [substepping schedule's](SubstepSchedule) [`SubstepSet::SolveUserConstraints`] set. It should look like this:
+//! Add the `solve_constraint::<MyConstraint, MyInput, ENTITY_COUNT>` system to the
+//! [substepping schedule's](SubstepSchedule) [`SubstepSet::SolveUserConstraints`] set.
+//! `MyInput` is some component that contains data that is passed to `MyConstraint::solve`.
+//! It should look like this:
 //!
 //! ```ignore
 //! // Get substep schedule
@@ -81,7 +83,7 @@
 //!
 //! // Add custom constraint
 //! substeps.add_systems(
-//!     solve_constraint::<CustomConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
+//!     solve_constraint::<CustomConstraint, CustomInput, 2>.in_set(SubstepSet::SolveUserConstraints),
 //! );
 //! ```
 //!
