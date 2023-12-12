@@ -57,8 +57,8 @@ impl XpbdConstraint<2> for SphericalJoint {
         self.force = self.align_position(
             body1,
             body2,
-            anchors.anchor1,
-            anchors.anchor2,
+            anchors.first,
+            anchors.second,
             &mut lagrange,
             compliance,
             dt,

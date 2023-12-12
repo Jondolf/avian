@@ -331,14 +331,10 @@ fn debug_render_joints(
                     }
                 }
 
-                debug_renderer.draw_line(
-                    pos1.0,
-                    pos1.0 + rot1.rotate(anchors.anchor1),
-                    anchor_color,
-                );
+                debug_renderer.draw_line(pos1.0, pos1.0 + rot1.rotate(anchors.first), anchor_color);
                 debug_renderer.draw_line(
                     pos2.0,
-                    pos2.0 + rot2.rotate(anchors.anchor2),
+                    pos2.0 + rot2.rotate(anchors.second),
                     anchor_color,
                 );
             }
@@ -355,8 +351,8 @@ fn debug_render_joints(
                 }
 
                 debug_renderer.draw_line(
-                    pos1.0 + rot1.rotate(anchors.anchor1),
-                    pos2.0 + rot2.rotate(anchors.anchor2),
+                    pos1.0 + rot1.rotate(anchors.first),
+                    pos2.0 + rot2.rotate(anchors.second),
                     separation_color,
                 );
             }

@@ -79,8 +79,8 @@ impl DistanceJoint {
         anchors: JointAnchors,
     ) -> Vector {
         let [body1, body2] = bodies;
-        let world_r1 = body1.rotation.rotate(anchors.anchor1);
-        let world_r2 = body2.rotation.rotate(anchors.anchor2);
+        let world_r1 = body1.rotation.rotate(anchors.first);
+        let world_r2 = body2.rotation.rotate(anchors.second);
 
         // // Compute the positional difference
         let mut delta_x =
