@@ -117,7 +117,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PreviousColliderTransform>()
             .register_type::<JointAnchors>()
             .register_type::<JointDamping>()
-            .register_type::<PreviousColliderTransform>();
+            .register_type::<PreviousColliderTransform>()
             .register_type::<FixedJoint>()
             .register_type::<DistanceJoint>()
             .register_type::<RevoluteJoint>()
