@@ -45,11 +45,11 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(
             (
                 penetration_constraints,
-                solve_constraint::<FixedJoint, 2>,
-                solve_constraint::<RevoluteJoint, 2>,
-                solve_constraint::<SphericalJoint, 2>,
-                solve_constraint::<PrismaticJoint, 2>,
-                solve_constraint::<DistanceJoint, 2>,
+                solve_constraint::<FixedJoint, JointAnchors, 2>,
+                solve_constraint::<RevoluteJoint, JointAnchors, 2>,
+                solve_constraint::<SphericalJoint, JointAnchors, 2>,
+                solve_constraint::<PrismaticJoint, JointAnchors, 2>,
+                solve_constraint::<DistanceJoint, JointAnchors, 2>,
             )
                 .chain()
                 .in_set(SubstepSet::SolveConstraints),
@@ -58,14 +58,7 @@ impl Plugin for SolverPlugin {
         substeps.add_systems((update_lin_vel, update_ang_vel).in_set(SubstepSet::UpdateVelocities));
 
         substeps.add_systems(
-            (
-                solve_vel,
-                joint_damping::<FixedJoint>,
-                joint_damping::<RevoluteJoint>,
-                joint_damping::<SphericalJoint>,
-                joint_damping::<PrismaticJoint>,
-                joint_damping::<DistanceJoint>,
-            )
+            (solve_vel, joint_damping)
                 .chain()
                 .in_set(SubstepSet::SolveVelocities),
         );
@@ -199,7 +192,7 @@ fn penetration_constraints(
                         restitution_coefficient,
                         ..PenetrationConstraint::new(&body1, &body2, contact)
                     };
-                    constraint.solve([&mut body1, &mut body2], delta_secs);
+                    constraint.solve([&mut body1, &mut body2], delta_secs, ());
                     penetration_constraints.0.push(constraint);
 
                     // Set collision as penetrating for this frame and substep.
@@ -256,10 +249,21 @@ fn penetration_constraints(
 ///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
 /// ```
-pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
+pub fn solve_constraint<
+    C: XpbdConstraint<ENTITY_COUNT, SolveInput = SolveInput> + Component,
+    SolveInput: Component + Clone + Default,
+    const ENTITY_COUNT: usize,
+>(
     mut commands: Commands,
     mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
-    mut constraints: Query<&mut C, Without<RigidBody>>,
+    mut constraints: Query<
+        (
+            &mut C,
+            &ConstraintEntities<ENTITY_COUNT>,
+            Option<&SolveInput>,
+        ),
+        Without<RigidBody>,
+    >,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
@@ -267,11 +271,11 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     // Clear Lagrange multipliers
     constraints
         .iter_mut()
-        .for_each(|mut c| c.clear_lagrange_multipliers());
+        .for_each(|(mut c, _, _)| c.clear_lagrange_multipliers());
 
-    for mut constraint in &mut constraints {
+    for (mut constraint, entities, solve_input) in &mut constraints {
         // Get components for entities
-        if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
+        if let Ok(mut bodies) = bodies.get_many_mut(entities.0) {
             let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
             let all_inactive = bodies
                 .iter()
@@ -297,7 +301,7 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
                 .collect::<Vec<&mut RigidBodyQueryItem>>()
                 .try_into()
             {
-                constraint.solve(bodies, delta_secs);
+                constraint.solve(bodies, delta_secs, solve_input.cloned().unwrap_or_default());
             }
         }
     }
@@ -425,7 +429,9 @@ fn solve_vel(
     let delta_secs = time.delta_seconds_adjusted();
 
     for constraint in penetration_constraints.0.iter() {
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
+        if let Ok([mut body1, mut body2]) =
+            bodies.get_many_mut([constraint.entity1, constraint.entity2])
+        {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
@@ -528,7 +534,7 @@ fn solve_vel(
 
 /// Applies velocity corrections caused by joint damping.
 #[allow(clippy::type_complexity)]
-pub fn joint_damping<T: Joint>(
+pub fn joint_damping(
     mut bodies: Query<
         (
             &RigidBody,
@@ -539,18 +545,17 @@ pub fn joint_damping<T: Joint>(
         ),
         Without<Sleeping>,
     >,
-    joints: Query<&T, Without<RigidBody>>,
+    joints: Query<(&ConstraintEntities<2>, &JointDamping), Without<RigidBody>>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for joint in &joints {
+    for (entities, damping) in &joints {
         if let Ok(
             [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2, dominance2)],
-        ) = bodies.get_many_mut(joint.entities())
+        ) = bodies.get_many_mut(entities.0)
         {
-            let delta_omega =
-                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * delta_secs).min(1.0);
+            let delta_omega = (ang_vel2.0 - ang_vel1.0) * (damping.angular * delta_secs).min(1.0);
 
             if rb1.is_dynamic() {
                 ang_vel1.0 += delta_omega;
@@ -559,8 +564,7 @@ pub fn joint_damping<T: Joint>(
                 ang_vel2.0 -= delta_omega;
             }
 
-            let delta_v =
-                (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
+            let delta_v = (lin_vel2.0 - lin_vel1.0) * (damping.linear * delta_secs).min(1.0);
 
             let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
             let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };

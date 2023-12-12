@@ -1,7 +1,4 @@
-use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
-    prelude::*,
-};
+use bevy::prelude::*;
 use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
 
 fn main() {
@@ -16,7 +13,8 @@ fn main() {
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_systems(
-        solve_constraint::<CustomDistanceConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
+        solve_constraint::<CustomDistanceConstraint, JointAnchors, 2>
+            .in_set(SubstepSet::SolveUserConstraints),
     );
 
     // Run the app
@@ -26,8 +24,6 @@ fn main() {
 /// A constraint that keeps the distance between two bodies at `rest_length`.
 #[derive(Component)]
 struct CustomDistanceConstraint {
-    entity1: Entity,
-    entity2: Entity,
     rest_length: Scalar,
     lagrange: Scalar,
     compliance: Scalar,
@@ -36,17 +32,17 @@ struct CustomDistanceConstraint {
 impl PositionConstraint for CustomDistanceConstraint {}
 
 impl XpbdConstraint<2> for CustomDistanceConstraint {
-    fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
-    }
+    // The input will be passed to `solve` by the `solve_constraints` system
+    type SolveInput = JointAnchors;
+
     fn clear_lagrange_multipliers(&mut self) {
         self.lagrange = 0.0;
     }
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar, input: Self::SolveInput) {
         let [body1, body2] = bodies;
 
         // Local attachment points at the centers of the bodies for simplicity
-        let [r1, r2] = [Vector::ZERO, Vector::ZERO];
+        let [r1, r2] = [input.anchor1, input.anchor2];
 
         // Compute the positional difference
         let delta_x = body1.current_position() - body2.current_position();
@@ -85,13 +81,6 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
     }
 }
 
-impl MapEntities for CustomDistanceConstraint {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
-        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
-    }
-}
-
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -126,13 +115,14 @@ fn setup(
 
     // Add a distance constraint to keep the cubes at a certain distance from each other.
     // The dynamic cube should swing around the static cube like a pendulum.
-    commands.spawn(CustomDistanceConstraint {
-        entity1: static_cube,
-        entity2: dynamic_cube,
-        rest_length: 2.5,
-        lagrange: 0.0,
-        compliance: 0.0,
-    });
+    commands.spawn((
+        CustomDistanceConstraint {
+            rest_length: 2.5,
+            lagrange: 0.0,
+            compliance: 0.0,
+        },
+        ConstraintEntities([static_cube, dynamic_cube]),
+    ));
 
     // Light
     commands.spawn(PointLightBundle {

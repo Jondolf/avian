@@ -1,10 +1,7 @@
 //! Penetration constraint.
 
 use crate::prelude::*;
-use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
-    prelude::*,
-};
+use bevy::prelude::*;
 
 /// A constraint between two bodies that prevents overlap with a given compliance.
 ///
@@ -41,9 +38,7 @@ pub struct PenetrationConstraint {
 }
 
 impl XpbdConstraint<2> for PenetrationConstraint {
-    fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
-    }
+    type SolveInput = ();
 
     fn clear_lagrange_multipliers(&mut self) {
         self.normal_lagrange = 0.0;
@@ -51,7 +46,7 @@ impl XpbdConstraint<2> for PenetrationConstraint {
     }
 
     /// Solves overlap between two bodies.
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar, _input: ()) {
         let [body1, body2] = bodies;
 
         let p1 = body1.current_position() + body1.rotation.rotate(self.contact.point1);
@@ -186,10 +181,3 @@ impl PenetrationConstraint {
 }
 
 impl PositionConstraint for PenetrationConstraint {}
-
-impl MapEntities for PenetrationConstraint {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
-        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
-    }
-}

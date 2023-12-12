@@ -44,10 +44,10 @@ fn setup(mut commands: Commands) {
         ))
         .id();
 
-    commands.spawn(
-        PrismaticJoint::new(anchor, object)
-            .with_local_anchor_1(Vector::X * 50.0)
-            .with_free_axis(Vector::X)
-            .with_limits(25.0, 100.0),
-    );
+    commands.spawn(JointBundle {
+        entities: [anchor, object].into(),
+        joint: PrismaticJoint::new(Vector::X).with_limits(25.0, 100.0),
+        anchors: JointAnchors::from_first(Vector::X * 50.0),
+        ..default()
+    });
 }

@@ -1,39 +1,20 @@
 //! [`RevoluteJoint`] component.
 
 use crate::prelude::*;
-use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
-    prelude::*,
-};
+use bevy::prelude::*;
 
 /// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
 ///
 /// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(from_reflect = false)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct RevoluteJoint {
-    /// First entity constrained by the joint.
-    pub entity1: Entity,
-    /// Second entity constrained by the joint.
-    pub entity2: Entity,
-    /// Attachment point on the first body.
-    pub local_anchor1: Vector,
-    /// Attachment point on the second body.
-    pub local_anchor2: Vector,
-    /// A unit vector that controls which axis should be aligned for both entities.
-    ///
-    /// In 2D this should always be the Z axis.
-    #[cfg(feature = "2d")]
-    pub(crate) aligned_axis: Vector3,
     /// A unit vector that controls which axis should be aligned for both bodies.
     #[cfg(feature = "3d")]
     pub aligned_axis: Vector,
     /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit: Option<AngleLimit>,
-    /// Linear damping applied by the joint.
-    pub damping_linear: Scalar,
-    /// Angular damping applied by the joint.
-    pub damping_angular: Scalar,
     /// Lagrange multiplier for the positional correction.
     pub position_lagrange: Scalar,
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
@@ -50,10 +31,14 @@ pub struct RevoluteJoint {
     pub angle_limit_torque: Torque,
 }
 
-impl XpbdConstraint<2> for RevoluteJoint {
-    fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
+impl Default for RevoluteJoint {
+    fn default() -> Self {
+        Self::DEFAULT
     }
+}
+
+impl XpbdConstraint<2> for RevoluteJoint {
+    type SolveInput = JointAnchors;
 
     fn clear_lagrange_multipliers(&mut self) {
         self.position_lagrange = 0.0;
@@ -61,7 +46,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
         self.angle_limit_lagrange = 0.0;
     }
 
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar, anchors: JointAnchors) {
         let [body1, body2] = bodies;
         let compliance = self.compliance;
 
@@ -76,8 +61,8 @@ impl XpbdConstraint<2> for RevoluteJoint {
         self.force = self.align_position(
             body1,
             body2,
-            self.local_anchor1,
-            self.local_anchor2,
+            anchors.anchor1,
+            anchors.anchor2,
             &mut lagrange,
             compliance,
             dt,
@@ -90,102 +75,67 @@ impl XpbdConstraint<2> for RevoluteJoint {
 }
 
 impl Joint for RevoluteJoint {
-    fn new(entity1: Entity, entity2: Entity) -> Self {
-        Self {
-            entity1,
-            entity2,
-            local_anchor1: Vector::ZERO,
-            local_anchor2: Vector::ZERO,
-            aligned_axis: Vector3::Z,
-            angle_limit: None,
-            damping_linear: 1.0,
-            damping_angular: 1.0,
-            position_lagrange: 0.0,
-            align_lagrange: 0.0,
-            angle_limit_lagrange: 0.0,
-            compliance: 0.0,
-            force: Vector::ZERO,
-            #[cfg(feature = "2d")]
-            align_torque: 0.0,
-            #[cfg(feature = "3d")]
-            align_torque: Vector::ZERO,
-            #[cfg(feature = "2d")]
-            angle_limit_torque: 0.0,
-            #[cfg(feature = "3d")]
-            angle_limit_torque: Vector::ZERO,
-        }
-    }
-
     fn with_compliance(self, compliance: Scalar) -> Self {
         Self { compliance, ..self }
-    }
-
-    fn with_local_anchor_1(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor1: anchor,
-            ..self
-        }
-    }
-
-    fn with_local_anchor_2(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor2: anchor,
-            ..self
-        }
-    }
-
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
-        Self {
-            damping_linear: damping,
-            ..self
-        }
-    }
-
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
-        Self {
-            damping_angular: damping,
-            ..self
-        }
-    }
-
-    fn local_anchor_1(&self) -> Vector {
-        self.local_anchor1
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        self.local_anchor2
-    }
-
-    fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 }
 
 impl RevoluteJoint {
-    /// Sets the axis that the bodies should be aligned on.
+    /// The default joint configuration.
+    pub const DEFAULT: Self = Self {
+        #[cfg(feature = "3d")]
+        aligned_axis: Vector3::Z,
+        angle_limit: None,
+        position_lagrange: 0.0,
+        align_lagrange: 0.0,
+        angle_limit_lagrange: 0.0,
+        compliance: 0.0,
+        force: Vector::ZERO,
+        #[cfg(feature = "2d")]
+        align_torque: 0.0,
+        #[cfg(feature = "3d")]
+        align_torque: Vector::ZERO,
+        #[cfg(feature = "2d")]
+        angle_limit_torque: 0.0,
+        #[cfg(feature = "3d")]
+        angle_limit_torque: Vector::ZERO,
+    };
+
+    /// Creates a new [`RevoluteJoint`].
+    #[cfg(feature = "2d")]
+    pub const fn new() -> Self {
+        Self::DEFAULT
+    }
+
+    /// Creates a new [`RevoluteJoint`] with the given aligned axis.
     #[cfg(feature = "3d")]
-    pub fn with_aligned_axis(self, axis: Vector) -> Self {
+    pub const fn new(aligned_axis: Vector) -> Self {
         Self {
-            aligned_axis: axis,
-            ..self
+            aligned_axis,
+            ..Self::DEFAULT
         }
     }
 
     /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
-    pub fn with_angle_limits(self, min: Scalar, max: Scalar) -> Self {
-        Self {
-            angle_limit: Some(AngleLimit::new(min, max)),
-            ..self
+    pub const fn with_angle_limits(mut self, min: Scalar, max: Scalar) -> Self {
+        self.angle_limit = Some(AngleLimit::new(min, max));
+        self
+    }
+
+    const fn aligned_axis(&self) -> Vector3 {
+        #[cfg(feature = "2d")]
+        {
+            Vector3::Z
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.aligned_axis
         }
     }
 
     fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
-        let a1 = rot1.rotate_vec3(self.aligned_axis);
-        let a2 = rot2.rotate_vec3(self.aligned_axis);
+        let a1 = rot1.rotate_vec3(self.aligned_axis());
+        let a2 = rot2.rotate_vec3(self.aligned_axis());
         a1.cross(a2)
     }
 
@@ -199,9 +149,9 @@ impl RevoluteJoint {
     ) -> Torque {
         if let Some(angle_limit) = self.angle_limit {
             let limit_axis = Vector3::new(
-                self.aligned_axis.z,
-                self.aligned_axis.x,
-                self.aligned_axis.y,
+                self.aligned_axis().z,
+                self.aligned_axis().x,
+                self.aligned_axis().y,
             );
             let a1 = body1.rotation.rotate_vec3(limit_axis);
             let a2 = body2.rotation.rotate_vec3(limit_axis);
@@ -222,10 +172,3 @@ impl RevoluteJoint {
 impl PositionConstraint for RevoluteJoint {}
 
 impl AngularConstraint for RevoluteJoint {}
-
-impl MapEntities for RevoluteJoint {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
-        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
-    }
-}

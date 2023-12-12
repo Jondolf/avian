@@ -15,7 +15,7 @@ fn main() {
         .insert_resource(SubstepCount(50))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
-        .add_systems(Update, follow_mouse)
+        .add_systems(Update, update_cursor_position)
         .run();
 }
 
@@ -68,33 +68,32 @@ fn setup(
             ))
             .id();
 
-        commands.spawn(
-            RevoluteJoint::new(previous_particle, current_particle)
-                .with_local_anchor_2(Vector::Y * (particle_radius * 2.0 + 1.0))
-                .with_compliance(0.0000001),
-        );
+        commands.spawn(JointBundle {
+            entities: [previous_particle, current_particle].into(),
+            joint: RevoluteJoint::new().with_compliance(0.0000001),
+            anchors: JointAnchors::from_second(Vector::Y * (particle_radius * 2.0 + 1.0)),
+            ..default()
+        });
 
         previous_particle = current_particle;
     }
 }
 
-fn follow_mouse(
-    buttons: Res<Input<MouseButton>>,
+#[derive(Resource)]
+pub struct CursorPosition(pub Vec2);
+
+fn update_cursor_position(
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
-    mut follower: Query<&mut Transform, With<FollowMouse>>,
+    mut cursor_pos: ResMut<CursorPosition>,
 ) {
-    if buttons.pressed(MouseButton::Left) {
-        let window = windows.single();
-        let (camera, camera_transform) = camera.single();
-        let mut follower_position = follower.single_mut();
+    let window = windows.single();
+    let (camera, camera_transform) = camera.single();
 
-        if let Some(cursor_world_pos) = window
-            .cursor_position()
-            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
-        {
-            follower_position.translation =
-                cursor_world_pos.extend(follower_position.translation.z);
-        }
+    if let Some(cursor_world_pos) = window
+        .cursor_position()
+        .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
+    {
+        cursor_pos.0 = cursor_world_pos;
     }
 }

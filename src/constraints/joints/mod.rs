@@ -29,7 +29,7 @@
 //! use bevy::prelude::*;
 #![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-
+//!
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
@@ -94,37 +94,126 @@ pub use spherical::*;
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// A trait for [joints].
-pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    /// Creates a new joint between two entities.
-    fn new(entity1: Entity, entity2: Entity) -> Self;
+/// Linear and angular velocity damping applied by the joint.
+#[derive(Bundle, Clone, Copy, Debug, Default, PartialEq)]
+pub struct JointBundle<JointType: Joint + Default> {
+    /// The type of the joint.
+    ///
+    /// See [`joints`] for a list of built-in joints.
+    pub joint: JointType,
+    /// Local attachment points for bodies connected by a joint.
+    pub anchors: JointAnchors,
+    /// Linear and angular velocity damping applied by the joint.
+    pub damping: JointDamping,
+    /// A list of entities participating in a [constraint](constraints).
+    pub entities: ConstraintEntities<2>,
+}
 
-    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
-    fn with_compliance(self, compliance: Scalar) -> Self;
+impl<JointType: Joint + Default> JointBundle<JointType> {
+    /// Creates a new [`JointBundle`] with the given joint and the entities it connects.
+    pub const fn new(joint: JointType, entity1: Entity, entity2: Entity) -> Self {
+        Self {
+            joint,
+            anchors: JointAnchors::DEFAULT,
+            damping: JointDamping::DEFAULT,
+            entities: ConstraintEntities([entity1, entity2]),
+        }
+    }
 
-    /// Sets the attachment point on the first body.
-    fn with_local_anchor_1(self, anchor: Vector) -> Self;
+    /// Sets the local attachment point on the first body.
+    pub const fn local_anchor_1(mut self, anchor: Vector) -> Self {
+        self.anchors.anchor1 = anchor;
+        self
+    }
 
-    /// Sets the attachment point on the second body.
-    fn with_local_anchor_2(self, anchor: Vector) -> Self;
+    /// Sets the local attachment point on the second body.
+    pub const fn local_anchor_2(mut self, anchor: Vector) -> Self {
+        self.anchors.anchor2 = anchor;
+        self
+    }
 
     /// Sets the linear velocity damping caused by the joint.
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self;
+    pub const fn linear_damping(mut self, damping: Scalar) -> Self {
+        self.damping.linear = damping;
+        self
+    }
 
     /// Sets the angular velocity damping caused by the joint.
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self;
+    pub const fn angular_damping(mut self, damping: Scalar) -> Self {
+        self.damping.angular = damping;
+        self
+    }
+}
 
-    /// Returns the local attachment point on the first body.
-    fn local_anchor_1(&self) -> Vector;
+/// Linear and angular velocity damping applied by the joint.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+pub struct JointDamping {
+    /// Linear velocity damping applied by the joint.
+    ///
+    /// Default: `1.0`
+    pub linear: f32,
+    /// Angular velocity damping applied by the joint.
+    ///
+    /// Default: `1.0`
+    pub angular: f32,
+}
 
-    /// Returns the local attachment point on the second body.
-    fn local_anchor_2(&self) -> Vector;
+impl Default for JointDamping {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
 
-    /// Returns the linear velocity damping of the joint.
-    fn damping_linear(&self) -> Scalar;
+impl JointDamping {
+    /// The default joint damping values.
+    pub const DEFAULT: Self = Self {
+        linear: 1.0,
+        angular: 1.0,
+    };
+}
 
-    /// Returns the angular velocity damping of the joint.
-    fn damping_angular(&self) -> Scalar;
+/// Local attachment points for bodies connected by a joint.
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+pub struct JointAnchors {
+    /// A local attachment point on the first body.
+    pub anchor1: Vector,
+    /// A local attachment point on the second body.
+    pub anchor2: Vector,
+}
+
+impl JointAnchors {
+    /// The default joint anchor positions.
+    pub const DEFAULT: Self = Self {
+        anchor1: Vector::ZERO,
+        anchor2: Vector::ZERO,
+    };
+
+    /// Creates a new [`JointAnchors`] configuration from the given local attachment points.
+    pub const fn new(anchor1: Vector, anchor2: Vector) -> Self {
+        Self { anchor1, anchor2 }
+    }
+
+    /// Creates a new [`JointAnchors`] configuration from the local attachment point on the first body.
+    pub const fn from_first(anchor: Vector) -> Self {
+        Self {
+            anchor1: anchor,
+            ..Self::DEFAULT
+        }
+    }
+
+    /// Creates a new [`JointAnchors`] configuration from the local attachment point on the second body.
+    pub const fn from_second(anchor: Vector) -> Self {
+        Self {
+            anchor2: anchor,
+            ..Self::DEFAULT
+        }
+    }
+}
+
+/// A trait for [joints].
+pub trait Joint: Component + PositionConstraint + AngularConstraint {
+    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
+    fn with_compliance(self, compliance: Scalar) -> Self;
 
     /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
     ///
@@ -243,7 +332,7 @@ impl DistanceLimit {
     pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
 
     /// Creates a new `DistanceLimit`.
-    pub fn new(min: Scalar, max: Scalar) -> Self {
+    pub const fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
     }
 
@@ -289,7 +378,7 @@ impl DistanceLimit {
 }
 
 /// A limit that indicates that angles should be between `alpha` and `beta`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct AngleLimit {
     /// The minimum angle.
@@ -306,7 +395,7 @@ impl AngleLimit {
     };
 
     /// Creates a new `AngleLimit`.
-    pub fn new(alpha: Scalar, beta: Scalar) -> Self {
+    pub const fn new(alpha: Scalar, beta: Scalar) -> Self {
         Self { alpha, beta }
     }
 

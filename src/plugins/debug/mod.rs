@@ -103,12 +103,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_aabbs,
                     debug_render_colliders,
                     debug_render_contacts,
-                    // TODO: Refactor joints to allow iterating over all of them without generics
-                    debug_render_joints::<FixedJoint>,
-                    debug_render_joints::<PrismaticJoint>,
-                    debug_render_joints::<DistanceJoint>,
-                    debug_render_joints::<RevoluteJoint>,
-                    debug_render_joints::<SphericalJoint>,
+                    debug_render_joints,
                     debug_render_raycasts,
                     debug_render_shapecasts,
                 )
@@ -316,15 +311,14 @@ fn debug_render_contacts(
     }
 }
 
-fn debug_render_joints<T: Joint>(
+fn debug_render_joints(
     bodies: Query<(&Position, &Rotation, Has<Sleeping>)>,
-    joints: Query<(&T, Option<&DebugRender>)>,
+    joints: Query<(&ConstraintEntities<2>, &JointAnchors, Option<&DebugRender>)>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
 ) {
-    for (joint, render_config) in &joints {
-        if let Ok([(pos1, rot1, sleeping1), (pos2, rot2, sleeping2)]) =
-            bodies.get_many(joint.entities())
+    for (entities, anchors, render_config) in &joints {
+        if let Ok([(pos1, rot1, sleeping1), (pos2, rot2, sleeping2)]) = bodies.get_many(entities.0)
         {
             if let Some(mut anchor_color) = config.joint_anchor_color {
                 // If both bodies are sleeping, multiply the color by the sleeping color multiplier
@@ -339,12 +333,12 @@ fn debug_render_joints<T: Joint>(
 
                 debug_renderer.draw_line(
                     pos1.0,
-                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
+                    pos1.0 + rot1.rotate(anchors.anchor1),
                     anchor_color,
                 );
                 debug_renderer.draw_line(
                     pos2.0,
-                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    pos2.0 + rot2.rotate(anchors.anchor2),
                     anchor_color,
                 );
             }
@@ -361,8 +355,8 @@ fn debug_render_joints<T: Joint>(
                 }
 
                 debug_renderer.draw_line(
-                    pos1.0 + rot1.rotate(joint.local_anchor_1()),
-                    pos2.0 + rot2.rotate(joint.local_anchor_2()),
+                    pos1.0 + rot1.rotate(anchors.anchor1),
+                    pos2.0 + rot2.rotate(anchors.anchor2),
                     separation_color,
                 );
             }

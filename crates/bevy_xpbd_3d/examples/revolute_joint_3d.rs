@@ -48,11 +48,12 @@ fn setup(
         .id();
 
     // Connect anchor and dynamic object
-    commands.spawn(
-        RevoluteJoint::new(anchor, object)
-            .with_local_anchor_2(Vector::Y * 2.0)
-            .with_angle_limits(-1.0, 1.0),
-    );
+    commands.spawn(JointBundle {
+        entities: [anchor, object].into(),
+        joint: RevoluteJoint::new(Vector::Z).with_angle_limits(-1.0, 1.0),
+        anchors: JointAnchors::from_first(Vector::Y * 2.0),
+        ..default()
+    });
 
     // Directional light
     commands.spawn(DirectionalLightBundle {
