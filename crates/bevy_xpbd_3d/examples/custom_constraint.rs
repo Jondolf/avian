@@ -42,7 +42,7 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
         let [body1, body2] = bodies;
 
         // Local attachment points at the centers of the bodies for simplicity
-        let [r1, r2] = [input.anchor1, input.anchor2];
+        let [r1, r2] = [input.first, input.second];
 
         // Compute the positional difference
         let delta_x = body1.current_position() - body2.current_position();

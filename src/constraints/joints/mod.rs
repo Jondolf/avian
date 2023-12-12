@@ -162,8 +162,6 @@ pub struct JointBundle<JointType: Joint + Default> {
     pub anchors: JointAnchors,
     /// Linear and angular velocity damping applied by the joint.
     pub damping: JointDamping,
-    /// A list of entities participating in a [constraint](constraints).
-    pub entities: ConstraintEntities<2>,
 }
 
 impl<JointType: Joint + Default> JointBundle<JointType> {
