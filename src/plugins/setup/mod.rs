@@ -114,7 +114,15 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
             .register_type::<ColliderTransform>()
+            .register_type::<PreviousColliderTransform>()
+            .register_type::<JointAnchors>()
+            .register_type::<JointDamping>()
             .register_type::<PreviousColliderTransform>();
+            .register_type::<FixedJoint>()
+            .register_type::<DistanceJoint>()
+            .register_type::<RevoluteJoint>()
+            .register_type::<PrismaticJoint>()
+            .register_type::<SphericalJoint>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;

@@ -44,9 +44,10 @@ fn setup(mut commands: Commands) {
         ))
         .id();
 
-    commands.spawn(
-        RevoluteJoint::new(anchor, object)
-            .with_local_anchor_2(Vector::Y * 100.0)
-            .with_angle_limits(-1.0, 1.0),
-    );
+    commands.spawn(JointBundle {
+        entities: [anchor, object].into(),
+        joint: RevoluteJoint::new().with_angle_limits(-1.0, 1.0),
+        anchors: JointAnchors::from_second(Vector::Y * 100.0),
+        ..default()
+    });
 }

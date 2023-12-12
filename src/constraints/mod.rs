@@ -212,12 +212,70 @@ pub use penetration::*;
 pub use position_constraint::PositionConstraint;
 
 use crate::prelude::*;
-use bevy::ecs::entity::MapEntities;
+use bevy::ecs::{
+    entity::{EntityMapper, MapEntities},
+    reflect::ReflectMapEntities,
+};
+
+/// A list of entities participating in a [constraint](constraints).
+///
+/// The default value is a list of `Entity::PLACEHOLDER`.
+///
+/// ## Example
+///
+/// [Joints](joints) use [`ConstraintEntities`] to connect bodies to each other.
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Connect the bodies with a fixed joint
+///     commands.spawn((
+///         FixedJoint::new(),
+///         ConstraintEntities([entity1, entity2]),
+///     ));
+/// }
+/// ```
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Eq, Reflect)]
+#[reflect(MapEntities)]
+pub struct ConstraintEntities<const N: usize>(pub [Entity; N]);
+
+impl<const N: usize> Default for ConstraintEntities<N> {
+    fn default() -> Self {
+        Self([Entity::PLACEHOLDER; N])
+    }
+}
+
+impl ConstraintEntities<2> {
+    /// Creates a new [`ConstraintEntities`] from the given entities.
+    pub const fn new(entity1: Entity, entity2: Entity) -> Self {
+        Self([entity1, entity2])
+    }
+}
+
+impl<const N: usize> From<[Entity; N]> for ConstraintEntities<N> {
+    fn from(entities: [Entity; N]) -> Self {
+        Self(entities)
+    }
+}
+
+impl<const N: usize> MapEntities for ConstraintEntities<N> {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for entity in self.iter_mut() {
+            *entity = entity_mapper.get_or_reserve(*entity);
+        }
+    }
+}
 
 /// A trait for all XPBD [constraints].
-pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
-    /// The entities participating in the constraint.
-    fn entities(&self) -> [Entity; ENTITY_COUNT];
+pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
+    /// Input data required by the constraint.
+    type SolveInput;
 
     /// Solves the constraint.
     ///
@@ -237,7 +295,12 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     ///
     /// You can find a working example of a custom constraint
     /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
+    fn solve(
+        &mut self,
+        bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT],
+        dt: Scalar,
+        input: Self::SolveInput,
+    );
 
     /// Computes how much a constraint's [Lagrange multiplier](constraints#lagrange-multipliers) changes when projecting
     /// the constraint for all participating particles.

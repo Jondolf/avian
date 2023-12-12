@@ -44,16 +44,14 @@ fn setup(
 
     // Add a distance joint to keep the cubes at a certain distance from each other.
     // The dynamic cube should bounce like it's on a spring.
-    commands.spawn(
-        DistanceJoint::new(static_cube, dynamic_cube)
-            .with_local_anchor_1(0.5 * Vector::NEG_Y)
-            .with_local_anchor_2(0.5 * Vector::new(1.0, 1.0, 1.0))
-            .with_rest_length(1.5)
+    commands.spawn(JointBundle {
+        joint: DistanceJoint::new(1.5)
             .with_limits(0.75, 2.5)
-            // .with_linear_velocity_damping(0.1)
-            // .with_angular_velocity_damping(1.0)
             .with_compliance(1.0 / 100.0),
-    );
+        entities: [static_cube, dynamic_cube].into(),
+        anchors: JointAnchors::new(0.5 * Vector::NEG_Y, 0.5 * Vector::new(1.0, 1.0, 1.0)),
+        ..default()
+    });
 
     // Light
     commands.spawn(PointLightBundle {

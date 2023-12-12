@@ -3,11 +3,14 @@
 //!
 //! ## Degrees Of Freedom (DOF)
 //!
-//! In 3D, entities can normally translate and rotate along the `X`, `Y` and `Z` axes.
-//! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
+//! In 2D, entities can translate along the `X` and `Y` axes and rotate around the `Z` axis.
+//! Therefore, they have 2 translational DOF and 1 rotational DOF, a total of 3 DOF.
 //!
-//! Joints reduce the number of DOF that entities have. For example, [revolute joints](RevoluteJoint)
-//! only allow rotation around one axis.
+//! Similarly in 3D, entities can translate and rotate along the `X`, `Y`, and `Z` axes.
+//! In other words, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
+//!
+//! Joints reduce the number of degrees of freedom that entities have. For example,
+//! [revolute joints](RevoluteJoint) only allow rotation around one axis.
 //!
 //! Below is a table containing the joints that are currently implemented.
 //!
@@ -21,49 +24,68 @@
 //!
 //! ## Using joints
 //!
-//! In Bevy XPBD, joints are modeled as components. You can create a joint by simply spawning
-//! an entity and adding the joint component you want, giving the connected entities as arguments
-//! to the `new` method.
+//! In Bevy XPBD, joints are modeled as components. Each joint type has its own component
+//! like [`FixedJoint`] or [`PrismaticJoint`] that contains its configuration options.
+//!
+//! To make the joint actually connect two bodies, you need to add the [`ConstraintEntities`]
+//! component with the corresponding `Entity` IDs.
+//!
+//! Creating a [`FixedJoint`] might look like this:
 //!
 //! ```
 //! use bevy::prelude::*;
 #![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-
+//!
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
 //!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
 //!     
 //!     // Connect the bodies with a fixed joint
-//!     commands.spawn(FixedJoint::new(entity1, entity2));
+//!     commands.spawn((
+//!         FixedJoint::new(),
+//!         ConstraintEntities([entity1, entity2]),
+//!     ));
 //! }
 //! ```
 //!
-//! ### Stiffness
+//! Joints can be configured further with several components:
 //!
-//! You can control the stiffness of a joint with the `with_compliance` method.
-//! *Compliance* refers to the inverse of stiffness, so using a compliance of 0 corresponds to
-//! infinite stiffness.
+//! - [`JointAnchors`]: Configures the joint attachment positions on the bodies.
+//! - [`JointDamping`]: Applies linear and angular velocity damping.
 //!
-//! ### Attachment positions
+//! To make joints more convenient to create, there is a [`JointBundle`] that contains these components:
 //!
-//! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
-//!
-//! You can use `with_local_anchor_1` and `with_local_anchor_2` to set the attachment positions on the first
-//! and second entity respectively.
-//!
-//! ### Damping
-//!
-//! You can configure the linear and angular damping caused by joints using the `with_linear_velocity_damping` and
-//! `with_angular_velocity_damping` methods. Increasing the damping values will cause the velocities
-//! of the connected entities to decrease faster.
-//!
-//! ### Other configuration
-//!
-//! Different joints may have different configuration options. Many joints allow you to change the axis of allowed
-//! translation or rotation, and they may have distance or angle limits along these axes.
-//!
-//! Take a look at the documentation and methods of each joint to see all of the configuration options.
+//! ```
+//! # use bevy::prelude::*;
+#![cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+//! #
+//! # fn setup(mut commands: Commands) {
+//! #    let entity1 = commands.spawn(RigidBody::Dynamic).id();
+//! #    let entity2 = commands.spawn(RigidBody::Dynamic).id();
+//! #
+//! // Connect the bodies with a prismatic joint that allows
+//! // relative translation along the Y axis.
+//! commands.spawn(JointBundle {
+//!     entities: [entity1, entity2].into(),
+#![cfg_attr(feature = "2d", doc = "    joint: PrismaticJoint::new(Vec2::Y),")]
+#![cfg_attr(feature = "3d", doc = "    joint: PrismaticJoint::new(Vec3::Y),")]
+#![cfg_attr(
+    feature = "2d",
+    doc = "    anchors: JointAnchors::from_second(Vec2::Y * 0.5),"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "    anchors: JointAnchors::from_second(Vec3::Y * 0.5),"
+)]
+//!     damping: JointDamping {
+//!         linear: 0.5,
+//!         angular: 0.75,
+//!     },
+//! });
+//! # }
+//! ```
 //!
 //! ## Custom joints
 //!
@@ -94,37 +116,229 @@ pub use spherical::*;
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// A trait for [joints].
-pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    /// Creates a new joint between two entities.
-    fn new(entity1: Entity, entity2: Entity) -> Self;
+/// A bundle that contains components used by [joints].
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Connect the bodies with a prismatic joint that allows
+///     // relative translation along the Y axis.
+///     commands.spawn(JointBundle {
+///         entities: [entity1, entity2].into(),
+#[cfg_attr(feature = "2d", doc = "        joint: PrismaticJoint::new(Vec2::Y),")]
+#[cfg_attr(feature = "3d", doc = "        joint: PrismaticJoint::new(Vec3::Y),")]
+#[cfg_attr(
+    feature = "2d",
+    doc = "        anchors: JointAnchors::from_second(Vec2::Y * 0.5),"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        anchors: JointAnchors::from_second(Vec3::Y * 0.5),"
+)]
+///         damping: JointDamping {
+///             linear: 0.5,
+///             angular: 0.75,
+///         },
+///     });
+/// }
+/// ```
+#[derive(Bundle, Clone, Copy, Debug, Default, PartialEq)]
+pub struct JointBundle<JointType: Joint + Default> {
+    /// The `Entity` IDs of the bodies connected by the joint.
+    pub entities: ConstraintEntities<2>,
+    /// The type of the joint.
+    ///
+    /// See [`joints`] for a list of built-in joints.
+    pub joint: JointType,
+    /// Local attachment points for bodies connected by the joint.
+    pub anchors: JointAnchors,
+    /// Linear and angular velocity damping applied by the joint.
+    pub damping: JointDamping,
+    /// A list of entities participating in a [constraint](constraints).
+    pub entities: ConstraintEntities<2>,
+}
 
-    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
-    fn with_compliance(self, compliance: Scalar) -> Self;
+impl<JointType: Joint + Default> JointBundle<JointType> {
+    /// Creates a new [`JointBundle`] with the given joint and the entities it connects.
+    pub const fn new(joint: JointType, entity1: Entity, entity2: Entity) -> Self {
+        Self {
+            joint,
+            anchors: JointAnchors::DEFAULT,
+            damping: JointDamping::DEFAULT,
+            entities: ConstraintEntities([entity1, entity2]),
+        }
+    }
 
-    /// Sets the attachment point on the first body.
-    fn with_local_anchor_1(self, anchor: Vector) -> Self;
+    /// Sets the local attachment point on the first body.
+    pub const fn local_anchor_1(mut self, anchor: Vector) -> Self {
+        self.anchors.first = anchor;
+        self
+    }
 
-    /// Sets the attachment point on the second body.
-    fn with_local_anchor_2(self, anchor: Vector) -> Self;
+    /// Sets the local attachment point on the second body.
+    pub const fn local_anchor_2(mut self, anchor: Vector) -> Self {
+        self.anchors.second = anchor;
+        self
+    }
 
     /// Sets the linear velocity damping caused by the joint.
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self;
+    pub const fn linear_damping(mut self, damping: Scalar) -> Self {
+        self.damping.linear = damping;
+        self
+    }
 
     /// Sets the angular velocity damping caused by the joint.
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self;
+    pub const fn angular_damping(mut self, damping: Scalar) -> Self {
+        self.damping.angular = damping;
+        self
+    }
+}
 
-    /// Returns the local attachment point on the first body.
-    fn local_anchor_1(&self) -> Vector;
+/// Linear and angular velocity damping applied by the joint.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Spawn a revolute joint with configured attachment positions
+///     commands.spawn((
+#[cfg_attr(feature = "2d", doc = "        RevoluteJoint::new(),")]
+#[cfg_attr(feature = "3d", doc = "        RevoluteJoint::new(Vec3::Z),")]
+///         ConstraintEntities([entity1, entity2]),
+#[cfg_attr(
+    feature = "2d",
+    doc = r#"        JointDamping {
+            linear: 0.5,
+            angular: 0.8,
+        }"#
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = r#"        JointDamping {
+            linear: 0.5,
+            angular: 0.8,
+        }"#
+)]
+///     });
+/// }
+/// ```
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+pub struct JointDamping {
+    /// Linear velocity damping applied by the joint.
+    ///
+    /// Default: `1.0`
+    pub linear: f32,
+    /// Angular velocity damping applied by the joint.
+    ///
+    /// Default: `1.0`
+    pub angular: f32,
+}
 
-    /// Returns the local attachment point on the second body.
-    fn local_anchor_2(&self) -> Vector;
+impl Default for JointDamping {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
 
-    /// Returns the linear velocity damping of the joint.
-    fn damping_linear(&self) -> Scalar;
+impl JointDamping {
+    /// The default joint damping values.
+    pub const DEFAULT: Self = Self {
+        linear: 1.0,
+        angular: 1.0,
+    };
+}
 
-    /// Returns the angular velocity damping of the joint.
-    fn damping_angular(&self) -> Scalar;
+/// Local attachment points for bodies connected by a joint.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
+/// fn setup(mut commands: Commands) {
+///     let entity1 = commands.spawn(RigidBody::Dynamic).id();
+///     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+///     
+///     // Spawn a prismatic joint with configured attachment positions
+///     commands.spawn((
+#[cfg_attr(feature = "2d", doc = "        PrismaticJoint::new(Vec2::X),")]
+#[cfg_attr(feature = "3d", doc = "        PrismaticJoint::new(Vec3::X),")]
+///         ConstraintEntities([entity1, entity2]),
+#[cfg_attr(
+    feature = "2d",
+    doc = r#"        JointAnchors {
+            first: Vec2::NEG_Y * 0.5,
+            second: Vec2::Y * 0.5,
+        }"#
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = r#"        JointAnchors {
+            first: Vec3::NEG_Y * 0.5,
+            second: Vec3::Y * 0.5,
+        }"#
+)]
+///     });
+/// }
+/// ```
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+pub struct JointAnchors {
+    /// A local attachment point on the first body.
+    pub first: Vector,
+    /// A local attachment point on the second body.
+    pub second: Vector,
+}
+
+impl JointAnchors {
+    /// The default joint anchor positions.
+    pub const DEFAULT: Self = Self {
+        first: Vector::ZERO,
+        second: Vector::ZERO,
+    };
+
+    /// Creates a new [`JointAnchors`] configuration from the given local attachment points.
+    pub const fn new(first: Vector, second: Vector) -> Self {
+        Self { first, second }
+    }
+
+    /// Creates a new [`JointAnchors`] configuration from the local attachment point on the first body.
+    pub const fn from_first(anchor: Vector) -> Self {
+        Self {
+            first: anchor,
+            ..Self::DEFAULT
+        }
+    }
+
+    /// Creates a new [`JointAnchors`] configuration from the local attachment point on the second body.
+    pub const fn from_second(anchor: Vector) -> Self {
+        Self {
+            second: anchor,
+            ..Self::DEFAULT
+        }
+    }
+}
+
+/// A trait for [joints].
+pub trait Joint: Component + PositionConstraint + AngularConstraint {
+    /// Sets the joint's compliance (inverse of stiffness, meters / Newton).
+    fn with_compliance(self, compliance: Scalar) -> Self;
 
     /// Applies a positional correction that aligns the positions of the local attachment points `r1` and `r2`.
     ///
@@ -243,7 +457,7 @@ impl DistanceLimit {
     pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
 
     /// Creates a new `DistanceLimit`.
-    pub fn new(min: Scalar, max: Scalar) -> Self {
+    pub const fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
     }
 
@@ -289,7 +503,7 @@ impl DistanceLimit {
 }
 
 /// A limit that indicates that angles should be between `alpha` and `beta`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct AngleLimit {
     /// The minimum angle.
@@ -306,7 +520,7 @@ impl AngleLimit {
     };
 
     /// Creates a new `AngleLimit`.
-    pub fn new(alpha: Scalar, beta: Scalar) -> Self {
+    pub const fn new(alpha: Scalar, beta: Scalar) -> Self {
         Self { alpha, beta }
     }
 
