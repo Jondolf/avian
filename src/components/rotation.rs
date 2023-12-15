@@ -118,6 +118,11 @@ impl Rotation {
         self.sin
     }
 
+    /// Returns `false` if the rotation is NaN or infinite, otherwise returns `true`.
+    pub fn is_finite(&self) -> bool {
+        self.cos.is_finite() && self.sin.is_finite()
+    }
+
     /// Creates a [`Rotation`] from radians.
     pub fn from_radians(radians: Scalar) -> Self {
         Self {
