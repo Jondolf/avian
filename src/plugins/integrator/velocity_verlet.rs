@@ -16,7 +16,7 @@ pub fn integrate_velocity(
     lin_acc: Vector,
     ang_acc: AngularValue,
     locked_axes: LockedAxes,
-    delta_seconds: f32,
+    delta_seconds: Scalar,
 ) {
     let delta_seconds_sq = delta_seconds.powi(2);
 
@@ -65,11 +65,11 @@ pub fn integrate_forces(
     ang_acc: AngularValue,
     force: Vector,
     torque: AngularValue,
-    inv_mass: f32,
+    inv_mass: Scalar,
     inv_inertia: InertiaValue,
     locked_axes: LockedAxes,
     gravity: Vector,
-    delta_seconds: f32,
+    delta_seconds: Scalar,
 ) {
     // Compute next linear acceleration.
     let next_lin_acc = linear_acceleration(force, inv_mass, locked_axes, gravity);

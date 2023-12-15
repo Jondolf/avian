@@ -279,7 +279,7 @@ fn integrate_velocity(
 /// Computes linear acceleration based on the given forces and mass.
 pub fn linear_acceleration(
     force: Vector,
-    inv_mass: f32,
+    inv_mass: Scalar,
     locked_axes: LockedAxes,
     gravity: Vector,
 ) -> Vector {
