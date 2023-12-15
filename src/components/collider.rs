@@ -234,10 +234,14 @@ impl Collider {
 
     /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
     pub fn set_shape(&mut self, shape: SharedShape) {
-        if self.scale != Vector::ONE {
-            self.scaled_shape = shape.clone();
-        }
         self.shape = shape;
+
+        // TODO: The number of subdivisions probably shouldn't be hard-coded
+        if let Ok(scaled) = scale_shape(&self.shape, self.scale, 10) {
+            self.scaled_shape = scaled;
+        } else {
+            log::error!("Failed to create convex hull for scaled collider.");
+        }
     }
 
     /// Set the global scaling factor of this shape.
