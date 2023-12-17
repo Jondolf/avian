@@ -134,7 +134,7 @@ pub fn collect_collisions(
 
         let new_collisions2 = existing_stationary_collisions
             .cloned()
-            .collect_vec()
+            .collect::<Vec<_>>()
             .par_splat_map(pool, None, |chunks| {
                 let mut new_collisions: Vec<Contacts> = vec![];
                 for &(entity1, entity2) in chunks {
