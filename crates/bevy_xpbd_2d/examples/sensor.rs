@@ -186,7 +186,10 @@ fn movement(
 }
 
 fn apply_movement_damping(
-    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity), (With<Character>, Without<Sleeping>)>,
+    mut query: Query<
+        (&mut LinearVelocity, &mut AngularVelocity),
+        (With<Character>, Without<Sleeping>)
+    >,
     time: Res<Time<Physics>>,
 ) {
     if time.is_paused() {
