@@ -93,18 +93,23 @@ pub fn collect_collisions(
 ) {
     // we want to preserve collisions between entities that are both stationary
     // they are not included in [`BroadCollisionPairs`], so we need to ensure they are still checked
-    let existing_stationary_collisions = collisions.0.keys().filter(|&&(e1, e2)| {
-        if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
-            let (position1, _, rotation1, _) = bundle1;
-            let (position2, _, rotation2, _) = bundle2;
-            !(position1.is_changed()
-                || rotation1.is_changed()
-                || position2.is_changed()
-                || rotation2.is_changed())
-        } else {
-            false
-        }
-    });
+    let existing_stationary_collisions = collisions
+        .0
+        .keys()
+        .filter(|&&(e1, e2)| {
+            if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
+                let (position1, _, rotation1, _) = bundle1;
+                let (position2, _, rotation2, _) = bundle2;
+                !(position1.is_changed()
+                    || rotation1.is_changed()
+                    || position2.is_changed()
+                    || rotation2.is_changed())
+            } else {
+                false
+            }
+        })
+        .cloned()
+        .collect::<Vec<_>>();
 
     #[cfg(feature = "parallel")]
     {
@@ -132,8 +137,6 @@ pub fn collect_collisions(
             .flatten();
 
         let new_collisions2 = existing_stationary_collisions
-            .cloned()
-            .collect::<Vec<_>>()
             .par_splat_map(pool, None, |chunks| {
                 let mut new_collisions: Vec<Contacts> = vec![];
                 for &(entity1, entity2) in chunks {
