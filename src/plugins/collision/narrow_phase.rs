@@ -6,7 +6,6 @@ use crate::prelude::*;
 use bevy::ecs::query::Has;
 #[cfg(feature = "parallel")]
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
-use itertools::Itertools;
 
 /// Computes contacts between entities.
 ///
