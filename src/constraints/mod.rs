@@ -23,7 +23,7 @@
 //!     - [`PrismaticJoint`]
 //!
 //! More constraint types will be added in future releases. If you need more constraints now, consider
-//! [creating your own constraints](custom-constraints).
+//! [creating your own constraints](#custom-constraints).
 //!
 //! ## Custom constraints
 //!
