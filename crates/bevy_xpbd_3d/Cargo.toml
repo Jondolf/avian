@@ -83,6 +83,10 @@ name = "custom_constraint"
 required-features = ["3d"]
 
 [[example]]
+name = "distance_joint_3d"
+required-features = ["3d", "debug-plugin"]
+
+[[example]]
 name = "fixed_joint_3d"
 required-features = ["3d"]
 
