@@ -129,22 +129,24 @@ impl DistanceJoint {
         let world_r1 = body1.rotation.rotate(self.local_anchor1);
         let world_r2 = body2.rotation.rotate(self.local_anchor2);
 
-        // // Compute the positional difference
-        let mut delta_x =
-            (body1.current_position() + world_r1) - (body2.current_position() + world_r2);
-
-        // The current separation distance
-        let mut length = delta_x.length();
-
-        if let Some(limits) = self.length_limits {
-            if length < Scalar::EPSILON {
-                return Vector::ZERO;
-            }
-            delta_x += limits.compute_correction(
+        // The positional correction required to keep the bodies within a certain distance from each other
+        let delta_x = if let Some(limits) = self.length_limits {
+            // How far outside the specified range the distance is, and in what direction
+            limits.compute_correction(
                 body1.current_position() + world_r1,
                 body2.current_position() + world_r2,
-            );
-            length = delta_x.length();
+            )
+        } else {
+            // Separation distance between the attachment points
+            (body1.current_position() + world_r1) - (body2.current_position() + world_r2)
+        };
+
+        // The current separation distance
+        let length = delta_x.length();
+
+        // Avoid division by zero
+        if length < Scalar::EPSILON {
+            return Vector::ZERO;
         }
 
         // The value of the constraint function. When this is zero, the
