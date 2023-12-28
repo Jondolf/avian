@@ -184,24 +184,27 @@ impl MapEntities for AabbIntervals {
 #[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
     aabbs: Query<(
-        &RigidBody,
         &ColliderAabb,
         &ColliderParent,
         Option<&CollisionLayers>,
         Ref<Position>,
         Ref<Rotation>,
     )>,
+    rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(
         |(collider_entity, collider_parent, aabb, layers, is_inactive)| {
-            if let Ok((rb, new_aabb, new_parent, new_layers, position, rotation)) =
+            if let Ok((new_aabb, new_parent, new_layers, position, rotation)) =
                 aabbs.get(*collider_entity)
             {
                 *aabb = *new_aabb;
                 *collider_parent = *new_parent;
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
-                *is_inactive = (!position.is_changed() && !rotation.is_changed()) || rb.is_static();
+
+                let is_static = rbs.get(new_parent.get()).is_ok_and(RigidBody::is_static);
+                *is_inactive = is_static || (!position.is_changed() && !rotation.is_changed());
+
                 true
             } else {
                 false
