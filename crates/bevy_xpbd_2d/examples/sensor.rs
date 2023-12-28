@@ -185,10 +185,11 @@ fn movement(
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn apply_movement_damping(
     mut query: Query<
         (&mut LinearVelocity, &mut AngularVelocity),
-        (With<Character>, Without<Sleeping>)
+        (With<Character>, Without<Sleeping>),
     >,
     time: Res<Time<Physics>>,
 ) {

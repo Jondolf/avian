@@ -91,38 +91,36 @@ pub fn collect_collisions(
     mut collisions: ResMut<Collisions>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
 ) {
-    // we want to preserve collisions between entities that are both stationary
-    // they are not included in [`BroadCollisionPairs`], so we need to ensure they are still checked
-    let existing_stationary_collisions = collisions
-        .0
-        .keys()
-        .filter(|&&(e1, e2)| {
-            if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
-                let (position1, _, rotation1, _) = bundle1;
-                let (position2, _, rotation2, _) = bundle2;
-                !(position1.is_changed()
-                    || rotation1.is_changed()
-                    || position2.is_changed()
-                    || rotation2.is_changed())
-            } else {
-                false
-            }
-        })
-        .cloned()
+    // We want to preserve collisions between entities that are stationary
+    // but not included in [`BroadCollisionPairs`].
+    let stationary_collisions = collisions.0.keys().filter(|&&(e1, e2)| {
+        if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
+            let (position1, _, rotation1, _) = bundle1;
+            let (position2, _, rotation2, _) = bundle2;
+            !(position1.is_changed()
+                || rotation1.is_changed()
+                || position2.is_changed()
+                || rotation2.is_changed())
+        } else {
+            false
+        }
+    });
+    let broad_collision_pairs = stationary_collisions
+        .chain(broad_collision_pairs.0.iter())
         .collect::<Vec<_>>();
 
     #[cfg(feature = "parallel")]
     {
         let pool = ComputeTaskPool::get();
         // TODO: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
-        let new_collisions1 = broad_collision_pairs
-            .0
+        let new_collisions = broad_collision_pairs
+            .iter()
             .par_splat_map(pool, None, |chunks| {
                 let mut new_collisions: Vec<Contacts> = vec![];
                 for &(entity1, entity2) in chunks {
                     process_collision_pair(
-                        entity1,
-                        entity2,
+                        *entity1,
+                        *entity2,
                         &bodies,
                         &collisions,
                         &narrow_phase_config,
@@ -136,36 +134,12 @@ pub fn collect_collisions(
             .into_iter()
             .flatten();
 
-        let new_collisions2 = existing_stationary_collisions
-            .par_splat_map(pool, None, |chunks| {
-                let mut new_collisions: Vec<Contacts> = vec![];
-                for &(entity1, entity2) in chunks {
-                    process_collision_pair(
-                        entity1,
-                        entity2,
-                        &bodies,
-                        &collisions,
-                        &narrow_phase_config,
-                        |contacts| {
-                            new_collisions.push(contacts);
-                        },
-                    );
-                }
-                new_collisions
-            })
-            .into_iter()
-            .flatten();
-
-        collisions.extend(new_collisions1);
-        collisions.extend(new_collisions2);
+        collisions.extend(new_collisions);
     }
     #[cfg(not(feature = "parallel"))]
     {
-        for &(entity1, entity2) in broad_collision_pairs
-            .0
-            .iter()
-            .chain(existing_stationary_collisions)
-        {
+        let mut new_collisions = vec![];
+        for &(entity1, entity2) in broad_collision_pairs {
             process_collision_pair(
                 entity1,
                 entity2,
@@ -173,14 +147,17 @@ pub fn collect_collisions(
                 &collisions,
                 &narrow_phase_config,
                 |contacts| {
-                    collisions.insert_collision_pair(contacts);
+                    new_collisions.push(contacts);
                 },
             );
         }
+
+        collisions.extend(new_collisions);
     }
 }
 
 /// Helper method that calculates the intersection between two colliders to determine if they are in contact.
+#[allow(clippy::type_complexity)]
 fn process_collision_pair<F>(
     entity1: Entity,
     entity2: Entity,
