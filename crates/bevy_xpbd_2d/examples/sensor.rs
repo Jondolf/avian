@@ -102,8 +102,8 @@ fn setup(
 
 #[derive(Event, Debug, Reflect)]
 pub enum MovementAction {
-    Velocity(Vec2),
-    Offset(Vec2),
+    Velocity(Vector),
+    Offset(Vector),
     Stop,
 }
 
@@ -128,8 +128,8 @@ fn keyboard_input1(
     let down = keyboard_input.any_pressed([KeyCode::S]);
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
-    let direction = Vec2::new(horizontal as Scalar, vertical as Scalar);
-    if direction != Vec2::ZERO {
+    let direction = Vector::new(horizontal as Scalar, vertical as Scalar);
+    if direction != Vector::ZERO {
         movement_event_writer.send(MovementAction::Velocity(direction));
     }
 }
@@ -148,8 +148,8 @@ fn keyboard_input2(
     let down = keyboard_input.any_pressed([KeyCode::Down]);
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
-    let direction = Vec2::new(horizontal as Scalar, vertical as Scalar);
-    if direction != Vec2::ZERO {
+    let direction = Vector::new(horizontal as Scalar, vertical as Scalar);
+    if direction != Vector::ZERO {
         movement_event_writer.send(MovementAction::Offset(direction));
     }
 }
