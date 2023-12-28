@@ -3,7 +3,11 @@ use bevy_xpbd_3d::{math::*, prelude::*};
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .add_plugins((
+            DefaultPlugins,
+            PhysicsPlugins::default(),
+            PhysicsDebugPlugin::default(),
+        ))
         .add_systems(Startup, setup)
         .run();
 }
@@ -16,7 +20,7 @@ fn setup(
     let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
     let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
 
-    // Spawn a static cube and a dynamic cube that is outside of the rest length.
+    // Spawn a static cube and a dynamic cube that is connected to it by a distance joint.
     let static_cube = commands
         .spawn((
             PbrBundle {
@@ -33,7 +37,7 @@ fn setup(
             PbrBundle {
                 mesh: cube_mesh,
                 material: cube_material,
-                transform: Transform::from_xyz(0.0, -2.5, 0.0),
+                transform: Transform::from_xyz(-2.0, -0.5, 0.0),
                 ..default()
             },
             RigidBody::Dynamic,
@@ -43,16 +47,11 @@ fn setup(
         .id();
 
     // Add a distance joint to keep the cubes at a certain distance from each other.
-    // The dynamic cube should bounce like it's on a spring.
     commands.spawn(
         DistanceJoint::new(static_cube, dynamic_cube)
-            .with_local_anchor_1(0.5 * Vector::NEG_Y)
-            .with_local_anchor_2(0.5 * Vector::new(1.0, 1.0, 1.0))
+            .with_local_anchor_2(0.5 * Vector::ONE)
             .with_rest_length(1.5)
-            .with_limits(0.75, 2.5)
-            // .with_linear_velocity_damping(0.1)
-            // .with_angular_velocity_damping(1.0)
-            .with_compliance(1.0 / 100.0),
+            .with_compliance(1.0 / 400.0),
     );
 
     // Light

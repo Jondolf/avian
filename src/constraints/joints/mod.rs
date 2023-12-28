@@ -143,17 +143,14 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let world_r1 = body1.rotation.rotate(r1);
         let world_r2 = body2.rotation.rotate(r2);
 
-        let delta_x = DistanceLimit::new(0.0, 0.0).compute_correction(
+        let (dir, magnitude) = DistanceLimit::new(0.0, 0.0).compute_correction(
             body1.current_position() + world_r1,
             body2.current_position() + world_r2,
         );
-        let magnitude = delta_x.length();
 
         if magnitude <= Scalar::EPSILON {
             return Vector::ZERO;
         }
-
-        let dir = delta_x / magnitude;
 
         // Compute generalized inverse masses
         let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
@@ -247,30 +244,30 @@ impl DistanceLimit {
         Self { min, max }
     }
 
-    /// Returns the positional correction required to limit the distance between `p1` and `p2` to be
-    /// to be inside the distance limit.
-    pub fn compute_correction(&self, p1: Vector, p2: Vector) -> Vector {
+    /// Returns the direction and magnitude of the positional correction required
+    /// to limit the distance between `p1` and `p2` to be within the distance limit.
+    pub fn compute_correction(&self, p1: Vector, p2: Vector) -> (Vector, Scalar) {
         let pos_offset = p2 - p1;
         let distance = pos_offset.length();
 
         if distance <= Scalar::EPSILON {
-            return Vector::ZERO;
+            return (Vector::ZERO, 0.0);
         }
 
         // Equation 25
         if distance < self.min {
             // Separation distance lower limit
-            -pos_offset / distance * (distance - self.min)
+            (-pos_offset / distance, (distance - self.min))
         } else if distance > self.max {
             // Separation distance upper limit
-            -pos_offset / distance * (distance - self.max)
+            (-pos_offset / distance, (distance - self.max))
         } else {
-            Vector::ZERO
+            (Vector::ZERO, 0.0)
         }
     }
 
     /// Returns the positional correction required to limit the distance between `p1` and `p2`
-    /// to be inside the distance limit along a given `axis`.
+    /// to be within the distance limit along a given `axis`.
     fn compute_correction_along_axis(&self, p1: Vector, p2: Vector, axis: Vector) -> Vector {
         let pos_offset = p2 - p1;
         let a = pos_offset.dot(axis);
@@ -311,7 +308,7 @@ impl AngleLimit {
     }
 
     /// Returns the angular correction required to limit the angle between the axes `n1` and `n2`
-    /// to be inside the angle limits.
+    /// to be within the angle limits.
     fn compute_correction(
         &self,
         n: Vector3,
