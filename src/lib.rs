@@ -283,11 +283,26 @@
 //! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Bevy XPBD, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
 //! and others are also likely to get Bevy XPBD support soon.
 //!
-//! For custom character controllers, you can take a look at the [`basic_dynamic_character`]
-//! and [`basic_kinematic_character`] examples to get started.
+//! For custom character controllers, you can take a look at the
+#![cfg_attr(
+    feature = "2d",
+    doc = "[`dynamic_character_2d`] and [`kinematic_character_2d`] examples to get started."
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "[`dynamic_character_3d`] and [`kinematic_character_3d`] examples to get started."
+)]
 //!
-//! [`basic_dynamic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_dynamic_character.rs
-//! [`basic_kinematic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_kinematic_character.rs
+#![cfg_attr(
+    feature = "2d",
+    doc = "[`dynamic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/dynamic_character_2d
+[`kinematic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/kinematic_character_2d"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "[`dynamic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/dynamic_character_3d
+[`kinematic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/kinematic_character_3d"
+)]
 //!
 //! ### Why are there separate `Position` and `Rotation` components?
 //!
