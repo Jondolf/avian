@@ -30,7 +30,7 @@ use crate::prelude::*;
 /// }
 ///
 /// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contacts) in collision_event_reader.iter() {
+///     for Collision(contacts) in collision_event_reader.read() {
 ///         println!(
 ///             "Entities {:?} and {:?} are colliding",
 ///             contacts.entity1,
