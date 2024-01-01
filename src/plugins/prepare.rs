@@ -94,8 +94,7 @@ impl Plugin for PreparePlugin {
                 PrepareSet::InitTransforms,
                 PrepareSet::Finalize,
             )
-                .chain()
-                .in_set(PhysicsSet::Prepare),
+                .chain(),
         );
 
         app.init_resource::<ColliderStorageMap>()
@@ -132,6 +131,7 @@ impl Plugin for PreparePlugin {
                     update_collider_parents,
                     apply_deferred,
                 )
+                    .chain()
                     .in_set(PrepareSet::InitColliders),
             )
             .add_systems(
@@ -153,6 +153,7 @@ impl Plugin for PreparePlugin {
                     // All the components we added above must exist before we can simulate the bodies.
                     apply_deferred,
                 )
+                    .chain()
                     .in_set(PrepareSet::Finalize),
             );
 
