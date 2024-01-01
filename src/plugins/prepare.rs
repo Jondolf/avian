@@ -170,7 +170,7 @@ impl Plugin for PreparePlugin {
     }
 }
 
-/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+/// Configures what is initialized by the [`PreparePlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct PrepareConfig {
