@@ -94,7 +94,8 @@ impl Plugin for PreparePlugin {
                 PrepareSet::InitTransforms,
                 PrepareSet::Finalize,
             )
-                .chain(),
+                .chain()
+                .in_set(PhysicsSet::Prepare),
         );
 
         app.init_resource::<ColliderStorageMap>()
