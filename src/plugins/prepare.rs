@@ -23,6 +23,9 @@ use bevy::{
 /// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
 /// - Clamps restitution coefficients between 0 and 1
 ///
+/// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]
+/// and vice versa. You can configure this synchronization using the [`PrepareConfig`] resource.
+///
 /// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin {
     schedule: Interned<dyn ScheduleLabel>,
@@ -45,49 +48,115 @@ impl Default for PreparePlugin {
     }
 }
 
+/// Systems sets for initializing and syncing missing components.
+/// You can use these to schedule your own initialization systems
+/// without having to worry about implementation details.
+///
+/// 1. `PreInit`: Used for systems that must run before initialization.
+/// 2. `PropagateTransforms`: Responsible for propagating transforms.
+/// 3. `InitRigidBodies`: Responsible for initializing missing [`RigidBody`] components.
+/// 4. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
+/// 5. `InitColliders`: Responsible for initializing missing [`Collider`] components.
+/// 6. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
+/// or vice versa.
+/// 7. `Finalize`: Responsible for performing final updates after everything is initialized.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum PrepareSet {
-    Init,
+pub enum PrepareSet {
+    /// Used for systems that must run before initialization.
+    PreInit,
+    /// Responsible for propagating transforms.
+    PropagateTransforms,
+    /// Responsible for initializing missing [`RigidBody`] components.
+    InitRigidBodies,
+    /// Responsible for initializing missing mass properties for [`RigidBody`] components.
+    InitMassProperties,
+    /// Responsible for initializing missing [`Collider`] components.
+    InitColliders,
+    /// Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
+    /// or vice versa. Parts of this system can be disabled with [`PrepareConfig`].
+    /// Schedule your system with this to implement custom behavior for initializing transforms.
+    InitTransforms,
+    /// Responsible for performing final updates after everything is initialized.
+    /// Updates mass properties and clamps collider density and restitution.
+    Finalize,
 }
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
-        app.configure_sets(self.schedule, PrepareSet::Init.in_set(PhysicsSet::Prepare));
-
-        app.init_resource::<ColliderStorageMap>().add_systems(
+        app.configure_sets(
             self.schedule,
             (
-                apply_deferred,
-                // Run transform propagation if new bodies or colliders have been added
-                (
-                    bevy::transform::systems::sync_simple_transforms,
-                    bevy::transform::systems::propagate_transforms,
-                )
-                    .chain()
-                    .run_if(any_new_physics_entities),
-                init_rigid_bodies,
-                init_mass_properties,
-                init_colliders,
-                apply_deferred,
-                update_collider_parents,
-                apply_deferred,
-                init_transforms,
-                (
-                    sync::propagate_collider_transforms,
-                    sync::update_child_collider_position,
-                )
-                    .chain()
-                    .run_if(any_new_physics_entities),
-                update_mass_properties,
-                clamp_collider_density,
-                clamp_restitution,
-                // all the components we added above must exist before we can simulate the bodies
-                apply_deferred,
+                PrepareSet::PreInit,
+                PrepareSet::PropagateTransforms,
+                PrepareSet::InitRigidBodies,
+                PrepareSet::InitMassProperties,
+                PrepareSet::InitColliders,
+                PrepareSet::InitTransforms,
+                PrepareSet::Finalize,
             )
                 .chain()
-                .after(PrepareSet::Init)
                 .in_set(PhysicsSet::Prepare),
         );
+
+        app.init_resource::<ColliderStorageMap>()
+            .init_resource::<PrepareConfig>()
+            .register_type::<PrepareConfig>()
+            .add_systems(
+                self.schedule,
+                (
+                    apply_deferred,
+                    // Run transform propagation if new bodies or colliders have been added
+                    (
+                        bevy::transform::systems::sync_simple_transforms,
+                        bevy::transform::systems::propagate_transforms,
+                    )
+                        .chain()
+                        .run_if(any_new_physics_entities),
+                )
+                    .chain()
+                    .in_set(PrepareSet::PropagateTransforms),
+            )
+            .add_systems(
+                self.schedule,
+                init_rigid_bodies.in_set(PrepareSet::InitRigidBodies),
+            )
+            .add_systems(
+                self.schedule,
+                init_mass_properties.in_set(PrepareSet::InitMassProperties),
+            )
+            .add_systems(
+                self.schedule,
+                (
+                    init_colliders,
+                    apply_deferred,
+                    update_collider_parents,
+                    apply_deferred,
+                )
+                    .chain()
+                    .in_set(PrepareSet::InitColliders),
+            )
+            .add_systems(
+                self.schedule,
+                init_transforms.in_set(PrepareSet::InitTransforms),
+            )
+            .add_systems(
+                self.schedule,
+                (
+                    (
+                        sync::propagate_collider_transforms,
+                        sync::update_child_collider_position,
+                    )
+                        .chain()
+                        .run_if(any_new_physics_entities),
+                    update_mass_properties,
+                    clamp_collider_density,
+                    clamp_restitution,
+                    // All the components we added above must exist before we can simulate the bodies.
+                    apply_deferred,
+                )
+                    .chain()
+                    .in_set(PrepareSet::Finalize),
+            );
 
         app.add_systems(
             PhysicsSchedule,
@@ -100,6 +169,27 @@ impl Plugin for PreparePlugin {
 
         #[cfg(all(feature = "3d", feature = "async-collider"))]
         app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
+    }
+}
+
+/// Configures what is initialized by the [`PreparePlugin`] and how.
+#[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
+#[reflect(Resource)]
+pub struct PrepareConfig {
+    /// Initializes [`Transform`] based on [`Position`] and [`Rotation`].
+    /// Defaults to true.
+    pub position_to_transform: bool,
+    /// Initializes [`Position`] and [`Rotation`] based on [`Transform`].
+    /// Defaults to true.
+    pub transform_to_position: bool,
+}
+
+impl Default for PrepareConfig {
+    fn default() -> Self {
+        PrepareConfig {
+            position_to_transform: true,
+            transform_to_position: true,
+        }
     }
 }
 
@@ -132,6 +222,7 @@ fn any_new_physics_entities(query: Query<(), Or<(Added<RigidBody>, Added<Collide
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa.
 fn init_transforms(
     mut commands: Commands,
+    config: Res<PrepareConfig>,
     mut query: Query<
         (
             Entity,
@@ -171,33 +262,35 @@ fn init_transforms(
 
         // Compute Transform based on Position or vice versa
         let new_position = if let Some(pos) = pos {
-            if let Some(ref mut transform) = transform {
-                // Initialize new translation as global position
-                #[cfg(feature = "2d")]
-                let mut new_translation = pos.as_f32().extend(transform.translation.z);
-                #[cfg(feature = "3d")]
-                let mut new_translation = pos.as_f32();
+            if config.position_to_transform {
+                if let Some(ref mut transform) = transform {
+                    // Initialize new translation as global position
+                    #[cfg(feature = "2d")]
+                    let mut new_translation = pos.as_f32().extend(transform.translation.z);
+                    #[cfg(feature = "3d")]
+                    let mut new_translation = pos.as_f32();
 
-                // If the body is a child, subtract the parent's global translation
-                // to get the local translation
-                if let Some(Ok((parent_pos, _, parent_transform))) = parent_position {
-                    if let Some(parent_pos) = parent_pos {
-                        #[cfg(feature = "2d")]
-                        {
-                            new_translation -= parent_pos.as_f32().extend(new_translation.z);
+                    // If the body is a child, subtract the parent's global translation
+                    // to get the local translation
+                    if let Some(Ok((parent_pos, _, parent_transform))) = parent_position {
+                        if let Some(parent_pos) = parent_pos {
+                            #[cfg(feature = "2d")]
+                            {
+                                new_translation -= parent_pos.as_f32().extend(new_translation.z);
+                            }
+                            #[cfg(feature = "3d")]
+                            {
+                                new_translation -= parent_pos.as_f32();
+                            }
+                        } else if let Some(parent_transform) = parent_transform {
+                            new_translation -= parent_transform.translation();
                         }
-                        #[cfg(feature = "3d")]
-                        {
-                            new_translation -= parent_pos.as_f32();
-                        }
-                    } else if let Some(parent_transform) = parent_transform {
-                        new_translation -= parent_transform.translation();
                     }
+                    transform.translation = new_translation;
                 }
-                transform.translation = new_translation;
             }
             pos.0
-        } else {
+        } else if config.transform_to_position {
             let mut new_position = Vector::ZERO;
 
             if let Some(Ok((parent_pos, _, parent_transform))) = parent_position {
@@ -239,46 +332,59 @@ fn init_transforms(
             };
 
             new_position
+        } else {
+            default()
         };
 
         // Compute Transform based on Rotation or vice versa
         let new_rotation = if let Some(rot) = rot {
-            if let Some(ref mut transform) = transform {
-                // Initialize new rotation as global rotation
-                let mut new_rotation = Quaternion::from(*rot).as_f32();
+            if config.position_to_transform {
+                if let Some(ref mut transform) = transform {
+                    // Initialize new rotation as global rotation
+                    let mut new_rotation = Quaternion::from(*rot).as_f32();
 
-                // If the body is a child, subtract the parent's global rotation
-                // to get the local rotation
-                if let Some(parent) = parent {
-                    if let Ok((_, parent_rot, parent_transform)) = parents.get(parent.get()) {
-                        if let Some(parent_rot) = parent_rot {
-                            new_rotation *= Quaternion::from(*parent_rot).as_f32().inverse();
-                        } else if let Some(parent_transform) = parent_transform {
-                            new_rotation *= parent_transform.compute_transform().rotation.inverse();
+                    // If the body is a child, subtract the parent's global rotation
+                    // to get the local rotation
+                    if let Some(parent) = parent {
+                        if let Ok((_, parent_rot, parent_transform)) = parents.get(parent.get()) {
+                            if let Some(parent_rot) = parent_rot {
+                                new_rotation *= Quaternion::from(*parent_rot).as_f32().inverse();
+                            } else if let Some(parent_transform) = parent_transform {
+                                new_rotation *=
+                                    parent_transform.compute_transform().rotation.inverse();
+                            }
                         }
                     }
+                    transform.rotation = new_rotation;
                 }
-                transform.rotation = new_rotation;
             }
             *rot
-        } else if let Some(Ok((_, parent_rot, parent_transform))) = parent_position {
-            let parent_rot = parent_rot.copied().unwrap_or(Rotation::from(
-                parent_transform.map_or(default(), |t| t.compute_transform().rotation),
-            ));
-            let rot = Rotation::from(transform.as_ref().map_or(default(), |t| t.rotation));
-            #[cfg(feature = "2d")]
-            {
-                parent_rot + rot
-            }
-            #[cfg(feature = "3d")]
-            {
-                Rotation(parent_rot.0 * rot.0)
+        } else if config.transform_to_position {
+            if let Some(Ok((_, parent_rot, parent_transform))) = parent_position {
+                let parent_rot = parent_rot.copied().unwrap_or(Rotation::from(
+                    parent_transform.map_or(default(), |t| t.compute_transform().rotation),
+                ));
+                let rot = Rotation::from(transform.as_ref().map_or(default(), |t| t.rotation));
+                #[cfg(feature = "2d")]
+                {
+                    parent_rot + rot
+                }
+                #[cfg(feature = "3d")]
+                {
+                    Rotation(parent_rot.0 * rot.0)
+                }
+            } else {
+                global_transform.map_or(Rotation::default(), |t| {
+                    t.compute_transform().rotation.into()
+                })
             }
         } else {
-            global_transform.map_or(Rotation::default(), |t| {
-                t.compute_transform().rotation.into()
-            })
+            default()
         };
+
+        if !config.transform_to_position {
+            return;
+        }
 
         // Insert the position and rotation.
         // The values are either unchanged (Position and Rotation already exist)
