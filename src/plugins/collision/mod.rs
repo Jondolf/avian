@@ -113,17 +113,17 @@ impl AnyCollider for Collider {
 /// - [`NarrowPhasePlugin`]
 /// - [`ContactReportingPlugin`]
 ///
-/// The plugin takes a collider type through generics. This should be [`Collider`]
-/// for the vast majority of applications, but you may use any collider that implements
-/// the [`AnyCollider`] trait.
+/// The plugin takes a collider type. This should be [`Collider`] for
+/// the vast majority of applications, but for custom collisión backends
+/// you may use any collider that implements the [`AnyCollider`] trait.
 pub struct CollisionPlugin<C: AnyCollider> {
-    _phantom_data: PhantomData<C>,
+    _phantom: PhantomData<C>,
 }
 
 impl<C: AnyCollider> Default for CollisionPlugin<C> {
     fn default() -> Self {
         Self {
-            _phantom_data: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }

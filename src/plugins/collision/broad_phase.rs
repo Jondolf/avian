@@ -17,6 +17,10 @@ use bevy::{
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
+/// The plugin takes a collider type. This should be [`Collider`] for
+/// the vast majority of applications, but for custom collisión backends
+/// you may use any collider that implements the [`AnyCollider`] trait.
+///
 /// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
 pub struct BroadPhasePlugin<C: AnyCollider> {
     _phantom_data: PhantomData<C>,

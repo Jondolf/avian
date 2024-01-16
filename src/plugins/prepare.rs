@@ -5,6 +5,8 @@
 
 #![allow(clippy::type_complexity)]
 
+use std::marker::PhantomData;
+
 use crate::prelude::*;
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::scene::SceneInstance;
@@ -26,23 +28,29 @@ use bevy::{
 /// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]
 /// and vice versa. You can configure this synchronization using the [`PrepareConfig`] resource.
 ///
+/// The plugin takes a collider type. This should be [`Collider`] for
+/// the vast majority of applications, but for custom collisión backends
+/// you may use any collider that implements the [`AnyCollider`] trait.
+///
 /// The systems run in [`PhysicsSet::Prepare`].
-pub struct PreparePlugin {
+pub struct PreparePlugin<C: AnyCollider> {
     schedule: Interned<dyn ScheduleLabel>,
+    _phantom: PhantomData<C>,
 }
 
-impl PreparePlugin {
+impl<C: AnyCollider> PreparePlugin<C> {
     /// Creates a [`PreparePlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
     /// The default schedule is `PostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
+            _phantom: PhantomData,
         }
     }
 }
 
-impl Default for PreparePlugin {
+impl<C: AnyCollider> Default for PreparePlugin<C> {
     fn default() -> Self {
         Self::new(PostUpdate)
     }
@@ -81,7 +89,7 @@ pub enum PrepareSet {
     Finalize,
 }
 
-impl Plugin for PreparePlugin {
+impl<C: AnyCollider> Plugin for PreparePlugin<C> {
     fn build(&self, app: &mut App) {
         app.configure_sets(
             self.schedule,
@@ -111,7 +119,7 @@ impl Plugin for PreparePlugin {
                         bevy::transform::systems::propagate_transforms,
                     )
                         .chain()
-                        .run_if(any_new_physics_entities),
+                        .run_if(any_new_physics_entities::<C>),
                 )
                     .chain()
                     .in_set(PrepareSet::PropagateTransforms),
@@ -127,9 +135,9 @@ impl Plugin for PreparePlugin {
             .add_systems(
                 self.schedule,
                 (
-                    init_colliders,
+                    init_colliders::<C>,
                     apply_deferred,
-                    update_collider_parents,
+                    update_collider_parents::<C>,
                     apply_deferred,
                 )
                     .chain()
@@ -137,7 +145,7 @@ impl Plugin for PreparePlugin {
             )
             .add_systems(
                 self.schedule,
-                init_transforms.in_set(PrepareSet::InitTransforms),
+                init_transforms::<C>.in_set(PrepareSet::InitTransforms),
             )
             .add_systems(
                 self.schedule,
@@ -147,8 +155,8 @@ impl Plugin for PreparePlugin {
                         sync::update_child_collider_position,
                     )
                         .chain()
-                        .run_if(any_new_physics_entities),
-                    update_mass_properties,
+                        .run_if(any_new_physics_entities::<C>),
+                    update_mass_properties::<C>,
                     clamp_collider_density,
                     clamp_restitution,
                     // All the components we added above must exist before we can simulate the bodies.
@@ -162,7 +170,7 @@ impl Plugin for PreparePlugin {
             PhysicsSchedule,
             (
                 update_collider_storage.before(PhysicsStepSet::BroadPhase),
-                handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
+                handle_collider_storage_removals::<C>.after(PhysicsStepSet::SpatialQuery),
                 handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
             ),
         );
@@ -212,15 +220,17 @@ pub(crate) struct ColliderStorageMap(
     HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
 );
 
-/// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
+/// A run condition that returns `true` if new [rigid bodies](RigidBody) or colliders
 /// have been added. Used for avoiding unnecessary transform propagation.
-fn any_new_physics_entities(query: Query<(), Or<(Added<RigidBody>, Added<Collider>)>>) -> bool {
+fn any_new_physics_entities<C: AnyCollider>(
+    query: Query<(), Or<(Added<RigidBody>, Added<C>)>>,
+) -> bool {
     !query.is_empty()
 }
 
 // TODO: This system feels very overengineered. Try to clean it up?
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa.
-fn init_transforms(
+fn init_transforms<C: AnyCollider>(
     mut commands: Commands,
     config: Res<PrepareConfig>,
     mut query: Query<
@@ -235,7 +245,7 @@ fn init_transforms(
             Option<&Parent>,
             Has<RigidBody>,
         ),
-        Or<(Added<RigidBody>, Added<Collider>)>,
+        Or<(Added<RigidBody>, Added<C>)>,
     >,
     parents: Query<
         (
@@ -490,23 +500,23 @@ fn init_mass_properties(
 }
 
 /// Initializes missing components for [colliders](Collider).
-fn init_colliders(
+fn init_colliders<C: AnyCollider>(
     mut commands: Commands,
     mut colliders: Query<
         (
             Entity,
-            &Collider,
+            &C,
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
             Option<&ColliderMassProperties>,
         ),
-        Added<Collider>,
+        Added<C>,
     >,
 ) {
     for (entity, collider, aabb, density, mass_properties) in &mut colliders {
         let density = *density.unwrap_or(&ColliderDensity::default());
         commands.entity(entity).insert((
-            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
+            *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
             density,
             *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
             CollidingEntities::default(),
@@ -605,11 +615,11 @@ pub fn init_async_scene_colliders(
     }
 }
 
-fn update_collider_parents(
+fn update_collider_parents<C: AnyCollider>(
     mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<Collider>), With<RigidBody>>,
+    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<C>), With<RigidBody>>,
     children: Query<&Children>,
-    mut child_colliders: Query<Option<&mut ColliderParent>, (With<Collider>, Without<RigidBody>)>,
+    mut child_colliders: Query<Option<&mut ColliderParent>, (With<C>, Without<RigidBody>)>,
 ) {
     for (entity, collider_parent, has_collider) in &mut bodies {
         if has_collider {
@@ -678,14 +688,11 @@ fn update_collider_storage(
             &ColliderMassProperties,
             &ColliderTransform,
         ),
-        (
-            With<Collider>,
-            Or<(
-                Changed<ColliderParent>,
-                Changed<ColliderTransform>,
-                Changed<ColliderMassProperties>,
-            )>,
-        ),
+        Or<(
+            Changed<ColliderParent>,
+            Changed<ColliderTransform>,
+            Changed<ColliderMassProperties>,
+        )>,
     >,
     mut storage: ResMut<ColliderStorageMap>,
 ) {
@@ -698,8 +705,8 @@ fn update_collider_storage(
 }
 
 /// Removes removed colliders from the [`ColliderStorageMap`] resource at the end of the physics frame.
-fn handle_collider_storage_removals(
-    mut removals: RemovedComponents<Collider>,
+fn handle_collider_storage_removals<C: AnyCollider>(
+    mut removals: RemovedComponents<C>,
     mut storage: ResMut<ColliderStorageMap>,
 ) {
     removals.read().for_each(|entity| {
@@ -710,26 +717,26 @@ fn handle_collider_storage_removals(
 /// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
 ///
 /// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_properties(
+fn update_mass_properties<C: AnyCollider>(
     mut bodies: Query<(Entity, &RigidBody, MassPropertiesQuery)>,
     mut colliders: Query<
         (
             &ColliderTransform,
             &mut PreviousColliderTransform,
             &ColliderParent,
-            Ref<Collider>,
+            Ref<C>,
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
         Or<(
-            Changed<Collider>,
+            Changed<C>,
             Changed<ColliderTransform>,
             Changed<ColliderDensity>,
             Changed<ColliderMassProperties>,
         )>,
     >,
     collider_map: Res<ColliderStorageMap>,
-    mut removed_colliders: RemovedComponents<Collider>,
+    mut removed_colliders: RemovedComponents<C>,
 ) {
     for (
         collider_transform,

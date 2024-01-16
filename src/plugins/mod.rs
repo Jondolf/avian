@@ -188,7 +188,7 @@ impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule))
-            .add(PreparePlugin::new(self.schedule))
+            .add(PreparePlugin::<Collider>::new(self.schedule))
             .add(CollisionPlugin::<Collider>::default())
             .add(IntegratorPlugin)
             .add(SolverPlugin)

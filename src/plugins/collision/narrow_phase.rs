@@ -15,6 +15,10 @@ use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 /// which is handled by the [`BroadPhasePlugin`].
 ///
 /// The results of the narrow phase are added into [`Collisions`].
+///
+/// The plugin takes a collider type. This should be [`Collider`] for
+/// the vast majority of applications, but for custom collisión backends
+/// you may use any collider that implements the [`AnyCollider`] trait.
 pub struct NarrowPhasePlugin<C: AnyCollider> {
     _phantom_data: PhantomData<C>,
 }
