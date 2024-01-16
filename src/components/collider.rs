@@ -337,6 +337,29 @@ impl Collider {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
     }
 
+    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    #[cfg(feature = "2d")]
+    pub fn round_cuboid(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
+        SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
+    }
+
+    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    #[cfg(feature = "3d")]
+    pub fn round_cuboid(
+        x_length: Scalar,
+        y_length: Scalar,
+        z_length: Scalar,
+        border_radius: Scalar,
+    ) -> Self {
+        SharedShape::round_cuboid(
+            x_length * 0.5,
+            y_length * 0.5,
+            z_length * 0.5,
+            border_radius,
+        )
+        .into()
+    }
+
     /// Creates a collider with a cylinder shape defined by its height along the `Y` axis and its radius on the `XZ` plane.
     #[cfg(feature = "3d")]
     pub fn cylinder(height: Scalar, radius: Scalar) -> Self {
