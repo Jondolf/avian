@@ -3,6 +3,8 @@
 //!
 //! See [`BroadPhasePlugin`].
 
+use std::marker::PhantomData;
+
 use crate::prelude::*;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -16,9 +18,19 @@ use bevy::{
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
 /// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
-pub struct BroadPhasePlugin;
+pub struct BroadPhasePlugin<C: AnyCollider> {
+    _phantom_data: PhantomData<C>,
+}
 
-impl Plugin for BroadPhasePlugin {
+impl<C: AnyCollider> Default for BroadPhasePlugin<C> {
+    fn default() -> Self {
+        Self {
+            _phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<C: AnyCollider> Plugin for BroadPhasePlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<AabbIntervals>();
 
@@ -28,7 +40,7 @@ impl Plugin for BroadPhasePlugin {
 
         physics_schedule.add_systems(
             (
-                update_aabb,
+                update_aabb::<C>,
                 update_aabb_intervals,
                 add_new_aabb_intervals,
                 collect_collision_pairs,
@@ -55,10 +67,10 @@ type AABBChanged = Or<(
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
-fn update_aabb(
+fn update_aabb<C: AnyCollider>(
     mut colliders: Query<
         (
-            &Collider,
+            &C,
             &mut ColliderAabb,
             &Position,
             &Rotation,
@@ -101,12 +113,12 @@ fn update_aabb(
             (LinearVelocity::ZERO, AngularVelocity::ZERO)
         };
 
-        // Compute current isometry and predicted isometry for next feame
-        let start_iso = utils::make_isometry(*pos, *rot);
-        let end_iso = {
+        // Current position and predicted position for next feame
+        let (start_pos, start_rot) = (*pos, *rot);
+        let (end_pos, end_rot) = {
             #[cfg(feature = "2d")]
             {
-                utils::make_isometry(
+                (
                     pos.0 + lin_vel.0 * safety_margin_factor,
                     *rot + Rotation::from_radians(safety_margin_factor * ang_vel.0),
                 )
@@ -120,7 +132,7 @@ fn update_aabb(
                     rot.z + safety_margin_factor * 0.5 * q.z,
                     rot.w + safety_margin_factor * 0.5 * q.w,
                 );
-                utils::make_isometry(
+                (
                     pos.0 + lin_vel.0 * safety_margin_factor,
                     Quaternion::from_xyzw(x, y, z, w).normalize(),
                 )
@@ -128,9 +140,7 @@ fn update_aabb(
         };
 
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
-        aabb.0 = collider
-            .shape_scaled()
-            .compute_swept_aabb(&start_iso, &end_iso);
+        aabb.0 = *collider.swept_aabb(start_pos, start_rot, end_pos, end_rot);
 
         // Add narrow phase prediction distance to AABBs to avoid missed collisions
         let prediction_distance = if let Some(ref config) = narrow_phase_config {

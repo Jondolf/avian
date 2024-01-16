@@ -15,9 +15,128 @@ pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;
 
+use std::marker::PhantomData;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
+
+/// A trait that generalizes over colliders. Implementing this trait
+/// allows colliders to be used with the physics engine.
+pub trait AnyCollider: Component {
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
+    /// with the given position and rotation.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\nThe rotation is counterclockwise and in radians."
+    )]
+    fn aabb(&self, position: impl Into<Position>, rotation: impl Into<Rotation>) -> ColliderAabb;
+
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    /// This corresponds to the space the shape would occupy if it moved from the given
+    /// start position to the given end position.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\nThe rotation is counterclockwise and in radians."
+    )]
+    fn swept_aabb(
+        &self,
+        start_position: impl Into<Position>,
+        start_rotation: impl Into<Rotation>,
+        end_position: impl Into<Position>,
+        end_rotation: impl Into<Rotation>,
+    ) -> ColliderAabb;
+
+    /// Computes the collider's mass properties based on its shape and a given density.
+    fn mass_properties(&self, density: f32) -> ColliderMassProperties;
+
+    /// Computes all [`ContactManifold`]s between two colliders.
+    ///
+    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// or if the given shapes are invalid.
+    fn contact_manifolds(
+        &self,
+        other: &Self,
+        position1: impl Into<Position>,
+        rotation1: impl Into<Rotation>,
+        position2: impl Into<Position>,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: f32,
+    ) -> Vec<ContactManifold>;
+}
+
+impl AnyCollider for Collider {
+    fn mass_properties(&self, density: f32) -> ColliderMassProperties {
+        self.mass_properties(density)
+    }
+
+    fn contact_manifolds(
+        &self,
+        other: &Self,
+        position1: impl Into<Position>,
+        rotation1: impl Into<Rotation>,
+        position2: impl Into<Position>,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: f32,
+    ) -> Vec<ContactManifold> {
+        contact_query::contact_manifolds(
+            self,
+            position1,
+            rotation1,
+            other,
+            position2,
+            rotation2,
+            prediction_distance,
+        )
+    }
+
+    fn aabb(&self, position: impl Into<Position>, rotation: impl Into<Rotation>) -> ColliderAabb {
+        self.aabb(position, rotation)
+    }
+
+    fn swept_aabb(
+        &self,
+        start_position: impl Into<Position>,
+        start_rotation: impl Into<Rotation>,
+        end_position: impl Into<Position>,
+        end_rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
+        self.swept_aabb(start_position, start_rotation, end_position, end_rotation)
+    }
+}
+
+/// A high-level plugin for collision detection.
+///
+/// Internally, this plugin adds several other plugins related to collision detection:
+///
+/// - [`BroadPhasePlugin`]
+/// - [`NarrowPhasePlugin`]
+/// - [`ContactReportingPlugin`]
+///
+/// The plugin takes a collider type through generics. This should be [`Collider`]
+/// for the vast majority of applications, but you may use any collider that implements
+/// the [`AnyCollider`] trait.
+pub struct CollisionPlugin<C: AnyCollider> {
+    _phantom_data: PhantomData<C>,
+}
+
+impl<C: AnyCollider> Default for CollisionPlugin<C> {
+    fn default() -> Self {
+        Self {
+            _phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<C: AnyCollider> Plugin for CollisionPlugin<C> {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            BroadPhasePlugin::<C>::default(),
+            NarrowPhasePlugin::<C>::default(),
+            ContactReportingPlugin,
+        ));
+    }
+}
 
 // Collisions are stored in an `IndexMap` that uses fxhash.
 // It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.

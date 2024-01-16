@@ -271,22 +271,41 @@ impl Collider {
         }
     }
 
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    #[cfg(feature = "2d")]
-    pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
-        ColliderAabb(self.shape_scaled().compute_aabb(&utils::make_isometry(
-            position,
-            Rotation::from_radians(rotation),
-        )))
-    }
-
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    #[cfg(feature = "3d")]
-    pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
+    /// with the given position and rotation.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    pub fn aabb(
+        &self,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
         ColliderAabb(
             self.shape_scaled()
-                .compute_aabb(&utils::make_isometry(position, Rotation(rotation))),
+                .compute_aabb(&utils::make_isometry(position, rotation)),
         )
+    }
+
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    /// This corresponds to the space the shape would occupy if it moved from the given
+    /// start position to the given end position.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    pub fn swept_aabb(
+        &self,
+        start_position: impl Into<Position>,
+        start_rotation: impl Into<Rotation>,
+        end_position: impl Into<Position>,
+        end_rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
+        ColliderAabb(self.shape_scaled().compute_swept_aabb(
+            &utils::make_isometry(start_position, start_rotation),
+            &utils::make_isometry(end_position, end_rotation),
+        ))
     }
 
     /// Computes the collider's mass properties based on its shape and a given density.

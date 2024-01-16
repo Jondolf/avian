@@ -2,6 +2,8 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
+use std::marker::PhantomData;
+
 use crate::prelude::*;
 use bevy::ecs::query::Has;
 #[cfg(feature = "parallel")]
@@ -13,9 +15,19 @@ use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 /// which is handled by the [`BroadPhasePlugin`].
 ///
 /// The results of the narrow phase are added into [`Collisions`].
-pub struct NarrowPhasePlugin;
+pub struct NarrowPhasePlugin<C: AnyCollider> {
+    _phantom_data: PhantomData<C>,
+}
 
-impl Plugin for NarrowPhasePlugin {
+impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
+    fn default() -> Self {
+        Self {
+            _phantom_data: PhantomData,
+        }
+    }
+}
+
+impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
@@ -46,7 +58,7 @@ impl Plugin for NarrowPhasePlugin {
         app.get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first")
             .add_systems(
-                (reset_substep_collision_states, collect_collisions)
+                (reset_substep_collision_states, collect_collisions::<C>)
                     .chain()
                     .in_set(SubstepSet::NarrowPhase),
             );
@@ -80,7 +92,7 @@ impl Default for NarrowPhaseConfig {
 /// Computes contacts based on [`BroadCollisionPairs`] and adds them to [`Collisions`].
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-pub fn collect_collisions(
+pub fn collect_collisions<C: AnyCollider>(
     bodies: Query<(
         Ref<Position>,
         Option<&AccumulatedTranslation>,
@@ -158,14 +170,14 @@ pub fn collect_collisions(
 
 /// Helper method that calculates the intersection between two colliders to determine if they are in contact.
 #[allow(clippy::type_complexity)]
-fn process_collision_pair<F>(
+fn process_collision_pair<C: AnyCollider, F>(
     entity1: Entity,
     entity2: Entity,
     bodies: &Query<(
         Ref<Position>,
         Option<&AccumulatedTranslation>,
         Ref<Rotation>,
-        &Collider,
+        &C,
     )>,
     collisions: &ResMut<Collisions>,
     narrow_phase_config: &Res<NarrowPhaseConfig>,
@@ -188,11 +200,10 @@ fn process_collision_pair<F>(
             during_current_frame: true,
             during_current_substep: true,
             during_previous_frame: previous_contact.map_or(false, |c| c.during_previous_frame),
-            manifolds: contact_query::contact_manifolds(
-                collider1,
+            manifolds: collider1.contact_manifolds(
+                collider2,
                 position1,
                 *rotation1,
-                collider2,
                 position2,
                 *rotation2,
                 narrow_phase_config.prediction_distance,
