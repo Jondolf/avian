@@ -28,7 +28,7 @@ pub trait AnyCollider: Component {
     /// with the given position and rotation.
     #[cfg_attr(
         feature = "2d",
-        doc = "\nThe rotation is counterclockwise and in radians."
+        doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
     fn aabb(&self, position: impl Into<Position>, rotation: impl Into<Rotation>) -> ColliderAabb;
 
@@ -37,7 +37,7 @@ pub trait AnyCollider: Component {
     /// start position to the given end position.
     #[cfg_attr(
         feature = "2d",
-        doc = "\nThe rotation is counterclockwise and in radians."
+        doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
     fn swept_aabb(
         &self,
@@ -48,7 +48,7 @@ pub trait AnyCollider: Component {
     ) -> ColliderAabb;
 
     /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: f32) -> ColliderMassProperties;
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -61,12 +61,12 @@ pub trait AnyCollider: Component {
         rotation1: impl Into<Rotation>,
         position2: impl Into<Position>,
         rotation2: impl Into<Rotation>,
-        prediction_distance: f32,
+        prediction_distance: Scalar,
     ) -> Vec<ContactManifold>;
 }
 
 impl AnyCollider for Collider {
-    fn mass_properties(&self, density: f32) -> ColliderMassProperties {
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
         self.mass_properties(density)
     }
 
@@ -77,7 +77,7 @@ impl AnyCollider for Collider {
         rotation1: impl Into<Rotation>,
         position2: impl Into<Position>,
         rotation2: impl Into<Rotation>,
-        prediction_distance: f32,
+        prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
         contact_query::contact_manifolds(
             self,

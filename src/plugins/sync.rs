@@ -188,9 +188,6 @@ pub(crate) fn update_child_collider_position(
 }
 
 /// Updates the scale of colliders based on [`Transform`] scale.
-///
-/// This system is added by default by the [`CollisionPlugin`].
-/// If you have that plugin disabled, you should add the system manually in [`PhysicsSet::Sync`].
 #[allow(clippy::type_complexity)]
 pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
