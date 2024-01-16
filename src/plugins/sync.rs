@@ -94,7 +94,7 @@ impl Plugin for SyncPlugin {
                 )
                     .chain()
                     .run_if(|config: Res<SyncConfig>| config.transform_to_position),
-                update_collider_scale,
+                update_collider_scale::<Collider>,
             )
                 .chain()
                 .in_set(PhysicsSet::Sync),
@@ -187,13 +187,17 @@ pub(crate) fn update_child_collider_position(
     }
 }
 
+/// Updates the scale of colliders based on [`Transform`] scale.
+///
+/// This system is added by default by the [`CollisionPlugin`].
+/// If you have that plugin disabled, you should add the system manually in [`PhysicsSet::Sync`].
 #[allow(clippy::type_complexity)]
-pub(crate) fn update_collider_scale(
+pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut Collider), Without<Parent>>,
+        Query<(&Transform, &mut C), Without<Parent>>,
         // Child colliders
-        Query<(&ColliderTransform, &mut Collider), With<Parent>>,
+        Query<(&ColliderTransform, &mut C), With<Parent>>,
     )>,
 ) {
     // Update collider scale for root bodies

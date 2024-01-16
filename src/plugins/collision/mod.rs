@@ -105,6 +105,36 @@ impl AnyCollider for Collider {
     }
 }
 
+/// A trait for colliders that support scaling.
+pub trait ScalableCollider: Component {
+    /// Returns the global scaling factor of the collider.
+    fn scale(&self) -> Vector;
+
+    /// Sets the global scaling factor of the collider.
+    ///
+    /// If the scaling factor is not uniform and the resulting scaled shape
+    /// can not be represented exactly, the given `detail` is used for an approximation.
+    fn set_scale(&mut self, scale: Vector, detail: u32);
+
+    /// Scales the collider by the given scaling factor.
+    ///
+    /// If the scaling factor is not uniform and the resulting scaled shape
+    /// can not be represented exactly, the given `detail` is used for an approximation.
+    fn scale_by(&mut self, factor: Vector, detail: u32) {
+        self.set_scale(factor * self.scale(), detail)
+    }
+}
+
+impl ScalableCollider for Collider {
+    fn scale(&self) -> Vector {
+        self.scale()
+    }
+
+    fn set_scale(&mut self, scale: Vector, detail: u32) {
+        self.set_scale(scale, detail)
+    }
+}
+
 /// A high-level plugin for collision detection.
 ///
 /// Internally, this plugin adds several other plugins related to collision detection:

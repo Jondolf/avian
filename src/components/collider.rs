@@ -227,11 +227,6 @@ impl Collider {
         &self.scaled_shape
     }
 
-    /// Returns the global scale of the collider.
-    pub fn scale(&self) -> Vector {
-        self.scale
-    }
-
     /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
     pub fn set_shape(&mut self, shape: SharedShape) {
         self.shape = shape;
@@ -242,6 +237,11 @@ impl Collider {
         } else {
             log::error!("Failed to create convex hull for scaled collider.");
         }
+    }
+
+    /// Returns the global scale of the collider.
+    pub fn scale(&self) -> Vector {
+        self.scale
     }
 
     /// Set the global scaling factor of this shape.
