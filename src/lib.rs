@@ -292,6 +292,7 @@
 //!
 //! ```
 //! # use bevy::prelude::*;
+//! # use bevy::transform::TransformSystem;
 #![cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 //! #
