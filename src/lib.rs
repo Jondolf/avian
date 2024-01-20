@@ -198,6 +198,7 @@
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
 //! - [Why is performance so bad?](#why-is-performance-so-bad)
+//! - [Why does my camera following jitter?](#why-does-my-camera-following-jitter)
 //! - [Is there a character controller?](#is-there-a-character-controller)
 //! - [Why are there separate `Position` and `Rotation` components?](#why-are-there-separate-position-and-rotation-components)
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
@@ -276,6 +277,37 @@
 //!
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
+//!
+//! ### Why does my camera following jitter?
+//!
+//! When you write a system that makes the camera follow a physics entity, you might notice some jitter.
+//!
+//! To fix this, the system needs to:
+//!
+//! - Run after physics so that it has the up-to-date position of the player.
+//! - Run before transform propagation so that your changes to the camera's `Transform` are written
+//! to the camera's `GlobalTransform` before the end of the frame.
+//!
+//! The following ordering constraints should resolve the issue.
+//!
+//! ```
+//! # use bevy::prelude::*;
+#![cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+//! #
+//! # fn main() {
+//! #     let mut app = App::new();
+//! #
+//! app.add_systems(
+//!     PostUpdate,
+//!     camera_follow_player
+//!         .after(PhysicsSet::Sync)
+//!         .before(TransformSystem::TransformPropagate),
+//! );
+//! # }
+//! #
+//! # fn camera_follow_player() {}
+//! ```
 //!
 //! ### Is there a character controller?
 //!
