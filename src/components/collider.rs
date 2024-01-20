@@ -294,6 +294,108 @@ impl Collider {
         ColliderMassProperties::new(self, density)
     }
 
+    /// Projects the given `point` onto `self` transformed by `translation` and `rotation`.
+    /// The returned tuple contains the projected point and whether it is inside the collider.
+    ///
+    /// If `solid` is true and the given `point` is inside of the collider, the projection will be at the point.
+    /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    pub fn project_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+        solid: bool,
+    ) -> (Vector, bool) {
+        let projection = self.shape_scaled().project_point(
+            &utils::make_isometry(translation, rotation),
+            &point.into(),
+            solid,
+        );
+        (projection.point.into(), projection.is_inside)
+    }
+
+    /// Computes the minimum distance between the given `point` and `self` transformed by `translation` and `rotation`.
+    ///
+    /// If `solid` is true and the given `point` is inside of the collider, the returned distance will be `0.0`.
+    /// Otherwise, the collider will be treated as hollow, and the distance will be the distance
+    /// to the collider's boundary.
+    pub fn distance_to_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+        solid: bool,
+    ) -> Scalar {
+        self.shape_scaled().distance_to_point(
+            &utils::make_isometry(translation, rotation),
+            &point.into(),
+            solid,
+        )
+    }
+
+    /// Tests whether the given `point` is inside of `self` transformed by `translation` and `rotation`.
+    pub fn contains_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+    ) -> bool {
+        self.shape_scaled()
+            .contains_point(&utils::make_isometry(translation, rotation), &point.into())
+    }
+
+    /// Computes the time of impact and normal between the given ray and `self`
+    /// transformed by `translation` and `rotation`.
+    ///
+    /// The returned tuple is in the format `(time_of_impact, normal)`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `ray_origin`: Where the ray is cast from.
+    /// - `ray_direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    pub fn cast_ray(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        ray_origin: Vector,
+        ray_direction: Vector,
+        max_time_of_impact: Scalar,
+        solid: bool,
+    ) -> Option<(Scalar, Vector)> {
+        let hit = self.shape_scaled().cast_ray_and_get_normal(
+            &utils::make_isometry(translation, rotation),
+            &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
+            max_time_of_impact,
+            solid,
+        );
+        hit.map(|hit| (hit.toi, hit.normal.into()))
+    }
+
+    /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `ray_origin`: Where the ray is cast from.
+    /// - `ray_direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    pub fn intersects_ray(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        ray_origin: Vector,
+        ray_direction: Vector,
+        max_time_of_impact: Scalar,
+    ) -> bool {
+        self.shape_scaled().intersects_ray(
+            &utils::make_isometry(translation, rotation),
+            &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
+            max_time_of_impact,
+        )
+    }
+
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,
