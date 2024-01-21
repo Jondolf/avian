@@ -15,8 +15,6 @@ pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;
 
-use std::marker::PhantomData;
-
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
@@ -132,39 +130,6 @@ impl ScalableCollider for Collider {
 
     fn set_scale(&mut self, scale: Vector, detail: u32) {
         self.set_scale(scale, detail)
-    }
-}
-
-/// A high-level plugin for collision detection.
-///
-/// Internally, this plugin adds several other plugins related to collision detection:
-///
-/// - [`BroadPhasePlugin`]
-/// - [`NarrowPhasePlugin`]
-/// - [`ContactReportingPlugin`]
-///
-/// The plugin takes a collider type. This should be [`Collider`] for
-/// the vast majority of applications, but for custom collisión backends
-/// you may use any collider that implements the [`AnyCollider`] trait.
-pub struct CollisionPlugin<C: AnyCollider> {
-    _phantom: PhantomData<C>,
-}
-
-impl<C: AnyCollider> Default for CollisionPlugin<C> {
-    fn default() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
-    }
-}
-
-impl<C: AnyCollider> Plugin for CollisionPlugin<C> {
-    fn build(&self, app: &mut App) {
-        app.add_plugins((
-            BroadPhasePlugin::<C>::default(),
-            NarrowPhasePlugin::<C>::default(),
-            ContactReportingPlugin,
-        ));
     }
 }
 
