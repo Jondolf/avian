@@ -20,13 +20,13 @@ use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 /// the vast majority of applications, but for custom collisión backends
 /// you may use any collider that implements the [`AnyCollider`] trait.
 pub struct NarrowPhasePlugin<C: AnyCollider> {
-    _phantom_data: PhantomData<C>,
+    _phantom: PhantomData<C>,
 }
 
 impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
     fn default() -> Self {
         Self {
-            _phantom_data: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }

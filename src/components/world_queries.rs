@@ -93,7 +93,7 @@ impl<'w> RigidBodyQueryItem<'w> {
 
 #[derive(WorldQuery)]
 #[world_query(mutable)]
-pub(crate) struct MassPropertiesQuery {
+pub struct MassPropertiesQuery {
     pub mass: &'static mut Mass,
     pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,

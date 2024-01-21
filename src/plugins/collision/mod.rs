@@ -11,6 +11,7 @@
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 
 pub mod broad_phase;
+pub mod collider_backend;
 pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;
@@ -104,7 +105,7 @@ impl AnyCollider for Collider {
 }
 
 /// A trait for colliders that support scaling.
-pub trait ScalableCollider: Component {
+pub trait ScalableCollider: AnyCollider {
     /// Returns the global scaling factor of the collider.
     fn scale(&self) -> Vector;
 

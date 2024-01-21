@@ -503,7 +503,7 @@ pub mod prelude {
                 narrow_phase::NarrowPhaseConfig,
                 *,
             },
-            prepare::*,
+            prepare::{init_transforms, update_mass_properties, PrepareConfig, PreparePlugin},
             setup::*,
             solver::solve_constraint,
             spatial_query::*,

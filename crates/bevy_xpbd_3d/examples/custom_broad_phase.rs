@@ -13,7 +13,7 @@ fn main() {
     app.add_plugins(
         PhysicsPlugins::default()
             .build()
-            .disable::<BroadPhasePlugin<Collider>>()
+            .disable::<BroadPhasePlugin>()
             .add(BruteForceBroadPhasePlugin),
     );
 
