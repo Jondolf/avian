@@ -151,12 +151,12 @@ fn raycast(
     mut materials: ResMut<Assets<StandardMaterial>>,
     cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
 ) {
-    let origin = Vec3 {
+    let origin = Vector {
         x: -200.0,
         y: 2.0,
         z: 0.0,
     };
-    let direction = Vec3 {
+    let direction = Vector {
         x: 1.0,
         y: 0.0,
         z: 0.0,
@@ -165,7 +165,7 @@ fn raycast(
     if let Some(ray_hit_data) = query.cast_ray_predicate(
         origin,
         direction,
-        f32::MAX,
+        Scalar::MAX,
         true,
         SpatialQueryFilter::new(),
         &|entity| {
