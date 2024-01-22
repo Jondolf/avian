@@ -89,6 +89,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderStorageMap<C>>();
 
+        // TODO: This shouldn't need to care about SyncPlugin details
+        app.add_systems(
+            self.schedule,
+            sync::init_previous_global_transform::<Collider>
+                .after(sync::init_previous_global_transform::<RigidBody>)
+                .after(PhysicsSet::Prepare)
+                .before(PhysicsSet::StepSimulation)
+                .run_if(|config: Res<sync::SyncConfig>| config.transform_to_position),
+        );
+
         app.add_systems(
             self.schedule,
             (
@@ -114,7 +124,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 )
                     .chain()
                     .in_set(PrepareSet::InitColliders),
-                init_transforms::<Collider>
+                init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
                 (
@@ -150,6 +160,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             handle_collider_storage_removals::<C>.after(PhysicsStepSet::SpatialQuery),
             handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
         ));
+
+        physics_schedule.add_systems(
+            wake_on_collider_removed::<C>
+                .in_set(PhysicsStepSet::Sleeping)
+                .after(sleeping::mark_sleeping_bodies)
+                // Allowing ambiguities is required so that it's possible
+                // to have multiple collision backends at the same time.
+                .ambiguous_with_all(),
+        );
 
         #[cfg(all(feature = "3d", feature = "async-collider"))]
         app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
@@ -844,6 +863,39 @@ fn update_collider_mass_properties<C: AnyCollider>(
                     ..*collider_mass_properties
                 };
             }
+        }
+    }
+}
+
+/// Removes the [`Sleeping`] component from sleeping bodies when any of their
+/// colliders have been removed.
+#[allow(clippy::type_complexity)]
+fn wake_on_collider_removed<C: AnyCollider>(
+    mut commands: Commands,
+    mut bodies: Query<(Entity, &mut TimeSleeping), With<RigidBody>>,
+    all_colliders: Query<&ColliderParent>,
+    child_colliders: Query<
+        &ColliderParent,
+        (
+            Without<RigidBody>,
+            Or<(Changed<C>, Changed<Transform>, Changed<ColliderTransform>)>,
+        ),
+    >,
+    mut removed_colliders: RemovedComponents<C>,
+    // This stores some collider data so that we can access it even though the entity has been removed
+    collider_storage: Res<ColliderStorageMap<C>>,
+) {
+    let removed_colliders_iter =
+        all_colliders.iter_many(removed_colliders.read().filter_map(|entity| {
+            collider_storage
+                .map
+                .get(&entity)
+                .map(|(rb_entity, _, _)| rb_entity.get())
+        }));
+    for collider_parent in child_colliders.iter().chain(removed_colliders_iter) {
+        if let Ok((entity, mut time_sleeping)) = bodies.get_mut(collider_parent.get()) {
+            commands.entity(entity).remove::<Sleeping>();
+            time_sleeping.0 = 0.0;
         }
     }
 }

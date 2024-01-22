@@ -56,18 +56,17 @@ impl Plugin for SyncPlugin {
         // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
             self.schedule,
-            ((
+            (
                 bevy::transform::systems::sync_simple_transforms,
                 bevy::transform::systems::propagate_transforms,
-                init_previous_global_transform,
+                init_previous_global_transform::<RigidBody>,
                 transform_to_position,
                 // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
                 update_previous_global_transforms,
             )
                 .chain()
                 .after(PhysicsSet::Prepare)
-                .before(PhysicsSet::StepSimulation),)
-                .chain()
+                .before(PhysicsSet::StepSimulation)
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
@@ -127,11 +126,9 @@ impl Default for SyncConfig {
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
-type PhysicsObjectAddedFilter = Or<(Added<RigidBody>, Added<Collider>)>;
-
-fn init_previous_global_transform(
+pub(crate) fn init_previous_global_transform<C: Component>(
     mut commands: Commands,
-    query: Query<(Entity, &GlobalTransform), PhysicsObjectAddedFilter>,
+    query: Query<(Entity, &GlobalTransform), Added<C>>,
 ) {
     for (entity, transform) in &query {
         commands
@@ -145,7 +142,7 @@ fn init_previous_global_transform(
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
 #[allow(clippy::type_complexity)]
-fn transform_to_position(
+pub(crate) fn transform_to_position(
     mut query: Query<(
         &GlobalTransform,
         &PreviousGlobalTransform,
