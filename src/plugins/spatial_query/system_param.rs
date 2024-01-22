@@ -169,7 +169,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///             if let Some(value) = query.get(entity) {
     ///                 return value == x;     // ignore if value from query is x
     ///             }
-    ///             true                       // else check for collision 
+    ///             true                       // else check for collision
     ///         }
     ///     ) {
     ///         println!("First hit: {:?}", first_hit);
@@ -183,10 +183,16 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool
+        predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
-        self.query_pipeline
-            .cast_ray_predicate(origin, direction, max_time_of_impact, solid, query_filter, predicate)
+        self.query_pipeline.cast_ray_predicate(
+            origin,
+            direction,
+            max_time_of_impact,
+            solid,
+            query_filter,
+            predicate,
+        )
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes all [hits](RayHitData) until `max_hits` is reached.

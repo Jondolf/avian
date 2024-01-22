@@ -61,13 +61,13 @@ impl SpatialQueryPipeline {
     pub(crate) fn as_composite_shape_with_predicate<'a>(
         &'a self,
         query_filter: SpatialQueryFilter,
-        predicate: &'a dyn Fn(Entity) -> bool
+        predicate: &'a dyn Fn(Entity) -> bool,
     ) -> QueryPipelineAsCompositeShapeWithPredicate {
         QueryPipelineAsCompositeShapeWithPredicate {
             pipeline: self,
             colliders: &self.colliders,
             query_filter,
-            predicate
+            predicate,
         }
     }
 
@@ -207,7 +207,7 @@ impl SpatialQueryPipeline {
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
-        predicate: &dyn Fn(Entity) -> bool
+        predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
         let ray = parry::query::Ray::new(origin.into(), direction.into());

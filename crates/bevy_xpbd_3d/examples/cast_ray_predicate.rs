@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use bevy::{prelude::*, pbr::NotShadowReceiver};
+use bevy::{pbr::NotShadowReceiver, prelude::*};
 use bevy_xpbd_3d::{math::*, prelude::*};
 use examples_common_3d::XpbdExamplePlugin;
 
@@ -21,7 +21,6 @@ struct MovementAcceleration(Scalar);
 /// If to be ignored by raycast
 #[derive(Component)]
 struct OutOfGlass(bool);
-
 
 const CUBE_COLOR: Color = Color::rgba(0.2, 0.7, 0.9, 1.0);
 const CUBE_COLOR_GLASS: Color = Color::rgba(0.2, 0.7, 0.9, 0.5);
@@ -54,8 +53,7 @@ fn setup(
                 let position = Vec3::new(x as f32, y as f32 + 5.0, z as f32) * (cube_size + 0.05);
                 let material: StandardMaterial = if x == -1 {
                     CUBE_COLOR_GLASS.into()
-                }
-                else {
+                } else {
                     CUBE_COLOR.into()
                 };
                 commands.spawn((
@@ -69,7 +67,7 @@ fn setup(
                     RigidBody::Dynamic,
                     Collider::cuboid(1.0, 1.0, 1.0),
                     MovementAcceleration(10.0),
-                    OutOfGlass(x == -1)
+                    OutOfGlass(x == -1),
                 ));
             }
         }
@@ -80,11 +78,10 @@ fn setup(
         PbrBundle {
             mesh: cube_mesh.clone(),
             material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-            transform: Transform::from_xyz(0.0, 2.0, 0.0).
-            with_scale(Vec3::new(1000.0, 0.1, 0.1)),
+            transform: Transform::from_xyz(0.0, 2.0, 0.0).with_scale(Vec3::new(1000.0, 0.1, 0.1)),
             ..default()
         },
-        NotShadowReceiver
+        NotShadowReceiver,
     ));
 
     // Directional light
@@ -136,28 +133,35 @@ fn movement(
 
 fn reset_colors(
     mut materials: ResMut<Assets<StandardMaterial>>,
-    cubes : Query<(&Handle<StandardMaterial>, &OutOfGlass)>
+    cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
 ) {
-    for (material_handle, out_of_glass) in cubes.iter() {        
+    for (material_handle, out_of_glass) in cubes.iter() {
         if let Some(material) = materials.get_mut(material_handle) {
             if out_of_glass.0 {
                 material.base_color = CUBE_COLOR_GLASS;
-            }
-            else {
+            } else {
                 material.base_color = CUBE_COLOR;
             }
-        }        
+        }
     }
 }
 
 fn raycast(
-    query : SpatialQuery,
+    query: SpatialQuery,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    cubes : Query<(&Handle<StandardMaterial>, &OutOfGlass)>
+    cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
 ) {
-    let origin = Vec3{ x: -200.0, y: 2.0, z: 0.0 };
-    let direction = Vec3{ x: 1.0, y: 0.0, z: 0.0 };
-    
+    let origin = Vec3 {
+        x: -200.0,
+        y: 2.0,
+        z: 0.0,
+    };
+    let direction = Vec3 {
+        x: 1.0,
+        y: 0.0,
+        z: 0.0,
+    };
+
     if let Some(ray_hit_data) = query.cast_ray_predicate(
         origin,
         direction,
@@ -166,15 +170,15 @@ fn raycast(
         SpatialQueryFilter::new(),
         &|entity| {
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
-                    return !out_of_glass.0; // only look at cubes not out of glass
+                return !out_of_glass.0; // only look at cubes not out of glass
             }
             true // if the collider has no OutOfGlass component, then check it nevertheless
-        })
-        {
-            if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {            
-                if let Some(material) = materials.get_mut(material_handle) {
-                    material.base_color = Color::RED;
-                }            
+        },
+    ) {
+        if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
+            if let Some(material) = materials.get_mut(material_handle) {
+                material.base_color = Color::RED;
             }
         }
+    }
 }
