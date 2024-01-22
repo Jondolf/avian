@@ -42,13 +42,12 @@ use bevy::{
 ///     App::new()
 ///         .add_plugins((
 ///             DefaultPlugins,
-///             PhysicsPlugins::default()
-///                 .build()
-///                 // MyCollider must implement AnyCollider and ScalableCollider.
-///                 .add(ColliderBackendPlugin::<MyCollider>)
-///                 // To enable collision detection for the collider,
-///                 // we also need to add the NarrowPhasePlugin for it.
-///                 .add(NarrowPhasePlugin::<MyCollider>),
+///             PhysicsPlugins::default(),
+///             // MyCollider must implement AnyCollider and ScalableCollider.
+///             ColliderBackendPlugin::<MyCollider>::default(),
+///             // To enable collision detection for the collider,
+///             // we also need to add the NarrowPhasePlugin for it.
+///             NarrowPhasePlugin::<MyCollider>::default(),
 ///         ))
 ///         // ...your other plugins, systems and resources
 ///         .run();
@@ -88,7 +87,7 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
 
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ColliderStorageMap>();
+        app.init_resource::<ColliderStorageMap<C>>();
 
         app.add_systems(
             self.schedule,
@@ -138,10 +137,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics_schedule.add_systems(update_aabb::<C>.before(PhysicsStepSet::BroadPhase));
+        // Allowing ambiguities is required so that it's possible
+        // to have multiple collision backends at the same time.
+        physics_schedule.add_systems(
+            update_aabb::<C>
+                .before(PhysicsStepSet::BroadPhase)
+                .ambiguous_with_all(),
+        );
 
         physics_schedule.add_systems((
-            update_collider_storage.before(PhysicsStepSet::BroadPhase),
+            update_collider_storage::<C>.before(PhysicsStepSet::BroadPhase),
             handle_collider_storage_removals::<C>.after(PhysicsStepSet::SpatialQuery),
             handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
         ));
@@ -160,7 +165,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             )
                 .chain()
                 .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase),
+                .before(SubstepSet::NarrowPhase)
+                .ambiguous_with_all(),
         );
     }
 }
@@ -178,11 +184,21 @@ pub(crate) struct PreviousColliderTransform(ColliderTransform);
 ///
 /// Ideally, we would just have some entity removal event or callback, but that doesn't
 /// exist yet, and `RemovedComponents` only returns entities, not component data.
-#[derive(Resource, Reflect, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Resource, Reflect, Clone, Debug, PartialEq)]
 #[reflect(Resource)]
-pub(crate) struct ColliderStorageMap(
-    HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
-);
+pub(crate) struct ColliderStorageMap<C: AnyCollider> {
+    pub(crate) map: HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
+    _phantom: PhantomData<C>,
+}
+
+impl<C: AnyCollider> Default for ColliderStorageMap<C> {
+    fn default() -> Self {
+        Self {
+            map: default(),
+            _phantom: PhantomData,
+        }
+    }
+}
 
 /// Initializes missing components for [colliders](Collider).
 #[allow(clippy::type_complexity)]
@@ -301,14 +317,6 @@ pub fn init_async_scene_colliders(
     }
 }
 
-type AABBChanged = Or<(
-    Changed<Position>,
-    Changed<Rotation>,
-    Changed<LinearVelocity>,
-    Changed<AngularVelocity>,
-    Changed<Collider>,
-)>;
-
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
 #[allow(clippy::type_complexity)]
 fn update_aabb<C: AnyCollider>(
@@ -322,7 +330,13 @@ fn update_aabb<C: AnyCollider>(
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
-        AABBChanged,
+        Or<(
+            Changed<Position>,
+            Changed<Rotation>,
+            Changed<LinearVelocity>,
+            Changed<AngularVelocity>,
+            Changed<C>,
+        )>,
     >,
     parent_velocity: Query<
         (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
@@ -384,7 +398,7 @@ fn update_aabb<C: AnyCollider>(
         };
 
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
-        aabb.0 = *collider.swept_aabb(start_pos, start_rot, end_pos, end_rot);
+        aabb.0 = *collider.swept_aabb(start_pos.0, start_rot, end_pos, end_rot);
 
         // Add narrow phase prediction distance to AABBs to avoid missed collisions
         let prediction_distance = if let Some(ref config) = narrow_phase_config {
@@ -476,7 +490,7 @@ fn handle_rigid_body_removals(
 /// Updates [`ColliderStorageMap`], a resource that stores some collider properties that need
 /// to be handled when colliders are removed from entities.
 #[allow(clippy::type_complexity)]
-fn update_collider_storage(
+fn update_collider_storage<C: AnyCollider>(
     // TODO: Maybe it's enough to store only colliders that aren't on rigid body entities
     //       directly (i.e. child colliders)
     colliders: Query<
@@ -492,10 +506,10 @@ fn update_collider_storage(
             Changed<ColliderMassProperties>,
         )>,
     >,
-    mut storage: ResMut<ColliderStorageMap>,
+    mut storage: ResMut<ColliderStorageMap<C>>,
 ) {
     for (entity, parent, collider_mass_properties, collider_transform) in &colliders {
-        storage.insert(
+        storage.map.insert(
             entity,
             (*parent, *collider_mass_properties, *collider_transform),
         );
@@ -505,10 +519,10 @@ fn update_collider_storage(
 /// Removes removed colliders from the [`ColliderStorageMap`] resource at the end of the physics frame.
 fn handle_collider_storage_removals<C: AnyCollider>(
     mut removals: RemovedComponents<C>,
-    mut storage: ResMut<ColliderStorageMap>,
+    mut storage: ResMut<ColliderStorageMap<C>>,
 ) {
     removals.read().for_each(|entity| {
-        storage.remove(&entity);
+        storage.map.remove(&entity);
     });
 }
 
@@ -776,7 +790,7 @@ fn update_collider_mass_properties<C: AnyCollider>(
             Changed<ColliderMassProperties>,
         )>,
     >,
-    collider_map: Res<ColliderStorageMap>,
+    collider_map: Res<ColliderStorageMap<C>>,
     mut removed_colliders: RemovedComponents<C>,
 ) {
     for (
@@ -819,7 +833,7 @@ fn update_collider_mass_properties<C: AnyCollider>(
     // Subtract mass properties of removed colliders
     for entity in removed_colliders.read() {
         if let Some((collider_parent, collider_mass_properties, collider_transform)) =
-            collider_map.get(&entity)
+            collider_map.map.get(&entity)
         {
             if let Ok((_, mut mass_properties)) = mass_props.get_mut(collider_parent.0) {
                 mass_properties -= ColliderMassProperties {

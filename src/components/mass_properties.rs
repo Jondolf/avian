@@ -318,15 +318,15 @@ impl Default for ColliderDensity {
 #[reflect(Component)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
-    pub(crate) mass: Mass,
+    pub mass: Mass,
     /// Inverse mass given by collider.
-    pub(crate) inverse_mass: InverseMass,
+    pub inverse_mass: InverseMass,
     /// Inertia given by collider.
-    pub(crate) inertia: Inertia,
+    pub inertia: Inertia,
     /// Inverse inertia given by collider.
-    pub(crate) inverse_inertia: InverseInertia,
+    pub inverse_inertia: InverseInertia,
     /// Local center of mass given by collider.
-    pub(crate) center_of_mass: CenterOfMass,
+    pub center_of_mass: CenterOfMass,
 }
 
 impl ColliderMassProperties {
@@ -362,45 +362,6 @@ impl ColliderMassProperties {
 
             center_of_mass: CenterOfMass(props.local_com.into()),
         }
-    }
-
-    /// Get the [mass](Mass) of the [`Collider`].
-    pub fn mass(&self) -> Scalar {
-        self.mass.0
-    }
-
-    /// Get the [inverse mass](InverseMass) of the [`Collider`].
-    pub fn inverse_mass(&self) -> Scalar {
-        self.inverse_mass.0
-    }
-
-    /// Get the [inerta](Inertia) of the [`Collider`].
-    #[cfg(feature = "2d")]
-    pub fn inertia(&self) -> Scalar {
-        self.inertia.0
-    }
-
-    /// Get the [inertia tensor](InverseInertia) of the [`Collider`].
-    #[cfg(feature = "3d")]
-    pub fn inertia(&self) -> Matrix3 {
-        self.inertia.0
-    }
-
-    /// Get the [inverse inertia](InverseInertia) of the [`Collider`].
-    #[cfg(feature = "2d")]
-    pub fn inverse_inertia(&self) -> Scalar {
-        self.inverse_inertia.0
-    }
-
-    /// Get the [inverse inertia](InverseInertia) of the [`Collider`].
-    #[cfg(feature = "3d")]
-    pub fn inverse_inertia(&self) -> Matrix3 {
-        self.inverse_inertia.0
-    }
-
-    /// Get the [local center of mass](CenterOfMass) of the [`Collider`].
-    pub fn center_of_mass(&self) -> Vector {
-        self.center_of_mass.0
     }
 }
 

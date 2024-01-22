@@ -29,7 +29,7 @@ pub trait AnyCollider: Component {
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn aabb(&self, position: impl Into<Position>, rotation: impl Into<Rotation>) -> ColliderAabb;
+    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb;
 
     /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
     /// This corresponds to the space the shape would occupy if it moved from the given
@@ -40,11 +40,14 @@ pub trait AnyCollider: Component {
     )]
     fn swept_aabb(
         &self,
-        start_position: impl Into<Position>,
+        start_position: Vector,
         start_rotation: impl Into<Rotation>,
-        end_position: impl Into<Position>,
+        end_position: Vector,
         end_rotation: impl Into<Rotation>,
-    ) -> ColliderAabb;
+    ) -> ColliderAabb {
+        self.aabb(start_position, start_rotation)
+            .merged(self.aabb(end_position, end_rotation))
+    }
 
     /// Computes the collider's mass properties based on its shape and a given density.
     fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
@@ -56,9 +59,9 @@ pub trait AnyCollider: Component {
     fn contact_manifolds(
         &self,
         other: &Self,
-        position1: impl Into<Position>,
+        position1: Vector,
         rotation1: impl Into<Rotation>,
-        position2: impl Into<Position>,
+        position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold>;
@@ -72,9 +75,9 @@ impl AnyCollider for Collider {
     fn contact_manifolds(
         &self,
         other: &Self,
-        position1: impl Into<Position>,
+        position1: Vector,
         rotation1: impl Into<Rotation>,
-        position2: impl Into<Position>,
+        position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
@@ -89,15 +92,15 @@ impl AnyCollider for Collider {
         )
     }
 
-    fn aabb(&self, position: impl Into<Position>, rotation: impl Into<Rotation>) -> ColliderAabb {
+    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
         self.aabb(position, rotation)
     }
 
     fn swept_aabb(
         &self,
-        start_position: impl Into<Position>,
+        start_position: Vector,
         start_rotation: impl Into<Rotation>,
-        end_position: impl Into<Position>,
+        end_position: Vector,
         end_rotation: impl Into<Rotation>,
     ) -> ColliderAabb {
         self.swept_aabb(start_position, start_rotation, end_position, end_rotation)

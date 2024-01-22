@@ -128,11 +128,12 @@ fn wake_on_collider_removed(
     child_colliders: Query<&ColliderParent, (Without<RigidBody>, ColliderTransformedFilter)>,
     mut removed_colliders: RemovedComponents<Collider>,
     // This stores some collider data so that we can access it even though the entity has been removed
-    collider_storage: Res<ColliderStorageMap>,
+    collider_storage: Res<ColliderStorageMap<Collider>>,
 ) {
     let removed_colliders_iter =
         all_colliders.iter_many(removed_colliders.read().filter_map(|entity| {
             collider_storage
+                .map
                 .get(&entity)
                 .map(|(rb_entity, _, _)| rb_entity.get())
         }));

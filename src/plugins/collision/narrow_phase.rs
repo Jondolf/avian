@@ -33,41 +33,77 @@ impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
 
 impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
     fn build(&self, app: &mut App) {
-        app.init_resource::<NarrowPhaseConfig>()
+        // For some systems, we only want one instance, even if there are multiple
+        // NarrowPhasePlugin instances with different collider types.
+        let is_first_instance = app.world.is_resource_added::<NarrowPhaseInitialized>();
+
+        app.init_resource::<NarrowPhaseInitialized>()
+            .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
             .register_type::<NarrowPhaseConfig>();
 
-        // Manage collision states like `during_current_frame` and remove old contacts
-        // TODO: It would be nice not to have collision state logic in the narrow phase
-        app.get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first")
-            .add_systems(
+        app.configure_sets(
+            SubstepSchedule,
+            (
+                NarrowPhaseSet::First,
+                NarrowPhaseSet::CollectCollisions,
+                NarrowPhaseSet::Last,
+            )
+                .chain()
+                .in_set(SubstepSet::NarrowPhase),
+        );
+
+        let physics_schedule = app
+            .get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first");
+
+        // Manage collision states like `during_current_frame` and remove old contacts.
+        // Only one narrow phase instance should do this.
+        // TODO: It would be nice not to have collision state logic in the narrow phase.
+        if !is_first_instance {
+            physics_schedule.add_systems(
                 (
-                    // Reset collision states before the substepping loop
+                    // Reset collision states before the substepping loop.
                     reset_collision_states
                         .after(PhysicsStepSet::BroadPhase)
                         .before(PhysicsStepSet::Substeps),
                     // Remove ended collisions after contact reporting
-                    ((|mut collisions: ResMut<Collisions>| {
-                        collisions.retain(|contacts| contacts.during_current_frame)
-                    }),)
-                        .chain()
+                    remove_ended_collisions
                         .after(PhysicsStepSet::ReportContacts)
                         .before(PhysicsStepSet::Sleeping),
                 )
                     .chain(),
             );
+        }
 
-        // Reset substep collision states and collect contacts into `Collisions`
-        app.get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first")
-            .add_systems(
-                (reset_substep_collision_states, collect_collisions::<C>)
-                    .chain()
-                    .in_set(SubstepSet::NarrowPhase),
+        let substep_schedule = app
+            .get_schedule_mut(SubstepSchedule)
+            .expect("add SubstepSchedule first");
+
+        // Reset substep collision states. Only one narrow phase instance should do this.
+        if !is_first_instance {
+            substep_schedule.add_systems(
+                reset_substep_collision_states
+                    .after(NarrowPhaseSet::First)
+                    .before(NarrowPhaseSet::CollectCollisions),
             );
+        }
+
+        // Collect contacts into `Collisions`.
+        substep_schedule.add_systems(
+            (
+                // Allowing ambiguities is required so that it's possible
+                // to have multiple collision backends at the same time.
+                collect_collisions::<C>.ambiguous_with_all(),
+            )
+                .chain()
+                .in_set(NarrowPhaseSet::CollectCollisions),
+        );
     }
 }
+
+#[derive(Resource, Default)]
+struct NarrowPhaseInitialized;
 
 /// A resource for configuring the [narrow phase](NarrowPhasePlugin).
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
@@ -86,31 +122,46 @@ impl Default for NarrowPhaseConfig {
     fn default() -> Self {
         Self {
             #[cfg(feature = "2d")]
-            prediction_distance: 1.0,
+            prediction_distance: 0.0,
             #[cfg(feature = "3d")]
             prediction_distance: 0.01,
         }
     }
 }
 
+/// System sets for systems running in [`SubstepSet::NarrowPhase`].
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum NarrowPhaseSet {
+    /// Runs at the start of the narrow phase. Empty by default.
+    First,
+    /// Computes contacts between entities and adds them to the [`Collisions`] resource.
+    CollectCollisions,
+    /// Runs at the end of the narrow phase. Empty by default.
+    Last,
+}
+
 /// Computes contacts based on [`BroadCollisionPairs`] and adds them to [`Collisions`].
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn collect_collisions<C: AnyCollider>(
-    bodies: Query<(
+    query: Query<(
         Ref<Position>,
         Option<&AccumulatedTranslation>,
         Ref<Rotation>,
-        &Collider,
+        &C,
     )>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     mut collisions: ResMut<Collisions>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
 ) {
+    if query.is_empty() {
+        return;
+    }
+
     // We want to preserve collisions between entities that are stationary
     // but not included in [`BroadCollisionPairs`].
     let stationary_collisions = collisions.0.keys().filter(|&&(e1, e2)| {
-        if let Ok([bundle1, bundle2]) = bodies.get_many([e1, e2]) {
+        if let Ok([bundle1, bundle2]) = query.get_many([e1, e2]) {
             let (position1, _, rotation1, _) = bundle1;
             let (position2, _, rotation2, _) = bundle2;
             !(position1.is_changed()
@@ -137,7 +188,7 @@ pub fn collect_collisions<C: AnyCollider>(
                     process_collision_pair(
                         *entity1,
                         *entity2,
-                        &bodies,
+                        &query,
                         &collisions,
                         &narrow_phase_config,
                         |contacts| {
@@ -159,7 +210,7 @@ pub fn collect_collisions<C: AnyCollider>(
             process_collision_pair(
                 entity1,
                 entity2,
-                &bodies,
+                &query,
                 &collisions,
                 &narrow_phase_config,
                 |contacts| {
@@ -218,6 +269,10 @@ fn process_collision_pair<C: AnyCollider, F>(
             handle_collision(contacts);
         }
     }
+}
+
+fn remove_ended_collisions(mut collisions: ResMut<Collisions>) {
+    collisions.retain(|contacts| contacts.during_current_frame);
 }
 
 // TODO: The collision state handling feels a bit confusing and error-prone.

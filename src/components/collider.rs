@@ -14,7 +14,7 @@ use bevy::{
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{
-    bounding_volume::Aabb,
+    bounding_volume::{Aabb, BoundingVolume},
     shape::{RoundShape, SharedShape, TypedShape},
 };
 
@@ -1181,9 +1181,19 @@ pub struct Sensor;
 pub struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
-    /// Creates a new collider from a given [`SharedShape`] with a default density of 1.0.
+    /// Creates a new [`ColliderAabb`] from the given `center` and `half_size`.
+    pub fn new(center: Vector, half_size: Vector) -> Self {
+        Self(Aabb::from_half_extents(center.into(), half_size.into()))
+    }
+
+    /// Creates a new [`ColliderAabb`] from a given [`SharedShape`].
     pub fn from_shape(shape: &SharedShape) -> Self {
         Self(shape.compute_local_aabb())
+    }
+
+    /// Merges this AABB with another one.
+    pub fn merged(self, other: Self) -> Self {
+        ColliderAabb(self.0.merged(&other.0))
     }
 }
 
