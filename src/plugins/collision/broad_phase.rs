@@ -22,20 +22,44 @@ impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AabbIntervals>();
 
+        app.configure_sets(
+            PhysicsSchedule,
+            (
+                BroadPhaseSet::First,
+                BroadPhaseSet::UpdateStructures,
+                BroadPhaseSet::CollectCollisions,
+                BroadPhaseSet::Last,
+            )
+                .chain()
+                .in_set(PhysicsStepSet::BroadPhase),
+        );
+
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
         physics_schedule.add_systems(
-            (
-                update_aabb_intervals,
-                add_new_aabb_intervals,
-                collect_collision_pairs,
-            )
+            (update_aabb_intervals, add_new_aabb_intervals)
                 .chain()
-                .in_set(PhysicsStepSet::BroadPhase),
+                .in_set(BroadPhaseSet::UpdateStructures),
         );
+
+        physics_schedule
+            .add_systems(collect_collision_pairs.in_set(BroadPhaseSet::CollectCollisions));
     }
+}
+
+/// System sets for systems running in [`PhysicsStepSet::BroadPhase`].
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BroadPhaseSet {
+    /// Runs at the start of the broad phase. Empty by default.
+    First,
+    /// Updates acceleration structures and other data needed for broad phase collision detection.
+    UpdateStructures,
+    /// Detects potential intersections between entities and adds them to the [`BroadCollisionPairs`] resource.
+    CollectCollisions,
+    /// Runs at the end of the broad phase. Empty by default.
+    Last,
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.

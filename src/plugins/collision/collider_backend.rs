@@ -5,8 +5,10 @@
 use std::marker::PhantomData;
 
 use crate::{
+    broad_phase::BroadPhaseSet,
     prelude::*,
     prepare::{any_new, PrepareSet},
+    sync::SyncSet,
 };
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::scene::SceneInstance;
@@ -89,22 +91,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderStorageMap<C>>();
 
-        // TODO: This shouldn't need to care about SyncPlugin details
-        app.add_systems(
-            self.schedule,
-            (
-                sync::init_previous_global_transform::<C>,
-                sync::transform_to_position,
-                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
-                sync::update_previous_global_transforms,
-            )
-                .chain()
-                .after(sync::init_previous_global_transform::<RigidBody>)
-                .after(PhysicsSet::Prepare)
-                .before(PhysicsSet::StepSimulation)
-                .run_if(|config: Res<sync::SyncConfig>| config.transform_to_position),
-        );
-
         app.add_systems(
             self.schedule,
             (
@@ -145,7 +131,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     .chain()
                     .in_set(PrepareSet::Finalize)
                     .before(prepare::update_mass_properties),
-                update_collider_scale::<C>.after(PhysicsSet::Sync),
+                update_collider_scale::<C>
+                    .after(SyncSet::Update)
+                    .before(SyncSet::Last),
             ),
         );
 
@@ -157,7 +145,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // to have multiple collision backends at the same time.
         physics_schedule.add_systems(
             update_aabb::<C>
-                .before(PhysicsStepSet::BroadPhase)
+                .in_set(PhysicsStepSet::BroadPhase)
+                .after(BroadPhaseSet::First)
+                .before(BroadPhaseSet::UpdateStructures)
                 .ambiguous_with_all(),
         );
 
@@ -171,6 +161,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             wake_on_collider_removed::<C>
                 .in_set(PhysicsStepSet::Sleeping)
                 .after(sleeping::mark_sleeping_bodies)
+                .before(sleeping::wake_on_changed)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),

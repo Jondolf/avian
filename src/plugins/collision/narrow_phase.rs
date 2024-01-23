@@ -122,7 +122,7 @@ impl Default for NarrowPhaseConfig {
     fn default() -> Self {
         Self {
             #[cfg(feature = "2d")]
-            prediction_distance: 0.0,
+            prediction_distance: 1.0,
             #[cfg(feature = "3d")]
             prediction_distance: 0.01,
         }

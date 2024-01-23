@@ -52,6 +52,19 @@ impl Plugin for SyncPlugin {
         app.init_resource::<SyncConfig>()
             .register_type::<SyncConfig>();
 
+        app.configure_sets(
+            self.schedule,
+            (
+                SyncSet::First,
+                SyncSet::TransformToPosition,
+                SyncSet::PositionToTransform,
+                SyncSet::Update,
+                SyncSet::Last,
+            )
+                .chain()
+                .in_set(PhysicsSet::Sync),
+        );
+
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
         // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
@@ -59,7 +72,7 @@ impl Plugin for SyncPlugin {
             (
                 bevy::transform::systems::sync_simple_transforms,
                 bevy::transform::systems::propagate_transforms,
-                init_previous_global_transform::<RigidBody>,
+                init_previous_global_transform,
                 transform_to_position,
                 // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
                 update_previous_global_transforms,
@@ -70,32 +83,38 @@ impl Plugin for SyncPlugin {
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
-        // Apply `Transform`, `Position` and `Rotation` changes that happened during the physics frame.
+        // Apply `Transform` changes to `Position` and `Rotation`
         app.add_systems(
             self.schedule,
             (
-                (
-                    // Apply `Transform` changes to `Position` and `Rotation`
-                    bevy::transform::systems::sync_simple_transforms,
-                    bevy::transform::systems::propagate_transforms,
-                    transform_to_position,
-                )
-                    .chain()
-                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
-                // Apply `Position` and `Rotation` changes to `Transform`
-                position_to_transform
-                    .run_if(|config: Res<SyncConfig>| config.position_to_transform),
-                (
-                    // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
-                    bevy::transform::systems::sync_simple_transforms,
-                    bevy::transform::systems::propagate_transforms,
-                    update_previous_global_transforms,
-                )
-                    .chain()
-                    .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                bevy::transform::systems::sync_simple_transforms,
+                bevy::transform::systems::propagate_transforms,
+                transform_to_position,
             )
                 .chain()
-                .in_set(PhysicsSet::Sync),
+                .in_set(SyncSet::TransformToPosition)
+                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+        );
+
+        // Apply `Position` and `Rotation` changes to `Transform`
+        app.add_systems(
+            self.schedule,
+            position_to_transform
+                .in_set(SyncSet::PositionToTransform)
+                .run_if(|config: Res<SyncConfig>| config.position_to_transform),
+        );
+
+        // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
+        app.add_systems(
+            self.schedule,
+            (
+                bevy::transform::systems::sync_simple_transforms,
+                bevy::transform::systems::propagate_transforms,
+                update_previous_global_transforms,
+            )
+                .chain()
+                .in_set(SyncSet::Update)
+                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
     }
 }
@@ -120,15 +139,31 @@ impl Default for SyncConfig {
     }
 }
 
+/// System sets for systems running in [`PhysiCsSet::Sync`].
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SyncSet {
+    /// Runs at the start of [`PhysicsSet::Sync`]. Empty by default.
+    First,
+    /// Updates [`Position`] and [`Rotation`] based on transform changes.
+    TransformToPosition,
+    /// Updates transforms based on [`Position`] and [`Rotation`] changes.
+    PositionToTransform,
+    /// Handles transform propagation and other updates after physics positions have been synced with transforms.
+    Update,
+    /// Runs at the end of [`PhysicsSet::Sync`]. Empty by default.
+    Last,
+}
+
 /// The global transform of a body at the end of the previous frame.
 /// Used for detecting if the transform was modified before the start of the physics schedule.
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
-pub(crate) fn init_previous_global_transform<C: Component>(
+#[allow(clippy::type_complexity)]
+pub(crate) fn init_previous_global_transform(
     mut commands: Commands,
-    query: Query<(Entity, &GlobalTransform), Added<C>>,
+    query: Query<(Entity, &GlobalTransform), Or<(Added<Position>, Added<Rotation>)>>,
 ) {
     for (entity, transform) in &query {
         commands
@@ -142,7 +177,7 @@ pub(crate) fn init_previous_global_transform<C: Component>(
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
 #[allow(clippy::type_complexity)]
-pub(crate) fn transform_to_position(
+pub fn transform_to_position(
     mut query: Query<(
         &GlobalTransform,
         &PreviousGlobalTransform,
@@ -228,7 +263,7 @@ type ParentComponents = (
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
-fn position_to_transform(
+pub fn position_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {
@@ -275,7 +310,7 @@ fn position_to_transform(
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
-fn position_to_transform(
+pub fn position_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {

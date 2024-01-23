@@ -101,7 +101,7 @@ type WokeUpFilter = Or<(
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed.
 #[allow(clippy::type_complexity)]
-fn wake_on_changed(
+pub fn wake_on_changed(
     mut commands: Commands,
     mut bodies: Query<(Entity, &mut TimeSleeping), (With<Sleeping>, WokeUpFilter)>,
 ) {
