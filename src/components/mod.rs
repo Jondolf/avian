@@ -331,6 +331,38 @@ impl Position {
     }
 }
 
+impl From<GlobalTransform> for Position {
+    #[cfg(feature = "2d")]
+    fn from(value: GlobalTransform) -> Self {
+        Self::from_xy(value.translation().x, value.translation().y)
+    }
+
+    #[cfg(feature = "3d")]
+    fn from(value: GlobalTransform) -> Self {
+        Self::from_xyz(
+            value.translation().x,
+            value.translation().y,
+            value.translation().z,
+        )
+    }
+}
+
+impl From<&GlobalTransform> for Position {
+    #[cfg(feature = "2d")]
+    fn from(value: &GlobalTransform) -> Self {
+        Self::from_xy(value.translation().x, value.translation().y)
+    }
+
+    #[cfg(feature = "3d")]
+    fn from(value: &GlobalTransform) -> Self {
+        Self::from_xyz(
+            value.translation().x,
+            value.translation().y,
+            value.translation().z,
+        )
+    }
+}
+
 /// The position of a [rigid body](RigidBody) at the start of a substep.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
