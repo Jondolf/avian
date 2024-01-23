@@ -49,12 +49,12 @@ impl CircleCollider {
 
 impl AnyCollider for CircleCollider {
     fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
-        ColliderAabb::new(position, Vec2::splat(self.radius))
+        ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
     fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
         // In 2D, the Z length is assumed to be 1.0, so volume = area
-        let volume = std::f32::consts::PI * self.radius.powi(2);
+        let volume = bevy_xpbd_2d::math::PI * self.radius.powi(2);
         let mass = density * volume;
         let inertia = self.radius.powi(2) / 2.0;
 
@@ -155,7 +155,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Kinematic,
-            CircleCollider::new(center_radius),
+            CircleCollider::new(center_radius.adjust_precision()),
             CenterBody,
         ))
         .with_children(|c| {
@@ -171,7 +171,7 @@ fn setup(
                         transform: Transform::from_translation(pos).with_scale(Vec3::ONE * 5.0),
                         ..default()
                     },
-                    CircleCollider::new(particle_radius),
+                    CircleCollider::new(particle_radius.adjust_precision()),
                 ));
             }
         });
@@ -194,7 +194,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                CircleCollider::new(particle_radius),
+                CircleCollider::new(particle_radius.adjust_precision()),
                 LinearDamping(0.4),
             ));
         }
