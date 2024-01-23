@@ -339,29 +339,12 @@ impl ColliderMassProperties {
         center_of_mass: CenterOfMass::ZERO,
     };
 
-    /// Computes mass properties from a given [`Collider`] and density.
+    /// Computes mass properties from a given collider and density.
     ///
     /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
-    pub fn new(collider: &Collider, density: Scalar) -> Self {
-        let props = collider.shape_scaled().mass_properties(density);
-
-        Self {
-            mass: Mass(props.mass()),
-            inverse_mass: InverseMass(props.inv_mass),
-
-            #[cfg(feature = "2d")]
-            inertia: Inertia(props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inertia: Inertia(props.reconstruct_inertia_matrix().into()),
-
-            #[cfg(feature = "2d")]
-            inverse_inertia: InverseInertia(1.0 / props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
-
-            center_of_mass: CenterOfMass(props.local_com.into()),
-        }
+    pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
+        collider.mass_properties(density)
     }
 }
 

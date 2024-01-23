@@ -10,6 +10,9 @@
 //!
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 
+mod collider;
+pub use collider::*;
+
 pub mod broad_phase;
 pub mod collider_backend;
 pub mod contact_query;
@@ -19,123 +22,6 @@ pub mod narrow_phase;
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
-
-/// A trait that generalizes over colliders. Implementing this trait
-/// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component {
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
-    /// with the given position and rotation.
-    #[cfg_attr(
-        feature = "2d",
-        doc = "\n\nThe rotation is counterclockwise and in radians."
-    )]
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb;
-
-    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    /// This corresponds to the space the shape would occupy if it moved from the given
-    /// start position to the given end position.
-    #[cfg_attr(
-        feature = "2d",
-        doc = "\n\nThe rotation is counterclockwise and in radians."
-    )]
-    fn swept_aabb(
-        &self,
-        start_position: Vector,
-        start_rotation: impl Into<Rotation>,
-        end_position: Vector,
-        end_rotation: impl Into<Rotation>,
-    ) -> ColliderAabb {
-        self.aabb(start_position, start_rotation)
-            .merged(self.aabb(end_position, end_rotation))
-    }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
-
-    /// Computes all [`ContactManifold`]s between two colliders.
-    ///
-    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
-    /// or if the given shapes are invalid.
-    fn contact_manifolds(
-        &self,
-        other: &Self,
-        position1: Vector,
-        rotation1: impl Into<Rotation>,
-        position2: Vector,
-        rotation2: impl Into<Rotation>,
-        prediction_distance: Scalar,
-    ) -> Vec<ContactManifold>;
-}
-
-impl AnyCollider for Collider {
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
-        self.mass_properties(density)
-    }
-
-    fn contact_manifolds(
-        &self,
-        other: &Self,
-        position1: Vector,
-        rotation1: impl Into<Rotation>,
-        position2: Vector,
-        rotation2: impl Into<Rotation>,
-        prediction_distance: Scalar,
-    ) -> Vec<ContactManifold> {
-        contact_query::contact_manifolds(
-            self,
-            position1,
-            rotation1,
-            other,
-            position2,
-            rotation2,
-            prediction_distance,
-        )
-    }
-
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
-        self.aabb(position, rotation)
-    }
-
-    fn swept_aabb(
-        &self,
-        start_position: Vector,
-        start_rotation: impl Into<Rotation>,
-        end_position: Vector,
-        end_rotation: impl Into<Rotation>,
-    ) -> ColliderAabb {
-        self.swept_aabb(start_position, start_rotation, end_position, end_rotation)
-    }
-}
-
-/// A trait for colliders that support scaling.
-pub trait ScalableCollider: AnyCollider {
-    /// Returns the global scaling factor of the collider.
-    fn scale(&self) -> Vector;
-
-    /// Sets the global scaling factor of the collider.
-    ///
-    /// If the scaling factor is not uniform and the resulting scaled shape
-    /// can not be represented exactly, the given `detail` is used for an approximation.
-    fn set_scale(&mut self, scale: Vector, detail: u32);
-
-    /// Scales the collider by the given scaling factor.
-    ///
-    /// If the scaling factor is not uniform and the resulting scaled shape
-    /// can not be represented exactly, the given `detail` is used for an approximation.
-    fn scale_by(&mut self, factor: Vector, detail: u32) {
-        self.set_scale(factor * self.scale(), detail)
-    }
-}
-
-impl ScalableCollider for Collider {
-    fn scale(&self) -> Vector {
-        self.scale()
-    }
-
-    fn set_scale(&mut self, scale: Vector, detail: u32) {
-        self.set_scale(scale, detail)
-    }
-}
 
 // Collisions are stored in an `IndexMap` that uses fxhash.
 // It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.
