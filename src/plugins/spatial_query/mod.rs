@@ -335,25 +335,49 @@ type ShapeCasterPositionQueryComponents = (
     Option<&'static Position>,
     Option<&'static Rotation>,
     Option<&'static Parent>,
+    Option<&'static GlobalTransform>,
 );
 
 fn update_shape_caster_positions(
     mut shape_casters: Query<ShapeCasterPositionQueryComponents>,
-    parents: Query<(Option<&Position>, Option<&Rotation>), With<Children>>,
+    parents: Query<
+        (
+            Option<&Position>,
+            Option<&Rotation>,
+            Option<&GlobalTransform>,
+        ),
+        With<Children>,
+    >,
 ) {
-    for (mut shape_caster, position, rotation, parent) in &mut shape_casters {
+    for (mut shape_caster, position, rotation, parent, transform) in &mut shape_casters {
         let origin = shape_caster.origin;
         let shape_rotation = shape_caster.shape_rotation;
         let direction = shape_caster.direction;
 
-        if let Some(position) = position {
+        let mut temp_position = None;
+        let mut temp_rotation = None;
+
+        if let Some(transform) = transform {
+            temp_position = Some(Position::from(transform));
+            temp_rotation = Some(Rotation::from(transform));
+        }
+
+        let (global_position, global_rotation) = match (position, rotation) {
+            (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
+            _ if temp_position.is_some() && temp_rotation.is_some() => {
+                (temp_position.as_ref(), temp_rotation.as_ref())
+            }
+            _ => (None, None),
+        };
+
+        if let Some(position) = global_position {
             shape_caster
                 .set_global_origin(position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)));
         } else if parent.is_none() {
             shape_caster.set_global_origin(origin);
         }
 
-        if let Some(rotation) = rotation {
+        if let Some(rotation) = global_rotation {
             let global_direction = rotation.rotate(shape_caster.direction);
             shape_caster.set_global_direction(global_direction);
             #[cfg(feature = "2d")]
@@ -377,18 +401,37 @@ fn update_shape_caster_positions(
         }
 
         if let Some(parent) = parent {
-            if let Ok((parent_position, parent_rotation)) = parents.get(parent.get()) {
-                if position.is_none() {
-                    if let Some(position) = parent_position {
-                        let rotation = rotation.map_or(
-                            parent_rotation.map_or(Rotation::default(), |rot| *rot),
+            if let Ok((parent_position, parent_rotation, parent_transform)) =
+                parents.get(parent.get())
+            {
+                // Temporary storage for parent transformations
+                let mut temp_parent_position = None;
+                let mut temp_parent_rotation = None;
+
+                if let Some(parent_transform) = parent_transform {
+                    temp_parent_position = Some(Position::from(parent_transform));
+                    temp_parent_rotation = Some(Rotation::from(parent_transform));
+                }
+
+                let (final_position, final_rotation) = match (parent_position, parent_rotation) {
+                    (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
+                    _ if temp_parent_position.is_some() && temp_parent_rotation.is_some() => {
+                        (temp_parent_position.as_ref(), temp_parent_rotation.as_ref())
+                    }
+                    _ => (None, None),
+                };
+
+                if global_position.is_none() {
+                    if let Some(position) = final_position {
+                        let rotation = global_rotation.map_or(
+                            final_rotation.map_or(Rotation::default(), |rot| *rot),
                             |rot| *rot,
                         );
                         shape_caster.set_global_origin(position.0 + rotation.rotate(origin));
                     }
                 }
-                if rotation.is_none() {
-                    if let Some(rotation) = parent_rotation {
+                if global_rotation.is_none() {
+                    if let Some(rotation) = final_rotation {
                         let global_direction = rotation.rotate(shape_caster.direction);
                         shape_caster.set_global_direction(global_direction);
                         #[cfg(feature = "2d")]
