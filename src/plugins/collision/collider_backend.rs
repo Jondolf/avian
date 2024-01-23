@@ -92,7 +92,13 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // TODO: This shouldn't need to care about SyncPlugin details
         app.add_systems(
             self.schedule,
-            sync::init_previous_global_transform::<Collider>
+            (
+                sync::init_previous_global_transform::<C>,
+                sync::transform_to_position,
+                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
+                sync::update_previous_global_transforms,
+            )
+                .chain()
                 .after(sync::init_previous_global_transform::<RigidBody>)
                 .after(PhysicsSet::Prepare)
                 .before(PhysicsSet::StepSimulation)
@@ -112,7 +118,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         bevy::transform::systems::propagate_transforms,
                     )
                         .chain()
-                        .run_if(any_new::<Collider>),
+                        .run_if(any_new::<C>),
                 )
                     .chain()
                     .in_set(PrepareSet::PropagateTransforms),
