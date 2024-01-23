@@ -95,20 +95,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             self.schedule,
             (
                 (
-                    apply_deferred,
-                    // TODO: This currently runs twice when a RigidBody and Collider are added at the same time
-                    //       because the PreparePlugin also does this.
-                    // Run transform propagation if new colliders have been added
-                    (
-                        bevy::transform::systems::sync_simple_transforms,
-                        bevy::transform::systems::propagate_transforms,
-                    )
-                        .chain()
-                        .run_if(any_new::<C>),
-                )
-                    .chain()
-                    .in_set(PrepareSet::PropagateTransforms),
-                (
                     init_colliders::<C>,
                     apply_deferred,
                     update_collider_parents::<C>,
