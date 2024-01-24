@@ -91,7 +91,8 @@ pub struct CollisionLayers {
 }
 
 /// A bitmask for layers.
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Layers(pub u32);
 
 impl From<u32> for Layers {
