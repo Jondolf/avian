@@ -305,6 +305,8 @@ mod tests {
 
         assert!(with_bitmask.contains_groups(GameLayer::Enemy));
         assert!(!with_bitmask.contains_groups(GameLayer::Player));
-        assert!(!with_bitmask.contains_masks(GameLayer::Player));
+
+        assert!(with_bitmask.contains_masks(GameLayer::Ground));
+        assert!(!with_bitmask.contains_masks(GameLayer::Enemy));
     }
 }
