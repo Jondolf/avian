@@ -1,3 +1,5 @@
+use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
+
 use bevy::prelude::*;
 
 /// A layer used for determining which entities should interact with each other.
@@ -36,177 +38,272 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// ## Creation
 ///
-/// The easiest way to build a [`CollisionLayers`] configuration is to use the [`CollisionLayers::new()`] method
-/// that takes in a list of groups and masks. Additional groups and masks can be added and removed by calling methods like
-/// [`add_groups`](Self::add_groups), [`add_masks`](Self::add_masks), [`remove_groups`](Self::remove_groups) and
-/// [`remove_masks`](Self::remove_masks).
+/// Collision layers store groups and masks using [`Layers`]. [`Layers`] can be created using
+/// bitmasks, or by creating an enum that implements [`PhysicsLayer`].
 ///
-/// These methods require the layers to implement [`PhysicsLayer`]. The easiest way to define the physics layers is to
-/// create an enum with `#[derive(PhysicsLayer)]`.
-///
-/// Internally, the groups and masks are represented as bitmasks, so you can also use [`CollisionLayers::from_bits()`]
-/// to create collision layers.
-///
-/// ## Example
+/// Many [`CollisionLayers`] methods can take any type that implements `Into<Layers>`.
+/// For example, you can use bitmasks with [`CollisionLayers::new`]:
 ///
 /// ```
-/// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+/// #
+/// // Belongs to the second layer and interacts with colliders
+/// // on the first, second, and third layer.
+/// let layers = CollisionLayers::new(0b00010, 0b0111);
+/// ```
 ///
+/// You can also use an enum that implements [`PhysicsLayer`]:
+///
+/// ```
+/// # use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+/// #
 /// #[derive(PhysicsLayer)]
-/// enum Layer {
+/// enum GameLayer {
 ///     Player,
 ///     Enemy,
 ///     Ground,
 /// }
 ///
-/// fn spawn(mut commands: Commands) {
-///     commands.spawn((
-///         Collider::ball(0.5),
-///         // Player collides with enemies and the ground, but not with other players
-///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
-///     ));
-/// }
+/// // Player collides with enemies and the ground, but not with other players
+/// let layers = CollisionLayers::new(GameLayer::Player, [GameLayer::Enemy, GameLayer::Ground]);
 /// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
+///
+/// You can also use [`Layers`] directly:
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+/// #
+/// // Belongs to the first layer and interacts with all layers.
+/// let layers = CollisionLayers::new(Layers(0b0001), Layers::ALL);
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CollisionLayers {
-    groups: u32,
-    masks: u32,
+    /// The layers that an entity belongs to.
+    pub groups: Layers,
+    /// The layers that an entity can interact with.
+    pub masks: Layers,
+}
+
+/// A bitmask for layers.
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Layers(pub u32);
+
+impl From<u32> for Layers {
+    fn from(layer: u32) -> Self {
+        Self(layer)
+    }
+}
+
+impl<L: PhysicsLayer> From<L> for Layers {
+    fn from(layer: L) -> Self {
+        Layers(layer.to_bits())
+    }
+}
+
+impl<L: Into<Layers>, const N: usize> From<[L; N]> for Layers {
+    fn from(value: [L; N]) -> Self {
+        let mut bits = 0;
+
+        for layer in value.into_iter().map(|l| {
+            let layers: Layers = l.into();
+            layers
+        }) {
+            bits |= layer.0;
+        }
+
+        Layers(bits)
+    }
+}
+
+impl Layers {
+    /// Contains all layers.
+    pub const ALL: Self = Self(0xffff_ffff);
+    /// Contains no layers.
+    pub const NONE: Self = Self(0);
+}
+
+impl BitAnd for Layers {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(self.0 & rhs.0)
+    }
+}
+
+impl BitAndAssign for Layers {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 = self.0 & rhs.0;
+    }
+}
+
+impl BitOr for Layers {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl BitOrAssign for Layers {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 = self.0 | rhs.0;
+    }
+}
+
+impl BitXor for Layers {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self(self.0 ^ rhs.0)
+    }
+}
+
+impl BitXorAssign for Layers {
+    fn bitxor_assign(&mut self, rhs: Self) {
+        self.0 = self.0 ^ rhs.0;
+    }
+}
+
+impl Not for Layers {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        Self(!self.0)
+    }
 }
 
 impl CollisionLayers {
-    /// Creates a new [`CollisionLayers`] configuration with the given collision groups and masks.
-    pub fn new<L: PhysicsLayer>(
-        groups: impl IntoIterator<Item = L>,
-        masks: impl IntoIterator<Item = L>,
-    ) -> Self {
-        Self::none().add_groups(groups).add_masks(masks)
-    }
-
     /// Contains all groups and masks.
-    pub fn all<L: PhysicsLayer>() -> Self {
-        Self::from_bits(L::all_bits(), L::all_bits())
-    }
+    pub const ALL: Self = Self {
+        groups: Layers::ALL,
+        masks: Layers::ALL,
+    };
+
+    /// Contains no groups or masks.
+    pub const NONE: Self = Self {
+        groups: Layers::NONE,
+        masks: Layers::NONE,
+    };
 
     /// Contains all groups but no masks.
-    pub fn all_groups<L: PhysicsLayer>() -> Self {
-        Self::from_bits(L::all_bits(), 0)
-    }
+    pub const ALL_GROUPS: Self = Self {
+        groups: Layers::ALL,
+        masks: Layers::NONE,
+    };
 
     /// Contains all masks but no groups.
-    pub fn all_masks<L: PhysicsLayer>() -> Self {
-        Self::from_bits(0, L::all_bits())
+    pub const ALL_MASKS: Self = Self {
+        groups: Layers::NONE,
+        masks: Layers::ALL,
+    };
+
+    /// Creates a new [`CollisionLayers`] configuration with the given collision groups and masks.
+    pub fn new(groups: impl Into<Layers>, masks: impl Into<Layers>) -> Self {
+        Self {
+            groups: groups.into(),
+            masks: masks.into(),
+        }
     }
 
-    /// Contains no masks or groups.
-    pub const fn none() -> Self {
-        Self::from_bits(0, 0)
-    }
-
-    /// Creates a new [`CollisionLayers`] using bits.
+    /// Creates a new [`CollisionLayers`] configuration using bits.
     ///
     /// There is one bit per group and mask, so there are a total of 32 layers.
     /// For example, if an entity is a part of the layers `[0, 1, 3]` and can interact with the layers `[1, 2]`,
     /// the groups in bits would be `0b01011` while the masks would be `0b00110`.
     pub const fn from_bits(groups: u32, masks: u32) -> Self {
-        Self { groups, masks }
+        Self {
+            groups: Layers(groups),
+            masks: Layers(masks),
+        }
+    }
+
+    /// Adds the given layers into `groups`.
+    pub fn add_groups(&mut self, layers: impl Into<Layers>) {
+        let layers: Layers = layers.into();
+        self.groups |= layers;
+    }
+
+    /// Adds the given layers into `masks`.
+    pub fn add_masks(&mut self, layers: impl Into<Layers>) {
+        let layers: Layers = layers.into();
+        self.masks |= layers;
+    }
+
+    /// Removes the given layers from `groups`.
+    pub fn remove_groups(&mut self, layers: impl Into<Layers>) {
+        let layers: Layers = layers.into();
+        self.groups &= !layers;
+    }
+
+    /// Removes the given layers from `masks`.
+    pub fn remove_masks(&mut self, layers: impl Into<Layers>) {
+        let layers: Layers = layers.into();
+        self.masks &= !layers;
+    }
+
+    /// Returns true if all of the given layers are contained in `groups`.
+    pub fn contains_groups(self, layers: impl Into<Layers>) -> bool {
+        let layers = layers.into();
+        (self.groups & layers) != Layers::NONE
+    }
+
+    /// Returns true if all of the given layers are contained in `masks`.
+    pub fn contains_masks(self, layers: impl Into<Layers>) -> bool {
+        let layers = layers.into();
+        (self.masks & layers) != Layers::NONE
     }
 
     /// Returns true if an entity with this [`CollisionLayers`] configuration
     /// can interact with an entity with the `other` [`CollisionLayers`] configuration.
     pub fn interacts_with(self, other: Self) -> bool {
-        (self.groups & other.masks) != 0 && (other.groups & self.masks) != 0
-    }
-
-    /// Returns true if the given layer is contained in `groups`.
-    pub fn contains_group(self, layer: impl PhysicsLayer) -> bool {
-        (self.groups & layer.to_bits()) != 0
-    }
-
-    /// Adds the given layer into `groups`.
-    pub fn add_group(mut self, layer: impl PhysicsLayer) -> Self {
-        self.groups |= layer.to_bits();
-        self
-    }
-
-    /// Adds the given layers into `groups`.
-    pub fn add_groups(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
-        for layer in layers.into_iter().map(|l| l.to_bits()) {
-            self.groups |= layer;
-        }
-
-        self
-    }
-
-    /// Removes the given layer from `groups`.
-    pub fn remove_group(mut self, layer: impl PhysicsLayer) -> Self {
-        self.groups &= !layer.to_bits();
-        self
-    }
-
-    /// Removes the given layers from `groups`.
-    pub fn remove_groups(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
-        for layer in layers.into_iter().map(|l| l.to_bits()) {
-            self.groups &= !layer;
-        }
-
-        self
-    }
-
-    /// Returns true if the given layer is contained in `masks`.
-    pub fn contains_mask(self, layer: impl PhysicsLayer) -> bool {
-        (self.masks & layer.to_bits()) != 0
-    }
-
-    /// Adds the given layer into `masks`.
-    pub fn add_mask(mut self, layer: impl PhysicsLayer) -> Self {
-        self.masks |= layer.to_bits();
-        self
-    }
-
-    /// Adds the given layers in `masks`.
-    pub fn add_masks(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
-        for layer in layers.into_iter().map(|l| l.to_bits()) {
-            self.masks |= layer;
-        }
-
-        self
-    }
-
-    /// Removes the given layer from `masks`.
-    pub fn remove_mask(mut self, layer: impl PhysicsLayer) -> Self {
-        self.masks &= !layer.to_bits();
-        self
-    }
-
-    /// Removes the given layers from `masks`.
-    pub fn remove_masks(mut self, layers: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
-        for layer in layers.into_iter().map(|l| l.to_bits()) {
-            self.masks &= !layer;
-        }
-
-        self
-    }
-
-    /// Returns the `groups` bitmask.
-    pub fn groups_bits(self) -> u32 {
-        self.groups
-    }
-
-    /// Returns the `masks` bitmask.
-    pub fn masks_bits(self) -> u32 {
-        self.masks
+        (self.groups & other.masks) != Layers::NONE && (other.groups & self.masks) != Layers::NONE
     }
 }
 
 impl Default for CollisionLayers {
     fn default() -> Self {
         Self {
-            groups: 0xffff_ffff,
-            masks: 0xffff_ffff,
+            groups: Layers::ALL,
+            masks: Layers::ALL,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Needed for PhysicsLayer derive macro
+    #[cfg(feature = "2d")]
+    use crate as bevy_xpbd_2d;
+    #[cfg(feature = "3d")]
+    use crate as bevy_xpbd_3d;
+
+    use crate::prelude::*;
+
+    #[derive(PhysicsLayer)]
+    enum GameLayer {
+        Player,
+        Enemy,
+        Ground,
+    }
+
+    #[test]
+    fn creation() {
+        let with_bitmask = CollisionLayers::new(0b0010, 0b0101);
+        let with_enum =
+            CollisionLayers::new(GameLayer::Enemy, [GameLayer::Player, GameLayer::Ground]);
+        let with_layers = CollisionLayers::new(Layers::from(GameLayer::Enemy), Layers(0b0101));
+
+        assert_eq!(with_bitmask, with_enum);
+        assert_eq!(with_bitmask, with_layers);
+
+        assert!(with_bitmask.contains_groups(GameLayer::Enemy));
+        assert!(!with_bitmask.contains_groups(GameLayer::Player));
+        assert!(!with_bitmask.contains_masks(GameLayer::Player));
     }
 }
