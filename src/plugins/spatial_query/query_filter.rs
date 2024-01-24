@@ -26,13 +26,14 @@ use crate::prelude::*;
 #[derive(Clone)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpatialQueryFilter {
-    /// Specifies which [collision groups](CollisionLayers) will be included in a [spatial query](crate::spatial_query).
+    /// Specifies which [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub masks: u32,
     /// Entities that will not be included in [spatial queries](crate::spatial_query).
     pub excluded_entities: HashSet<Entity>,
 }
 
 impl Default for SpatialQueryFilter {
+    /// Creates a new [`SpatialQueryFilter`] that doesn't exclude any colliders.
     fn default() -> Self {
         Self {
             masks: 0xffff_ffff,
@@ -42,9 +43,41 @@ impl Default for SpatialQueryFilter {
 }
 
 impl SpatialQueryFilter {
-    /// Creates a new [`SpatialQueryFilter`] that doesn't exclude any colliders.
-    pub fn new() -> Self {
-        Self::default()
+    /// Creates a new [`SpatialQueryFilter`] with the given masks and excluded entities.
+    pub fn new(
+        masks: impl IntoIterator<Item = impl PhysicsLayer>,
+        excluded_entities: impl IntoIterator<Item = Entity>,
+    ) -> Self {
+        Self::from_masks(masks).without_entities(excluded_entities)
+    }
+
+    /// Creates a new [`SpatialQueryFilter`] with the given bits for the masks determining
+    /// which [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
+    pub fn from_mask_bits(masks: u32) -> Self {
+        Self { masks, ..default() }
+    }
+
+    /// Creates a new [`SpatialQueryFilter`] with the given masks determining
+    /// which [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
+    pub fn from_masks(masks: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
+        let mut bits = 0;
+
+        for mask in masks.into_iter().map(|l| l.to_bits()) {
+            bits |= mask;
+        }
+
+        Self {
+            masks: bits,
+            ..default()
+        }
+    }
+
+    /// Creates a new [`SpatialQueryFilter`] with the given entities excluded from the [spatial query](crate::spatial_query).
+    pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
+        Self {
+            excluded_entities: HashSet::from_iter(entities),
+            ..default()
+        }
     }
 
     /// Sets the masks of the filter configuration using a bitmask. Colliders with the corresponding
@@ -59,9 +92,11 @@ impl SpatialQueryFilter {
     /// in the [spatial query](crate::spatial_query).
     pub fn with_masks(mut self, masks: impl IntoIterator<Item = impl PhysicsLayer>) -> Self {
         self.masks = 0;
+
         for mask in masks.into_iter().map(|l| l.to_bits()) {
             self.masks |= mask;
         }
+
         self
     }
 
