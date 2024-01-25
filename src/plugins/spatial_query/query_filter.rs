@@ -25,7 +25,7 @@ use crate::prelude::*;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SpatialQueryFilter {
     /// Specifies which [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
-    pub masks: Layers,
+    pub masks: LayerMask,
     /// Entities that will not be included in [spatial queries](crate::spatial_query).
     pub excluded_entities: HashSet<Entity>,
 }
@@ -33,7 +33,7 @@ pub struct SpatialQueryFilter {
 impl Default for SpatialQueryFilter {
     fn default() -> Self {
         Self {
-            masks: Layers::ALL,
+            masks: LayerMask::ALL,
             excluded_entities: default(),
         }
     }
@@ -42,7 +42,7 @@ impl Default for SpatialQueryFilter {
 impl SpatialQueryFilter {
     /// Creates a new [`SpatialQueryFilter`] with the given masks determining
     /// which [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
-    pub fn from_masks(masks: impl Into<Layers>) -> Self {
+    pub fn from_masks(masks: impl Into<LayerMask>) -> Self {
         Self {
             masks: masks.into(),
             ..default()
@@ -59,7 +59,7 @@ impl SpatialQueryFilter {
 
     /// Sets the masks of the filter configuration to the given layers. Only colliders with the corresponding
     /// [collision groups](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
-    pub fn with_masks(mut self, masks: impl Into<Layers>) -> Self {
+    pub fn with_masks(mut self, masks: impl Into<LayerMask>) -> Self {
         self.masks = masks.into();
         self
     }
@@ -74,7 +74,7 @@ impl SpatialQueryFilter {
     /// filter configuration.
     pub fn test(&self, entity: Entity, layers: CollisionLayers) -> bool {
         !self.excluded_entities.contains(&entity)
-            && CollisionLayers::new(Layers::ALL, self.masks)
-                .interacts_with(CollisionLayers::new(layers.groups, Layers::ALL))
+            && CollisionLayers::new(LayerMask::ALL, self.masks)
+                .interacts_with(CollisionLayers::new(layers.groups, LayerMask::ALL))
     }
 }
