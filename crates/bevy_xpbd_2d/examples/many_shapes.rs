@@ -150,7 +150,7 @@ fn movement(
         if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
             linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]) {
+        if keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
             linear_velocity.x += 500.0 * delta_time;
         }
     }

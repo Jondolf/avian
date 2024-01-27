@@ -131,7 +131,7 @@ fn keyboard_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-    let right = keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]);
+    let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
 
     let horizontal = right as i8 - left as i8;
     let direction = horizontal as Scalar;

@@ -63,7 +63,7 @@ fn setup(
     // Directional light
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: 20_000.0,
+            illuminance: 1000.0,
             shadows_enabled: true,
             ..default()
         },
@@ -92,7 +92,7 @@ fn movement(
         let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
         let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
         let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-        let right = keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]);
+        let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
 
         let horizontal = right as i8 - left as i8;
         let vertical = down as i8 - up as i8;

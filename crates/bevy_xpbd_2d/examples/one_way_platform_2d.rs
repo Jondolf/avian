@@ -151,7 +151,7 @@ fn movement(
 ) {
     for (mut linear_velocity, movement_speed, jump_impulse) in &mut actors {
         let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
-        let right = keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]);
+        let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
         let horizontal = right as i8 - left as i8;
 
         // Move in input direction
