@@ -22,7 +22,7 @@ parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
 enhanced-determinism = [
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
-    "glam/libm",
+    "bevy_math/libm",
 ]
 serialize = [
     "dep:serde",
@@ -39,12 +39,12 @@ required-features = ["2d"]
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
 bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false }
+bevy_math = { git = "https://github.com/bevyengine/bevy.git" }
 parry2d = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 parry2d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 nalgebra = { git = "https://github.com/Jondolf/nalgebra.git", features = [
     "convert-glam025",
 ], branch = "glam025" }
-glam = { version = "0.25", features = ["approx"] }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
@@ -53,6 +53,9 @@ itertools = "0.11"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
+bevy_math = { git = "https://github.com/bevyengine/bevy.git", features = [
+    "approx",
+] }
 approx = "0.5"
 insta = "1.0"
 

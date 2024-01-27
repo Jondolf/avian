@@ -11,7 +11,7 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
-use glam::*;
+use bevy_math::*;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
