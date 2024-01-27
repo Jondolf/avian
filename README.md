@@ -104,23 +104,25 @@ fn setup(
         RigidBody::Static,
         Collider::cuboid(8.0, 0.002, 8.0),
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            mesh: meshes.add(shape::Plane::from_size(8.0)),
+            material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
     ));
+    
     // Cube
     commands.spawn((
         RigidBody::Dynamic,
         AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(shape::Cube { size: 1.0 }),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
     ));
+    
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -131,6 +133,7 @@ fn setup(
         transform: Transform::from_xyz(4.0, 8.0, 4.0),
         ..default()
     });
+
     // Camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Vec3::Y),

@@ -21,8 +21,8 @@ fn setup(
     // Spawn ground and generate a collider for the mesh using AsyncCollider
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            mesh: meshes.add(shape::Plane::from_size(8.0)),
+            material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
         AsyncCollider(ComputedCollider::TriMesh),

@@ -60,10 +60,10 @@ fn setup(
     ));
 
     let marble_radius = 7.5;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
+    let marble_mesh = meshes.add(shape::Circle::new(marble_radius));
 
     // Spawn blue marbles that belong on the blue layer and collide with blue
-    let blue_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
+    let blue_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
     for x in -6..6 {
         for y in 0..4 {
             commands.spawn((
@@ -85,7 +85,7 @@ fn setup(
     }
 
     // Spawn red marbles that belong on the red layer and collide with red
-    let red_material = materials.add(ColorMaterial::from(Color::rgb(0.9, 0.3, 0.3)));
+    let red_material = materials.add(Color::rgb(0.9, 0.3, 0.3));
     for x in -6..6 {
         for y in -4..0 {
             commands.spawn((

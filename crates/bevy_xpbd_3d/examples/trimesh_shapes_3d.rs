@@ -6,7 +6,10 @@
 
 use bevy::{
     prelude::*,
-    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+    render::{
+        render_asset::RenderAssetPersistencePolicy,
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+    },
 };
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
@@ -68,8 +71,8 @@ fn setup(
         RigidBody::Static,
         Collider::cuboid(50.0, 0.1, 50.0),
         PbrBundle {
-            mesh: meshes.add(shape::Plane::from_size(50.0).into()),
-            material: materials.add(Color::SILVER.into()),
+            mesh: meshes.add(shape::Plane::from_size(50.0)),
+            material: materials.add(Color::SILVER),
             transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         },
@@ -119,5 +122,6 @@ fn uv_debug_texture() -> Image {
         TextureDimension::D2,
         &texture_data,
         TextureFormat::Rgba8UnormSrgb,
+        RenderAssetPersistencePolicy::Unload,
     )
 }

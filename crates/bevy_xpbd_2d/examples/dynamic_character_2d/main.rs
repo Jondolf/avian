@@ -12,7 +12,11 @@
 
 mod plugin;
 
-use bevy::{prelude::*, render::render_resource::PrimitiveTopology, sprite::MaterialMesh2dBundle};
+use bevy::{
+    prelude::*,
+    render::{render_asset::RenderAssetPersistencePolicy, render_resource::PrimitiveTopology},
+    sprite::MaterialMesh2dBundle,
+};
 use bevy_xpbd_2d::{math::*, prelude::*};
 use plugin::*;
 
@@ -38,16 +42,13 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes
-                .add(
-                    shape::Capsule {
-                        radius: 12.5,
-                        depth: 20.0,
-                        ..default()
-                    }
-                    .into(),
-                )
+                .add(shape::Capsule {
+                    radius: 12.5,
+                    depth: 20.0,
+                    ..default()
+                })
                 .into(),
-            material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
+            material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
             transform: Transform::from_xyz(0.0, -100.0, 0.0),
             ..default()
         },
@@ -146,40 +147,54 @@ fn setup(
     ));
 
     // Ramps
-    let mut ramp_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+    let mut ramp_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetPersistencePolicy::Keep,
+    );
+
     ramp_mesh.insert_attribute(
         Mesh::ATTRIBUTE_POSITION,
         vec![[-125.0, 80.0, 0.0], [-125.0, 0.0, 0.0], [125.0, 0.0, 0.0]],
     );
+
     let ramp_collider = Collider::triangle(
         Vector::new(-125.0, 80.0),
         Vector::NEG_X * 125.0,
         Vector::X * 125.0,
     );
+
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(ColorMaterial::from(Color::rgb(0.4, 0.4, 0.5))),
+            material: materials.add(Color::rgb(0.4, 0.4, 0.5)),
             transform: Transform::from_xyz(-275.0, -150.0, 0.0),
             ..default()
         },
         RigidBody::Static,
         ramp_collider,
     ));
-    let mut ramp_mesh = Mesh::new(PrimitiveTopology::TriangleList);
+
+    let mut ramp_mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetPersistencePolicy::Keep,
+    );
+
     ramp_mesh.insert_attribute(
         Mesh::ATTRIBUTE_POSITION,
         vec![[20.0, -40.0, 0.0], [20.0, 40.0, 0.0], [-20.0, -40.0, 0.0]],
     );
+
     let ramp_collider = Collider::triangle(
         Vector::new(20.0, -40.0),
         Vector::new(20.0, 40.0),
         Vector::new(-20.0, -40.0),
     );
+
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(ColorMaterial::from(Color::rgb(0.4, 0.4, 0.5))),
+            material: materials.add(Color::rgb(0.4, 0.4, 0.5)),
             transform: Transform::from_xyz(380.0, -110.0, 0.0),
             ..default()
         },

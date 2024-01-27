@@ -38,11 +38,11 @@ fn setup(
     // Player
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Capsule {
+            mesh: meshes.add(shape::Capsule {
                 radius: 0.4,
                 ..default()
-            })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            }),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
@@ -55,8 +55,8 @@ fn setup(
         RigidBody::Dynamic,
         Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(shape::Cube { size: 1.0 }),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(3.0, 2.0, 3.0),
             ..default()
         },

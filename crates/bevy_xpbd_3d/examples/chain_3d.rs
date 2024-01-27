@@ -91,7 +91,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&MovementAcceleration, &mut LinearVelocity)>,
 ) {
     // Precision is adjusted so that the example works with
@@ -99,10 +99,10 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
-        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
-        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
+        let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+        let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+        let right = keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]);
 
         let horizontal = right as i8 - left as i8;
         let vertical = down as i8 - up as i8;

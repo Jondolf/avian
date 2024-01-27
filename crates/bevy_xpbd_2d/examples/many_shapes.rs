@@ -78,27 +78,24 @@ fn setup(
 
     let ball = (
         Collider::ball(7.5),
-        meshes.add(shape::Circle::new(7.5).into()).into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.29, 0.33, 0.64))),
+        meshes.add(shape::Circle::new(7.5)).into(),
+        materials.add(Color::rgb(0.29, 0.33, 0.64)),
     );
     let cuboid = (
         Collider::cuboid(15.0, 15.0),
-        meshes.add(shape::Box::new(15.0, 15.0, 15.0).into()).into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.47, 0.58, 0.8))),
+        meshes.add(shape::Box::new(15.0, 15.0, 15.0)).into(),
+        materials.add(Color::rgb(0.47, 0.58, 0.8)),
     );
     let capsule = (
         Collider::capsule(20.0, 7.5),
         meshes
-            .add(
-                shape::Capsule {
-                    depth: 20.0,
-                    radius: 7.5,
-                    ..default()
-                }
-                .into(),
-            )
+            .add(shape::Capsule {
+                depth: 20.0,
+                radius: 7.5,
+                ..default()
+            })
             .into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.63, 0.75, 0.88))),
+        materials.add(Color::rgb(0.63, 0.75, 0.88)),
     );
     // Compute points of regular triangle
     let delta_rotation = Rotation::from_degrees(120.0);
@@ -109,10 +106,8 @@ fn setup(
     ];
     let triangle = (
         Collider::triangle(triangle_points[0], triangle_points[1], triangle_points[2]),
-        meshes
-            .add(shape::RegularPolygon::new(10.0, 3).into())
-            .into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.77, 0.87, 0.97))),
+        meshes.add(shape::RegularPolygon::new(10.0, 3)).into(),
+        materials.add(Color::rgb(0.77, 0.87, 0.97)),
     );
     let shapes = [ball, cuboid, capsule, triangle];
 
@@ -137,7 +132,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut marbles: Query<&mut LinearVelocity, With<Controllable>>,
 ) {
     // Precision is adjusted so that the example works with
@@ -145,17 +140,17 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for mut linear_velocity in &mut marbles {
-        if keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]) {
+        if keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
             // Use a higher acceleration for upwards movement to overcome gravity
             linear_velocity.y += 2500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]) {
+        if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
             linear_velocity.y -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]) {
+        if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
             linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]) {
+        if keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]) {
             linear_velocity.x += 500.0 * delta_time;
         }
     }

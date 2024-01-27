@@ -139,10 +139,10 @@ impl CharacterControllerBundle {
 /// Sends [`MovementAction`] events based on keyboard input.
 fn keyboard_input(
     mut movement_event_writer: EventWriter<MovementAction>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-    let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+    let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right = keyboard_input.any_pressed([KeyCode::ArrowDown, KeyCode::ArrowRight]);
 
     let horizontal = right as i8 - left as i8;
     let direction = horizontal as Scalar;
@@ -161,7 +161,7 @@ fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     gamepads: Res<Gamepads>,
     axes: Res<Axis<GamepadAxis>>,
-    buttons: Res<Input<GamepadButton>>,
+    buttons: Res<ButtonInput<GamepadButton>>,
 ) {
     for gamepad in gamepads.iter() {
         let axis_lx = GamepadAxis {

@@ -32,9 +32,9 @@ fn setup(
     let particle_count = 100;
     let particle_radius = 1.2;
     let particle_mesh: Mesh2dHandle = meshes
-        .add(shape::Circle::new(particle_radius as f32).into())
+        .add(shape::Circle::new(particle_radius as f32))
         .into();
-    let particle_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
+    let particle_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
 
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands
@@ -79,7 +79,7 @@ fn setup(
 }
 
 fn follow_mouse(
-    buttons: Res<Input<MouseButton>>,
+    buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform)>,
     mut follower: Query<&mut Transform, With<FollowMouse>>,

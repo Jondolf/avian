@@ -97,8 +97,8 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
+    let cube_mesh = meshes.add(shape::Cube { size: 1.0 });
+    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length
     let static_cube = commands
