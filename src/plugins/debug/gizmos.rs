@@ -27,16 +27,8 @@ pub trait PhysicsGizmoExt {
         color: Color,
     );
 
-    /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`
-    /// and a width of `head_width`.
-    fn draw_arrow(
-        &mut self,
-        a: Vector,
-        b: Vector,
-        head_length: Scalar,
-        head_width: Scalar,
-        color: Color,
-    );
+    /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`.
+    fn draw_arrow(&mut self, a: Vector, b: Vector, head_length: Scalar, color: Color);
 
     /// Draws a collider shape with a given position and rotation.
     fn draw_collider(
@@ -132,49 +124,17 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
     /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`
     /// and a width of `head_width`.
-    fn draw_arrow(
-        &mut self,
-        a: Vector,
-        b: Vector,
-        head_length: Scalar,
-        head_width: Scalar,
-        color: Color,
-    ) {
-        self.draw_line(a, b, color);
-
-        let pointing = (b - a).normalize();
-
+    fn draw_arrow(&mut self, a: Vector, b: Vector, head_length: Scalar, color: Color) {
         #[cfg(feature = "2d")]
         {
-            let v = head_width * 0.5 * Vector::new(-pointing.y, pointing.x);
-            self.draw_line(b, b - head_length * pointing + v, color);
-            self.draw_line(b, b - head_length * pointing - v, color);
+            self.arrow_2d(a.as_f32(), b.as_f32(), color)
+                .with_tip_length(head_length);
         }
 
         #[cfg(feature = "3d")]
         {
-            // first, draw the body of the arrow
-            self.gizmos.line(a, b, color);
-
-            // Now the hard part is to draw the head in a sensible way.
-            // Put us in a coordinate system where the arrow is pointing towards +x and ends at the origin.
-            let rotation = Quat::from_rotation_arc(Vec3::X, pointing);
-            let tips = [
-                Vec3::new(-head_width, head_width, 0.0),
-                Vec3::new(-head_width, 0.0, head_width),
-                Vec3::new(-head_width, -head_width, 0.0),
-                Vec3::new(-head_width, 0.0, -head_width),
-            ];
-
-            // - Extend the vectors so their length is `tip_length`
-            // - Rotate the world so +x is facing in the same direction as the arrow
-            // - Translate over to the tip of the arrow
-            let tips = tips.map(|v| rotation * (v.normalize() * head_length) + b);
-
-            // Draw the tips
-            for v in tips {
-                self.gizmos.line(b, v, color);
-            }
+            self.arrow(a.as_f32(), b.as_f32(), color)
+                .with_tip_length(head_length);
         }
     }
 
@@ -471,9 +431,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
         // Draw ray as arrow
         #[cfg(feature = "2d")]
-        self.draw_arrow(origin, origin + direction * max_toi, 8.0, 8.0, ray_color);
+        self.draw_arrow(origin, origin + direction * max_toi, 8.0, ray_color);
         #[cfg(feature = "3d")]
-        self.draw_arrow(origin, origin + direction * max_toi, 0.1, 0.1, ray_color);
+        self.draw_arrow(origin, origin + direction * max_toi, 0.1, ray_color);
 
         // Draw all hit points and normals
         for hit in hits {
@@ -487,9 +447,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]
-            self.draw_arrow(point, point + hit.normal * 30.0, 8.0, 8.0, normal_color);
+            self.draw_arrow(point, point + hit.normal * 30.0, 8.0, normal_color);
             #[cfg(feature = "3d")]
-            self.draw_arrow(point, point + hit.normal * 0.5, 0.1, 0.1, normal_color);
+            self.draw_arrow(point, point + hit.normal * 0.5, 0.1, normal_color);
         }
     }
 
@@ -523,9 +483,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // Draw arrow from origin to position of shape at final hit
         // TODO: We could render the swept collider outline instead
         #[cfg(feature = "2d")]
-        self.draw_arrow(origin, origin + max_toi * direction, 8.0, 8.0, ray_color);
+        self.draw_arrow(origin, origin + max_toi * direction, 8.0, ray_color);
         #[cfg(feature = "3d")]
-        self.draw_arrow(origin, origin + max_toi * direction, 0.1, 0.1, ray_color);
+        self.draw_arrow(origin, origin + max_toi * direction, 0.1, ray_color);
 
         // Draw all hit points, normals and the shape at the hit points
         for hit in hits {
@@ -541,14 +501,12 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 hit.point1,
                 hit.point1 + hit.normal1 * 30.0,
                 8.0,
-                8.0,
                 normal_color,
             );
             #[cfg(feature = "3d")]
             self.draw_arrow(
                 hit.point1,
                 hit.point1 + hit.normal1 * 0.5,
-                0.1,
                 0.1,
                 normal_color,
             );
