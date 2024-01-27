@@ -9,7 +9,7 @@ use parry::shape::{SharedShape, TypedShape};
 #[derive(SystemParam)]
 pub struct PhysicsDebugRenderer<'w, 's> {
     /// A `SystemParam` for drawing lines and shapes using bevy_gizmos.
-    pub gizmos: Gizmos<'s>,
+    pub gizmos: Gizmos<'w, 's>,
     phantom_data: PhantomData<&'w ()>,
 }
 
@@ -123,7 +123,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
             TypedShape::Ball(s) => {
                 self.gizmos.circle(
                     position.extend(0.0).as_f32(),
-                    Vec3::Z,
+                    Direction3d::Z,
                     s.radius as f32,
                     color,
                 );
