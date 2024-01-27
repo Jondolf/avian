@@ -1,29 +1,93 @@
-use std::marker::PhantomData;
-
 use crate::prelude::*;
-use bevy::{ecs::system::SystemParam, prelude::*};
+use bevy::prelude::*;
 use parry::shape::{SharedShape, TypedShape};
 
-// TODO: Allow custom rendering backends through generics
-/// A `SystemParam` for physics debug rendering.
-#[derive(SystemParam)]
-pub struct PhysicsDebugRenderer<'w, 's> {
-    /// A `SystemParam` for drawing lines and shapes using bevy_gizmos.
-    pub gizmos: Gizmos<'w, 's>,
-    phantom_data: PhantomData<&'w ()>,
+/// An extension trait for `Gizmos<PhysicsGizmo>`.
+pub trait PhysicsGizmoExt {
+    /// Draws a line from `a` to `b`.
+    fn draw_line(&mut self, a: Vector, b: Vector, color: Color);
+
+    /// Draws lines between a list of points.
+    fn draw_line_strip(
+        &mut self,
+        points: Vec<Vector>,
+        position: &Position,
+        rotation: &Rotation,
+        closed: bool,
+        color: Color,
+    );
+
+    /// Draws a polyline based on the given vertex and index buffers.
+    fn draw_polyline(
+        &mut self,
+        vertices: &[Vector],
+        indices: &[[u32; 2]],
+        position: &Position,
+        rotation: &Rotation,
+        color: Color,
+    );
+
+    /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`
+    /// and a width of `head_width`.
+    fn draw_arrow(
+        &mut self,
+        a: Vector,
+        b: Vector,
+        head_length: Scalar,
+        head_width: Scalar,
+        color: Color,
+    );
+
+    /// Draws a collider shape with a given position and rotation.
+    fn draw_collider(
+        &mut self,
+        collider: &Collider,
+        position: &Position,
+        rotation: &Rotation,
+        color: Color,
+    );
+
+    /// Draws the results of a [raycast](SpatialQuery#raycasting).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_raycast(
+        &mut self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        hits: &[RayHitData],
+        ray_color: Color,
+        point_color: Color,
+        normal_color: Color,
+    );
+
+    /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
+    #[allow(clippy::too_many_arguments)]
+    fn draw_shapecast(
+        &mut self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: impl Into<Rotation>,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        hits: &[ShapeHitData],
+        ray_color: Color,
+        shape_color: Color,
+        point_color: Color,
+        normal_color: Color,
+    );
 }
 
-impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
+impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     /// Draws a line from `a` to `b`.
-    pub fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
+    fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
         #[cfg(feature = "2d")]
-        self.gizmos.line_2d(a.as_f32(), b.as_f32(), color);
+        self.line_2d(a.as_f32(), b.as_f32(), color);
         #[cfg(feature = "3d")]
-        self.gizmos.line(a.as_f32(), b.as_f32(), color);
+        self.line(a.as_f32(), b.as_f32(), color);
     }
 
     /// Draws lines between a list of points.
-    pub fn draw_line_strip(
+    fn draw_line_strip(
         &mut self,
         points: Vec<Vector>,
         position: &Position,
@@ -33,12 +97,12 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     ) {
         let pos = position.as_f32();
         #[cfg(feature = "2d")]
-        self.gizmos.linestrip_2d(
+        self.linestrip_2d(
             points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
             color,
         );
         #[cfg(feature = "3d")]
-        self.gizmos.linestrip(
+        self.linestrip(
             points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
             color,
         );
@@ -51,7 +115,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     }
 
     /// Draws a polyline based on the given vertex and index buffers.
-    pub fn draw_polyline(
+    fn draw_polyline(
         &mut self,
         vertices: &[Vector],
         indices: &[[u32; 2]],
@@ -68,7 +132,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
     /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`
     /// and a width of `head_width`.
-    pub fn draw_arrow(
+    fn draw_arrow(
         &mut self,
         a: Vector,
         b: Vector,
@@ -109,7 +173,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
     /// Draws a collider shape with a given position and rotation.
     #[allow(clippy::unnecessary_cast)]
-    pub fn draw_collider(
+    fn draw_collider(
         &mut self,
         collider: &Collider,
         position: &Position,
@@ -121,7 +185,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         match collider.shape_scaled().as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                self.gizmos.circle(
+                self.circle(
                     position.extend(0.0).as_f32(),
                     Direction3d::Z,
                     s.radius as f32,
@@ -130,12 +194,11 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                self.gizmos
-                    .sphere(position.as_f32(), rotation.as_f32(), s.radius as f32, color);
+                self.sphere(position.as_f32(), rotation.as_f32(), s.radius as f32, color);
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
-                self.gizmos.cuboid(
+                self.cuboid(
                     Transform::from_scale(Vector::from(s.half_extents).extend(0.0).as_f32() * 2.0)
                         .with_translation(position.extend(0.0).as_f32())
                         .with_rotation(Quaternion::from(*rotation).as_f32()),
@@ -144,7 +207,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
             }
             #[cfg(feature = "3d")]
             TypedShape::Cuboid(s) => {
-                self.gizmos.cuboid(
+                self.cuboid(
                     Transform::from_scale(Vector::from(s.half_extents).as_f32() * 2.0)
                         .with_translation(position.as_f32())
                         .with_rotation(rotation.as_f32()),
@@ -384,7 +447,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
     /// Draws the results of a [raycast](SpatialQuery#raycasting).
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_raycast(
+    fn draw_raycast(
         &mut self,
         origin: Vector,
         direction: Vector,
@@ -411,10 +474,9 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.gizmos.circle_2d(point.as_f32(), 3.0, point_color);
+            self.circle_2d(point.as_f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
-            self.gizmos
-                .sphere(point.as_f32(), default(), 0.025, point_color);
+            self.sphere(point.as_f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]
@@ -426,7 +488,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_shapecast(
+    fn draw_shapecast(
         &mut self,
         shape: &Collider,
         origin: Vector,
@@ -462,10 +524,9 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.gizmos.circle_2d(hit.point1.as_f32(), 3.0, point_color);
+            self.circle_2d(hit.point1.as_f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
-            self.gizmos
-                .sphere(hit.point1.as_f32(), default(), 0.025, point_color);
+            self.sphere(hit.point1.as_f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]

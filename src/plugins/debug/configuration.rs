@@ -1,44 +1,15 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Controls the global physics debug configuration. See [`PhysicsDebugPlugin`]
+/// Gizmos used for debug rendering physics. See [`PhysicsDebugPlugin`]
+///
+/// You can configure what is rendered by getting the gizmo configuration
+/// from the `GizmoConfigStore`.
 ///
 /// To configure the debug rendering of specific entities, use the [`DebugRender`] component.
-///
-/// ## Example
-///
-/// ```no_run
-/// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
-
-/// fn main() {
-///     App::new()
-///         .add_plugins((
-///             DefaultPlugins,
-///             PhysicsPlugins::default(),
-///             // Enables debug rendering
-///             PhysicsDebugPlugin::default(),
-///         ))
-///         // Overwrite default debug configuration (optional)
-///         .insert_resource(PhysicsDebugConfig {
-///             aabb_color: Some(Color::WHITE),
-///             ..default()
-///         })
-///         .run();
-/// }
-///
-/// fn setup(mut commands: Commands) {
-///     // This rigid body and its collider and AABB will get rendered
-///     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
-/// }
-/// ```
-#[derive(Reflect, Resource)]
+#[derive(Reflect, GizmoConfigGroup)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Resource)]
-pub struct PhysicsDebugConfig {
-    /// Determines if debug rendering is enabled.
-    pub enabled: bool,
+pub struct PhysicsGizmos {
     /// The lengths of the axes drawn for an entity at the center of mass.
     pub axis_lengths: Option<Vector>,
     /// The color of the [AABBs](ColliderAabb). If `None`, the AABBs will not be rendered.
@@ -73,10 +44,9 @@ pub struct PhysicsDebugConfig {
     pub hide_meshes: bool,
 }
 
-impl Default for PhysicsDebugConfig {
+impl Default for PhysicsGizmos {
     fn default() -> Self {
         Self {
-            enabled: true,
             #[cfg(feature = "2d")]
             axis_lengths: Some(Vector::new(5.0, 5.0)),
             #[cfg(feature = "3d")]
@@ -99,11 +69,10 @@ impl Default for PhysicsDebugConfig {
     }
 }
 
-impl PhysicsDebugConfig {
+impl PhysicsGizmos {
     /// Creates a [`PhysicsDebugConfig`] configuration with all rendering options enabled.
     pub fn all() -> Self {
         Self {
-            enabled: true,
             #[cfg(feature = "2d")]
             axis_lengths: Some(Vector::new(5.0, 5.0)),
             #[cfg(feature = "3d")]
@@ -130,7 +99,6 @@ impl PhysicsDebugConfig {
     /// Note: this doesn't affect entities with [`DebugRender`] component; their debug gizmos will be visible.
     pub fn none() -> Self {
         Self {
-            enabled: true,
             axis_lengths: None,
             aabb_color: None,
             collider_color: None,
