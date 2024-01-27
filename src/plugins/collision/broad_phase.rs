@@ -4,7 +4,10 @@
 //! See [`BroadPhasePlugin`].
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+};
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks. This speeds up narrow phase collision detection,
@@ -169,6 +172,14 @@ struct AabbIntervals(
     )>,
 );
 
+impl MapEntities for AabbIntervals {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        for interval in self.0.iter_mut() {
+            interval.0 = entity_mapper.get_or_reserve(interval.0);
+        }
+    }
+}
+
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 #[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
@@ -179,6 +190,7 @@ fn update_aabb_intervals(
         Ref<Position>,
         Ref<Rotation>,
     )>,
+    rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(
@@ -189,7 +201,10 @@ fn update_aabb_intervals(
                 *aabb = *new_aabb;
                 *collider_parent = *new_parent;
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
-                *is_inactive = !position.is_changed() && !rotation.is_changed();
+
+                let is_static = rbs.get(new_parent.get()).is_ok_and(RigidBody::is_static);
+                *is_inactive = is_static || (!position.is_changed() && !rotation.is_changed());
+
                 true
             } else {
                 false

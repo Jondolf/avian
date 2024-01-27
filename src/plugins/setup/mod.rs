@@ -62,7 +62,7 @@ impl Default for PhysicsSetupPlugin {
 impl Plugin for PhysicsSetupPlugin {
     fn build(&self, app: &mut App) {
         // Init resources and register component types
-        app.insert_resource(Time::new_with(Physics::default()))
+        app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>()
             .init_resource::<BroadCollisionPairs>()
@@ -217,6 +217,7 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
         let real_delta = world.resource::<Time<Real>>().delta();
         let old_delta = world.resource::<Time<Physics>>().delta();
         let is_paused = world.resource::<Time<Physics>>().is_paused();
+        let old_clock = world.resource::<Time>().as_generic();
         let physics_clock = world.resource_mut::<Time<Physics>>();
 
         // Get the scaled timestep delta time based on the timestep mode.
@@ -276,12 +277,12 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
                 .resource_mut::<Time<Physics>>()
                 .advance_by(Duration::ZERO);
         }
+
+        // Set generic `Time` resource back to the clock that was active before physics.
+        *world.resource_mut::<Time>() = old_clock;
     });
 
     is_first_run.0 = false;
-
-    // Set generic `Time` resource back to `Time<Virtual>`.
-    *world.resource_mut::<Time>() = world.resource::<Time<Virtual>>().as_generic();
 }
 
 /// Runs the [`SubstepSchedule`].
@@ -301,7 +302,9 @@ fn run_substep_schedule(world: &mut World) {
         }
     });
 
-    *world.resource_mut::<Time>() = world.resource::<Time<Virtual>>().as_generic();
+    // Set generic `Time` resource back to `Time<Physics>`.
+    // Later, it's set back to the default clock after the `PhysicsSchedule`.
+    *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 }
 
 /// Runs the [`PostProcessCollisions`] schedule.

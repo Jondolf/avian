@@ -19,7 +19,6 @@ cd "$currdir" || exit
 
 ### Publish bevy_xpbd_3d
 sed 's#\.\./\.\./src#src#g' crates/bevy_xpbd_3d/Cargo.toml > "$tmp"/Cargo.toml
-cp -r crates/bevy_xpbd_3d/assets "$tmp"/.
 cp -r crates/bevy_xpbd_3d/examples "$tmp"/.
 cp -r crates/bevy_xpbd_3d/benches "$tmp"/.
 cd "$tmp" && cargo publish

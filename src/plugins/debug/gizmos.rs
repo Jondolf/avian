@@ -142,32 +142,39 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     ) {
         self.draw_line(a, b, color);
 
-        let dir = (b - a).normalize_or_zero();
+        let pointing = (b - a).normalize();
 
         #[cfg(feature = "2d")]
         {
-            let v = head_width * 0.5 * Vector::new(-dir.y, dir.x);
-            self.draw_line(b, b - head_length * dir + v, color);
-            self.draw_line(b, b - head_length * dir - v, color);
+            let v = head_width * 0.5 * Vector::new(-pointing.y, pointing.x);
+            self.draw_line(b, b - head_length * pointing + v, color);
+            self.draw_line(b, b - head_length * pointing - v, color);
         }
 
         #[cfg(feature = "3d")]
         {
-            let back = Vector::NEG_Z;
-            let up = dir.try_normalize().unwrap_or(Vector::Y);
-            let right = up
-                .cross(back)
-                .try_normalize()
-                .unwrap_or_else(|| up.any_orthonormal_vector());
-            let up = back.cross(right);
-            let q = Quaternion::from_mat3(&Matrix3::from_cols(right, up, back));
+            // first, draw the body of the arrow
+            self.gizmos.line(a, b, color);
 
-            self.draw_collider(
-                &Collider::cone(head_length, head_width * 0.5),
-                &Position(b - dir * head_length * 0.5),
-                &Rotation(q),
-                color,
-            );
+            // Now the hard part is to draw the head in a sensible way.
+            // Put us in a coordinate system where the arrow is pointing towards +x and ends at the origin.
+            let rotation = Quat::from_rotation_arc(Vec3::X, pointing);
+            let tips = [
+                Vec3::new(-head_width, head_width, 0.0),
+                Vec3::new(-head_width, 0.0, head_width),
+                Vec3::new(-head_width, -head_width, 0.0),
+                Vec3::new(-head_width, 0.0, -head_width),
+            ];
+
+            // - Extend the vectors so their length is `tip_length`
+            // - Rotate the world so +x is facing in the same direction as the arrow
+            // - Translate over to the tip of the arrow
+            let tips = tips.map(|v| rotation * (v.normalize() * head_length) + b);
+
+            // Draw the tips
+            for v in tips {
+                self.gizmos.line(b, v, color);
+            }
         }
     }
 

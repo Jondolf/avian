@@ -26,7 +26,7 @@ pub enum TimestepMode {
         /// The amount of accumulated time. The simulation will consume it in steps of `delta`
         /// to try to catch up to real time.
         overstep: Duration,
-        /// The maximum amount of time that can be added to [`overstep`] during a single frame.
+        /// The maximum amount of time that can be added to `overstep` during a single frame.
         /// Lower values help prevent "death spirals" where each frame takes longer and longer
         /// to simulate.
         ///

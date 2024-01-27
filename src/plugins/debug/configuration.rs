@@ -20,7 +20,9 @@ pub struct PhysicsGizmos {
     /// If `None`, sleeping will have no effect on the colors.
     pub sleeping_color_multiplier: Option<[f32; 4]>,
     /// The color of the contact points. If `None`, the contact points will not be rendered.
-    pub contact_color: Option<Color>,
+    pub contact_point_color: Option<Color>,
+    /// The color of the contact normals. If `None`, the contact normals will not be rendered.
+    pub contact_normal_color: Option<Color>,
     /// The color of the lines drawn from the centers of bodies to their joint anchors.
     pub joint_anchor_color: Option<Color>,
     /// The color of the lines drawn between joint anchors, indicating the separation.
@@ -54,7 +56,8 @@ impl Default for PhysicsGizmos {
             aabb_color: None,
             collider_color: Some(Color::ORANGE),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
-            contact_color: None,
+            contact_point_color: None,
+            contact_normal_color: None,
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
             raycast_color: Some(Color::RED),
@@ -80,7 +83,8 @@ impl PhysicsGizmos {
             aabb_color: Some(Color::rgb(0.8, 0.8, 0.8)),
             collider_color: Some(Color::ORANGE),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
-            contact_color: Some(Color::CYAN),
+            contact_point_color: Some(Color::CYAN),
+            contact_normal_color: Some(Color::RED),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
             raycast_color: Some(Color::RED),
@@ -103,7 +107,8 @@ impl PhysicsGizmos {
             aabb_color: None,
             collider_color: None,
             sleeping_color_multiplier: None,
-            contact_color: None,
+            contact_point_color: None,
+            contact_normal_color: None,
             joint_anchor_color: None,
             joint_separation_color: None,
             raycast_color: None,
@@ -144,11 +149,20 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with a given contact color.
+    /// Creates a [`PhysicsDebugConfig`] configuration with a given contact point color.
     /// Other debug rendering options will be disabled.
-    pub fn contacts(color: Color) -> Self {
+    pub fn contact_points(color: Color) -> Self {
         Self {
-            contact_color: Some(color),
+            contact_point_color: Some(color),
+            ..Self::none()
+        }
+    }
+
+    /// Creates a [`PhysicsDebugConfig`] configuration with a given contact normal color.
+    /// Other debug rendering options will be disabled.
+    pub fn contact_normals(color: Color) -> Self {
+        Self {
+            contact_normal_color: Some(color),
             ..Self::none()
         }
     }
@@ -188,8 +202,8 @@ impl PhysicsGizmos {
     }
 
     /// Sets the contact color.
-    pub fn with_contact_color(mut self, color: Color) -> Self {
-        self.contact_color = Some(color);
+    pub fn with_contact_point_color(mut self, color: Color) -> Self {
+        self.contact_point_color = Some(color);
         self
     }
 
@@ -254,9 +268,15 @@ impl PhysicsGizmos {
         self
     }
 
-    /// Disables contact debug rendering.
-    pub fn without_contacts(mut self) -> Self {
-        self.contact_color = None;
+    /// Disables contact point debug rendering.
+    pub fn without_contact_points(mut self) -> Self {
+        self.contact_point_color = None;
+        self
+    }
+
+    /// Disables contact normal debug rendering.
+    pub fn without_contact_normals(mut self) -> Self {
+        self.contact_normal_color = None;
         self
     }
 

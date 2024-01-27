@@ -30,7 +30,7 @@ use crate::prelude::*;
 /// }
 ///
 /// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contacts) in collision_event_reader.iter() {
+///     for Collision(contacts) in collision_event_reader.read() {
 ///         println!(
 ///             "Entities {:?} and {:?} are colliding",
 ///             contacts.entity1,
@@ -73,7 +73,7 @@ impl Plugin for ContactReportingPlugin {
 /// }
 ///
 /// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
-///     for Collision(contacts) in collision_event_reader.iter() {
+///     for Collision(contacts) in collision_event_reader.read() {
 ///         println!(
 ///             "Entities {:?} and {:?} are colliding",
 ///             contacts.entity1,
@@ -104,7 +104,7 @@ pub struct Collision(pub Contacts);
 /// }
 ///
 /// fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
-///     for CollisionStarted(entity1, entity2) in collision_event_reader.iter() {
+///     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
 ///         println!(
 ///             "Entities {:?} and {:?} started colliding",
 ///             entity1,
@@ -135,7 +135,7 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 /// }
 ///
 /// fn print_ended_collisions(mut collision_event_reader: EventReader<CollisionEnded>) {
-///     for CollisionEnded(entity1, entity2) in collision_event_reader.iter() {
+///     for CollisionEnded(entity1, entity2) in collision_event_reader.read() {
 ///         println!(
 ///             "Entities {:?} and {:?} stopped colliding",
 ///             entity1,

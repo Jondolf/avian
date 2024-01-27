@@ -5,7 +5,12 @@ use crate::{prelude::*, utils::make_isometry};
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::utils::HashMap;
-use bevy::{log, prelude::*, utils::HashSet};
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    log,
+    prelude::*,
+    utils::HashSet,
+};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{
@@ -229,10 +234,14 @@ impl Collider {
 
     /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
     pub fn set_shape(&mut self, shape: SharedShape) {
-        if self.scale != Vector::ONE {
-            self.scaled_shape = shape.clone();
-        }
         self.shape = shape;
+
+        // TODO: The number of subdivisions probably shouldn't be hard-coded
+        if let Ok(scaled) = scale_shape(&self.shape, self.scale, 10) {
+            self.scaled_shape = scaled;
+        } else {
+            log::error!("Failed to create convex hull for scaled collider.");
+        }
     }
 
     /// Set the global scaling factor of this shape.
@@ -285,6 +294,108 @@ impl Collider {
         ColliderMassProperties::new(self, density)
     }
 
+    /// Projects the given `point` onto `self` transformed by `translation` and `rotation`.
+    /// The returned tuple contains the projected point and whether it is inside the collider.
+    ///
+    /// If `solid` is true and the given `point` is inside of the collider, the projection will be at the point.
+    /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    pub fn project_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+        solid: bool,
+    ) -> (Vector, bool) {
+        let projection = self.shape_scaled().project_point(
+            &utils::make_isometry(translation, rotation),
+            &point.into(),
+            solid,
+        );
+        (projection.point.into(), projection.is_inside)
+    }
+
+    /// Computes the minimum distance between the given `point` and `self` transformed by `translation` and `rotation`.
+    ///
+    /// If `solid` is true and the given `point` is inside of the collider, the returned distance will be `0.0`.
+    /// Otherwise, the collider will be treated as hollow, and the distance will be the distance
+    /// to the collider's boundary.
+    pub fn distance_to_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+        solid: bool,
+    ) -> Scalar {
+        self.shape_scaled().distance_to_point(
+            &utils::make_isometry(translation, rotation),
+            &point.into(),
+            solid,
+        )
+    }
+
+    /// Tests whether the given `point` is inside of `self` transformed by `translation` and `rotation`.
+    pub fn contains_point(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        point: Vector,
+    ) -> bool {
+        self.shape_scaled()
+            .contains_point(&utils::make_isometry(translation, rotation), &point.into())
+    }
+
+    /// Computes the time of impact and normal between the given ray and `self`
+    /// transformed by `translation` and `rotation`.
+    ///
+    /// The returned tuple is in the format `(time_of_impact, normal)`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `ray_origin`: Where the ray is cast from.
+    /// - `ray_direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    pub fn cast_ray(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        ray_origin: Vector,
+        ray_direction: Vector,
+        max_time_of_impact: Scalar,
+        solid: bool,
+    ) -> Option<(Scalar, Vector)> {
+        let hit = self.shape_scaled().cast_ray_and_get_normal(
+            &utils::make_isometry(translation, rotation),
+            &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
+            max_time_of_impact,
+            solid,
+        );
+        hit.map(|hit| (hit.toi, hit.normal.into()))
+    }
+
+    /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.
+    ///
+    /// ## Arguments
+    ///
+    /// - `ray_origin`: Where the ray is cast from.
+    /// - `ray_direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    pub fn intersects_ray(
+        &self,
+        translation: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+        ray_origin: Vector,
+        ray_direction: Vector,
+        max_time_of_impact: Scalar,
+    ) -> bool {
+        self.shape_scaled().intersects_ray(
+            &utils::make_isometry(translation, rotation),
+            &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
+            max_time_of_impact,
+        )
+    }
+
     /// Creates a collider with a compound shape defined by a given vector of colliders with a position and a rotation.
     ///
     /// Especially for dynamic rigid bodies, compound shape colliders should be preferred over triangle meshes and polylines,
@@ -326,6 +437,29 @@ impl Collider {
     #[cfg(feature = "3d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar, z_length: Scalar) -> Self {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
+    }
+
+    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    #[cfg(feature = "2d")]
+    pub fn round_cuboid(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
+        SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
+    }
+
+    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    #[cfg(feature = "3d")]
+    pub fn round_cuboid(
+        x_length: Scalar,
+        y_length: Scalar,
+        z_length: Scalar,
+        border_radius: Scalar,
+    ) -> Self {
+        SharedShape::round_cuboid(
+            x_length * 0.5,
+            y_length * 0.5,
+            z_length * 0.5,
+            border_radius,
+        )
+        .into()
     }
 
     /// Creates a collider with a cylinder shape defined by its height along the `Y` axis and its radius on the `XZ` plane.
@@ -1062,6 +1196,12 @@ impl ColliderParent {
     }
 }
 
+impl MapEntities for ColliderParent {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.0 = entity_mapper.get_or_reserve(self.0)
+    }
+}
+
 /// The transform of a collider relative to the rigid body it's attached to.
 /// This is in the local space of the body, not the collider itself.
 ///
@@ -1185,3 +1325,14 @@ impl Default for ColliderAabb {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
+
+impl MapEntities for CollidingEntities {
+    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+        self.0 = self
+            .0
+            .clone()
+            .into_iter()
+            .map(|e| entity_mapper.get_or_reserve(e))
+            .collect()
+    }
+}

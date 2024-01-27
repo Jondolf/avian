@@ -228,7 +228,7 @@ fn integrate_rot(mut bodies: Query<RotIntegrationComponents, Without<Sleeping>>,
             .extend(delta_secs * 0.5 * q.w);
         // avoid triggering bevy's change detection unnecessarily
         let delta = Quaternion::from_vec4(effective_dq);
-        if delta != Quaternion::IDENTITY {
+        if delta != Quaternion::from_xyzw(0.0, 0.0, 0.0, 0.0) {
             rot.0 = (rot.0 + delta).normalize();
         }
     }

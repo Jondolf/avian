@@ -282,15 +282,17 @@ fn debug_render_colliders(
 }
 
 fn debug_render_contacts(
-    colliders: Query<(&Position, &Rotation), With<Collider>>,
+    colliders: Query<(&Position, &Rotation)>,
     mut collisions: EventReader<Collision>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
-    let Some(color) = config.contact_color else {
+
+    if config.contact_point_color.is_none() && config.contact_normal_color.is_none() {
         return;
-    };
+    }
+
     for Collision(contacts) in collisions.read() {
         let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
             continue;
@@ -301,22 +303,43 @@ fn debug_render_contacts(
 
         for manifold in contacts.manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let p1 = contact.global_point1(position1, rotation1);
-                let p2 = contact.global_point2(position2, rotation2);
-                #[cfg(feature = "2d")]
-                let len = 5.0;
-                #[cfg(feature = "3d")]
-                let len = 0.3;
+                let p1 = contact.global_point1(position1, rotation1).as_f32();
+                let p2 = contact.global_point2(position2, rotation2).as_f32();
+                let normal1 = contact.global_normal1(rotation1).as_f32();
+                let normal2 = contact.global_normal2(rotation2).as_f32();
 
-                gizmos.draw_line(p1 - Vector::X * len, p1 + Vector::X * len, color);
-                gizmos.draw_line(p1 - Vector::Y * len, p1 + Vector::Y * len, color);
-                #[cfg(feature = "3d")]
-                gizmos.draw_line(p1 - Vector::Z * len, p1 + Vector::Z * len, color);
+                // Don't render contacts that aren't penetrating
+                if contact.penetration <= Scalar::EPSILON {
+                    continue;
+                }
 
-                gizmos.draw_line(p2 - Vector::X * len, p2 + Vector::X * len, color);
-                gizmos.draw_line(p2 - Vector::Y * len, p2 + Vector::Y * len, color);
-                #[cfg(feature = "3d")]
-                gizmos.draw_line(p2 - Vector::Z * len, p2 + Vector::Z * len, color);
+                // Draw contact points
+                if let Some(color) = config.contact_point_color {
+                    #[cfg(feature = "2d")]
+                    {
+                        gizmos.circle_2d(p1, 3.0, color);
+                        gizmos.circle_2d(p2, 3.0, color);
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        gizmos.sphere(p1, default(), 0.025, color);
+                        gizmos.sphere(p2, default(), 0.025, color);
+                    }
+                }
+
+                // Draw contact normals
+                if let Some(color) = config.contact_normal_color {
+                    #[cfg(feature = "2d")]
+                    {
+                        gizmos.draw_arrow(p1, p1 + normal1 * 30.0, 8.0, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * 30.0, 8.0, color);
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        gizmos.draw_arrow(p1, p1 + normal1 * 0.5, 0.1, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * 0.5, 0.1, color);
+                    }
+                }
             }
         }
     }

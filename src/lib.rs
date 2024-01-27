@@ -177,6 +177,7 @@
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`] and [`SubstepSet`]
 //!     - [`PostProcessCollisions`] schedule
+//!     - [`PrepareSet`]
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
 //! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
@@ -197,6 +198,7 @@
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
 //! - [Why is performance so bad?](#why-is-performance-so-bad)
+//! - [Why does my camera following jitter?](#why-does-my-camera-following-jitter)
 //! - [Is there a character controller?](#is-there-a-character-controller)
 //! - [Why are there separate `Position` and `Rotation` components?](#why-are-there-separate-position-and-rotation-components)
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
@@ -276,18 +278,65 @@
 //! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
+//! ### Why does my camera following jitter?
+//!
+//! When you write a system that makes the camera follow a physics entity, you might notice some jitter.
+//!
+//! To fix this, the system needs to:
+//!
+//! - Run after physics so that it has the up-to-date position of the player.
+//! - Run before transform propagation so that your changes to the camera's `Transform` are written
+//! to the camera's `GlobalTransform` before the end of the frame.
+//!
+//! The following ordering constraints should resolve the issue.
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! # use bevy::transform::TransformSystem;
+#![cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+//! #
+//! # fn main() {
+//! #     let mut app = App::new();
+//! #
+//! app.add_systems(
+//!     PostUpdate,
+//!     camera_follow_player
+//!         .after(PhysicsSet::Sync)
+//!         .before(TransformSystem::TransformPropagate),
+//! );
+//! # }
+//! #
+//! # fn camera_follow_player() {}
+//! ```
+//!
 //! ### Is there a character controller?
 //!
 //! Bevy XPBD does not have a built-in character controller, so if you need one,
 //! you will need to implement it yourself. However, third party character controllers
-//! like [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
-//! are also likely to get Bevy XPBD support soon.
+//! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Bevy XPBD, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
+//! and others are also likely to get Bevy XPBD support soon.
 //!
-//! For custom character controllers, you can take a look at the [`basic_dynamic_character`]
-//! and [`basic_kinematic_character`] examples to get started.
+//! For custom character controllers, you can take a look at the
+#![cfg_attr(
+    feature = "2d",
+    doc = "[`dynamic_character_2d`] and [`kinematic_character_2d`] examples to get started."
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "[`dynamic_character_3d`] and [`kinematic_character_3d`] examples to get started."
+)]
 //!
-//! [`basic_dynamic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_dynamic_character.rs
-//! [`basic_kinematic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_kinematic_character.rs
+#![cfg_attr(
+    feature = "2d",
+    doc = "[`dynamic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/dynamic_character_2d
+[`kinematic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/kinematic_character_2d"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "[`dynamic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/dynamic_character_3d
+[`kinematic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/kinematic_character_3d"
+)]
 //!
 //! ### Why are there separate `Position` and `Rotation` components?
 //!
