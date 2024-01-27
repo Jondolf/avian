@@ -67,7 +67,7 @@ impl AdjustPrecision for DVec2 {
 impl AdjustPrecision for Quat {
     type Adjusted = Quaternion;
     fn adjust_precision(&self) -> Self::Adjusted {
-        self.as_f64()
+        self.as_dquat()
     }
 }
 

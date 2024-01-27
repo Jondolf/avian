@@ -73,9 +73,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     /// Draws a line from `a` to `b`.
     fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
         #[cfg(feature = "2d")]
-        self.line_2d(a.as_f32(), b.as_f32(), color);
+        self.line_2d(a.f32(), b.f32(), color);
         #[cfg(feature = "3d")]
-        self.line(a.as_f32(), b.as_f32(), color);
+        self.line(a.f32(), b.f32(), color);
     }
 
     /// Draws lines between a list of points.
@@ -87,15 +87,15 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         closed: bool,
         color: Color,
     ) {
-        let pos = position.as_f32();
+        let pos = position.f32();
         #[cfg(feature = "2d")]
         self.linestrip_2d(
-            points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
+            points.iter().map(|p| pos + rotation.rotate(*p).f32()),
             color,
         );
         #[cfg(feature = "3d")]
         self.linestrip(
-            points.iter().map(|p| pos + rotation.rotate(*p).as_f32()),
+            points.iter().map(|p| pos + rotation.rotate(*p).f32()),
             color,
         );
 
@@ -127,13 +127,13 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     fn draw_arrow(&mut self, a: Vector, b: Vector, head_length: Scalar, color: Color) {
         #[cfg(feature = "2d")]
         {
-            self.arrow_2d(a.as_f32(), b.as_f32(), color)
+            self.arrow_2d(a.f32(), b.f32(), color)
                 .with_tip_length(head_length);
         }
 
         #[cfg(feature = "3d")]
         {
-            self.arrow(a.as_f32(), b.as_f32(), color)
+            self.arrow(a.f32(), b.f32(), color)
                 .with_tip_length(head_length);
         }
     }
@@ -153,7 +153,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
                 self.circle(
-                    position.extend(0.0).as_f32(),
+                    position.extend(0.0).f32(),
                     Direction3d::Z,
                     s.radius as f32,
                     color,
@@ -161,23 +161,23 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                self.sphere(position.as_f32(), rotation.as_f32(), s.radius as f32, color);
+                self.sphere(position.f32(), rotation.f32(), s.radius as f32, color);
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
                 self.cuboid(
-                    Transform::from_scale(Vector::from(s.half_extents).extend(0.0).as_f32() * 2.0)
-                        .with_translation(position.extend(0.0).as_f32())
-                        .with_rotation(Quaternion::from(*rotation).as_f32()),
+                    Transform::from_scale(Vector::from(s.half_extents).extend(0.0).f32() * 2.0)
+                        .with_translation(position.extend(0.0).f32())
+                        .with_rotation(Quaternion::from(*rotation).f32()),
                     color,
                 );
             }
             #[cfg(feature = "3d")]
             TypedShape::Cuboid(s) => {
                 self.cuboid(
-                    Transform::from_scale(Vector::from(s.half_extents).as_f32() * 2.0)
-                        .with_translation(position.as_f32())
-                        .with_rotation(rotation.as_f32()),
+                    Transform::from_scale(Vector::from(s.half_extents).f32() * 2.0)
+                        .with_translation(position.f32())
+                        .with_rotation(rotation.f32()),
                     color,
                 );
             }
@@ -441,9 +441,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(point.as_f32(), 3.0, point_color);
+            self.circle_2d(point.f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(point.as_f32(), default(), 0.025, point_color);
+            self.sphere(point.f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]
@@ -491,9 +491,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(hit.point1.as_f32(), 3.0, point_color);
+            self.circle_2d(hit.point1.f32(), 3.0, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(hit.point1.as_f32(), default(), 0.025, point_color);
+            self.sphere(hit.point1.f32(), default(), 0.025, point_color);
 
             // Draw hit normal as arrow
             #[cfg(feature = "2d")]

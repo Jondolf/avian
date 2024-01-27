@@ -26,54 +26,54 @@ pub trait AsF32 {
     /// The `f32` version of a math construct.
     type F32;
     /// Returns the `f32` version of this type.
-    fn as_f32(&self) -> Self::F32;
+    fn f32(&self) -> Self::F32;
 }
 
 impl AsF32 for DVec3 {
     type F32 = Vec3;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         self.as_vec3()
     }
 }
 
 impl AsF32 for Vec3 {
     type F32 = Self;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         *self
     }
 }
 
 impl AsF32 for DVec2 {
     type F32 = Vec2;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         self.as_vec2()
     }
 }
 
 impl AsF32 for Vec2 {
     type F32 = Self;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         *self
     }
 }
 
 impl AsF32 for Vec4 {
     type F32 = Self;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         *self
     }
 }
 
 impl AsF32 for DQuat {
     type F32 = Quat;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         self.as_quat()
     }
 }
 
 impl AsF32 for Quat {
     type F32 = Self;
-    fn as_f32(&self) -> Self::F32 {
+    fn f32(&self) -> Self::F32 {
         *self
     }
 }

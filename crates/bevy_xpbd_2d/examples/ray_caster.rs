@@ -60,8 +60,8 @@ fn setup(
 fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizmos) {
     for (ray, hits) in &mut rays {
         // Convert to Vec3 for lines
-        let origin = ray.global_origin().as_f32();
-        let direction = ray.global_direction().as_f32();
+        let origin = ray.global_origin().f32();
+        let direction = ray.global_direction().f32();
 
         for hit in hits.iter() {
             gizmos.line_2d(

@@ -266,9 +266,9 @@ fn init_transforms(
                 if let Some(ref mut transform) = transform {
                     // Initialize new translation as global position
                     #[cfg(feature = "2d")]
-                    let mut new_translation = pos.as_f32().extend(transform.translation.z);
+                    let mut new_translation = pos.f32().extend(transform.translation.z);
                     #[cfg(feature = "3d")]
-                    let mut new_translation = pos.as_f32();
+                    let mut new_translation = pos.f32();
 
                     // If the body is a child, subtract the parent's global translation
                     // to get the local translation
@@ -276,11 +276,11 @@ fn init_transforms(
                         if let Some(parent_pos) = parent_pos {
                             #[cfg(feature = "2d")]
                             {
-                                new_translation -= parent_pos.as_f32().extend(new_translation.z);
+                                new_translation -= parent_pos.f32().extend(new_translation.z);
                             }
                             #[cfg(feature = "3d")]
                             {
-                                new_translation -= parent_pos.as_f32();
+                                new_translation -= parent_pos.f32();
                             }
                         } else if let Some(parent_transform) = parent_transform {
                             new_translation -= parent_transform.translation();
@@ -341,14 +341,14 @@ fn init_transforms(
             if config.position_to_transform {
                 if let Some(ref mut transform) = transform {
                     // Initialize new rotation as global rotation
-                    let mut new_rotation = Quaternion::from(*rot).as_f32();
+                    let mut new_rotation = Quaternion::from(*rot).f32();
 
                     // If the body is a child, subtract the parent's global rotation
                     // to get the local rotation
                     if let Some(parent) = parent {
                         if let Ok((_, parent_rot, parent_transform)) = parents.get(parent.get()) {
                             if let Some(parent_rot) = parent_rot {
-                                new_rotation *= Quaternion::from(*parent_rot).as_f32().inverse();
+                                new_rotation *= Quaternion::from(*parent_rot).f32().inverse();
                             } else if let Some(parent_transform) = parent_transform {
                                 new_rotation *=
                                     parent_transform.compute_transform().rotation.inverse();

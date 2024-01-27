@@ -172,15 +172,15 @@ fn debug_render_axes(
             // Draw dot at the center of mass
             #[cfg(feature = "2d")]
             gizmos.circle_2d(
-                global_com.as_f32(),
+                global_com.f32(),
                 // Scale dot size based on axis lengths
                 (lengths.x + lengths.y) / 20.0,
                 center_color,
             );
             #[cfg(feature = "3d")]
             gizmos.sphere(
-                global_com.as_f32(),
-                rot.as_f32(),
+                global_com.f32(),
+                rot.f32(),
                 // Scale dot size based on axis lengths
                 (lengths.x + lengths.y + lengths.z) / 30.0,
                 center_color,
@@ -217,8 +217,8 @@ fn debug_render_aabbs(
             }
 
             gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).as_f32())
-                    .with_translation(Vector::from(aabb.center()).extend(0.0).as_f32()),
+                Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).f32())
+                    .with_translation(Vector::from(aabb.center()).extend(0.0).f32()),
                 color,
             );
         }
@@ -240,8 +240,8 @@ fn debug_render_aabbs(
             }
 
             gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).as_f32())
-                    .with_translation(Vector::from(aabb.center()).as_f32()),
+                Transform::from_scale(Vector::from(aabb.extents()).f32())
+                    .with_translation(Vector::from(aabb.center()).f32()),
                 color,
             );
         }
@@ -303,10 +303,10 @@ fn debug_render_contacts(
 
         for manifold in contacts.manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let p1 = contact.global_point1(position1, rotation1).as_f32();
-                let p2 = contact.global_point2(position2, rotation2).as_f32();
-                let normal1 = contact.global_normal1(rotation1).as_f32();
-                let normal2 = contact.global_normal2(rotation2).as_f32();
+                let p1 = contact.global_point1(position1, rotation1).f32();
+                let p2 = contact.global_point2(position2, rotation2).f32();
+                let normal1 = contact.global_normal1(rotation1).f32();
+                let normal2 = contact.global_normal2(rotation2).f32();
 
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {

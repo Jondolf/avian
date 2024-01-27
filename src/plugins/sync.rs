@@ -461,7 +461,7 @@ fn transform_to_position(
         {
             rotation.0 = (previous_transform.rotation
                 + (transform.rotation - previous_transform.rotation)
-                + (rotation.as_f32() - previous_transform.rotation))
+                + (rotation.f32() - previous_transform.rotation))
                 .normalize()
                 .adjust_precision();
         }
@@ -499,10 +499,10 @@ fn position_to_transform(
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
                 let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| {
-                    pos.as_f32().extend(parent_transform.translation.z)
+                    pos.f32().extend(parent_transform.translation.z)
                 });
                 let parent_rot = parent_rot.map_or(parent_transform.rotation, |rot| {
-                    Quaternion::from(*rot).as_f32()
+                    Quaternion::from(*rot).f32()
                 });
                 let parent_scale = parent_transform.scale;
                 let parent_transform = Transform::from_translation(parent_pos)
@@ -513,10 +513,10 @@ fn position_to_transform(
                 // computed from the its global transform and its parents global transform
                 let new_transform = GlobalTransform::from(
                     Transform::from_translation(
-                        pos.as_f32()
+                        pos.f32()
                             .extend(parent_pos.z + transform.translation.z * parent_scale.z),
                     )
-                    .with_rotation(Quaternion::from(*rot).as_f32()),
+                    .with_rotation(Quaternion::from(*rot).f32()),
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
 
@@ -524,8 +524,8 @@ fn position_to_transform(
                 transform.rotation = new_transform.rotation;
             }
         } else {
-            transform.translation = pos.as_f32().extend(transform.translation.z);
-            transform.rotation = Quaternion::from(*rot).as_f32();
+            transform.translation = pos.f32().extend(transform.translation.z);
+            transform.rotation = Quaternion::from(*rot).f32();
         }
     }
 }
@@ -545,9 +545,8 @@ fn position_to_transform(
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
-                let parent_pos =
-                    parent_pos.map_or(parent_transform.translation, |pos| pos.as_f32());
-                let parent_rot = parent_rot.map_or(parent_transform.rotation, |rot| rot.as_f32());
+                let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| pos.f32());
+                let parent_rot = parent_rot.map_or(parent_transform.rotation, |rot| rot.f32());
                 let parent_scale = parent_transform.scale;
                 let parent_transform = Transform::from_translation(parent_pos)
                     .with_rotation(parent_rot)
@@ -556,7 +555,7 @@ fn position_to_transform(
                 // The new local transform of the child body,
                 // computed from the its global transform and its parents global transform
                 let new_transform = GlobalTransform::from(
-                    Transform::from_translation(pos.as_f32()).with_rotation(rot.as_f32()),
+                    Transform::from_translation(pos.f32()).with_rotation(rot.f32()),
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
 
@@ -564,8 +563,8 @@ fn position_to_transform(
                 transform.rotation = new_transform.rotation;
             }
         } else {
-            transform.translation = pos.as_f32();
-            transform.rotation = rot.as_f32();
+            transform.translation = pos.f32();
+            transform.rotation = rot.f32();
         }
     }
 }

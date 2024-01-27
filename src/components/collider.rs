@@ -180,6 +180,24 @@ impl Default for Collider {
     }
 }
 
+/// A trait for creating [`Collider`]s from other types.
+pub trait IntoCollider {
+    /// Creates a [`Collider`] from `self`.
+    fn collider(&self) -> Collider;
+}
+
+impl IntoCollider for Circle {
+    fn collider(&self) -> Collider {
+        Collider::ball(self.radius)
+    }
+}
+
+impl<C: IntoCollider> From<C> for Collider {
+    fn from(value: C) -> Self {
+        value.collider()
+    }
+}
+
 impl fmt::Debug for Collider {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.shape_scaled().as_typed_shape() {
