@@ -74,7 +74,7 @@ impl AdjustPrecision for Quat {
 impl AdjustPrecision for DQuat {
     type Adjusted = Quaternion;
     fn adjust_precision(&self) -> Self::Adjusted {
-        self.as_f32()
+        self.as_quat()
     }
 }
 

@@ -67,7 +67,7 @@ impl AsF32 for Vec4 {
 impl AsF32 for DQuat {
     type F32 = Quat;
     fn as_f32(&self) -> Self::F32 {
-        DQuat::as_f32(*self)
+        self.as_quat()
     }
 }
 
