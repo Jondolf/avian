@@ -1197,8 +1197,8 @@ impl ColliderParent {
 }
 
 impl MapEntities for ColliderParent {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.0 = entity_mapper.get_or_reserve(self.0)
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.0 = entity_mapper.map_entity(self.0)
     }
 }
 
@@ -1327,12 +1327,12 @@ impl Default for ColliderAabb {
 pub struct CollidingEntities(pub HashSet<Entity>);
 
 impl MapEntities for CollidingEntities {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.0 = self
             .0
             .clone()
             .into_iter()
-            .map(|e| entity_mapper.get_or_reserve(e))
+            .map(|e| entity_mapper.map_entity(e))
             .collect()
     }
 }

@@ -188,8 +188,8 @@ impl PenetrationConstraint {
 impl PositionConstraint for PenetrationConstraint {}
 
 impl MapEntities for PenetrationConstraint {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
-        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.entity1 = entity_mapper.map_entity(self.entity1);
+        self.entity2 = entity_mapper.map_entity(self.entity2);
     }
 }

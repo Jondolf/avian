@@ -173,9 +173,9 @@ struct AabbIntervals(
 );
 
 impl MapEntities for AabbIntervals {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for interval in self.0.iter_mut() {
-            interval.0 = entity_mapper.get_or_reserve(interval.0);
+            interval.0 = entity_mapper.map_entity(interval.0);
         }
     }
 }

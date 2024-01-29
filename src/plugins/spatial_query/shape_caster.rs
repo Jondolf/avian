@@ -390,7 +390,7 @@ impl ShapeHits {
 }
 
 impl MapEntities for ShapeHits {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for hit in &mut self.vector {
             hit.map_entities(entity_mapper);
         }
@@ -421,7 +421,7 @@ pub struct ShapeHitData {
 }
 
 impl MapEntities for ShapeHitData {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity = entity_mapper.get_or_reserve(self.entity);
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.entity = entity_mapper.map_entity(self.entity);
     }
 }
