@@ -81,7 +81,8 @@ fn setup(
         PbrBundle {
             mesh: cube_mesh.clone(),
             material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-            transform: Transform::from_xyz(-500.0, 2.0, 0.0).with_scale(Vec3::new(1000.0, 0.1, 0.1)),
+            transform: Transform::from_xyz(-500.0, 2.0, 0.0)
+                .with_scale(Vec3::new(1000.0, 0.1, 0.1)),
             ..default()
         },
         RayIndicator,
@@ -154,7 +155,7 @@ fn raycast(
     query: SpatialQuery,
     mut materials: ResMut<Assets<StandardMaterial>>,
     cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
-    mut indicator_transform: Query<&mut Transform, With<RayIndicator>>
+    mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
 ) {
     let origin = Vector {
         x: -200.0,
@@ -192,10 +193,8 @@ fn raycast(
         // set length of rayindicator to look more like a laser
         let contact_point = (origin + direction * ray_hit_data.time_of_impact).x;
         let target_scale = 1000.0 + contact_point * 2.0;
-        ray_indicator_transform.scale.x = target_scale;
-
-    }
-    else {
+        ray_indicator_transform.scale.x = target_scale as f32;
+    } else {
         ray_indicator_transform.scale.x = 2000.0;
     }
 }
