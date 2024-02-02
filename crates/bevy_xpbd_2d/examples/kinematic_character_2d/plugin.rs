@@ -12,7 +12,6 @@ impl Plugin for CharacterControllerPlugin {
                     keyboard_input,
                     gamepad_input,
                     update_grounded,
-                    apply_deferred,
                     apply_gravity,
                     movement,
                     apply_movement_damping,

@@ -103,17 +103,13 @@ impl Plugin for PreparePlugin {
             .register_type::<PrepareConfig>()
             .add_systems(
                 self.schedule,
+                // Run transform propagation if new bodies or colliders have been added
                 (
-                    apply_deferred,
-                    // Run transform propagation if new bodies or colliders have been added
-                    (
-                        bevy::transform::systems::sync_simple_transforms,
-                        bevy::transform::systems::propagate_transforms,
-                    )
-                        .chain()
-                        .run_if(any_new_physics_entities),
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
                 )
                     .chain()
+                    .run_if(any_new_physics_entities)
                     .in_set(PrepareSet::PropagateTransforms),
             )
             .add_systems(
@@ -126,12 +122,7 @@ impl Plugin for PreparePlugin {
             )
             .add_systems(
                 self.schedule,
-                (
-                    init_colliders,
-                    apply_deferred,
-                    update_collider_parents,
-                    apply_deferred,
-                )
+                (init_colliders, update_collider_parents)
                     .chain()
                     .in_set(PrepareSet::InitColliders),
             )
@@ -151,8 +142,6 @@ impl Plugin for PreparePlugin {
                     update_mass_properties,
                     clamp_collider_density,
                     clamp_restitution,
-                    // All the components we added above must exist before we can simulate the bodies.
-                    apply_deferred,
                 )
                     .chain()
                     .in_set(PrepareSet::Finalize),

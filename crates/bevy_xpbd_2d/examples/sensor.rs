@@ -14,7 +14,6 @@ fn main() {
             (
                 keyboard_input1,
                 keyboard_input2,
-                apply_deferred,
                 movement.run_if(has_movement), // don't mutably access the character if there is no movement
                 apply_movement_damping,
                 apply_pressure_plate_colour,
