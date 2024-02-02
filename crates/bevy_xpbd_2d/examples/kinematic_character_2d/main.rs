@@ -15,7 +15,7 @@ mod plugin;
 
 use bevy::{
     prelude::*,
-    render::{render_asset::RenderAssetPersistencePolicy, render_resource::PrimitiveTopology},
+    render::{render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
     sprite::MaterialMesh2dBundle,
 };
 use bevy_xpbd_2d::{math::*, prelude::*};
@@ -143,7 +143,7 @@ fn setup(
 
     let mut ramp_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
-        RenderAssetPersistencePolicy::Keep,
+        RenderAssetUsages::default(),
     );
 
     ramp_mesh.insert_attribute(
@@ -170,7 +170,7 @@ fn setup(
 
     let mut ramp_mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
-        RenderAssetPersistencePolicy::Keep,
+        RenderAssetUsages::default(),
     );
 
     ramp_mesh.insert_attribute(
