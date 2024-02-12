@@ -185,7 +185,7 @@ impl MapEntities for AabbIntervals {
 fn update_aabb_intervals(
     aabbs: Query<(
         &ColliderAabb,
-        &ColliderParent,
+        Option<&ColliderParent>,
         Option<&CollisionLayers>,
         Ref<Position>,
         Ref<Rotation>,
@@ -199,10 +199,11 @@ fn update_aabb_intervals(
                 aabbs.get(*collider_entity)
             {
                 *aabb = *new_aabb;
-                *collider_parent = *new_parent;
+                *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
 
-                let is_static = rbs.get(new_parent.get()).is_ok_and(RigidBody::is_static);
+                let is_static =
+                    new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
                 *is_inactive = is_static || (!position.is_changed() && !rotation.is_changed());
 
                 true
@@ -219,7 +220,7 @@ fn add_new_aabb_intervals(
     aabbs: Query<
         (
             Entity,
-            &ColliderParent,
+            Option<&ColliderParent>,
             &ColliderAabb,
             Option<&RigidBody>,
             Option<&CollisionLayers>,
@@ -231,7 +232,7 @@ fn add_new_aabb_intervals(
     let aabbs = aabbs.iter().map(|(ent, parent, aabb, rb, layers)| {
         (
             ent,
-            *parent,
+            parent.map_or(ColliderParent(ent), |p| *p),
             *aabb,
             // Default to treating collider as immovable/static for filtering unnecessary collision checks
             layers.map_or(CollisionLayers::default(), |layers| *layers),
@@ -295,7 +296,7 @@ fn sweep_and_prune(
 /// Sorts a list iteratively using comparisons. In an ascending sort order, when a smaller value is encountered, it is moved lower in the list until it is larger than the item before it.
 ///
 /// This is relatively slow for large lists, but very efficient in cases where the list is already mostly sorted.
-fn insertion_sort<T>(items: &mut Vec<T>, comparison: fn(&T, &T) -> bool) {
+fn insertion_sort<T>(items: &mut [T], comparison: fn(&T, &T) -> bool) {
     for i in 1..items.len() {
         let mut j = i;
         while j > 0 && comparison(&items[j - 1], &items[j]) {

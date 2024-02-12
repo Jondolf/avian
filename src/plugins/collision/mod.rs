@@ -229,8 +229,8 @@ impl Collisions {
     /// The order of the entities does not matter.
     pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
         self.0
-            .remove(&(entity1, entity2))
-            .or_else(|| self.0.remove(&(entity2, entity1)))
+            .swap_remove(&(entity1, entity2))
+            .or_else(|| self.0.swap_remove(&(entity2, entity1)))
     }
 
     /// Removes all collisions that involve the given entity.

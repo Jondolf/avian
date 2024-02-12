@@ -211,7 +211,11 @@ fn penetration_constraints(
                 }
             }
 
-            if contacts.during_current_substep && body1.rb.is_added() || body2.rb.is_added() {
+            if contacts.during_current_substep
+                && (body1.rb.is_added() || body2.rb.is_added())
+                && body1.rb.is_dynamic()
+                && body2.rb.is_dynamic()
+            {
                 // if the RigidBody entity has a name, use that for debug.
                 let debug_id1 = match name1 {
                     Some(n) => format!("{:?} ({n})", body1.entity),
