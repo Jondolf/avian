@@ -296,7 +296,7 @@ fn sweep_and_prune(
 /// Sorts a list iteratively using comparisons. In an ascending sort order, when a smaller value is encountered, it is moved lower in the list until it is larger than the item before it.
 ///
 /// This is relatively slow for large lists, but very efficient in cases where the list is already mostly sorted.
-fn insertion_sort<T>(items: &mut Vec<T>, comparison: fn(&T, &T) -> bool) {
+fn insertion_sort<T>(items: &mut [T], comparison: fn(&T, &T) -> bool) {
     for i in 1..items.len() {
         let mut j = i;
         while j > 0 && comparison(&items[j - 1], &items[j]) {
