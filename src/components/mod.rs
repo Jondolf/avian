@@ -334,15 +334,18 @@ impl Position {
 impl From<GlobalTransform> for Position {
     #[cfg(feature = "2d")]
     fn from(value: GlobalTransform) -> Self {
-        Self::from_xy(value.translation().x, value.translation().y)
+        Self::from_xy(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+        )
     }
 
     #[cfg(feature = "3d")]
     fn from(value: GlobalTransform) -> Self {
         Self::from_xyz(
-            value.translation().x,
-            value.translation().y,
-            value.translation().z,
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+            value.translation().adjust_precision().z,
         )
     }
 }
@@ -350,15 +353,18 @@ impl From<GlobalTransform> for Position {
 impl From<&GlobalTransform> for Position {
     #[cfg(feature = "2d")]
     fn from(value: &GlobalTransform) -> Self {
-        Self::from_xy(value.translation().x, value.translation().y)
+        Self::from_xy(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+        )
     }
 
     #[cfg(feature = "3d")]
     fn from(value: &GlobalTransform) -> Self {
         Self::from_xyz(
-            value.translation().x,
-            value.translation().y,
-            value.translation().z,
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+            value.translation().adjust_precision().z,
         )
     }
 }
