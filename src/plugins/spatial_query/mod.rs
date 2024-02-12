@@ -244,6 +244,7 @@ type RayCasterPositionQueryComponents = (
     Option<&'static GlobalTransform>,
 );
 
+#[allow(clippy::type_complexity)]
 fn update_ray_caster_positions(
     mut rays: Query<RayCasterPositionQueryComponents>,
     parents: Query<
@@ -259,71 +260,45 @@ fn update_ray_caster_positions(
         let origin = ray.origin;
         let direction = ray.direction;
 
-        let mut temp_position = None;
-        let mut temp_rotation = None;
+        let global_position = position.copied().or(transform.map(Position::from));
+        let global_rotation = rotation.copied().or(transform.map(Rotation::from));
 
-        if let Some(transform) = transform {
-            temp_position = Some(Position::from(transform));
-            temp_rotation = Some(Rotation::from(transform));
-        }
-
-        let (global_position, global_rotation) = match (position, rotation) {
-            (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
-            _ if temp_position.is_some() && temp_rotation.is_some() => {
-                (temp_position.as_ref(), temp_rotation.as_ref())
-            }
-            _ => (None, None),
-        };
-
-        if let Some(position) = global_position {
-            ray.set_global_origin(position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)));
+        if let Some(global_position) = global_position {
+            ray.set_global_origin(
+                global_position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)),
+            );
         } else if parent.is_none() {
             ray.set_global_origin(origin);
         }
 
-        if let Some(rotation) = global_rotation {
-            let global_direction = rotation.rotate(ray.direction);
+        if let Some(global_rotation) = global_rotation {
+            let global_direction = global_rotation.rotate(ray.direction);
             ray.set_global_direction(global_direction);
         } else if parent.is_none() {
             ray.set_global_direction(direction);
         }
 
-        if let Some(parent) = parent {
-            if let Ok((parent_position, parent_rotation, parent_transform)) =
-                parents.get(parent.get())
-            {
-                // Temporary storage for parent transformations
-                let mut temp_parent_position = None;
-                let mut temp_parent_rotation = None;
+        if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
+            parent.map(|p| parents.get(p.get()))
+        {
+            let parent_position = parent_position
+                .copied()
+                .or(parent_transform.map(Position::from));
+            let parent_rotation = parent_rotation
+                .copied()
+                .or(parent_transform.map(Rotation::from));
 
-                if let Some(parent_transform) = parent_transform {
-                    temp_parent_position = Some(Position::from(parent_transform));
-                    temp_parent_rotation = Some(Rotation::from(parent_transform));
+            // Apply parent transformations
+            if global_position.is_none() {
+                if let Some(position) = parent_position {
+                    let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
+                    ray.set_global_origin(position.0 + rotation.rotate(origin));
                 }
-
-                let (final_position, final_rotation) = match (parent_position, parent_rotation) {
-                    (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
-                    _ if temp_parent_position.is_some() && temp_parent_rotation.is_some() => {
-                        (temp_parent_position.as_ref(), temp_parent_rotation.as_ref())
-                    }
-                    _ => (None, None),
-                };
-
-                // Apply parent transformations
-                if global_position.is_none() {
-                    if let Some(position) = final_position {
-                        let rotation = global_rotation.map_or(
-                            final_rotation.map_or(Rotation::default(), |rot| *rot),
-                            |rot| *rot,
-                        );
-                        ray.set_global_origin(position.0 + rotation.rotate(origin));
-                    }
-                }
-                if global_rotation.is_none() {
-                    if let Some(rotation) = final_rotation {
-                        let global_direction = rotation.rotate(ray.direction);
-                        ray.set_global_direction(global_direction);
-                    }
+            }
+            if global_rotation.is_none() {
+                if let Some(rotation) = parent_rotation {
+                    let global_direction = rotation.rotate(ray.direction);
+                    ray.set_global_direction(global_direction);
                 }
             }
         }
@@ -338,6 +313,7 @@ type ShapeCasterPositionQueryComponents = (
     Option<&'static GlobalTransform>,
 );
 
+#[allow(clippy::type_complexity)]
 fn update_shape_caster_positions(
     mut shape_casters: Query<ShapeCasterPositionQueryComponents>,
     parents: Query<
@@ -354,39 +330,28 @@ fn update_shape_caster_positions(
         let shape_rotation = shape_caster.shape_rotation;
         let direction = shape_caster.direction;
 
-        let mut temp_position = None;
-        let mut temp_rotation = None;
+        let global_position = position.copied().or(transform.map(Position::from));
+        let global_rotation = rotation.copied().or(transform.map(Rotation::from));
 
-        if let Some(transform) = transform {
-            temp_position = Some(Position::from(transform));
-            temp_rotation = Some(Rotation::from(transform));
-        }
-
-        let (global_position, global_rotation) = match (position, rotation) {
-            (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
-            _ if temp_position.is_some() && temp_rotation.is_some() => {
-                (temp_position.as_ref(), temp_rotation.as_ref())
-            }
-            _ => (None, None),
-        };
-
-        if let Some(position) = global_position {
-            shape_caster
-                .set_global_origin(position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)));
+        if let Some(global_position) = global_position {
+            shape_caster.set_global_origin(
+                global_position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)),
+            );
         } else if parent.is_none() {
             shape_caster.set_global_origin(origin);
         }
 
-        if let Some(rotation) = global_rotation {
-            let global_direction = rotation.rotate(shape_caster.direction);
+        if let Some(global_rotation) = global_rotation {
+            let global_direction = global_rotation.rotate(shape_caster.direction);
             shape_caster.set_global_direction(global_direction);
             #[cfg(feature = "2d")]
             {
-                shape_caster.set_global_shape_rotation(shape_rotation + rotation.as_radians());
+                shape_caster
+                    .set_global_shape_rotation(shape_rotation + global_rotation.as_radians());
             }
             #[cfg(feature = "3d")]
             {
-                shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
+                shape_caster.set_global_shape_rotation(shape_rotation + global_rotation.0);
             }
         } else if parent.is_none() {
             shape_caster.set_global_direction(direction);
@@ -400,49 +365,35 @@ fn update_shape_caster_positions(
             }
         }
 
-        if let Some(parent) = parent {
-            if let Ok((parent_position, parent_rotation, parent_transform)) =
-                parents.get(parent.get())
-            {
-                // Temporary storage for parent transformations
-                let mut temp_parent_position = None;
-                let mut temp_parent_rotation = None;
+        if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
+            parent.map(|p| parents.get(p.get()))
+        {
+            let parent_position = parent_position
+                .copied()
+                .or(parent_transform.map(Position::from));
+            let parent_rotation = parent_rotation
+                .copied()
+                .or(parent_transform.map(Rotation::from));
 
-                if let Some(parent_transform) = parent_transform {
-                    temp_parent_position = Some(Position::from(parent_transform));
-                    temp_parent_rotation = Some(Rotation::from(parent_transform));
+            // Apply parent transformations
+            if global_position.is_none() {
+                if let Some(position) = parent_position {
+                    let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
+                    shape_caster.set_global_origin(position.0 + rotation.rotate(origin));
                 }
-
-                let (final_position, final_rotation) = match (parent_position, parent_rotation) {
-                    (Some(pos), Some(rot)) => (Some(pos), Some(rot)),
-                    _ if temp_parent_position.is_some() && temp_parent_rotation.is_some() => {
-                        (temp_parent_position.as_ref(), temp_parent_rotation.as_ref())
+            }
+            if global_rotation.is_none() {
+                if let Some(rotation) = parent_rotation {
+                    let global_direction = rotation.rotate(shape_caster.direction);
+                    shape_caster.set_global_direction(global_direction);
+                    #[cfg(feature = "2d")]
+                    {
+                        shape_caster
+                            .set_global_shape_rotation(shape_rotation + rotation.as_radians());
                     }
-                    _ => (None, None),
-                };
-
-                if global_position.is_none() {
-                    if let Some(position) = final_position {
-                        let rotation = global_rotation.map_or(
-                            final_rotation.map_or(Rotation::default(), |rot| *rot),
-                            |rot| *rot,
-                        );
-                        shape_caster.set_global_origin(position.0 + rotation.rotate(origin));
-                    }
-                }
-                if global_rotation.is_none() {
-                    if let Some(rotation) = final_rotation {
-                        let global_direction = rotation.rotate(shape_caster.direction);
-                        shape_caster.set_global_direction(global_direction);
-                        #[cfg(feature = "2d")]
-                        {
-                            shape_caster
-                                .set_global_shape_rotation(shape_rotation + rotation.as_radians());
-                        }
-                        #[cfg(feature = "3d")]
-                        {
-                            shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
-                        }
+                    #[cfg(feature = "3d")]
+                    {
+                        shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
                     }
                 }
             }
