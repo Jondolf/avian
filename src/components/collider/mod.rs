@@ -18,6 +18,28 @@ use parry::{
     shape::{RoundShape, SharedShape, TypedShape},
 };
 
+#[cfg(feature = "2d")]
+mod primitives2d;
+#[cfg(feature = "3d")]
+mod primitives3d;
+
+#[cfg(feature = "2d")]
+pub(crate) use primitives2d::EllipseWrapper;
+#[cfg(feature = "3d")]
+pub(crate) use primitives3d::TorusWrapper;
+
+/// A trait for creating [`Collider`]s from other types.
+pub trait IntoCollider {
+    /// Creates a [`Collider`] from `self`.
+    fn collider(&self) -> Collider;
+}
+
+impl<C: IntoCollider> From<C> for Collider {
+    fn from(value: C) -> Self {
+        value.collider()
+    }
+}
+
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
 /// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.
@@ -427,6 +449,12 @@ impl Collider {
         SharedShape::ball(radius).into()
     }
 
+    /// Creates a collider with an ellipse shape defined by a half-width and half-height.
+    #[cfg(feature = "2d")]
+    pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
+        SharedShape::new(EllipseWrapper(Ellipse::new(half_width, half_height))).into()
+    }
+
     /// Creates a collider with a cuboid shape defined by its extents.
     #[cfg(feature = "2d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
@@ -474,6 +502,31 @@ impl Collider {
         SharedShape::cone(height * 0.5, radius).into()
     }
 
+    /// Creates a collider with a torus shape defined by its minor and major radii.
+    #[cfg(feature = "3d")]
+    pub fn torus(minor_radius: Scalar, major_radius: Scalar) -> Self {
+        Torus {
+            minor_radius,
+            major_radius,
+        }
+        .collider()
+    }
+
+    /* TODO
+    /// Creates a collider with a conical frustum shape defined its height along the `Y` axis and the radii of the top and bottom.
+    #[cfg(feature = "3d")]
+    pub fn conical_frustum(height: Scalar, radius_top: Scalar, radius_bottom: Scalar) -> Self {
+        use self::primitives3d::ConicalFrustumWrapper;
+
+        SharedShape::new(ConicalFrustumWrapper(ConicalFrustum {
+            radius_top,
+            radius_bottom,
+            height,
+        }))
+        .into()
+    }
+    */
+
     /// Creates a collider with a capsule shape defined by its height along the `Y` axis and its radius.
     pub fn capsule(height: Scalar, radius: Scalar) -> Self {
         SharedShape::capsule(
@@ -502,6 +555,12 @@ impl Collider {
     /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
+    }
+
+    /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
+    #[cfg(feature = "2d")]
+    pub fn regular_polygon(circumradius: Scalar, sides: usize) -> Self {
+        RegularPolygon::new(circumradius, sides).collider()
     }
 
     /// Creates a collider with a polyline shape defined by its vertices and optionally an index buffer.
@@ -817,14 +876,28 @@ fn scale_shape(
             Some(Either::Left(b)) => Ok(SharedShape::new(b)),
             Some(Either::Right(b)) => Ok(SharedShape::new(b)),
         },
-        TypedShape::Ball(b) => match b.scaled(&scale.into(), num_subdivisions) {
-            None => {
-                log::error!("Failed to apply scale {} to Ball shape.", scale);
-                Ok(SharedShape::ball(0.0))
+        TypedShape::Ball(b) => {
+            #[cfg(feature = "2d")]
+            {
+                if scale.x == scale.y {
+                    Ok(SharedShape::ball(b.radius * scale.x))
+                } else {
+                    // A 2D circle becomes an ellipse when scaled non-uniformly.
+                    Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                        half_size: Vec2::splat(b.radius) * scale,
+                    })))
+                }
             }
-            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
-            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
-        },
+            #[cfg(feature = "3d")]
+            match b.scaled(&scale.into(), num_subdivisions) {
+                None => {
+                    log::error!("Failed to apply scale {} to Ball shape.", scale);
+                    Ok(SharedShape::ball(0.0))
+                }
+                Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+                Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+            }
+        }
         TypedShape::Segment(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
         TypedShape::Triangle(t) => Ok(SharedShape::new(t.scaled(&scale.into()))),
         TypedShape::RoundTriangle(t) => Ok(SharedShape::new(RoundShape {
@@ -957,7 +1030,27 @@ fn scale_shape(
             }
             Ok(SharedShape::compound(scaled))
         }
-        _ => Err(parry::query::Unsupported),
+        TypedShape::Custom(_id) => {
+            #[cfg(feature = "2d")]
+            if _id == 1 {
+                if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
+                    return Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                        half_size: ellipse.half_size * scale.f32(),
+                    })));
+                }
+            }
+            #[cfg(feature = "3d")]
+            if _id == 3 {
+                if let Some(torus) = shape.as_shape::<TorusWrapper>() {
+                    return scale_shape(
+                        &SharedShape::new(torus.1.clone()),
+                        scale,
+                        num_subdivisions,
+                    );
+                }
+            }
+            Err(parry::query::Unsupported)
+        }
     }
 }
 
