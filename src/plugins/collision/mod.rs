@@ -268,11 +268,11 @@ pub struct Contacts {
     pub during_previous_frame: bool,
     /// The total normal impulse applied to the first body in a collision.
     ///
-    /// To get the corresponding force, multiply the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
     pub total_normal_impulse: Scalar,
     /// The total tangent impulse applied to the first body in a collision.
     ///
-    /// To get the corresponding force, multiply the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Scalar,
 }
@@ -290,6 +290,7 @@ impl Contacts {
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
     /// typically use `Time<Substeps>`.
+    #[doc(alias = "total_friction_force")]
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
         self.total_tangent_impulse / delta_time
     }
@@ -400,7 +401,7 @@ pub struct ContactData {
     pub penetration: Scalar,
     /// The impulse applied to the first body along the normal.
     ///
-    /// To get the corresponding force, multiply the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
     ///
     /// ## Caveats
     ///
@@ -414,7 +415,7 @@ pub struct ContactData {
     pub normal_impulse: Scalar,
     /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, multiply the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
     ///
     /// ## Caveats
     ///
@@ -467,6 +468,7 @@ impl ContactData {
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
     /// typically use `Time<Substeps>`.
+    #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
         self.tangent_impulse / delta_time
     }
