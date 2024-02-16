@@ -16,8 +16,14 @@ pub struct PenetrationConstraint {
     pub entity1: Entity,
     /// Second entity in the constraint.
     pub entity2: Entity,
+    /// The entity of the collider of the first body.
+    pub collider_entity1: Entity,
+    /// The entity of the collider of the second body.
+    pub collider_entity2: Entity,
     /// Data associated with the contact.
     pub contact: ContactData,
+    /// The index of the contact in the manifold.
+    pub manifold_index: usize,
     /// Vector from the first entity's center of mass to the contact point in local coordinates.
     pub r1: Vector,
     /// Vector from the second entity's center of mass to the contact point in local coordinates.
@@ -28,16 +34,10 @@ pub struct PenetrationConstraint {
     pub tangent_lagrange: Scalar,
     /// The constraint's compliance, the inverse of stiffness, has the unit meters / Newton.
     pub compliance: Scalar,
-    /// The coefficient of [dynamic friction](Friction) in this contact.
-    pub dynamic_friction_coefficient: Scalar,
-    /// The coefficient of [static friction](Friction) in this contact.
-    pub static_friction_coefficient: Scalar,
-    /// The coefficient of [restitution](Restitution) in this contact.
-    pub restitution_coefficient: Scalar,
-    /// Normal force acting along the constraint.
-    pub normal_force: Vector,
-    /// Static friction force acting along this constraint.
-    pub static_friction_force: Vector,
+    /// The effective [friction](Friction) of the contact.
+    pub friction: Friction,
+    /// The effective [restitution](Restitution) of the contact.
+    pub restitution: Restitution,
 }
 
 impl XpbdConstraint<2> for PenetrationConstraint {
@@ -70,10 +70,15 @@ impl XpbdConstraint<2> for PenetrationConstraint {
 
 impl PenetrationConstraint {
     /// Creates a new [`PenetrationConstraint`] with the given bodies and contact data.
+    ///
+    /// The `manifold_index` is the index of the contact in a [`ContactManifold`].
     pub fn new(
         body1: &RigidBodyQueryItem,
         body2: &RigidBodyQueryItem,
+        collider_entity1: Entity,
+        collider_entity2: Entity,
         contact: ContactData,
+        manifold_index: usize,
     ) -> Self {
         let r1 = contact.point1 - body1.center_of_mass.0;
         let r2 = contact.point2 - body2.center_of_mass.0;
@@ -81,17 +86,17 @@ impl PenetrationConstraint {
         Self {
             entity1: body1.entity,
             entity2: body2.entity,
+            collider_entity1,
+            collider_entity2,
             contact,
+            manifold_index,
             r1,
             r2,
             normal_lagrange: 0.0,
             tangent_lagrange: 0.0,
             compliance: 0.0,
-            dynamic_friction_coefficient: 0.0,
-            static_friction_coefficient: 0.0,
-            restitution_coefficient: 0.0,
-            normal_force: Vector::ZERO,
-            static_friction_force: Vector::ZERO,
+            friction: body1.friction.combine(*body2.friction),
+            restitution: body1.restitution.combine(*body2.restitution),
         }
     }
 
@@ -126,8 +131,10 @@ impl PenetrationConstraint {
         // Apply positional correction to solve overlap
         self.apply_positional_correction(body1, body2, delta_lagrange, normal, r1, r2);
 
-        // Update normal force using the equation f = lambda * n / h^2
-        self.normal_force = self.normal_lagrange * normal / dt.powi(2);
+        // Update normal impulse.
+        // f = lambda / h^2
+        // i = f * h = lambda / h
+        self.contact.normal_impulse += self.normal_lagrange / dt;
     }
 
     fn solve_friction(
@@ -170,7 +177,7 @@ impl PenetrationConstraint {
         let w = [w1, w2];
 
         // Apply static friction if |delta_x_perp| < mu_s * d
-        if sliding_len < self.static_friction_coefficient * penetration {
+        if sliding_len < self.friction.static_coefficient * penetration {
             // Compute Lagrange multiplier update for static friction
             let delta_lagrange =
                 self.compute_lagrange_update(lagrange, sliding_len, &gradients, &w, compliance, dt);
@@ -179,8 +186,10 @@ impl PenetrationConstraint {
             // Apply positional correction to handle static friction
             self.apply_positional_correction(body1, body2, delta_lagrange, tangent, r1, r2);
 
-            // Update static friction force using the equation f = lambda * n / h^2
-            self.static_friction_force = self.tangent_lagrange * tangent / dt.powi(2);
+            // Update static friction impulse.
+            // f = lambda / h^2
+            // i = f * h = lambda / h
+            self.contact.tangent_impulse += self.tangent_lagrange / dt;
         }
     }
 }

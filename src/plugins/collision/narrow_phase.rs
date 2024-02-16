@@ -197,6 +197,8 @@ fn process_collision_pair<F>(
                 *rotation2,
                 narrow_phase_config.prediction_distance,
             ),
+            total_normal_impulse: 0.0,
+            total_tangent_impulse: 0.0,
         };
 
         if !contacts.manifolds.is_empty() {
@@ -213,6 +215,9 @@ pub fn reset_collision_states(
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
+        contacts.total_normal_impulse = 0.0;
+        contacts.total_tangent_impulse = 0.0;
+
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
             query.get_many([contacts.entity1, contacts.entity2])
         {

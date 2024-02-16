@@ -70,6 +70,8 @@ impl Plugin for SolverPlugin {
                 .in_set(SubstepSet::SolveVelocities),
         );
 
+        substeps.add_systems(store_contact_impulses.in_set(SubstepSet::StoreImpulses));
+
         substeps.add_systems(apply_translation.in_set(SubstepSet::ApplyTranslation));
     }
 }
@@ -167,15 +169,14 @@ fn penetration_constraints(
                 .friction
                 .unwrap_or(body1.friction)
                 .combine(*collider2.friction.unwrap_or(body2.friction));
-            let restitution_coefficient = collider1
+            let restitution = collider1
                 .restitution
                 .unwrap_or(body1.restitution)
-                .combine(*collider2.restitution.unwrap_or(body2.restitution))
-                .coefficient;
+                .combine(*collider2.restitution.unwrap_or(body2.restitution));
 
             // Create and solve penetration constraints for each contact.
-            for contact_manifold in contacts.manifolds.iter() {
-                for contact in contact_manifold.contacts.iter() {
+            for (manifold_index, manifold) in contacts.manifolds.iter().enumerate() {
+                for contact in manifold.contacts.iter() {
                     // Add collider transforms to local contact points
                     let contact = ContactData {
                         point1: collider1.transform.map_or(contact.point1, |t| {
@@ -194,10 +195,16 @@ fn penetration_constraints(
                     };
 
                     let mut constraint = PenetrationConstraint {
-                        dynamic_friction_coefficient: friction.dynamic_coefficient,
-                        static_friction_coefficient: friction.static_coefficient,
-                        restitution_coefficient,
-                        ..PenetrationConstraint::new(&body1, &body2, contact)
+                        friction,
+                        restitution,
+                        ..PenetrationConstraint::new(
+                            &body1,
+                            &body2,
+                            *collider_entity1,
+                            *collider_entity2,
+                            contact,
+                            manifold_index,
+                        )
                     };
                     constraint.solve([&mut body1, &mut body2], delta_secs);
                     penetration_constraints.0.push(constraint);
@@ -422,13 +429,13 @@ fn update_ang_vel(
 #[allow(clippy::type_complexity)]
 fn solve_vel(
     mut bodies: Query<RigidBodyQuery, Without<Sleeping>>,
-    penetration_constraints: Res<PenetrationConstraints>,
+    mut penetration_constraints: ResMut<PenetrationConstraints>,
     gravity: Res<Gravity>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for constraint in penetration_constraints.0.iter() {
+    for constraint in penetration_constraints.0.iter_mut() {
         if let Ok([mut body1, mut body2]) = bodies.get_many_mut(constraint.entities()) {
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
@@ -479,29 +486,32 @@ fn solve_vel(
             let restitution_speed = compute_restitution(
                 normal_speed,
                 pre_solve_normal_speed,
-                constraint.restitution_coefficient,
+                constraint.restitution.coefficient,
                 gravity.0,
                 delta_secs,
             );
             if restitution_speed.abs() > Scalar::EPSILON {
                 let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, normal);
                 let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, normal);
-                p += restitution_speed / (w1 + w2) * normal;
+                let restitution_impulse = restitution_speed / (w1 + w2);
+                p += restitution_impulse * normal;
+                constraint.contact.normal_impulse += restitution_impulse;
             }
 
             // Compute dynamic friction
             if tangent_speed > Scalar::EPSILON {
-                let tangent_dir = tangent_vel / tangent_speed;
-                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent_dir);
-                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent_dir);
+                let tangent = tangent_vel / tangent_speed;
+                let w1 = constraint.compute_generalized_inverse_mass(&body1, r1, tangent);
+                let w2 = constraint.compute_generalized_inverse_mass(&body2, r2, tangent);
                 let friction_impulse = compute_dynamic_friction(
                     tangent_speed,
                     w1 + w2,
-                    constraint.dynamic_friction_coefficient,
+                    constraint.friction.dynamic_coefficient,
                     constraint.normal_lagrange,
                     delta_secs,
                 );
-                p += friction_impulse * tangent_dir;
+                p += friction_impulse * tangent;
+                constraint.contact.tangent_impulse += friction_impulse;
             }
 
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -584,6 +594,30 @@ pub fn joint_damping<T: Joint>(
             if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
                 lin_vel2.0 -= p * inv_mass2.0;
             }
+        }
+    }
+}
+
+fn store_contact_impulses(
+    constraints: Res<PenetrationConstraints>,
+    mut collisions: ResMut<Collisions>,
+) {
+    for constraint in constraints.0.iter() {
+        let Some(collision) =
+            collisions.get_mut(constraint.collider_entity1, constraint.collider_entity2)
+        else {
+            continue;
+        };
+        if let Some(Some(contact)) = collision
+            .manifolds
+            .get_mut(constraint.manifold_index)
+            .map(|m| m.contacts.get_mut(constraint.contact.index))
+        {
+            contact.normal_impulse = constraint.contact.normal_impulse;
+            contact.tangent_impulse = constraint.contact.tangent_impulse;
+
+            collision.total_normal_impulse += contact.normal_impulse.abs();
+            collision.total_tangent_impulse += contact.tangent_impulse.abs();
         }
     }
 }

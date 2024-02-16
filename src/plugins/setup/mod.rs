@@ -173,6 +173,7 @@ impl Plugin for PhysicsSetupPlugin {
                     SubstepSet::SolveUserConstraints,
                     SubstepSet::UpdateVelocities,
                     SubstepSet::SolveVelocities,
+                    SubstepSet::StoreImpulses,
                     SubstepSet::ApplyTranslation,
                 )
                     .chain(),

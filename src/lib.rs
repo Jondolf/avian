@@ -693,6 +693,8 @@ pub enum PhysicsStepSet {
 /// 4. Solve positional and angular constraints
 /// 5. Update velocities
 /// 6. Solve velocity constraints (dynamic friction and restitution)
+/// 7. Store contact impulses in [`Collisions`].
+/// 8. Apply [`AccumulatedTranslation`] to positions.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSet {
     /// Responsible for integrating Newton's 2nd law of motion,
@@ -736,6 +738,10 @@ pub enum SubstepSet {
     ///
     /// See [`SolverPlugin`].
     SolveVelocities,
+    /// Contact impulses computed by the solver are stored in contacts in [`Collisions`].
+    ///
+    /// See [`SolverPlugin`].
+    StoreImpulses,
     /// Responsible for applying translation accumulated during the substep.
     ///
     /// See [`SolverPlugin`].
