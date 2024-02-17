@@ -266,6 +266,34 @@ pub struct Contacts {
     pub during_current_substep: bool,
     /// True if the bodies were in contact during the previous frame.
     pub during_previous_frame: bool,
+    /// The total normal impulse applied to the first body in a collision.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    pub total_normal_impulse: Scalar,
+    /// The total tangent impulse applied to the first body in a collision.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    #[doc(alias = "total_friction_impulse")]
+    pub total_tangent_impulse: Scalar,
+}
+
+impl Contacts {
+    /// The force corresponding to the total normal impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    pub fn total_normal_force(&self, delta_time: Scalar) -> Scalar {
+        self.total_normal_impulse / delta_time
+    }
+
+    /// The force corresponding to the total tangent impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    #[doc(alias = "total_friction_force")]
+    pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
+        self.total_tangent_impulse / delta_time
+    }
 }
 
 /// A contact manifold between two colliders, containing a set of contact points.
@@ -281,9 +309,71 @@ pub struct ContactManifold {
     /// A contact normal shared by all contacts in this manifold,
     /// expressed in the local space of the second entity.
     pub normal2: Vector,
+    /// The index of the manifold in the collision.
+    pub index: usize,
 }
 
 impl ContactManifold {
+    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
+    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal1)
+    }
+
+    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
+        rotation.rotate(self.normal2)
+    }
+}
+
+/// Data related to a single contact between two bodies.
+///
+/// If you want a contact that belongs to a [contact manifold](ContactManifold) and has more data,
+/// see [`ContactData`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct SingleContact {
+    /// Contact point on the first entity in local coordinates.
+    pub point1: Vector,
+    /// Contact point on the second entity in local coordinates.
+    pub point2: Vector,
+    /// A contact normal expressed in the local space of the first entity.
+    pub normal1: Vector,
+    /// A contact normal expressed in the local space of the second entity.
+    pub normal2: Vector,
+    /// Penetration depth.
+    pub penetration: Scalar,
+}
+
+impl SingleContact {
+    /// Creates a new [`SingleContact`]. The contact points and normals should be given in local space.
+    pub fn new(
+        point1: Vector,
+        point2: Vector,
+        normal1: Vector,
+        normal2: Vector,
+        penetration: Scalar,
+    ) -> Self {
+        Self {
+            point1,
+            point2,
+            normal1,
+            normal2,
+            penetration,
+        }
+    }
+
+    /// Returns the global contact point on the first entity,
+    /// transforming the local point by the given entity position and rotation.
+    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
+        position.0 + rotation.rotate(self.point1)
+    }
+
+    /// Returns the global contact point on the second entity,
+    /// transforming the local point by the given entity position and rotation.
+    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
+        position.0 + rotation.rotate(self.point2)
+    }
+
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
     pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
         rotation.rotate(self.normal1)
@@ -309,9 +399,80 @@ pub struct ContactData {
     pub normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
+    /// The impulse applied to the first body along the normal.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    ///
+    /// ## Caveats
+    ///
+    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
+    /// It is recommended to access this before or after physics.
+    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
+    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
+    ///
+    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
+    /// the [`Collision`] event or the [`Collisions`] rsource.
+    pub normal_impulse: Scalar,
+    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    ///
+    /// ## Caveats
+    ///
+    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
+    /// It is recommended to access this before or after physics.
+    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
+    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
+    ///
+    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
+    /// the [`Collision`] event or the [`Collisions`] rsource.
+    #[doc(alias = "friction_impulse")]
+    pub tangent_impulse: Scalar,
+    /// The index of the contact in a contact manifold if it is in one.
+    pub index: usize,
 }
 
 impl ContactData {
+    /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
+    ///
+    /// The given `index` is the index of the contact in a contact manifold, if it is in one.
+    pub fn new(
+        point1: Vector,
+        point2: Vector,
+        normal1: Vector,
+        normal2: Vector,
+        penetration: Scalar,
+        index: usize,
+    ) -> Self {
+        Self {
+            point1,
+            point2,
+            normal1,
+            normal2,
+            penetration,
+            normal_impulse: 0.0,
+            tangent_impulse: 0.0,
+            index,
+        }
+    }
+
+    /// The force corresponding to the normal impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    pub fn normal_force(&self, delta_time: Scalar) -> Scalar {
+        self.normal_impulse / delta_time
+    }
+
+    /// The force corresponding to the tangent impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    #[doc(alias = "friction_force")]
+    pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
+        self.tangent_impulse / delta_time
+    }
+
     /// Returns the global contact point on the first entity,
     /// transforming the local point by the given entity position and rotation.
     pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
