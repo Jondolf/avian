@@ -175,7 +175,7 @@ fn raycast(
         direction,
         Scalar::MAX,
         true,
-        SpatialQueryFilter::new(),
+        SpatialQueryFilter::default(),
         &|entity| {
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
                 return !out_of_glass.0; // only look at cubes not out of glass
