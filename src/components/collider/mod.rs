@@ -471,6 +471,19 @@ impl Collider {
         SharedShape::ball(radius).into()
     }
 
+    /// Creates a collider with a ball shape defined by its radius.
+    #[cfg_attr(
+        feature = "2d",
+        deprecated(since = "0.4.0", note = "please use `Collider::circle` instead")
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        deprecated(since = "0.4.0", note = "please use `Collider::sphere` instead")
+    )]
+    pub fn ball(radius: Scalar) -> Self {
+        SharedShape::ball(radius).into()
+    }
+
     /// Creates a collider with an ellipse shape defined by a half-width and half-height.
     #[cfg(feature = "2d")]
     pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
@@ -483,6 +496,13 @@ impl Collider {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
     }
 
+    /// Creates a collider with a ball shape defined by its radius.
+    #[cfg(feature = "2d")]
+    #[deprecated(since = "0.4.0", note = "please use `Collider::rectangle` instead")]
+    pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
+        SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
+    }
+
     /// Creates a collider with a cuboid shape defined by its extents.
     #[cfg(feature = "3d")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar, z_length: Scalar) -> Self {
@@ -492,6 +512,16 @@ impl Collider {
     /// Creates a collider with a rectangle shape defined by its extents and rounded corners.
     #[cfg(feature = "2d")]
     pub fn round_rectangle(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
+        SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
+    }
+
+    /// Creates a collider with a ball shape defined by its radius.
+    #[cfg(feature = "2d")]
+    #[deprecated(
+        since = "0.4.0",
+        note = "please use `Collider::round_rectangle` instead"
+    )]
+    pub fn round_cuboid(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
         SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
     }
 
