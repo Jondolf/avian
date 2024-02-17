@@ -99,14 +99,19 @@ impl AnyCollider for CircleCollider {
             let point2 = normal2 * other.radius;
 
             vec![ContactManifold {
+                index: 0,
                 normal1,
                 normal2,
                 contacts: vec![ContactData {
+                    index: 0,
                     point1,
                     point2,
                     normal1,
                     normal2,
                     penetration: sum_radius - distance_squared.sqrt(),
+                    // Impulses are computed by the constraint solver
+                    normal_impulse: 0.0,
+                    tangent_impulse: 0.0,
                 }],
             }]
         } else {
