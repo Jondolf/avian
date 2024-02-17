@@ -10,7 +10,11 @@
 //!
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 
+mod collider;
+pub use collider::*;
+
 pub mod broad_phase;
+pub mod collider_backend;
 pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;

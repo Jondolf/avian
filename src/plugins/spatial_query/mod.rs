@@ -158,7 +158,7 @@ pub use ray_caster::*;
 pub use shape_caster::*;
 pub use system_param::*;
 
-use crate::prelude::*;
+use crate::{prelude::*, prepare::PrepareSet};
 use bevy::{prelude::*, utils::intern::Interned};
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)

@@ -33,7 +33,7 @@ pub mod sync;
 
 use bevy::utils::intern::Interned;
 pub use collision::{
-    broad_phase::BroadPhasePlugin, contact_reporting::ContactReportingPlugin,
+    broad_phase::BroadPhasePlugin, collider_backend::*, contact_reporting::ContactReportingPlugin,
     narrow_phase::NarrowPhasePlugin,
 };
 #[cfg(feature = "debug-plugin")]
@@ -57,11 +57,13 @@ use bevy::prelude::*;
 /// - [`PhysicsSetupPlugin`]: Sets up the physics engine by initializing the necessary schedules, sets and resources.
 /// - [`PreparePlugin`]: Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
 /// and [colliders](Collider) and updates components.
+/// - [`ColliderBackendPlugin`]: Handles generic collider backend logic, like initializing colliders and AABBs
+/// and updating related components.
 /// - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks.
-/// - [`IntegratorPlugin`]: Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
 /// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
+/// - [`IntegratorPlugin`]: Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 /// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
@@ -189,10 +191,11 @@ impl PluginGroup for PhysicsPlugins {
         PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule))
             .add(PreparePlugin::new(self.schedule))
+            .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
             .add(BroadPhasePlugin)
-            .add(IntegratorPlugin)
-            .add(NarrowPhasePlugin)
+            .add(NarrowPhasePlugin::<Collider>::default())
             .add(ContactReportingPlugin)
+            .add(IntegratorPlugin)
             .add(SolverPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin::new(self.schedule))

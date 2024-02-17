@@ -22,21 +22,44 @@ impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AabbIntervals>();
 
+        app.configure_sets(
+            PhysicsSchedule,
+            (
+                BroadPhaseSet::First,
+                BroadPhaseSet::UpdateStructures,
+                BroadPhaseSet::CollectCollisions,
+                BroadPhaseSet::Last,
+            )
+                .chain()
+                .in_set(PhysicsStepSet::BroadPhase),
+        );
+
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
         physics_schedule.add_systems(
-            (
-                update_aabb,
-                update_aabb_intervals,
-                add_new_aabb_intervals,
-                collect_collision_pairs,
-            )
+            (update_aabb_intervals, add_new_aabb_intervals)
                 .chain()
-                .in_set(PhysicsStepSet::BroadPhase),
+                .in_set(BroadPhaseSet::UpdateStructures),
         );
+
+        physics_schedule
+            .add_systems(collect_collision_pairs.in_set(BroadPhaseSet::CollectCollisions));
     }
+}
+
+/// System sets for systems running in [`PhysicsStepSet::BroadPhase`].
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BroadPhaseSet {
+    /// Runs at the start of the broad phase. Empty by default.
+    First,
+    /// Updates acceleration structures and other data needed for broad phase collision detection.
+    UpdateStructures,
+    /// Detects potential intersections between entities and adds them to the [`BroadCollisionPairs`] resource.
+    CollectCollisions,
+    /// Runs at the end of the broad phase. Empty by default.
+    Last,
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
@@ -44,118 +67,6 @@ impl Plugin for BroadPhasePlugin {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
-
-type AABBChanged = Or<(
-    Changed<Position>,
-    Changed<Rotation>,
-    Changed<LinearVelocity>,
-    Changed<AngularVelocity>,
-    Changed<Collider>,
-)>;
-
-/// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
-#[allow(clippy::type_complexity)]
-fn update_aabb(
-    mut colliders: Query<
-        (
-            &Collider,
-            &mut ColliderAabb,
-            &Position,
-            &Rotation,
-            Option<&ColliderParent>,
-            Option<&LinearVelocity>,
-            Option<&AngularVelocity>,
-        ),
-        AABBChanged,
-    >,
-    parent_velocity: Query<
-        (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
-        With<Children>,
-    >,
-    dt: Res<Time>,
-    narrow_phase_config: Option<Res<NarrowPhaseConfig>>,
-) {
-    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * dt.delta_seconds_adjusted();
-
-    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
-        let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
-            (*lin_vel, *ang_vel)
-        } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
-            collider_parent.map(|p| parent_velocity.get(p.get()))
-        {
-            // If the rigid body is rotating, off-center colliders will orbit around it,
-            // which affects their linear velocities. We need to compute the linear velocity
-            // at the offset position.
-            // TODO: This assumes that the colliders would continue moving in the same direction,
-            //       but because they are orbiting, the direction will change. We should take
-            //       into account the uniform circular motion.
-            let offset = pos.0 - parent_pos.0;
-            #[cfg(feature = "2d")]
-            let vel_at_offset =
-                lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
-            #[cfg(feature = "3d")]
-            let vel_at_offset = lin_vel.0 + ang_vel.cross(offset);
-            (LinearVelocity(vel_at_offset), *ang_vel)
-        } else {
-            (LinearVelocity::ZERO, AngularVelocity::ZERO)
-        };
-
-        // Compute current isometry and predicted isometry for next feame
-        let start_iso = utils::make_isometry(*pos, *rot);
-        let end_iso = {
-            #[cfg(feature = "2d")]
-            {
-                utils::make_isometry(
-                    pos.0 + lin_vel.0 * safety_margin_factor,
-                    *rot + Rotation::from_radians(safety_margin_factor * ang_vel.0),
-                )
-            }
-            #[cfg(feature = "3d")]
-            {
-                let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
-                let (x, y, z, w) = (
-                    rot.x + safety_margin_factor * 0.5 * q.x,
-                    rot.y + safety_margin_factor * 0.5 * q.y,
-                    rot.z + safety_margin_factor * 0.5 * q.z,
-                    rot.w + safety_margin_factor * 0.5 * q.w,
-                );
-                utils::make_isometry(
-                    pos.0 + lin_vel.0 * safety_margin_factor,
-                    Quaternion::from_xyzw(x, y, z, w).normalize(),
-                )
-            }
-        };
-
-        // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
-        aabb.0 = collider
-            .shape_scaled()
-            .compute_swept_aabb(&start_iso, &end_iso);
-
-        // Add narrow phase prediction distance to AABBs to avoid missed collisions
-        let prediction_distance = if let Some(ref config) = narrow_phase_config {
-            config.prediction_distance
-        } else {
-            #[cfg(feature = "2d")]
-            {
-                1.0
-            }
-            #[cfg(feature = "3d")]
-            {
-                0.005
-            }
-        };
-        aabb.maxs.x += prediction_distance;
-        aabb.mins.x -= prediction_distance;
-        aabb.maxs.y += prediction_distance;
-        aabb.mins.y -= prediction_distance;
-        #[cfg(feature = "3d")]
-        {
-            aabb.maxs.z += prediction_distance;
-            aabb.mins.z -= prediction_distance;
-        }
-    }
-}
 
 /// True if the rigid body hasn't moved.
 type IsBodyInactive = bool;

@@ -71,6 +71,10 @@ name = "collision_layers"
 required-features = ["2d"]
 
 [[example]]
+name = "custom_collider"
+required-features = ["2d"]
+
+[[example]]
 name = "fixed_joint_2d"
 required-features = ["2d"]
 

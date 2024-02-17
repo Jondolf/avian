@@ -1,6 +1,5 @@
-//! Components used for rigid bodies, colliders and mass properties.
+//! Commonly used components.
 
-mod collider;
 mod forces;
 mod layers;
 mod locked_axes;
@@ -8,7 +7,6 @@ mod mass_properties;
 mod rotation;
 mod world_queries;
 
-pub use collider::*;
 pub use forces::*;
 pub use layers::*;
 pub use locked_axes::*;

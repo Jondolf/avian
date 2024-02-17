@@ -14,7 +14,7 @@ use bevy::{
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::{
-    bounding_volume::Aabb,
+    bounding_volume::{Aabb, BoundingVolume},
     shape::{RoundShape, SharedShape, TypedShape},
 };
 
@@ -25,6 +25,73 @@ pub type VHACDParameters = parry::transformation::vhacd::VHACDParameters;
 
 /// Flags used for the preprocessing of a triangle mesh collider.
 pub type TriMeshFlags = parry::shape::TriMeshFlags;
+
+/// A trait that generalizes over colliders. Implementing this trait
+/// allows colliders to be used with the physics engine.
+pub trait AnyCollider: Component {
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
+    /// with the given position and rotation.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb;
+
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    /// This corresponds to the space the shape would occupy if it moved from the given
+    /// start position to the given end position.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    fn swept_aabb(
+        &self,
+        start_position: Vector,
+        start_rotation: impl Into<Rotation>,
+        end_position: Vector,
+        end_rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
+        self.aabb(start_position, start_rotation)
+            .merged(self.aabb(end_position, end_rotation))
+    }
+
+    /// Computes the collider's mass properties based on its shape and a given density.
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
+
+    /// Computes all [`ContactManifold`]s between two colliders.
+    ///
+    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// or if the given shapes are invalid.
+    fn contact_manifolds(
+        &self,
+        other: &Self,
+        position1: Vector,
+        rotation1: impl Into<Rotation>,
+        position2: Vector,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: Scalar,
+    ) -> Vec<ContactManifold>;
+}
+
+/// A trait for colliders that support scaling.
+pub trait ScalableCollider: AnyCollider {
+    /// Returns the global scaling factor of the collider.
+    fn scale(&self) -> Vector;
+
+    /// Sets the global scaling factor of the collider.
+    ///
+    /// If the scaling factor is not uniform and the resulting scaled shape
+    /// can not be represented exactly, the given `detail` is used for an approximation.
+    fn set_scale(&mut self, scale: Vector, detail: u32);
+
+    /// Scales the collider by the given scaling factor.
+    ///
+    /// If the scaling factor is not uniform and the resulting scaled shape
+    /// can not be represented exactly, the given `detail` is used for an approximation.
+    fn scale_by(&mut self, factor: Vector, detail: u32) {
+        self.set_scale(factor * self.scale(), detail)
+    }
+}
 
 /// A collider used for detecting collisions and generating contacts.
 ///
@@ -216,6 +283,66 @@ impl fmt::Debug for Collider {
     }
 }
 
+impl AnyCollider for Collider {
+    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
+        ColliderAabb(
+            self.shape_scaled()
+                .compute_aabb(&utils::make_isometry(position, rotation)),
+        )
+    }
+
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
+        let props = self.shape_scaled().mass_properties(density);
+
+        ColliderMassProperties {
+            mass: Mass(props.mass()),
+            inverse_mass: InverseMass(props.inv_mass),
+
+            #[cfg(feature = "2d")]
+            inertia: Inertia(props.principal_inertia()),
+            #[cfg(feature = "3d")]
+            inertia: Inertia(props.reconstruct_inertia_matrix().into()),
+
+            #[cfg(feature = "2d")]
+            inverse_inertia: InverseInertia(1.0 / props.principal_inertia()),
+            #[cfg(feature = "3d")]
+            inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
+
+            center_of_mass: CenterOfMass(props.local_com.into()),
+        }
+    }
+
+    fn contact_manifolds(
+        &self,
+        other: &Self,
+        position1: Vector,
+        rotation1: impl Into<Rotation>,
+        position2: Vector,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: Scalar,
+    ) -> Vec<ContactManifold> {
+        contact_query::contact_manifolds(
+            self,
+            position1,
+            rotation1,
+            other,
+            position2,
+            rotation2,
+            prediction_distance,
+        )
+    }
+}
+
+impl ScalableCollider for Collider {
+    fn scale(&self) -> Vector {
+        self.scale()
+    }
+
+    fn set_scale(&mut self, scale: Vector, detail: u32) {
+        self.set_scale(scale, detail)
+    }
+}
+
 impl Collider {
     /// Returns the raw unscaled shape of the collider.
     pub fn shape(&self) -> &SharedShape {
@@ -225,11 +352,6 @@ impl Collider {
     /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
     pub fn shape_scaled(&self) -> &SharedShape {
         &self.scaled_shape
-    }
-
-    /// Returns the global scale of the collider.
-    pub fn scale(&self) -> Vector {
-        self.scale
     }
 
     /// Sets the unscaled shape of the collider. The collider's scale will be applied to this shape.
@@ -242,6 +364,11 @@ impl Collider {
         } else {
             log::error!("Failed to create convex hull for scaled collider.");
         }
+    }
+
+    /// Returns the global scale of the collider.
+    pub fn scale(&self) -> Vector {
+        self.scale
     }
 
     /// Set the global scaling factor of this shape.
@@ -269,29 +396,6 @@ impl Collider {
         } else {
             log::error!("Failed to create convex hull for scaled collider.");
         }
-    }
-
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    #[cfg(feature = "2d")]
-    pub fn compute_aabb(&self, position: Vector, rotation: Scalar) -> ColliderAabb {
-        ColliderAabb(self.shape_scaled().compute_aabb(&utils::make_isometry(
-            position,
-            Rotation::from_radians(rotation),
-        )))
-    }
-
-    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
-    #[cfg(feature = "3d")]
-    pub fn compute_aabb(&self, position: Vector, rotation: Quaternion) -> ColliderAabb {
-        ColliderAabb(
-            self.shape_scaled()
-                .compute_aabb(&utils::make_isometry(position, Rotation(rotation))),
-        )
-    }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    pub fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
-        ColliderMassProperties::new(self, density)
     }
 
     /// Projects the given `point` onto `self` transformed by `translation` and `rotation`.
@@ -1287,9 +1391,19 @@ pub struct Sensor;
 pub struct ColliderAabb(pub Aabb);
 
 impl ColliderAabb {
-    /// Creates a new collider from a given [`SharedShape`] with a default density of 1.0.
+    /// Creates a new [`ColliderAabb`] from the given `center` and `half_size`.
+    pub fn new(center: Vector, half_size: Vector) -> Self {
+        Self(Aabb::from_half_extents(center.into(), half_size.into()))
+    }
+
+    /// Creates a new [`ColliderAabb`] from a given [`SharedShape`].
     pub fn from_shape(shape: &SharedShape) -> Self {
         Self(shape.compute_local_aabb())
+    }
+
+    /// Merges this AABB with another one.
+    pub fn merged(self, other: Self) -> Self {
+        ColliderAabb(self.0.merged(&other.0))
     }
 }
 
