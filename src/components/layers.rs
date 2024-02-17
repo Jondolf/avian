@@ -28,7 +28,6 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
 ///
 /// ```
-/// # use bevy::prelude::*;
 #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
@@ -46,6 +45,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Bitwise operations can be used to modify and combine masks:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// let mask1 = LayerMask(0b0001);
 /// let mask2 = LayerMask(0b0010);
 /// assert_eq!(mask1 | mask2, LayerMask(0b0011));
@@ -106,6 +107,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
+    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -124,6 +127,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
+    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -142,6 +147,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
+    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -248,7 +255,6 @@ impl Not for LayerMask {
 /// You can also use an enum that implements [`PhysicsLayer`]:
 ///
 /// ```
-/// # use bevy::prelude::*;
 #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
@@ -276,6 +282,9 @@ impl Not for LayerMask {
 /// Layers can also be defined using constants and bitwise operations:
 ///
 /// ```
+/// # use bevy::prelude::Commands;
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
 /// pub const FIRST_LAYER: u32 = 1 << 0;
 /// pub const SECOND_LAYER: u32 = 1 << 1;
@@ -297,6 +306,8 @@ impl Not for LayerMask {
 /// and changing their [`LayerMask`]s.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// let layers = CollisionLayers::new(0b0010, 0b1011);
 ///
 /// // Add memberships (these are equivalent)
