@@ -31,7 +31,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer)]
+/// #[derive(PhysicsLayer, Clone, Copy, Debug)]
 /// enum GameLayer {
 ///     Player, // Layer 0
 ///     Enemy,  // Layer 1
@@ -58,6 +58,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Another way to use [`LayerMask`] is to define layers as constants:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
 /// pub const FIRST_LAYER: LayerMask = LayerMask(1 << 0);
 /// pub const LAST_LAYER: LayerMask = LayerMask(1 << 31);
@@ -115,7 +117,7 @@ impl LayerMask {
     /// layers.add(0b0001);
     /// layers |= 0b0001;
     ///
-    /// assert_eq!(layers, 0b0001);
+    /// assert_eq!(layers, 0b1011);
     /// ```
     pub fn add(&mut self, layers: impl Into<Self>) {
         let layers: LayerMask = layers.into();
@@ -308,7 +310,7 @@ impl Not for LayerMask {
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
-/// let layers = CollisionLayers::new(0b0010, 0b1011);
+/// let mut layers = CollisionLayers::new(0b0010, 0b1011);
 ///
 /// // Add memberships (these are equivalent)
 /// layers.memberships.add(0b0001);
