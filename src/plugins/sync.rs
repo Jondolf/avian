@@ -184,8 +184,8 @@ pub fn transform_to_position(
         &mut Position,
         Option<&AccumulatedTranslation>,
         &mut Rotation,
-        &PreviousRotation,
-        &CenterOfMass,
+        Option<&PreviousRotation>,
+        Option<&CenterOfMass>,
     )>,
 ) {
     for (
@@ -207,7 +207,12 @@ pub fn transform_to_position(
         let previous_transform = previous_transform.compute_transform();
         let pos = position.0
             + accumulated_translation.map_or(Vector::ZERO, |t| {
-                get_pos_translation(t, previous_rotation, &rotation, center_of_mass)
+                get_pos_translation(
+                    t,
+                    &previous_rotation.copied().unwrap_or_default(),
+                    &rotation,
+                    &center_of_mass.copied().unwrap_or_default(),
+                )
             });
 
         #[cfg(feature = "2d")]

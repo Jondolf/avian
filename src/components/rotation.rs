@@ -277,6 +277,12 @@ impl From<GlobalTransform> for Rotation {
     }
 }
 
+impl From<&GlobalTransform> for Rotation {
+    fn from(value: &GlobalTransform) -> Self {
+        Self::from(value.compute_transform().rotation)
+    }
+}
+
 #[cfg(feature = "2d")]
 impl From<Quat> for Rotation {
     fn from(quat: Quat) -> Self {
