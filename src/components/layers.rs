@@ -24,6 +24,46 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 }
 
 /// A bitmask for layers.
+///
+/// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
+///
+/// ```
+/// # use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+/// #
+/// #[derive(PhysicsLayer)]
+/// enum GameLayer {
+///     Player, // Layer 0
+///     Enemy,  // Layer 1
+///     Ground, // Layer 2
+/// }
+///
+/// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
+/// assert_eq!(LayerMask(0b0010), GameLayer::Enemy);
+/// ```
+///
+/// Bitwise operations can be used to modify and combine masks:
+///
+/// ```
+/// let mask1 = LayerMask(0b0001);
+/// let mask2 = LayerMask(0b0010);
+/// assert_eq!(mask1 | mask2, LayerMask(0b0011));
+///
+/// // You can also add layers from `u32` bitmasks and compare against them directly.
+/// assert_eq!(mask1 | 0b0010, 0b0011);
+/// ```
+///
+/// Another way to use [`LayerMask`] is to define layers as constants:
+///
+/// ```
+/// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
+/// pub const FIRST_LAYER: LayerMask = LayerMask(1 << 0);
+/// pub const LAST_LAYER: LayerMask = LayerMask(1 << 31);
+///
+/// // Bitwise operations unfortunately can't be const, so we need to access the `u32` values.
+/// pub const COMBINED: LayerMask = LayerMask(FIRST_LAYER.0 | LAST_LAYER.0);
+/// ```
 #[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerMask(pub u32);
@@ -214,9 +254,9 @@ impl Not for LayerMask {
 /// #
 /// #[derive(PhysicsLayer)]
 /// enum GameLayer {
-///     Player,
-///     Enemy,
-///     Ground,
+///     Player, // Layer 0
+///     Enemy,  // Layer 1
+///     Ground, // Layer 2
 /// }
 ///
 /// // Player collides with enemies and the ground, but not with other players
@@ -236,8 +276,7 @@ impl Not for LayerMask {
 /// Layers can also be defined using constants and bitwise operations:
 ///
 /// ```
-/// // Define layers using constants
-/// // (names chosen for demonstration purposes, use more fitting names in your own application)
+/// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
 /// pub const FIRST_LAYER: u32 = 1 << 0;
 /// pub const SECOND_LAYER: u32 = 1 << 1;
 /// pub const LAST_LAYER: u32 = 1 << 31;
