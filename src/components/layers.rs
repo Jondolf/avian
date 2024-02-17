@@ -2,8 +2,29 @@ use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, N
 
 use bevy::prelude::*;
 
+/// A layer used for determining which entities should interact with each other.
+/// Physics layers are used heavily by [`CollisionLayers`].
+///
+/// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
+pub trait PhysicsLayer: Sized {
+    /// Converts the layer to a bitmask.
+    fn to_bits(&self) -> u32;
+    /// Creates a layer bitmask with all bits set to 1.
+    fn all_bits() -> u32;
+}
+
+impl<L: PhysicsLayer> PhysicsLayer for &L {
+    fn to_bits(&self) -> u32 {
+        L::to_bits(self)
+    }
+
+    fn all_bits() -> u32 {
+        L::all_bits()
+    }
+}
+
 /// A bitmask for layers.
-#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct LayerMask(pub u32);
 
@@ -39,47 +60,110 @@ impl LayerMask {
     pub const ALL: Self = Self(0xffff_ffff);
     /// Contains no layers.
     pub const NONE: Self = Self(0);
+
+    /// Adds the given `layers` to `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut layers = LayerMask(0b1010);
+    ///
+    /// // These are equivalent
+    /// layers.add(0b0001);
+    /// layers |= 0b0001;
+    ///
+    /// assert_eq!(layers, 0b0001);
+    /// ```
+    pub fn add(&mut self, layers: impl Into<Self>) {
+        let layers: LayerMask = layers.into();
+        *self |= layers;
+    }
+
+    /// Removes the given `layers` from `self`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut layers = LayerMask(0b1010);
+    ///
+    /// // These are equivalent
+    /// layers.remove(0b0010);
+    /// layers &= !0b0010;
+    ///
+    /// assert_eq!(layers, 0b1000);
+    /// ```
+    pub fn remove(&mut self, layers: impl Into<Self>) {
+        let layers: LayerMask = layers.into();
+        *self &= !layers;
+    }
+
+    /// Returns `true` if `self` contains all of the given `layers`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let mut layers = LayerMask(0b1010);
+    ///
+    /// // These are equivalent
+    /// assert!(layers.has_all(0b1010));
+    /// assert!((layers & 0b1010) != 0);
+    ///
+    /// assert!(!layers.has_all(0b0100));
+    /// assert!((layers & 0b0100) == 0);
+    /// ```
+    #[doc(alias = "contains_all")]
+    pub fn has_all(self, layers: impl Into<Self>) -> bool {
+        let layers: LayerMask = layers.into();
+        (self & layers) != 0
+    }
 }
 
-impl BitAnd for LayerMask {
+impl<L: Into<LayerMask> + Copy> PartialEq<L> for LayerMask {
+    fn eq(&self, other: &L) -> bool {
+        let other: Self = (*other).into();
+        self.0 == other.0
+    }
+}
+
+impl<L: Into<LayerMask>> BitAnd<L> for LayerMask {
     type Output = Self;
 
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
+    fn bitand(self, rhs: L) -> Self::Output {
+        Self(self.0 & rhs.into().0)
     }
 }
 
-impl BitAndAssign for LayerMask {
-    fn bitand_assign(&mut self, rhs: Self) {
-        self.0 = self.0 & rhs.0;
+impl<L: Into<LayerMask>> BitAndAssign<L> for LayerMask {
+    fn bitand_assign(&mut self, rhs: L) {
+        self.0 = self.0 & rhs.into().0;
     }
 }
 
-impl BitOr for LayerMask {
+impl<L: Into<LayerMask>> BitOr<L> for LayerMask {
     type Output = Self;
 
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
+    fn bitor(self, rhs: L) -> Self::Output {
+        Self(self.0 | rhs.into().0)
     }
 }
 
-impl BitOrAssign for LayerMask {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.0 = self.0 | rhs.0;
+impl<L: Into<LayerMask>> BitOrAssign<L> for LayerMask {
+    fn bitor_assign(&mut self, rhs: L) {
+        self.0 = self.0 | rhs.into().0;
     }
 }
 
-impl BitXor for LayerMask {
+impl<L: Into<LayerMask>> BitXor<L> for LayerMask {
     type Output = Self;
 
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        Self(self.0 ^ rhs.0)
+    fn bitxor(self, rhs: L) -> Self::Output {
+        Self(self.0 ^ rhs.into().0)
     }
 }
 
-impl BitXorAssign for LayerMask {
-    fn bitxor_assign(&mut self, rhs: Self) {
-        self.0 = self.0 ^ rhs.0;
+impl<L: Into<LayerMask>> BitXorAssign<L> for LayerMask {
+    fn bitxor_assign(&mut self, rhs: L) {
+        self.0 = self.0 ^ rhs.into().0;
     }
 }
 
@@ -91,46 +175,25 @@ impl Not for LayerMask {
     }
 }
 
-/// A layer used for determining which entities should interact with each other.
-/// Physics layers are used heavily by [`CollisionLayers`].
+/// Defines the collision layers of a collider using *memberships* and *filters*.
 ///
-/// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
-pub trait PhysicsLayer: Sized {
-    /// Converts the layer to a bitmask.
-    fn to_bits(&self) -> u32;
-    /// Creates a layer bitmask with all bits set to 1.
-    fn all_bits() -> u32;
-}
-
-impl<L: PhysicsLayer> PhysicsLayer for &L {
-    fn to_bits(&self) -> u32 {
-        L::to_bits(self)
-    }
-
-    fn all_bits() -> u32 {
-        L::all_bits()
-    }
-}
-
-/// Defines the collision layers of a collider using *groups* and *masks*.
-///
-/// **Groups** indicate what layers the collider is a part of.\
-/// **Masks** indicate what layers the collider can interact with.
+/// **Memberships** indicate what layers the collider is a part of.\
+/// **Filters** indicate what layers the collider can interact with.
 ///
 /// Two colliders `A` and `B` can interact if and only if:
 ///
-/// - The groups of `A` contain a layer that is also in the masks of `B`
-/// - The groups of `B` contain a layer that is also in the masks of `A`
+/// - The memberships of `A` contain a layer that is also in the filters of `B`
+/// - The memberships of `B` contain a layer that is also in the filters of `A`
 ///
-/// Colliders without this component can be considered as having all groups and masks, and they can
+/// Colliders without this component can be considered as having all memberships and filters, and they can
 /// interact with everything that belongs on any layer.
 ///
 /// ## Creation
 ///
-/// Collision layers store groups and masks using [`LayerMask`]s. A [`LayerMask`] can be created using
+/// Collision layers store memberships and filters using [`LayerMask`]s. A [`LayerMask`] can be created using
 /// bitmasks, or by creating an enum that implements [`PhysicsLayer`].
 ///
-/// Many [`CollisionLayers`] methods can take any type that implements `Into<Layers>`.
+/// Many [`CollisionLayers`] methods can take any type that implements `Into<LayerMask>`.
 /// For example, you can use bitmasks with [`CollisionLayers::new`]:
 ///
 /// ```
@@ -169,46 +232,92 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// // Belongs to the first layer and interacts with all layers.
 /// let layers = CollisionLayers::new(LayerMask(0b0001), LayerMask::ALL);
 /// ```
+///
+/// Layers can also be defined using constants and bitwise operations:
+///
+/// ```
+/// // Define layers using constants
+/// // (names chosen for demonstration purposes, use more fitting names in your own application)
+/// pub const FIRST_LAYER: u32 = 1 << 0;
+/// pub const SECOND_LAYER: u32 = 1 << 1;
+/// pub const LAST_LAYER: u32 = 1 << 31;
+///
+/// fn spawn(mut commands: Commands) {
+///     // This collider belongs to the first two layers and can interact with the last layer.
+///     commands.spawn((
+///         Collider::ball(0.5),
+///         CollisionLayers::from_bits(FIRST_LAYER | SECOND_LAYER, LAST_LAYER),
+///         // ...other components
+///     ));
+/// }
+/// ```
+///
+/// ## Modifying layers
+///
+/// Existing [`CollisionLayers`] can be modified by simply accessing the `memberships` and `filters`
+/// and changing their [`LayerMask`]s.
+///
+/// ```
+/// let layers = CollisionLayers::new(0b0010, 0b1011);
+///
+/// // Add memberships (these are equivalent)
+/// layers.memberships.add(0b0001);
+/// layers.memberships |= 0b0001;
+///
+/// assert_eq!(layers.memberships, 0b0011);
+///
+/// // Remove filters
+/// layers.filters.remove(0b0001);
+/// layers.filters &= !0b0001;
+///
+/// assert_eq!(layers.filters, 0b1010);
+///
+/// // Check if layers are contained
+/// assert!(layers.memberships.has_all(0b0011));
+/// assert!((layers.memberships & 0b0011) != 0);
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CollisionLayers {
     /// The layers that an entity belongs to.
-    pub groups: LayerMask,
+    #[doc(alias = "groups", alias = "layers")]
+    pub memberships: LayerMask,
     /// The layers that an entity can interact with.
-    pub masks: LayerMask,
+    #[doc(alias = "masks", alias = "layer_mask")]
+    pub filters: LayerMask,
 }
 
 impl CollisionLayers {
-    /// Contains all groups and masks.
+    /// Contains all memberships and filters.
     pub const ALL: Self = Self {
-        groups: LayerMask::ALL,
-        masks: LayerMask::ALL,
+        memberships: LayerMask::ALL,
+        filters: LayerMask::ALL,
     };
 
-    /// Contains no groups or masks.
+    /// Contains no memberships and no filters.
     pub const NONE: Self = Self {
-        groups: LayerMask::NONE,
-        masks: LayerMask::NONE,
+        memberships: LayerMask::NONE,
+        filters: LayerMask::NONE,
     };
 
-    /// Contains all groups but no masks.
-    pub const ALL_GROUPS: Self = Self {
-        groups: LayerMask::ALL,
-        masks: LayerMask::NONE,
+    /// Contains all memberships but no filters.
+    pub const ALL_MEMBERSHIPS: Self = Self {
+        memberships: LayerMask::ALL,
+        filters: LayerMask::NONE,
     };
 
-    /// Contains all masks but no groups.
-    pub const ALL_MASKS: Self = Self {
-        groups: LayerMask::NONE,
-        masks: LayerMask::ALL,
+    /// Contains all filters but no memberships.
+    pub const ALL_FILTERS: Self = Self {
+        memberships: LayerMask::NONE,
+        filters: LayerMask::ALL,
     };
 
-    /// Creates a new [`CollisionLayers`] configuration with the given collision groups and masks.
-    pub fn new(groups: impl Into<LayerMask>, masks: impl Into<LayerMask>) -> Self {
+    /// Creates a new [`CollisionLayers`] configuration with the given collision memberships and filters.
+    pub fn new(memberships: impl Into<LayerMask>, filters: impl Into<LayerMask>) -> Self {
         Self {
-            groups: groups.into(),
-            masks: masks.into(),
+            memberships: memberships.into(),
+            filters: filters.into(),
         }
     }
 
@@ -216,63 +325,27 @@ impl CollisionLayers {
     ///
     /// There is one bit per group and mask, so there are a total of 32 layers.
     /// For example, if an entity is a part of the layers `[0, 1, 3]` and can interact with the layers `[1, 2]`,
-    /// the groups in bits would be `0b01011` while the masks would be `0b00110`.
-    pub const fn from_bits(groups: u32, masks: u32) -> Self {
+    /// the memberships in bits would be `0b01011` while the filters would be `0b00110`.
+    pub const fn from_bits(memberships: u32, filters: u32) -> Self {
         Self {
-            groups: LayerMask(groups),
-            masks: LayerMask(masks),
+            memberships: LayerMask(memberships),
+            filters: LayerMask(filters),
         }
-    }
-
-    /// Adds the given layers into `groups`.
-    pub fn add_groups(&mut self, layers: impl Into<LayerMask>) {
-        let layers: LayerMask = layers.into();
-        self.groups |= layers;
-    }
-
-    /// Adds the given layers into `masks`.
-    pub fn add_masks(&mut self, layers: impl Into<LayerMask>) {
-        let layers: LayerMask = layers.into();
-        self.masks |= layers;
-    }
-
-    /// Removes the given layers from `groups`.
-    pub fn remove_groups(&mut self, layers: impl Into<LayerMask>) {
-        let layers: LayerMask = layers.into();
-        self.groups &= !layers;
-    }
-
-    /// Removes the given layers from `masks`.
-    pub fn remove_masks(&mut self, layers: impl Into<LayerMask>) {
-        let layers: LayerMask = layers.into();
-        self.masks &= !layers;
-    }
-
-    /// Returns true if all of the given layers are contained in `groups`.
-    pub fn contains_groups(self, layers: impl Into<LayerMask>) -> bool {
-        let layers = layers.into();
-        (self.groups & layers) != LayerMask::NONE
-    }
-
-    /// Returns true if all of the given layers are contained in `masks`.
-    pub fn contains_masks(self, layers: impl Into<LayerMask>) -> bool {
-        let layers = layers.into();
-        (self.masks & layers) != LayerMask::NONE
     }
 
     /// Returns true if an entity with this [`CollisionLayers`] configuration
     /// can interact with an entity with the `other` [`CollisionLayers`] configuration.
     pub fn interacts_with(self, other: Self) -> bool {
-        (self.groups & other.masks) != LayerMask::NONE
-            && (other.groups & self.masks) != LayerMask::NONE
+        (self.memberships & other.filters) != LayerMask::NONE
+            && (other.memberships & self.filters) != LayerMask::NONE
     }
 }
 
 impl Default for CollisionLayers {
     fn default() -> Self {
         Self {
-            groups: LayerMask::ALL,
-            masks: LayerMask::ALL,
+            memberships: LayerMask::ALL,
+            filters: LayerMask::ALL,
         }
     }
 }
@@ -305,10 +378,12 @@ mod tests {
         assert_eq!(with_bitmask, with_enum);
         assert_eq!(with_bitmask, with_layers);
 
-        assert!(with_bitmask.contains_groups(GameLayer::Enemy));
-        assert!(!with_bitmask.contains_groups(GameLayer::Player));
+        assert!(with_bitmask.memberships.has_all(GameLayer::Enemy));
+        assert!(!with_bitmask.memberships.has_all(GameLayer::Player));
 
-        assert!(with_bitmask.contains_masks(GameLayer::Ground));
-        assert!(!with_bitmask.contains_masks(GameLayer::Enemy));
+        assert!(with_bitmask
+            .filters
+            .has_all([GameLayer::Player, GameLayer::Ground]));
+        assert!(!with_bitmask.filters.has_all(GameLayer::Enemy));
     }
 }
