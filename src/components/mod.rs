@@ -1,6 +1,5 @@
-//! Components used for rigid bodies, colliders and mass properties.
+//! Commonly used components.
 
-mod collider;
 mod forces;
 mod layers;
 mod locked_axes;
@@ -8,7 +7,6 @@ mod mass_properties;
 mod rotation;
 mod world_queries;
 
-pub use collider::*;
 pub use forces::*;
 pub use layers::*;
 pub use locked_axes::*;
@@ -328,6 +326,44 @@ impl Position {
     #[cfg(feature = "3d")]
     pub fn from_xyz(x: Scalar, y: Scalar, z: Scalar) -> Self {
         Self(Vector::new(x, y, z))
+    }
+}
+
+impl From<GlobalTransform> for Position {
+    #[cfg(feature = "2d")]
+    fn from(value: GlobalTransform) -> Self {
+        Self::from_xy(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+        )
+    }
+
+    #[cfg(feature = "3d")]
+    fn from(value: GlobalTransform) -> Self {
+        Self::from_xyz(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+            value.translation().adjust_precision().z,
+        )
+    }
+}
+
+impl From<&GlobalTransform> for Position {
+    #[cfg(feature = "2d")]
+    fn from(value: &GlobalTransform) -> Self {
+        Self::from_xy(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+        )
+    }
+
+    #[cfg(feature = "3d")]
+    fn from(value: &GlobalTransform) -> Self {
+        Self::from_xyz(
+            value.translation().adjust_precision().x,
+            value.translation().adjust_precision().y,
+            value.translation().adjust_precision().z,
+        )
     }
 }
 

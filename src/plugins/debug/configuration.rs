@@ -52,6 +52,8 @@ pub struct PhysicsDebugConfig {
     pub contact_point_color: Option<Color>,
     /// The color of the contact normals. If `None`, the contact normals will not be rendered.
     pub contact_normal_color: Option<Color>,
+    /// The scale used for contact normals.
+    pub contact_normal_scale: ContactGizmoScale,
     /// The color of the lines drawn from the centers of bodies to their joint anchors.
     pub joint_anchor_color: Option<Color>,
     /// The color of the lines drawn between joint anchors, indicating the separation.
@@ -88,6 +90,7 @@ impl Default for PhysicsDebugConfig {
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             contact_point_color: None,
             contact_normal_color: None,
+            contact_normal_scale: ContactGizmoScale::default(),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
             raycast_color: Some(Color::RED),
@@ -99,6 +102,21 @@ impl Default for PhysicsDebugConfig {
             shapecast_normal_color: Some(Color::PINK),
             hide_meshes: false,
         }
+    }
+}
+
+/// The scale used for contact normals rendered using gizmos.
+#[derive(Reflect)]
+pub enum ContactGizmoScale {
+    /// The length of the rendered contact normal is constant.
+    Constant(Scalar),
+    /// The length of the rendered contact normal is scaled by the contact force and the given scaling factor.
+    Scaled(Scalar),
+}
+
+impl Default for ContactGizmoScale {
+    fn default() -> Self {
+        Self::Scaled(0.025)
     }
 }
 
@@ -116,6 +134,7 @@ impl PhysicsDebugConfig {
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
             contact_point_color: Some(Color::CYAN),
             contact_normal_color: Some(Color::RED),
+            contact_normal_scale: ContactGizmoScale::default(),
             joint_anchor_color: Some(Color::PINK),
             joint_separation_color: Some(Color::RED),
             raycast_color: Some(Color::RED),
@@ -141,6 +160,7 @@ impl PhysicsDebugConfig {
             sleeping_color_multiplier: None,
             contact_point_color: None,
             contact_normal_color: None,
+            contact_normal_scale: ContactGizmoScale::default(),
             joint_anchor_color: None,
             joint_separation_color: None,
             raycast_color: None,
@@ -233,9 +253,21 @@ impl PhysicsDebugConfig {
         self
     }
 
-    /// Sets the contact color.
+    /// Sets the contact point color.
     pub fn with_contact_point_color(mut self, color: Color) -> Self {
         self.contact_point_color = Some(color);
+        self
+    }
+
+    /// Sets the contact normal color.
+    pub fn with_contact_normal_color(mut self, color: Color) -> Self {
+        self.contact_normal_color = Some(color);
+        self
+    }
+
+    /// Sets the contact normal scale.
+    pub fn with_contact_normal_scale(mut self, scale: ContactGizmoScale) -> Self {
+        self.contact_normal_scale = scale;
         self
     }
 

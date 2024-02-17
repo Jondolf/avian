@@ -1,30 +1,27 @@
-//! Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
-//! and [colliders](Collider) and updates components.
+//! Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
+//! and updates components.
 //!
 //! See [`PreparePlugin`].
 
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-use bevy::scene::SceneInstance;
-use bevy::{
-    ecs::query::Has,
-    prelude::*,
-    utils::{intern::Interned, HashMap},
-};
+use bevy::{prelude::*, utils::intern::Interned};
 
-/// Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
-/// and [colliders](Collider) and updates components.
+/// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
+/// and updates components.
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
-/// - Adds missing collider components for entities with a [`Collider`] component
-/// - Adds missing mass properties for entities with a [`RigidBody`] or [`Collider`] component
-/// - Updates mass properties and adds [`ColliderMassProperties`] on top of the existing mass properties
+/// - Adds missing mass properties for entities with a [`RigidBody`] component
+/// - Updates mass properties
 /// - Clamps restitution coefficients between 0 and 1
 ///
 /// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]
 /// and vice versa. You can configure this synchronization using the [`PrepareConfig`] resource.
+///
+/// The plugin takes a collider type. This should be [`Collider`] for
+/// the vast majority of applications, but for custom collisión backends
+/// you may use any collider that implements the [`AnyCollider`] trait.
 ///
 /// The systems run in [`PhysicsSet::Prepare`].
 pub struct PreparePlugin {
@@ -98,77 +95,49 @@ impl Plugin for PreparePlugin {
                 .in_set(PhysicsSet::Prepare),
         );
 
-        app.init_resource::<ColliderStorageMap>()
-            .init_resource::<PrepareConfig>()
-            .register_type::<PrepareConfig>()
-            .add_systems(
-                self.schedule,
-                (
-                    apply_deferred,
-                    // Run transform propagation if new bodies or colliders have been added
-                    (
-                        bevy::transform::systems::sync_simple_transforms,
-                        bevy::transform::systems::propagate_transforms,
-                    )
-                        .chain()
-                        .run_if(any_new_physics_entities),
-                )
-                    .chain()
-                    .in_set(PrepareSet::PropagateTransforms),
-            )
-            .add_systems(
-                self.schedule,
-                init_rigid_bodies.in_set(PrepareSet::InitRigidBodies),
-            )
-            .add_systems(
-                self.schedule,
-                init_mass_properties.in_set(PrepareSet::InitMassProperties),
-            )
-            .add_systems(
-                self.schedule,
-                (
-                    init_colliders,
-                    apply_deferred,
-                    update_collider_parents,
-                    apply_deferred,
-                )
-                    .chain()
-                    .in_set(PrepareSet::InitColliders),
-            )
-            .add_systems(
-                self.schedule,
-                init_transforms.in_set(PrepareSet::InitTransforms),
-            )
-            .add_systems(
-                self.schedule,
-                (
-                    (
-                        sync::propagate_collider_transforms,
-                        sync::update_child_collider_position,
-                    )
-                        .chain()
-                        .run_if(any_new_physics_entities),
-                    update_mass_properties,
-                    clamp_collider_density,
-                    clamp_restitution,
-                    // All the components we added above must exist before we can simulate the bodies.
-                    apply_deferred,
-                )
-                    .chain()
-                    .in_set(PrepareSet::Finalize),
-            );
+        app.init_resource::<PrepareConfig>()
+            .register_type::<PrepareConfig>();
 
+        // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
-            PhysicsSchedule,
+            self.schedule,
             (
-                update_collider_storage.before(PhysicsStepSet::BroadPhase),
-                handle_collider_storage_removals.after(PhysicsStepSet::SpatialQuery),
-                handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
-            ),
+                apply_deferred,
+                // Run transform propagation if new bodies have been added
+                (
+                    bevy::transform::systems::sync_simple_transforms,
+                    bevy::transform::systems::propagate_transforms,
+                )
+                    .chain()
+                    .run_if(any_new::<RigidBody>),
+            )
+                .chain()
+                .in_set(PrepareSet::PropagateTransforms),
+        )
+        .add_systems(
+            self.schedule,
+            init_rigid_bodies.in_set(PrepareSet::InitRigidBodies),
+        )
+        .add_systems(
+            self.schedule,
+            init_mass_properties.in_set(PrepareSet::InitMassProperties),
+        )
+        .add_systems(
+            self.schedule,
+            init_transforms::<RigidBody>.in_set(PrepareSet::InitTransforms),
+        )
+        .add_systems(
+            self.schedule,
+            (
+                update_mass_properties,
+                clamp_collider_density,
+                clamp_restitution,
+                // All the components we added above must exist before we can simulate the bodies.
+                apply_deferred,
+            )
+                .chain()
+                .in_set(PrepareSet::Finalize),
         );
-
-        #[cfg(all(feature = "3d", feature = "async-collider"))]
-        app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
     }
 }
 
@@ -193,34 +162,15 @@ impl Default for PrepareConfig {
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(ColliderTransform);
-
-// Todo: Does this make sense in this file? It would also be nice to find an alternative approach.
-/// A hash map that stores some collider data that is needed when colliders are removed from
-/// rigid bodies.
-///
-/// This includes the collider parent for finding the associated rigid body after collider removal,
-/// and collider mass properties for updating the rigid body's mass properties when its collider is removed.
-///
-/// Ideally, we would just have some entity removal event or callback, but that doesn't
-/// exist yet, and `RemovedComponents` only returns entities, not component data.
-#[derive(Resource, Reflect, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Resource)]
-pub(crate) struct ColliderStorageMap(
-    HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
-);
-
-/// A run condition that returns `true` if new [rigid bodies](RigidBody) or [colliders](Collider)
-/// have been added. Used for avoiding unnecessary transform propagation.
-fn any_new_physics_entities(query: Query<(), Or<(Added<RigidBody>, Added<Collider>)>>) -> bool {
+/// A run condition that returns `true` if a component of the given type `C` has been added to any entity.
+pub fn any_new<C: Component>(query: Query<(), Added<C>>) -> bool {
     !query.is_empty()
 }
 
 // TODO: This system feels very overengineered. Try to clean it up?
-/// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa.
-fn init_transforms(
+/// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa
+/// when a component of the given type is inserted.
+pub fn init_transforms<C: Component>(
     mut commands: Commands,
     config: Res<PrepareConfig>,
     mut query: Query<
@@ -233,9 +183,9 @@ fn init_transforms(
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
-            Has<RigidBody>,
+            Has<C>,
         ),
-        Or<(Added<RigidBody>, Added<Collider>)>,
+        Added<C>,
     >,
     parents: Query<
         (
@@ -489,317 +439,32 @@ fn init_mass_properties(
     }
 }
 
-/// Initializes missing components for [colliders](Collider).
-fn init_colliders(
-    mut commands: Commands,
-    mut colliders: Query<
+/// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.
+pub fn update_mass_properties(
+    mut bodies: Query<
         (
             Entity,
-            &Collider,
-            Option<&ColliderAabb>,
-            Option<&ColliderDensity>,
-            Option<&ColliderMassProperties>,
+            &RigidBody,
+            Ref<Mass>,
+            &mut InverseMass,
+            Ref<Inertia>,
+            &mut InverseInertia,
         ),
-        Added<Collider>,
+        Or<(Changed<Mass>, Changed<Inertia>)>,
     >,
 ) {
-    for (entity, collider, aabb, density, mass_properties) in &mut colliders {
-        let density = *density.unwrap_or(&ColliderDensity::default());
-        commands.entity(entity).insert((
-            *aabb.unwrap_or(&ColliderAabb::from_shape(collider.shape_scaled())),
-            density,
-            *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
-            CollidingEntities::default(),
-        ));
-    }
-}
-
-/// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-pub fn init_async_colliders(
-    mut commands: Commands,
-    meshes: Res<Assets<Mesh>>,
-    async_colliders: Query<(Entity, &Handle<Mesh>, &AsyncCollider)>,
-) {
-    for (entity, mesh_handle, async_collider) in async_colliders.iter() {
-        if let Some(mesh) = meshes.get(mesh_handle) {
-            let collider = match &async_collider.0 {
-                ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
-                ComputedCollider::TriMeshWithFlags(flags) => {
-                    Collider::trimesh_from_mesh_with_config(mesh, *flags)
-                }
-                ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
-                ComputedCollider::ConvexDecomposition(params) => {
-                    Collider::convex_decomposition_from_mesh_with_config(mesh, params)
-                }
-            };
-            if let Some(collider) = collider {
-                commands
-                    .entity(entity)
-                    .insert(collider)
-                    .remove::<AsyncCollider>();
-            } else {
-                error!("Unable to generate collider from mesh {:?}", mesh);
-            }
-        }
-    }
-}
-
-/// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-pub fn init_async_scene_colliders(
-    mut commands: Commands,
-    meshes: Res<Assets<Mesh>>,
-    scene_spawner: Res<SceneSpawner>,
-    async_colliders: Query<(Entity, &SceneInstance, &AsyncSceneCollider)>,
-    children: Query<&Children>,
-    mesh_handles: Query<(&Name, &Handle<Mesh>)>,
-) {
-    for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
-        if scene_spawner.instance_is_ready(**scene_instance) {
-            for child_entity in children.iter_descendants(scene_entity) {
-                if let Ok((name, handle)) = mesh_handles.get(child_entity) {
-                    let Some(collider_data) = async_scene_collider
-                        .meshes_by_name
-                        .get(name.as_str())
-                        .cloned()
-                        .unwrap_or(
-                            async_scene_collider
-                                .default_shape
-                                .clone()
-                                .map(|shape| AsyncSceneColliderData { shape, ..default() }),
-                        )
-                    else {
-                        continue;
-                    };
-
-                    let mesh = meshes.get(handle).expect("mesh should already be loaded");
-
-                    let collider = match collider_data.shape {
-                        ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
-                        ComputedCollider::TriMeshWithFlags(flags) => {
-                            Collider::trimesh_from_mesh_with_config(mesh, flags)
-                        }
-                        ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
-                        ComputedCollider::ConvexDecomposition(params) => {
-                            Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
-                        }
-                    };
-                    if let Some(collider) = collider {
-                        commands.entity(child_entity).insert((
-                            collider,
-                            collider_data.layers,
-                            ColliderDensity(collider_data.density),
-                        ));
-                    } else {
-                        error!(
-                            "unable to generate collider from mesh {:?} with name {}",
-                            mesh, name
-                        );
-                    }
-                }
-            }
-
-            commands.entity(scene_entity).remove::<AsyncSceneCollider>();
-        }
-    }
-}
-
-fn update_collider_parents(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<Collider>), With<RigidBody>>,
-    children: Query<&Children>,
-    mut child_colliders: Query<Option<&mut ColliderParent>, (With<Collider>, Without<RigidBody>)>,
-) {
-    for (entity, collider_parent, has_collider) in &mut bodies {
-        if has_collider {
-            if let Some(mut collider_parent) = collider_parent {
-                collider_parent.0 = entity;
-            } else {
-                commands.entity(entity).insert((
-                    ColliderParent(entity),
-                    // Todo: This probably causes a one frame delay. Compute real value?
-                    ColliderTransform::default(),
-                    PreviousColliderTransform::default(),
-                ));
-            }
-        }
-        for child in children.iter_descendants(entity) {
-            if let Ok(collider_parent) = child_colliders.get_mut(child) {
-                if let Some(mut collider_parent) = collider_parent {
-                    collider_parent.0 = entity;
-                } else {
-                    commands.entity(child).insert((
-                        ColliderParent(entity),
-                        // Todo: This probably causes a one frame delay. Compute real value?
-                        ColliderTransform::default(),
-                        PreviousColliderTransform::default(),
-                    ));
-                }
-            }
-        }
-    }
-}
-
-/// Updates colliders when the rigid bodies they were attached to have been removed.
-fn handle_rigid_body_removals(
-    mut commands: Commands,
-    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
-    bodies: Query<(), With<RigidBody>>,
-    removals: RemovedComponents<RigidBody>,
-) {
-    // Return if no rigid bodies have been removed
-    if removals.is_empty() {
-        return;
-    }
-
-    for (collider_entity, collider_parent) in &colliders {
-        // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderTransform.
-        if !bodies.contains(collider_parent.get()) {
-            commands.entity(collider_entity).remove::<(
-                ColliderParent,
-                ColliderTransform,
-                PreviousColliderTransform,
-            )>();
-        }
-    }
-}
-
-/// Updates [`ColliderStorageMap`], a resource that stores some collider properties that need
-/// to be handled when colliders are removed from entities.
-fn update_collider_storage(
-    // TODO: Maybe it's enough to store only colliders that aren't on rigid body entities
-    //       directly (i.e. child colliders)
-    colliders: Query<
-        (
-            Entity,
-            &ColliderParent,
-            &ColliderMassProperties,
-            &ColliderTransform,
-        ),
-        (
-            With<Collider>,
-            Or<(
-                Changed<ColliderParent>,
-                Changed<ColliderTransform>,
-                Changed<ColliderMassProperties>,
-            )>,
-        ),
-    >,
-    mut storage: ResMut<ColliderStorageMap>,
-) {
-    for (entity, parent, collider_mass_properties, collider_transform) in &colliders {
-        storage.insert(
-            entity,
-            (*parent, *collider_mass_properties, *collider_transform),
-        );
-    }
-}
-
-/// Removes removed colliders from the [`ColliderStorageMap`] resource at the end of the physics frame.
-fn handle_collider_storage_removals(
-    mut removals: RemovedComponents<Collider>,
-    mut storage: ResMut<ColliderStorageMap>,
-) {
-    removals.read().for_each(|entity| {
-        storage.remove(&entity);
-    });
-}
-
-/// Updates each body's mass properties whenever their dependant mass properties or the body's [`Collider`] change.
-///
-/// Also updates the collider's mass properties if the body has a collider.
-fn update_mass_properties(
-    mut bodies: Query<(Entity, &RigidBody, MassPropertiesQuery)>,
-    mut colliders: Query<
-        (
-            &ColliderTransform,
-            &mut PreviousColliderTransform,
-            &ColliderParent,
-            Ref<Collider>,
-            &ColliderDensity,
-            &mut ColliderMassProperties,
-        ),
-        Or<(
-            Changed<Collider>,
-            Changed<ColliderTransform>,
-            Changed<ColliderDensity>,
-            Changed<ColliderMassProperties>,
-        )>,
-    >,
-    collider_map: Res<ColliderStorageMap>,
-    mut removed_colliders: RemovedComponents<Collider>,
-) {
-    for (
-        collider_transform,
-        mut previous_collider_transform,
-        collider_parent,
-        collider,
-        density,
-        mut collider_mass_properties,
-    ) in &mut colliders
-    {
-        if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
-            // Subtract previous collider mass props from the body's own mass props,
-            // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
-            if !collider.is_added() {
-                mass_properties -= ColliderMassProperties {
-                    center_of_mass: CenterOfMass(
-                        previous_collider_transform
-                            .transform_point(collider_mass_properties.center_of_mass.0),
-                    ),
-                    ..*collider_mass_properties
-                };
-            }
-
-            previous_collider_transform.0 = *collider_transform;
-
-            // Update collider mass props
-            *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
-
-            // Add new collider mass props to the body's mass props
-            mass_properties += ColliderMassProperties {
-                center_of_mass: CenterOfMass(
-                    collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
-                ),
-                ..*collider_mass_properties
-            };
-        }
-    }
-
-    // Subtract mass properties of removed colliders
-    for entity in removed_colliders.read() {
-        if let Some((collider_parent, collider_mass_properties, collider_transform)) =
-            collider_map.get(&entity)
-        {
-            if let Ok((_, _, mut mass_properties)) = bodies.get_mut(collider_parent.0) {
-                mass_properties -= ColliderMassProperties {
-                    center_of_mass: CenterOfMass(
-                        collider_transform
-                            .transform_point(collider_mass_properties.center_of_mass.0),
-                    ),
-                    ..*collider_mass_properties
-                };
-            }
-        }
-    }
-
-    for (entity, rb, mut mass_properties) in &mut bodies {
-        let is_mass_valid =
-            mass_properties.mass.is_finite() && mass_properties.mass.0 >= Scalar::EPSILON;
+    for (entity, rb, mass, mut inv_mass, inertia, mut inv_inertia) in &mut bodies {
+        let is_mass_valid = mass.is_finite() && mass.0 >= Scalar::EPSILON;
         #[cfg(feature = "2d")]
-        let is_inertia_valid =
-            mass_properties.inertia.is_finite() && mass_properties.inertia.0 >= Scalar::EPSILON;
+        let is_inertia_valid = inertia.is_finite() && inertia.0 >= Scalar::EPSILON;
         #[cfg(feature = "3d")]
-        let is_inertia_valid =
-            mass_properties.inertia.is_finite() && *mass_properties.inertia != Inertia::ZERO;
+        let is_inertia_valid = inertia.is_finite() && *inertia != Inertia::ZERO;
 
-        if mass_properties.mass.is_changed() && is_mass_valid {
-            mass_properties.inverse_mass.0 = 1.0 / mass_properties.mass.0;
+        if mass.is_changed() && is_mass_valid {
+            inv_mass.0 = 1.0 / mass.0;
         }
-        if mass_properties.inertia.is_changed() && is_inertia_valid {
-            mass_properties.inverse_inertia.0 = mass_properties.inertia.inverse().0;
+        if inertia.is_changed() && is_inertia_valid {
+            inv_inertia.0 = inertia.inverse().0;
         }
 
         // Warn about dynamic bodies with no mass or inertia

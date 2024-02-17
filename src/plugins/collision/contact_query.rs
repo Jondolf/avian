@@ -68,7 +68,7 @@ pub fn contact(
     position2: impl Into<Position>,
     rotation2: impl Into<Rotation>,
     prediction_distance: Scalar,
-) -> Result<Option<ContactData>, UnsupportedShape> {
+) -> Result<Option<SingleContact>, UnsupportedShape> {
     let rotation1: Rotation = rotation1.into();
     let rotation2: Rotation = rotation2.into();
     let isometry1 = utils::make_isometry(position1.into(), rotation1);
@@ -100,13 +100,13 @@ pub fn contact(
                 return None;
             }
 
-            Some(ContactData {
+            Some(SingleContact::new(
                 point1,
                 point2,
                 normal1,
                 normal2,
-                penetration: -contact.dist,
-            })
+                -contact.dist,
+            ))
         } else {
             None
         }
@@ -175,6 +175,9 @@ pub fn contact_manifolds(
         &mut manifolds,
         &mut None,
     );
+
+    let mut manifold_index = 0;
+
     manifolds
         .iter()
         .filter_map(|manifold| {
@@ -196,21 +199,30 @@ pub fn contact_manifolds(
                 return None;
             }
 
-            Some(ContactManifold {
+            let manifold = ContactManifold {
                 normal1,
                 normal2,
                 contacts: manifold
                     .contacts()
                     .iter()
-                    .map(|contact| ContactData {
-                        point1: subpos1.transform_point(&contact.local_p1).into(),
-                        point2: subpos2.transform_point(&contact.local_p2).into(),
-                        normal1,
-                        normal2,
-                        penetration: -contact.dist,
+                    .enumerate()
+                    .map(|(contact_index, contact)| {
+                        ContactData::new(
+                            subpos1.transform_point(&contact.local_p1).into(),
+                            subpos2.transform_point(&contact.local_p2).into(),
+                            normal1,
+                            normal2,
+                            -contact.dist,
+                            contact_index,
+                        )
                     })
                     .collect(),
-            })
+                index: manifold_index,
+            };
+
+            manifold_index += 1;
+
+            Some(manifold)
         })
         .collect()
 }

@@ -281,6 +281,7 @@ fn debug_render_contacts(
     mut collisions: EventReader<Collision>,
     mut debug_renderer: PhysicsDebugRenderer,
     config: Res<PhysicsDebugConfig>,
+    time: Res<Time<Substeps>>,
 ) {
     if config.contact_point_color.is_none() && config.contact_normal_color.is_none() {
         return;
@@ -322,15 +323,30 @@ fn debug_render_contacts(
 
                 // Draw contact normals
                 if let Some(color) = config.contact_normal_color {
+                    // Use dimmer color for second normal
+                    let mut color_dim = color.as_hsla();
+                    color_dim.set_l(color_dim.l() * 0.5);
+
+                    // The length of the normal arrows
+                    let length = match config.contact_normal_scale {
+                        ContactGizmoScale::Constant(length) => length,
+                        ContactGizmoScale::Scaled(scale) => {
+                            scale * contacts.total_normal_impulse
+                                / time.delta_seconds_f64().adjust_precision()
+                        }
+                    };
+
                     #[cfg(feature = "2d")]
                     {
-                        debug_renderer.draw_arrow(p1, p1 + normal1 * 30.0, 8.0, 8.0, color);
-                        debug_renderer.draw_arrow(p2, p2 + normal2 * 30.0, 8.0, 8.0, color);
+                        debug_renderer.draw_arrow(p1, p1 + normal1 * length, 8.0, 8.0, color);
+                        debug_renderer.draw_arrow(p2, p2 + normal2 * length, 8.0, 8.0, color);
                     }
+
                     #[cfg(feature = "3d")]
                     {
-                        debug_renderer.draw_arrow(p1, p1 + normal1 * 0.5, 0.1, 0.1, color);
-                        debug_renderer.draw_arrow(p2, p2 + normal2 * 0.5, 0.1, 0.1, color);
+                        debug_renderer.draw_arrow(p1, p1 + normal1 * length, 0.1, 0.1, color);
+
+                        debug_renderer.draw_arrow(p2, p2 + normal2 * length, 0.1, 0.1, color_dim);
                     }
                 }
             }

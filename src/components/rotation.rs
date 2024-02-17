@@ -146,7 +146,7 @@ impl Rotation {
         self.as_radians().to_degrees()
     }
 
-    /// Rotates the rotation by a given vector.
+    /// Rotates the given vector by `self`.
     pub fn rotate(&self, vec: Vector) -> Vector {
         Vector::new(
             vec.x * self.cos() - vec.y * self.sin(),
@@ -273,6 +273,12 @@ impl From<Transform> for Rotation {
 
 impl From<GlobalTransform> for Rotation {
     fn from(value: GlobalTransform) -> Self {
+        Self::from(value.compute_transform().rotation)
+    }
+}
+
+impl From<&GlobalTransform> for Rotation {
+    fn from(value: &GlobalTransform) -> Self {
         Self::from(value.compute_transform().rotation)
     }
 }
