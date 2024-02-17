@@ -408,18 +408,12 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                     color,
                 );
             }
-            TypedShape::Custom(id) => {
+            TypedShape::Custom(_id) =>
+            {
                 #[cfg(feature = "2d")]
-                if id == 1 {
+                if _id == 1 {
                     if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
                         self.primitive_2d(ellipse.0, position.f32(), rotation.as_radians(), color);
-                    }
-                }
-                #[cfg(feature = "3d")]
-                if id == 3 {
-                    if let Some(torus) = collider.shape_scaled().as_shape::<TorusWrapper>() {
-                        self.primitive_3d(torus.0, position.f32(), rotation.f32(), color)
-                            .major_segments(16);
                     }
                 }
             }

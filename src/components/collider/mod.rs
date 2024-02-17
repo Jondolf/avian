@@ -25,8 +25,6 @@ mod primitives3d;
 
 #[cfg(feature = "2d")]
 pub(crate) use primitives2d::EllipseWrapper;
-#[cfg(feature = "3d")]
-pub(crate) use primitives3d::TorusWrapper;
 
 /// A trait for creating [`Collider`]s from other types.
 pub trait IntoCollider {
@@ -501,31 +499,6 @@ impl Collider {
     pub fn cone(height: Scalar, radius: Scalar) -> Self {
         SharedShape::cone(height * 0.5, radius).into()
     }
-
-    /// Creates a collider with a torus shape defined by its minor and major radii.
-    #[cfg(feature = "3d")]
-    pub fn torus(minor_radius: Scalar, major_radius: Scalar) -> Self {
-        Torus {
-            minor_radius,
-            major_radius,
-        }
-        .collider()
-    }
-
-    /* TODO
-    /// Creates a collider with a conical frustum shape defined its height along the `Y` axis and the radii of the top and bottom.
-    #[cfg(feature = "3d")]
-    pub fn conical_frustum(height: Scalar, radius_top: Scalar, radius_bottom: Scalar) -> Self {
-        use self::primitives3d::ConicalFrustumWrapper;
-
-        SharedShape::new(ConicalFrustumWrapper(ConicalFrustum {
-            radius_top,
-            radius_bottom,
-            height,
-        }))
-        .into()
-    }
-    */
 
     /// Creates a collider with a capsule shape defined by its height along the `Y` axis and its radius.
     pub fn capsule(height: Scalar, radius: Scalar) -> Self {
@@ -1037,16 +1010,6 @@ fn scale_shape(
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
                         half_size: ellipse.half_size * scale.f32(),
                     })));
-                }
-            }
-            #[cfg(feature = "3d")]
-            if _id == 3 {
-                if let Some(torus) = shape.as_shape::<TorusWrapper>() {
-                    return scale_shape(
-                        &SharedShape::new(torus.1.clone()),
-                        scale,
-                        num_subdivisions,
-                    );
                 }
             }
             Err(parry::query::Unsupported)
