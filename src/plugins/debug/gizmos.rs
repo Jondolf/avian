@@ -128,13 +128,13 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         #[cfg(feature = "2d")]
         {
             self.arrow_2d(a.f32(), b.f32(), color)
-                .with_tip_length(head_length);
+                .with_tip_length(head_length as f32);
         }
 
         #[cfg(feature = "3d")]
         {
             self.arrow(a.f32(), b.f32(), color)
-                .with_tip_length(head_length);
+                .with_tip_length(head_length as f32);
         }
     }
 
@@ -413,7 +413,12 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 #[cfg(feature = "2d")]
                 if _id == 1 {
                     if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
-                        self.primitive_2d(ellipse.0, position.f32(), rotation.as_radians(), color);
+                        self.primitive_2d(
+                            ellipse.0,
+                            position.f32(),
+                            rotation.as_radians() as f32,
+                            color,
+                        );
                     }
                 }
             }

@@ -487,7 +487,11 @@ impl Collider {
     /// Creates a collider with an ellipse shape defined by a half-width and half-height.
     #[cfg(feature = "2d")]
     pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
-        SharedShape::new(EllipseWrapper(Ellipse::new(half_width, half_height))).into()
+        SharedShape::new(EllipseWrapper(Ellipse::new(
+            half_width as f32,
+            half_height as f32,
+        )))
+        .into()
     }
 
     /// Creates a collider with a rectangle shape defined by its extents.
@@ -586,7 +590,7 @@ impl Collider {
 
     /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
     #[cfg(feature = "2d")]
-    pub fn regular_polygon(circumradius: Scalar, sides: usize) -> Self {
+    pub fn regular_polygon(circumradius: f32, sides: usize) -> Self {
         RegularPolygon::new(circumradius, sides).collider()
     }
 
@@ -911,7 +915,7 @@ fn scale_shape(
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
                     Ok(SharedShape::new(EllipseWrapper(Ellipse {
-                        half_size: Vec2::splat(b.radius) * scale,
+                        half_size: Vec2::splat(b.radius as f32) * scale.f32(),
                     })))
                 }
             }

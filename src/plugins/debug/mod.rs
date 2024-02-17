@@ -175,7 +175,7 @@ fn debug_render_axes(
             gizmos.circle_2d(
                 global_com.f32(),
                 // Scale dot size based on axis lengths
-                (lengths.x + lengths.y) / 20.0,
+                (lengths.x + lengths.y) as f32 / 20.0,
                 center_color,
             );
             #[cfg(feature = "3d")]
@@ -183,7 +183,7 @@ fn debug_render_axes(
                 global_com.f32(),
                 rot.f32(),
                 // Scale dot size based on axis lengths
-                (lengths.x + lengths.y + lengths.z) / 30.0,
+                (lengths.x + lengths.y + lengths.z) as f32 / 30.0,
                 center_color,
             );
         }
@@ -304,10 +304,10 @@ fn debug_render_contacts(
 
         for manifold in contacts.manifolds.iter() {
             for contact in manifold.contacts.iter() {
-                let p1 = contact.global_point1(position1, rotation1).f32();
-                let p2 = contact.global_point2(position2, rotation2).f32();
-                let normal1 = contact.global_normal1(rotation1).f32();
-                let normal2 = contact.global_normal2(rotation2).f32();
+                let p1 = contact.global_point1(position1, rotation1);
+                let p2 = contact.global_point2(position2, rotation2);
+                let normal1 = contact.global_normal1(rotation1);
+                let normal2 = contact.global_normal2(rotation2);
 
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {
@@ -318,13 +318,13 @@ fn debug_render_contacts(
                 if let Some(color) = config.contact_point_color {
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.circle_2d(p1, 3.0, color);
-                        gizmos.circle_2d(p2, 3.0, color);
+                        gizmos.circle_2d(p1.f32(), 3.0, color);
+                        gizmos.circle_2d(p2.f32(), 3.0, color);
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1, default(), 0.025, color);
-                        gizmos.sphere(p2, default(), 0.025, color);
+                        gizmos.sphere(p1.f32(), default(), 0.025, color);
+                        gizmos.sphere(p2.f32(), default(), 0.025, color);
                     }
                 }
 

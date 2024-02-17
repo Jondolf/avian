@@ -1,4 +1,4 @@
-use crate::{AdjustPrecision, Scalar};
+use crate::{AdjustPrecision, AsF32, Scalar, Vector};
 
 use super::{Collider, IntoCollider};
 use bevy::prelude::Deref;
@@ -32,7 +32,7 @@ pub(crate) struct EllipseWrapper(pub(crate) Ellipse);
 impl SupportMap for EllipseWrapper {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
-        let (a, b) = (self.half_size.x, self.half_size.y);
+        let [a, b] = self.half_size.adjust_precision().to_array();
         let denom = (direction.x.powi(2) * a * a + direction.y.powi(2) * b * b).sqrt();
         Point2::new(a * a * direction.x / denom, b * b * direction.y / denom)
     }
@@ -41,18 +41,27 @@ impl SupportMap for EllipseWrapper {
 impl Shape for EllipseWrapper {
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
         let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
-        parry::bounding_volume::Aabb::new(aabb.min.into(), aabb.max.into())
+        parry::bounding_volume::Aabb::new(
+            aabb.min.adjust_precision().into(),
+            aabb.max.adjust_precision().into(),
+        )
     }
 
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(position.translation.into(), position.rotation.angle());
-        parry::bounding_volume::Aabb::new(aabb.min.into(), aabb.max.into())
+        let aabb = self.aabb_2d(
+            Vector::from(position.translation).f32(),
+            position.rotation.angle() as f32,
+        );
+        parry::bounding_volume::Aabb::new(
+            aabb.min.adjust_precision().into(),
+            aabb.max.adjust_precision().into(),
+        )
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
         let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
         parry::bounding_volume::BoundingSphere::new(
-            sphere.center.into(),
+            sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
         )
     }
@@ -61,9 +70,12 @@ impl Shape for EllipseWrapper {
         &self,
         position: &Isometry<Scalar>,
     ) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(position.translation.into(), position.rotation.angle());
+        let sphere = self.bounding_circle(
+            Vector::from(position.translation).f32(),
+            position.rotation.angle() as f32,
+        );
         parry::bounding_volume::BoundingSphere::new(
-            sphere.center.into(),
+            sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
         )
     }
@@ -72,10 +84,10 @@ impl Shape for EllipseWrapper {
         Box::new(*self)
     }
 
-    fn mass_properties(&self, density: parry::math::Real) -> MassProperties {
-        let volume = self.area();
+    fn mass_properties(&self, density: Scalar) -> MassProperties {
+        let volume = self.area().adjust_precision();
         let mass = volume * density;
-        let inertia = mass * self.half_size.length_squared() / 4.0;
+        let inertia = mass * self.half_size.length_squared().adjust_precision() / 4.0;
         MassProperties::new(Point2::origin(), mass, inertia)
     }
 
@@ -91,11 +103,11 @@ impl Shape for EllipseWrapper {
         parry::shape::TypedShape::Custom(1)
     }
 
-    fn ccd_thickness(&self) -> parry::math::Real {
-        self.half_size.max_element()
+    fn ccd_thickness(&self) -> Scalar {
+        self.half_size.max_element().adjust_precision()
     }
 
-    fn ccd_angular_thickness(&self) -> parry::math::Real {
+    fn ccd_angular_thickness(&self) -> Scalar {
         crate::math::PI
     }
 
@@ -108,7 +120,7 @@ impl RayCast for EllipseWrapper {
     fn cast_local_ray_and_get_normal(
         &self,
         ray: &parry::query::Ray,
-        max_toi: parry::math::Real,
+        max_toi: Scalar,
         solid: bool,
     ) -> Option<parry::query::RayIntersection> {
         local_ray_intersection_with_support_map_with_params(
@@ -124,7 +136,7 @@ impl RayCast for EllipseWrapper {
 impl PointQuery for EllipseWrapper {
     fn project_local_point(
         &self,
-        pt: &parry::math::Point<parry::math::Real>,
+        pt: &parry::math::Point<Scalar>,
         solid: bool,
     ) -> parry::query::PointProjection {
         local_point_projection_on_support_map(self, &mut VoronoiSimplex::new(), pt, solid)
@@ -132,7 +144,7 @@ impl PointQuery for EllipseWrapper {
 
     fn project_local_point_and_get_feature(
         &self,
-        pt: &parry::math::Point<parry::math::Real>,
+        pt: &parry::math::Point<Scalar>,
     ) -> (parry::query::PointProjection, parry::shape::FeatureId) {
         (self.project_local_point(pt, false), FeatureId::Unknown)
     }
@@ -185,7 +197,10 @@ impl IntoCollider for Triangle2d {
 
 impl IntoCollider for Rectangle {
     fn collider(&self) -> Collider {
-        Collider::from(SharedShape::cuboid(self.half_size.x, self.half_size.y))
+        Collider::from(SharedShape::cuboid(
+            self.half_size.x.adjust_precision(),
+            self.half_size.y.adjust_precision(),
+        ))
     }
 }
 
@@ -220,6 +235,9 @@ impl IntoCollider for RegularPolygon {
 
 impl IntoCollider for Capsule2d {
     fn collider(&self) -> Collider {
-        Collider::capsule(2.0 * self.half_length, self.radius)
+        Collider::capsule(
+            2.0 * self.half_length.adjust_precision(),
+            self.radius.adjust_precision(),
+        )
     }
 }
