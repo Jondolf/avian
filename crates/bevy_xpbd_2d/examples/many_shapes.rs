@@ -40,7 +40,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -62,7 +62,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -73,16 +73,16 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
 
-    let ball = (
-        Collider::ball(7.5),
+    let circle = (
+        Collider::circle(7.5),
         meshes.add(shape::Circle::new(7.5)).into(),
         materials.add(Color::rgb(0.29, 0.33, 0.64)),
     );
-    let cuboid = (
-        Collider::cuboid(15.0, 15.0),
+    let rectangle = (
+        Collider::rectangle(15.0, 15.0),
         meshes.add(shape::Box::new(15.0, 15.0, 15.0)).into(),
         materials.add(Color::rgb(0.47, 0.58, 0.8)),
     );
@@ -109,7 +109,7 @@ fn setup(
         meshes.add(shape::RegularPolygon::new(10.0, 3)).into(),
         materials.add(Color::rgb(0.77, 0.87, 0.97)),
     );
-    let shapes = [ball, cuboid, capsule, triangle];
+    let shapes = [circle, rectangle, capsule, triangle];
 
     for x in -12_i32..12 {
         for y in -8_i32..8 {

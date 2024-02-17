@@ -36,7 +36,7 @@ pub type UnsupportedShape = Unsupported;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute a contact that should have a penetration depth of 0.5
@@ -132,7 +132,7 @@ pub fn contact(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute contact manifolds a collision that should be penetrating
@@ -285,7 +285,7 @@ pub enum ClosestPoints {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // The shapes are intersecting
@@ -380,7 +380,7 @@ pub fn closest_points(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // The distance is 1.0
@@ -448,7 +448,7 @@ pub fn distance(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // These colliders should be intersecting
@@ -541,7 +541,7 @@ pub struct TimeOfImpact {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// let result = time_of_impact(

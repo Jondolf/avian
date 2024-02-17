@@ -135,7 +135,14 @@ use derive_more::From;
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
-/// commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+#[cfg_attr(
+    feature = "2d",
+    doc = "commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
+)]
 /// # }
 /// ```
 ///
@@ -153,7 +160,8 @@ use derive_more::From;
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-///     Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
 ///     ColliderDensity(2.5),
 /// ));
 /// # }
@@ -172,7 +180,14 @@ use derive_more::From;
 /// // This is equivalent to the earlier approach, but no collider will be added
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-///     MassPropertiesBundle::new_computed(&Collider::ball(0.5), 2.5),
+#[cfg_attr(
+    feature = "2d",
+    doc = "    MassPropertiesBundle::new_computed(&Collider::circle(0.5), 2.5),"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 2.5),"
+)]
 /// ));
 /// # }
 /// ```
@@ -190,7 +205,8 @@ use derive_more::From;
 /// // Create a rigid body with a mass of 5.0 and a collider with no mass
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-///     Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
 ///     ColliderDensity(0.0),
 ///     Mass(5.0),
 ///     // ...the rest of the mass properties

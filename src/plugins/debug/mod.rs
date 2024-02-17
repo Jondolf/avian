@@ -52,7 +52,8 @@ use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 ///     // This rigid body and its collider and AABB will get rendered
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         // Overwrite default collider color (optional)
 ///         DebugRender::default().with_collider_color(Color::RED),
 ///     ));

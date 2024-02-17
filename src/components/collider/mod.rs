@@ -59,7 +59,8 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a ball collider with a given radius
-/// commands.spawn(Collider::ball(0.5));
+#[cfg_attr(feature = "2d", doc = "commands.spawn(Collider::circle(0.5));")]
+#[cfg_attr(feature = "3d", doc = "commands.spawn(Collider::sphere(0.5));")]
 /// // Create a capsule collider with a given height and radius
 /// commands.spawn(Collider::capsule(2.0, 0.5));
 /// # }
@@ -79,12 +80,13 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Transform::from_xyz(0.0, 2.0, 0.0),
 ///     ));
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5)));"
+    doc = "    commands.spawn((RigidBody::Static, Collider::rectangle(5.0, 0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
@@ -124,11 +126,26 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))"
+)]
 ///         .with_children(|children| {
 ///             // Spawn the child colliders positioned relative to the rigid body
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+#[cfg_attr(
+    feature = "2d",
+    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
 ///         });
 /// }
 /// ```
@@ -191,7 +208,7 @@ impl Default for Collider {
     fn default() -> Self {
         #[cfg(feature = "2d")]
         {
-            Self::cuboid(0.5, 0.5)
+            Self::rectangle(0.5, 0.5)
         }
         #[cfg(feature = "3d")]
         {
@@ -442,8 +459,15 @@ impl Collider {
         SharedShape::compound(shapes).into()
     }
 
-    /// Creates a collider with a ball shape defined by its radius.
-    pub fn ball(radius: Scalar) -> Self {
+    /// Creates a collider with a circle shape defined by its radius.
+    #[cfg(feature = "2d")]
+    pub fn circle(radius: Scalar) -> Self {
+        SharedShape::ball(radius).into()
+    }
+
+    /// Creates a collider with a sphere shape defined by its radius.
+    #[cfg(feature = "3d")]
+    pub fn sphere(radius: Scalar) -> Self {
         SharedShape::ball(radius).into()
     }
 
@@ -453,9 +477,9 @@ impl Collider {
         SharedShape::new(EllipseWrapper(Ellipse::new(half_width, half_height))).into()
     }
 
-    /// Creates a collider with a cuboid shape defined by its extents.
+    /// Creates a collider with a rectangle shape defined by its extents.
     #[cfg(feature = "2d")]
-    pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
+    pub fn rectangle(x_length: Scalar, y_length: Scalar) -> Self {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
     }
 
@@ -465,9 +489,9 @@ impl Collider {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
     }
 
-    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    /// Creates a collider with a rectangle shape defined by its extents and rounded corners.
     #[cfg(feature = "2d")]
-    pub fn round_cuboid(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
+    pub fn round_rectangle(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
         SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
     }
 
@@ -1234,10 +1258,26 @@ pub enum ComputedCollider {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+#[cfg_attr(
+    feature = "2d",
+    doc = "          .spawn((RigidBody::Dynamic, Collider::circle(0.5)))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "          .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))"
+)]
 ///         .with_children(|children| {
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///             // Spawn the child colliders positioned relative to the rigid body
+#[cfg_attr(
+    feature = "2d",
+    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
 ///         });
 /// }
 /// ```
@@ -1328,7 +1368,14 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::circle(0.5), Sensor));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::sphere(0.5), Sensor));"
+)]
 /// }
 /// ```
 #[doc(alias = "Trigger")]

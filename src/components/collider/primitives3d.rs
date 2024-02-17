@@ -8,7 +8,7 @@ use crate::{AdjustPrecision, Collider, IntoCollider, Quaternion, Scalar, Vector}
 
 impl IntoCollider for Sphere {
     fn collider(&self) -> Collider {
-        Collider::ball(self.radius.adjust_precision())
+        Collider::sphere(self.radius.adjust_precision())
     }
 }
 

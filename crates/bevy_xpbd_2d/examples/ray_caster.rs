@@ -44,7 +44,7 @@ fn setup(
                     ),
                     ..default()
                 },
-                Collider::ball(radius as Scalar),
+                Collider::circle(radius as Scalar),
             ));
         }
     }

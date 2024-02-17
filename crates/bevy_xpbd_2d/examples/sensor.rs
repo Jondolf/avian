@@ -71,7 +71,7 @@ fn setup(
         PressurePlate,
         Sensor,
         RigidBody::Static,
-        Collider::cuboid(100.0, 100.0),
+        Collider::rectangle(100.0, 100.0),
         Name::new("Pressure Plate"),
     ));
 

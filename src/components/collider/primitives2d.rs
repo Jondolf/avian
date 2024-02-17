@@ -16,7 +16,7 @@ use parry::{
 
 impl IntoCollider for Circle {
     fn collider(&self) -> Collider {
-        Collider::ball(self.radius.adjust_precision())
+        Collider::circle(self.radius.adjust_precision())
     }
 }
 
