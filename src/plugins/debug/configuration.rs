@@ -116,14 +116,7 @@ pub enum ContactGizmoScale {
 
 impl Default for ContactGizmoScale {
     fn default() -> Self {
-        #[cfg(feature = "2d")]
-        {
-            Self::Scaled(0.025)
-        }
-        #[cfg(feature = "3d")]
-        {
-            Self::Scaled(0.25)
-        }
+        Self::Scaled(0.025)
     }
 }
 
