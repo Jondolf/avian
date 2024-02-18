@@ -231,6 +231,50 @@ impl SubAssign<Self> for Rotation {
     }
 }
 
+impl core::ops::Mul<Vector> for Rotation {
+    type Output = Vector;
+
+    fn mul(self, vector: Vector) -> Self::Output {
+        let rotated = self.rotate(vector);
+
+        // Make sure the result is normalized.
+        // This can fail for non-unit quaternions.
+        debug_assert!(rotated.is_normalized());
+
+        rotated
+    }
+}
+
+impl core::ops::Mul<Dir> for Rotation {
+    type Output = Dir;
+
+    fn mul(self, direction: Dir) -> Self::Output {
+        Dir::new_unchecked(self.rotate(direction.adjust_precision()).f32())
+    }
+}
+
+impl core::ops::Mul<Vector> for &Rotation {
+    type Output = Vector;
+
+    fn mul(self, vector: Vector) -> Self::Output {
+        let rotated = self.rotate(vector);
+
+        // Make sure the result is normalized.
+        // This can fail for non-unit quaternions.
+        debug_assert!(rotated.is_normalized());
+
+        rotated
+    }
+}
+
+impl core::ops::Mul<Dir> for &Rotation {
+    type Output = Dir;
+
+    fn mul(self, direction: Dir) -> Self::Output {
+        Dir::new_unchecked(self.rotate(direction.adjust_precision()).f32())
+    }
+}
+
 #[cfg(feature = "2d")]
 impl From<Rotation> for Scalar {
     fn from(rot: Rotation) -> Self {

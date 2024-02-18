@@ -157,16 +157,8 @@ fn raycast(
     cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
     mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
 ) {
-    let origin = Vector {
-        x: -200.0,
-        y: 2.0,
-        z: 0.0,
-    };
-    let direction = Vector {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
+    let origin = Vector::new(-200.0, 2.0, 0.0);
+    let direction = Direction3d::X;
 
     let mut ray_indicator_transform = indicator_transform.single_mut();
 
@@ -191,7 +183,7 @@ fn raycast(
         }
 
         // set length of ray indicator to look more like a laser
-        let contact_point = (origin + direction * ray_hit_data.time_of_impact).x;
+        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.time_of_impact).x;
         let target_scale = 1000.0 + contact_point * 2.0;
         ray_indicator_transform.scale.x = target_scale as f32;
     } else {
