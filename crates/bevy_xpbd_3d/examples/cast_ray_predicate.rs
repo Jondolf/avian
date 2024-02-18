@@ -183,7 +183,7 @@ fn raycast(
         }
 
         // set length of ray indicator to look more like a laser
-        let contact_point = (origin + direction * ray_hit_data.time_of_impact).x;
+        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.time_of_impact).x;
         let target_scale = 1000.0 + contact_point * 2.0;
         ray_indicator_transform.scale.x = target_scale as f32;
     } else {
