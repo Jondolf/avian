@@ -164,13 +164,13 @@ impl SpatialQueryPipeline {
     pub fn cast_ray(
         &self,
         origin: Vector,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape(query_filter);
-        let ray = parry::query::Ray::new(origin.into(), direction.into());
+        let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
             &ray,
@@ -205,14 +205,14 @@ impl SpatialQueryPipeline {
     pub fn cast_ray_predicate(
         &self,
         origin: Vector,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
-        let ray = parry::query::Ray::new(origin.into(), direction.into());
+        let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
             &ray,
@@ -248,7 +248,7 @@ impl SpatialQueryPipeline {
     pub fn ray_hits(
         &self,
         origin: Vector,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         max_hits: u32,
         solid: bool,
@@ -288,7 +288,7 @@ impl SpatialQueryPipeline {
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
         query_filter: SpatialQueryFilter,
@@ -296,7 +296,7 @@ impl SpatialQueryPipeline {
     ) {
         let colliders = &self.colliders;
 
-        let ray = parry::query::Ray::new(origin.into(), direction.into());
+        let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
 
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
@@ -350,7 +350,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         origin: Vector,
         shape_rotation: RotationValue,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
         query_filter: SpatialQueryFilter,
@@ -366,7 +366,7 @@ impl SpatialQueryPipeline {
         }
 
         let shape_isometry = utils::make_isometry(origin, rotation);
-        let shape_direction = direction.into();
+        let shape_direction = direction.adjust_precision().into();
         let pipeline_shape = self.as_composite_shape(query_filter);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
             &*self.dispatcher,
@@ -414,7 +414,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         origin: Vector,
         shape_rotation: RotationValue,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         max_hits: u32,
         ignore_origin_penetration: bool,
@@ -461,7 +461,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         origin: Vector,
         shape_rotation: RotationValue,
-        direction: Vector,
+        direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
         mut query_filter: SpatialQueryFilter,
@@ -478,7 +478,7 @@ impl SpatialQueryPipeline {
         }
 
         let shape_isometry = utils::make_isometry(origin, rotation);
-        let shape_direction = direction.into();
+        let shape_direction = direction.adjust_precision().into();
 
         loop {
             let pipeline_shape = self.as_composite_shape(query_filter.clone());
