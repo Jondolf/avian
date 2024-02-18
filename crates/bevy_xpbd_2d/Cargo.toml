@@ -38,8 +38,8 @@ required-features = ["2d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false }
-bevy_math = { git = "https://github.com/bevyengine/bevy.git" }
+bevy = { version = "0.13", default-features = false }
+bevy_math = "0.13"
 parry2d = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 parry2d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 nalgebra = { git = "https://github.com/dimforge/nalgebra", features = [
@@ -53,9 +53,7 @@ itertools = "0.12"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy_math = { git = "https://github.com/bevyengine/bevy.git", features = [
-    "approx",
-] }
+bevy_math = { version = "0.13", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 

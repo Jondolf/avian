@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
+bevy = { version = "0.13", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_text",
     "bevy_ui",
