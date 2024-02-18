@@ -4,14 +4,14 @@ expression: transform
 ---
 Transform {
     translation: Vec3(
-        8.35,
+        8.333334,
         0.0,
         0.0,
     ),
     rotation: Quat(
         0.0,
         0.0,
-        0.0,
+        -0.0,
         1.0,
     ),
     scale: Vec3(
