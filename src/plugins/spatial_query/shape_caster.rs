@@ -85,9 +85,9 @@ pub struct ShapeCaster {
     /// The local direction of the shapecast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
-    pub direction: Vector,
+    pub direction: Dir,
     /// The global direction of the shapecast.
-    global_direction: Vector,
+    global_direction: Dir,
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
     /// until a hit is found.
     pub max_time_of_impact: Scalar,
@@ -124,8 +124,8 @@ impl Default for ShapeCaster {
             global_shape_rotation: 0.0,
             #[cfg(feature = "3d")]
             global_shape_rotation: Quaternion::IDENTITY,
-            direction: Vector::ZERO,
-            global_direction: Vector::ZERO,
+            direction: Dir::X,
+            global_direction: Dir::X,
             max_time_of_impact: Scalar::MAX,
             max_hits: 1,
             ignore_origin_penetration: false,
@@ -142,13 +142,13 @@ impl ShapeCaster {
         shape: impl Into<Collider>,
         origin: Vector,
         shape_rotation: Scalar,
-        direction: Vector,
+        direction: Dir,
     ) -> Self {
         Self {
             shape: shape.into(),
             origin,
             shape_rotation,
-            direction: direction.normalize(),
+            direction,
             ..default()
         }
     }
@@ -158,7 +158,7 @@ impl ShapeCaster {
         shape: impl Into<Collider>,
         origin: Vector,
         shape_rotation: Quaternion,
-        direction: Vector,
+        direction: Dir,
     ) -> Self {
         Self {
             shape: shape.into(),
@@ -176,7 +176,7 @@ impl ShapeCaster {
     }
 
     /// Sets the ray direction.
-    pub fn with_direction(mut self, direction: Vector) -> Self {
+    pub fn with_direction(mut self, direction: Dir) -> Self {
         self.direction = direction;
         self
     }
@@ -246,7 +246,7 @@ impl ShapeCaster {
     }
 
     /// Returns the global direction of the ray.
-    pub fn global_direction(&self) -> Vector {
+    pub fn global_direction(&self) -> Dir {
         self.global_direction
     }
 
@@ -268,7 +268,7 @@ impl ShapeCaster {
     }
 
     /// Sets the global direction of the ray.
-    pub(crate) fn set_global_direction(&mut self, global_direction: Vector) {
+    pub(crate) fn set_global_direction(&mut self, global_direction: Dir) {
         self.global_direction = global_direction;
     }
 
@@ -297,7 +297,7 @@ impl ShapeCaster {
         }
 
         let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
-        let shape_direction = self.global_direction().into();
+        let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.count < self.max_hits {
             let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());

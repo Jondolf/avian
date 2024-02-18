@@ -286,8 +286,8 @@ fn update_ray_caster_positions(
         }
 
         if let Some(global_rotation) = global_rotation {
-            let global_direction = global_rotation.rotate(ray.direction);
-            ray.set_global_direction(global_direction);
+            let global_direction = global_rotation.rotate(*ray.direction);
+            ray.set_global_direction(Dir::new_unchecked(global_direction));
         } else if parent.is_none() {
             ray.set_global_direction(direction);
         }
@@ -311,8 +311,8 @@ fn update_ray_caster_positions(
             }
             if global_rotation.is_none() {
                 if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation.rotate(ray.direction);
-                    ray.set_global_direction(global_direction);
+                    let global_direction = rotation.rotate(*ray.direction);
+                    ray.set_global_direction(Dir::new_unchecked(global_direction));
                 }
             }
         }
@@ -358,8 +358,8 @@ fn update_shape_caster_positions(
         }
 
         if let Some(global_rotation) = global_rotation {
-            let global_direction = global_rotation.rotate(shape_caster.direction);
-            shape_caster.set_global_direction(global_direction);
+            let global_direction = global_rotation.rotate(*shape_caster.direction);
+            shape_caster.set_global_direction(Dir::new_unchecked(global_direction));
             #[cfg(feature = "2d")]
             {
                 shape_caster
@@ -400,8 +400,8 @@ fn update_shape_caster_positions(
             }
             if global_rotation.is_none() {
                 if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation.rotate(shape_caster.direction);
-                    shape_caster.set_global_direction(global_direction);
+                    let global_direction = rotation.rotate(*shape_caster.direction);
+                    shape_caster.set_global_direction(Dir::new_unchecked(global_direction));
                     #[cfg(feature = "2d")]
                     {
                         shape_caster

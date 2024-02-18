@@ -120,7 +120,7 @@ impl CharacterControllerBundle {
                 caster_shape,
                 Vector::ZERO,
                 Quaternion::default(),
-                Vector::NEG_Y,
+                Direction3d::NEG_Y,
             )
             .with_max_time_of_impact(0.2),
             gravity: ControllerGravity(gravity),
