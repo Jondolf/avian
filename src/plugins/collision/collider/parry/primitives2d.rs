@@ -14,13 +14,13 @@ use parry::{
     shape::{FeatureId, Shape, SharedShape, SupportMap},
 };
 
-impl IntoCollider for Circle {
+impl IntoCollider<Collider> for Circle {
     fn collider(&self) -> Collider {
         Collider::circle(self.radius.adjust_precision())
     }
 }
 
-impl IntoCollider for Ellipse {
+impl IntoCollider<Collider> for Ellipse {
     fn collider(&self) -> Collider {
         Collider::from(SharedShape::new(EllipseWrapper(*self)))
     }
@@ -150,42 +150,42 @@ impl PointQuery for EllipseWrapper {
     }
 }
 
-impl IntoCollider for Plane2d {
+impl IntoCollider<Collider> for Plane2d {
     fn collider(&self) -> Collider {
         let vec = self.normal.perp().adjust_precision() * Scalar::MAX / 2.0;
         Collider::segment(-vec, vec)
     }
 }
 
-impl IntoCollider for Line2d {
+impl IntoCollider<Collider> for Line2d {
     fn collider(&self) -> Collider {
         let vec = self.direction.adjust_precision() * Scalar::MAX / 2.0;
         Collider::segment(-vec, vec)
     }
 }
 
-impl IntoCollider for Segment2d {
+impl IntoCollider<Collider> for Segment2d {
     fn collider(&self) -> Collider {
         let (point1, point2) = (self.point1(), self.point2());
         Collider::segment(point1.adjust_precision(), point2.adjust_precision())
     }
 }
 
-impl<const N: usize> IntoCollider for Polyline2d<N> {
+impl<const N: usize> IntoCollider<Collider> for Polyline2d<N> {
     fn collider(&self) -> Collider {
         let vertices = self.vertices.map(|v| v.adjust_precision());
         Collider::polyline(vertices.to_vec(), None)
     }
 }
 
-impl IntoCollider for BoxedPolyline2d {
+impl IntoCollider<Collider> for BoxedPolyline2d {
     fn collider(&self) -> Collider {
         let vertices = self.vertices.iter().map(|v| v.adjust_precision());
         Collider::polyline(vertices.collect(), None)
     }
 }
 
-impl IntoCollider for Triangle2d {
+impl IntoCollider<Collider> for Triangle2d {
     fn collider(&self) -> Collider {
         Collider::triangle(
             self.vertices[0].adjust_precision(),
@@ -195,7 +195,7 @@ impl IntoCollider for Triangle2d {
     }
 }
 
-impl IntoCollider for Rectangle {
+impl IntoCollider<Collider> for Rectangle {
     fn collider(&self) -> Collider {
         Collider::from(SharedShape::cuboid(
             self.half_size.x.adjust_precision(),
@@ -204,7 +204,7 @@ impl IntoCollider for Rectangle {
     }
 }
 
-impl<const N: usize> IntoCollider for Polygon<N> {
+impl<const N: usize> IntoCollider<Collider> for Polygon<N> {
     fn collider(&self) -> Collider {
         let vertices = self.vertices.map(|v| v.adjust_precision());
         let indices = (0..N as u32 - 1).map(|i| [i, i + 1]).collect();
@@ -212,7 +212,7 @@ impl<const N: usize> IntoCollider for Polygon<N> {
     }
 }
 
-impl IntoCollider for BoxedPolygon {
+impl IntoCollider<Collider> for BoxedPolygon {
     fn collider(&self) -> Collider {
         let vertices = self.vertices.iter().map(|v| v.adjust_precision());
         let indices = (0..self.vertices.len() as u32 - 1)
@@ -222,7 +222,7 @@ impl IntoCollider for BoxedPolygon {
     }
 }
 
-impl IntoCollider for RegularPolygon {
+impl IntoCollider<Collider> for RegularPolygon {
     fn collider(&self) -> Collider {
         let vertices = self
             .vertices(0.0)
@@ -233,7 +233,7 @@ impl IntoCollider for RegularPolygon {
     }
 }
 
-impl IntoCollider for Capsule2d {
+impl IntoCollider<Collider> for Capsule2d {
     fn collider(&self) -> Collider {
         Collider::capsule(
             2.0 * self.half_length.adjust_precision(),

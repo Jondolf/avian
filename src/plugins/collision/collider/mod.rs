@@ -13,10 +13,10 @@ mod parry;
 #[cfg(feature = "default-collider")]
 pub use parry::*;
 
-/// A trait for creating [`Collider`]s from other types.
-pub trait IntoCollider {
-    /// Creates a [`Collider`] from `self`.
-    fn collider(&self) -> Collider;
+/// A trait for creating colliders from other types.
+pub trait IntoCollider<C: AnyCollider> {
+    /// Creates a collider from `self`.
+    fn collider(&self) -> C;
 }
 
 /// A trait that generalizes over colliders. Implementing this trait

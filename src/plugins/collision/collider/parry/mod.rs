@@ -16,6 +16,12 @@ mod primitives3d;
 #[cfg(feature = "2d")]
 pub(crate) use primitives2d::EllipseWrapper;
 
+impl<T: IntoCollider<Collider>> From<T> for Collider {
+    fn from(value: T) -> Self {
+        value.collider()
+    }
+}
+
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
 /// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.

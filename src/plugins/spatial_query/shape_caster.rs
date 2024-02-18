@@ -138,9 +138,14 @@ impl Default for ShapeCaster {
 impl ShapeCaster {
     /// Creates a new [`ShapeCaster`] with a given shape, origin, shape rotation and direction.
     #[cfg(feature = "2d")]
-    pub fn new(shape: Collider, origin: Vector, shape_rotation: Scalar, direction: Vector) -> Self {
+    pub fn new(
+        shape: impl Into<Collider>,
+        origin: Vector,
+        shape_rotation: Scalar,
+        direction: Vector,
+    ) -> Self {
         Self {
-            shape,
+            shape: shape.into(),
             origin,
             shape_rotation,
             direction: direction.normalize(),
@@ -150,13 +155,13 @@ impl ShapeCaster {
     #[cfg(feature = "3d")]
     /// Creates a new [`ShapeCaster`] with a given shape, origin, shape rotation and direction.
     pub fn new(
-        shape: Collider,
+        shape: impl Into<Collider>,
         origin: Vector,
         shape_rotation: Quaternion,
         direction: Vector,
     ) -> Self {
         Self {
-            shape,
+            shape: shape.into(),
             origin,
             shape_rotation,
             direction,
