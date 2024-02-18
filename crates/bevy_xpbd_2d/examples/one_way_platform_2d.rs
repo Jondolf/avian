@@ -127,7 +127,7 @@ fn setup(
     // Spawn an actor for the user to control
     let actor_size = Vector::new(20.0, 20.0);
     let actor_mesh = MaterialMesh2dBundle {
-        mesh: meshes.add(shape::Quad::new(actor_size.f32())).into(),
+        mesh: meshes.add(Rectangle::from_size(actor_size.f32())).into(),
         material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
         ..default()
     };

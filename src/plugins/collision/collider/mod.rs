@@ -100,7 +100,7 @@ pub trait ScalableCollider: AnyCollider {
 ///     commands.spawn((
 ///         AsyncCollider(ComputedCollider::ConvexHull),
 ///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
+///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
 ///         },
 ///     ));

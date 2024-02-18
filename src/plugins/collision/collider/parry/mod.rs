@@ -16,18 +16,6 @@ mod primitives3d;
 #[cfg(feature = "2d")]
 pub(crate) use primitives2d::EllipseWrapper;
 
-/// A trait for creating [`Collider`]s from other types.
-pub trait IntoCollider {
-    /// Creates a [`Collider`] from `self`.
-    fn collider(&self) -> Collider;
-}
-
-impl<C: IntoCollider> From<C> for Collider {
-    fn from(value: C) -> Self {
-        value.collider()
-    }
-}
-
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
 /// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.
@@ -750,7 +738,7 @@ impl Collider {
     /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh(&mesh).unwrap(),
     ///         PbrBundle {
@@ -782,7 +770,7 @@ impl Collider {
     /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh_with_config(&mesh, TriMeshFlags::all()).unwrap(),
     ///         PbrBundle {
@@ -808,7 +796,7 @@ impl Collider {
     /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_hull_from_mesh(&mesh).unwrap(),
     ///         PbrBundle {
@@ -833,7 +821,7 @@ impl Collider {
     /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh(&mesh).unwrap(),
     ///         PbrBundle {
@@ -860,7 +848,7 @@ impl Collider {
     /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
-    ///     let mesh = Mesh::from(shape::Cube { size: 1.0 });
+    ///     let mesh = Mesh::from(Cuboid::default());
     ///     let config = VHACDParameters {
     ///         convex_hull_approximation: false,
     ///         ..default()

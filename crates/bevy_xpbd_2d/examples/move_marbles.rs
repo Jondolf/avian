@@ -77,7 +77,7 @@ fn setup(
     ));
 
     let marble_radius = 5.0;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius));
+    let marble_mesh = meshes.add(Circle::new(marble_radius));
     let marble_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
 
     // Spawn stacks of marbles

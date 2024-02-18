@@ -149,13 +149,13 @@ fn setup(
 
     let red = materials.add(Color::rgb(0.9, 0.3, 0.3));
     let blue = materials.add(Color::rgb(0.1, 0.6, 1.0));
-    let particle_mesh = meshes.add(shape::Circle::new(particle_radius));
+    let particle_mesh = meshes.add(Circle::new(particle_radius));
 
     // Spawn rotating body at the center.
     commands
         .spawn((
             MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(center_radius)).into(),
+                mesh: meshes.add(Circle::new(center_radius)).into(),
                 material: materials.add(Color::rgb(0.7, 0.7, 0.8)).clone(),
                 ..default()
             },

@@ -17,7 +17,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube_mesh = meshes.add(shape::Cube { size: 1.0 });
+    let cube_mesh = meshes.add(Cuboid::default());
     let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
 
     // Kinematic rotating "anchor" object

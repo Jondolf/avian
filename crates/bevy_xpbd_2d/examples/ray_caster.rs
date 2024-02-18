@@ -35,7 +35,7 @@ fn setup(
 
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(radius)).into(),
+                    mesh: meshes.add(Circle::new(radius)).into(),
                     material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
                     transform: Transform::from_xyz(
                         x as f32 * radius * 3.0,

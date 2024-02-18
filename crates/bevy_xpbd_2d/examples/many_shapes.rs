@@ -76,40 +76,37 @@ fn setup(
         Collider::rectangle(50.0, 50.0),
     ));
 
-    let circle = (
-        Collider::circle(7.5),
-        meshes.add(shape::Circle::new(7.5)).into(),
-        materials.add(Color::rgb(0.29, 0.33, 0.64)),
+    let circle = Circle::new(7.5);
+    let rectangle = Rectangle::new(15.0, 15.0);
+    let capsule = Capsule2d::new(20.0, 7.5);
+    let triangle = Triangle2d::new(
+        Vec2::new(0.0, 10.0),
+        Vec2::new(-10.0, -10.0),
+        Vec2::new(10.0, -10.0),
     );
-    let rectangle = (
-        Collider::rectangle(15.0, 15.0),
-        meshes.add(shape::Box::new(15.0, 15.0, 15.0)).into(),
-        materials.add(Color::rgb(0.47, 0.58, 0.8)),
-    );
-    let capsule = (
-        Collider::capsule(20.0, 7.5),
-        meshes
-            .add(shape::Capsule {
-                depth: 20.0,
-                radius: 7.5,
-                ..default()
-            })
-            .into(),
-        materials.add(Color::rgb(0.63, 0.75, 0.88)),
-    );
-    // Compute points of regular triangle
-    let delta_rotation = Rotation::from_degrees(120.0);
-    let triangle_points = [
-        Vector::Y * 10.0,
-        delta_rotation.rotate(Vector::Y * 10.0),
-        delta_rotation.inverse().rotate(Vector::Y * 10.0),
+
+    let shapes = [
+        (
+            circle.collider(),
+            meshes.add(circle).into(),
+            materials.add(Color::rgb(0.29, 0.33, 0.64)),
+        ),
+        (
+            rectangle.collider(),
+            meshes.add(rectangle).into(),
+            materials.add(Color::rgb(0.47, 0.58, 0.8)),
+        ),
+        (
+            capsule.collider(),
+            meshes.add(capsule).into(),
+            materials.add(Color::rgb(0.63, 0.75, 0.88)),
+        ),
+        (
+            triangle.collider(),
+            meshes.add(triangle).into(),
+            materials.add(Color::rgb(0.77, 0.87, 0.97)),
+        ),
     ];
-    let triangle = (
-        Collider::triangle(triangle_points[0], triangle_points[1], triangle_points[2]),
-        meshes.add(shape::RegularPolygon::new(10.0, 3)).into(),
-        materials.add(Color::rgb(0.77, 0.87, 0.97)),
-    );
-    let shapes = [circle, rectangle, capsule, triangle];
 
     for x in -12_i32..12 {
         for y in -8_i32..8 {

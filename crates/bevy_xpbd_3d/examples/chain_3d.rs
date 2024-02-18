@@ -31,13 +31,7 @@ fn setup(
 ) {
     let particle_count = 100;
     let particle_radius = 0.06;
-    let particle_mesh = meshes.add(
-        Mesh::try_from(shape::Icosphere {
-            radius: particle_radius as f32,
-            ..default()
-        })
-        .unwrap(),
-    );
+    let particle_mesh = meshes.add(Sphere::new(particle_radius as f32).mesh().ico(5).unwrap());
     let particle_material = materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn kinematic particle that can follow the mouse

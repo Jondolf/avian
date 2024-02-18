@@ -23,7 +23,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube_mesh = meshes.add(shape::Cube { size: 1.0 });
+    let cube_mesh = meshes.add(Cuboid::default());
 
     // Ground
     commands.spawn((

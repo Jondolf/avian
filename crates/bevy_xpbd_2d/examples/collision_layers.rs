@@ -60,7 +60,7 @@ fn setup(
     ));
 
     let marble_radius = 7.5;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius));
+    let marble_mesh = meshes.add(Circle::new(marble_radius));
 
     // Spawn blue marbles that belong on the blue layer and collide with blue
     let blue_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
