@@ -93,20 +93,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
 #[derive(QueryData)]
 #[query_data(mutable)]
-pub(crate) struct MassPropertiesQuery {
+pub struct MassPropertiesQuery {
     pub mass: &'static mut Mass,
     pub inverse_mass: &'static mut InverseMass,
     pub inertia: &'static mut Inertia,
     pub inverse_inertia: &'static mut InverseInertia,
     pub center_of_mass: &'static mut CenterOfMass,
-}
-
-#[derive(QueryData)]
-#[query_data(mutable)]
-pub(crate) struct ColliderQuery {
-    pub collider: &'static mut Collider,
-    pub aabb: &'static mut ColliderAabb,
-    pub mass_properties: &'static mut ColliderMassProperties,
 }
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
@@ -250,6 +242,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default-collider")]
     fn mass_properties_add_sub_works() {
         // Create app
         let mut app = App::new();

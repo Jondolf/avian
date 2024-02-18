@@ -3,6 +3,8 @@ use std::sync::Arc;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
+    bounding_volume::Aabb,
+    math::Isometry,
     partitioning::Qbvh,
     query::{
         details::{
@@ -55,6 +57,19 @@ impl SpatialQueryPipeline {
             pipeline: self,
             colliders: &self.colliders,
             query_filter,
+        }
+    }
+
+    pub(crate) fn as_composite_shape_with_predicate<'a>(
+        &'a self,
+        query_filter: SpatialQueryFilter,
+        predicate: &'a dyn Fn(Entity) -> bool,
+    ) -> QueryPipelineAsCompositeShapeWithPredicate {
+        QueryPipelineAsCompositeShapeWithPredicate {
+            pipeline: self,
+            colliders: &self.colliders,
+            query_filter,
+            predicate,
         }
     }
 
@@ -130,7 +145,7 @@ impl SpatialQueryPipeline {
     }
 
     pub(crate) fn entity_from_index(&self, index: u32) -> Entity {
-        utils::entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
+        entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -155,6 +170,48 @@ impl SpatialQueryPipeline {
         query_filter: SpatialQueryFilter,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape(query_filter);
+        let ray = parry::query::Ray::new(origin.into(), direction.into());
+        let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
+            &pipeline_shape,
+            &ray,
+            max_time_of_impact,
+            solid,
+        );
+
+        self.qbvh
+            .traverse_best_first(&mut visitor)
+            .map(|(_, (entity_index, hit))| RayHitData {
+                entity: self.entity_from_index(entity_index),
+                time_of_impact: hit.toi,
+                normal: hit.normal.into(),
+            })
+    }
+
+    /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
+    /// If there are no hits, `None` is returned.
+    ///
+    /// ## Arguments
+    ///
+    /// - `origin`: Where the ray is cast from.
+    /// - `direction`: What direction the ray is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
+    /// entity should be ignored.
+    ///
+    /// See also: [`SpatialQuery::cast_ray`]
+    pub fn cast_ray_predicate(
+        &self,
+        origin: Vector,
+        direction: Vector,
+        max_time_of_impact: Scalar,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<RayHitData> {
+        let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
         let ray = parry::query::Ray::new(origin.into(), direction.into());
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
@@ -574,7 +631,13 @@ impl SpatialQueryPipeline {
             callback(entity)
         };
 
-        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(
+            &Aabb {
+                mins: aabb.min.into(),
+                maxs: aabb.max.into(),
+            },
+            &mut leaf_callback,
+        );
         self.qbvh.traverse_depth_first(&mut visitor);
     }
 
@@ -690,11 +753,10 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
         mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
     ) {
         if let Some((entity, (iso, shape, layers))) =
-            self.colliders
-                .get_key_value(&utils::entity_from_index_and_gen(
-                    shape_id,
-                    *self.pipeline.entity_generations.get(&shape_id).unwrap(),
-                ))
+            self.colliders.get_key_value(&entity_from_index_and_gen(
+                shape_id,
+                *self.pipeline.entity_generations.get(&shape_id).unwrap(),
+            ))
         {
             if self.query_filter.test(*entity, *layers) {
                 f(Some(iso), &**shape.shape_scaled());
@@ -713,6 +775,52 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
     fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
         &self.pipeline.qbvh
     }
+}
+
+pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
+    colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+    pipeline: &'a SpatialQueryPipeline,
+    query_filter: SpatialQueryFilter,
+    predicate: &'b dyn Fn(Entity) -> bool,
+}
+
+impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
+    type PartShape = dyn Shape;
+    type PartId = u32;
+    type QbvhStorage = DefaultStorage;
+
+    fn map_typed_part_at(
+        &self,
+        shape_id: Self::PartId,
+        mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
+    ) {
+        if let Some((entity, (iso, shape, layers))) =
+            self.colliders.get_key_value(&entity_from_index_and_gen(
+                shape_id,
+                *self.pipeline.entity_generations.get(&shape_id).unwrap(),
+            ))
+        {
+            if self.query_filter.test(*entity, *layers) && (self.predicate)(*entity) {
+                f(Some(iso), &**shape.shape_scaled());
+            }
+        }
+    }
+
+    fn map_untyped_part_at(
+        &self,
+        shape_id: Self::PartId,
+        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape),
+    ) {
+        self.map_typed_part_at(shape_id, f);
+    }
+
+    fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
+        &self.pipeline.qbvh
+    }
+}
+
+fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
+    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).

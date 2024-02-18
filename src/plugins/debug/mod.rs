@@ -104,6 +104,7 @@ impl Plugin for PhysicsDebugPlugin {
                 (
                     debug_render_axes,
                     debug_render_aabbs,
+                    #[cfg(feature = "default-collider")]
                     debug_render_colliders,
                     debug_render_contacts,
                     // TODO: Refactor joints to allow iterating over all of them without generics
@@ -113,6 +114,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
                     debug_render_raycasts,
+                    #[cfg(feature = "default-collider")]
                     debug_render_shapecasts,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -220,7 +222,7 @@ fn debug_render_aabbs(
             }
 
             gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).f32())
+                Transform::from_scale(Vector::from(aabb.size()).extend(0.0).f32())
                     .with_translation(Vector::from(aabb.center()).extend(0.0).f32()),
                 color,
             );
@@ -243,7 +245,7 @@ fn debug_render_aabbs(
             }
 
             gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).f32())
+                Transform::from_scale(Vector::from(aabb.size()).f32())
                     .with_translation(Vector::from(aabb.center()).f32()),
                 color,
             );
@@ -251,6 +253,7 @@ fn debug_render_aabbs(
     }
 }
 
+#[cfg(feature = "default-collider")]
 #[allow(clippy::type_complexity)]
 fn debug_render_colliders(
     mut colliders: Query<(
@@ -289,6 +292,7 @@ fn debug_render_contacts(
     mut collisions: EventReader<Collision>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
+    time: Res<Time<Substeps>>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
 
@@ -332,15 +336,29 @@ fn debug_render_contacts(
 
                 // Draw contact normals
                 if let Some(color) = config.contact_normal_color {
+                    // Use dimmer color for second normal
+                    let mut color_dim = color.as_hsla();
+                    color_dim.set_l(color_dim.l() * 0.5);
+
+                    // The length of the normal arrows
+                    let length = match config.contact_normal_scale {
+                        ContactGizmoScale::Constant(length) => length,
+                        ContactGizmoScale::Scaled(scale) => {
+                            scale * contacts.total_normal_impulse
+                                / time.delta_seconds_f64().adjust_precision()
+                        }
+                    };
+
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.draw_arrow(p1, p1 + normal1 * 30.0, 8.0, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * 30.0, 8.0, color);
+                        gizmos.draw_arrow(p1, p1 + normal1 * length, 8.0, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * length, 8.0, color);
                     }
+
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.draw_arrow(p1, p1 + normal1 * 0.5, 0.1, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * 0.5, 0.1, color);
+                        gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1, color);
                     }
                 }
             }
@@ -433,6 +451,7 @@ fn debug_render_raycasts(
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn debug_render_shapecasts(
     query: Query<(&ShapeCaster, &ShapeHits)>,
     mut gizmos: Gizmos<PhysicsGizmos>,
@@ -470,7 +489,7 @@ fn debug_render_shapecasts(
 }
 
 type MeshVisibilityQueryFilter = (
-    Or<(With<RigidBody>, With<Collider>)>,
+    With<RigidBody>,
     Or<(Changed<DebugRender>, Without<DebugRender>)>,
 );
 

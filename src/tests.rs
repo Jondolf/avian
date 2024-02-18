@@ -1,4 +1,5 @@
 use crate::prelude::*;
+#[cfg(feature = "default-collider")]
 use approx::assert_relative_eq;
 use bevy::{
     ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
@@ -48,7 +49,7 @@ fn tick_60_fps(app: &mut App) {
     app.update();
 }
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 fn setup_cubes_simulation(mut commands: Commands) {
     let mut next_id = 0;
     // copied from "cubes" example
@@ -96,6 +97,7 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+#[cfg(feature = "default-collider")]
 fn body_with_velocity_moves_on_first_frame() {
     let mut app = create_app();
 
@@ -125,6 +127,7 @@ fn body_with_velocity_moves_on_first_frame() {
 }
 
 #[test]
+#[cfg(feature = "default-collider")]
 fn body_with_velocity_moves() {
     let mut app = create_app();
 
@@ -197,7 +200,7 @@ fn cubes_simulation_is_deterministic_across_machines() {
     assert_debug_snapshot!(bodies);
 }
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 #[test]
 fn cubes_simulation_is_locally_deterministic() {
     use itertools::Itertools;

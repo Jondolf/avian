@@ -1,5 +1,6 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemParam, prelude::*};
+#[cfg(feature = "default-collider")]
 use parry::shape::{SharedShape, TypedShape};
 
 /// An extension trait for `Gizmos<PhysicsGizmo>`.
@@ -139,6 +140,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     }
 
     /// Draws a collider shape with a given position and rotation.
+    #[cfg(feature = "default-collider")]
     #[allow(clippy::unnecessary_cast)]
     fn draw_collider(
         &mut self,
@@ -467,6 +469,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     }
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
+    #[cfg(feature = "default-collider")]
     #[allow(clippy::too_many_arguments)]
     fn draw_shapecast(
         &mut self,
