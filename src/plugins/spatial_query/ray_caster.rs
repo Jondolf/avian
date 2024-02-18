@@ -49,6 +49,7 @@ use parry::query::{
 ///     // ...spawn colliders and other things
 /// }
 ///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(query: Query<(&RayCaster, &RayHits)>) {
 ///     for (ray, hits) in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
