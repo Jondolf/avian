@@ -3,6 +3,8 @@ use std::sync::Arc;
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
+    bounding_volume::Aabb,
+    math::Isometry,
     partitioning::Qbvh,
     query::{
         details::{
@@ -143,7 +145,7 @@ impl SpatialQueryPipeline {
     }
 
     pub(crate) fn entity_from_index(&self, index: u32) -> Entity {
-        utils::entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
+        entity_from_index_and_gen(index, *self.entity_generations.get(&index).unwrap())
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -629,7 +631,13 @@ impl SpatialQueryPipeline {
             callback(entity)
         };
 
-        let mut visitor = BoundingVolumeIntersectionsVisitor::new(&aabb, &mut leaf_callback);
+        let mut visitor = BoundingVolumeIntersectionsVisitor::new(
+            &Aabb {
+                mins: aabb.min.into(),
+                maxs: aabb.max.into(),
+            },
+            &mut leaf_callback,
+        );
         self.qbvh.traverse_depth_first(&mut visitor);
     }
 
@@ -745,11 +753,10 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
         mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
     ) {
         if let Some((entity, (iso, shape, layers))) =
-            self.colliders
-                .get_key_value(&utils::entity_from_index_and_gen(
-                    shape_id,
-                    *self.pipeline.entity_generations.get(&shape_id).unwrap(),
-                ))
+            self.colliders.get_key_value(&entity_from_index_and_gen(
+                shape_id,
+                *self.pipeline.entity_generations.get(&shape_id).unwrap(),
+            ))
         {
             if self.query_filter.test(*entity, *layers) {
                 f(Some(iso), &**shape.shape_scaled());
@@ -788,11 +795,10 @@ impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredic
         mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
     ) {
         if let Some((entity, (iso, shape, layers))) =
-            self.colliders
-                .get_key_value(&utils::entity_from_index_and_gen(
-                    shape_id,
-                    *self.pipeline.entity_generations.get(&shape_id).unwrap(),
-                ))
+            self.colliders.get_key_value(&entity_from_index_and_gen(
+                shape_id,
+                *self.pipeline.entity_generations.get(&shape_id).unwrap(),
+            ))
         {
             if self.query_filter.test(*entity, *layers) && (self.predicate)(*entity) {
                 f(Some(iso), &**shape.shape_scaled());
@@ -811,6 +817,10 @@ impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredic
     fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
         &self.pipeline.qbvh
     }
+}
+
+fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
+    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).

@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
+#[cfg(feature = "default-collider")]
 use parry::shape::{SharedShape, TypedShape};
 
 // TODO: Allow custom rendering backends through generics
@@ -115,6 +116,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     }
 
     /// Draws a collider shape with a given position and rotation.
+    #[cfg(feature = "default-collider")]
     #[allow(clippy::unnecessary_cast)]
     pub fn draw_collider(
         &mut self,
@@ -432,6 +434,7 @@ impl<'w, 's> PhysicsDebugRenderer<'w, 's> {
     }
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
+    #[cfg(feature = "default-collider")]
     #[allow(clippy::too_many_arguments)]
     pub fn draw_shapecast(
         &mut self,

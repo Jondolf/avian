@@ -146,16 +146,22 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 
+#[cfg(feature = "default-collider")]
 mod pipeline;
 mod query_filter;
 mod ray_caster;
+#[cfg(feature = "default-collider")]
 mod shape_caster;
+#[cfg(feature = "default-collider")]
 mod system_param;
 
+#[cfg(feature = "default-collider")]
 pub use pipeline::*;
 pub use query_filter::*;
 pub use ray_caster::*;
+#[cfg(feature = "default-collider")]
 pub use shape_caster::*;
+#[cfg(feature = "default-collider")]
 pub use system_param::*;
 
 use crate::{prelude::*, prepare::PrepareSet};
@@ -187,10 +193,13 @@ impl Default for SpatialQueryPlugin {
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SpatialQueryPipeline>().add_systems(
-            self.schedule,
-            (init_ray_hits, init_shape_hit).in_set(PrepareSet::PreInit),
-        );
+        #[cfg(feature = "default-collider")]
+        app.init_resource::<SpatialQueryPipeline>();
+
+        app.add_systems(self.schedule, init_ray_hits.in_set(PrepareSet::PreInit));
+
+        #[cfg(feature = "default-collider")]
+        app.add_systems(self.schedule, init_shape_hits.in_set(PrepareSet::PreInit));
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -199,10 +208,14 @@ impl Plugin for SpatialQueryPlugin {
         physics_schedule.add_systems(
             (
                 update_ray_caster_positions,
-                update_shape_caster_positions,
-                |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
-                raycast,
-                shapecast,
+                #[cfg(feature = "default-collider")]
+                (
+                    update_shape_caster_positions,
+                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                    raycast,
+                    shapecast,
+                )
+                    .chain(),
             )
                 .chain()
                 .in_set(PhysicsStepSet::SpatialQuery),
@@ -224,7 +237,8 @@ fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added
     }
 }
 
-fn init_shape_hit(
+#[cfg(feature = "default-collider")]
+fn init_shape_hits(
     mut commands: Commands,
     shape_casters: Query<(Entity, &ShapeCaster), Added<ShapeCaster>>,
 ) {
@@ -305,6 +319,7 @@ fn update_ray_caster_positions(
     }
 }
 
+#[cfg(feature = "default-collider")]
 type ShapeCasterPositionQueryComponents = (
     &'static mut ShapeCaster,
     Option<&'static Position>,
@@ -313,6 +328,7 @@ type ShapeCasterPositionQueryComponents = (
     Option<&'static GlobalTransform>,
 );
 
+#[cfg(feature = "default-collider")]
 #[allow(clippy::type_complexity)]
 fn update_shape_caster_positions(
     mut shape_casters: Query<ShapeCasterPositionQueryComponents>,
@@ -401,6 +417,7 @@ fn update_shape_caster_positions(
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
     for (entity, ray, mut hits) in &mut rays {
         if ray.enabled {
@@ -411,6 +428,7 @@ fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: S
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn shapecast(
     mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,

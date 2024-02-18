@@ -101,15 +101,12 @@ impl Inertia {
     /// Computes the inertia of a body with the given mass, shifted by the given offset.
     #[cfg(feature = "3d")]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
-        type NaMatrix3 = parry::na::Matrix3<math::Scalar>;
-        use parry::na::*;
-
         if mass > 0.0 && mass.is_finite() {
-            let matrix = NaMatrix3::from(self.0);
-            let offset = Vector::from(offset);
-            let diagonal_el = offset.norm_squared();
-            let diagonal_mat = NaMatrix3::from_diagonal_element(diagonal_el);
-            math::Matrix3::from(matrix + (diagonal_mat + offset * offset.transpose()) * mass)
+            let diag = offset.length_squared();
+            let diagm = Matrix3::from_diagonal(Vector::splat(diag));
+            let offset_outer_product =
+                Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
+            self.0 + (diagm + offset_outer_product) * mass
         } else {
             self.0
         }
@@ -227,6 +224,7 @@ pub struct MassPropertiesBundle {
 
 impl MassPropertiesBundle {
     /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
+    #[cfg(feature = "default-collider")]
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,

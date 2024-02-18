@@ -169,7 +169,7 @@ fn sweep_and_prune(
     broad_collision_pairs: &mut Vec<(Entity, Entity)>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
-    insertion_sort(&mut intervals.0, |a, b| a.2.mins.x > b.2.mins.x);
+    insertion_sort(&mut intervals.0, |a, b| a.2.min.x > b.2.min.x);
 
     // Clear broad phase collisions from previous iteration.
     broad_collision_pairs.clear();
@@ -178,7 +178,7 @@ fn sweep_and_prune(
     for (i, (ent1, parent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
         for (ent2, parent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect; check this first so we can discard as soon as possible
-            if aabb2.mins.x > aabb1.maxs.x {
+            if aabb2.min.x > aabb1.max.x {
                 break;
             }
 
@@ -189,13 +189,13 @@ fn sweep_and_prune(
             }
 
             // y doesn't intersect
-            if aabb1.mins.y > aabb2.maxs.y || aabb1.maxs.y < aabb2.mins.y {
+            if aabb1.min.y > aabb2.max.y || aabb1.max.y < aabb2.min.y {
                 continue;
             }
 
             #[cfg(feature = "3d")]
             // z doesn't intersect
-            if aabb1.mins.z > aabb2.maxs.z || aabb1.maxs.z < aabb2.mins.z {
+            if aabb1.min.z > aabb2.max.z || aabb1.max.z < aabb2.min.z {
                 continue;
             }
 

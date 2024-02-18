@@ -1,45 +1,45 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+    push:
+        branches:
+            - main
+    pull_request:
 
 env:
-  CARGO_TERM_COLOR: always
+    CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run cargo check
-        run: cargo check
+    check:
+        name: Check
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Run cargo check
+              run: cargo check
 
-  test:
-    name: Test Suite
-    strategy:
-      matrix:
-        # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run cargo test
-        run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64
+    test:
+        name: Test Suite
+        strategy:
+            matrix:
+                # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
+                os: [windows-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Run cargo test
+              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64,default-collider,parry-f64
 
-  lints:
-    name: Lints
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run cargo fmt
-        run: cargo fmt --all -- --check
-      - name: Run cargo clippy
-        run: cargo clippy -- -D warnings
+    lints:
+        name: Lints
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Run cargo fmt
+              run: cargo fmt --all -- --check
+            - name: Run cargo clippy
+              run: cargo clippy -- -D warnings

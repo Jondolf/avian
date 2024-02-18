@@ -1,19 +1,15 @@
 //! Rotation components.
 
-use bevy::{math::DQuat, prelude::*};
-
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-#[cfg(feature = "3d")]
-use nalgebra::Matrix3x1;
-
 use crate::prelude::*;
+use bevy::{math::DQuat, prelude::*};
 
 /// Radians
-#[cfg(feature = "2d")]
+#[cfg(all(feature = "2d", feature = "default-collider"))]
 pub(crate) type RotationValue = Scalar;
 /// Quaternion
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 pub(crate) type RotationValue = Quaternion;
 
 /// The global rotation of a [rigid body](RigidBody) or a [collider](Collider).
@@ -320,13 +316,6 @@ impl From<DQuat> for Rotation {
             quat.z as Scalar,
             quat.w as Scalar,
         ))
-    }
-}
-
-#[cfg(feature = "3d")]
-impl From<Rotation> for Matrix3x1<Scalar> {
-    fn from(rot: Rotation) -> Self {
-        Matrix3x1::new(rot.x, rot.y, rot.z)
     }
 }
 

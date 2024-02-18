@@ -12,10 +12,11 @@ keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "debug-plugin", "parallel"]
+default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel"]
 2d = []
-f32 = ["dep:parry2d"]
-f64 = ["dep:parry2d-f64"]
+f32 = []
+f64 = []
+
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
 parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
@@ -24,6 +25,13 @@ enhanced-determinism = [
     "parry2d-f64?/enhanced-determinism",
     "glam/libm",
 ]
+
+default-collider = ["dep:nalgebra"]
+# We unfortunately can't reuse the f32 and f64 features for this,
+# because Parry uses separate crates for f32 and f64.
+parry-f32 = ["f32", "dep:parry2d", "default-collider"]
+parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
+
 serialize = [
     "dep:serde",
     "bevy/serialize",
@@ -41,7 +49,7 @@ bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
 bevy = { version = "0.12", default-features = false }
 parry2d = { version = "0.13", optional = true }
 parry2d-f64 = { version = "0.13", optional = true }
-nalgebra = { version = "0.32", features = ["convert-glam024"] }
+nalgebra = { version = "0.32", features = ["convert-glam024"], optional = true }
 glam = { version = "0.24", features = ["approx"] }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
@@ -56,19 +64,19 @@ insta = "1.0"
 
 [[example]]
 name = "dynamic_character_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "kinematic_character_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "chain_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "collision_layers"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "custom_collider"
@@ -76,20 +84,20 @@ required-features = ["2d"]
 
 [[example]]
 name = "fixed_joint_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "move_marbles"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "prismatic_joint_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "ray_caster"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "revolute_joint_2d"
-required-features = ["2d"]
+required-features = ["2d", "default-collider"]
