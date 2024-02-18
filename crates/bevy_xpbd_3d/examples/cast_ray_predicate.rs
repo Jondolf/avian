@@ -157,16 +157,8 @@ fn raycast(
     cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
     mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
 ) {
-    let origin = Vector {
-        x: -200.0,
-        y: 2.0,
-        z: 0.0,
-    };
-    let direction = Vector {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
+    let origin = Vector::new(-200.0, 2.0, 0.0);
+    let direction = Direction3d::X;
 
     let mut ray_indicator_transform = indicator_transform.single_mut();
 
