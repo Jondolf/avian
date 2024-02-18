@@ -32,7 +32,7 @@ use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 /// You can configure the [`PhysicsGizmos`] retrieved from `GizmoConfigStore` for the global configuration
 /// and the [`DebugRender`] component for entity-level configuration.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 /// use bevy::prelude::*;
@@ -47,6 +47,14 @@ use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 ///             // Enables debug rendering
 ///             PhysicsDebugPlugin::default(),
 ///         ))
+///         // Overwrite default debug rendering configuration (optional)
+///         .insert_gizmo_group(
+///             PhysicsGizmos {
+///                 aabb_color: Some(Color::White),
+///                 ..default()
+///             },
+///             GizmoConfig::default(),
+///         )
 ///         .run();
 /// }
 ///

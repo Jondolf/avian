@@ -3,10 +3,45 @@ use bevy::prelude::*;
 
 /// Gizmos used for debug rendering physics. See [`PhysicsDebugPlugin`]
 ///
-/// You can configure what is rendered by getting the gizmo configuration
-/// from the `GizmoConfigStore`.
+/// You can configure what is rendered by inserting the [`PhysicsGizmos`] configuration group
+/// or by getting it from the `GizmoConfigStore` resource and mutating the returned configuration.
 ///
 /// To configure the debug rendering of specific entities, use the [`DebugRender`] component.
+///
+/// # Example
+///
+/// ```no_run
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             PhysicsPlugins::default(),
+///             // Enables debug rendering
+///             PhysicsDebugPlugin::default(),
+///         ))
+///         // Overwrite default debug rendering configuration (optional)
+///         .insert_gizmo_group(
+///             PhysicsGizmos {
+///                 aabb_color: Some(Color::White),
+///                 ..default()
+///             },
+///             GizmoConfig::default(),
+///         )
+///         .run();
+/// }
+///
+/// fn setup(mut commands: Commands) {
+///     // This rigid body and its collider and AABB will get rendered
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
+)]
+/// }
+/// ```
 #[derive(Reflect, GizmoConfigGroup)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct PhysicsGizmos {
@@ -91,7 +126,7 @@ impl Default for ContactGizmoScale {
 }
 
 impl PhysicsGizmos {
-    /// Creates a [`PhysicsDebugConfig`] configuration with all rendering options enabled.
+    /// Creates a [`PhysicsGizmos`] configuration with all rendering options enabled.
     pub fn all() -> Self {
         Self {
             #[cfg(feature = "2d")]
@@ -117,7 +152,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with debug rendering enabled but all options turned off.
+    /// Creates a [`PhysicsGizmos`] configuration with debug rendering enabled but all options turned off.
     ///
     /// Note: this doesn't affect entities with [`DebugRender`] component; their debug gizmos will be visible.
     pub fn none() -> Self {
@@ -142,7 +177,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with the given lengths for the axes
+    /// Creates a [`PhysicsGizmos`] configuration with the given lengths for the axes
     /// that are drawn for the entity at the center of mass. Other debug rendering options will be disabled.
     pub fn axes(axis_lengths: Vector) -> Self {
         Self {
@@ -151,7 +186,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with a given AABB color.
+    /// Creates a [`PhysicsGizmos`] configuration with a given AABB color.
     /// Other debug rendering options will be disabled.
     pub fn aabbs(color: Color) -> Self {
         Self {
@@ -160,7 +195,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with a given collider color.
+    /// Creates a [`PhysicsGizmos`] configuration with a given collider color.
     /// Other debug rendering options will be disabled.
     pub fn colliders(color: Color) -> Self {
         Self {
@@ -169,7 +204,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with a given contact point color.
+    /// Creates a [`PhysicsGizmos`] configuration with a given contact point color.
     /// Other debug rendering options will be disabled.
     pub fn contact_points(color: Color) -> Self {
         Self {
@@ -178,7 +213,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with a given contact normal color.
+    /// Creates a [`PhysicsGizmos`] configuration with a given contact normal color.
     /// Other debug rendering options will be disabled.
     pub fn contact_normals(color: Color) -> Self {
         Self {
@@ -187,7 +222,7 @@ impl PhysicsGizmos {
         }
     }
 
-    /// Creates a [`PhysicsDebugConfig`] configuration with given colors for
+    /// Creates a [`PhysicsGizmos`] configuration with given colors for
     /// joint anchors and separation distances. Other debug rendering options will be disabled.
     pub fn joints(anchor_color: Option<Color>, separation_color: Option<Color>) -> Self {
         Self {
@@ -339,7 +374,7 @@ impl PhysicsGizmos {
 
 /// A component for the debug render configuration of an entity. See [`PhysicsDebugPlugin`].
 ///
-/// This overwrites the global [`PhysicsDebugConfig`] for this specific entity.
+/// This overwrites the global [`PhysicsGizmos`] for this specific entity.
 ///
 /// ## Example
 ///
