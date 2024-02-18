@@ -48,7 +48,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
 ///         Collider::ball(0.5),
-///         Transform::from_xyz(0.0, 2.0, 0.0),
+///         TransformBundle::from_transform(Transform::from_xyz(0.0, 2.0, 0.0)),
 ///     ));
 #[cfg_attr(
     feature = "2d",
@@ -95,8 +95,14 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
 ///         .with_children(|children| {
 ///             // Spawn the child colliders positioned relative to the rigid body
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///             children.spawn((
+///                 Collider::ball(0.5),
+///                 TransformBundle::from_transform(Transform::from_xyz(2.0, 0.0, 0.0)),
+///             ));
+///             children.spawn((
+///                 Collider::ball(0.5),
+///                 TransformBundle::from_transform(Transform::from_xyz(-2.0, 0.0, 0.0)),
+///             ));
 ///         });
 /// }
 /// ```
