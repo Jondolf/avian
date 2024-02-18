@@ -38,7 +38,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Vec3::ZERO,
 ///         Quat::default(),
-///         Vec3::X
+///         Direction3d::X,
 ///     ));
 /// }
 ///

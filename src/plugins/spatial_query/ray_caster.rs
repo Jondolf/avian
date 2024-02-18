@@ -45,7 +45,7 @@ use parry::query::{
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a ray at the center going right
-///     commands.spawn(RayCaster::new(Vec3::ZERO, Vec3::X));
+///     commands.spawn(RayCaster::new(Vec3::ZERO, Direction3d::X));
 ///     // ...spawn colliders and other things
 /// }
 ///
@@ -56,7 +56,7 @@ use parry::query::{
 ///             println!(
 ///                 "Hit entity {:?} at {} with normal {}",
 ///                 hit.entity,
-///                 ray.origin + ray.direction * hit.time_of_impact,
+///                 ray.origin + *ray.direction * hit.time_of_impact,
 ///                 hit.normal,
 ///             );
 ///         }
