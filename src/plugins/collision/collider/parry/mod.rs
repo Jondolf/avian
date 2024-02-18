@@ -1,7 +1,5 @@
 #![allow(clippy::unnecessary_cast)]
 
-use std::fmt;
-
 use crate::{prelude::*, utils::make_isometry};
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 use bevy::render::mesh::{Indices, VertexAttributeValues};

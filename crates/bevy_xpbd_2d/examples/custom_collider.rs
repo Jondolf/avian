@@ -147,16 +147,16 @@ fn setup(
     let center_radius = 200.0;
     let particle_radius = 5.0;
 
-    let red = materials.add(Color::rgb(0.9, 0.3, 0.3).into());
-    let blue = materials.add(Color::rgb(0.1, 0.6, 1.0).into());
-    let particle_mesh = meshes.add(shape::Circle::new(particle_radius).into());
+    let red = materials.add(Color::rgb(0.9, 0.3, 0.3));
+    let blue = materials.add(Color::rgb(0.1, 0.6, 1.0));
+    let particle_mesh = meshes.add(shape::Circle::new(particle_radius));
 
     // Spawn rotating body at the center.
     commands
         .spawn((
             MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(center_radius).into()).into(),
-                material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()).clone(),
+                mesh: meshes.add(shape::Circle::new(center_radius)).into(),
+                material: materials.add(Color::rgb(0.7, 0.7, 0.8)).clone(),
                 ..default()
             },
             RigidBody::Kinematic,

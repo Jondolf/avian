@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::{ecs::system::SystemParam, prelude::*};
+use bevy::prelude::*;
 #[cfg(feature = "default-collider")]
 use parry::shape::{SharedShape, TypedShape};
 
