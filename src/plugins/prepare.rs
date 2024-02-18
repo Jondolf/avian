@@ -342,7 +342,7 @@ pub fn init_transforms<C: Component>(
         // If the entity isn't a rigid body, adding PreviousPosition and PreviousRotation
         // is unnecessary.
         if is_rb {
-            commands.entity(entity).insert((
+            commands.entity(entity).try_insert((
                 Position(new_position),
                 *previous_pos.unwrap_or(&PreviousPosition(new_position)),
                 new_rotation,
@@ -350,7 +350,7 @@ pub fn init_transforms<C: Component>(
                 transform.map_or(Transform::default(), |t| *t),
             ));
         } else {
-            commands.entity(entity).insert((
+            commands.entity(entity).try_insert((
                 Position(new_position),
                 new_rotation,
                 transform.map_or(Transform::default(), |t| *t),
@@ -391,7 +391,7 @@ fn init_rigid_bodies(
         time_sleeping,
     ) in &mut bodies
     {
-        commands.entity(entity).insert((
+        commands.entity(entity).try_insert((
             AccumulatedTranslation(Vector::ZERO),
             *lin_vel.unwrap_or(&LinearVelocity::default()),
             *ang_vel.unwrap_or(&AngularVelocity::default()),
@@ -424,7 +424,7 @@ fn init_mass_properties(
     >,
 ) {
     for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        commands.entity(entity).insert((
+        commands.entity(entity).try_insert((
             *mass.unwrap_or(&Mass(
                 inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
             )),
