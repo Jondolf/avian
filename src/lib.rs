@@ -45,12 +45,15 @@
 //!
 //! ### Feature flags
 //!
-//! | Feature                | Description                                                                                                                      | Default feature         |
-//! | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                      | Yes (`bevy_xpbd_2d`)    |
-//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                      | Yes (`bevy_xpbd_3d`)    |
-//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                    | Yes                     |
-//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                    | No                      |
+//! | Feature                | Description                                                                                                                                  | Default feature         |
+//! | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                                  | Yes (`bevy_xpbd_2d`)    |
+//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                                  | Yes (`bevy_xpbd_3d`)    |
+//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                                | Yes                     |
+//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                                | No                      |
+//! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature.     | Yes                     |
+//! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                             | Yes                     |
+//! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                             | No                      |
 #![cfg_attr(
     feature = "3d",
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
@@ -504,16 +507,16 @@ compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the sam
 #[cfg(all(feature = "2d", feature = "3d"))]
 compile_error!("feature \"f2d\" and feature \"3d\" cannot be enabled at the same time");
 
-#[cfg(all(feature = "2d", feature = "f32"))]
+#[cfg(all(feature = "2d", feature = "parry-f32"))]
 pub extern crate parry2d as parry;
 
-#[cfg(all(feature = "2d", feature = "f64"))]
+#[cfg(all(feature = "2d", feature = "parry-f64"))]
 pub extern crate parry2d_f64 as parry;
 
-#[cfg(all(feature = "3d", feature = "f32"))]
+#[cfg(all(feature = "3d", feature = "parry-f32"))]
 pub extern crate parry3d as parry;
 
-#[cfg(all(feature = "3d", feature = "f64"))]
+#[cfg(all(feature = "3d", feature = "parry-f64"))]
 pub extern crate parry3d_f64 as parry;
 
 pub mod components;
@@ -559,7 +562,6 @@ use bevy::{
     ecs::schedule::{LogLevel, ScheduleLabel},
     prelude::*,
 };
-use parry::math::Isometry;
 #[allow(unused_imports)]
 use prelude::*;
 

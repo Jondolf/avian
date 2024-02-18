@@ -1,8 +1,10 @@
 //! Miscallaneous utility functions.
 
 use crate::prelude::*;
+#[cfg(feature = "default-collider")]
+use parry::math::Isometry;
 
-#[cfg(feature = "2d")]
+#[cfg(all(feature = "2d", feature = "default-collider"))]
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,
@@ -12,7 +14,7 @@ pub(crate) fn make_isometry(
     Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
-#[cfg(feature = "3d")]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,
@@ -20,10 +22,6 @@ pub(crate) fn make_isometry(
     let position: Position = position.into();
     let rotation: Rotation = rotation.into();
     Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
-}
-
-pub(crate) fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
-    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
 }
 
 #[cfg(feature = "3d")]

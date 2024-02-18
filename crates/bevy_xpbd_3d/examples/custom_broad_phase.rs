@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::{math::*, prelude::*, PhysicsSchedule, PhysicsStepSet};
 
-// Required for AABB intersection check. This might be abstracted away at some point.
-use bevy_xpbd_3d::parry::bounding_volume::BoundingVolume;
-
 fn main() {
     let mut app = App::new();
 
@@ -91,7 +88,7 @@ fn collect_collision_pairs(
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs
     for [(ent_a, aabb_a, rb_a), (ent_b, aabb_b, rb_b)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect
-        if (rb_a.is_dynamic() || rb_b.is_dynamic()) && aabb_a.intersects(&aabb_b.0) {
+        if (rb_a.is_dynamic() || rb_b.is_dynamic()) && aabb_a.intersects(aabb_b) {
             broad_collision_pairs.0.push((ent_a, ent_b));
         }
     }

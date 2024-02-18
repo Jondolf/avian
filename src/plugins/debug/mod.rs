@@ -101,6 +101,7 @@ impl Plugin for PhysicsDebugPlugin {
                 (
                     debug_render_axes,
                     debug_render_aabbs,
+                    #[cfg(feature = "default-collider")]
                     debug_render_colliders,
                     debug_render_contacts,
                     // TODO: Refactor joints to allow iterating over all of them without generics
@@ -110,6 +111,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
                     debug_render_raycasts,
+                    #[cfg(feature = "default-collider")]
                     debug_render_shapecasts,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -213,7 +215,7 @@ fn debug_render_aabbs(
             }
 
             debug_renderer.gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).extend(0.0).as_f32())
+                Transform::from_scale(Vector::from(aabb.size()).extend(0.0).as_f32())
                     .with_translation(Vector::from(aabb.center()).extend(0.0).as_f32()),
                 color,
             );
@@ -236,7 +238,7 @@ fn debug_render_aabbs(
             }
 
             debug_renderer.gizmos.cuboid(
-                Transform::from_scale(Vector::from(aabb.extents()).as_f32())
+                Transform::from_scale(Vector::from(aabb.size()).as_f32())
                     .with_translation(Vector::from(aabb.center()).as_f32()),
                 color,
             );
@@ -244,6 +246,7 @@ fn debug_render_aabbs(
     }
 }
 
+#[cfg(feature = "default-collider")]
 #[allow(clippy::type_complexity)]
 fn debug_render_colliders(
     mut colliders: Query<(
@@ -437,6 +440,7 @@ fn debug_render_raycasts(
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn debug_render_shapecasts(
     query: Query<(&ShapeCaster, &ShapeHits)>,
     mut debug_renderer: PhysicsDebugRenderer,
@@ -473,7 +477,7 @@ fn debug_render_shapecasts(
 }
 
 type MeshVisibilityQueryFilter = (
-    Or<(With<RigidBody>, With<Collider>)>,
+    With<RigidBody>,
     Or<(Changed<DebugRender>, Without<DebugRender>)>,
 );
 

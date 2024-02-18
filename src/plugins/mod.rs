@@ -188,12 +188,17 @@ impl Default for PhysicsPlugins {
 
 impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
-        PluginGroupBuilder::start::<Self>()
+        let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSetupPlugin::new(self.schedule))
-            .add(PreparePlugin::new(self.schedule))
+            .add(PreparePlugin::new(self.schedule));
+
+        #[cfg(feature = "default-collider")]
+        let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
+            .add(NarrowPhasePlugin::<Collider>::default());
+
+        builder
             .add(BroadPhasePlugin)
-            .add(NarrowPhasePlugin::<Collider>::default())
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin)
             .add(SolverPlugin)

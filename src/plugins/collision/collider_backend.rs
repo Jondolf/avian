@@ -10,7 +10,11 @@ use crate::{
     prepare::{any_new, PrepareSet},
     sync::SyncSet,
 };
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(all(
+    feature = "3d",
+    feature = "async-collider",
+    feature = "default-collider"
+))]
 use bevy::scene::SceneInstance;
 use bevy::{
     prelude::*,
@@ -153,7 +157,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        #[cfg(all(feature = "3d", feature = "async-collider"))]
+        #[cfg(all(
+            feature = "3d",
+            feature = "async-collider",
+            feature = "default-collider"
+        ))]
         app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
 
         // Update child colliders before narrow phase in substepping loop
@@ -229,7 +237,11 @@ fn init_colliders<C: AnyCollider>(
 }
 
 /// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(all(
+    feature = "3d",
+    feature = "async-collider",
+    feature = "default-collider"
+))]
 pub fn init_async_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -260,7 +272,11 @@ pub fn init_async_colliders(
 }
 
 /// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(all(
+    feature = "3d",
+    feature = "async-collider",
+    feature = "default-collider"
+))]
 pub fn init_async_scene_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -400,7 +416,7 @@ fn update_aabb<C: AnyCollider>(
         };
 
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
-        aabb.0 = *collider.swept_aabb(start_pos.0, start_rot, end_pos, end_rot);
+        *aabb = collider.swept_aabb(start_pos.0, start_rot, end_pos, end_rot);
 
         // Add narrow phase prediction distance to AABBs to avoid missed collisions
         let prediction_distance = if let Some(ref config) = narrow_phase_config {
@@ -415,14 +431,14 @@ fn update_aabb<C: AnyCollider>(
                 0.005
             }
         };
-        aabb.maxs.x += prediction_distance;
-        aabb.mins.x -= prediction_distance;
-        aabb.maxs.y += prediction_distance;
-        aabb.mins.y -= prediction_distance;
+        aabb.max.x += prediction_distance;
+        aabb.min.x -= prediction_distance;
+        aabb.max.y += prediction_distance;
+        aabb.min.y -= prediction_distance;
         #[cfg(feature = "3d")]
         {
-            aabb.maxs.z += prediction_distance;
-            aabb.mins.z -= prediction_distance;
+            aabb.max.z += prediction_distance;
+            aabb.min.z -= prediction_distance;
         }
     }
 }

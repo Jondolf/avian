@@ -101,14 +101,6 @@ pub struct MassPropertiesQuery {
     pub center_of_mass: &'static mut CenterOfMass,
 }
 
-#[derive(WorldQuery)]
-#[world_query(mutable)]
-pub(crate) struct ColliderQuery {
-    pub collider: &'static mut Collider,
-    pub aabb: &'static mut ColliderAabb,
-    pub mass_properties: &'static mut ColliderMassProperties,
-}
-
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         let new_mass = self.mass.0 + rhs.mass.0;
@@ -250,6 +242,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "default-collider")]
     fn mass_properties_add_sub_works() {
         // Create app
         let mut app = App::new();

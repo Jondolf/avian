@@ -15,6 +15,7 @@ pub use collider::*;
 
 pub mod broad_phase;
 pub mod collider_backend;
+#[cfg(feature = "default-collider")]
 pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;
