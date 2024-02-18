@@ -96,12 +96,12 @@
 //!
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {
-//!     // Spawn a shape caster with a ball shape at the center travelling right
+//!     // Spawn a shape caster with a sphere shape at the center travelling right
 //!     commands.spawn(ShapeCaster::new(
-//!         Collider::ball(0.5), // Shape
-//!         Vec3::ZERO,          // Origin
-//!         Quat::default(),     // Shape rotation
-//!         Vec3::X              // Direction
+//!         Collider::sphere(0.5), // Shape
+//!         Vec3::ZERO,            // Origin
+//!         Quat::default(),       // Shape rotation
+//!         Vec3::X                // Direction
 //!     ));
 //!     // ...spawn colliders and other things
 //! }

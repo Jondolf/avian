@@ -66,7 +66,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -77,7 +77,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -88,7 +88,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -99,7 +99,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
 
     // For one-way platforms
@@ -119,7 +119,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Static,
-            Collider::cuboid(50.0, 50.0),
+            Collider::rectangle(50.0, 50.0),
             OneWayPlatform::default(),
         ));
     }
@@ -137,7 +137,7 @@ fn setup(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Collider::cuboid(actor_size.x, actor_size.y),
+        Collider::rectangle(actor_size.x, actor_size.y),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
         MovementSpeed(250.0),

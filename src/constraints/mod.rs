@@ -33,7 +33,7 @@
 //! It should look similar to this:
 //!
 //! ```
-//! use bevy::{ecs::entity::{M, MapEntities}, prelude::*};
+//! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 #![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!

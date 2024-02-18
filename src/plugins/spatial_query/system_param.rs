@@ -290,13 +290,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast ray and print first hit
     ///     if let Some(first_hit) = spatial_query.cast_shape(
-    ///         &Collider::ball(0.5),          // Shape
-    ///         Vec3::ZERO,                    // Origin
-    ///         Quat::default(),               // Shape rotation
-    ///         Vec3::X,                       // Direction
-    ///         100.0,                         // Maximum time of impact (travel distance)
-    ///         true,                          // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &Collider::sphere(0.5),          // Shape
+    ///         Vec3::ZERO,                      // Origin
+    ///         Quat::default(),                 // Shape rotation
+    ///         Vec3::X,                         // Direction
+    ///         100.0,                           // Maximum time of impact (travel distance)
+    ///         true,                            // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(),   // Query filter
     ///     ) {
     ///         println!("First hit: {:?}", first_hit);
     ///     }
@@ -354,14 +354,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Cast shape and get all hits
     ///     let hits = spatial_query.shape_hits(
-    ///         &Collider::ball(0.5),          // Shape
-    ///         Vec3::ZERO,                    // Origin
-    ///         Quat::default(),               // Shape rotation
-    ///         Vec3::X,                       // Direction
-    ///         100.0,                         // Maximum time of impact (travel distance)
-    ///         20,                            // Max hits
-    ///         true,                          // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &Collider::sphere(0.5),          // Shape
+    ///         Vec3::ZERO,                      // Origin
+    ///         Quat::default(),                 // Shape rotation
+    ///         Vec3::X,                         // Direction
+    ///         100.0,                           // Maximum time of impact (travel distance)
+    ///         20,                              // Max hits
+    ///         true,                            // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(),   // Query filter
     ///     );
     ///
     ///     // Print hits
@@ -426,14 +426,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     ///     // Cast shape and get all hits
     ///     spatial_query.shape_hits_callback(
-    ///         &Collider::ball(0.5),          // Shape
-    ///         Vec3::ZERO,                    // Origin
-    ///         Quat::default(),               // Shape rotation
-    ///         Vec3::X,                       // Direction
-    ///         100.0,                         // Maximum time of impact (travel distance)
-    ///         true,                          // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(), // Query filter
-    ///         |hit| {                        // Callback function
+    ///         &Collider::sphere(0.5),          // Shape
+    ///         Vec3::ZERO,                      // Origin
+    ///         Quat::default(),                 // Shape rotation
+    ///         Vec3::X,                         // Direction
+    ///         100.0,                           // Maximum time of impact (travel distance)
+    ///         true,                            // Should initial penetration at the origin be ignored
+    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         |hit| {                          // Callback function
     ///             hits.push(hit);
     ///             true
     ///         },
@@ -606,7 +606,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
-    ///     let aabb = Collider::ball(0.5).compute_aabb(Vec3::ZERO, Quat::default());
+    ///     let aabb = Collider::sphere(0.5).compute_aabb(Vec3::ZERO, Quat::default());
     ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
     ///
     ///     for entity in intersections.iter() {
@@ -636,7 +636,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut intersections = vec![];
     ///
     ///     spatial_query.aabb_intersections_with_aabb_callback(
-    ///         Collider::ball(0.5).compute_aabb(Vec3::ZERO, Quat::default()),
+    ///         Collider::sphere(0.5).compute_aabb(Vec3::ZERO, Quat::default()),
     ///         |entity| {
     ///             intersections.push(entity);
     ///             true
@@ -679,10 +679,10 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_shape_intersections(spatial_query: SpatialQuery) {
     ///     let intersections = spatial_query.shape_intersections(
-    ///         &Collider::ball(0.5),          // Shape
-    ///         Vec3::ZERO,                    // Shape position
-    ///         Quat::default(),               // Shape rotation
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &Collider::sphere(0.5),          // Shape
+    ///         Vec3::ZERO,                      // Shape position
+    ///         Quat::default(),                 // Shape rotation
+    ///         SpatialQueryFilter::default(),   // Query filter
     ///     );
     ///
     ///     for entity in intersections.iter() {
@@ -727,11 +727,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut intersections = vec![];
     ///
     ///     spatial_query.shape_intersections_callback(
-    ///         &Collider::ball(0.5),          // Shape
-    ///         Vec3::ZERO,                    // Shape position
-    ///         Quat::default(),               // Shape rotation
-    ///         SpatialQueryFilter::default(), // Query filter
-    ///         |entity| {                     // Callback function
+    ///         &Collider::sphere(0.5),          // Shape
+    ///         Vec3::ZERO,                      // Shape position
+    ///         Quat::default(),                 // Shape rotation
+    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         |entity| {                       // Callback function
     ///             intersections.push(entity);
     ///             true
     ///         },

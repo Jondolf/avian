@@ -54,7 +54,7 @@ fn setup(
         let current_particle = commands
             .spawn((
                 RigidBody::Dynamic,
-                MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
+                MassPropertiesBundle::new_computed(&Collider::circle(particle_radius), 1.0),
                 MaterialMesh2dBundle {
                     mesh: particle_mesh.clone(),
                     material: particle_material.clone(),

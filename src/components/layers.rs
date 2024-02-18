@@ -63,7 +63,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 ///
 /// fn spawn(mut commands: Commands) {
 ///     commands.spawn((
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         // Player collides with enemies and the ground, but not with other players
 ///         CollisionLayers::new([Layer::Player], [Layer::Enemy, Layer::Ground])
 ///     ));

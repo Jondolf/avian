@@ -34,7 +34,8 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a shape caster with a ball shape moving right starting from the origin
 ///     commands.spawn(ShapeCaster::new(
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Vec3::ZERO,
 ///         Quat::default(),
 ///         Vec3::X
@@ -109,7 +110,10 @@ impl Default for ShapeCaster {
     fn default() -> Self {
         Self {
             enabled: true,
-            shape: Collider::ball(0.0),
+            #[cfg(feature = "2d")]
+            shape: Collider::circle(0.0),
+            #[cfg(feature = "3d")]
+            shape: Collider::sphere(0.0),
             origin: Vector::ZERO,
             global_origin: Vector::ZERO,
             #[cfg(feature = "2d")]

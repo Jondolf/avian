@@ -12,7 +12,14 @@ use crate::prelude::*;
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
-///     let object = commands.spawn(Collider::ball(0.5)).id();
+#[cfg_attr(
+    feature = "2d",
+    doc = "    let object = commands.spawn(Collider::circle(0.5)).id();"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    let object = commands.spawn(Collider::sphere(0.5)).id();"
+)]
 ///
 ///     // A query filter that has three collision masks and excludes the `object` entity
 ///     let query_filter = SpatialQueryFilter::new()

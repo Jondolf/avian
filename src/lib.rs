@@ -97,7 +97,14 @@
 #![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn setup(mut commands: Commands) {
-//!     commands.spawn((RigidBody::Dynamic, Collider::ball(0.5)));
+#![cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
+)]
 //! }
 //! ```
 //!

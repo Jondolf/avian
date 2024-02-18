@@ -39,7 +39,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(500.0, 25.0),
+        Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Blue], [Layer::Blue]),
     ));
 
@@ -55,7 +55,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(500.0, 25.0),
+        Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Red], [Layer::Red]),
     ));
 
@@ -78,7 +78,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius as Scalar),
+                Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Blue], [Layer::Blue]),
             ));
         }
@@ -100,7 +100,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius as Scalar),
+                Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Red], [Layer::Red]),
             ));
         }

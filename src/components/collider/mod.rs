@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use std::fmt;
 
 use crate::{prelude::*, utils::make_isometry};
@@ -17,6 +19,26 @@ use parry::{
     bounding_volume::Aabb,
     shape::{RoundShape, SharedShape, TypedShape},
 };
+
+#[cfg(feature = "2d")]
+mod primitives2d;
+#[cfg(feature = "3d")]
+mod primitives3d;
+
+#[cfg(feature = "2d")]
+pub(crate) use primitives2d::EllipseWrapper;
+
+/// A trait for creating [`Collider`]s from other types.
+pub trait IntoCollider {
+    /// Creates a [`Collider`] from `self`.
+    fn collider(&self) -> Collider;
+}
+
+impl<C: IntoCollider> From<C> for Collider {
+    fn from(value: C) -> Self {
+        value.collider()
+    }
+}
 
 /// Parameters controlling the VHACD convex decomposition algorithm.
 ///
@@ -39,7 +61,8 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a ball collider with a given radius
-/// commands.spawn(Collider::ball(0.5));
+#[cfg_attr(feature = "2d", doc = "commands.spawn(Collider::circle(0.5));")]
+#[cfg_attr(feature = "3d", doc = "commands.spawn(Collider::sphere(0.5));")]
 /// // Create a capsule collider with a given height and radius
 /// commands.spawn(Collider::capsule(2.0, 0.5));
 /// # }
@@ -59,12 +82,13 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Transform::from_xyz(0.0, 2.0, 0.0),
 ///     ));
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5)));"
+    doc = "    commands.spawn((RigidBody::Static, Collider::rectangle(5.0, 0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
@@ -104,11 +128,26 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))"
+)]
 ///         .with_children(|children| {
 ///             // Spawn the child colliders positioned relative to the rigid body
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+#[cfg_attr(
+    feature = "2d",
+    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
 ///         });
 /// }
 /// ```
@@ -171,7 +210,7 @@ impl Default for Collider {
     fn default() -> Self {
         #[cfg(feature = "2d")]
         {
-            Self::cuboid(0.5, 0.5)
+            Self::rectangle(0.5, 0.5)
         }
         #[cfg(feature = "3d")]
         {
@@ -422,13 +461,50 @@ impl Collider {
         SharedShape::compound(shapes).into()
     }
 
+    /// Creates a collider with a circle shape defined by its radius.
+    #[cfg(feature = "2d")]
+    pub fn circle(radius: Scalar) -> Self {
+        SharedShape::ball(radius).into()
+    }
+
+    /// Creates a collider with a sphere shape defined by its radius.
+    #[cfg(feature = "3d")]
+    pub fn sphere(radius: Scalar) -> Self {
+        SharedShape::ball(radius).into()
+    }
+
     /// Creates a collider with a ball shape defined by its radius.
+    #[cfg_attr(
+        feature = "2d",
+        deprecated(since = "0.4.0", note = "please use `Collider::circle` instead")
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        deprecated(since = "0.4.0", note = "please use `Collider::sphere` instead")
+    )]
     pub fn ball(radius: Scalar) -> Self {
         SharedShape::ball(radius).into()
     }
 
-    /// Creates a collider with a cuboid shape defined by its extents.
+    /// Creates a collider with an ellipse shape defined by a half-width and half-height.
     #[cfg(feature = "2d")]
+    pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
+        SharedShape::new(EllipseWrapper(Ellipse::new(
+            half_width as f32,
+            half_height as f32,
+        )))
+        .into()
+    }
+
+    /// Creates a collider with a rectangle shape defined by its extents.
+    #[cfg(feature = "2d")]
+    pub fn rectangle(x_length: Scalar, y_length: Scalar) -> Self {
+        SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
+    }
+
+    /// Creates a collider with a ball shape defined by its radius.
+    #[cfg(feature = "2d")]
+    #[deprecated(since = "0.4.0", note = "please use `Collider::rectangle` instead")]
     pub fn cuboid(x_length: Scalar, y_length: Scalar) -> Self {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5).into()
     }
@@ -439,8 +515,18 @@ impl Collider {
         SharedShape::cuboid(x_length * 0.5, y_length * 0.5, z_length * 0.5).into()
     }
 
-    /// Creates a collider with a cuboid shape defined by its extents and rounded corners.
+    /// Creates a collider with a rectangle shape defined by its extents and rounded corners.
     #[cfg(feature = "2d")]
+    pub fn round_rectangle(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
+        SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
+    }
+
+    /// Creates a collider with a ball shape defined by its radius.
+    #[cfg(feature = "2d")]
+    #[deprecated(
+        since = "0.4.0",
+        note = "please use `Collider::round_rectangle` instead"
+    )]
     pub fn round_cuboid(x_length: Scalar, y_length: Scalar, border_radius: Scalar) -> Self {
         SharedShape::round_cuboid(x_length * 0.5, y_length * 0.5, border_radius).into()
     }
@@ -502,6 +588,12 @@ impl Collider {
     /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
+    }
+
+    /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
+    #[cfg(feature = "2d")]
+    pub fn regular_polygon(circumradius: f32, sides: usize) -> Self {
+        RegularPolygon::new(circumradius, sides).collider()
     }
 
     /// Creates a collider with a polyline shape defined by its vertices and optionally an index buffer.
@@ -817,14 +909,28 @@ fn scale_shape(
             Some(Either::Left(b)) => Ok(SharedShape::new(b)),
             Some(Either::Right(b)) => Ok(SharedShape::new(b)),
         },
-        TypedShape::Ball(b) => match b.scaled(&scale.into(), num_subdivisions) {
-            None => {
-                log::error!("Failed to apply scale {} to Ball shape.", scale);
-                Ok(SharedShape::ball(0.0))
+        TypedShape::Ball(b) => {
+            #[cfg(feature = "2d")]
+            {
+                if scale.x == scale.y {
+                    Ok(SharedShape::ball(b.radius * scale.x))
+                } else {
+                    // A 2D circle becomes an ellipse when scaled non-uniformly.
+                    Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                        half_size: Vec2::splat(b.radius as f32) * scale.f32(),
+                    })))
+                }
             }
-            Some(Either::Left(b)) => Ok(SharedShape::new(b)),
-            Some(Either::Right(b)) => Ok(SharedShape::new(b)),
-        },
+            #[cfg(feature = "3d")]
+            match b.scaled(&scale.into(), num_subdivisions) {
+                None => {
+                    log::error!("Failed to apply scale {} to Ball shape.", scale);
+                    Ok(SharedShape::ball(0.0))
+                }
+                Some(Either::Left(b)) => Ok(SharedShape::new(b)),
+                Some(Either::Right(b)) => Ok(SharedShape::new(b)),
+            }
+        }
         TypedShape::Segment(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
         TypedShape::Triangle(t) => Ok(SharedShape::new(t.scaled(&scale.into()))),
         TypedShape::RoundTriangle(t) => Ok(SharedShape::new(RoundShape {
@@ -957,7 +1063,17 @@ fn scale_shape(
             }
             Ok(SharedShape::compound(scaled))
         }
-        _ => Err(parry::query::Unsupported),
+        TypedShape::Custom(_id) => {
+            #[cfg(feature = "2d")]
+            if _id == 1 {
+                if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
+                    return Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                        half_size: ellipse.half_size * scale.f32(),
+                    })));
+                }
+            }
+            Err(parry::query::Unsupported)
+        }
     }
 }
 
@@ -1178,10 +1294,26 @@ pub enum ComputedCollider {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
+#[cfg_attr(
+    feature = "2d",
+    doc = "          .spawn((RigidBody::Dynamic, Collider::circle(0.5)))"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "          .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))"
+)]
 ///         .with_children(|children| {
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+///             // Spawn the child colliders positioned relative to the rigid body
+#[cfg_attr(
+    feature = "2d",
+    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+)]
 ///         });
 /// }
 /// ```
@@ -1272,7 +1404,14 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::circle(0.5), Sensor));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::sphere(0.5), Sensor));"
+)]
 /// }
 /// ```
 #[doc(alias = "Trigger")]

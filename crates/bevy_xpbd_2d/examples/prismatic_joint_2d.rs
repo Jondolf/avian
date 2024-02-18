@@ -40,7 +40,7 @@ fn setup(mut commands: Commands) {
                 ..default()
             },
             RigidBody::Dynamic,
-            MassPropertiesBundle::new_computed(&Collider::cuboid(50.0, 50.0), 1.0),
+            MassPropertiesBundle::new_computed(&Collider::rectangle(50.0, 50.0), 1.0),
         ))
         .id();
 

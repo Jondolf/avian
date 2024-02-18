@@ -69,7 +69,7 @@ fn setup(
             ..default()
         },
         RigidBody::Dynamic,
-        Collider::cuboid(30.0, 30.0),
+        Collider::rectangle(30.0, 30.0),
     ));
 
     // Platforms
@@ -84,7 +84,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(1100.0, 50.0),
+        Collider::rectangle(1100.0, 50.0),
     ));
     commands.spawn((
         SpriteBundle {
@@ -97,7 +97,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(300.0, 25.0),
+        Collider::rectangle(300.0, 25.0),
     ));
     commands.spawn((
         SpriteBundle {
@@ -110,7 +110,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(300.0, 25.0),
+        Collider::rectangle(300.0, 25.0),
     ));
     commands.spawn((
         SpriteBundle {
@@ -123,7 +123,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(150.0, 80.0),
+        Collider::rectangle(150.0, 80.0),
     ));
     commands.spawn((
         SpriteBundle {
@@ -136,7 +136,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(150.0, 80.0),
+        Collider::rectangle(150.0, 80.0),
     ));
 
     // Ramps

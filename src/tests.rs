@@ -107,7 +107,10 @@ fn body_with_velocity_moves_on_first_frame() {
             SpatialBundle::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
-            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
+            #[cfg(feature = "2d")]
+            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
+            #[cfg(feature = "3d")]
+            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
         ));
     });
 
@@ -133,7 +136,10 @@ fn body_with_velocity_moves() {
             SpatialBundle::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
-            MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0),
+            #[cfg(feature = "2d")]
+            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
+            #[cfg(feature = "3d")]
+            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
         ));
     });
 
