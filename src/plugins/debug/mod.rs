@@ -2,6 +2,8 @@
 //!
 //! See [`PhysicsDebugPlugin`].
 
+#![allow(clippy::unnecessary_cast)]
+
 mod configuration;
 mod gizmos;
 
