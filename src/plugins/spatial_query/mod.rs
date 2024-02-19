@@ -25,8 +25,8 @@
 //! in the [`RayHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the raycasting methods provided by
-//! [`SpatialQuery`], like [`cast_ray`](SpatialQuery::cast_ray), [`ray_hits`](SpatialQuery::ray_hits) or
-//! [`ray_hits_callback`](SpatialQuery::ray_hits_callback).
+//! [`SpatialQuery`], like [`raycast`](SpatialQuery::raycast), [`raycast_many`](SpatialQuery::raycast_many) or
+//! [`raycast_callback`](SpatialQuery::raycast_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!
@@ -80,8 +80,8 @@
 //! in the [`ShapeHits`] component every frame. It uses local coordinates, so it will automatically follow the entity
 //! it's attached to or its parent.
 //! 2. When you need more control or don't want to cast every frame, use the shapecasting methods provided by
-//! [`SpatialQuery`], like [`cast_shape`](SpatialQuery::cast_shape), [`shape_hits`](SpatialQuery::shape_hits) or
-//! [`shape_hits_callback`](SpatialQuery::shape_hits_callback).
+//! [`SpatialQuery`], like [`shapecast`](SpatialQuery::shapecast), [`shapecast_many`](SpatialQuery::shapecast_many) or
+//! [`shapecast_callback`](SpatialQuery::shapecast_callback).
 //!
 //! See the documentation of the components and methods for more information.
 //!

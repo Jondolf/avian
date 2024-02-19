@@ -160,8 +160,8 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [`SpatialQuery::cast_ray`]
-    pub fn cast_ray(
+    /// See also: [`SpatialQuery::raycast`]
+    pub fn raycast(
         &self,
         origin: Vector,
         direction: Vector,
@@ -244,8 +244,8 @@ impl SpatialQueryPipeline {
     /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [`SpatialQuery::ray_hits`]
-    pub fn ray_hits(
+    /// See also: [`SpatialQuery::raycast_many`]
+    pub fn raycast_many(
         &self,
         origin: Vector,
         direction: Vector,
@@ -255,7 +255,7 @@ impl SpatialQueryPipeline {
         query_filter: SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         let mut hits = Vec::with_capacity(10);
-        self.ray_hits_callback(
+        self.raycast_callback(
             origin,
             direction,
             max_time_of_impact,
@@ -284,8 +284,8 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [`SpatialQuery::ray_hits_callback`]
-    pub fn ray_hits_callback(
+    /// See also: [`SpatialQuery::raycast_callback`]
+    pub fn raycast_callback(
         &self,
         origin: Vector,
         direction: Vector,
@@ -343,9 +343,9 @@ impl SpatialQueryPipeline {
     /// hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// See also: [`SpatialQuery::cast_shape`]
+    /// See also: [`SpatialQuery::shapecast`]
     #[allow(clippy::too_many_arguments)]
-    pub fn cast_shape(
+    pub fn shapecast(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -407,9 +407,9 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [`SpatialQuery::shape_hits`]
+    /// See also: [`SpatialQuery::shapecast_many`]
     #[allow(clippy::too_many_arguments)]
-    pub fn shape_hits(
+    pub fn shapecast_many(
         &self,
         shape: &Collider,
         origin: Vector,
@@ -421,7 +421,7 @@ impl SpatialQueryPipeline {
         query_filter: SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         let mut hits = Vec::with_capacity(10);
-        self.shape_hits_callback(
+        self.shapecast_callback(
             shape,
             origin,
             shape_rotation,
@@ -454,9 +454,9 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// See also: [`SpatialQuery::shape_hits_callback`]
+    /// See also: [`SpatialQuery::shapecast_callback`]
     #[allow(clippy::too_many_arguments)]
-    pub fn shape_hits_callback(
+    pub fn shapecast_callback(
         &self,
         shape: &Collider,
         origin: Vector,
