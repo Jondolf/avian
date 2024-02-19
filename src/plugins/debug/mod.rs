@@ -290,7 +290,7 @@ fn debug_render_colliders(
                     color = Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
                 }
             }
-            gizmos.draw_collider(collider, position, rotation, color);
+            gizmos.draw_collider(collider, *position, *rotation, color);
         }
     }
 }

@@ -12,8 +12,8 @@ pub trait PhysicsGizmoExt {
     fn draw_line_strip(
         &mut self,
         points: Vec<Vector>,
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         closed: bool,
         color: Color,
     );
@@ -23,8 +23,8 @@ pub trait PhysicsGizmoExt {
         &mut self,
         vertices: &[Vector],
         indices: &[[u32; 2]],
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         color: Color,
     );
 
@@ -35,8 +35,8 @@ pub trait PhysicsGizmoExt {
     fn draw_collider(
         &mut self,
         collider: &Collider,
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         color: Color,
     );
 
@@ -83,11 +83,14 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     fn draw_line_strip(
         &mut self,
         points: Vec<Vector>,
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         closed: bool,
         color: Color,
     ) {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
+
         let pos = position.f32();
         #[cfg(feature = "2d")]
         self.linestrip_2d(
@@ -112,10 +115,13 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         &mut self,
         vertices: &[Vector],
         indices: &[[u32; 2]],
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         color: Color,
     ) {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
+
         for [i1, i2] in indices {
             let a = position.0 + rotation.rotate(vertices[*i1 as usize]);
             let b = position.0 + rotation.rotate(vertices[*i2 as usize]);
@@ -145,10 +151,13 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     fn draw_collider(
         &mut self,
         collider: &Collider,
-        position: &Position,
-        rotation: &Rotation,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
         color: Color,
     ) {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
+
         let nalgebra_to_glam =
             |points: &[_]| points.iter().map(|p| Vector::from(*p)).collect::<Vec<_>>();
         match collider.shape_scaled().as_typed_shape() {
@@ -170,7 +179,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 self.cuboid(
                     Transform::from_scale(Vector::from(s.half_extents).extend(0.0).f32() * 2.0)
                         .with_translation(position.extend(0.0).f32())
-                        .with_rotation(Quaternion::from(*rotation).f32()),
+                        .with_rotation(Quaternion::from(rotation).f32()),
                     color,
                 );
             }
@@ -280,10 +289,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 for (sub_pos, shape) in s.shapes() {
                     let pos = Position(position.0 + rotation.rotate(sub_pos.translation.into()));
                     #[cfg(feature = "2d")]
-                    let rot = *rotation + Rotation::from_radians(sub_pos.rotation.angle());
+                    let rot = rotation + Rotation::from_radians(sub_pos.rotation.angle());
                     #[cfg(feature = "3d")]
                     let rot = Rotation((rotation.mul_quat(sub_pos.rotation.into())).normalize());
-                    self.draw_collider(&Collider::from(shape.to_owned()), &pos, &rot, color);
+                    self.draw_collider(&Collider::from(shape.to_owned()), pos, rot, color);
                 }
             }
             #[cfg(feature = "2d")]
@@ -494,7 +503,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             .map_or(max_time_of_impact, |hit| hit.time_of_impact);
 
         // Draw collider at origin
-        self.draw_collider(shape, &Position(origin), &shape_rotation, shape_color);
+        self.draw_collider(shape, origin, shape_rotation, shape_color);
 
         // Draw arrow from origin to position of shape at final hit
         // TODO: We could render the swept collider outline instead
@@ -530,8 +539,8 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             // Draw collider at hit point
             self.draw_collider(
                 shape,
-                &Position(origin + hit.time_of_impact * *direction),
-                &shape_rotation,
+                origin + hit.time_of_impact * *direction,
+                shape_rotation,
                 Color::rgba(shape_color.r(), shape_color.g(), shape_color.b(), 0.3),
             );
         }
