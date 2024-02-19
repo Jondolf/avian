@@ -50,7 +50,7 @@ use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
 ///         // Overwrite default debug rendering configuration (optional)
 ///         .insert_gizmo_group(
 ///             PhysicsGizmos {
-///                 aabb_color: Some(Color::White),
+///                 aabb_color: Some(Color::WHITE),
 ///                 ..default()
 ///             },
 ///             GizmoConfig::default(),
