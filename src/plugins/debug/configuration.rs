@@ -111,7 +111,8 @@ impl Default for PhysicsGizmos {
 }
 
 /// The scale used for contact normals rendered using gizmos.
-#[derive(Reflect)]
+#[derive(Reflect, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub enum ContactGizmoScale {
     /// The length of the rendered contact normal is constant.
     Constant(Scalar),
