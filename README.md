@@ -55,7 +55,7 @@ Below are some of the current features of Bevy XPBD.
 - `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
-[Table of contents](https://docs.rs/bevy_xpbd_3d/0.3.0/bevy_xpbd_3d/#table-of-contents)
+[Table of contents](https://docs.rs/bevy_xpbd_3d/latest/bevy_xpbd_3d/#table-of-contents)
 on docs.rs.
 
 ## Documentation
@@ -70,11 +70,11 @@ First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`
 ```toml
 # For 2D applications:
 [dependencies]
-bevy_xpbd_2d = "0.3"
+bevy_xpbd_2d = "0.4"
 
 # For 3D applications:
 [dependencies]
-bevy_xpbd_3d = "0.3"
+bevy_xpbd_3d = "0.4"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -126,7 +126,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            intensity: 2_000_000.0,
             shadows_enabled: true,
             ..default()
         },
@@ -155,25 +155,27 @@ By default the examples use `f32`. To run the `f64` versions, you need to disabl
 and precision:
 
 ```shell
-cargo run --example cubes --no-default-features --features "3d f64"
+# Manually specify dimension and precision. `parry-f64` enables collision detection using Parry.
+cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 ```
 
 ## Supported Bevy versions
 
 | Bevy | Bevy XPBD |
 | ---- | --------- |
+| 0.13 | 0.4       |
 | 0.12 | 0.3       |
 | 0.11 | 0.2       |
 | 0.10 | 0.1       |
 
 ## Future features
 
-- Joint motors
-- Articulations, aka. multibody joints
 - Continuous collision detection (CCD)
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)
+- Joint motors
+- Articulations, aka. multibody joints
 - Proper cross-platform determinism
 - Soft bodies (cloth and deformable solids)
 - Maybe fluid simulation

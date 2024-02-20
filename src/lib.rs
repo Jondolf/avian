@@ -23,11 +23,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.3"
+//! bevy_xpbd_2d = "0.4"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.3"
+//! bevy_xpbd_3d = "0.4"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,8 +39,9 @@
 //!
 //! ```toml
 //! [dependencies]
-//! # Add 3D Bevy XPBD with double-precision floating point numbers
-//! bevy_xpbd_3d = { version = "0.3", default-features = false, features = ["3d", "f64"] }
+//! # Add 3D Bevy XPBD with double-precision floating point numbers.
+//! # `parry-f64` enables collision detection using Parry.
+//! bevy_xpbd_3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ### Feature flags
