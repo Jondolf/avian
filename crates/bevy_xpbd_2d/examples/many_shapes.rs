@@ -78,7 +78,7 @@ fn setup(
 
     let circle = Circle::new(7.5);
     let rectangle = Rectangle::new(15.0, 15.0);
-    let capsule = Capsule2d::new(20.0, 7.5);
+    let capsule = Capsule2d::new(7.5, 20.0);
     let triangle = Triangle2d::new(
         Vec2::new(0.0, 10.0),
         Vec2::new(-10.0, -10.0),
@@ -115,7 +115,7 @@ fn setup(
                 MaterialMesh2dBundle {
                     mesh,
                     material,
-                    transform: Transform::from_xyz(x as f32 * 20.0, y as f32 * 20.0, 0.0),
+                    transform: Transform::from_xyz(x as f32 * 25.0, y as f32 * 25.0, 0.0),
                     ..default()
                 },
                 collider,

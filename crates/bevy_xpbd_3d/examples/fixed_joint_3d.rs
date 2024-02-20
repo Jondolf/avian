@@ -26,7 +26,6 @@ fn setup(
             PbrBundle {
                 mesh: cube_mesh.clone(),
                 material: cube_material.clone(),
-                transform: Transform::from_xyz(3.0, 3.5, 0.0),
                 ..default()
             },
             RigidBody::Kinematic,
@@ -54,7 +53,7 @@ fn setup(
     // Directional light
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: 1000.0,
+            illuminance: 2000.0,
             shadows_enabled: true,
             ..default()
         },

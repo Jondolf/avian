@@ -57,6 +57,8 @@ fn setup(
     ));
 }
 
+// Note: The `PhysicsDebugPlugin` can also render rays, hit points, and normals.
+//       This system is primarily for demonstration purposes.
 fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizmos) {
     for (ray, hits) in &mut rays {
         // Convert to Vec3 for lines

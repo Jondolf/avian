@@ -43,7 +43,7 @@ fn setup(
         MaterialMesh2dBundle {
             mesh: meshes.add(Capsule2d::new(12.5, 20.0)).into(),
             material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
-            transform: Transform::from_xyz(0.0, -100.0, 0.0),
+            transform: Transform::from_xyz(0.0, -100.0, 1.0),
             ..default()
         },
         Character,

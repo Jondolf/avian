@@ -50,7 +50,6 @@ fn setup(mut commands: Commands) {
             .with_rest_length(100.0)
             .with_linear_velocity_damping(0.1)
             .with_angular_velocity_damping(1.0)
-            .with_limits(140.0, 150.0)
             .with_compliance(0.00000001),
     );
 }

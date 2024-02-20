@@ -54,7 +54,7 @@ fn setup(
                 mesh: meshes.add(shape),
                 material: debug_material.clone(),
                 transform: Transform::from_xyz(
-                    -14.5 / 2.0 + i as f32 / (num_shapes - 1) as f32 * 14.5,
+                    -10.0 / 2.0 + i as f32 / (num_shapes - 1) as f32 * 10.0,
                     2.0,
                     0.0,
                 )
@@ -79,7 +79,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 900_000.0,
+            intensity: 8_000_000.0,
             range: 100.,
             shadows_enabled: true,
             ..default()

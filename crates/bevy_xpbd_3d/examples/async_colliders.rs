@@ -35,7 +35,7 @@ fn setup(
             // The model was made by RayMarch, licenced under CC0-1.0, and can be found here:
             // https://github.com/RayMarch/ferris3d
             scene: assets.load("ferris.glb#Scene0"),
-            transform: Transform::from_xyz(0.0, 2.0, 0.0).with_scale(Vec3::splat(2.0)),
+            transform: Transform::from_xyz(0.0, 1.0, 0.0).with_scale(Vec3::splat(2.0)),
             ..default()
         },
         // Create colliders using convex decomposition.
@@ -45,15 +45,15 @@ fn setup(
             VHACDParameters::default(),
         )))
         // Make the arms heavier to make it easier to stand upright
-        .with_density_for_name("armL_mesh", 5.0)
-        .with_density_for_name("armR_mesh", 5.0),
+        .with_density_for_name("armL_mesh", 3.0)
+        .with_density_for_name("armR_mesh", 3.0),
         RigidBody::Dynamic,
     ));
 
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 500_000.0,
+            intensity: 1_000_000.0,
             shadows_enabled: true,
             ..default()
         },

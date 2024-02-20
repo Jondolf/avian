@@ -81,8 +81,8 @@ fn setup(
     let marble_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
 
     // Spawn stacks of marbles
-    for x in -20..20 {
-        for y in -20..20 {
+    for x in -16..16 {
+        for y in -16..16 {
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: marble_mesh.clone().into(),
