@@ -48,11 +48,9 @@ required-features = ["2d"]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
 bevy = { version = "0.13", default-features = false }
 bevy_math = "0.13"
-parry2d = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
-parry2d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
-nalgebra = { git = "https://github.com/dimforge/nalgebra", features = [
-    "convert-glam025",
-], optional = true }
+parry2d = { version = "0.13", optional = true }
+parry2d-f64 = { version = "0.13", optional = true }
+nalgebra = { version = "0.32", features = ["convert-glam025"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
