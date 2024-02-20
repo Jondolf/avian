@@ -79,7 +79,7 @@ pub fn mark_sleeping_bodies(
 
         // If the body has been still for long enough, set it to sleep and reset velocities.
         if time_sleeping.0 > deactivation_time.0 {
-            commands.entity(entity).insert(Sleeping);
+            commands.entity(entity).try_insert(Sleeping);
             *lin_vel = LinearVelocity::ZERO;
             *ang_vel = AngularVelocity::ZERO;
         }

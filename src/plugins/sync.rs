@@ -168,7 +168,7 @@ pub(crate) fn init_previous_global_transform(
     for (entity, transform) in &query {
         commands
             .entity(entity)
-            .insert(PreviousGlobalTransform(*transform));
+            .try_insert(PreviousGlobalTransform(*transform));
     }
 }
 

@@ -66,7 +66,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///         RigidBody::Dynamic,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
-///         Transform::from_xyz(0.0, 2.0, 0.0),
+///         TransformBundle::from_transform(Transform::from_xyz(0.0, 2.0, 0.0)),
 ///     ));
 #[cfg_attr(
     feature = "2d",
@@ -122,13 +122,25 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 ///             // Spawn the child colliders positioned relative to the rigid body
 #[cfg_attr(
     feature = "2d",
-    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+    doc = "            children.spawn((
+                Collider::circle(0.5),
+                TransformBundle::from_transform(Transform::from_xyz(2.0, 0.0, 0.0)),
+            ));
+            children.spawn((
+                Collider::circle(0.5),
+                TransformBundle::from_transform(Transform::from_xyz(-2.0, 0.0, 0.0)),
+            ));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
+    doc = "            children.spawn((
+                Collider::sphere(0.5),
+                TransformBundle::from_transform(Transform::from_xyz(2.0, 0.0, 0.0)),
+            ));
+            children.spawn((
+                Collider::sphere(0.5),
+                TransformBundle::from_transform(Transform::from_xyz(-2.0, 0.0, 0.0)),
+            ));"
 )]
 ///         });
 /// }

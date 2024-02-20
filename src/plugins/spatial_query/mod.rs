@@ -231,7 +231,7 @@ fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added
         } else {
             ray.max_hits as usize
         };
-        commands.entity(entity).insert(RayHits {
+        commands.entity(entity).try_insert(RayHits {
             vector: Vec::with_capacity(max_hits),
             count: 0,
         });
@@ -244,7 +244,7 @@ fn init_shape_hits(
     shape_casters: Query<(Entity, &ShapeCaster), Added<ShapeCaster>>,
 ) {
     for (entity, shape_caster) in &shape_casters {
-        commands.entity(entity).insert(ShapeHits {
+        commands.entity(entity).try_insert(ShapeHits {
             vector: Vec::with_capacity(shape_caster.max_hits.min(100_000) as usize),
             count: 0,
         });

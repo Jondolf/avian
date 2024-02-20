@@ -227,7 +227,7 @@ fn init_colliders<C: AnyCollider>(
 ) {
     for (entity, collider, aabb, density, mass_properties) in &mut colliders {
         let density = *density.unwrap_or(&ColliderDensity::default());
-        commands.entity(entity).insert((
+        commands.entity(entity).try_insert((
             *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
             density,
             *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
@@ -455,7 +455,7 @@ fn update_collider_parents<C: AnyCollider>(
             if let Some(mut collider_parent) = collider_parent {
                 collider_parent.0 = entity;
             } else {
-                commands.entity(entity).insert((
+                commands.entity(entity).try_insert((
                     ColliderParent(entity),
                     // Todo: This probably causes a one frame delay. Compute real value?
                     ColliderTransform::default(),

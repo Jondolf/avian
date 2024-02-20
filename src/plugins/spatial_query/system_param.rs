@@ -156,20 +156,21 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(feature = "3d")]
     /// use bevy_xpbd_3d::prelude::*;
     ///
+    /// #[derive(Component)]
+    /// struct Invisible;
+    ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
-    /// fn print_hits(spatial_query: SpatialQuery) {
+    /// fn print_hits(spatial_query: SpatialQuery, query: Query<&Invisible>) {
     ///     // Cast ray and print first hit
-    ///     if let Some(first_hit) = spatial_query.cast_ray(
+    ///     if let Some(first_hit) = spatial_query.cast_ray_predicate(
     ///         Vec3::ZERO,                    // Origin
     ///         Direction3d::X,                // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
     ///         SpatialQueryFilter::default(), // Query filter
     ///         &|entity| {                    // Predicate
-    ///             if let Some(value) = query.get(entity) {
-    ///                 return value == x;     // ignore if value from query is x
-    ///             }
-    ///             true                       // else check for collision
+    ///             // Skip entities with the `Invisible` component.
+    ///             !query.contains(entity)
     ///         }
     ///     ) {
     ///         println!("First hit: {:?}", first_hit);
@@ -668,7 +669,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
-    ///     let aabb = Collider::sphere(0.5).compute_aabb(Vec3::ZERO, Quat::default());
+    ///     let aabb = Collider::sphere(0.5).aabb(Vec3::ZERO, Quat::default());
     ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
     ///
     ///     for entity in intersections.iter() {
