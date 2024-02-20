@@ -45,10 +45,11 @@ use parry::query::{
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a ray at the center going right
-///     commands.spawn(RayCaster::new(Vec3::ZERO, Vec3::X));
+///     commands.spawn(RayCaster::new(Vec3::ZERO, Direction3d::X));
 ///     // ...spawn colliders and other things
 /// }
 ///
+/// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(query: Query<(&RayCaster, &RayHits)>) {
 ///     for (ray, hits) in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
@@ -56,7 +57,7 @@ use parry::query::{
 ///             println!(
 ///                 "Hit entity {:?} at {} with normal {}",
 ///                 hit.entity,
-///                 ray.origin + ray.direction * hit.time_of_impact,
+///                 ray.origin + *ray.direction * hit.time_of_impact,
 ///                 hit.normal,
 ///             );
 ///         }
@@ -77,9 +78,9 @@ pub struct RayCaster {
     /// The local direction of the ray relative to the [`Rotation`] of the ray entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
-    pub direction: Vector,
+    pub direction: Dir,
     /// The global direction of the ray.
-    global_direction: Vector,
+    global_direction: Dir,
     /// The maximum distance the ray can travel. By default this is infinite, so the ray will travel
     /// until all hits up to `max_hits` have been checked.
     pub max_time_of_impact: Scalar,
@@ -107,8 +108,8 @@ impl Default for RayCaster {
             enabled: true,
             origin: Vector::ZERO,
             global_origin: Vector::ZERO,
-            direction: Vector::ZERO,
-            global_direction: Vector::ZERO,
+            direction: Dir::X,
+            global_direction: Dir::X,
             max_time_of_impact: Scalar::MAX,
             max_hits: u32::MAX,
             solid: true,
@@ -118,12 +119,27 @@ impl Default for RayCaster {
     }
 }
 
+impl From<Ray> for RayCaster {
+    fn from(ray: Ray) -> Self {
+        RayCaster::from_ray(ray)
+    }
+}
+
 impl RayCaster {
     /// Creates a new [`RayCaster`] with a given origin and direction.
-    pub fn new(origin: Vector, direction: Vector) -> Self {
+    pub fn new(origin: Vector, direction: Dir) -> Self {
         Self {
             origin,
             direction,
+            ..default()
+        }
+    }
+
+    /// Creates a new [`RayCaster`] from a ray.
+    pub fn from_ray(ray: Ray) -> Self {
+        Self {
+            origin: ray.origin.adjust_precision(),
+            direction: ray.direction,
             ..default()
         }
     }
@@ -135,7 +151,7 @@ impl RayCaster {
     }
 
     /// Sets the ray direction.
-    pub fn with_direction(mut self, direction: Vector) -> Self {
+    pub fn with_direction(mut self, direction: Dir) -> Self {
         self.direction = direction;
         self
     }
@@ -192,7 +208,7 @@ impl RayCaster {
     }
 
     /// Returns the global direction of the ray.
-    pub fn global_direction(&self) -> Vector {
+    pub fn global_direction(&self) -> Dir {
         self.global_direction
     }
 
@@ -202,7 +218,7 @@ impl RayCaster {
     }
 
     /// Sets the global direction of the ray.
-    pub(crate) fn set_global_direction(&mut self, global_direction: Vector) {
+    pub(crate) fn set_global_direction(&mut self, global_direction: Dir) {
         self.global_direction = global_direction;
     }
 
@@ -223,8 +239,10 @@ impl RayCaster {
 
         if self.max_hits == 1 {
             let pipeline_shape = query_pipeline.as_composite_shape(query_filter);
-            let ray =
-                parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
+            let ray = parry::query::Ray::new(
+                self.global_origin().into(),
+                self.global_direction().adjust_precision().into(),
+            );
             let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
                 &pipeline_shape,
                 &ray,
@@ -247,8 +265,10 @@ impl RayCaster {
                 hits.count = 1;
             }
         } else {
-            let ray =
-                parry::query::Ray::new(self.global_origin().into(), self.global_direction().into());
+            let ray = parry::query::Ray::new(
+                self.global_origin().into(),
+                self.global_direction().adjust_precision().into(),
+            );
 
             let mut leaf_callback = &mut |entity_index: &u32| {
                 let entity = query_pipeline.entity_from_index(*entity_index);
@@ -375,7 +395,7 @@ impl RayHits {
 }
 
 impl MapEntities for RayHits {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for hit in &mut self.vector {
             hit.map_entities(entity_mapper);
         }
@@ -395,7 +415,7 @@ pub struct RayHitData {
 }
 
 impl MapEntities for RayHitData {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity = entity_mapper.get_or_reserve(self.entity);
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.entity = entity_mapper.map_entity(self.entity);
     }
 }

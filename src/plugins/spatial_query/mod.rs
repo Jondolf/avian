@@ -42,10 +42,11 @@
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {
 //!     // Spawn a ray caster at the center with the rays travelling right
-//!     commands.spawn(RayCaster::new(Vec3::ZERO, Vec3::X));
+//!     commands.spawn(RayCaster::new(Vec3::ZERO, Direction3d::X));
 //!     // ...spawn colliders and other things
 //! }
 //!
+//! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn print_hits(query: Query<(&RayCaster, &RayHits)>) {
 //!     for (ray, hits) in &query {
 //!         // For the faster iterator that isn't sorted, use `.iter()`
@@ -53,7 +54,7 @@
 //!             println!(
 //!                 "Hit entity {:?} at {} with normal {}",
 //!                 hit.entity,
-//!                 ray.origin + ray.direction * hit.time_of_impact,
+//!                 ray.origin + *ray.direction * hit.time_of_impact,
 //!                 hit.normal,
 //!             );
 //!         }
@@ -96,12 +97,12 @@
 //!
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {
-//!     // Spawn a shape caster with a ball shape at the center travelling right
+//!     // Spawn a shape caster with a sphere shape at the center travelling right
 //!     commands.spawn(ShapeCaster::new(
-//!         Collider::ball(0.5), // Shape
-//!         Vec3::ZERO,          // Origin
-//!         Quat::default(),     // Shape rotation
-//!         Vec3::X              // Direction
+//!         Collider::sphere(0.5), // Shape
+//!         Vec3::ZERO,            // Origin
+//!         Quat::default(),       // Shape rotation
+//!         Direction3d::X         // Direction
 //!     ));
 //!     // ...spawn colliders and other things
 //! }
@@ -278,15 +279,13 @@ fn update_ray_caster_positions(
         let global_rotation = rotation.copied().or(transform.map(Rotation::from));
 
         if let Some(global_position) = global_position {
-            ray.set_global_origin(
-                global_position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)),
-            );
+            ray.set_global_origin(global_position.0 + rotation.map_or(origin, |rot| rot * origin));
         } else if parent.is_none() {
             ray.set_global_origin(origin);
         }
 
         if let Some(global_rotation) = global_rotation {
-            let global_direction = global_rotation.rotate(ray.direction);
+            let global_direction = global_rotation * ray.direction;
             ray.set_global_direction(global_direction);
         } else if parent.is_none() {
             ray.set_global_direction(direction);
@@ -306,12 +305,12 @@ fn update_ray_caster_positions(
             if global_position.is_none() {
                 if let Some(position) = parent_position {
                     let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
-                    ray.set_global_origin(position.0 + rotation.rotate(origin));
+                    ray.set_global_origin(position.0 + rotation * origin);
                 }
             }
             if global_rotation.is_none() {
                 if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation.rotate(ray.direction);
+                    let global_direction = rotation * ray.direction;
                     ray.set_global_direction(global_direction);
                 }
             }
@@ -350,15 +349,14 @@ fn update_shape_caster_positions(
         let global_rotation = rotation.copied().or(transform.map(Rotation::from));
 
         if let Some(global_position) = global_position {
-            shape_caster.set_global_origin(
-                global_position.0 + rotation.map_or(origin, |rot| rot.rotate(origin)),
-            );
+            shape_caster
+                .set_global_origin(global_position.0 + rotation.map_or(origin, |rot| rot * origin));
         } else if parent.is_none() {
             shape_caster.set_global_origin(origin);
         }
 
         if let Some(global_rotation) = global_rotation {
-            let global_direction = global_rotation.rotate(shape_caster.direction);
+            let global_direction = global_rotation * shape_caster.direction;
             shape_caster.set_global_direction(global_direction);
             #[cfg(feature = "2d")]
             {
@@ -395,12 +393,12 @@ fn update_shape_caster_positions(
             if global_position.is_none() {
                 if let Some(position) = parent_position {
                     let rotation = global_rotation.unwrap_or(parent_rotation.unwrap_or_default());
-                    shape_caster.set_global_origin(position.0 + rotation.rotate(origin));
+                    shape_caster.set_global_origin(position.0 + rotation * origin);
                 }
             }
             if global_rotation.is_none() {
                 if let Some(rotation) = parent_rotation {
-                    let global_direction = rotation.rotate(shape_caster.direction);
+                    let global_direction = rotation * shape_caster.direction;
                     shape_caster.set_global_direction(global_direction);
                     #[cfg(feature = "2d")]
                     {

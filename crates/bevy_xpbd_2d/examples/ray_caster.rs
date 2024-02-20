@@ -35,8 +35,8 @@ fn setup(
 
             commands.spawn((
                 MaterialMesh2dBundle {
-                    mesh: meshes.add(shape::Circle::new(radius).into()).into(),
-                    material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
+                    mesh: meshes.add(Circle::new(radius)).into(),
+                    material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
                     transform: Transform::from_xyz(
                         x as f32 * radius * 3.0,
                         y as f32 * radius * 3.0,
@@ -44,7 +44,7 @@ fn setup(
                     ),
                     ..default()
                 },
-                Collider::ball(radius as Scalar),
+                Collider::circle(radius as Scalar),
             ));
         }
     }
@@ -53,15 +53,15 @@ fn setup(
     commands.spawn((
         RigidBody::Kinematic,
         AngularVelocity(0.2),
-        RayCaster::new(Vector::ZERO, Vector::X),
+        RayCaster::new(Vector::ZERO, Direction2d::X),
     ));
 }
 
 fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizmos) {
     for (ray, hits) in &mut rays {
         // Convert to Vec3 for lines
-        let origin = ray.global_origin().as_f32();
-        let direction = ray.global_direction().as_f32();
+        let origin = ray.global_origin().f32();
+        let direction = ray.global_direction().f32();
 
         for hit in hits.iter() {
             gizmos.line_2d(

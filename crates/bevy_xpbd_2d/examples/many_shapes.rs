@@ -40,7 +40,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -62,7 +62,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -73,48 +73,40 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
 
-    let ball = (
-        Collider::ball(7.5),
-        meshes.add(shape::Circle::new(7.5).into()).into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.29, 0.33, 0.64))),
+    let circle = Circle::new(7.5);
+    let rectangle = Rectangle::new(15.0, 15.0);
+    let capsule = Capsule2d::new(20.0, 7.5);
+    let triangle = Triangle2d::new(
+        Vec2::new(0.0, 10.0),
+        Vec2::new(-10.0, -10.0),
+        Vec2::new(10.0, -10.0),
     );
-    let cuboid = (
-        Collider::cuboid(15.0, 15.0),
-        meshes.add(shape::Box::new(15.0, 15.0, 15.0).into()).into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.47, 0.58, 0.8))),
-    );
-    let capsule = (
-        Collider::capsule(20.0, 7.5),
-        meshes
-            .add(
-                shape::Capsule {
-                    depth: 20.0,
-                    radius: 7.5,
-                    ..default()
-                }
-                .into(),
-            )
-            .into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.63, 0.75, 0.88))),
-    );
-    // Compute points of regular triangle
-    let delta_rotation = Rotation::from_degrees(120.0);
-    let triangle_points = [
-        Vector::Y * 10.0,
-        delta_rotation.rotate(Vector::Y * 10.0),
-        delta_rotation.inverse().rotate(Vector::Y * 10.0),
+
+    let shapes = [
+        (
+            circle.collider(),
+            meshes.add(circle).into(),
+            materials.add(Color::rgb(0.29, 0.33, 0.64)),
+        ),
+        (
+            rectangle.collider(),
+            meshes.add(rectangle).into(),
+            materials.add(Color::rgb(0.47, 0.58, 0.8)),
+        ),
+        (
+            capsule.collider(),
+            meshes.add(capsule).into(),
+            materials.add(Color::rgb(0.63, 0.75, 0.88)),
+        ),
+        (
+            triangle.collider(),
+            meshes.add(triangle).into(),
+            materials.add(Color::rgb(0.77, 0.87, 0.97)),
+        ),
     ];
-    let triangle = (
-        Collider::triangle(triangle_points[0], triangle_points[1], triangle_points[2]),
-        meshes
-            .add(shape::RegularPolygon::new(10.0, 3).into())
-            .into(),
-        materials.add(ColorMaterial::from(Color::rgb(0.77, 0.87, 0.97))),
-    );
-    let shapes = [ball, cuboid, capsule, triangle];
 
     for x in -12_i32..12 {
         for y in -8_i32..8 {
@@ -137,7 +129,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut marbles: Query<&mut LinearVelocity, With<Controllable>>,
 ) {
     // Precision is adjusted so that the example works with
@@ -145,17 +137,17 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for mut linear_velocity in &mut marbles {
-        if keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]) {
+        if keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
             // Use a higher acceleration for upwards movement to overcome gravity
             linear_velocity.y += 2500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]) {
+        if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
             linear_velocity.y -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]) {
+        if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
             linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]) {
+        if keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
             linear_velocity.x += 500.0 * delta_time;
         }
     }

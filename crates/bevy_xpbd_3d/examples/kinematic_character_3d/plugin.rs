@@ -12,7 +12,6 @@ impl Plugin for CharacterControllerPlugin {
                     keyboard_input,
                     gamepad_input,
                     update_grounded,
-                    apply_deferred,
                     apply_gravity,
                     movement,
                     apply_movement_damping,
@@ -121,7 +120,7 @@ impl CharacterControllerBundle {
                 caster_shape,
                 Vector::ZERO,
                 Quaternion::default(),
-                Vector::NEG_Y,
+                Direction3d::NEG_Y,
             )
             .with_max_time_of_impact(0.2),
             gravity: ControllerGravity(gravity),
@@ -144,12 +143,12 @@ impl CharacterControllerBundle {
 /// Sends [`MovementAction`] events based on keyboard input.
 fn keyboard_input(
     mut movement_event_writer: EventWriter<MovementAction>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-    let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
-    let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-    let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+    let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
+    let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+    let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+    let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
 
     let horizontal = right as i8 - left as i8;
     let vertical = up as i8 - down as i8;
@@ -169,7 +168,7 @@ fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
     gamepads: Res<Gamepads>,
     axes: Res<Axis<GamepadAxis>>,
-    buttons: Res<Input<GamepadButton>>,
+    buttons: Res<ButtonInput<GamepadButton>>,
 ) {
     for gamepad in gamepads.iter() {
         let axis_lx = GamepadAxis {

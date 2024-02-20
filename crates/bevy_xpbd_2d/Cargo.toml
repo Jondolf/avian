@@ -23,7 +23,7 @@ parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
 enhanced-determinism = [
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
-    "glam/libm",
+    "bevy_math/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -46,19 +46,20 @@ required-features = ["2d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.12", default-features = false }
+bevy = { version = "0.13", default-features = false }
+bevy_math = "0.13"
 parry2d = { version = "0.13", optional = true }
 parry2d-f64 = { version = "0.13", optional = true }
-nalgebra = { version = "0.32", features = ["convert-glam024"], optional = true }
-glam = { version = "0.24", features = ["approx"] }
+nalgebra = { version = "0.32", features = ["convert-glam025"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
-itertools = "0.11"
+itertools = "0.12"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
+bevy_math = { version = "0.13", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 

@@ -27,7 +27,7 @@ impl Plugin for SleepingPlugin {
                 (
                     mark_sleeping_bodies,
                     wake_on_changed,
-                    wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>()),
+                    wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>),
                 )
                     .chain()
                     .in_set(PhysicsStepSet::Sleeping),

@@ -1,5 +1,5 @@
 use super::AdjustPrecision;
-use glam::*;
+use bevy_math::*;
 
 /// The floating point number type used by Bevy XPBD.
 pub type Scalar = f64;
@@ -67,7 +67,7 @@ impl AdjustPrecision for DVec2 {
 impl AdjustPrecision for Quat {
     type Adjusted = Quaternion;
     fn adjust_precision(&self) -> Self::Adjusted {
-        self.as_f64()
+        self.as_dquat()
     }
 }
 

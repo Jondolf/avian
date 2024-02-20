@@ -31,13 +31,7 @@ fn setup(
 ) {
     let particle_count = 100;
     let particle_radius = 0.06;
-    let particle_mesh = meshes.add(
-        Mesh::try_from(shape::Icosphere {
-            radius: particle_radius as f32,
-            ..default()
-        })
-        .unwrap(),
-    );
+    let particle_mesh = meshes.add(Sphere::new(particle_radius as f32).mesh().ico(5).unwrap());
     let particle_material = materials.add(StandardMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
 
     // Spawn kinematic particle that can follow the mouse
@@ -58,7 +52,7 @@ fn setup(
         let current_particle = commands
             .spawn((
                 RigidBody::Dynamic,
-                MassPropertiesBundle::new_computed(&Collider::ball(particle_radius), 1.0),
+                MassPropertiesBundle::new_computed(&Collider::sphere(particle_radius), 1.0),
                 PbrBundle {
                     mesh: particle_mesh.clone(),
                     material: particle_material.clone(),
@@ -91,7 +85,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&MovementAcceleration, &mut LinearVelocity)>,
 ) {
     // Precision is adjusted so that the example works with
@@ -99,10 +93,10 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
-        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
-        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
+        let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+        let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+        let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
 
         let horizontal = right as i8 - left as i8;
         let vertical = down as i8 - up as i8;

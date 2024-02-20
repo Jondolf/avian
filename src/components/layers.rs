@@ -295,9 +295,9 @@ impl Not for LayerMask {
 /// fn spawn(mut commands: Commands) {
 ///     // This collider belongs to the first two layers and can interact with the last layer.
 ///     commands.spawn((
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         CollisionLayers::from_bits(FIRST_LAYER | SECOND_LAYER, LAST_LAYER),
-///         // ...other components
 ///     ));
 /// }
 /// ```

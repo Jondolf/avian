@@ -40,7 +40,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -51,7 +51,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -62,7 +62,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -73,12 +73,12 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
 
     let marble_radius = 5.0;
-    let marble_mesh = meshes.add(shape::Circle::new(marble_radius).into());
-    let marble_material = materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9)));
+    let marble_mesh = meshes.add(Circle::new(marble_radius));
+    let marble_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
 
     // Spawn stacks of marbles
     for x in -20..20 {
@@ -95,7 +95,7 @@ fn setup(
                     ..default()
                 },
                 RigidBody::Dynamic,
-                Collider::ball(marble_radius as Scalar),
+                Collider::circle(marble_radius as Scalar),
                 Marble,
             ));
         }
@@ -104,7 +104,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut marbles: Query<&mut LinearVelocity, With<Marble>>,
 ) {
     // Precision is adjusted so that the example works with
@@ -112,17 +112,17 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for mut linear_velocity in &mut marbles {
-        if keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]) {
+        if keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
             // Use a higher acceleration for upwards movement to overcome gravity
             linear_velocity.y += 2500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]) {
+        if keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
             linear_velocity.y -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]) {
+        if keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
             linear_velocity.x -= 500.0 * delta_time;
         }
-        if keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]) {
+        if keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
             linear_velocity.x += 500.0 * delta_time;
         }
     }

@@ -1,12 +1,12 @@
 #![allow(missing_docs)]
 
 use crate::{prelude::*, utils::get_pos_translation};
-use bevy::ecs::query::WorldQuery;
+use bevy::ecs::query::QueryData;
 use std::ops::{AddAssign, SubAssign};
 
-/// A [`WorldQuery`] to make querying and modifying rigid bodies more convenient.
-#[derive(WorldQuery)]
-#[world_query(mutable)]
+/// A `WorldQuery` to make querying and modifying rigid bodies more convenient.
+#[derive(QueryData)]
+#[query_data(mutable)]
 pub struct RigidBodyQuery {
     pub entity: Entity,
     pub rb: Ref<'static, RigidBody>,
@@ -91,8 +91,8 @@ impl<'w> RigidBodyQueryItem<'w> {
     }
 }
 
-#[derive(WorldQuery)]
-#[world_query(mutable)]
+#[derive(QueryData)]
+#[query_data(mutable)]
 pub struct MassPropertiesQuery {
     pub mass: &'static mut Mass,
     pub inverse_mass: &'static mut InverseMass,

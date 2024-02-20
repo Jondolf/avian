@@ -17,8 +17,8 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
+    let cube_mesh = meshes.add(Cuboid::default());
+    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
 
     // Kinematic rotating "anchor" object
     let anchor = commands
@@ -58,7 +58,7 @@ fn setup(
     // Directional light
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
-            illuminance: 20_000.0,
+            illuminance: 1000.0,
             shadows_enabled: true,
             ..default()
         },

@@ -21,8 +21,8 @@ fn setup(
     // Spawn ground and generate a collider for the mesh using AsyncCollider
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane::from_size(8.0))),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+            mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
+            material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
         AsyncCollider(ComputedCollider::TriMesh),
@@ -53,7 +53,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 3000.0,
+            intensity: 500_000.0,
             shadows_enabled: true,
             ..default()
         },

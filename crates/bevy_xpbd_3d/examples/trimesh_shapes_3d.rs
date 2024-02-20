@@ -6,7 +6,10 @@
 
 use bevy::{
     prelude::*,
-    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+    render::{
+        render_asset::RenderAssetUsages,
+        render_resource::{Extent3d, TextureDimension, TextureFormat},
+    },
 };
 use bevy_xpbd_3d::prelude::*;
 use examples_common_3d::XpbdExamplePlugin;
@@ -32,14 +35,12 @@ fn setup(
         ..default()
     });
 
-    let shapes = [
-        shape::Cube::default().into(),
-        shape::Box::default().into(),
-        shape::Capsule::default().into(),
-        shape::Torus::default().into(),
-        shape::Cylinder::default().into(),
-        shape::Icosphere::default().try_into().unwrap(),
-        shape::UVSphere::default().into(),
+    let shapes: [Mesh; 5] = [
+        Cuboid::default().into(),
+        Capsule3d::default().into(),
+        Torus::default().into(),
+        Cylinder::default().into(),
+        Sphere::new(0.5).into(),
     ];
 
     let num_shapes = shapes.len();
@@ -68,8 +69,8 @@ fn setup(
         RigidBody::Static,
         Collider::cuboid(50.0, 0.1, 50.0),
         PbrBundle {
-            mesh: meshes.add(shape::Plane::from_size(50.0).into()),
-            material: materials.add(Color::SILVER.into()),
+            mesh: meshes.add(Plane3d::default().mesh().size(50.0, 50.0)),
+            material: materials.add(Color::SILVER),
             transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         },
@@ -78,7 +79,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 9000.0,
+            intensity: 900_000.0,
             range: 100.,
             shadows_enabled: true,
             ..default()
@@ -119,5 +120,6 @@ fn uv_debug_texture() -> Image {
         TextureDimension::D2,
         &texture_data,
         TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
     )
 }

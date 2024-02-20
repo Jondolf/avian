@@ -12,7 +12,7 @@ pub struct XpbdExamplePlugin;
 impl Plugin for XpbdExamplePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((PhysicsPlugins::default(), FrameTimeDiagnosticsPlugin))
-            .add_state::<AppState>()
+            .init_state::<AppState>()
             .add_systems(Startup, setup)
             .add_systems(
                 OnEnter(AppState::Paused),
@@ -38,9 +38,9 @@ pub enum AppState {
 fn pause_button(
     current_state: ResMut<State<AppState>>,
     mut next_state: ResMut<NextState<AppState>>,
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
 ) {
-    if keys.just_pressed(KeyCode::P) {
+    if keys.just_pressed(KeyCode::KeyP) {
         let new_state = match current_state.get() {
             AppState::Paused => AppState::Running,
             AppState::Running => AppState::Paused,
@@ -49,8 +49,8 @@ fn pause_button(
     }
 }
 
-fn step_button(mut time: ResMut<Time<Physics>>, keys: Res<Input<KeyCode>>) {
-    if keys.just_pressed(KeyCode::Return) {
+fn step_button(mut time: ResMut<Time<Physics>>, keys: Res<ButtonInput<KeyCode>>) {
+    if keys.just_pressed(KeyCode::Enter) {
         time.advance_by(Duration::from_secs_f64(1.0 / 60.0));
     }
 }
@@ -80,7 +80,7 @@ fn setup(mut commands: Commands) {
 
 fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut query: Query<&mut Text, With<FpsText>>) {
     for mut text in &mut query {
-        if let Some(fps) = diagnostics.get(FrameTimeDiagnosticsPlugin::FPS) {
+        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
             if let Some(value) = fps.smoothed() {
                 // Update the value of the second section
                 text.sections[0].value = format!("FPS: {value:.2}");

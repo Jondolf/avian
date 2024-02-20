@@ -38,11 +38,8 @@ fn setup(
     // Player
     commands.spawn((
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Capsule {
-                radius: 0.4,
-                ..default()
-            })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(Capsule3d::new(0.4, 1.0)),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
@@ -55,8 +52,8 @@ fn setup(
         RigidBody::Dynamic,
         Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+            mesh: meshes.add(Cuboid::default()),
+            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(3.0, 2.0, 3.0),
             ..default()
         },
@@ -76,7 +73,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 6000.0,
+            intensity: 500_000.0,
             range: 50.0,
             shadows_enabled: true,
             ..default()

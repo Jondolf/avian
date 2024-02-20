@@ -34,10 +34,11 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a shape caster with a ball shape moving right starting from the origin
 ///     commands.spawn(ShapeCaster::new(
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Vec3::ZERO,
 ///         Quat::default(),
-///         Vec3::X
+///         Direction3d::X,
 ///     ));
 /// }
 ///
@@ -84,9 +85,9 @@ pub struct ShapeCaster {
     /// The local direction of the shapecast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
-    pub direction: Vector,
+    pub direction: Dir,
     /// The global direction of the shapecast.
-    global_direction: Vector,
+    global_direction: Dir,
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
     /// until a hit is found.
     pub max_time_of_impact: Scalar,
@@ -109,7 +110,10 @@ impl Default for ShapeCaster {
     fn default() -> Self {
         Self {
             enabled: true,
-            shape: Collider::ball(0.0),
+            #[cfg(feature = "2d")]
+            shape: Collider::circle(0.0),
+            #[cfg(feature = "3d")]
+            shape: Collider::sphere(0.0),
             origin: Vector::ZERO,
             global_origin: Vector::ZERO,
             #[cfg(feature = "2d")]
@@ -120,8 +124,8 @@ impl Default for ShapeCaster {
             global_shape_rotation: 0.0,
             #[cfg(feature = "3d")]
             global_shape_rotation: Quaternion::IDENTITY,
-            direction: Vector::ZERO,
-            global_direction: Vector::ZERO,
+            direction: Dir::X,
+            global_direction: Dir::X,
             max_time_of_impact: Scalar::MAX,
             max_hits: 1,
             ignore_origin_penetration: false,
@@ -134,25 +138,30 @@ impl Default for ShapeCaster {
 impl ShapeCaster {
     /// Creates a new [`ShapeCaster`] with a given shape, origin, shape rotation and direction.
     #[cfg(feature = "2d")]
-    pub fn new(shape: Collider, origin: Vector, shape_rotation: Scalar, direction: Vector) -> Self {
+    pub fn new(
+        shape: impl Into<Collider>,
+        origin: Vector,
+        shape_rotation: Scalar,
+        direction: Dir,
+    ) -> Self {
         Self {
-            shape,
+            shape: shape.into(),
             origin,
             shape_rotation,
-            direction: direction.normalize(),
+            direction,
             ..default()
         }
     }
     #[cfg(feature = "3d")]
     /// Creates a new [`ShapeCaster`] with a given shape, origin, shape rotation and direction.
     pub fn new(
-        shape: Collider,
+        shape: impl Into<Collider>,
         origin: Vector,
         shape_rotation: Quaternion,
-        direction: Vector,
+        direction: Dir,
     ) -> Self {
         Self {
-            shape,
+            shape: shape.into(),
             origin,
             shape_rotation,
             direction,
@@ -167,7 +176,7 @@ impl ShapeCaster {
     }
 
     /// Sets the ray direction.
-    pub fn with_direction(mut self, direction: Vector) -> Self {
+    pub fn with_direction(mut self, direction: Dir) -> Self {
         self.direction = direction;
         self
     }
@@ -237,7 +246,7 @@ impl ShapeCaster {
     }
 
     /// Returns the global direction of the ray.
-    pub fn global_direction(&self) -> Vector {
+    pub fn global_direction(&self) -> Dir {
         self.global_direction
     }
 
@@ -259,7 +268,7 @@ impl ShapeCaster {
     }
 
     /// Sets the global direction of the ray.
-    pub(crate) fn set_global_direction(&mut self, global_direction: Vector) {
+    pub(crate) fn set_global_direction(&mut self, global_direction: Dir) {
         self.global_direction = global_direction;
     }
 
@@ -288,7 +297,7 @@ impl ShapeCaster {
         }
 
         let shape_isometry = utils::make_isometry(self.global_origin(), shape_rotation);
-        let shape_direction = self.global_direction().into();
+        let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.count < self.max_hits {
             let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());
@@ -390,7 +399,7 @@ impl ShapeHits {
 }
 
 impl MapEntities for ShapeHits {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for hit in &mut self.vector {
             hit.map_entities(entity_mapper);
         }
@@ -421,7 +430,7 @@ pub struct ShapeHitData {
 }
 
 impl MapEntities for ShapeHitData {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity = entity_mapper.get_or_reserve(self.entity);
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.entity = entity_mapper.map_entity(self.entity);
     }
 }

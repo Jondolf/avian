@@ -86,9 +86,9 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
 }
 
 impl MapEntities for CustomDistanceConstraint {
-    fn map_entities(&mut self, entity_mapper: &mut EntityMapper) {
-        self.entity1 = entity_mapper.get_or_reserve(self.entity1);
-        self.entity2 = entity_mapper.get_or_reserve(self.entity2);
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.entity1 = entity_mapper.map_entity(self.entity1);
+        self.entity2 = entity_mapper.map_entity(self.entity2);
     }
 }
 
@@ -97,8 +97,8 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
-    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6).into());
+    let cube_mesh = meshes.add(Cuboid::default());
+    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
 
     // Spawn a static cube and a dynamic cube that is outside of the rest length
     let static_cube = commands
@@ -137,7 +137,7 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            intensity: 500_000.0,
             shadows_enabled: true,
             ..default()
         },

@@ -33,13 +33,13 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+    let cube_mesh = meshes.add(Cuboid::default());
 
     // Ground
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(0.7, 0.7, 0.8).into()),
+            material: materials.add(Color::rgb(0.7, 0.7, 0.8)),
             transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
@@ -80,7 +80,7 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
+            material: materials.add(Color::rgb(1.0, 0.0, 0.0)),
             transform: Transform::from_xyz(-500.0, 2.0, 0.0)
                 .with_scale(Vec3::new(1000.0, 0.1, 0.1)),
             ..default()
@@ -110,7 +110,7 @@ fn setup(
 
 fn movement(
     time: Res<Time>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut query: Query<(&MovementAcceleration, &mut LinearVelocity)>,
 ) {
     // Precision is adjusted so that the example works with
@@ -118,10 +118,10 @@ fn movement(
     let delta_time = time.delta_seconds_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
-        let up = keyboard_input.any_pressed([KeyCode::W, KeyCode::Up]);
-        let down = keyboard_input.any_pressed([KeyCode::S, KeyCode::Down]);
-        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
+        let down = keyboard_input.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]);
+        let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+        let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
 
         let horizontal = right as i8 - left as i8;
         let vertical = down as i8 - up as i8;
@@ -157,16 +157,8 @@ fn raycast(
     cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
     mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
 ) {
-    let origin = Vector {
-        x: -200.0,
-        y: 2.0,
-        z: 0.0,
-    };
-    let direction = Vector {
-        x: 1.0,
-        y: 0.0,
-        z: 0.0,
-    };
+    let origin = Vector::new(-200.0, 2.0, 0.0);
+    let direction = Direction3d::X;
 
     let mut ray_indicator_transform = indicator_transform.single_mut();
 
@@ -191,7 +183,7 @@ fn raycast(
         }
 
         // set length of ray indicator to look more like a laser
-        let contact_point = (origin + direction * ray_hit_data.time_of_impact).x;
+        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.time_of_impact).x;
         let target_scale = 1000.0 + contact_point * 2.0;
         ray_indicator_transform.scale.x = target_scale as f32;
     } else {

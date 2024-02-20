@@ -66,7 +66,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
@@ -77,7 +77,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
@@ -88,7 +88,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
@@ -99,7 +99,7 @@ fn setup(
             ..default()
         },
         RigidBody::Static,
-        Collider::cuboid(50.0, 50.0),
+        Collider::rectangle(50.0, 50.0),
     ));
 
     // For one-way platforms
@@ -119,7 +119,7 @@ fn setup(
                 ..default()
             },
             RigidBody::Static,
-            Collider::cuboid(50.0, 50.0),
+            Collider::rectangle(50.0, 50.0),
             OneWayPlatform::default(),
         ));
     }
@@ -127,10 +127,8 @@ fn setup(
     // Spawn an actor for the user to control
     let actor_size = Vector::new(20.0, 20.0);
     let actor_mesh = MaterialMesh2dBundle {
-        mesh: meshes
-            .add(shape::Quad::new(actor_size.as_f32()).into())
-            .into(),
-        material: materials.add(ColorMaterial::from(Color::rgb(0.2, 0.7, 0.9))),
+        mesh: meshes.add(Rectangle::from_size(actor_size.f32())).into(),
+        material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
         ..default()
     };
 
@@ -139,7 +137,7 @@ fn setup(
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
-        Collider::cuboid(actor_size.x, actor_size.y),
+        Collider::rectangle(actor_size.x, actor_size.y),
         Actor,
         PassThroughOneWayPlatform::ByNormal,
         MovementSpeed(250.0),
@@ -148,12 +146,12 @@ fn setup(
 }
 
 fn movement(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut actors: Query<(&mut LinearVelocity, &MovementSpeed, &JumpImpulse), With<Actor>>,
 ) {
     for (mut linear_velocity, movement_speed, jump_impulse) in &mut actors {
-        let left = keyboard_input.any_pressed([KeyCode::A, KeyCode::Left]);
-        let right = keyboard_input.any_pressed([KeyCode::D, KeyCode::Right]);
+        let left = keyboard_input.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]);
+        let right = keyboard_input.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]);
         let horizontal = right as i8 - left as i8;
 
         // Move in input direction
@@ -163,7 +161,7 @@ fn movement(
         // You should use raycasting, shapecasting or sensor colliders
         // for more robust ground detection.
         if linear_velocity.y.abs() < 0.1
-            && !keyboard_input.pressed(KeyCode::Down)
+            && !keyboard_input.pressed(KeyCode::ArrowDown)
             && keyboard_input.just_pressed(KeyCode::Space)
         {
             linear_velocity.y = jump_impulse.0;
@@ -173,11 +171,11 @@ fn movement(
 
 fn pass_through_one_way_platform(
     mut commands: Commands,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut actors: Query<(Entity, &mut PassThroughOneWayPlatform), With<Actor>>,
 ) {
     for (entity, mut pass_through_one_way_platform) in &mut actors {
-        if keyboard_input.pressed(KeyCode::Down) && keyboard_input.pressed(KeyCode::Space) {
+        if keyboard_input.pressed(KeyCode::ArrowDown) && keyboard_input.pressed(KeyCode::Space) {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::Always;
 
             // Wake up body when it's allowed to drop down.

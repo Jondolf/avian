@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.12", default-features = false }
+bevy = { version = "0.13", default-features = false }
 bevy_xpbd_3d = { path = "../bevy_xpbd_3d", default-features = false }
 criterion = "0.5"

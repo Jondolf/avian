@@ -207,7 +207,14 @@ impl CenterOfMass {
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         MassPropertiesBundle::new_computed(&Collider::ball(0.5), 1.0)
+#[cfg_attr(
+    feature = "2d",
+    doc = "        MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),"
+)]
 ///     ));
 /// }
 /// ```
@@ -258,7 +265,8 @@ impl MassPropertiesBundle {
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::ball(0.5),
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         ColliderDensity(2.5),
 ///     ));
 /// }
@@ -302,7 +310,8 @@ impl Default for ColliderDensity {
 /// }
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn(Collider::ball(0.5));
+#[cfg_attr(feature = "2d", doc = "    commands.spawn(Collider::circle(0.5));")]
+#[cfg_attr(feature = "3d", doc = "    commands.spawn(Collider::sphere(0.5));")]
 /// }
 ///
 /// fn print_collider_masses(query: Query<&ColliderMassProperties>) {

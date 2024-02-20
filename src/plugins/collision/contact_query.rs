@@ -36,7 +36,7 @@ pub type UnsupportedShape = Unsupported;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute a contact that should have a penetration depth of 0.5
@@ -132,7 +132,7 @@ pub fn contact(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute contact manifolds a collision that should be penetrating
@@ -167,7 +167,8 @@ pub fn contact_manifolds(
 
     // TODO: Reuse manifolds from previous frame to improve performance
     let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
-    let _ = parry::query::DefaultQueryDispatcher.contact_manifolds(
+
+    let result = parry::query::DefaultQueryDispatcher.contact_manifolds(
         &isometry12,
         collider1.shape_scaled().0.as_ref(),
         collider2.shape_scaled().0.as_ref(),
@@ -175,6 +176,43 @@ pub fn contact_manifolds(
         &mut manifolds,
         &mut None,
     );
+
+    // Fall back to support map contacts for unsupported (custom) shapes.
+    if result.is_err() {
+        if let (Some(shape1), Some(shape2)) = (
+            collider1.shape_scaled().as_support_map(),
+            collider2.shape_scaled().as_support_map(),
+        ) {
+            if let Some(contact) = parry::query::contact::contact_support_map_support_map(
+                &isometry12,
+                shape1,
+                shape2,
+                prediction_distance,
+            ) {
+                let normal1 = Vector::from(contact.normal1);
+                let normal2 = Vector::from(contact.normal2);
+
+                // Make sure normals are valid
+                if !normal1.is_normalized() || !normal2.is_normalized() {
+                    return vec![];
+                }
+
+                return vec![ContactManifold {
+                    normal1,
+                    normal2,
+                    contacts: vec![ContactData::new(
+                        contact.point1.into(),
+                        contact.point2.into(),
+                        normal1,
+                        normal2,
+                        -contact.dist,
+                        0,
+                    )],
+                    index: 0,
+                }];
+            }
+        }
+    }
 
     let mut manifold_index = 0;
 
@@ -260,7 +298,7 @@ pub enum ClosestPoints {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // The shapes are intersecting
@@ -355,7 +393,7 @@ pub fn closest_points(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // The distance is 1.0
@@ -423,7 +461,7 @@ pub fn distance(
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // These colliders should be intersecting
@@ -516,7 +554,7 @@ pub struct TimeOfImpact {
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
-/// let collider1 = Collider::ball(0.5);
+/// let collider1 = Collider::sphere(0.5);
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// let result = time_of_impact(
