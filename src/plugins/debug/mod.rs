@@ -112,7 +112,10 @@ impl Plugin for PhysicsDebugPlugin {
                 (
                     debug_render_axes,
                     debug_render_aabbs,
-                    #[cfg(feature = "default-collider")]
+                    #[cfg(all(
+                        feature = "default-collider",
+                        any(feature = "parry-f32", feature = "parry-f64")
+                    ))]
                     debug_render_colliders,
                     debug_render_contacts,
                     // TODO: Refactor joints to allow iterating over all of them without generics
@@ -122,7 +125,10 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<RevoluteJoint>,
                     debug_render_joints::<SphericalJoint>,
                     debug_render_raycasts,
-                    #[cfg(feature = "default-collider")]
+                    #[cfg(all(
+                        feature = "default-collider",
+                        any(feature = "parry-f32", feature = "parry-f64")
+                    ))]
                     debug_render_shapecasts,
                 )
                     .after(PhysicsSet::StepSimulation)
@@ -261,7 +267,10 @@ fn debug_render_aabbs(
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 #[allow(clippy::type_complexity)]
 fn debug_render_colliders(
     mut colliders: Query<(
@@ -459,7 +468,10 @@ fn debug_render_raycasts(
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn debug_render_shapecasts(
     query: Query<(&ShapeCaster, &ShapeHits)>,
     mut gizmos: Gizmos<PhysicsGizmos>,

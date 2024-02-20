@@ -192,7 +192,10 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsSetupPlugin::new(self.schedule))
             .add(PreparePlugin::new(self.schedule));
 
-        #[cfg(feature = "default-collider")]
+        #[cfg(all(
+            feature = "default-collider",
+            any(feature = "parry-f32", feature = "parry-f64")
+        ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
             .add(NarrowPhasePlugin::<Collider>::default());

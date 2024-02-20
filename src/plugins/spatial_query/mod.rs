@@ -147,22 +147,40 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 mod pipeline;
 mod query_filter;
 mod ray_caster;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 mod shape_caster;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 mod system_param;
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub use pipeline::*;
 pub use query_filter::*;
 pub use ray_caster::*;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub use shape_caster::*;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub use system_param::*;
 
 use crate::{prelude::*, prepare::PrepareSet};
@@ -194,12 +212,18 @@ impl Default for SpatialQueryPlugin {
 
 impl Plugin for SpatialQueryPlugin {
     fn build(&self, app: &mut App) {
-        #[cfg(feature = "default-collider")]
+        #[cfg(all(
+            feature = "default-collider",
+            any(feature = "parry-f32", feature = "parry-f64")
+        ))]
         app.init_resource::<SpatialQueryPipeline>();
 
         app.add_systems(self.schedule, init_ray_hits.in_set(PrepareSet::PreInit));
 
-        #[cfg(feature = "default-collider")]
+        #[cfg(all(
+            feature = "default-collider",
+            any(feature = "parry-f32", feature = "parry-f64")
+        ))]
         app.add_systems(self.schedule, init_shape_hits.in_set(PrepareSet::PreInit));
 
         let physics_schedule = app
@@ -209,7 +233,10 @@ impl Plugin for SpatialQueryPlugin {
         physics_schedule.add_systems(
             (
                 update_ray_caster_positions,
-                #[cfg(feature = "default-collider")]
+                #[cfg(all(
+                    feature = "default-collider",
+                    any(feature = "parry-f32", feature = "parry-f64")
+                ))]
                 (
                     update_shape_caster_positions,
                     |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
@@ -238,7 +265,10 @@ fn init_ray_hits(mut commands: Commands, rays: Query<(Entity, &RayCaster), Added
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn init_shape_hits(
     mut commands: Commands,
     shape_casters: Query<(Entity, &ShapeCaster), Added<ShapeCaster>>,
@@ -318,7 +348,10 @@ fn update_ray_caster_positions(
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 type ShapeCasterPositionQueryComponents = (
     &'static mut ShapeCaster,
     Option<&'static Position>,
@@ -327,7 +360,10 @@ type ShapeCasterPositionQueryComponents = (
     Option<&'static GlobalTransform>,
 );
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 #[allow(clippy::type_complexity)]
 fn update_shape_caster_positions(
     mut shape_casters: Query<ShapeCasterPositionQueryComponents>,
@@ -415,7 +451,10 @@ fn update_shape_caster_positions(
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
     for (entity, ray, mut hits) in &mut rays {
         if ray.enabled {
@@ -426,7 +465,10 @@ fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: S
     }
 }
 
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn shapecast(
     mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,

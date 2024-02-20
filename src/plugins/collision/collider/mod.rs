@@ -8,9 +8,15 @@ use bevy::{
 };
 
 /// The default [`Collider`] that uses Parry.
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 mod parry;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub use parry::*;
 
 /// A trait for creating colliders from other types.
@@ -275,13 +281,19 @@ pub enum ComputedCollider {
     #[default]
     TriMesh,
     /// A triangle mesh with a custom configuration.
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     TriMeshWithFlags(TriMeshFlags),
     /// A convex hull.
     ConvexHull,
     /// A compound shape obtained from a decomposition into convex parts using the specified
     /// [`VHACDParameters`].
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     ConvexDecomposition(VHACDParameters),
 }
 
@@ -433,7 +445,10 @@ impl ColliderAabb {
     }
 
     /// Creates a new [`ColliderAabb`] from a given [`SharedShape`].
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     pub fn from_shape(shape: &crate::parry::shape::SharedShape) -> Self {
         let aabb = shape.compute_local_aabb();
         Self {

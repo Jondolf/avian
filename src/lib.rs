@@ -509,11 +509,35 @@
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(clippy::doc_markdown, missing_docs)]
 
+#[cfg(all(not(feature = "f32"), not(feature = "f64")))]
+compile_error!("either feature \"f32\" or \"f64\" must be enabled");
+
 #[cfg(all(feature = "f32", feature = "f64"))]
 compile_error!("feature \"f32\" and feature \"f64\" cannot be enabled at the same time");
 
+#[cfg(all(not(feature = "2d"), not(feature = "3d")))]
+compile_error!("either feature \"2d\" or \"3d\" must be enabled");
+
 #[cfg(all(feature = "2d", feature = "3d"))]
-compile_error!("feature \"f2d\" and feature \"3d\" cannot be enabled at the same time");
+compile_error!("feature \"2d\" and feature \"3d\" cannot be enabled at the same time");
+
+#[cfg(all(
+    feature = "default-collider",
+    feature = "f32",
+    not(feature = "parry-f32")
+))]
+compile_error!(
+    "feature \"default-collider\" requires the feature \"parry-f32\" when \"f32\" is enabled"
+);
+
+#[cfg(all(
+    feature = "default-collider",
+    feature = "f64",
+    not(feature = "parry-f64")
+))]
+compile_error!(
+    "feature \"default-collider\" requires the feature \"parry-f64\" when \"f64\" is enabled"
+);
 
 #[cfg(all(feature = "2d", feature = "parry-f32"))]
 pub extern crate parry2d as parry;

@@ -242,7 +242,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     fn mass_properties_add_sub_works() {
         // Create app
         let mut app = App::new();

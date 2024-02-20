@@ -3,7 +3,10 @@ use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 use parry::query::{
     details::RayCompositeShapeToiAndNormalBestFirstVisitor, visitors::RayIntersectionsVisitor,
 };
@@ -222,7 +225,10 @@ impl RayCaster {
         self.global_direction = global_direction;
     }
 
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     pub(crate) fn cast(
         &self,
         caster_entity: Entity,
