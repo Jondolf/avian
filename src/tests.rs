@@ -1,5 +1,8 @@
 use crate::prelude::*;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 use approx::assert_relative_eq;
 use bevy::{
     ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
@@ -97,7 +100,10 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn body_with_velocity_moves_on_first_frame() {
     let mut app = create_app();
 
@@ -127,7 +133,10 @@ fn body_with_velocity_moves_on_first_frame() {
 }
 
 #[test]
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 fn body_with_velocity_moves() {
     let mut app = create_app();
 

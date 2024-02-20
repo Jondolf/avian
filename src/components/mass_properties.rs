@@ -231,7 +231,10 @@ pub struct MassPropertiesBundle {
 
 impl MassPropertiesBundle {
     /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,

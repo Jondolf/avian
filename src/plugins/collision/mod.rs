@@ -15,7 +15,10 @@ pub use collider::*;
 
 pub mod broad_phase;
 pub mod collider_backend;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;

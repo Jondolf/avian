@@ -1,10 +1,17 @@
 //! Miscallaneous utility functions.
 
 use crate::prelude::*;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 use parry::math::Isometry;
 
-#[cfg(all(feature = "2d", feature = "default-collider"))]
+#[cfg(all(
+    feature = "2d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,
@@ -14,7 +21,11 @@ pub(crate) fn make_isometry(
     Isometry::<Scalar>::new(position.0.into(), rotation.into())
 }
 
-#[cfg(all(feature = "3d", feature = "default-collider"))]
+#[cfg(all(
+    feature = "3d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub(crate) fn make_isometry(
     position: impl Into<Position>,
     rotation: impl Into<Rotation>,

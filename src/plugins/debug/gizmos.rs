@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::prelude::*;
-#[cfg(feature = "default-collider")]
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 use parry::shape::{SharedShape, TypedShape};
 
 /// An extension trait for `Gizmos<PhysicsGizmo>`.
@@ -31,7 +34,11 @@ pub trait PhysicsGizmoExt {
     /// Draws an arrow from `a` to `b` with an arrowhead that has a length of `head_length`.
     fn draw_arrow(&mut self, a: Vector, b: Vector, head_length: Scalar, color: Color);
 
-    /// Draws a collider shape with a given position and rotation.
+    /// Draws a [`Collider`] shape.
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     fn draw_collider(
         &mut self,
         collider: &Collider,
@@ -55,6 +62,10 @@ pub trait PhysicsGizmoExt {
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
     #[allow(clippy::too_many_arguments)]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     fn draw_shapecast(
         &mut self,
         shape: &Collider,
@@ -146,7 +157,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     }
 
     /// Draws a collider shape with a given position and rotation.
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     #[allow(clippy::unnecessary_cast)]
     fn draw_collider(
         &mut self,
@@ -478,7 +492,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
     }
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
-    #[cfg(feature = "default-collider")]
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
     #[allow(clippy::too_many_arguments)]
     fn draw_shapecast(
         &mut self,
