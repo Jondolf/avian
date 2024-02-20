@@ -360,13 +360,13 @@ fn debug_render_contacts(
                     #[cfg(feature = "2d")]
                     {
                         gizmos.draw_arrow(p1, p1 + normal1 * length, 8.0, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * length, 8.0, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * length, 8.0, color_dim);
                     }
 
                     #[cfg(feature = "3d")]
                     {
                         gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1, color);
+                        gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1, color_dim);
                     }
                 }
             }
