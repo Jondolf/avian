@@ -152,14 +152,14 @@ impl PointQuery for EllipseWrapper {
 
 impl IntoCollider<Collider> for Plane2d {
     fn collider(&self) -> Collider {
-        let vec = self.normal.perp().adjust_precision() * Scalar::MAX / 2.0;
+        let vec = self.normal.perp().adjust_precision() * 100_000.0 / 2.0;
         Collider::segment(-vec, vec)
     }
 }
 
 impl IntoCollider<Collider> for Line2d {
     fn collider(&self) -> Collider {
-        let vec = self.direction.adjust_precision() * Scalar::MAX / 2.0;
+        let vec = self.direction.adjust_precision() * 100_000.0 / 2.0;
         Collider::segment(-vec, vec)
     }
 }

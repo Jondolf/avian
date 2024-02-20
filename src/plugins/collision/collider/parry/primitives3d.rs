@@ -4,7 +4,7 @@ use bevy_math::primitives::{
 };
 use parry::shape::SharedShape;
 
-use crate::{AdjustPrecision, Collider, IntoCollider, Quaternion, Scalar, Vector};
+use crate::{AdjustPrecision, Collider, IntoCollider, Quaternion, Vector};
 
 impl IntoCollider<Collider> for Sphere {
     fn collider(&self) -> Collider {
@@ -14,7 +14,7 @@ impl IntoCollider<Collider> for Sphere {
 
 impl IntoCollider<Collider> for Plane3d {
     fn collider(&self) -> Collider {
-        let half_size = Scalar::MAX / 2.0;
+        let half_size = 10_000.0;
         let rotation = Quaternion::from_rotation_arc(Vector::Y, self.normal.adjust_precision());
         let vertices = vec![
             rotation * Vector::new(half_size, 0.0, -half_size),
@@ -29,7 +29,7 @@ impl IntoCollider<Collider> for Plane3d {
 
 impl IntoCollider<Collider> for Line3d {
     fn collider(&self) -> Collider {
-        let vec = self.direction.adjust_precision() * Scalar::MAX / 2.0;
+        let vec = self.direction.adjust_precision() * 10_000.0;
         Collider::segment(-vec, vec)
     }
 }
