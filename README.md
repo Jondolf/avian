@@ -52,6 +52,7 @@ Below are some of the current features of Bevy XPBD.
 - Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
 - Configurable scheduling and high customizability
 - Highly modular plugin architecture, freely extend and replace parts of the engine
+- Support for custom collision backends
 - `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
