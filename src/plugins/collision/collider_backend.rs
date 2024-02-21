@@ -106,7 +106,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .chain()
                 .run_if(match_any::<(Added<C>, Without<RigidBody>)>),)
                 .chain()
-                .in_set(PrepareSet::PropagateTransforms),
+                .in_set(PrepareSet::PropagateTransforms)
+                // Allowing ambiguities is required so that it's possible
+                // to have multiple collision backends at the same time.
+                .ambiguous_with_all(),
         );
 
         app.add_systems(
