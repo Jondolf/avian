@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 use crate::{
     broad_phase::BroadPhaseSet,
     prelude::*,
-    prepare::{any_new, PrepareSet},
+    prepare::{match_any, PrepareSet},
     sync::SyncSet,
 };
 #[cfg(all(
@@ -95,6 +95,20 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderStorageMap<C>>();
 
+        // Run transform propagation if new colliders without rigid bodies have been added.
+        // The `PreparePlugin` should handle transform propagation for new rigid bodies.
+        app.add_systems(
+            self.schedule,
+            ((
+                bevy::transform::systems::sync_simple_transforms,
+                bevy::transform::systems::propagate_transforms,
+            )
+                .chain()
+                .run_if(match_any::<(Added<C>, Without<RigidBody>)>),)
+                .chain()
+                .in_set(PrepareSet::PropagateTransforms),
+        );
+
         app.add_systems(
             self.schedule,
             (
@@ -115,7 +129,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         update_child_collider_position,
                     )
                         .chain()
-                        .run_if(any_new::<C>),
+                        .run_if(match_any::<Added<C>>),
                     update_collider_mass_properties::<C>,
                 )
                     .chain()

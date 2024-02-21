@@ -6,7 +6,7 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::intern::Interned};
+use bevy::{ecs::query::QueryFilter, prelude::*, utils::intern::Interned};
 
 /// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
 /// and updates components.
@@ -109,7 +109,7 @@ impl Plugin for PreparePlugin {
                     bevy::transform::systems::propagate_transforms,
                 )
                     .chain()
-                    .run_if(any_new::<RigidBody>),
+                    .run_if(match_any::<Added<RigidBody>>),
             )
                 .chain()
                 .in_set(PrepareSet::PropagateTransforms),
@@ -162,8 +162,8 @@ impl Default for PrepareConfig {
     }
 }
 
-/// A run condition that returns `true` if a component of the given type `C` has been added to any entity.
-pub fn any_new<C: Component>(query: Query<(), Added<C>>) -> bool {
+/// A run condition that returns `true` if any entity matches the given query filter.
+pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
     !query.is_empty()
 }
 
