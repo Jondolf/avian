@@ -469,9 +469,19 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
         // Draw ray as arrow
         #[cfg(feature = "2d")]
-        self.draw_arrow(origin, origin + direction.adjust_precision() * max_toi, 8.0, ray_color);
+        self.draw_arrow(
+            origin,
+            origin + direction.adjust_precision() * max_toi,
+            8.0,
+            ray_color,
+        );
         #[cfg(feature = "3d")]
-        self.draw_arrow(origin, origin + direction.adjust_precision() * max_toi, 0.1, ray_color);
+        self.draw_arrow(
+            origin,
+            origin + direction.adjust_precision() * max_toi,
+            0.1,
+            ray_color,
+        );
 
         // Draw all hit points and normals
         for hit in hits {
@@ -525,9 +535,19 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // Draw arrow from origin to position of shape at final hit
         // TODO: We could render the swept collider outline instead
         #[cfg(feature = "2d")]
-        self.draw_arrow(origin, origin + max_toi * direction.adjust_precision(), 8.0, ray_color);
+        self.draw_arrow(
+            origin,
+            origin + max_toi * direction.adjust_precision(),
+            8.0,
+            ray_color,
+        );
         #[cfg(feature = "3d")]
-        self.draw_arrow(origin, origin + max_toi * direction.adjust_precision(), 0.1, ray_color);
+        self.draw_arrow(
+            origin,
+            origin + max_toi * direction.adjust_precision(),
+            0.1,
+            ray_color,
+        );
 
         // Draw all hit points, normals and the shape at the hit points
         for hit in hits {
