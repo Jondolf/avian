@@ -147,7 +147,7 @@ fn setup(
 }
 ```
 
-<https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4>
+<https://gist.github.com/assets/45217840/c096d786-06b9-4100-8f07-8d4c2c71f3c9>
 
 ## More examples
 
