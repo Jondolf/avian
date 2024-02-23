@@ -24,6 +24,8 @@ pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug;
 pub mod integrator;
+#[cfg(feature = "omi-physics")]
+pub mod omi_physics;
 pub mod prepare;
 pub mod setup;
 pub mod sleeping;
@@ -46,6 +48,7 @@ pub use solver::SolverPlugin;
 pub use spatial_query::SpatialQueryPlugin;
 pub use sync::SyncPlugin;
 
+use crate::plugins::omi_physics::OmiPhysicsGltfCompatability;
 #[allow(unused_imports)]
 use crate::prelude::*; // For doc comments
 use bevy::prelude::*;
@@ -196,6 +199,9 @@ impl PluginGroup for PhysicsPlugins {
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
             .add(NarrowPhasePlugin::<Collider>::default());
+
+        #[cfg(feature = "omi-physics")]
+        let builder = builder.add(OmiPhysicsGltfCompatability);
 
         builder
             .add(BroadPhasePlugin)

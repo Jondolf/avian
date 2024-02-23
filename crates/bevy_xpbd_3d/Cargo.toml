@@ -19,6 +19,7 @@ default = [
     "async-collider",
     "debug-plugin",
     "parallel",
+    "omi-physics",
 ]
 3d = []
 f32 = []
@@ -42,11 +43,13 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 collider-from-mesh = ["bevy/bevy_render"]
 async-collider = ["bevy/bevy_scene", "bevy/bevy_gltf", "collider-from-mesh"]
 serialize = [
-    "dep:serde",
+#    "dep:serde",
     "bevy/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
 ]
+
+omi-physics = ["dep:serde", "dep:serde_json"]
 
 [lib]
 name = "bevy_xpbd_3d"
@@ -55,14 +58,15 @@ required-features = ["3d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.13", default-features = false }
-bevy_math = "0.13"
+bevy = { path = "../../../bevy", default-features = false }
+bevy_math = { path = "../../../bevy/crates/bevy_math" }
 parry3d = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 parry3d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update-nalgebra", optional = true }
 nalgebra = { git = "https://github.com/dimforge/nalgebra", features = [
     "convert-glam025",
 ], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1.0.114", features = ["preserve_order"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
@@ -71,7 +75,7 @@ itertools = "0.12"
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.13", features = ["approx"] }
+bevy_math = { path = "../../../bevy/crates/bevy_math", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
