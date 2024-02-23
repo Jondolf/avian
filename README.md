@@ -147,7 +147,7 @@ fn setup(
 }
 ```
 
-<https://gist.github.com/assets/45217840/c096d786-06b9-4100-8f07-8d4c2c71f3c9>
+<https://gist.github.com/assets/45217840/9a56edcf-03d5-4999-92fb-f577607b332c>
 
 ## More examples
 
