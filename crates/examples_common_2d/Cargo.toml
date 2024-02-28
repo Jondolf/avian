@@ -3,6 +3,9 @@ name = "examples_common_2d"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+use-debug-plugin = []
+
 [dependencies]
 bevy = { version = "0.13", default-features = false, features = [
     "bevy_core_pipeline",
