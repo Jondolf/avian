@@ -412,8 +412,7 @@ impl MapEntities for ShapeHits {
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
     pub entity: Entity,
-    /// How long the shape travelled before the initial hit,
-    /// i.e. the distance between the origin and the point of intersection.
+    /// The time of impact (TOI), or how long the shape travelled before the initial hit.
     pub time_of_impact: Scalar,
     /// The closest point on the collider that was hit by the shapecast, at the time of impact,
     /// expressed in the local space of the collider shape.
