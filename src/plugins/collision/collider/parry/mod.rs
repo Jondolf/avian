@@ -715,11 +715,11 @@ impl Collider {
     ///
     /// A 2D heightfield is a segment along the `X` axis, subdivided at regular intervals.
     ///
-    /// `heights` is a vector indicating the altitude of each subdivision point, and `scale` is a scalar value
-    /// indicating the length of each subdivided segment along the `X` axis.
+    /// `heights` is a list indicating the altitude of each subdivision point, and `scale` controls
+    /// the scaling factor along each axis.
     #[cfg(feature = "2d")]
-    pub fn heightfield(heights: Vec<Scalar>, scale: Scalar) -> Self {
-        SharedShape::heightfield(heights.into(), Vector::splat(scale).into()).into()
+    pub fn heightfield(heights: Vec<Scalar>, scale: Vector) -> Self {
+        SharedShape::heightfield(heights.into(), scale.into()).into()
     }
 
     /// Creates a collider with a heightfield shape.
@@ -730,7 +730,7 @@ impl Collider {
     /// the number of subdivisions along the `X` axis, while the number of columns indicates the number of
     /// subdivisions along the `Z` axis.
     ///
-    /// `scale` indicates the size of each rectangle on the `XZ` plane.
+    /// `scale` controls the scaling factor along each axis.
     #[cfg(feature = "3d")]
     pub fn heightfield(heights: Vec<Vec<Scalar>>, scale: Vector) -> Self {
         let row_count = heights.len();
