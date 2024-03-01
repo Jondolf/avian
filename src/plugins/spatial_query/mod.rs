@@ -401,7 +401,7 @@ fn update_shape_caster_positions(
             }
             #[cfg(feature = "3d")]
             {
-                shape_caster.set_global_shape_rotation(shape_rotation + global_rotation.0);
+                shape_caster.set_global_shape_rotation(shape_rotation * global_rotation.0);
             }
         } else if parent.is_none() {
             shape_caster.set_global_direction(direction);
@@ -443,7 +443,7 @@ fn update_shape_caster_positions(
                     }
                     #[cfg(feature = "3d")]
                     {
-                        shape_caster.set_global_shape_rotation(shape_rotation + rotation.0);
+                        shape_caster.set_global_shape_rotation(shape_rotation * rotation.0);
                     }
                 }
             }
