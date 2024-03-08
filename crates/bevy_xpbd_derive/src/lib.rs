@@ -14,20 +14,35 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
 
     let variants = match &input.data {
         Data::Enum(data) => &data.variants,
-        _ => panic!("Only enums can automatically derive PhysicsLayer"),
+        _ => {
+            return quote! { compile_error!("only enums can automatically derive PhysicsLayer"); }
+                .into()
+        }
     };
 
-    assert!(variants.len() <= 32, "Reached the maximum of 32 layers");
+    if variants.len() > 32 {
+        return quote! { compile_error!("PhysicsLayer only supports a maximum of 32 layers"); }
+            .into();
+    }
 
-    let to_bits = variants.iter().enumerate().map(|(index, variant)| {
-        let bits: u32 = 1 << index;
-        assert!(
-            variant.fields.is_empty(),
-            "Can only derive PhysicsLayer for enums without fields"
-        );
-        let ident = &variant.ident;
-        quote! { #enum_ident::#ident => #bits, }
-    });
+    let to_bits_result: Result<Vec<_>, _> = variants
+        .iter()
+        .enumerate()
+        .map(|(index, variant)| {
+            if !variant.fields.is_empty() {
+                return Err(());
+            }
+            let bits: u32 = 1 << index;
+            let ident = &variant.ident;
+
+            Ok(quote! { #enum_ident::#ident => #bits, })
+        })
+        .collect();
+
+    let to_bits = match to_bits_result {
+        Ok(tokens) => tokens,
+        Err(()) => return quote! { compile_error!("can only derive PhysicsLayer for enums without fields"); }.into(),
+    };
 
     let all_bits: u32 = if variants.len() == 32 {
         0xffffffff
