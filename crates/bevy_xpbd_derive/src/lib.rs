@@ -2,8 +2,8 @@
 
 use proc_macro::TokenStream;
 
-use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput};
+use quote::{quote, quote_spanned};
+use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 
 // Modified macro From the discontinued Heron,
 // see https://github.com/jcornaz/heron/blob/main/macros/src/lib.rs
@@ -12,11 +12,17 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let enum_ident = input.ident;
 
+    fn non_enum_item_error(span: proc_macro2::Span) -> TokenStream {
+        quote_spanned! { span =>  compile_error!("only enums can automatically derive PhysicsLayer"); }
+                .into()
+    }
     let variants = match &input.data {
         Data::Enum(data) => &data.variants,
-        _ => {
-            return quote! { compile_error!("only enums can automatically derive PhysicsLayer"); }
-                .into()
+        Data::Struct(data) => {
+            return non_enum_item_error(data.struct_token.span);
+        }
+        Data::Union(data) => {
+            return non_enum_item_error(data.union_token.span);
         }
     };
 
@@ -30,7 +36,7 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
         .enumerate()
         .map(|(index, variant)| {
             if !variant.fields.is_empty() {
-                return Err(());
+                return Err(variant.fields.span());
             }
             let bits: u32 = 1 << index;
             let ident = &variant.ident;
@@ -41,7 +47,7 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
 
     let to_bits = match to_bits_result {
         Ok(tokens) => tokens,
-        Err(()) => return quote! { compile_error!("can only derive PhysicsLayer for enums without fields"); }.into(),
+        Err(span) => return quote_spanned! { span => compile_error!("can only derive PhysicsLayer for enums without fields"); }.into(),
     };
 
     let all_bits: u32 = if variants.len() == 32 {
