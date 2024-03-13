@@ -248,11 +248,7 @@ impl CenterOfMass {
 /// ```
 #[allow(missing_docs)]
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(serde::Serialize, serde::Deserialize),
-    reflect(Serialize, Deserialize)
-)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct MassPropertiesBundle {
     pub mass: Mass,
     pub inverse_mass: InverseMass,

@@ -290,7 +290,7 @@ impl DistanceLimit {
 }
 
 /// A limit that indicates that angles should be between `alpha` and `beta`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

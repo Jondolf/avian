@@ -433,7 +433,7 @@ impl From<Transform> for ColliderTransform {
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a [collider](Collider).
-#[derive(Clone, Copy, Component, Debug, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

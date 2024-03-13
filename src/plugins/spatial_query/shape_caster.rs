@@ -50,12 +50,8 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 ///     }
 /// }
 /// ```
-#[derive(Component)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(serde::Serialize, serde::Deserialize),
-    reflect(Serialize, Deserialize)
-)]
+#[derive(Component, Clone)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
@@ -366,7 +362,8 @@ impl ShapeCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
@@ -415,7 +412,7 @@ impl MapEntities for ShapeHits {
 }
 
 /// Data related to a hit during a [shapecast](spatial_query#shapecasting).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

@@ -177,11 +177,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// To get a reference to the internal [`SharedShape`], you can use the [`Collider::shape()`]
 /// or [`Collider::shape_scaled()`] methods.
 #[derive(Clone, Component)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(serde::Serialize, serde::Deserialize),
-    reflect(Serialize, Deserialize)
-)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collider {
     /// The raw unscaled collider shape.
     shape: SharedShape,

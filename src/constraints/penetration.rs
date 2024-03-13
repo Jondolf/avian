@@ -10,11 +10,7 @@ use bevy::{
 ///
 /// A compliance of 0.0 resembles a constraint with infinite stiffness, so the bodies should not have any overlap.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "serialize",
-    derive(serde::Serialize, serde::Deserialize),
-    reflect(Serialize, Deserialize)
-)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct PenetrationConstraint {
     /// First entity in the constraint.
     pub entity1: Entity,

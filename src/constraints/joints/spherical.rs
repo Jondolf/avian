@@ -9,7 +9,7 @@ use bevy::{
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Reflect, Component, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

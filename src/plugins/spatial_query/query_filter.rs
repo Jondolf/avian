@@ -28,7 +28,7 @@ use crate::prelude::*;
 ///     commands.spawn(RayCaster::default().with_query_filter(query_filter));
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Reflect)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),

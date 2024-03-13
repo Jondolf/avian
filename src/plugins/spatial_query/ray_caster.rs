@@ -67,7 +67,8 @@ use parry::query::{
 ///     }
 /// }
 /// ```
-#[derive(Component)]
+#[derive(Component, Clone, PartialEq, Reflect)]
+#[reflect(Component)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
@@ -356,7 +357,8 @@ impl RayCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Default, Reflect)]
+#[reflect(Component)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
@@ -417,7 +419,7 @@ impl MapEntities for RayHits {
 }
 
 /// Data related to a hit during a [raycast](spatial_query#raycasting).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(
     feature = "serialize",
     derive(serde::Serialize, serde::Deserialize),
