@@ -83,7 +83,11 @@ impl Plugin for ContactReportingPlugin {
 /// }
 /// ```
 #[derive(Event, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct Collision(pub Contacts);
 
 /// A [collision event](ContactReportingPlugin#collision-events)
@@ -114,7 +118,11 @@ pub struct Collision(pub Contacts);
 /// }
 /// ```
 #[derive(Event, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct CollisionStarted(pub Entity, pub Entity);
 
 /// A [collision event](ContactReportingPlugin#collision-events)
@@ -145,7 +153,11 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 /// }
 /// ```
 #[derive(Event, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct CollisionEnded(pub Entity, pub Entity);
 
 /// Sends collision events and updates [`CollidingEntities`].

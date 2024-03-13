@@ -68,7 +68,11 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// pub const COMBINED: LayerMask = LayerMask(FIRST_LAYER.0 | LAST_LAYER.0);
 /// ```
 #[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct LayerMask(pub u32);
 
 impl From<u32> for LayerMask {
@@ -329,7 +333,11 @@ impl Not for LayerMask {
 /// assert!((layers.memberships & 0b0011) != 0);
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Component)]
 pub struct CollisionLayers {
     /// The layers that an entity belongs to.

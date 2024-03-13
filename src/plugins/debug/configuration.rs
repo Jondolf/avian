@@ -43,7 +43,11 @@ use bevy::prelude::*;
 /// }
 /// ```
 #[derive(Reflect, GizmoConfigGroup)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct PhysicsGizmos {
     /// The lengths of the axes drawn for an entity at the center of mass.
     pub axis_lengths: Option<Vector>,
@@ -112,7 +116,11 @@ impl Default for PhysicsGizmos {
 
 /// The scale used for contact normals rendered using gizmos.
 #[derive(Reflect, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub enum ContactGizmoScale {
     /// The length of the rendered contact normal is constant.
     Constant(Scalar),
@@ -407,7 +415,11 @@ impl PhysicsGizmos {
 /// }
 /// ```
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Component)]
 pub struct DebugRender {
     /// The lengths of the axes drawn for the entity at the center of mass.

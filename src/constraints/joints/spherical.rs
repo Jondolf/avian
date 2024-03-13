@@ -10,7 +10,11 @@ use bevy::{
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
 #[derive(Component, Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct SphericalJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,

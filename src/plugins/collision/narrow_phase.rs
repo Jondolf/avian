@@ -107,7 +107,11 @@ struct NarrowPhaseInitialized;
 
 /// A resource for configuring the [narrow phase](NarrowPhasePlugin).
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Resource)]
 pub struct NarrowPhaseConfig {
     /// The maximum separation distance allowed for a collision to be accepted.

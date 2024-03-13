@@ -258,7 +258,11 @@ pub(super) struct PreviousCollisions(Collisions);
 /// Each manifold contains one or more contact points, and each contact
 /// in a given manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct Contacts {
     /// First entity in the contact.
     pub entity1: Entity,
@@ -307,7 +311,11 @@ impl Contacts {
 /// A contact manifold between two colliders, containing a set of contact points.
 /// Each contact in a manifold shares the same contact normal.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct ContactManifold {
     /// The contacts in this manifold.
     pub contacts: Vec<ContactData>,
@@ -338,7 +346,11 @@ impl ContactManifold {
 /// If you want a contact that belongs to a [contact manifold](ContactManifold) and has more data,
 /// see [`ContactData`].
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct SingleContact {
     /// Contact point on the first entity in local coordinates.
     pub point1: Vector,
@@ -395,7 +407,11 @@ impl SingleContact {
 
 /// Data related to a contact between two bodies.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct ContactData {
     /// Contact point on the first entity in local coordinates.
     pub point1: Vector,

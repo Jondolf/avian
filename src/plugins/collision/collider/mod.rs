@@ -325,7 +325,11 @@ pub enum ComputedCollider {
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct ColliderParent(pub(crate) Entity);
 
 impl ColliderParent {
@@ -348,7 +352,11 @@ impl MapEntities for ColliderParent {
 /// without having to traverse deeply nested hierarchies. It's updated automatically,
 /// so you shouldn't modify it manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct ColliderTransform {
     /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
@@ -416,13 +424,21 @@ impl From<Transform> for ColliderTransform {
 /// ```
 #[doc(alias = "Trigger")]
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Component)]
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a [collider](Collider).
 #[derive(Clone, Copy, Component, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct ColliderAabb {
     /// The minimum point of the AABB.
     pub min: Vector,
@@ -527,7 +543,11 @@ impl Default for ColliderAabb {
 /// }
 /// ```
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
 

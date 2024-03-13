@@ -78,7 +78,11 @@ impl Plugin for SolverPlugin {
 
 /// Stores penetration constraints for colliding entity pairs.
 #[derive(Resource, Debug, Default)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 pub struct PenetrationConstraints(pub Vec<PenetrationConstraint>);
 
 /// A `WorldQuery` to make code handling colliders in collisions cleaner.

@@ -26,7 +26,11 @@ use crate::prelude::*;
 /// }
 /// ```
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serialize",
+    derive(serde::Serialize, serde::Deserialize),
+    reflect(Serialize, Deserialize)
+)]
 #[reflect(Component)]
 pub struct LockedAxes(u8);
 
