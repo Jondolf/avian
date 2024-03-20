@@ -699,7 +699,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let mut intersections = vec![];
     ///
     ///     spatial_query.aabb_intersections_with_aabb_callback(
-    ///         Collider::sphere(0.5).compute_aabb(Vec3::ZERO, Quat::default()),
+    ///         Collider::sphere(0.5).aabb(Vec3::ZERO, Quat::default()),
     ///         |entity| {
     ///             intersections.push(entity);
     ///             true
