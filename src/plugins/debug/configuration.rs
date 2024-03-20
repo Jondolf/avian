@@ -11,6 +11,10 @@ use bevy::prelude::*;
 /// # Example
 ///
 /// ```no_run
+/// use bevy::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+///
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((
