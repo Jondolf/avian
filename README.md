@@ -16,15 +16,7 @@ for the [Bevy game engine](https://bevyengine.org/).
 
 Bevy XPBD will undergo major changes and a rebrand during April or May.
 
-The XPBD simulation method has several potential issues, one being that it is technically patented by NVIDIA,
-and is therefore dicey to distribute in projects. We will transition away from the simulation method
-and rename the crate when we have a replacement implemented.
-
-If you are working on a project that uses Bevy XPBD, don't worry, you may continue using it.
-Just be aware of the patent, as it is technically up to the user to have the rights to distribute
-XPBD in projects. This will be addressed by the rebrand.
-
-You can find a much more in-depth explanation of the situation and plans
+You can find an in-depth explanation of the situation and plans
 [here](https://github.com/Jondolf/bevy_xpbd/issues/346).
 
 ---
