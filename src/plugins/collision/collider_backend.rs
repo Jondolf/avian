@@ -238,16 +238,32 @@ fn init_colliders<C: AnyCollider>(
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
             Option<&ColliderMassProperties>,
+            Has<Sensor>,
         ),
         Added<C>,
     >,
 ) {
-    for (entity, collider, aabb, density, mass_properties) in &mut colliders {
-        let density = *density.unwrap_or(&ColliderDensity::default());
+    for (entity, collider, aabb, density, mass_properties, is_sensor) in &mut colliders {
+        // Default zero density and mass for sensors.
+        let density = density.cloned().unwrap_or_else(|| {
+            if is_sensor {
+                ColliderDensity::ZERO
+            } else {
+                ColliderDensity::default()
+            }
+        });
+        let mass_properties = mass_properties.cloned().unwrap_or_else(|| {
+            if is_sensor {
+                ColliderMassProperties::ZERO
+            } else {
+                collider.mass_properties(density.0)
+            }
+        });
+
         commands.entity(entity).try_insert((
             *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
             density,
-            *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
+            mass_properties,
             CollidingEntities::default(),
         ));
     }
@@ -818,12 +834,15 @@ fn update_collider_mass_properties<C: AnyCollider>(
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
-        Or<(
-            Changed<C>,
-            Changed<ColliderTransform>,
-            Changed<ColliderDensity>,
-            Changed<ColliderMassProperties>,
-        )>,
+        (
+            Or<(
+                Changed<C>,
+                Changed<ColliderTransform>,
+                Changed<ColliderDensity>,
+                Changed<ColliderMassProperties>,
+            )>,
+            Without<Sensor>,
+        ),
     >,
     collider_map: Res<ColliderStorageMap<C>>,
     mut removed_colliders: RemovedComponents<C>,
