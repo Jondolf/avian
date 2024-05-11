@@ -333,7 +333,7 @@ pub fn init_transforms<C: Component>(
         };
 
         if !config.transform_to_position {
-            return;
+            continue;
         }
 
         // Insert the position and rotation.
