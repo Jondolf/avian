@@ -173,7 +173,7 @@ pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
 pub fn init_transforms<C: Component>(
     mut commands: Commands,
     config: Res<PrepareConfig>,
-    mut query: Query<
+    query: Query<
         (
             Entity,
             Option<&Transform>,
@@ -201,7 +201,7 @@ pub fn init_transforms<C: Component>(
     }
 
     for (entity, transform, global_transform, pos, previous_pos, rot, previous_rot, parent) in
-        &mut query
+        &query
     {
         let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
         let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
@@ -209,7 +209,7 @@ pub fn init_transforms<C: Component>(
         let parent_global_trans = parent_transforms.and_then(|(_, _, trans)| trans);
 
         let mut new_transform = if config.position_to_transform {
-            transform.cloned().or(Some(Transform::default()))
+            Some(transform.copied().unwrap_or_default())
         } else {
             None
         };
@@ -271,25 +271,21 @@ pub fn init_transforms<C: Component>(
             } else {
                 #[cfg(feature = "2d")]
                 {
-                    new_position =
-                        transform
-                            .map(|t| t.translation.truncate())
-                            .unwrap_or_else(|| {
-                                global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                                    Vector::new(
-                                        t.translation().x as Scalar,
-                                        t.translation().y as Scalar,
-                                    )
-                                })
-                            });
+                    new_position = transform
+                        .map(|t| t.translation.truncate().adjust_precision())
+                        .unwrap_or(global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                            Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
+                        }));
                 }
                 #[cfg(feature = "3d")]
                 {
-                    new_position = transform.map(|t| t.translation).unwrap_or_else(|| {
-                        global_transform
-                            .as_ref()
-                            .map_or(Vector::ZERO, |t| t.translation().adjust_precision())
-                    })
+                    new_position = transform
+                        .map(|t| t.translation.adjust_precision())
+                        .unwrap_or(
+                            global_transform
+                                .as_ref()
+                                .map_or(Vector::ZERO, |t| t.translation().adjust_precision()),
+                        )
                 }
             };
 
@@ -331,13 +327,11 @@ pub fn init_transforms<C: Component>(
                     Rotation(parent_rot.0 * rot.0)
                 }
             } else {
-                transform
-                    .map(|t| Rotation::from(t.rotation))
-                    .unwrap_or_else(|| {
-                        global_transform.map_or(Rotation::default(), |t| {
-                            t.compute_transform().rotation.into()
-                        })
-                    })
+                transform.map(|t| Rotation::from(t.rotation)).unwrap_or(
+                    global_transform.map_or(Rotation::default(), |t| {
+                        t.compute_transform().rotation.into()
+                    }),
+                )
             }
         } else {
             default()
@@ -348,15 +342,21 @@ pub fn init_transforms<C: Component>(
         // Insert the position and rotation.
         // The values are either unchanged (Position and Rotation already exist)
         // or computed based on the GlobalTransform.
-        cmds.try_insert((
-            Position(new_position),
-            new_rotation,
-            *previous_pos.unwrap_or(&PreviousPosition(new_position)),
-            *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-        ));
-
         if let Some(transform) = new_transform {
-            cmds.try_insert(transform);
+            cmds.try_insert((
+                transform,
+                Position(new_position),
+                new_rotation,
+                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+            ));
+        } else {
+            cmds.try_insert((
+                Position(new_position),
+                new_rotation,
+                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+            ));
         }
     }
 }
