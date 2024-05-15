@@ -167,23 +167,22 @@ pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
     !query.is_empty()
 }
 
-// TODO: This system feels very overengineered. Try to clean it up?
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa
 /// when a component of the given type is inserted.
 pub fn init_transforms<C: Component>(
     mut commands: Commands,
     config: Res<PrepareConfig>,
-    mut query: Query<
+    query: Query<
         (
             Entity,
-            Option<&mut Transform>,
+            Option<&Transform>,
             Option<&GlobalTransform>,
             Option<&Position>,
             Option<&PreviousPosition>,
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
-            Has<C>,
+            Has<RigidBody>,
         ),
         Added<C>,
     >,
@@ -196,56 +195,68 @@ pub fn init_transforms<C: Component>(
         With<Children>,
     >,
 ) {
+    if !config.position_to_transform && !config.transform_to_position {
+        // Nothing to do
+        return;
+    }
+
     for (
         entity,
-        mut transform,
+        transform,
         global_transform,
         pos,
         previous_pos,
         rot,
         previous_rot,
         parent,
-        is_rb,
-    ) in &mut query
+        has_rigid_body,
+    ) in &query
     {
-        let parent_position = parent.map(|parent| parents.get(parent.get()));
+        let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
+        let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
+        let parent_rot = parent_transforms.and_then(|(_, rot, _)| rot);
+        let parent_global_trans = parent_transforms.and_then(|(_, _, trans)| trans);
+
+        let mut new_transform = if config.position_to_transform {
+            Some(transform.copied().unwrap_or_default())
+        } else {
+            None
+        };
 
         // Compute Transform based on Position or vice versa
         let new_position = if let Some(pos) = pos {
-            if config.position_to_transform {
-                if let Some(ref mut transform) = transform {
-                    // Initialize new translation as global position
-                    #[cfg(feature = "2d")]
-                    let mut new_translation = pos.f32().extend(transform.translation.z);
-                    #[cfg(feature = "3d")]
-                    let mut new_translation = pos.f32();
+            if let Some(transform) = &mut new_transform {
+                // Initialize new translation as global position
+                #[cfg(feature = "2d")]
+                let mut new_translation = pos.f32().extend(transform.translation.z);
+                #[cfg(feature = "3d")]
+                let mut new_translation = pos.f32();
 
-                    // If the body is a child, subtract the parent's global translation
-                    // to get the local translation
-                    if let Some(Ok((parent_pos, _, parent_transform))) = parent_position {
-                        if let Some(parent_pos) = parent_pos {
-                            #[cfg(feature = "2d")]
-                            {
-                                new_translation -= parent_pos.f32().extend(new_translation.z);
-                            }
-                            #[cfg(feature = "3d")]
-                            {
-                                new_translation -= parent_pos.f32();
-                            }
-                        } else if let Some(parent_transform) = parent_transform {
-                            new_translation -= parent_transform.translation();
+                // If the body is a child, subtract the parent's global translation
+                // to get the local translation
+                if parent.is_some() {
+                    if let Some(parent_pos) = parent_pos {
+                        #[cfg(feature = "2d")]
+                        {
+                            new_translation -= parent_pos.f32().extend(new_translation.z);
                         }
+                        #[cfg(feature = "3d")]
+                        {
+                            new_translation -= parent_pos.f32();
+                        }
+                    } else if let Some(parent_transform) = parent_global_trans {
+                        new_translation -= parent_transform.translation();
                     }
-                    transform.translation = new_translation;
                 }
+                transform.translation = new_translation;
             }
             pos.0
         } else if config.transform_to_position {
             let mut new_position = Vector::ZERO;
 
-            if let Some(Ok((parent_pos, _, parent_transform))) = parent_position {
+            if parent.is_some() {
+                let translation = transform.as_ref().map_or(default(), |t| t.translation);
                 if let Some(parent_pos) = parent_pos {
-                    let translation = transform.as_ref().map_or(default(), |t| t.translation);
                     #[cfg(feature = "2d")]
                     {
                         new_position = parent_pos.0 + translation.adjust_precision().truncate();
@@ -254,7 +265,7 @@ pub fn init_transforms<C: Component>(
                     {
                         new_position = parent_pos.0 + translation.adjust_precision();
                     }
-                } else if let Some(parent_transform) = parent_transform {
+                } else if let Some(parent_transform) = parent_global_trans {
                     let new_pos = parent_transform
                         .transform_point(transform.as_ref().map_or(default(), |t| t.translation));
                     #[cfg(feature = "2d")]
@@ -269,15 +280,21 @@ pub fn init_transforms<C: Component>(
             } else {
                 #[cfg(feature = "2d")]
                 {
-                    new_position = global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                        Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                    });
+                    new_position = transform
+                        .map(|t| t.translation.truncate().adjust_precision())
+                        .unwrap_or(global_transform.as_ref().map_or(Vector::ZERO, |t| {
+                            Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
+                        }));
                 }
                 #[cfg(feature = "3d")]
                 {
-                    new_position = global_transform
-                        .as_ref()
-                        .map_or(Vector::ZERO, |t| t.translation().adjust_precision())
+                    new_position = transform
+                        .map(|t| t.translation.adjust_precision())
+                        .unwrap_or(
+                            global_transform
+                                .as_ref()
+                                .map_or(Vector::ZERO, |t| t.translation().adjust_precision()),
+                        )
                 }
             };
 
@@ -288,31 +305,26 @@ pub fn init_transforms<C: Component>(
 
         // Compute Transform based on Rotation or vice versa
         let new_rotation = if let Some(rot) = rot {
-            if config.position_to_transform {
-                if let Some(ref mut transform) = transform {
-                    // Initialize new rotation as global rotation
-                    let mut new_rotation = Quaternion::from(*rot).f32();
+            if let Some(transform) = &mut new_transform {
+                // Initialize new rotation as global rotation
+                let mut new_rotation = Quaternion::from(*rot).f32();
 
-                    // If the body is a child, subtract the parent's global rotation
-                    // to get the local rotation
-                    if let Some(parent) = parent {
-                        if let Ok((_, parent_rot, parent_transform)) = parents.get(parent.get()) {
-                            if let Some(parent_rot) = parent_rot {
-                                new_rotation *= Quaternion::from(*parent_rot).f32().inverse();
-                            } else if let Some(parent_transform) = parent_transform {
-                                new_rotation *=
-                                    parent_transform.compute_transform().rotation.inverse();
-                            }
-                        }
+                // If the body is a child, subtract the parent's global rotation
+                // to get the local rotation
+                if parent.is_some() {
+                    if let Some(parent_rot) = parent_rot {
+                        new_rotation *= Quaternion::from(*parent_rot).f32().inverse();
+                    } else if let Some(parent_transform) = parent_global_trans {
+                        new_rotation *= parent_transform.compute_transform().rotation.inverse();
                     }
-                    transform.rotation = new_rotation;
                 }
+                transform.rotation = new_rotation;
             }
             *rot
         } else if config.transform_to_position {
-            if let Some(Ok((_, parent_rot, parent_transform))) = parent_position {
+            if parent.is_some() {
                 let parent_rot = parent_rot.copied().unwrap_or(Rotation::from(
-                    parent_transform.map_or(default(), |t| t.compute_transform().rotation),
+                    parent_global_trans.map_or(default(), |t| t.compute_transform().rotation),
                 ));
                 let rot = Rotation::from(transform.as_ref().map_or(default(), |t| t.rotation));
                 #[cfg(feature = "2d")]
@@ -324,37 +336,47 @@ pub fn init_transforms<C: Component>(
                     Rotation(parent_rot.0 * rot.0)
                 }
             } else {
-                global_transform.map_or(Rotation::default(), |t| {
-                    t.compute_transform().rotation.into()
-                })
+                transform.map(|t| Rotation::from(t.rotation)).unwrap_or(
+                    global_transform.map_or(Rotation::default(), |t| {
+                        t.compute_transform().rotation.into()
+                    }),
+                )
             }
         } else {
             default()
         };
 
-        if !config.transform_to_position {
-            return;
-        }
+        let mut cmds = commands.entity(entity);
 
         // Insert the position and rotation.
         // The values are either unchanged (Position and Rotation already exist)
         // or computed based on the GlobalTransform.
         // If the entity isn't a rigid body, adding PreviousPosition and PreviousRotation
         // is unnecessary.
-        if is_rb {
-            commands.entity(entity).try_insert((
-                Position(new_position),
-                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
-                new_rotation,
-                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                transform.map_or(Transform::default(), |t| *t),
-            ));
-        } else {
-            commands.entity(entity).try_insert((
-                Position(new_position),
-                new_rotation,
-                transform.map_or(Transform::default(), |t| *t),
-            ));
+        match (has_rigid_body, new_transform) {
+            (true, None) => {
+                cmds.try_insert((
+                    Position(new_position),
+                    new_rotation,
+                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                ));
+            }
+            (true, Some(transform)) => {
+                cmds.try_insert((
+                    transform,
+                    Position(new_position),
+                    new_rotation,
+                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                ));
+            }
+            (false, None) => {
+                cmds.try_insert((Position(new_position), new_rotation));
+            }
+            (false, Some(transform)) => {
+                cmds.try_insert((transform, Position(new_position), new_rotation));
+            }
         }
     }
 }
@@ -488,5 +510,260 @@ fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
 fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
     for mut density in &mut query {
         density.0 = density.max(Scalar::EPSILON);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_init_transforms_basics() {
+        let mut app = App::new();
+
+        // Add system under test
+        app.add_systems(Update, init_transforms::<RigidBody>);
+
+        // Test all possible config permutations
+        for (position_to_transform, transform_to_position) in
+            [(true, true), (true, false), (false, true), (false, false)]
+        {
+            let config = PrepareConfig {
+                position_to_transform,
+                transform_to_position,
+            };
+            app.insert_resource(dbg!(config.clone()));
+
+            // Spawn entities with `Position` and `Rotation`
+            let (pos_0, rot_0) = {
+                #[cfg(feature = "2d")]
+                {
+                    (Position::from_xy(1., 2.), Rotation::from_sin_cos(0.1, 0.2))
+                }
+                #[cfg(feature = "3d")]
+                {
+                    (
+                        Position::from_xyz(1., 2., 3.),
+                        Rotation(Quaternion::from_axis_angle(Vector::Y, 0.5)),
+                    )
+                }
+            };
+            let e_0_with_pos_and_rot = app.world.spawn((RigidBody::Dynamic, pos_0, rot_0)).id();
+
+            let (pos_1, rot_1) = {
+                #[cfg(feature = "2d")]
+                {
+                    (Position::from_xy(-1., 3.), Rotation::from_sin_cos(0.2, 0.3))
+                }
+                #[cfg(feature = "3d")]
+                {
+                    (
+                        Position::from_xyz(-1., 3., -3.),
+                        Rotation(Quaternion::from_axis_angle(Vector::X, 0.1)),
+                    )
+                }
+            };
+            let e_1_with_pos_and_rot = app.world.spawn((RigidBody::Dynamic, pos_1, rot_1)).id();
+
+            // Spawn an entity with only `Position`
+            let pos_2 = {
+                #[cfg(feature = "2d")]
+                {
+                    Position::from_xy(10., 1.)
+                }
+                #[cfg(feature = "3d")]
+                {
+                    Position::from_xyz(10., 1., 5.)
+                }
+            };
+            let e_2_with_pos = app.world.spawn((RigidBody::Dynamic, pos_2)).id();
+
+            // Spawn an entity with only `Rotation`
+            let rot_3 = {
+                #[cfg(feature = "2d")]
+                {
+                    Rotation::from_sin_cos(0.4, 0.5)
+                }
+                #[cfg(feature = "3d")]
+                {
+                    Rotation(Quaternion::from_axis_angle(Vector::Z, 0.4))
+                }
+            };
+            let e_3_with_rot = app.world.spawn((RigidBody::Dynamic, rot_3)).id();
+
+            // Spawn entities with `Transform`
+            let trans_4 = {
+                Transform {
+                    translation: Vec3::new(-1.1, 6., -7.),
+                    rotation: Quat::from_axis_angle(Vec3::Y, 0.1),
+                    scale: Vec3::ONE,
+                }
+            };
+            let e_4_with_trans = app.world.spawn((RigidBody::Dynamic, trans_4)).id();
+
+            let trans_5 = {
+                Transform {
+                    translation: Vec3::new(8., -1., 0.),
+                    rotation: Quat::from_axis_angle(Vec3::Y, -0.1),
+                    scale: Vec3::ONE,
+                }
+            };
+            let e_5_with_trans = app.world.spawn((RigidBody::Dynamic, trans_5)).id();
+
+            // Spawn entity without any transforms
+            let e_6_without_trans = app.world.spawn(RigidBody::Dynamic).id();
+
+            // Spawn entity without a ridid body
+            let e_7_without_rb = app.world.spawn(()).id();
+
+            // Run the system
+            app.update();
+
+            // Check the results are as expected
+            if config.position_to_transform {
+                assert!(app.world.get::<Transform>(e_0_with_pos_and_rot).is_some());
+                let transform = app.world.get::<Transform>(e_0_with_pos_and_rot).unwrap();
+                let expected: Vec3 = {
+                    #[cfg(feature = "2d")]
+                    {
+                        pos_0.f32().extend(0.)
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        pos_0.f32()
+                    }
+                };
+                assert_eq!(transform.translation, expected);
+                let expected = Quaternion::from(rot_0).f32();
+                assert_eq!(transform.rotation, expected);
+
+                assert!(app.world.get::<Transform>(e_1_with_pos_and_rot).is_some());
+                let transform = app.world.get::<Transform>(e_1_with_pos_and_rot).unwrap();
+                let expected: Vec3 = {
+                    #[cfg(feature = "2d")]
+                    {
+                        pos_1.f32().extend(0.)
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        pos_1.f32()
+                    }
+                };
+                assert_eq!(transform.translation, expected);
+                let expected = Quaternion::from(rot_1).f32();
+                assert_eq!(transform.rotation, expected);
+
+                assert!(app.world.get::<Transform>(e_2_with_pos).is_some());
+                let transform = app.world.get::<Transform>(e_2_with_pos).unwrap();
+                let expected: Vec3 = {
+                    #[cfg(feature = "2d")]
+                    {
+                        pos_2.f32().extend(0.)
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        pos_2.f32()
+                    }
+                };
+                assert_eq!(transform.translation, expected);
+                let expected = Quat::default();
+                assert_eq!(transform.rotation, expected);
+
+                assert!(app.world.get::<Transform>(e_3_with_rot).is_some());
+                let transform = app.world.get::<Transform>(e_3_with_rot).unwrap();
+                let expected: Vec3 = Vec3::default();
+                assert_eq!(transform.translation, expected);
+                let expected = Quaternion::from(rot_3).f32();
+                assert_eq!(transform.rotation, expected);
+
+                assert!(app.world.get::<Transform>(e_4_with_trans).is_some());
+                let transform = app.world.get::<Transform>(e_4_with_trans).unwrap();
+                assert_eq!(transform, &trans_4);
+
+                assert!(app.world.get::<Transform>(e_5_with_trans).is_some());
+                let transform = app.world.get::<Transform>(e_5_with_trans).unwrap();
+                assert_eq!(transform, &trans_5);
+
+                assert!(app.world.get::<Transform>(e_6_without_trans).is_some());
+                let transform = app.world.get::<Transform>(e_6_without_trans).unwrap();
+                assert_eq!(transform, &Transform::default());
+
+                assert!(app.world.get::<Transform>(e_7_without_rb).is_none());
+            }
+
+            if config.transform_to_position {
+                assert!(app.world.get::<Position>(e_0_with_pos_and_rot).is_some());
+                let pos = app.world.get::<Position>(e_0_with_pos_and_rot).unwrap();
+                assert_eq!(pos, &pos_0);
+                assert!(app.world.get::<Rotation>(e_0_with_pos_and_rot).is_some());
+                let rot = app.world.get::<Rotation>(e_0_with_pos_and_rot).unwrap();
+                assert_eq!(rot, &rot_0);
+
+                assert!(app.world.get::<Position>(e_1_with_pos_and_rot).is_some());
+                let pos = app.world.get::<Position>(e_1_with_pos_and_rot).unwrap();
+                assert_eq!(pos, &pos_1);
+                assert!(app.world.get::<Rotation>(e_1_with_pos_and_rot).is_some());
+                let rot = app.world.get::<Rotation>(e_1_with_pos_and_rot).unwrap();
+                assert_eq!(rot, &rot_1);
+
+                assert!(app.world.get::<Position>(e_2_with_pos).is_some());
+                let pos = app.world.get::<Position>(e_2_with_pos).unwrap();
+                assert_eq!(pos, &pos_2);
+                assert!(app.world.get::<Rotation>(e_2_with_pos).is_some());
+                let rot = app.world.get::<Rotation>(e_2_with_pos).unwrap();
+                assert_eq!(rot, &Rotation::default());
+
+                assert!(app.world.get::<Position>(e_3_with_rot).is_some());
+                let pos = app.world.get::<Position>(e_3_with_rot).unwrap();
+                assert_eq!(pos, &Position::default());
+                assert!(app.world.get::<Rotation>(e_3_with_rot).is_some());
+                let rot = app.world.get::<Rotation>(e_3_with_rot).unwrap();
+                assert_eq!(rot, &rot_3);
+
+                assert!(app.world.get::<Position>(e_4_with_trans).is_some());
+                let pos = app.world.get::<Position>(e_4_with_trans).unwrap();
+                let expected: Position = Position::new({
+                    #[cfg(feature = "2d")]
+                    {
+                        trans_4.translation.truncate().adjust_precision()
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        trans_4.translation.adjust_precision()
+                    }
+                });
+                assert_eq!(pos, &expected);
+                assert!(app.world.get::<Rotation>(e_4_with_trans).is_some());
+                let rot = app.world.get::<Rotation>(e_4_with_trans).unwrap();
+                assert_eq!(rot, &Rotation::from(trans_4.rotation));
+
+                assert!(app.world.get::<Position>(e_5_with_trans).is_some());
+                let pos = app.world.get::<Position>(e_5_with_trans).unwrap();
+                let expected: Position = Position::new({
+                    #[cfg(feature = "2d")]
+                    {
+                        trans_5.translation.truncate().adjust_precision()
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        trans_5.translation.adjust_precision()
+                    }
+                });
+                assert_eq!(pos, &expected);
+                assert!(app.world.get::<Rotation>(e_5_with_trans).is_some());
+                let rot = app.world.get::<Rotation>(e_5_with_trans).unwrap();
+                assert_eq!(rot, &Rotation::from(trans_5.rotation));
+
+                assert!(app.world.get::<Position>(e_6_without_trans).is_some());
+                let pos = app.world.get::<Position>(e_6_without_trans).unwrap();
+                assert_eq!(pos, &Position::default());
+                assert!(app.world.get::<Rotation>(e_6_without_trans).is_some());
+                let rot = app.world.get::<Rotation>(e_6_without_trans).unwrap();
+                assert_eq!(rot, &Rotation::default());
+
+                assert!(app.world.get::<Position>(e_7_without_rb).is_none());
+                assert!(app.world.get::<Rotation>(e_7_without_rb).is_none());
+            }
+        }
     }
 }
