@@ -167,7 +167,6 @@ pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
     !query.is_empty()
 }
 
-// TODO: This system feels very overengineered. Try to clean it up?
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa
 /// when a component of the given type is inserted.
 pub fn init_transforms<C: Component>(
@@ -183,6 +182,7 @@ pub fn init_transforms<C: Component>(
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
+            Has<RigidBody>,
         ),
         Added<C>,
     >,
@@ -200,8 +200,17 @@ pub fn init_transforms<C: Component>(
         return;
     }
 
-    for (entity, transform, global_transform, pos, previous_pos, rot, previous_rot, parent) in
-        &query
+    for (
+        entity,
+        transform,
+        global_transform,
+        pos,
+        previous_pos,
+        rot,
+        previous_rot,
+        parent,
+        has_rigid_body,
+    ) in &query
     {
         let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
         let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
@@ -342,21 +351,32 @@ pub fn init_transforms<C: Component>(
         // Insert the position and rotation.
         // The values are either unchanged (Position and Rotation already exist)
         // or computed based on the GlobalTransform.
-        if let Some(transform) = new_transform {
-            cmds.try_insert((
-                transform,
-                Position(new_position),
-                new_rotation,
-                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
-                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-            ));
-        } else {
-            cmds.try_insert((
-                Position(new_position),
-                new_rotation,
-                *previous_pos.unwrap_or(&PreviousPosition(new_position)),
-                *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-            ));
+        // If the entity isn't a rigid body, adding PreviousPosition and PreviousRotation
+        // is unnecessary.
+        match (has_rigid_body, new_transform) {
+            (true, None) => {
+                cmds.try_insert((
+                    Position(new_position),
+                    new_rotation,
+                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                ));
+            }
+            (true, Some(transform)) => {
+                cmds.try_insert((
+                    transform,
+                    Position(new_position),
+                    new_rotation,
+                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                ));
+            }
+            (false, None) => {
+                cmds.try_insert((Position(new_position), new_rotation));
+            }
+            (false, Some(transform)) => {
+                cmds.try_insert((transform, Position(new_position), new_rotation));
+            }
         }
     }
 }
