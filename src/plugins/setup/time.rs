@@ -466,16 +466,6 @@ pub(crate) trait TimePrecisionAdjusted {
     fn delta_seconds_adjusted(&self) -> Scalar;
 }
 
-pub(crate) trait DurationPrecisionAdjusted {
-    /// Returns the number of seconds contained by this Duration as [`Scalar`].
-    ///
-    /// The returned value does include the fractional (nanosecond) part of the duration.
-    fn as_secs_adjusted(&self) -> Scalar;
-
-    /// Creates a new Duration from the specified number of seconds represented as [`Scalar`].
-    fn from_secs_adjusted(secs: Scalar) -> Self;
-}
-
 impl TimePrecisionAdjusted for Time {
     /// Returns how much time has advanced since the last [`update`](#method.update)
     /// as [`Scalar`] seconds.
@@ -487,30 +477,6 @@ impl TimePrecisionAdjusted for Time {
         #[cfg(feature = "f64")]
         {
             self.delta_seconds_f64()
-        }
-    }
-}
-
-impl DurationPrecisionAdjusted for Duration {
-    fn as_secs_adjusted(&self) -> Scalar {
-        #[cfg(feature = "f32")]
-        {
-            self.as_secs_f32()
-        }
-        #[cfg(feature = "f64")]
-        {
-            self.as_secs_f64()
-        }
-    }
-
-    fn from_secs_adjusted(secs: Scalar) -> Self {
-        #[cfg(feature = "f32")]
-        {
-            Self::from_secs_f32(secs)
-        }
-        #[cfg(feature = "f64")]
-        {
-            Self::from_secs_f64(secs)
         }
     }
 }
