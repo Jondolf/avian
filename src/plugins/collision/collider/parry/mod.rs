@@ -14,7 +14,7 @@ mod primitives2d;
 mod primitives3d;
 
 #[cfg(feature = "2d")]
-pub(crate) use primitives2d::EllipseWrapper;
+pub(crate) use primitives2d::{EllipseWrapper, RegularPolygonWrapper};
 
 impl<T: IntoCollider<Collider>> From<T> for Collider {
     fn from(value: T) -> Self {
@@ -1104,6 +1104,29 @@ fn scale_shape(
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
                         half_size: ellipse.half_size * scale.f32(),
                     })));
+                }
+            } else if _id == 2 {
+                if let Some(polygon) = shape.as_shape::<RegularPolygonWrapper>() {
+                    if scale.x == scale.y {
+                        return Ok(SharedShape::new(RegularPolygonWrapper(
+                            RegularPolygon::new(
+                                polygon.circumradius() * scale.x as f32,
+                                polygon.sides,
+                            ),
+                        )));
+                    } else {
+                        let vertices = polygon
+                            .vertices(0.0)
+                            .into_iter()
+                            .map(|v| v.adjust_precision().into())
+                            .collect::<Vec<_>>();
+
+                        return scale_shape(
+                            &SharedShape::convex_hull(&vertices).unwrap(),
+                            scale,
+                            num_subdivisions,
+                        );
+                    }
                 }
             }
             Err(parry::query::Unsupported)

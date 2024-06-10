@@ -445,6 +445,17 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                             color,
                         );
                     }
+                } else if _id == 2 {
+                    if let Some(polygon) =
+                        collider.shape_scaled().as_shape::<RegularPolygonWrapper>()
+                    {
+                        self.primitive_2d(
+                            polygon.0,
+                            position.f32(),
+                            rotation.as_radians() as f32,
+                            color,
+                        );
+                    }
                 }
             }
         }
