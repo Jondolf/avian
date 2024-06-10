@@ -14,7 +14,7 @@ for the [Bevy game engine](https://bevyengine.org/).
 
 ## Warning ⚠️
 
-Bevy XPBD will undergo major changes and a rebrand during April or May.
+Bevy XPBD will undergo major changes in the next release, coming out in tandem with Bevy 0.14.
 
 You can find an in-depth explanation of the situation and plans
 [here](https://github.com/Jondolf/bevy_xpbd/issues/346).
