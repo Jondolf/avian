@@ -1,4 +1,4 @@
-use crate::{AdjustPrecision, AsF32, Scalar, Vector, FRAC_PI_2, TAU};
+use crate::{AdjustPrecision, AsF32, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
 use super::{Collider, IntoCollider};
 use bevy::prelude::Deref;
@@ -43,7 +43,7 @@ impl SupportMap for EllipseWrapper {
 
 impl Shape for EllipseWrapper {
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Vector::ZERO, 0.0);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -53,7 +53,7 @@ impl Shape for EllipseWrapper {
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
         let aabb = self.aabb_2d(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
+            position.rotation.angle() as Scalar,
         );
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
@@ -62,7 +62,7 @@ impl Shape for EllipseWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Vector::ZERO, 0.0);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -75,7 +75,7 @@ impl Shape for EllipseWrapper {
     ) -> parry::bounding_volume::BoundingSphere {
         let sphere = self.bounding_circle(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
+            position.rotation.angle() as Scalar,
         );
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
@@ -241,22 +241,23 @@ impl SupportMap for RegularPolygonWrapper {
         //       through the vertices and comparing dot products is faster?
 
         let external_angle = self.external_angle_radians().adjust_precision();
+        let circumradius = self.circumradius().adjust_precision();
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vec2::Y)
+            -Vector::from(*direction).angle_between(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vec2::Y)
+            TAU - Vector::from(*direction).angle_between(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
-        let n = (angle_from_top / external_angle).round() % self.sides as f32;
+        let n = (angle_from_top / external_angle).round() % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle = n * external_angle + FRAC_PI_2;
 
         // Compute the vertex corresponding to the target angle on the unit circle.
-        Point2::from(self.circumradius() * Vec2::from_angle(target_angle))
+        Point2::from(circumradius * Vector::from_angle(target_angle))
     }
 }
 
@@ -268,26 +269,27 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
         out_feature: &mut PolygonalFeature,
     ) {
         let external_angle = self.external_angle_radians().adjust_precision();
+        let circumradius = self.circumradius().adjust_precision();
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vec2::Y)
+            -Vector::from(*direction).angle_between(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vec2::Y)
+            TAU - Vector::from(*direction).angle_between(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertices.
         let n_unnormalized = angle_from_top / external_angle;
-        let n1 = n_unnormalized.floor() % self.sides as f32;
-        let n2 = n_unnormalized.ceil() % self.sides as f32;
+        let n1 = n_unnormalized.floor() % self.sides as Scalar;
+        let n2 = n_unnormalized.ceil() % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle1 = n1 * external_angle + FRAC_PI_2;
         let target_angle2 = n2 * external_angle + FRAC_PI_2;
 
         // Compute the vertices corresponding to the target angle on the unit circle.
-        let vertex1 = Point2::from(self.circumradius() * Vector::from_angle(target_angle1));
-        let vertex2 = Point2::from(self.circumradius() * Vector::from_angle(target_angle2));
+        let vertex1 = Point2::from(circumradius * Vector::from_angle(target_angle1));
+        let vertex2 = Point2::from(circumradius * Vector::from_angle(target_angle2));
 
         *out_feature = PolygonalFeature {
             vertices: [vertex1, vertex2],
@@ -303,7 +305,7 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 
 impl Shape for RegularPolygonWrapper {
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Vector::ZERO, 0.0);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -313,7 +315,7 @@ impl Shape for RegularPolygonWrapper {
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
         let aabb = self.aabb_2d(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
+            position.rotation.angle() as Scalar,
         );
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
@@ -322,7 +324,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Vector::ZERO, 0.0);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -335,7 +337,7 @@ impl Shape for RegularPolygonWrapper {
     ) -> parry::bounding_volume::BoundingSphere {
         let sphere = self.bounding_circle(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
+            position.rotation.angle() as Scalar,
         );
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
@@ -351,8 +353,8 @@ impl Shape for RegularPolygonWrapper {
         let volume = self.area().adjust_precision();
         let mass = volume * density;
 
-        let half_external_angle = std::f32::consts::PI / self.sides as f32;
-        let angular_inertia = mass * self.circumradius().powi(2) / 6.0
+        let half_external_angle = PI / self.sides as Scalar;
+        let angular_inertia = mass * self.circumradius().adjust_precision().powi(2) / 6.0
             * (1.0 + 2.0 * half_external_angle.cos().powi(2));
 
         MassProperties::new(Point2::origin(), mass, angular_inertia)
@@ -375,7 +377,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn ccd_angular_thickness(&self) -> Scalar {
-        crate::math::PI - self.internal_angle_radians()
+        crate::math::PI - self.internal_angle_radians().adjust_precision()
     }
 
     fn as_support_map(&self) -> Option<&dyn SupportMap> {
