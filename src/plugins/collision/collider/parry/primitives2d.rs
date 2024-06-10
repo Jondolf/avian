@@ -250,7 +250,7 @@ impl SupportMap for RegularPolygonWrapper {
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
-        let n = (angle_from_top / external_angle).round() % (self.sides) as f32;
+        let n = (angle_from_top / external_angle).round() % self.sides as f32;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle = n * external_angle + FRAC_PI_2;
@@ -278,8 +278,8 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 
         // How many rotations of `external_angle` correspond to the vertices.
         let n_unnormalized = angle_from_top / external_angle;
-        let n1 = n_unnormalized.floor() % (self.sides) as f32;
-        let n2 = n_unnormalized.ceil() % (self.sides) as f32;
+        let n1 = n_unnormalized.floor() % self.sides as f32;
+        let n2 = n_unnormalized.ceil() % self.sides as f32;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle1 = n1 * external_angle + FRAC_PI_2;
