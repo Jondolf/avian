@@ -305,7 +305,7 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 
 impl Shape for RegularPolygonWrapper {
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vector::ZERO, 0.0);
+        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -315,7 +315,7 @@ impl Shape for RegularPolygonWrapper {
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
         let aabb = self.aabb_2d(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as Scalar,
+            position.rotation.angle() as f32,
         );
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
@@ -324,7 +324,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vector::ZERO, 0.0);
+        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -337,7 +337,7 @@ impl Shape for RegularPolygonWrapper {
     ) -> parry::bounding_volume::BoundingSphere {
         let sphere = self.bounding_circle(
             Vector::from(position.translation).f32(),
-            position.rotation.angle() as Scalar,
+            position.rotation.angle() as f32,
         );
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
