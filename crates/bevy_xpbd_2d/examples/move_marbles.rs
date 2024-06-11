@@ -7,7 +7,7 @@ use examples_common_2d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
@@ -26,7 +26,7 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     let square_sprite = Sprite {
-        color: Color::rgb(0.7, 0.7, 0.8),
+        color: Color::srgb(0.7, 0.7, 0.8),
         custom_size: Some(Vec2::splat(50.0)),
         ..default()
     };
@@ -78,7 +78,7 @@ fn setup(
 
     let marble_radius = 5.0;
     let marble_mesh = meshes.add(Circle::new(marble_radius));
-    let marble_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
+    let marble_material = materials.add(Color::srgb(0.2, 0.7, 0.9));
 
     // Spawn stacks of marbles
     for x in -16..16 {

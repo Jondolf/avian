@@ -444,7 +444,7 @@ impl Collider {
             max_time_of_impact,
             solid,
         );
-        hit.map(|hit| (hit.toi, hit.normal.into()))
+        hit.map(|hit| (hit.time_of_impact, hit.normal.into()))
     }
 
     /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.

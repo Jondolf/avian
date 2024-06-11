@@ -43,7 +43,7 @@ fn create_app() -> App {
 }
 
 fn tick_60_fps(app: &mut App) {
-    let mut update_strategy = app.world.resource_mut::<TimeUpdateStrategy>();
+    let mut update_strategy = app.world_mut().resource_mut::<TimeUpdateStrategy>();
     let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
         unimplemented!()
     };
@@ -125,9 +125,9 @@ fn body_with_velocity_moves_on_first_frame() {
     // one tick only.
     tick_60_fps(&mut app);
 
-    let mut app_query = app.world.query::<(&Position, &RigidBody)>();
+    let mut app_query = app.world_mut().query::<(&Position, &RigidBody)>();
 
-    let (pos, _body) = app_query.single(&app.world);
+    let (pos, _body) = app_query.single(app.world());
 
     assert!(pos.x > 0.0);
 }
@@ -161,9 +161,9 @@ fn body_with_velocity_moves() {
         tick_60_fps(&mut app);
     }
 
-    let mut app_query = app.world.query::<(&Transform, &RigidBody)>();
+    let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
-    let (transform, _body) = app_query.single(&app.world);
+    let (transform, _body) = app_query.single(app.world());
 
     //assert!(transform.translation.x > 0., "box moves right");
     assert_relative_eq!(transform.translation.y, 0.);
@@ -202,9 +202,9 @@ fn cubes_simulation_is_deterministic_across_machines() {
         tick_60_fps(&mut app);
     }
 
-    let mut app_query = app.world.query::<(&Id, &Transform)>();
+    let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
 
-    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(&app.world).collect();
+    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(app.world()).collect();
     bodies.sort_by_key(|b| b.0);
 
     assert_debug_snapshot!(bodies);
@@ -227,10 +227,10 @@ fn cubes_simulation_is_locally_deterministic() {
             tick_60_fps(&mut app);
         }
 
-        let mut app_query = app.world.query::<(&Id, &Transform)>();
+        let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
 
         let mut bodies: Vec<(Id, Transform)> = app_query
-            .iter(&app.world)
+            .iter(app.world())
             .map(|(id, transform)| (*id, *transform))
             .collect();
         bodies.sort_by_key(|b| b.0);

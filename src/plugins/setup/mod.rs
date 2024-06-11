@@ -11,10 +11,12 @@ pub use time::*;
 use super::sync::PreviousGlobalTransform;
 use crate::prelude::*;
 use bevy::{
-    ecs::schedule::{ExecutorKind, ScheduleBuildSettings},
+    ecs::{
+        intern::Interned,
+        schedule::{ExecutorKind, ScheduleBuildSettings},
+    },
     prelude::*,
     transform::TransformSystem,
-    utils::intern::Interned,
 };
 
 /// Sets up the physics engine by initializing the necessary schedules, sets and resources.

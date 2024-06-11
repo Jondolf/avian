@@ -31,7 +31,6 @@ pub mod solver;
 pub mod spatial_query;
 pub mod sync;
 
-use bevy::utils::intern::Interned;
 pub use collision::{
     broad_phase::BroadPhasePlugin, collider_backend::*, contact_reporting::ContactReportingPlugin,
     narrow_phase::NarrowPhasePlugin,
@@ -48,6 +47,7 @@ pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
 use crate::prelude::*; // For doc comments
+use bevy::ecs::intern::Interned;
 use bevy::prelude::*;
 
 /// A plugin group containing all of Bevy XPBD's plugins.

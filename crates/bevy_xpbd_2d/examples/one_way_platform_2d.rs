@@ -11,7 +11,7 @@ use examples_common_2d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
@@ -52,7 +52,7 @@ fn setup(
 
     // For borders
     let square_sprite = Sprite {
-        color: Color::rgb(0.7, 0.7, 0.8),
+        color: Color::srgb(0.7, 0.7, 0.8),
         custom_size: Some(Vec2::splat(50.0)),
         ..default()
     };
@@ -104,7 +104,7 @@ fn setup(
 
     // For one-way platforms
     let one_way_sprite = Sprite {
-        color: Color::rgba(0.7, 0.7, 0.8, 0.25),
+        color: Color::srgba(0.7, 0.7, 0.8, 0.25),
         custom_size: Some(Vec2::splat(50.0)),
         ..default()
     };
@@ -128,7 +128,7 @@ fn setup(
     let actor_size = Vector::new(20.0, 20.0);
     let actor_mesh = MaterialMesh2dBundle {
         mesh: meshes.add(Rectangle::from_size(actor_size.f32())).into(),
-        material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
+        material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
         ..default()
     };
 

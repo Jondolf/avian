@@ -4,7 +4,7 @@
 //! See [`SyncPlugin`].
 
 use crate::{prelude::*, utils::get_pos_translation};
-use bevy::{prelude::*, utils::intern::Interned};
+use bevy::{ecs::intern::Interned, prelude::*};
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.

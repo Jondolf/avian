@@ -5,6 +5,7 @@
 //! than trimesh colliders.
 
 use bevy::{
+    color::palettes::css::SILVER,
     prelude::*,
     render::{
         render_asset::RenderAssetUsages,
@@ -70,7 +71,7 @@ fn setup(
         Collider::cuboid(50.0, 0.1, 50.0),
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(50.0, 50.0)),
-            material: materials.add(Color::SILVER),
+            material: materials.add(Color::from(SILVER)),
             transform: Transform::from_xyz(0.0, -1.0, 0.0),
             ..default()
         },

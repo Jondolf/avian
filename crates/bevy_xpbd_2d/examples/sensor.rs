@@ -5,7 +5,7 @@ use examples_common_2d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity(Vector::ZERO))
         .add_event::<MovementAction>()
         .add_systems(Startup, setup)
@@ -42,7 +42,7 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(Capsule2d::new(12.5, 20.0)).into(),
-            material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
+            material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
             transform: Transform::from_xyz(0.0, -100.0, 1.0),
             ..default()
         },
@@ -208,9 +208,9 @@ fn apply_pressure_plate_colour(
 ) {
     for (mut sprite, colliding_entities) in &mut query {
         if colliding_entities.0.is_empty() {
-            sprite.color = Color::rgb(0.2, 0.7, 0.9);
+            sprite.color = Color::srgb(0.2, 0.7, 0.9);
         } else {
-            sprite.color = Color::rgb(0.9, 0.7, 0.2);
+            sprite.color = Color::srgb(0.9, 0.7, 0.2);
         }
     }
 }

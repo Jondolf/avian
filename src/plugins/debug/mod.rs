@@ -11,7 +11,10 @@ pub use configuration::*;
 pub use gizmos::*;
 
 use crate::prelude::*;
-use bevy::{ecs::query::Has, prelude::*, utils::intern::Interned};
+use bevy::{
+    ecs::{intern::Interned, query::Has},
+    prelude::*,
+};
 
 /// A plugin that renders physics objects and properties for debugging purposes.
 /// It is not enabled by default and must be added manually.
@@ -94,7 +97,7 @@ impl Plugin for PhysicsDebugPlugin {
     fn build(&self, app: &mut App) {
         app.init_gizmo_group::<PhysicsGizmos>();
 
-        let mut store = app.world.resource_mut::<GizmoConfigStore>();
+        let mut store = app.world_mut().resource_mut::<GizmoConfigStore>();
         let config = store.config_mut::<PhysicsGizmos>().0;
         #[cfg(feature = "2d")]
         {
@@ -227,11 +230,11 @@ fn debug_render_aabbs(
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_parent) {
-                let [h, s, l, a] = color.as_hsla_f32();
+                let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
                 }) {
-                    color = Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
+                    color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                 }
             }
 
@@ -250,11 +253,11 @@ fn debug_render_aabbs(
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_parent) {
-                let [h, s, l, a] = color.as_hsla_f32();
+                let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
                 }) {
-                    color = Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
+                    color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                 }
             }
 
@@ -292,11 +295,11 @@ fn debug_render_colliders(
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_parent) {
-                let [h, s, l, a] = color.as_hsla_f32();
+                let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
                 }) {
-                    color = Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
+                    color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                 }
             }
             gizmos.draw_collider(collider, *position, *rotation, color);
@@ -354,8 +357,7 @@ fn debug_render_contacts(
                 // Draw contact normals
                 if let Some(color) = config.contact_normal_color {
                     // Use dimmer color for second normal
-                    let mut color_dim = color.as_hsla();
-                    color_dim.set_l(color_dim.l() * 0.5);
+                    let color_dim = color.mix(&Color::BLACK, 0.5);
 
                     // The length of the normal arrows
                     let length = match config.contact_normal_scale {
@@ -397,11 +399,11 @@ fn debug_render_joints<T: Joint>(
             if let Some(mut anchor_color) = config.joint_anchor_color {
                 // If both bodies are sleeping, multiply the color by the sleeping color multiplier
                 if sleeping1 && sleeping2 {
-                    let [h, s, l, a] = anchor_color.as_hsla_f32();
+                    let hsla = Hsla::from(anchor_color).to_vec4();
                     if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                         c.sleeping_color_multiplier
                     }) {
-                        anchor_color = Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
+                        anchor_color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                     }
                 }
 
@@ -419,12 +421,11 @@ fn debug_render_joints<T: Joint>(
             if let Some(mut separation_color) = config.joint_separation_color {
                 // If both bodies are sleeping, multiply the color by the sleeping color multiplier
                 if sleeping1 && sleeping2 {
-                    let [h, s, l, a] = separation_color.as_hsla_f32();
+                    let hsla = Hsla::from(separation_color).to_vec4();
                     if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                         c.sleeping_color_multiplier
                     }) {
-                        separation_color =
-                            Color::hsla(h * mul[0], s * mul[1], l * mul[2], a * mul[3]);
+                        separation_color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
                     }
                 }
 
@@ -445,15 +446,9 @@ fn debug_render_raycasts(
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     for (ray, hits) in &query {
-        let ray_color = config
-            .raycast_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
-        let point_color = config
-            .raycast_point_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
-        let normal_color = config
-            .raycast_normal_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let ray_color = config.raycast_color.unwrap_or(Color::NONE);
+        let point_color = config.raycast_point_color.unwrap_or(Color::NONE);
+        let normal_color = config.raycast_normal_color.unwrap_or(Color::NONE);
 
         gizmos.draw_raycast(
             ray.global_origin(),
@@ -479,18 +474,10 @@ fn debug_render_shapecasts(
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     for (shape_caster, hits) in &query {
-        let ray_color = config
-            .shapecast_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
-        let shape_color = config
-            .shapecast_shape_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
-        let point_color = config
-            .shapecast_point_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
-        let normal_color = config
-            .shapecast_normal_color
-            .unwrap_or(Color::rgba(0.0, 0.0, 0.0, 0.0));
+        let ray_color = config.shapecast_color.unwrap_or(Color::NONE);
+        let shape_color = config.shapecast_shape_color.unwrap_or(Color::NONE);
+        let point_color = config.shapecast_point_color.unwrap_or(Color::NONE);
+        let normal_color = config.shapecast_normal_color.unwrap_or(Color::NONE);
 
         gizmos.draw_shapecast(
             &shape_caster.shape,

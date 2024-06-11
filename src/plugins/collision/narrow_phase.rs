@@ -35,7 +35,7 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
     fn build(&self, app: &mut App) {
         // For some systems, we only want one instance, even if there are multiple
         // NarrowPhasePlugin instances with different collider types.
-        let is_first_instance = app.world.is_resource_added::<NarrowPhaseInitialized>();
+        let is_first_instance = app.world().is_resource_added::<NarrowPhaseInitialized>();
 
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
@@ -182,7 +182,7 @@ pub fn collect_collisions<C: AnyCollider>(
         // TODO: Verify if `par_splat_map` is deterministic. If not, sort the collisions.
         let new_collisions = broad_collision_pairs
             .iter()
-            .par_splat_map(pool, None, |chunks| {
+            .par_splat_map(pool, None, |_, chunks| {
                 let mut new_collisions: Vec<Contacts> = vec![];
                 for &(entity1, entity2) in chunks {
                     process_collision_pair(

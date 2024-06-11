@@ -18,7 +18,7 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let cube_mesh = meshes.add(Cuboid::default());
-    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
+    let cube_material = materials.add(Color::srgb(0.8, 0.7, 0.6));
 
     // Spawn a static cube and a dynamic cube that is connected to it by a distance joint.
     let static_cube = commands

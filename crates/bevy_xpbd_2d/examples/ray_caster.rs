@@ -5,14 +5,18 @@
 
 #![allow(clippy::unnecessary_cast)]
 
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{
+    color::palettes::css::{GREEN, ORANGE_RED},
+    prelude::*,
+    sprite::MaterialMesh2dBundle,
+};
 use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::*;
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Update, render_rays)
         .add_systems(Startup, setup)
         .run();
@@ -36,7 +40,7 @@ fn setup(
             commands.spawn((
                 MaterialMesh2dBundle {
                     mesh: meshes.add(Circle::new(radius)).into(),
-                    material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
+                    material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
                     transform: Transform::from_xyz(
                         x as f32 * radius * 3.0,
                         y as f32 * radius * 3.0,
@@ -53,7 +57,7 @@ fn setup(
     commands.spawn((
         RigidBody::Kinematic,
         AngularVelocity(0.2),
-        RayCaster::new(Vector::ZERO, Direction2d::X),
+        RayCaster::new(Vector::ZERO, Dir2::X),
     ));
 }
 
@@ -69,11 +73,11 @@ fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizm
             gizmos.line_2d(
                 origin,
                 origin + direction * hit.time_of_impact as f32,
-                Color::GREEN,
+                GREEN,
             );
         }
         if hits.is_empty() {
-            gizmos.line_2d(origin, origin + direction * 1_000_000.0, Color::ORANGE_RED);
+            gizmos.line_2d(origin, origin + direction * 1_000_000.0, ORANGE_RED);
         }
     }
 }

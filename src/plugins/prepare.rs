@@ -6,7 +6,10 @@
 #![allow(clippy::type_complexity)]
 
 use crate::prelude::*;
-use bevy::{ecs::query::QueryFilter, prelude::*, utils::intern::Interned};
+use bevy::{
+    ecs::{intern::Interned, query::QueryFilter},
+    prelude::*,
+};
 
 /// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
 /// and updates components.
@@ -548,7 +551,10 @@ mod tests {
                     )
                 }
             };
-            let e_0_with_pos_and_rot = app.world.spawn((RigidBody::Dynamic, pos_0, rot_0)).id();
+            let e_0_with_pos_and_rot = app
+                .world_mut()
+                .spawn((RigidBody::Dynamic, pos_0, rot_0))
+                .id();
 
             let (pos_1, rot_1) = {
                 #[cfg(feature = "2d")]
@@ -563,7 +569,10 @@ mod tests {
                     )
                 }
             };
-            let e_1_with_pos_and_rot = app.world.spawn((RigidBody::Dynamic, pos_1, rot_1)).id();
+            let e_1_with_pos_and_rot = app
+                .world_mut()
+                .spawn((RigidBody::Dynamic, pos_1, rot_1))
+                .id();
 
             // Spawn an entity with only `Position`
             let pos_2 = {
@@ -576,7 +585,7 @@ mod tests {
                     Position::from_xyz(10., 1., 5.)
                 }
             };
-            let e_2_with_pos = app.world.spawn((RigidBody::Dynamic, pos_2)).id();
+            let e_2_with_pos = app.world_mut().spawn((RigidBody::Dynamic, pos_2)).id();
 
             // Spawn an entity with only `Rotation`
             let rot_3 = {
@@ -589,7 +598,7 @@ mod tests {
                     Rotation(Quaternion::from_axis_angle(Vector::Z, 0.4))
                 }
             };
-            let e_3_with_rot = app.world.spawn((RigidBody::Dynamic, rot_3)).id();
+            let e_3_with_rot = app.world_mut().spawn((RigidBody::Dynamic, rot_3)).id();
 
             // Spawn entities with `Transform`
             let trans_4 = {
@@ -599,7 +608,7 @@ mod tests {
                     scale: Vec3::ONE,
                 }
             };
-            let e_4_with_trans = app.world.spawn((RigidBody::Dynamic, trans_4)).id();
+            let e_4_with_trans = app.world_mut().spawn((RigidBody::Dynamic, trans_4)).id();
 
             let trans_5 = {
                 Transform {
@@ -608,21 +617,21 @@ mod tests {
                     scale: Vec3::ONE,
                 }
             };
-            let e_5_with_trans = app.world.spawn((RigidBody::Dynamic, trans_5)).id();
+            let e_5_with_trans = app.world_mut().spawn((RigidBody::Dynamic, trans_5)).id();
 
             // Spawn entity without any transforms
-            let e_6_without_trans = app.world.spawn(RigidBody::Dynamic).id();
+            let e_6_without_trans = app.world_mut().spawn(RigidBody::Dynamic).id();
 
             // Spawn entity without a ridid body
-            let e_7_without_rb = app.world.spawn(()).id();
+            let e_7_without_rb = app.world_mut().spawn(()).id();
 
             // Run the system
             app.update();
 
             // Check the results are as expected
             if config.position_to_transform {
-                assert!(app.world.get::<Transform>(e_0_with_pos_and_rot).is_some());
-                let transform = app.world.get::<Transform>(e_0_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Transform>(e_0_with_pos_and_rot).is_some());
+                let transform = app.world().get::<Transform>(e_0_with_pos_and_rot).unwrap();
                 let expected: Vec3 = {
                     #[cfg(feature = "2d")]
                     {
@@ -637,8 +646,8 @@ mod tests {
                 let expected = Quaternion::from(rot_0).f32();
                 assert_eq!(transform.rotation, expected);
 
-                assert!(app.world.get::<Transform>(e_1_with_pos_and_rot).is_some());
-                let transform = app.world.get::<Transform>(e_1_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Transform>(e_1_with_pos_and_rot).is_some());
+                let transform = app.world().get::<Transform>(e_1_with_pos_and_rot).unwrap();
                 let expected: Vec3 = {
                     #[cfg(feature = "2d")]
                     {
@@ -653,8 +662,8 @@ mod tests {
                 let expected = Quaternion::from(rot_1).f32();
                 assert_eq!(transform.rotation, expected);
 
-                assert!(app.world.get::<Transform>(e_2_with_pos).is_some());
-                let transform = app.world.get::<Transform>(e_2_with_pos).unwrap();
+                assert!(app.world().get::<Transform>(e_2_with_pos).is_some());
+                let transform = app.world().get::<Transform>(e_2_with_pos).unwrap();
                 let expected: Vec3 = {
                     #[cfg(feature = "2d")]
                     {
@@ -669,59 +678,59 @@ mod tests {
                 let expected = Quat::default();
                 assert_eq!(transform.rotation, expected);
 
-                assert!(app.world.get::<Transform>(e_3_with_rot).is_some());
-                let transform = app.world.get::<Transform>(e_3_with_rot).unwrap();
+                assert!(app.world().get::<Transform>(e_3_with_rot).is_some());
+                let transform = app.world().get::<Transform>(e_3_with_rot).unwrap();
                 let expected: Vec3 = Vec3::default();
                 assert_eq!(transform.translation, expected);
                 let expected = Quaternion::from(rot_3).f32();
                 assert_eq!(transform.rotation, expected);
 
-                assert!(app.world.get::<Transform>(e_4_with_trans).is_some());
-                let transform = app.world.get::<Transform>(e_4_with_trans).unwrap();
+                assert!(app.world().get::<Transform>(e_4_with_trans).is_some());
+                let transform = app.world().get::<Transform>(e_4_with_trans).unwrap();
                 assert_eq!(transform, &trans_4);
 
-                assert!(app.world.get::<Transform>(e_5_with_trans).is_some());
-                let transform = app.world.get::<Transform>(e_5_with_trans).unwrap();
+                assert!(app.world().get::<Transform>(e_5_with_trans).is_some());
+                let transform = app.world().get::<Transform>(e_5_with_trans).unwrap();
                 assert_eq!(transform, &trans_5);
 
-                assert!(app.world.get::<Transform>(e_6_without_trans).is_some());
-                let transform = app.world.get::<Transform>(e_6_without_trans).unwrap();
+                assert!(app.world().get::<Transform>(e_6_without_trans).is_some());
+                let transform = app.world().get::<Transform>(e_6_without_trans).unwrap();
                 assert_eq!(transform, &Transform::default());
 
-                assert!(app.world.get::<Transform>(e_7_without_rb).is_none());
+                assert!(app.world().get::<Transform>(e_7_without_rb).is_none());
             }
 
             if config.transform_to_position {
-                assert!(app.world.get::<Position>(e_0_with_pos_and_rot).is_some());
-                let pos = app.world.get::<Position>(e_0_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Position>(e_0_with_pos_and_rot).is_some());
+                let pos = app.world().get::<Position>(e_0_with_pos_and_rot).unwrap();
                 assert_eq!(pos, &pos_0);
-                assert!(app.world.get::<Rotation>(e_0_with_pos_and_rot).is_some());
-                let rot = app.world.get::<Rotation>(e_0_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Rotation>(e_0_with_pos_and_rot).is_some());
+                let rot = app.world().get::<Rotation>(e_0_with_pos_and_rot).unwrap();
                 assert_eq!(rot, &rot_0);
 
-                assert!(app.world.get::<Position>(e_1_with_pos_and_rot).is_some());
-                let pos = app.world.get::<Position>(e_1_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Position>(e_1_with_pos_and_rot).is_some());
+                let pos = app.world().get::<Position>(e_1_with_pos_and_rot).unwrap();
                 assert_eq!(pos, &pos_1);
-                assert!(app.world.get::<Rotation>(e_1_with_pos_and_rot).is_some());
-                let rot = app.world.get::<Rotation>(e_1_with_pos_and_rot).unwrap();
+                assert!(app.world().get::<Rotation>(e_1_with_pos_and_rot).is_some());
+                let rot = app.world().get::<Rotation>(e_1_with_pos_and_rot).unwrap();
                 assert_eq!(rot, &rot_1);
 
-                assert!(app.world.get::<Position>(e_2_with_pos).is_some());
-                let pos = app.world.get::<Position>(e_2_with_pos).unwrap();
+                assert!(app.world().get::<Position>(e_2_with_pos).is_some());
+                let pos = app.world().get::<Position>(e_2_with_pos).unwrap();
                 assert_eq!(pos, &pos_2);
-                assert!(app.world.get::<Rotation>(e_2_with_pos).is_some());
-                let rot = app.world.get::<Rotation>(e_2_with_pos).unwrap();
+                assert!(app.world().get::<Rotation>(e_2_with_pos).is_some());
+                let rot = app.world().get::<Rotation>(e_2_with_pos).unwrap();
                 assert_eq!(rot, &Rotation::default());
 
-                assert!(app.world.get::<Position>(e_3_with_rot).is_some());
-                let pos = app.world.get::<Position>(e_3_with_rot).unwrap();
+                assert!(app.world().get::<Position>(e_3_with_rot).is_some());
+                let pos = app.world().get::<Position>(e_3_with_rot).unwrap();
                 assert_eq!(pos, &Position::default());
-                assert!(app.world.get::<Rotation>(e_3_with_rot).is_some());
-                let rot = app.world.get::<Rotation>(e_3_with_rot).unwrap();
+                assert!(app.world().get::<Rotation>(e_3_with_rot).is_some());
+                let rot = app.world().get::<Rotation>(e_3_with_rot).unwrap();
                 assert_eq!(rot, &rot_3);
 
-                assert!(app.world.get::<Position>(e_4_with_trans).is_some());
-                let pos = app.world.get::<Position>(e_4_with_trans).unwrap();
+                assert!(app.world().get::<Position>(e_4_with_trans).is_some());
+                let pos = app.world().get::<Position>(e_4_with_trans).unwrap();
                 let expected: Position = Position::new({
                     #[cfg(feature = "2d")]
                     {
@@ -733,12 +742,12 @@ mod tests {
                     }
                 });
                 assert_eq!(pos, &expected);
-                assert!(app.world.get::<Rotation>(e_4_with_trans).is_some());
-                let rot = app.world.get::<Rotation>(e_4_with_trans).unwrap();
+                assert!(app.world().get::<Rotation>(e_4_with_trans).is_some());
+                let rot = app.world().get::<Rotation>(e_4_with_trans).unwrap();
                 assert_eq!(rot, &Rotation::from(trans_4.rotation));
 
-                assert!(app.world.get::<Position>(e_5_with_trans).is_some());
-                let pos = app.world.get::<Position>(e_5_with_trans).unwrap();
+                assert!(app.world().get::<Position>(e_5_with_trans).is_some());
+                let pos = app.world().get::<Position>(e_5_with_trans).unwrap();
                 let expected: Position = Position::new({
                     #[cfg(feature = "2d")]
                     {
@@ -750,19 +759,19 @@ mod tests {
                     }
                 });
                 assert_eq!(pos, &expected);
-                assert!(app.world.get::<Rotation>(e_5_with_trans).is_some());
-                let rot = app.world.get::<Rotation>(e_5_with_trans).unwrap();
+                assert!(app.world().get::<Rotation>(e_5_with_trans).is_some());
+                let rot = app.world().get::<Rotation>(e_5_with_trans).unwrap();
                 assert_eq!(rot, &Rotation::from(trans_5.rotation));
 
-                assert!(app.world.get::<Position>(e_6_without_trans).is_some());
-                let pos = app.world.get::<Position>(e_6_without_trans).unwrap();
+                assert!(app.world().get::<Position>(e_6_without_trans).is_some());
+                let pos = app.world().get::<Position>(e_6_without_trans).unwrap();
                 assert_eq!(pos, &Position::default());
-                assert!(app.world.get::<Rotation>(e_6_without_trans).is_some());
-                let rot = app.world.get::<Rotation>(e_6_without_trans).unwrap();
+                assert!(app.world().get::<Rotation>(e_6_without_trans).is_some());
+                let rot = app.world().get::<Rotation>(e_6_without_trans).unwrap();
                 assert_eq!(rot, &Rotation::default());
 
-                assert!(app.world.get::<Position>(e_7_without_rb).is_none());
-                assert!(app.world.get::<Rotation>(e_7_without_rb).is_none());
+                assert!(app.world().get::<Position>(e_7_without_rb).is_none());
+                assert!(app.world().get::<Rotation>(e_7_without_rb).is_none());
             }
         }
     }

@@ -16,10 +16,7 @@ use crate::{
     feature = "default-collider"
 ))]
 use bevy::scene::SceneInstance;
-use bevy::{
-    prelude::*,
-    utils::{intern::Interned, HashMap},
-};
+use bevy::{ecs::intern::Interned, prelude::*, utils::HashMap};
 
 /// A plugin for handling generic collider backend logic.
 ///

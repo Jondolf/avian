@@ -7,7 +7,7 @@ use examples_common_3d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
         .add_systems(Update, movement)
@@ -29,7 +29,7 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(0.7, 0.7, 0.8)),
+            material: materials.add(Color::srgb(0.7, 0.7, 0.8)),
             transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
@@ -47,7 +47,7 @@ fn setup(
                 commands.spawn((
                     PbrBundle {
                         mesh: cube_mesh.clone(),
-                        material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
+                        material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
                         transform: Transform::from_translation(position)
                             .with_scale(Vec3::splat(cube_size as f32)),
                         ..default()
