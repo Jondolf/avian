@@ -16,7 +16,10 @@ use crate::{
     feature = "default-collider"
 ))]
 use bevy::scene::SceneInstance;
-use bevy::{ecs::intern::Interned, prelude::*, utils::HashMap};
+use bevy::{
+    ecs::{intern::Interned, system::SystemId},
+    prelude::*,
+};
 
 /// A plugin for handling generic collider backend logic.
 ///
@@ -90,7 +93,40 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
 
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ColliderStorageMap<C>>();
+        // Register the one-shot system that is run for all removed colliders.
+        if !app.world().contains_resource::<ColliderRemovalSystem>() {
+            let collider_removed_id = app.world_mut().register_system(collider_removed);
+            app.insert_resource(ColliderRemovalSystem(collider_removed_id));
+        }
+
+        // Register a component hook that updates mass properties of rigid bodies
+        // when the colliders attached to them are removed.
+        app.world_mut()
+            .register_component_hooks::<C>()
+            .on_remove(|mut world, entity, _| {
+                let entity_ref = world.entity(entity);
+
+                // Get the needed collider components.
+                // TODO: Is there an efficient way to do this with QueryState?
+                let (Some(parent), Some(collider_mass_properties), Some(collider_transform)) = (
+                    entity_ref.get::<ColliderParent>().copied(),
+                    entity_ref.get::<ColliderMassProperties>().copied(),
+                    entity_ref.get::<ColliderTransform>().copied(),
+                ) else {
+                    return;
+                };
+
+                // Get the ID of the one-shot system run for collider removals.
+                let ColliderRemovalSystem(system_id) =
+                    world.resource::<ColliderRemovalSystem>().to_owned();
+                let system_id = *system_id;
+
+                // Handle collider removal with the collider data passed as input.
+                world.commands().run_system_with_input(
+                    system_id,
+                    (parent, collider_mass_properties, collider_transform),
+                );
+            });
 
         // Run transform propagation if new colliders without rigid bodies have been added.
         // The `PreparePlugin` should handle transform propagation for new rigid bodies.
@@ -155,21 +191,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        physics_schedule.add_systems((
-            update_collider_storage::<C>.before(PhysicsStepSet::BroadPhase),
-            handle_collider_storage_removals::<C>.after(PhysicsStepSet::SpatialQuery),
-            handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery),
-        ));
-
-        physics_schedule.add_systems(
-            wake_on_collider_removed::<C>
-                .in_set(PhysicsStepSet::Sleeping)
-                .after(sleeping::mark_sleeping_bodies)
-                .before(sleeping::wake_on_changed)
-                // Allowing ambiguities is required so that it's possible
-                // to have multiple collision backends at the same time.
-                .ambiguous_with_all(),
-        );
+        physics_schedule
+            .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
 
         #[cfg(all(
             feature = "3d",
@@ -198,31 +221,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub(crate) struct PreviousColliderTransform(ColliderTransform);
-
-// TODO: Remove this once component removal hooks exist
-/// A hash map that stores some collider data that is needed when colliders are removed from
-/// rigid bodies.
-///
-/// This includes the collider parent for finding the associated rigid body after collider removal,
-/// and collider mass properties for updating the rigid body's mass properties when its collider is removed.
-///
-/// Ideally, we would just have some entity removal event or callback, but that doesn't
-/// exist yet, and `RemovedComponents` only returns entities, not component data.
-#[derive(Resource, Reflect, Clone, Debug, PartialEq)]
-#[reflect(Resource)]
-pub(crate) struct ColliderStorageMap<C: AnyCollider> {
-    pub(crate) map: HashMap<Entity, (ColliderParent, ColliderMassProperties, ColliderTransform)>,
-    _phantom: PhantomData<C>,
-}
-
-impl<C: AnyCollider> Default for ColliderStorageMap<C> {
-    fn default() -> Self {
-        Self {
-            map: default(),
-            _phantom: PhantomData,
-        }
-    }
-}
 
 /// Initializes missing components for [colliders](Collider).
 #[allow(clippy::type_complexity)]
@@ -494,6 +492,38 @@ fn update_collider_parents<C: AnyCollider>(
     }
 }
 
+/// A resource that stores the system ID for the system that reacts to collider removals.
+#[derive(Resource)]
+struct ColliderRemovalSystem(SystemId<(ColliderParent, ColliderMassProperties, ColliderTransform)>);
+
+/// Updates the mass properties of bodies and wakes bodies up when an attached collider is removed.
+///
+/// Takes the removed collider's parent, mass properties, and transform as input.
+fn collider_removed(
+    In((parent, collider_mass_props, collider_transform)): In<(
+        ColliderParent,
+        ColliderMassProperties,
+        ColliderTransform,
+    )>,
+    mut commands: Commands,
+    mut mass_prop_query: Query<(MassPropertiesQuery, &mut TimeSleeping)>,
+) {
+    let parent = parent.get();
+    if let Ok((mut mass_properties, mut time_sleeping)) = mass_prop_query.get_mut(parent) {
+        // Subtract the mass properties of the collider from the mass properties of the rigid body.
+        mass_properties -= ColliderMassProperties {
+            center_of_mass: CenterOfMass(
+                collider_transform.transform_point(collider_mass_props.center_of_mass.0),
+            ),
+            ..collider_mass_props
+        };
+
+        // Wake up the rigid body since removing the collider could also remove active contacts.
+        commands.entity(parent).remove::<Sleeping>();
+        time_sleeping.0 = 0.0;
+    }
+}
+
 /// Updates colliders when the rigid bodies they were attached to have been removed.
 fn handle_rigid_body_removals(
     mut commands: Commands,
@@ -517,45 +547,6 @@ fn handle_rigid_body_removals(
             )>();
         }
     }
-}
-
-/// Updates [`ColliderStorageMap`], a resource that stores some collider properties that need
-/// to be handled when colliders are removed from entities.
-#[allow(clippy::type_complexity)]
-fn update_collider_storage<C: AnyCollider>(
-    // TODO: Maybe it's enough to store only colliders that aren't on rigid body entities
-    //       directly (i.e. child colliders)
-    colliders: Query<
-        (
-            Entity,
-            &ColliderParent,
-            &ColliderMassProperties,
-            &ColliderTransform,
-        ),
-        Or<(
-            Changed<ColliderParent>,
-            Changed<ColliderTransform>,
-            Changed<ColliderMassProperties>,
-        )>,
-    >,
-    mut storage: ResMut<ColliderStorageMap<C>>,
-) {
-    for (entity, parent, collider_mass_properties, collider_transform) in &colliders {
-        storage.map.insert(
-            entity,
-            (*parent, *collider_mass_properties, *collider_transform),
-        );
-    }
-}
-
-/// Removes removed colliders from the [`ColliderStorageMap`] resource at the end of the physics frame.
-fn handle_collider_storage_removals<C: AnyCollider>(
-    mut removals: RemovedComponents<C>,
-    mut storage: ResMut<ColliderStorageMap<C>>,
-) {
-    removals.read().for_each(|entity| {
-        storage.map.remove(&entity);
-    });
 }
 
 #[allow(clippy::type_complexity)]
@@ -822,8 +813,6 @@ fn update_collider_mass_properties<C: AnyCollider>(
             Changed<ColliderMassProperties>,
         )>,
     >,
-    collider_map: Res<ColliderStorageMap<C>>,
-    mut removed_colliders: RemovedComponents<C>,
 ) {
     for (
         collider_transform,
@@ -859,56 +848,6 @@ fn update_collider_mass_properties<C: AnyCollider>(
                 ),
                 ..*collider_mass_properties
             };
-        }
-    }
-
-    // Subtract mass properties of removed colliders
-    for entity in removed_colliders.read() {
-        if let Some((collider_parent, collider_mass_properties, collider_transform)) =
-            collider_map.map.get(&entity)
-        {
-            if let Ok((_, mut mass_properties)) = mass_props.get_mut(collider_parent.0) {
-                mass_properties -= ColliderMassProperties {
-                    center_of_mass: CenterOfMass(
-                        collider_transform
-                            .transform_point(collider_mass_properties.center_of_mass.0),
-                    ),
-                    ..*collider_mass_properties
-                };
-            }
-        }
-    }
-}
-
-/// Removes the [`Sleeping`] component from sleeping bodies when any of their
-/// colliders have been removed.
-#[allow(clippy::type_complexity)]
-fn wake_on_collider_removed<C: AnyCollider>(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), With<RigidBody>>,
-    all_colliders: Query<&ColliderParent>,
-    child_colliders: Query<
-        &ColliderParent,
-        (
-            Without<RigidBody>,
-            Or<(Changed<C>, Changed<Transform>, Changed<ColliderTransform>)>,
-        ),
-    >,
-    mut removed_colliders: RemovedComponents<C>,
-    // This stores some collider data so that we can access it even though the entity has been removed
-    collider_storage: Res<ColliderStorageMap<C>>,
-) {
-    let removed_colliders_iter =
-        all_colliders.iter_many(removed_colliders.read().filter_map(|entity| {
-            collider_storage
-                .map
-                .get(&entity)
-                .map(|(rb_entity, _, _)| rb_entity.get())
-        }));
-    for collider_parent in child_colliders.iter().chain(removed_colliders_iter) {
-        if let Ok((entity, mut time_sleeping)) = bodies.get_mut(collider_parent.get()) {
-            commands.entity(entity).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
         }
     }
 }
