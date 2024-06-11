@@ -46,8 +46,8 @@ required-features = ["2d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "=0.14.0-rc.2", default-features = false }
-bevy_math = "=0.14.0-rc.2"
+bevy = { version = "0.14.0-rc", default-features = false }
+bevy_math = "0.14.0-rc"
 parry2d = { path = "../../../parry/crates/parry2d", optional = true }
 parry2d-f64 = { path = "../../../parry/crates/parry2d-f64", optional = true }
 nalgebra = { git = "https://github.com/waywardmonkeys/nalgebra.git", branch = "support-glam-027", features = [
@@ -66,7 +66,7 @@ nalgebra = { git = "https://github.com/waywardmonkeys/nalgebra.git", branch = "s
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy_math = { version = "=0.14.0-rc.2", features = ["approx"] }
+bevy_math = { version = "0.14.0-rc", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 
