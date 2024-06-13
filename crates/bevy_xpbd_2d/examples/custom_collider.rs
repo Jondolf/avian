@@ -1,7 +1,7 @@
 //! An example demonstrating how to make a custom collider and use it for collision detection.
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_xpbd_2d::{math::*, prelude::*, PhysicsSchedule, PhysicsStepSet};
+use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {
@@ -82,8 +82,8 @@ impl AnyCollider for CircleCollider {
         let rotation2: Rotation = rotation2.into();
 
         let inv_rotation1 = rotation1.inverse();
-        let delta_pos = inv_rotation1.rotate(position2 - position1);
-        let delta_rot = inv_rotation1.mul(rotation2);
+        let delta_pos = inv_rotation1 * (position2 - position1);
+        let delta_rot = inv_rotation1 * rotation2;
 
         let distance_squared = delta_pos.length_squared();
         let sum_radius = self.radius + other.radius;
@@ -94,7 +94,7 @@ impl AnyCollider for CircleCollider {
             } else {
                 Vector::X
             };
-            let normal2 = delta_rot.inverse().rotate(-normal1);
+            let normal2 = delta_rot.inverse() * -normal1;
             let point1 = normal1 * self.radius;
             let point2 = normal2 * other.radius;
 

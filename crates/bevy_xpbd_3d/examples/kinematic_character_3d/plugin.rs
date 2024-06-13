@@ -1,5 +1,5 @@
 use bevy::{ecs::query::Has, prelude::*};
-use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
+use bevy_xpbd_3d::{math::*, prelude::*};
 
 pub struct CharacterControllerPlugin;
 
@@ -210,7 +210,7 @@ fn update_grounded(
         // that isn't too steep.
         let is_grounded = hits.iter().any(|hit| {
             if let Some(angle) = max_slope_angle {
-                rotation.rotate(-hit.normal2).angle_between(Vector::Y).abs() <= angle.0
+                (rotation * -hit.normal2).angle_between(Vector::Y).abs() <= angle.0
             } else {
                 true
             }
