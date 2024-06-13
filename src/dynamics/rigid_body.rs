@@ -20,7 +20,7 @@ use derive_more::From;
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
@@ -62,7 +62,7 @@ use derive_more::From;
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn move_bodies(mut query: Query<&mut Transform, With<RigidBody>>) {
@@ -81,7 +81,7 @@ use derive_more::From;
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn accelerate_bodies(mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>) {
@@ -115,7 +115,7 @@ use derive_more::From;
 ///
 /// ```
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -138,7 +138,7 @@ use derive_more::From;
 ///
 /// ```
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -157,7 +157,7 @@ use derive_more::From;
 ///
 /// ```
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -182,7 +182,7 @@ use derive_more::From;
 ///
 /// ```
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -297,7 +297,7 @@ pub struct AccumulatedTranslation(pub Vector);
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn accelerate_bodies(mut query: Query<&mut LinearVelocity>) {
@@ -328,7 +328,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use bevy_newt_2d::prelude::*;
+/// use bevy_xpbd_2d::prelude::*;
 ///
 /// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
 ///     for mut angular_velocity in query.iter_mut() {
@@ -395,7 +395,7 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// // Spawn a body with 1.5 times the normal gravity
@@ -459,7 +459,7 @@ pub enum CoefficientCombine {
 /// Combine the properties of two [`Restitution`] components:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
@@ -596,7 +596,7 @@ impl From<Scalar> for Restitution {
 /// Combine the properties of two [`Friction`] components:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
@@ -715,7 +715,7 @@ impl From<Scalar> for Friction {
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
@@ -741,7 +741,7 @@ pub struct LinearDamping(pub Scalar);
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
@@ -772,7 +772,7 @@ pub struct AngularDamping(pub Scalar);
 /// 
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// // Player dominates all dynamic bodies with a dominance lower than 5

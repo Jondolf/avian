@@ -24,7 +24,7 @@ use crate::math::Matrix;
 ///
 /// ```
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
@@ -130,7 +130,7 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use bevy_newt_2d::prelude::*;
+/// use bevy_xpbd_2d::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 90 degrees

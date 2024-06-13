@@ -30,7 +30,7 @@ impl FloatZero for Scalar {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -68,7 +68,7 @@ impl FloatZero for Scalar {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -205,7 +205,7 @@ impl ExternalForce {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -317,7 +317,7 @@ impl ExternalTorque {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -355,7 +355,7 @@ impl ExternalTorque {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///
@@ -491,7 +491,7 @@ impl ExternalImpulse {
 /// ```
 /// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_newt_2d::prelude::*;
+/// # use bevy_xpbd_2d::prelude::*;
 /// # #[cfg(feature = "3d")]
 /// use bevy_xpbd_3d::prelude::*;
 ///

@@ -174,7 +174,7 @@ pub struct SubstepSchedule;
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// #[derive(Component)]
@@ -351,7 +351,7 @@ pub enum SubstepSet {
 ///
 /// ```no_run
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
