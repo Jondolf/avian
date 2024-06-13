@@ -1,11 +1,11 @@
-//! Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
+//! Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 //!
 //! See [`SleepingPlugin`].
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
+/// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
 /// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
 /// for a duration indicated by [`DeactivationTime`].

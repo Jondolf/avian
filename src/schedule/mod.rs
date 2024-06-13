@@ -3,10 +3,13 @@
 //! See [`PhysicsSchedulePlugin`].
 
 mod time;
+pub use time::*;
 
 use std::time::Duration;
 
-pub use time::*;
+// For doc links
+#[allow(unused_imports)]
+use crate::prelude::*;
 
 use bevy::{
     ecs::intern::Interned,
@@ -27,7 +30,7 @@ use bevy::{
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
 /// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -155,7 +158,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-/// The substepping schedule that runs in [`PhysicsStepSet::Solver`].
+/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
 /// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
@@ -298,22 +301,22 @@ pub enum SubstepSet {
     ///
     /// See [`NarrowPhasePlugin`].
     PostProcessCollisions,
-    /// The [solver] iterates through [constraints] and solves them.
+    /// The [solver] iterates through [constraints](solver::xpbd#constraints) and solves them.
     ///
-    /// **Note**: If you want to [create your own constraints](constraints#custom-constraints),
+    /// **Note**: If you want to [create your own constraints](solver::xpbd#custom-constraints),
     /// you should add them in [`SubstepSet::SolveUserConstraints`]
     /// to avoid system order ambiguities.
     ///
     /// See [`SolverPlugin`].
     SolveConstraints,
-    /// The [solver] iterates through custom [constraints] created by the user and solves them.
+    /// The [solver] iterates through custom [constraints](solver::xpbd#constraints) created by the user and solves them.
     ///
-    /// You can [create new constraints](constraints#custom-constraints) by implementing [`XpbdConstraint`]
-    /// for a component and adding the [constraint system](solve_constraint) to this set.
+    /// You can [create new constraints](solver::xpbd#custom-constraints) by implementing [`solver::xpbd::XpbdConstraint`]
+    /// for a component and adding the [constraint system](solver::solve_constraint) to this set.
     ///
     /// See [`SolverPlugin`].
     SolveUserConstraints,
-    /// Responsible for updating velocities after [constraint](constraints) solving.
+    /// Responsible for updating velocities after [constraint](solver::xpbd#constraints) solving.
     ///
     /// See [`SolverPlugin`].
     UpdateVelocities,

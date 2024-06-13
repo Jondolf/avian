@@ -1,8 +1,13 @@
-//! **Spatial queries** are a way to get information about the environment. They perform geometric queries
-//! on [colliders](Collider) and retrieve data about intersections.
+//! Functionality for performing ray casts, shape casts, and other spatial queries.
 //!
-//! There are four types of spatial queries: [raycasts](#raycasting), [shapecasts](#shapecasting),
-//! [point projection](#point-projection) and [intersection tests](#intersection-tests).
+//! Spatial queries query the world for geometric information about [`Collider`s](Collider)
+//! and various types of intersections. Currently, four types of spatial queries are supported:
+//!
+//! - [Raycasts](#raycasting)
+//! - [Shapecasts](#shapecasting),
+//! - [Point projection](#point-projection)
+//! - [Intersection tests](#intersection-tests)
+//!
 //! All spatial queries can be done using the various methods provided by the [`SpatialQuery`] system parameter.
 //!
 //! Raycasting and shapecasting can also be done with a component-based approach using the [`RayCaster`] and

@@ -1,5 +1,4 @@
-//! Solves positional and angular [constraints], updates velocities and solves velocity constraints
-//! (dynamic [friction](Friction), [restitution](Restitution) and [joint damping](joints#damping)).
+//! Solves constraints (contacts and joints).
 //!
 //! See [`SolverPlugin`].
 
@@ -19,8 +18,7 @@ use bevy::{
     prelude::*,
 };
 
-/// Solves positional and angular [constraints], updates velocities and solves velocity constraints
-/// (dynamic [friction](Friction) and [restitution](Restitution) and [joint damping](joints#damping)).
+/// Solves constraints (contacts and joints).
 ///
 /// ## Steps
 ///

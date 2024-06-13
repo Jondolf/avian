@@ -3,7 +3,7 @@
 //! # Constraints
 //!
 //! **Constraints** are a way to model physical relationships between entities. They are an integral part of XPBD, and they can be used
-//! for things like [contact resolution](PenetrationConstraint), [joints], soft bodies, and much more.
+//! for things like [contact resolution](super::PenetrationConstraint), [joints](super::joints), soft bodies, and much more.
 //!
 //! At its core, a constraint is just a rule that is enforced by moving the participating entities in a way that satisfies that rule.
 //! For example, a distance constraint is satisfied when the distance between two entities is equal to the desired distance.
@@ -14,8 +14,8 @@
 //!
 //! Below are the currently implemented constraints.
 //!
-//! - [`PenetrationConstraint`]
-//! - [Joints](joints)
+//! - [`PenetrationConstraint`](super::PenetrationConstraint)
+//! - [Joints](super::joints)
 //!     - [`FixedJoint`]
 //!     - [`DistanceJoint`]
 //!     - [`SphericalJoint`]
@@ -114,7 +114,7 @@
 //! because this would be zero when the distance is equal to the desired rest distance.
 //!
 //! For *inequality constraints* the equation instead takes the form `C(x) >= 0`. These constraints are only applied
-//! when `C(x) < 0`, which is useful for things like static friction and [joint limits](joints#joint-limits).
+//! when `C(x) < 0`, which is useful for things like static friction and [joint limits](super::joints#joint-limits).
 //!
 //! ### Constraint gradients
 //!
@@ -209,7 +209,7 @@ pub use positional_constraint::PositionConstraint;
 use crate::prelude::*;
 use bevy::{ecs::entity::MapEntities, prelude::*};
 
-/// A trait for all XPBD [constraints].
+/// A trait for all XPBD [constraints](solver::xpbd#constraints).
 pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// The entities participating in the constraint.
     fn entities(&self) -> [Entity; ENTITY_COUNT];
@@ -218,8 +218,8 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     ///
     /// There are two main steps to solving a constraint:
     ///
-    /// 1. Compute the generalized inverse masses, [gradients](constraints#constraint-gradients)
-    /// and the [Lagrange multiplier](constraints#lagrange-multipliers) update.
+    /// 1. Compute the generalized inverse masses, [gradients](self#constraint-gradients)
+    /// and the [Lagrange multiplier](self#lagrange-multipliers) update.
     /// 2. Apply corrections along the gradients using the Lagrange multiplier update.
     ///
     /// [`XpbdConstraint`] provides the [`compute_lagrange_update`](XpbdConstraint::compute_lagrange_update)
@@ -234,13 +234,13 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
 
-    /// Computes how much a constraint's [Lagrange multiplier](constraints#lagrange-multipliers) changes when projecting
+    /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
     /// the constraint for all participating particles.
     ///
-    /// `c` is a scalar value returned by the [constraint function](constraints#constraint-functions).
+    /// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
     /// When it is zero, the constraint is satisfied.
     ///
-    /// Each particle should have a corresponding [gradient](constraints#constraint-gradients) in `gradients`.
+    /// Each particle should have a corresponding [gradient](self#constraint-gradients) in `gradients`.
     /// A gradient is a vector that refers to the direction in which `c` increases the most.
     ///
     /// See the [constraint theory](#theory) for more information.
@@ -270,7 +270,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
         (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
     }
 
-    /// Sets the constraint's [Lagrange multipliers](constraints#lagrange-multipliers) to 0.
+    /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
     fn clear_lagrange_multipliers(&mut self);
 }
 
@@ -284,7 +284,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ## User constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
-/// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.
+/// the [`SubstepSet::SolveUserConstraints`] set.
 /// You must provide the number of entities in the constraint using generics.
 ///
 /// It should look something like this:
@@ -296,7 +296,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 ///
 /// substeps.add_systems(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
-///         .in_set(SubstepSolverSet::SolveUserConstraints),
+///         .in_set(SubstepSet::SolveUserConstraints),
 /// );
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(

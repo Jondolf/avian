@@ -142,7 +142,7 @@ impl Default for SyncConfig {
     }
 }
 
-/// System sets for systems running in [`PhysiCsSet::Sync`].
+/// System sets for systems running in [`PhysicsSet::Sync`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SyncSet {
     /// Runs at the start of [`PhysicsSet::Sync`]. Empty by default.

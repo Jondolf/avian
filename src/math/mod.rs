@@ -1,5 +1,6 @@
-//! Math types and traits used in the crate. Most of the math types are feature-dependent, so they will
-//! be different for `2d`/`3d` and `f32`/`f64`.
+//! Math types and traits used by the crate.
+//!
+//! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
 #[cfg(feature = "f32")]
 mod single;

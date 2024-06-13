@@ -26,7 +26,7 @@ use bevy::{
 /// - [Collider] wireframes
 /// - Using different colors for [sleeping](Sleeping) bodies
 /// - [Contacts]
-/// - [Joints](joints)
+/// - [Joints](solver::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering

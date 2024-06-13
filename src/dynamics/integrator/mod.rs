@@ -1,14 +1,14 @@
-//! Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
+//! Handles motion caused by velocity, and applies external forces and gravity.
 //!
 //! See [`IntegratorPlugin`].
 
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
+/// Handles motion caused by velocity, and applies external forces and gravity.
 ///
 /// This acts as a prediction for the next positions and orientations of the bodies. The [solver] corrects these predicted
-/// positions to follow the rules set by the [constraints].
+/// positions to follow the rules set by the [constraints](solver::xpbd#constraints).
 ///
 /// The integration scheme used is very closely related to implicit Euler integration.
 ///

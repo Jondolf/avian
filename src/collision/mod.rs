@@ -1,12 +1,17 @@
-//! Collision detection is used to detect and compute intersections between [`Collider`]s.
+//! Collision detection for [`Collider`]s.
+//!
+//! Collision detection involves determining pairs of objects that may currently be in contact
+//! (or are expected to come into contact), and computing contact data for each intersection.
+//! These contacts are then used by the [solver] to generate [`PenetrationConstraint`](solver::PenetrationConstraint)s
+//! and finally resolve overlap.
 //!
 //! In `bevy_xpbd`, collision detection is split into three plugins:
 //!
-//! - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`].
-//! - [`NarrowPhasePlugin`]: Computes contacts for broad phase collision pairs and adds them to [`Collisions`].
+//! - [`BroadPhasePlugin`]: Performs intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
+//! - [`NarrowPhasePlugin`]: Computes [`Contacts`] for each pair in [`BroadCollisionPairs`], adding them to [`Collisions`].
 //! - [`ContactReportingPlugin`] (optional): Sends collision events and updates [`CollidingEntities`] based on [`Collisions`].
 //!
-//! Spatial queries are handled by the [`SpatialQueryPlugin`].
+//! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
 //!
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 

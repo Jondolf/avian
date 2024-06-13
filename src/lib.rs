@@ -73,7 +73,7 @@
 //!
 //! ### Install the plugin
 //!
-//! Bevy XPBD is designed to be very modular. It is built from several [plugins] that
+//! Bevy XPBD is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
 //! the [`PhysicsPlugins`] plugin group.
 //!
@@ -90,7 +90,7 @@
 //! }
 //! ```
 //!
-//! Now you can use all of Bevy XPBD's [components] and [resources] to build whatever you want!
+//! Now you can use all of Bevy XPBD's components and resources to build whatever you want!
 //!
 //! For example, adding a [rigid body](RigidBody) with a [collider](Collider) is as simple as spawning an entity
 //! with the [`RigidBody`] and [`Collider`] components:
@@ -153,8 +153,8 @@
 //!
 //! ### Constraints and joints
 //!
-//! - [Constraints](constraints) (advanced)
-//! - [Joints](joints)
+//! - [Constraints](solver::xpbd#constraints) (advanced)
+//! - [Joints](solver::joints)
 //!     - [Fixed joint](FixedJoint)
 //!     - [Distance joint](DistanceJoint)
 //!     - [Prismatic joint](PrismaticJoint)
@@ -199,8 +199,8 @@
 //! - [What is Extended Position Based Dynamics?](#what-is-xpbd)
 //! - Extending and modifying the engine
 //!     - [Custom plugins](PhysicsPlugins#custom-plugins)
-//!     - [Custom constraints](constraints#custom-constraints)
-//!     - [Custom joints](joints#custom-joints)
+//!     - [Custom constraints](solver::xpbd#custom-constraints)
+//!     - [Custom joints](solver::joints#custom-joints)
 //!
 //! ## Frequently asked questions
 //!
@@ -237,7 +237,7 @@
 //! In part thanks to Bevy's modular architecture and the ECS, Bevy XPBD is also highly composable,
 //! as it consists of several independent plugins and provides lots of options for configuration and extensions,
 //! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
-//! [custom joints](joints#custom-joints) and [constraints](constraints#custom-constraints).
+//! [custom joints](solver::joints#custom-joints) and [constraints](solver::xpbd#custom-constraints).
 //!
 //! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Bevy XPBD uses
 //! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
@@ -466,7 +466,7 @@
 //! ### See also
 //!
 //! - [XPBD integration step](integrator)
-//! - [Constraints and how to create them](constraints)
+//! - [Constraints and how to create them](solver::xpbd#constraints)
 //! - [Schedules and sets used for the simulation loop](PhysicsSchedulePlugin#schedules-and-sets)
 //!
 //! ### Learning resources
@@ -587,7 +587,7 @@ pub mod prelude {
         position::{Position, Rotation},
         prepare::{init_transforms, update_mass_properties, PrepareConfig, PreparePlugin},
         schedule::*,
-        spatial_query::*,
+        spatial_query::{self, *},
         sync::SyncPlugin,
         type_registration::PhysicsTypeRegistrationPlugin,
         PhysicsPlugins,
@@ -626,49 +626,16 @@ mod type_registration;
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
 /// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
-/// - [`IntegratorPlugin`]: Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
-/// - [`SolverPlugin`]: Solves positional and angular [constraints], updates velocities and solves velocity constraints
+/// - [`IntegratorPlugin`]: Handles motion caused by velocity, and applies external forces and gravity.
+/// - [`SolverPlugin`]: Solves [constraints](solver::xpbd#constraints) (contacts and joints).
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
-/// - [`CcdPlugin`]: Performs [Continuous Collision Detection](ccd) for bodies with the [`Ccd`] component.
-/// - [`SleepingPlugin`]: Controls when bodies should be deactivated and marked as [`Sleeping`] to improve performance.
-/// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](RayCaster) and shapecasting.
+/// - [`SleepingPlugin`]: Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
+/// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).
 /// - [`SyncPlugin`]: Keeps [`Position`] and [`Rotation`] in sync with `Transform`.
-/// - `PhysicsDebugPlugin`: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
+/// - [`PhysicsDebugPlugin`]: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
 /// for debugging purposes (only with `debug-plugin` feature enabled).
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
-///
-/// You can also find more information regarding the engine's general plugin architecture [here](plugins).
-///
-/// ## World scale
-///
-/// It is recommended to configure the [`PhysicsLengthUnit`] resource
-/// to match the approximate length of most objects in the world
-/// to get the best simulation results. This is especially important
-/// in 2D when using pixels as units. Read the resource's documentation
-/// for more details.
-///
-/// The length unit can be set by inserting the resource like normal,
-/// but it can also be specified through the [`PhysicsPlugins`] plugin group.
-///
-/// ```no_run
-/// use bevy::prelude::*;
-/// # #[cfg(feature = "2d")]
-/// use bevy_xpbd_2d::prelude::*;
-///
-/// # #[cfg(feature = "2d")]
-/// fn main() {
-///     App::new()
-///         .add_plugins((
-///             DefaultPlugins,
-///             // A 2D game with 100 pixels per meter
-///             PhysicsPlugins::default().with_length_unit(100.0),
-///         ))
-///         .run();
-/// }
-/// # #[cfg(not(feature = "2d"))]
-/// # fn main() {} // Doc test needs main
-/// ```
 ///
 /// ## Custom schedule
 ///

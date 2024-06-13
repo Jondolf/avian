@@ -1,5 +1,4 @@
-//! Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
-//! and updates components.
+//! Runs systems that prepare and initialize components used by physics.
 //!
 //! See [`PreparePlugin`].
 
