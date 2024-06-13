@@ -563,6 +563,9 @@ pub mod schedule;
 pub mod spatial_query;
 pub mod sync;
 
+mod type_registration;
+pub use type_registration::PhysicsTypeRegistrationPlugin;
+
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
@@ -609,8 +612,6 @@ use bevy::{
 };
 #[allow(unused_imports)]
 use prelude::*;
-
-mod type_registration;
 
 /// A plugin group containing all of Bevy XPBD's plugins.
 ///
