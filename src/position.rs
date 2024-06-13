@@ -217,6 +217,18 @@ impl Rotation {
         Self::radians(degrees.to_radians())
     }
 
+    /// Creates a [`Rotation`] from radians.
+    #[deprecated(note = "renamed to just `radians` to match Bevy")]
+    pub fn from_radians(radians: Scalar) -> Self {
+        Self::radians(radians)
+    }
+
+    /// Creates a [`Rotation`] from degrees.
+    #[deprecated(note = "renamed to just `degrees` to match Bevy")]
+    pub fn from_degrees(degrees: Scalar) -> Self {
+        Self::degrees(degrees)
+    }
+
     /// Creates a [`Rotation`] from the sine and cosine of an angle in radians.
     ///
     /// The rotation is only valid if `sin * sin + cos * cos == 1.0`.
@@ -257,6 +269,12 @@ impl Rotation {
     #[inline]
     pub const fn sin_cos(self) -> (Scalar, Scalar) {
         (self.sin, self.cos)
+    }
+
+    /// Rotates the given vector by `self`.
+    #[deprecated(note = "use the `Mul` impl instead, like `rot * vec`")]
+    pub fn rotate(&self, vec: Vector) -> Vector {
+        self * vec
     }
 
     /// Computes the length or norm of the complex number used to represent the rotation.
