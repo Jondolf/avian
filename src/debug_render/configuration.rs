@@ -24,7 +24,7 @@ use bevy::{color::palettes::css::*, prelude::*};
 ///             PhysicsDebugPlugin::default(),
 ///         ))
 ///         // Overwrite default debug rendering configuration (optional)
-///         .insert_gizmo_group(
+///         .insert_gizmo_config(
 ///             PhysicsGizmos {
 ///                 aabb_color: Some(Color::WHITE),
 ///                 ..default()
@@ -406,7 +406,7 @@ impl PhysicsGizmos {
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         // Overwrite default collider color (optional)
-///         DebugRender::default().with_collider_color(Color::RED),
+///         DebugRender::default().with_collider_color(Color::srgb(1.0, 0.0, 0.0)),
 ///     ));
 /// }
 /// ```

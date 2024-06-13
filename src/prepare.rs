@@ -540,7 +540,7 @@ mod tests {
             let (pos_0, rot_0) = {
                 #[cfg(feature = "2d")]
                 {
-                    (Position::from_xy(1., 2.), Rotation::from_sin_cos(0.1, 0.2))
+                    (Position::from_xy(1., 2.), Rotation::radians(0.5))
                 }
                 #[cfg(feature = "3d")]
                 {
@@ -558,7 +558,7 @@ mod tests {
             let (pos_1, rot_1) = {
                 #[cfg(feature = "2d")]
                 {
-                    (Position::from_xy(-1., 3.), Rotation::from_sin_cos(0.2, 0.3))
+                    (Position::from_xy(-1., 3.), Rotation::radians(0.1))
                 }
                 #[cfg(feature = "3d")]
                 {
@@ -590,7 +590,7 @@ mod tests {
             let rot_3 = {
                 #[cfg(feature = "2d")]
                 {
-                    Rotation::from_sin_cos(0.4, 0.5)
+                    Rotation::radians(0.4)
                 }
                 #[cfg(feature = "3d")]
                 {

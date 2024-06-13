@@ -28,6 +28,7 @@ debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry3d?/simd-stable", "parry3d-f64?/simd-stable"]
 parallel = ["parry3d?/parallel", "parry3d-f64?/parallel"]
 enhanced-determinism = [
+    "dep:libm",
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
     "bevy_math/libm",
@@ -55,8 +56,9 @@ required-features = ["3d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.14.0-rc", default-features = false }
-bevy_math = { version = "0.14.0-rc" }
+bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", default-features = false }
+bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0" }
+libm = { version = "0.2", optional = true }
 parry3d = { version = "0.15", optional = true }
 parry3d-f64 = { version = "0.15", optional = true }
 nalgebra = { version = "0.32", features = ["convert-glam027"], optional = true }
@@ -69,7 +71,9 @@ itertools = "0.13"
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.14.0-rc", features = ["approx"] }
+bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", features = [
+    "approx",
+] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"

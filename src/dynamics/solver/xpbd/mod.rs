@@ -34,8 +34,14 @@
 //!
 //! ```
 //! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
-#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+#![cfg_attr(
+    feature = "2d",
+    doc = "use bevy_xpbd_2d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "use bevy_xpbd_3d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+)]
 //!
 //! struct CustomConstraint {
 //!     entity1: Entity,

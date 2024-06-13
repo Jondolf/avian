@@ -110,14 +110,8 @@ impl Default for TimestepMode {
 ///
 /// ```no_run
 /// use bevy::{prelude::*, utils::Duration};
-#[cfg_attr(
-    feature = "2d",
-    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule, PhysicsStepSet};"
-)]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -151,14 +145,8 @@ impl Default for TimestepMode {
 ///
 /// ```
 /// use bevy::{prelude::*, utils::Duration};
-#[cfg_attr(
-    feature = "2d",
-    doc = "use bevy_xpbd_2d::{prelude::*, PhysicsSchedule};"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "use bevy_xpbd_3d::{prelude::*, PhysicsSchedule};"
-)]
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn run_physics(world: &mut World) {
 ///     // Advance the simulation by 10 steps at 120 Hz

@@ -200,12 +200,12 @@ impl Rotation {
     /// Creates a [`Rotation`] from a counterclockwise angle in radians.
     #[inline]
     pub fn radians(radians: Scalar) -> Self {
-        #[cfg(feature = "libm")]
+        #[cfg(feature = "enhanced-determinism")]
         let (sin, cos) = (
             libm::sin(radians as f64) as Scalar,
             libm::cos(radians as f64) as Scalar,
         );
-        #[cfg(not(feature = "libm"))]
+        #[cfg(not(feature = "enhanced-determinism"))]
         let (sin, cos) = radians.sin_cos();
 
         Self::from_sin_cos(sin, cos)
@@ -428,16 +428,17 @@ impl Rotation {
     /// # Example
     ///
     /// ```
-    /// # use bevy_math::Rotation;
+    /// # use approx::assert_relative_eq;
+    /// # use bevy_xpbd_2d::prelude::Rotation;
     /// #
     /// let rot1 = Rotation::IDENTITY;
     /// let rot2 = Rotation::degrees(135.0);
     ///
     /// let result1 = rot1.nlerp(rot2, 1.0 / 3.0);
-    /// assert_eq!(result1.as_degrees(), 28.675055);
+    /// assert_relative_eq!(result1.as_degrees(), 28.675055, epsilon = 0.0001);
     ///
     /// let result2 = rot1.nlerp(rot2, 0.5);
-    /// assert_eq!(result2.as_degrees(), 67.5);
+    /// assert_relative_eq!(result2.as_degrees(), 67.5);
     /// ```
     #[inline]
     pub fn nlerp(self, end: Self, s: Scalar) -> Self {
@@ -466,7 +467,7 @@ impl Rotation {
     /// # Example
     ///
     /// ```
-    /// # use bevy_math::Rotation;
+    /// # use bevy_xpbd_2d::prelude::Rotation;
     /// #
     /// let rot1 = Rotation::IDENTITY;
     /// let rot2 = Rotation::degrees(135.0);
@@ -697,7 +698,7 @@ impl core::ops::Mul<Dir> for Rotation {
     type Output = Dir;
 
     fn mul(self, direction: Dir) -> Self::Output {
-        Dir::new_unchecked(self * direction.f32())
+        Dir::new_unchecked((self * direction.adjust_precision()).f32())
     }
 }
 
@@ -713,7 +714,7 @@ impl core::ops::Mul<Dir> for &Rotation {
     type Output = Dir;
 
     fn mul(self, direction: Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
@@ -729,7 +730,7 @@ impl core::ops::Mul<Dir> for &mut Rotation {
     type Output = Dir;
 
     fn mul(self, direction: Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
@@ -745,7 +746,7 @@ impl core::ops::Mul<&Dir> for Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &Dir) -> Self::Output {
-        Dir::new_unchecked(self * direction.f32())
+        Dir::new_unchecked((self * direction.adjust_precision()).f32())
     }
 }
 
@@ -761,7 +762,7 @@ impl core::ops::Mul<&mut Dir> for Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &mut Dir) -> Self::Output {
-        Dir::new_unchecked(self * direction.f32())
+        Dir::new_unchecked((self * direction.adjust_precision()).f32())
     }
 }
 
@@ -777,7 +778,7 @@ impl core::ops::Mul<&Dir> for &Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
@@ -793,7 +794,7 @@ impl core::ops::Mul<&Dir> for &mut Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
@@ -809,7 +810,7 @@ impl core::ops::Mul<&mut Dir> for &Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &mut Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
@@ -825,7 +826,7 @@ impl core::ops::Mul<&mut Dir> for &mut Rotation {
     type Output = Dir;
 
     fn mul(self, direction: &mut Dir) -> Self::Output {
-        Dir::new_unchecked(*self * direction.f32())
+        Dir::new_unchecked((*self * direction.adjust_precision()).f32())
     }
 }
 
