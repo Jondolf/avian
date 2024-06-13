@@ -6,4 +6,4 @@ resolver = "2"
 opt-level = 1 # Use slightly better optimization, so examples work
 
 [patch.crates-io]
-nalgebra = { path = "../nalgebra", optional = true }
+nalgebra = { git = "https://github.com/Jondolf/nalgebra", branch = "glam027", optional = true }
