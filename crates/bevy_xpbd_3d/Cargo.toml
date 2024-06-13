@@ -55,7 +55,7 @@ required-features = ["3d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.14.0-rc" }
+bevy = { version = "0.14.0-rc", default-features = false }
 bevy_math = { version = "0.14.0-rc" }
 parry3d = { version = "0.15", optional = true }
 parry3d-f64 = { version = "0.15", optional = true }
