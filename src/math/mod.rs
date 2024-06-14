@@ -1,5 +1,6 @@
-//! Math types and traits used in the crate. Most of the math types are feature-dependent, so they will
-//! be different for `2d`/`3d` and `f32`/`f64`.
+//! Math types and traits used by the crate.
+//!
+//! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
 #[cfg(feature = "f32")]
 mod single;
@@ -91,4 +92,43 @@ impl AsF32 for Quat {
     fn f32(&self) -> Self::F32 {
         *self
     }
+}
+
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+use crate::prelude::*;
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+use parry::math::Isometry;
+
+#[cfg(all(
+    feature = "2d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.into())
+}
+
+#[cfg(all(
+    feature = "3d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }

@@ -5,7 +5,7 @@
 //! platforms by pressing Space while holding the down arrow.
 
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
-use bevy_xpbd_2d::{math::*, prelude::*, PostProcessCollisions};
+use bevy_xpbd_2d::{math::*, prelude::*};
 use examples_common_2d::XpbdExamplePlugin;
 
 fn main() {

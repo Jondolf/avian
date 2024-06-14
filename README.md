@@ -25,46 +25,46 @@ You can find an in-depth explanation of the situation and plans
 
 Below are some of the core design principles used in Bevy XPBD.
 
--   **Made with Bevy, for Bevy.** No wrappers around existing engines.
--   **Provide an ergonomic and familiar API.** Ergonomics is key for a good experience.
--   **Utilize the ECS as much as possible.** The engine should feel like a part of Bevy, and it shouldn't
+- **Made with Bevy, for Bevy.** No wrappers around existing engines.
+- **Provide an ergonomic and familiar API.** Ergonomics is key for a good experience.
+- **Utilize the ECS as much as possible.** The engine should feel like a part of Bevy, and it shouldn't
     need to maintain a separate physics world.
--   **Use a highly modular plugin architecture.** Users should be able to replace parts of the engine
+- **Use a highly modular plugin architecture.** Users should be able to replace parts of the engine
     with their own implementations.
--   **Have good documentation.** A physics engine is pointless if you don't know how to use it.
+- **Have good documentation.** A physics engine is pointless if you don't know how to use it.
 
 ## Features
 
 Below are some of the current features of Bevy XPBD.
 
--   Dynamic, kinematic and static rigid bodies
-    -   Linear and angular velocity
-    -   External forces, torque and impulses
-    -   Gravity and gravity scale
-    -   Linear and angular damping
-    -   Locking translational and rotational axes
-    -   Rigid body dominance
-    -   Automatic deactivation with sleeping
--   Collision detection powered by [Parry](https://parry.rs)
-    -   Colliders with configurable collision layers, density, material properties and more
-    -   Collision events
-    -   Access to colliding entities
-    -   Filtering and modifying collisions with custom systems
-    -   Manual contact queries and intersection tests
--   Constraints and joints
-    -   Flexible API for creating position-based constraints
-    -   Several built-in joint types: fixed, distance, prismatic, revolute, spherical
-    -   Support for custom joints and other constraints
--   Spatial queries
-    -   Raycasting, shapecasting, point projection and intersection tests
-    -   Ergonomic component-based API for raycasts and shapecasts
-    -   Flexible `SpatialQuery` system parameter
-    -   Spatial query filters
--   Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
--   Configurable scheduling and high customizability
--   Highly modular plugin architecture, freely extend and replace parts of the engine
--   Support for custom collision backends
--   `f32`/`f64` precision (`f32` by default)
+- Dynamic, kinematic and static rigid bodies
+  - Linear and angular velocity
+  - External forces, torque and impulses
+  - Gravity and gravity scale
+  - Linear and angular damping
+  - Locking translational and rotational axes
+  - Rigid body dominance
+  - Automatic deactivation with sleeping
+- Collision detection powered by [Parry](https://parry.rs)
+  - Colliders with configurable collision layers, density, material properties and more
+  - Collision events
+  - Access to colliding entities
+  - Filtering and modifying collisions with custom systems
+  - Manual contact queries and intersection tests
+- Constraints and joints
+  - Flexible API for creating position-based constraints
+  - Several built-in joint types: fixed, distance, prismatic, revolute, spherical
+  - Support for custom joints and other constraints
+- Spatial queries
+  - Raycasting, shapecasting, point projection and intersection tests
+  - Ergonomic component-based API for raycasts and shapecasts
+  - Flexible `SpatialQuery` system parameter
+  - Spatial query filters
+- Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
+- Configurable scheduling and high customizability
+- Highly modular plugin architecture, freely extend and replace parts of the engine
+- Support for custom collision backends
+- `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
 [Table of contents](https://docs.rs/bevy_xpbd_3d/latest/bevy_xpbd_3d/#table-of-contents)
@@ -72,8 +72,8 @@ on docs.rs.
 
 ## Documentation
 
--   [2D documentation](https://docs.rs/bevy_xpbd_2d)
--   [3D documentation](https://docs.rs/bevy_xpbd_3d)
+- [2D documentation](https://docs.rs/bevy_xpbd_2d)
+- [3D documentation](https://docs.rs/bevy_xpbd_3d)
 
 ## Usage example
 
@@ -182,15 +182,15 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Future features
 
--   Continuous collision detection (CCD)
--   Per-entity collision hooks or callbacks
--   Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
--   Performance optimization (better broad phase, parallel solver...)
--   Joint motors
--   Articulations, aka. multibody joints
--   Proper cross-platform determinism
--   Soft bodies (cloth and deformable solids)
--   Maybe fluid simulation
+- Continuous collision detection (CCD)
+- Per-entity collision hooks or callbacks
+- Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
+- Performance optimization (better broad phase, parallel solver...)
+- Joint motors
+- Articulations, aka. multibody joints
+- Proper cross-platform determinism
+- Soft bodies (cloth and deformable solids)
+- Maybe fluid simulation
 
 ## Contributing
 
@@ -221,7 +221,7 @@ the project wouldn't be anywhere near where it is today.
 
 Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
 
--   MIT License ([LICENSE-MIT](/LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
--   Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT License ([LICENSE-MIT](/LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
 
 at your option.

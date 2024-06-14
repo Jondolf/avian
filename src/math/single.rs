@@ -9,6 +9,8 @@ pub const FRAC_PI_2: Scalar = std::f32::consts::FRAC_PI_2;
 pub const PI: Scalar = std::f32::consts::PI;
 /// The TAU constant.
 pub const TAU: Scalar = std::f32::consts::TAU;
+/// 1/sqrt(2)
+pub const FRAC_1_SQRT_2: Scalar = std::f32::consts::FRAC_1_SQRT_2;
 
 /// The vector type used by Bevy XPBD.
 #[cfg(feature = "2d")]
@@ -21,6 +23,14 @@ pub type Vector2 = Vec2;
 /// The vector type used by Bevy XPBD. This is always a 3D vector regardless of the chosen dimension.
 pub type Vector3 = Vec3;
 
+/// The dimension-specific matrix type used by Bevy XPBD.
+#[cfg(feature = "2d")]
+pub type Matrix = Mat2;
+/// The dimension-specific matrix type used by Bevy XPBD.
+#[cfg(feature = "3d")]
+pub type Matrix = Mat3;
+/// The 2x2 matrix type used by Bevy XPBD.
+pub type Matrix2 = Mat2;
 /// The 3x3 matrix type used by Bevy XPBD.
 pub type Matrix3 = Mat3;
 /// The quaternion type used by Bevy XPBD.

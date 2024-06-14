@@ -2,7 +2,11 @@ use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use bevy_xpbd_3d::{math::*, prelude::*, SubstepSchedule, SubstepSet};
+use bevy_xpbd_3d::{
+    dynamics::solver::{solve_constraint, xpbd::*},
+    math::*,
+    prelude::*,
+};
 
 fn main() {
     let mut app = App::new();
