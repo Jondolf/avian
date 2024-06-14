@@ -1,10 +1,10 @@
-//! # Bevy XPBD
+//! # Avian
 //!
-//! **Bevy XPBD** is a 2D and 3D physics engine based on
+//! **Avian** is a 2D and 3D physics engine based on
 //! [*Extended Position Based Dynamics* (XPBD)](#what-is-xpbd) for
 //! the [Bevy game engine](https://bevyengine.org/).
 //!
-//! Check out the [GitHub repository](https://github.com/Jondolf/bevy_xpbd)
+//! Check out the [GitHub repository](https://github.com/Jondolf/avian)
 //! for more information about the design, read the [Getting started](#getting-started)
 //! guide below to get up to speed, and take a look at the [Table of contents](#table-of-contents)
 //! for an overview of the engine's features and their documentation.
@@ -14,24 +14,24 @@
 //!
 //! ## Getting started
 //!
-//! This short guide should help you get started with Bevy XPBD.
+//! This short guide should help you get started with Avian.
 //!
 //! ### Add the dependency
 //!
-//! First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to the dependencies in your `Cargo.toml`:
+//! First, add `avian2d` or `avian3d` to the dependencies in your `Cargo.toml`:
 //!  
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.4"
+//! avian2d = "0.4"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.4"
+//! avian3d = "0.4"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
-//! bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
+//! avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 //! ```
 //!
 //! You can specify features by disabling the default features and manually adding
@@ -39,17 +39,17 @@
 //!
 //! ```toml
 //! [dependencies]
-//! # Add 3D Bevy XPBD with double-precision floating point numbers.
+//! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! bevy_xpbd_3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ### Feature flags
 //!
 //! | Feature                | Description                                                                                                                                  | Default feature         |
 //! | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                                  | Yes (`bevy_xpbd_2d`)    |
-//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                                  | Yes (`bevy_xpbd_3d`)    |
+//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                                  | Yes (`avian2d`)    |
+//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                                  | Yes (`avian3d`)    |
 //! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                                | Yes                     |
 //! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                                | No                      |
 //! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature.     | Yes                     |
@@ -73,14 +73,14 @@
 //!
 //! ### Install the plugin
 //!
-//! Bevy XPBD is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
+//! Avian is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
 //! the [`PhysicsPlugins`] plugin group.
 //!
 //! ```no_run
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn main() {
 //!     App::new()
@@ -90,15 +90,15 @@
 //! }
 //! ```
 //!
-//! Now you can use all of Bevy XPBD's components and resources to build whatever you want!
+//! Now you can use all of Avian's components and resources to build whatever you want!
 //!
 //! For example, adding a [rigid body](RigidBody) with a [collider](Collider) is as simple as spawning an entity
 //! with the [`RigidBody`] and [`Collider`] components:
 //!
 //! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn setup(mut commands: Commands) {
 #![cfg_attr(
@@ -112,8 +112,8 @@
 //! }
 //! ```
 //!
-//! You can find lots of [usage examples](https://github.com/Jondolf/bevy_xpbd#more-examples)
-//! in the project's [repository](https://github.com/Jondolf/bevy_xpbd).
+//! You can find lots of [usage examples](https://github.com/Jondolf/avian#more-examples)
+//! in the project's [repository](https://github.com/Jondolf/avian).
 //!
 //! ## Table of contents
 //!
@@ -204,7 +204,7 @@
 //!
 //! ## Frequently asked questions
 //!
-//! - [How does Bevy XPBD compare to Rapier and bevy_rapier?](#how-does-bevy-xpbd-compare-to-rapier-and-bevy_rapier)
+//! - [How does Avian compare to Rapier and bevy_rapier?](#how-does-bevy-xpbd-compare-to-rapier-and-bevy_rapier)
 //! - [Why is nothing happening?](#why-is-nothing-happening)
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
@@ -215,7 +215,7 @@
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
 //! - [Something else?](#something-else)
 //!
-//! ### How does Bevy XPBD compare to Rapier and bevy_rapier?
+//! ### How does Avian compare to Rapier and bevy_rapier?
 //!
 //! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
 //! the most mature and feature-rich option.
@@ -230,26 +230,26 @@
 //! - It is hard to extend as it's not very modular or composable in design
 //! - Overall, it doesn't have a native ECS-like feel outside of its public API
 //!
-//! Bevy XPBD on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
+//! Avian on the other hand is built *for* Bevy *with* Bevy, and it uses the ECS for both the internals
 //! and the public API. This removes the need for a separate physics world, reduces overhead, and makes
 //! the source code much more approachable and easy to inspect for Bevy users.
 //!
-//! In part thanks to Bevy's modular architecture and the ECS, Bevy XPBD is also highly composable,
+//! In part thanks to Bevy's modular architecture and the ECS, Avian is also highly composable,
 //! as it consists of several independent plugins and provides lots of options for configuration and extensions,
 //! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
 //! [custom joints](solver::joints#custom-joints) and [constraints](solver::xpbd#custom-constraints).
 //!
-//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Bevy XPBD uses
+//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Avian uses
 //! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
 //! but it hasn't been widely adopted in mainstream usage yet.
 //!
-//! One of the biggest disadvantages of Bevy XPBD is that it is still very young, so it can have lots of bugs,
+//! One of the biggest disadvantages of Avian is that it is still very young, so it can have lots of bugs,
 //! some missing features, and fewer community resources and third party crates. However, it is growing quite
 //! rapidly, and it is already pretty close to feature-parity with Rapier.
 //!
 //! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
 //! physics integration, `bevy_rapier` is the better choice, but if you prefer an engine with less overhead
-//! and a more native Bevy integration, consider using Bevy XPBD. Their core APIs are also quite similar,
+//! and a more native Bevy integration, consider using Avian. Their core APIs are also quite similar,
 //! so switching between them should be straightforward.
 //!
 //! ### Why is nothing happening?
@@ -263,7 +263,7 @@
 //! larger velocities and forces than you would in 3D. Make sure you set [`Gravity`] to some larger value
 //! as well, because its magnitude is 9.81 by default, which is tiny in pixels.
 //!
-//! Bevy XPBD doesn't have a "physics scale" yet, but it will most likely be added in the future
+//! Avian doesn't have a "physics scale" yet, but it will most likely be added in the future
 //! so that it's possible to define some kind of pixels per meter configuration.
 //!
 //! ### Why did my rigid body suddenly vanish?
@@ -272,7 +272,7 @@
 //! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
 //! instantly give them infinite velocity.
 //!
-//! Bevy XPBD should automatically print warnings when it detects bodies with an invalid mass or inertia.
+//! Avian should automatically print warnings when it detects bodies with an invalid mass or inertia.
 //!
 //! ### Why is performance so bad?
 //!
@@ -286,7 +286,7 @@
 //! codegen-units = 1
 //! ```
 //!
-//! Note that Bevy XPBD simply isn't very optimized yet, and it mostly runs on a single thread for now.
+//! Note that Avian simply isn't very optimized yet, and it mostly runs on a single thread for now.
 //! This will be addressed in future releases.
 //!
 //! ### Why does my camera following jitter?
@@ -302,10 +302,10 @@
 //! The following ordering constraints should resolve the issue.
 //!
 //! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 //! # use bevy::prelude::*;
 //! # use bevy::transform::TransformSystem;
-#![cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 //! #
 //! # fn main() {
 //! #     let mut app = App::new();
@@ -323,10 +323,10 @@
 //!
 //! ### Is there a character controller?
 //!
-//! Bevy XPBD does not have a built-in character controller, so if you need one,
+//! Avian does not have a built-in character controller, so if you need one,
 //! you will need to implement it yourself. However, third party character controllers
-//! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Bevy XPBD, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
-//! and others are also likely to get Bevy XPBD support soon.
+//! like [`bevy_tnua`](https://github.com/idanarye/bevy-tnua) support Avian, and [`bevy_mod_wanderlust`](https://github.com/PROMETHIA-27/bevy_mod_wanderlust)
+//! and others are also likely to get Avian support soon.
 //!
 //! For custom character controllers, you can take a look at the
 #![cfg_attr(
@@ -340,18 +340,18 @@
 //!
 #![cfg_attr(
     feature = "2d",
-    doc = "[`dynamic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/dynamic_character_2d
-[`kinematic_character_2d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_2d/examples/kinematic_character_2d"
+    doc = "[`dynamic_character_2d`]: https://github.com/Jondolf/avian/tree/main/crates/avian2d/examples/dynamic_character_2d
+[`kinematic_character_2d`]: https://github.com/Jondolf/avian/tree/main/crates/avian2d/examples/kinematic_character_2d"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "[`dynamic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/dynamic_character_3d
-[`kinematic_character_3d`]: https://github.com/Jondolf/bevy_xpbd/tree/main/crates/bevy_xpbd_3d/examples/kinematic_character_3d"
+    doc = "[`dynamic_character_3d`]: https://github.com/Jondolf/avian/tree/main/crates/avian3d/examples/dynamic_character_3d
+[`kinematic_character_3d`]: https://github.com/Jondolf/avian/tree/main/crates/avian3d/examples/kinematic_character_3d"
 )]
 //!
 //! ### Why are there separate `Position` and `Rotation` components?
 //!
-//! While `Transform` can be used for the vast majority of things, Bevy XPBD internally
+//! While `Transform` can be used for the vast majority of things, Avian internally
 //! uses separate [`Position`] and [`Rotation`] components. These are automatically
 //! kept in sync by the [`SyncPlugin`].
 //!
@@ -374,7 +374,7 @@
 //!
 //! ### Can the engine be used on servers?
 //!
-//! Yes! Networking often requires running the simulation in a specific schedule, and in Bevy XPBD you can
+//! Yes! Networking often requires running the simulation in a specific schedule, and in Avian you can
 //! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics)
 //! to whatever you want.
 //!
@@ -382,19 +382,19 @@
 //! on both the server and the client to make sure the physics simulation is only advanced by one step
 //! each time the schedule runs.
 //!
-//! Note that while Bevy XPBD should be locally deterministic, it can produce slightly different results on different
+//! Note that while Avian should be locally deterministic, it can produce slightly different results on different
 //! machines.
 //!
 //! ### Something else?
 //!
-//! Physics engines are very large and Bevy XPBD is young, so stability issues and bugs are to be expected.
+//! Physics engines are very large and Avian is young, so stability issues and bugs are to be expected.
 //!
 //! If you encounter issues, please consider first taking a look at the
-//! [issues on GitHub](https://github.com/Jondolf/bevy_xpbd/issues) and
-//! [open a new issue](https://github.com/Jondolf/bevy_xpbd/issues/new) if there already isn't one regarding your problem.
+//! [issues on GitHub](https://github.com/Jondolf/avian/issues) and
+//! [open a new issue](https://github.com/Jondolf/avian/issues/new) if there already isn't one regarding your problem.
 //!
 //! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
-//! There you can find a bevy_xpbd thread on the crate-help channel where you can ask questions.
+//! There you can find a avian thread on the crate-help channel where you can ask questions.
 //!
 //! ## What is XPBD?
 //!
@@ -458,7 +458,7 @@
 //! `ω` is the [angular velocity](AngularVelocity), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
 //! [external torque](ExternalTorque).
 //!
-//! In Bevy XPBD, the simulation loop is handled by various plugins. The [`PhysicsSchedulePlugin`] sets up
+//! In Avian, the simulation loop is handled by various plugins. The [`PhysicsSchedulePlugin`] sets up
 //! the Bevy schedules[^1][^2] and system sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase,
 //! the [`IntegratorPlugin`] handles position and velocity integration, and so on. You can find all of the plugins
 //! and their responsibilities [here](PhysicsPlugins).
@@ -472,7 +472,7 @@
 //! ### Learning resources
 //!
 //! If you want to learn more about XPBD, I recommend taking a look at some of the papers.
-//! Especially the first one from 2020 was used heavily for the simulation loop and constraints in Bevy XPBD.
+//! Especially the first one from 2020 was used heavily for the simulation loop and constraints in Avian.
 //!
 //! - XPBD: Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*.
 //! - XPBD: Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*.
@@ -488,11 +488,11 @@
 //!
 //! ## License
 //!
-//! Bevy XPBD is free and open source. All code in the Bevy XPBD repository is dual-licensed under either:
+//! Avian is free and open source. All code in the Avian repository is dual-licensed under either:
 //!
-//! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/bevy_xpbd/blob/main/LICENSE-MIT)
+//! - MIT License ([LICENSE-MIT](https://github.com/Jondolf/avian/blob/main/LICENSE-MIT)
 //! or <http://opensource.org/licenses/MIT>)
-//! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/Jondolf/bevy_xpbd/blob/main/LICENSE-APACHE)
+//! - Apache License, Version 2.0 ([LICENSE-APACHE](https://github.com/Jondolf/avian/blob/main/LICENSE-APACHE)
 //! or <http://www.apache.org/licenses/LICENSE-2.0>)
 //!
 //! at your option.
@@ -599,7 +599,7 @@ pub mod prelude {
         math::*,
         position::{PreviousPosition, PreviousRotation, RotationValue},
     };
-    pub use bevy_xpbd_derive::*;
+    pub use avian_derive::*;
 }
 
 mod utils;
@@ -613,7 +613,7 @@ use bevy::{
 #[allow(unused_imports)]
 use prelude::*;
 
-/// A plugin group containing all of Bevy XPBD's plugins.
+/// A plugin group containing all of Avian's plugins.
 ///
 /// By default, the following plugins will be added:
 ///
@@ -643,9 +643,9 @@ use prelude::*;
 /// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()
@@ -667,9 +667,9 @@ use prelude::*;
 /// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// pub struct CustomBroadPhasePlugin;
 ///
@@ -693,9 +693,9 @@ use prelude::*;
 /// Next, when creating your app, simply disable the default [`BroadPhasePlugin`] and add your custom plugin:
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// # struct CustomBroadPhasePlugin;
 /// # impl Plugin for CustomBroadPhasePlugin {
@@ -720,7 +720,7 @@ use prelude::*;
 /// ```
 ///
 /// You can find a full working example
-/// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_broad_phase.rs).
+/// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
 pub struct PhysicsPlugins {
     schedule: Interned<dyn ScheduleLabel>,
 }

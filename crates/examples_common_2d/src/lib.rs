@@ -1,11 +1,11 @@
 use std::time::Duration;
 
+use avian2d::prelude::*;
 use bevy::{
     color::palettes::css::TOMATO,
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
-use bevy_xpbd_2d::prelude::*;
 
 #[derive(Default)]
 pub struct XpbdExamplePlugin;

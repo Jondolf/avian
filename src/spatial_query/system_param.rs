@@ -24,11 +24,11 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 /// ## Raycasting example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn print_hits(spatial_query: SpatialQuery) {
@@ -101,11 +101,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -150,11 +150,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// #[derive(Component)]
     /// struct Invisible;
@@ -214,11 +214,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -275,11 +275,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -343,11 +343,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -407,11 +407,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -477,11 +477,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_hits(spatial_query: SpatialQuery) {
@@ -545,11 +545,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_point_projection(spatial_query: SpatialQuery) {
@@ -584,11 +584,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_point_intersections(spatial_query: SpatialQuery) {
@@ -621,11 +621,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_point_intersections(spatial_query: SpatialQuery) {
@@ -661,11 +661,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
@@ -688,11 +688,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_aabb_intersections(spatial_query: SpatialQuery) {
@@ -733,11 +733,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_shape_intersections(spatial_query: SpatialQuery) {
@@ -779,11 +779,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// ## Example
     ///
     /// ```
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// # use bevy_xpbd_2d::prelude::*;
+    /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
-    /// use bevy_xpbd_3d::prelude::*;
+    /// use avian3d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_shape_intersections(spatial_query: SpatialQuery) {

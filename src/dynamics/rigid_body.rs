@@ -19,9 +19,9 @@ use derive_more::From;
 /// Creating a rigid body is as simple as adding the [`RigidBody`] component:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body and specify its position (optional)
@@ -32,7 +32,7 @@ use derive_more::From;
 /// }
 /// ```
 ///
-/// Bevy XPBD will automatically add any missing components, like the following:
+/// Avian will automatically add any missing components, like the following:
 ///
 /// - [`Position`]
 /// - [`Rotation`]
@@ -61,9 +61,9 @@ use derive_more::From;
 /// To change the position of a rigid body, you can simply modify its `Transform`:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn move_bodies(mut query: Query<&mut Transform, With<RigidBody>>) {
 ///     for mut transform in query.iter_mut() {
@@ -80,9 +80,9 @@ use derive_more::From;
 /// and [`AngularVelocity`] components:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn accelerate_bodies(mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>) {
 ///     for (mut linear_velocity, mut angular_velocity) in query.iter_mut() {
@@ -96,13 +96,13 @@ use derive_more::From;
 /// For applying forces and impulses to dynamic bodies, see the [`ExternalForce`], [`ExternalTorque`],
 /// [`ExternalImpulse`] and [`ExternalAngularImpulse`] components.
 ///
-/// Bevy XPBD does not have a built-in character controller, so if you need one,
+/// Avian does not have a built-in character controller, so if you need one,
 /// you will need to implement it yourself or use a third party option.
 /// You can take a look at the [`basic_dynamic_character`] and [`basic_kinematic_character`]
 /// examples for a simple implementation.
 ///
-/// [`basic_dynamic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_dynamic_character.rs
-/// [`basic_kinematic_character`]: https://github.com/Jondolf/bevy_xpbd/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/bevy_xpbd_3d/examples/basic_kinematic_character.rs
+/// [`basic_dynamic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_dynamic_character.rs
+/// [`basic_kinematic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_kinematic_character.rs
 ///
 /// ## Mass properties
 ///
@@ -114,9 +114,9 @@ use derive_more::From;
 /// are applied to them correctly. The easiest way to do that is to simply [add a collider](Collider):
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 #[cfg_attr(
@@ -137,9 +137,9 @@ use derive_more::From;
 /// the [`ColliderDensity`] component:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
@@ -156,9 +156,9 @@ use derive_more::From;
 /// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle::new_computed) method.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // This is equivalent to the earlier approach, but no collider will be added
@@ -181,9 +181,9 @@ use derive_more::From;
 /// you can simply set the collider's density to zero.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a rigid body with a mass of 5.0 and a collider with no mass
@@ -296,9 +296,9 @@ pub struct AccumulatedTranslation(pub Vector);
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn accelerate_bodies(mut query: Query<&mut LinearVelocity>) {
 ///     for mut linear_velocity in query.iter_mut() {
@@ -327,8 +327,8 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 /// ## Example
 ///
 /// ```
+/// use avian2d::prelude::*;
 /// use bevy::prelude::*;
-/// use bevy_xpbd_2d::prelude::*;
 ///
 /// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
 ///     for mut angular_velocity in query.iter_mut() {
@@ -348,8 +348,8 @@ pub struct AngularVelocity(pub Scalar);
 /// ## Example
 ///
 /// ```
+/// use avian3d::prelude::*;
 /// use bevy::prelude::*;
-/// use bevy_xpbd_3d::prelude::*;
 ///
 /// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
 ///     for mut angular_velocity in query.iter_mut() {
@@ -394,9 +394,9 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// // Spawn a body with 1.5 times the normal gravity
 /// fn setup(mut commands: Commands) {
@@ -459,8 +459,8 @@ pub enum CoefficientCombine {
 /// Combine the properties of two [`Restitution`] components:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 ///
 /// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
@@ -596,8 +596,8 @@ impl From<Scalar> for Restitution {
 /// Combine the properties of two [`Friction`] components:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 ///
 /// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
 /// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
@@ -714,9 +714,9 @@ impl From<Scalar> for Friction {
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -740,9 +740,9 @@ pub struct LinearDamping(pub Scalar);
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -771,9 +771,9 @@ pub struct AngularDamping(pub Scalar);
 /// ## Example
 /// 
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// // Player dominates all dynamic bodies with a dominance lower than 5
 /// fn spawn_player(mut commands: Commands) {

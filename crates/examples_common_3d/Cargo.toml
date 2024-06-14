@@ -25,4 +25,4 @@ bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", 
     "bevy_winit",
     "x11",                # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
-bevy_xpbd_3d = { path = "../bevy_xpbd_3d", default-features = false }
+avian3d = { path = "../avian3d", default-features = false }

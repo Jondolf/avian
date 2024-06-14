@@ -24,11 +24,11 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -347,11 +347,11 @@ impl ShapeCaster {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// fn print_hits(query: Query<&ShapeHits, With<ShapeCaster>>) {
 ///     for hits in &query {

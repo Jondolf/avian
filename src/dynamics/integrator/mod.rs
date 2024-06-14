@@ -45,9 +45,9 @@ impl Plugin for IntegratorPlugin {
 /// ## Example
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// # #[cfg(feature = "f32")]
 /// fn main() {

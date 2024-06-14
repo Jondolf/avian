@@ -23,9 +23,9 @@ use crate::math::Matrix;
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
@@ -129,8 +129,8 @@ pub(crate) type RotationValue = Quaternion;
 /// ## Example
 ///
 /// ```
+/// use avian2d::prelude::*;
 /// use bevy::prelude::*;
-/// use bevy_xpbd_2d::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 90 degrees
@@ -429,7 +429,7 @@ impl Rotation {
     ///
     /// ```
     /// # use approx::assert_relative_eq;
-    /// # use bevy_xpbd_2d::prelude::Rotation;
+    /// # use avian2d::prelude::Rotation;
     /// #
     /// let rot1 = Rotation::IDENTITY;
     /// let rot2 = Rotation::degrees(135.0);
@@ -467,7 +467,7 @@ impl Rotation {
     /// # Example
     ///
     /// ```
-    /// # use bevy_xpbd_2d::prelude::Rotation;
+    /// # use avian2d::prelude::Rotation;
     /// #
     /// let rot1 = Rotation::IDENTITY;
     /// let rot2 = Rotation::degrees(135.0);
@@ -633,8 +633,8 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 /// ## Example
 ///
 /// ```
+/// use avian3d::prelude::*;
 /// use bevy::prelude::*;
-/// use bevy_xpbd_3d::prelude::*;
 ///
 /// # #[cfg(feature = "f32")]
 /// fn setup(mut commands: Commands) {

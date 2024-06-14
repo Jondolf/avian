@@ -8,7 +8,7 @@
 //! At its core, a constraint is just a rule that is enforced by moving the participating entities in a way that satisfies that rule.
 //! For example, a distance constraint is satisfied when the distance between two entities is equal to the desired distance.
 //!
-//! Most constraints in Bevy XPBD are modeled as seperate entities with a component that implements [`XpbdConstraint`].
+//! Most constraints in Avian are modeled as seperate entities with a component that implements [`XpbdConstraint`].
 //! They contain a `solve` method that receives the states of the participating entities as parameters.
 //! You can find more details on how to use each constraint by taking a look at their documentation.
 //!
@@ -27,21 +27,21 @@
 //!
 //! ## Custom constraints
 //!
-//! In Bevy XPBD, you can easily create your own constraints using the same APIs that the engine uses for its own constraints.
+//! In Avian, you can easily create your own constraints using the same APIs that the engine uses for its own constraints.
 //!
 //! First, create a struct and implement the [`XpbdConstraint`] trait, giving the number of participating entities using generics.
 //! It should look similar to this:
 //!
 //! ```
-//! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 #![cfg_attr(
     feature = "2d",
-    doc = "use bevy_xpbd_2d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+    doc = "use avian2d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "use bevy_xpbd_3d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
+    doc = "use avian3d::{prelude::*, dynamics::solver::xpbd::XpbdConstraint};"
 )]
+//! use bevy::{ecs::entity::{EntityMapper, MapEntities}, prelude::*};
 //!
 //! struct CustomConstraint {
 //!     entity1: Entity,
@@ -73,7 +73,7 @@
 //! Take a look at [`XpbdConstraint::solve`] and the constraint [theory](#theory) to learn more about what to put in `solve`.
 //!
 //! Next, we need to add a system that solves the constraint during each run of the [solver]. If your constraint is
-//! a component like most of Bevy XPBD's constraints, you can use the generic [`solve_constraint`] system that handles
+//! a component like most of Avian's constraints, you can use the generic [`solve_constraint`] system that handles
 //! some of the background work for you.
 //!
 //! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the
@@ -95,7 +95,7 @@
 //! solved automatically according to the `solve` method!
 //!
 //! You can find a working example of a custom constraint
-//! [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
+//! [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
 //!
 //! ## Theory
 //!
@@ -237,7 +237,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// computations and correction applying logic yourself.
     ///
     /// You can find a working example of a custom constraint
-    /// [here](https://github.com/Jondolf/bevy_xpbd/blob/main/crates/bevy_xpbd_3d/examples/custom_constraint.rs).
+    /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
 
     /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting

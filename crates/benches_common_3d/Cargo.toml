@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", default-features = false }
-bevy_xpbd_3d = { path = "../bevy_xpbd_3d", default-features = false }
+avian3d = { path = "../avian3d", default-features = false }
 criterion = "0.5"

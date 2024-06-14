@@ -29,11 +29,11 @@ pub type UnsupportedShape = Unsupported;
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::contact, *};
+/// # use avian2d::prelude::{contact_query::contact, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::contact, *};
+/// use avian3d::prelude::{contact_query::contact, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -119,11 +119,11 @@ pub fn contact(
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::contact_manifolds, *};
+/// # use avian2d::prelude::{contact_query::contact_manifolds, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::contact_manifolds, *};
+/// use avian3d::prelude::{contact_query::contact_manifolds, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -285,11 +285,11 @@ pub enum ClosestPoints {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::*, *};
+/// # use avian2d::prelude::{contact_query::*, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::*, *};
+/// use avian3d::prelude::{contact_query::*, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -380,11 +380,11 @@ pub fn closest_points(
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::distance, *};
+/// # use avian2d::prelude::{contact_query::distance, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::distance, *};
+/// use avian3d::prelude::{contact_query::distance, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -448,11 +448,11 @@ pub fn distance(
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::intersection_test, *};
+/// # use avian2d::prelude::{contact_query::intersection_test, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::intersection_test, *};
+/// use avian3d::prelude::{contact_query::intersection_test, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {
@@ -541,11 +541,11 @@ pub struct TimeOfImpact {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::{contact_query::time_of_impact, *};
+/// # use avian2d::prelude::{contact_query::time_of_impact, *};
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::{contact_query::time_of_impact, *};
+/// use avian3d::prelude::{contact_query::time_of_impact, *};
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// # {

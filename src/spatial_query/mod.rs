@@ -38,11 +38,11 @@
 //! A simple example using the component-based method looks like this:
 //!
 //! ```
-//! use bevy::prelude::*;
 //! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
+//! # use avian2d::prelude::*;
 //! # #[cfg(feature = "3d")]
-//! use bevy_xpbd_3d::prelude::*;
+//! use avian3d::prelude::*;
+//! use bevy::prelude::*;
 //!
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {
@@ -94,11 +94,11 @@
 //! A simple example using the component-based method looks like this:
 //!
 //! ```
-//! use bevy::prelude::*;
 //! # #[cfg(feature = "2d")]
-//! # use bevy_xpbd_2d::prelude::*;
+//! # use avian2d::prelude::*;
 //! # #[cfg(feature = "3d")]
-//! use bevy_xpbd_3d::prelude::*;
+//! use avian3d::prelude::*;
+//! use bevy::prelude::*;
 //!
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {

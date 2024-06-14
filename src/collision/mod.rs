@@ -5,7 +5,7 @@
 //! These contacts are then used by the [solver] to generate [`PenetrationConstraint`](solver::PenetrationConstraint)s
 //! and finally resolve overlap.
 //!
-//! In `bevy_xpbd`, collision detection is split into three plugins:
+//! In Avian, collision detection is split into three plugins:
 //!
 //! - [`BroadPhasePlugin`]: Performs intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
 //! - [`NarrowPhasePlugin`]: Computes [`Contacts`] for each pair in [`BroadCollisionPairs`], adding them to [`Collisions`].

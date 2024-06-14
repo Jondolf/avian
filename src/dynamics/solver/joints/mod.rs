@@ -21,14 +21,14 @@
 //!
 //! ## Using joints
 //!
-//! In Bevy XPBD, joints are modeled as components. You can create a joint by simply spawning
+//! In Avian, joints are modeled as components. You can create a joint by simply spawning
 //! an entity and adding the joint component you want, giving the connected entities as arguments
 //! to the `new` method.
 //!
 //! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-#![cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 
 //! fn setup(mut commands: Commands) {
 //!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
@@ -76,7 +76,7 @@
 //! Many joints also have joint limits. You can use [`DistanceLimit`] and [`AngleLimit`] to help store these limits
 //! and to compute the current distance from the specified limits.
 //!
-//! [See the code implementations](https://github.com/Jondolf/bevy_xpbd/tree/main/src/constraints/joints)
+//! [See the code implementations](https://github.com/Jondolf/avian/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
 mod distance;

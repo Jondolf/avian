@@ -39,11 +39,11 @@ use parry::query::{
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -333,11 +333,11 @@ impl RayCaster {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// fn print_hits(query: Query<&RayHits, With<RayCaster>>) {
 ///     for hits in &query {

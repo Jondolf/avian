@@ -37,9 +37,9 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// `Collider` has tons of methods for creating colliders of various shapes:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // Create a ball collider with a given radius
@@ -56,9 +56,9 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// to [rigid bodies](RigidBody):
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
@@ -82,7 +82,7 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
 /// [`Sensor`], and [`CollisionLayers`].
 ///
-/// In addition, Bevy XPBD automatically adds some other components for colliders, like the following:
+/// In addition, Avian automatically adds some other components for colliders, like the following:
 ///
 /// - [`ColliderParent`]
 /// - [`ColliderAabb`]
@@ -103,9 +103,9 @@ pub type TriMeshFlags = parry::shape::TriMeshFlags;
 /// shapes, or for more control, spawn several collider entities as the children of a rigid body:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with one collider on the same entity and two as children
@@ -752,8 +752,8 @@ impl Collider {
     /// ## Example
     ///
     /// ```
+    /// use avian3d::prelude::*;
     /// use bevy::prelude::*;
-    /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(Cuboid::default());
@@ -784,8 +784,8 @@ impl Collider {
     /// ## Example
     ///
     /// ```
+    /// use avian3d::prelude::*;
     /// use bevy::prelude::*;
-    /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(Cuboid::default());
@@ -810,8 +810,8 @@ impl Collider {
     /// ## Example
     ///
     /// ```
+    /// use avian3d::prelude::*;
     /// use bevy::prelude::*;
-    /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(Cuboid::default());
@@ -835,8 +835,8 @@ impl Collider {
     /// ## Example
     ///
     /// ```
+    /// use avian3d::prelude::*;
     /// use bevy::prelude::*;
-    /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(Cuboid::default());
@@ -862,8 +862,8 @@ impl Collider {
     /// ## Example
     ///
     /// ```
+    /// use avian3d::prelude::*;
     /// use bevy::prelude::*;
-    /// use bevy_xpbd_3d::prelude::*;
     ///
     /// fn setup(mut commands: Commands, mut meshes: ResMut<Assets<Mesh>>) {
     ///     let mesh = Mesh::from(Cuboid::default());

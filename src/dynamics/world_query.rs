@@ -271,7 +271,7 @@ mod tests {
 
         // Test if values are correct. They should be equal to the original values.
         // Some epsilons reduced to make test pass on apple-m1
-        // see: https://github.com/Jondolf/bevy_xpbd/issues/137
+        // see: https://github.com/Jondolf/avian/issues/137
         assert_relative_eq!(
             mass_props.mass.0,
             original_mass_props.mass.0,

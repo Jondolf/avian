@@ -28,11 +28,11 @@ impl FloatZero for Scalar {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -66,11 +66,11 @@ impl FloatZero for Scalar {
 /// you need to rotate the force using the body's `Transform` or [`Rotation`].
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -203,11 +203,11 @@ impl ExternalForce {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -315,11 +315,11 @@ impl ExternalTorque {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -353,11 +353,11 @@ impl ExternalTorque {
 /// you need to rotate the impulse using the body's `Transform` or [`Rotation`].
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
@@ -489,11 +489,11 @@ impl ExternalImpulse {
 /// ## Example
 ///
 /// ```
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// # use bevy_xpbd_2d::prelude::*;
+/// # use avian2d::prelude::*;
 /// # #[cfg(feature = "3d")]
-/// use bevy_xpbd_3d::prelude::*;
+/// use avian3d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {

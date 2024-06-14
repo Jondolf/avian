@@ -28,8 +28,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
 /// #[derive(PhysicsLayer, Clone, Copy, Debug)]
 /// enum GameLayer {
@@ -45,8 +45,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Bitwise operations can be used to modify and combine masks:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// let mask1 = LayerMask(0b0001);
 /// let mask2 = LayerMask(0b0010);
 /// assert_eq!(mask1 | mask2, LayerMask(0b0011));
@@ -58,8 +58,8 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// Another way to use [`LayerMask`] is to define layers as constants:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
 /// pub const FIRST_LAYER: LayerMask = LayerMask(1 << 0);
 /// pub const LAST_LAYER: LayerMask = LayerMask(1 << 31);
@@ -109,8 +109,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
-    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -129,8 +129,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
-    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -149,8 +149,8 @@ impl LayerMask {
     /// # Example
     ///
     /// ```
-    #[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-    #[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
     /// let mut layers = LayerMask(0b1010);
     ///
     /// // These are equivalent
@@ -246,8 +246,8 @@ impl Not for LayerMask {
 /// For example, you can use bitmasks with [`CollisionLayers::new`]:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
 /// // Belongs to the second layer and interacts with colliders
 /// // on the first, second, and third layer.
@@ -257,8 +257,8 @@ impl Not for LayerMask {
 /// You can also use an enum that implements [`PhysicsLayer`]:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
 /// #[derive(PhysicsLayer)]
 /// enum GameLayer {
@@ -274,8 +274,8 @@ impl Not for LayerMask {
 /// You can also use [`LayerMask`] directly:
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
 /// // Belongs to the first layer and interacts with all layers.
 /// let layers = CollisionLayers::new(LayerMask(0b0001), LayerMask::ALL);
@@ -284,9 +284,10 @@ impl Not for LayerMask {
 /// Layers can also be defined using constants and bitwise operations:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::Commands;
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+/// #
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
 /// pub const FIRST_LAYER: u32 = 1 << 0;
 /// pub const SECOND_LAYER: u32 = 1 << 1;
@@ -308,8 +309,8 @@ impl Not for LayerMask {
 /// and changing their [`LayerMask`]s.
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use bevy_xpbd_3d::prelude::*;")]
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// let mut layers = CollisionLayers::new(0b0010, 0b1011);
 ///
 /// // Add memberships (these are equivalent)
@@ -406,9 +407,9 @@ impl Default for CollisionLayers {
 mod tests {
     // Needed for PhysicsLayer derive macro
     #[cfg(feature = "2d")]
-    use crate as bevy_xpbd_2d;
+    use crate as avian2d;
     #[cfg(feature = "3d")]
-    use crate as bevy_xpbd_3d;
+    use crate as avian3d;
 
     use crate::prelude::*;
 
