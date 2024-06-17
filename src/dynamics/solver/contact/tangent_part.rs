@@ -222,6 +222,10 @@ impl ContactTangentPart {
             let new_impulse = (self.impulse - delta_impulse).clamp_length_max(impulse_limit);
             let impulse = new_impulse - self.impulse;
 
+            if !impulse.is_finite() {
+                return Vector::ZERO;
+            }
+
             self.impulse = new_impulse;
 
             // Return the clamped incremental friction impulse.

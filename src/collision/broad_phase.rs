@@ -108,6 +108,10 @@ fn update_aabb_intervals(
         |(collider_entity, collider_parent, aabb, layers, is_inactive)| {
             if let Ok((new_aabb, new_parent, new_layers, is_sleeping)) = aabbs.get(*collider_entity)
             {
+                if !new_aabb.min.is_finite() || !new_aabb.max.is_finite() {
+                    return false;
+                }
+
                 *aabb = *new_aabb;
                 *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
