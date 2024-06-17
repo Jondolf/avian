@@ -13,13 +13,14 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension, TextureFormat},
     },
 };
-use examples_common_3d::XpbdExamplePlugin;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            XpbdExamplePlugin,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
         ))
         .add_systems(Startup, setup)
         .run();

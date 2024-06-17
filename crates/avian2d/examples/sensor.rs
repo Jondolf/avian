@@ -1,10 +1,14 @@
 use avian2d::{math::*, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use examples_common_2d::XpbdExamplePlugin;
+use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default().with_length_unit(20.0),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity(Vector::ZERO))
         .add_event::<MovementAction>()

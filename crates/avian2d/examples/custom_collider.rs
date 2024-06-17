@@ -2,13 +2,14 @@
 
 use avian2d::{math::*, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use examples_common_2d::XpbdExamplePlugin;
+use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            XpbdExamplePlugin,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default().with_length_unit(10.0),
             // Add collider backend for our custom collider.
             // This handles things like initializing and updating required components
             // and managing collider hierarchies.
@@ -21,7 +22,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(
             PhysicsSchedule,
-            (center_gravity, rotate).before(PhysicsStepSet::BroadPhase),
+            (center_gravity, rotate).in_set(PhysicsStepSet::First),
         )
         .run();
 }
@@ -54,9 +55,9 @@ impl AnyCollider for CircleCollider {
 
     fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
         // In 2D, the Z length is assumed to be 1.0, so volume = area
-        let volume = avian2d::math::PI * self.radius.powi(2);
+        let volume = PI * self.radius.powi(2);
         let mass = density * volume;
-        let inertia = self.radius.powi(2) / 2.0;
+        let inertia = mass * self.radius.powi(2) / 2.0;
 
         ColliderMassProperties {
             mass: Mass(mass),
@@ -94,7 +95,7 @@ impl AnyCollider for CircleCollider {
             } else {
                 Vector::X
             };
-            let normal2 = delta_rot.inverse() * -normal1;
+            let normal2 = delta_rot.inverse() * (-normal1);
             let point1 = normal1 * self.radius;
             let point2 = normal2 * other.radius;
 
@@ -103,7 +104,8 @@ impl AnyCollider for CircleCollider {
                 normal1,
                 normal2,
                 contacts: vec![ContactData {
-                    index: 0,
+                    feature_id1: PackedFeatureId::face(0),
+                    feature_id2: PackedFeatureId::face(0),
                     point1,
                     point2,
                     normal1,

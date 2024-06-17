@@ -1,10 +1,11 @@
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     let mut app = App::new();
 
-    app.add_plugins(DefaultPlugins);
+    app.add_plugins((DefaultPlugins, ExampleCommonPlugin));
 
     // Add PhysicsPlugins and replace default broad phase with our custom broad phase
     app.add_plugins(

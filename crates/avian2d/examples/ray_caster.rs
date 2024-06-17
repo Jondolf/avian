@@ -15,7 +15,11 @@ use examples_common_2d::*;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Update, render_rays)
         .add_systems(Startup, setup)

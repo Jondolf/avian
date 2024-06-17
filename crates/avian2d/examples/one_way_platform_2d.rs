@@ -6,13 +6,16 @@
 
 use avian2d::{math::*, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
-use examples_common_2d::XpbdExamplePlugin;
+use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default().with_length_unit(20.0),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, pass_through_one_way_platform))
@@ -255,7 +258,7 @@ fn one_way_platform(
                 manifold
                     .contacts
                     .iter()
-                    .any(|contact| contact.penetration > 0.0)
+                    .any(|contact| contact.penetration > 100.0)
             })
         }
 
