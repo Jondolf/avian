@@ -252,16 +252,6 @@ fn one_way_platform(
     // This assumes that Collisions contains empty entries for entities
     // that were once colliding but no longer are.
     collisions.retain(|contacts| {
-        // This is used in a couple of if statements below; writing here for brevity below.
-        fn any_penetrating(contacts: &Contacts) -> bool {
-            contacts.manifolds.iter().any(|manifold| {
-                manifold
-                    .contacts
-                    .iter()
-                    .any(|contact| contact.penetration > 100.0)
-            })
-        }
-
         // Differentiate between which normal of the manifold we should use
         enum RelevantNormal {
             Normal1,
@@ -282,9 +272,16 @@ fn one_way_platform(
             };
 
         if one_way_platform.0.contains(&other_entity) {
-            // If we were already allowing a collision for a particular entity,
-            // and if it is penetrating us still, continue to allow it to do so.
-            if any_penetrating(contacts) {
+            let any_penetrating = contacts.manifolds.iter().any(|manifold| {
+                manifold
+                    .contacts
+                    .iter()
+                    .any(|contact| contact.penetration > 0.0)
+            });
+
+            if any_penetrating {
+                // If we were already allowing a collision for a particular entity,
+                // and if it is penetrating us still, continue to allow it to do so.
                 return false;
             } else {
                 // If it's no longer penetrating us, forget it.
@@ -314,14 +311,11 @@ fn one_way_platform(
                     normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
                 }) {
                     true
-                } else if any_penetrating(contacts) {
-                    // If it's already penetrating, ignore the collision and register
+                } else {
+                    // Otherwise, ignore the collision and register
                     // the other entity as one that's currently penetrating.
                     one_way_platform.0.insert(other_entity);
                     false
-                } else {
-                    // In all other cases, allow this collision.
-                    true
                 }
             }
         }
