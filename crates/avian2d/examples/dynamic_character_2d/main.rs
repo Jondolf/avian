@@ -18,13 +18,15 @@ use bevy::{
     render::{render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
     sprite::MaterialMesh2dBundle,
 };
+use examples_common_2d::ExampleCommonPlugin;
 use plugin::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            PhysicsPlugins::default(),
+            ExampleCommonPlugin,
+            PhysicsPlugins::default().with_length_unit(20.0),
             CharacterControllerPlugin,
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
