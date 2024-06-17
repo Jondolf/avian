@@ -143,7 +143,7 @@ struct NarrowPhaseInitialized;
 #[reflect(Resource)]
 pub struct NarrowPhaseConfig {
     /// The default maximum [speculative margin](SpeculativeMargin) used for
-    /// [speculative collisions](ccd#speculative-collision). This can be overridden
+    /// [speculative collisions](dynamics::ccd#speculative-collision). This can be overridden
     /// for individual entities with the [`SpeculativeMargin`] component.
     ///
     /// This is implicitly scaled by the [`PhysicsLengthUnit`].
@@ -170,7 +170,7 @@ impl Default for NarrowPhaseConfig {
     }
 }
 
-/// System sets for systems running in [`SubstepSet::NarrowPhase`].
+/// System sets for systems running in [`PhysicsStepSet::NarrowPhase`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NarrowPhaseSet {
     /// Runs at the start of the narrow phase. Empty by default.

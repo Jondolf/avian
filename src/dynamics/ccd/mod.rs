@@ -58,9 +58,9 @@
 //! and for individual entities using the [`SpeculativeMargin`] component.
 //!
 //! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-#![cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn setup(mut commands: Commands) {
 //!     // Spawn a rigid body with a maximum speculative margin.
@@ -133,7 +133,7 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// The maximum distance at which [speculative contacts](ccd#speculative-collision)
+/// The maximum distance at which [speculative contacts](self#speculative-collision)
 /// are generated for this entity. A value greater than zero helps prevent missing
 /// contacts for moderately fast-moving and thin objects.
 ///
@@ -141,17 +141,17 @@ use bevy::prelude::*;
 /// for all objects is defined in the [`NarrowPhaseConfig`] resource, and it is unbounded
 /// by default, meaning that the margin can extend infinitely. The margin can be bounded
 /// for individual entities using this component in case speculative contacts are causing
-/// issues like the ones outlined [here](ccd#caveats-of-speculative-collision).
+/// issues like the ones outlined [here](self#caveats-of-speculative-collision).
 ///
-/// See the [module-level documentation](ccd) for information about
+/// See the [module-level documentation](self) for information about
 /// Speculative Conllision and Continuous Collision Detection in general.
 ///
 /// # Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with an unbounded speculative margin.

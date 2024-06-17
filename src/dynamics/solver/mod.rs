@@ -26,11 +26,14 @@ use self::{
 /// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
 ///     1. [Integrate velocities](IntegrationSet::Velocity)
 ///     2. [Warm start](SubstepSolverSet::WarmStart)
-///     3. [Solve constraints with bias](SolverSet::Solve)
+///     3. [Solve constraints with bias](SubstepSolverSet::SolveConstraints)
 ///     4. [Integrate positions](IntegrationSet::Position)
-///     5. [Solve constraints without bias to relax velocities](SolverSet::Relax)
-///     6. [Apply restitution](SolverSet::Restitution)
-/// 3. [Finalize positions by applying](SolverSet::ApplyTranslation) [`AccumulatedTranslation`]
+///     5. [Solve constraints without bias to relax velocities](SubstepSolverSet::Relax)
+///     6. [Solve XPBD constraints (joints)](SubstepSolverSet::SolveXpbdConstraints)
+///     7. [Solve user-defined constraints](SubstepSolverSet::SolveUserConstraints)
+/// 3. [Apply restitution](SolverSet::Restitution)
+/// 4. [Finalize positions by applying](SolverSet::ApplyTranslation) [`AccumulatedTranslation`]
+/// 5. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
 pub struct SolverPlugin {
     length_unit: Scalar,
 }
@@ -231,9 +234,9 @@ impl Plugin for SolverPlugin {
 /// but it can also be specified through the [`PhysicsPlugins`] plugin group.
 ///
 /// ```no_run
-/// use bevy::prelude::*;
 /// # #[cfg(feature = "2d")]
-/// use bevy_newt_2d::prelude::*;
+/// use avian2d::prelude::*;
+/// use bevy::prelude::*;
 ///
 /// # #[cfg(feature = "2d")]
 /// fn main() {
@@ -265,10 +268,10 @@ impl Default for PhysicsLengthUnit {
 /// Below is the core solver loop.
 ///
 /// 1. Generate and prepare constraints ([`SolverSet::PrepareConstraints`])
-/// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SubstepSet`])
+/// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SolverSet::Substep`])
 /// 3. Apply restitution ([`SolverSet::Restitution`])
 /// 4. Finalize positions by applying [`AccumulatedTranslation`] ([`SolverSet::ApplyTranslation`])
-/// 5. Store contact impulses for next frame's warm starting
+/// 5. Store contact impulses for next frame's warm starting ([`SolverSet::StoreContactImpulses`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SolverSet {
     /// Generates constraints for the solver.
@@ -297,15 +300,17 @@ pub enum SolverSet {
 ///
 /// 1. Integrate velocity ([`IntegrationSet::Velocity`])
 /// 2. Warm start ([`SubstepSolverSet::WarmStart`])
-/// 3. Solve constraints with bias ([`SolverSet::Solve`])
+/// 3. Solve constraints with bias ([`SubstepSolverSet::SolveConstraints`])
 /// 4. Integrate positions ([`IntegrationSet::Position`])
-/// 5. Solve constraints without bias to relax velocities ([`SolverSet::Relax`])
+/// 5. Solve constraints without bias to relax velocities ([`SubstepSolverSet::Relax`])
+/// 6. Solve joints using Extended Position-Based Dynamics (XPBD). ([`SubstepSolverSet::SolveXpbdConstraints`])
+/// 7. Solve user-defined constraints. ([`SubstepSolverSet::SolveUserConstraints`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSolverSet {
     /// Warm starts the solver by applying the impulses from the previous frame or substep.
     ///
     /// This significantly improves convergence, but by itself can lead to overshooting.
-    /// Overshooting is reduced by [relaxing](SolverSet::Relax) the biased velocities
+    /// Overshooting is reduced by [relaxing](SubstepSolverSet::Relax) the biased velocities
     /// by running the solver a second time *without* bias.
     WarmStart,
     /// Solves velocity constraints using a position bias that boosts the response

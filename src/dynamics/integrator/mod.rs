@@ -18,8 +18,8 @@ use bevy::{
 
 /// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 ///
-/// This acts as a prediction for the next positions and orientations of the bodies. The [solver] corrects these predicted
-/// positions to take constraints like contacts and joints into account.
+/// This acts as a prediction for the next positions and orientations of the bodies. The [solver](dynamics::solver)
+/// corrects these predicted positions to take constraints like contacts and joints into account.
 ///
 /// Currently, only the [semi-implicit (symplectic) Euler](semi_implicit_euler) integration scheme
 /// is supported. It is the standard for game physics, being simple, efficient, and sufficiently accurate.
@@ -93,9 +93,9 @@ pub enum IntegrationSet {
 /// ## Example
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// # #[cfg(feature = "f32")]
 /// fn main() {

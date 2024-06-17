@@ -1,4 +1,4 @@
-//! The *semi-implicit* or *symplectic* Euler [integration](integrator) scheme.
+//! The *semi-implicit* or *symplectic* Euler [integration](super) scheme.
 //!
 //! [Semi-implicit Euler](https://en.wikipedia.org/wiki/Semi-implicit_Euler_method)
 //! integration is the most common integration scheme because it is simpler and more
@@ -37,11 +37,11 @@ pub fn integrate_velocity(
     ang_vel: &mut AngularValue,
     force: Vector,
     torque: TorqueValue,
-    inv_mass: f32,
+    inv_mass: Scalar,
     inv_inertia: InertiaValue,
     locked_axes: LockedAxes,
     gravity: Vector,
-    delta_seconds: f32,
+    delta_seconds: Scalar,
 ) {
     // Compute linear acceleration.
     let lin_acc = linear_acceleration(force, inv_mass, locked_axes, gravity);
@@ -74,7 +74,7 @@ pub fn integrate_position(
     lin_vel: Vector,
     ang_vel: AngularValue,
     locked_axes: LockedAxes,
-    delta_seconds: f32,
+    delta_seconds: Scalar,
 ) {
     // x = x_0 + v * Δt
     let next_pos = *pos + lin_vel * delta_seconds;
@@ -110,7 +110,7 @@ pub fn integrate_position(
 /// Computes linear acceleration based on the given forces and mass.
 pub fn linear_acceleration(
     force: Vector,
-    inv_mass: f32,
+    inv_mass: Scalar,
     locked_axes: LockedAxes,
     gravity: Vector,
 ) -> Vector {

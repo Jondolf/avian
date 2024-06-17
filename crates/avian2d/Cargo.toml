@@ -47,8 +47,8 @@ required-features = ["2d"]
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", default-features = false }
-bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0" }
+bevy = { version = "0.14.0-rc", default-features = false }
+bevy_math = { version = "0.14.0-rc" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.15", optional = true }
 parry2d-f64 = { version = "0.15", optional = true }
@@ -61,9 +61,7 @@ itertools = "0.13"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", features = [
-    "approx",
-] }
+bevy_math = { version = "0.14.0-rc", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 

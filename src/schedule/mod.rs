@@ -30,7 +30,7 @@ use bevy::{
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
 /// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -145,7 +145,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The substepping schedule that runs in [`SolverSet::Substep`].
 /// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
@@ -153,7 +153,8 @@ pub struct SubstepSchedule;
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
-/// The schedule is empty by default and runs in [`SubstepSet::PostProcessCollisions`].
+/// The schedule is empty by default and runs in
+/// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
 ///
 /// ## Example
 ///
@@ -199,10 +200,11 @@ pub struct PostProcessCollisions;
 ///
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-/// the broad phase and the substepping loop.
+///   the broad phase and the substepping loop.
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
 /// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
-/// [`NarrowPhaseSet::PostProcess`]. Empty by default.
+///   [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
+///   Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
@@ -278,9 +280,9 @@ pub enum PhysicsStepSet {
 /// You can change the number of substeps by inserting the [`SubstepCount`] resource:
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn main() {
 ///     App::new()

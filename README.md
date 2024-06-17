@@ -1,4 +1,4 @@
-# ![Avian](assets/branding/logo.svg)
+# ![Avian Physics](assets/branding/logo.svg)
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/avian#license)
 [![ci](https://github.com/Jondolf/avian/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/avian/actions/workflows/ci.yml)
@@ -7,8 +7,7 @@
 [![3D crates.io](https://img.shields.io/crates/v/avian3d?label=3D%20crates.io)](https://crates.io/crates/avian3d)
 [![3D docs.rs](https://img.shields.io/docsrs/avian3d?label=3D%20docs.rs)](https://docs.rs/avian3d)
 
-**Avian** is a 2D and 3D physics engine based on _Extended Position Based Dynamics_ (XPBD)
-for the [Bevy game engine](https://bevyengine.org/).
+**Avian** is an ECS-based 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 
 ---
 
@@ -43,9 +42,8 @@ Below are some of the current features of Avian.
   - Filtering and modifying collisions with custom systems
   - Manual contact queries and intersection tests
 - Constraints and joints
-  - Flexible API for creating position-based constraints
   - Several built-in joint types: fixed, distance, prismatic, revolute, spherical
-  - Support for custom joints and other constraints
+  - Support for custom joints and other constraints using XPBD
 - Spatial queries
   - Raycasting, shapecasting, point projection and intersection tests
   - Ergonomic component-based API for raycasts and shapecasts
@@ -87,8 +85,8 @@ avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
 
 ```rust
-use bevy::prelude::*;
 use avian3d::prelude::*;
+use bevy::prelude::*;
 
 fn main() {
     App::new()
@@ -181,7 +179,6 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Future features
 
-- Continuous collision detection (CCD)
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
 - Performance optimization (better broad phase, parallel solver...)

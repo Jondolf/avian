@@ -1,8 +1,6 @@
-//! # Avian
+//! # ![Avian Physics](assets/branding/logo.svg)
 //!
-//! **Avian** is a 2D and 3D physics engine based on
-//! [*Extended Position Based Dynamics* (XPBD)](#what-is-xpbd) for
-//! the [Bevy game engine](https://bevyengine.org/).
+//! **Avian** is an ECS-based 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 //!
 //! Check out the [GitHub repository](https://github.com/Jondolf/avian)
 //! for more information about the design, read the [Getting started](#getting-started)
@@ -153,13 +151,13 @@
 //!
 //! ### Constraints and joints
 //!
-//! - [Constraints](solver::xpbd#constraints) (advanced)
-//! - [Joints](solver::joints)
+//! - [Joints](dynamics::solver::joints)
 //!     - [Fixed joint](FixedJoint)
 //!     - [Distance joint](DistanceJoint)
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
 //!     - [Spherical joint](SphericalJoint)
+//! - [Custom XPBD constraints](dynamics::solver::xpbd#constraints) (advanced)
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
@@ -186,9 +184,11 @@
 //! - [Schedules and sets](PhysicsSchedulePlugin#schedules-and-sets)
 //!     - [`PhysicsSet`]
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
-//!     - [`SubstepSchedule`] and [`SubstepSet`]
+//!     - [`SubstepSchedule`]
+//!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::SubstepSolverSet)
 //!     - [`PostProcessCollisions`] schedule
 //!     - [`PrepareSet`](prepare::PrepareSet)
+//!     - Many more internal system sets
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
 //! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
@@ -196,11 +196,10 @@
 //! ### Architecture
 //!
 //! - [List of plugins and their responsibilities](PhysicsPlugins)
-//! - [What is Extended Position Based Dynamics?](#what-is-xpbd)
 //! - Extending and modifying the engine
 //!     - [Custom plugins](PhysicsPlugins#custom-plugins)
-//!     - [Custom constraints](solver::xpbd#custom-constraints)
-//!     - [Custom joints](solver::joints#custom-joints)
+//!     - [Custom XPBD constraints](dynamics::solver::xpbd#custom-constraints)
+//!     - [Custom joints](dynamics::solver::joints#custom-joints)
 //!
 //! ## Frequently asked questions
 //!
@@ -237,7 +236,7 @@
 //! In part thanks to Bevy's modular architecture and the ECS, Avian is also highly composable,
 //! as it consists of several independent plugins and provides lots of options for configuration and extensions,
 //! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
-//! [custom joints](solver::joints#custom-joints) and [constraints](solver::xpbd#custom-constraints).
+//! [custom joints](dynamics::solver::joints#custom-joints) and [constraints](dynamics::solver::xpbd#custom-constraints).
 //!
 //! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Avian uses
 //! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
@@ -396,96 +395,6 @@
 //! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
 //! There you can find a avian thread on the crate-help channel where you can ask questions.
 //!
-//! ## What is XPBD?
-//!
-//! *XPBD* or *Extended Position Based Dynamics* is a physics simulation method that extends
-//! the traditional *PBD* to be more physically accurate and less dependent on time step size
-//! and iteration count.
-//!
-//! Unlike force or impulse based physics simulation methods, XPBD mostly operates at the position-level,
-//! which can produce more stable and reliable results, while allowing straightforward coupling
-//! of [rigid bodies](RigidBody), soft bodies and fluids.
-//!
-//! ### Simulation loop
-//!
-//! At a high level, XPBD consists of a broad phase followed by a substepping loop that handles position
-//! [integration](integrator), [constraint solving](solver), velocity updates, and a velocity solver that
-//! handles dynamic friction and restitution.
-//!
-//! It looks roughly like this:
-//!
-//! ```ignore
-//! while simulating:
-//!     // Substep size
-//!     h = ∆t / substep_count
-//!
-//!     // Broad phase
-//!     broad_collision_pairs = collect_collision_pairs()
-//!
-//!     for substep_count:
-//!         // Integrate
-//!         for n particles and bodies:
-//!             // Integrate position
-//!             x_prev = x
-//!             v = v + h * f_ext / m
-//!             x = x + h * v
-//!
-//!             // Integrate rotation
-//!             q_prev = q
-//!             ω = ω + h * I^-1 * (τ_ext - (ω x (I * ω)))
-//!             q = q + h * 0.5 * [ω_x, ω_y, ω_z, 0] * q
-//!             q = q / |q|
-//!
-//!         // Narrow phase
-//!         for pair in broad_collision_pairs:
-//!             compute_contacts(pair)
-//!
-//!         // Solve constraints (contacts, joints etc.)
-//!         solve_constraints(particles and bodies)
-//!
-//!         // Update velocities
-//!         for n particles and bodies:
-//!             v = (x - x_prev) / h
-//!             ∆q = q * q_prev^-1
-//!             ω = 2 * [∆q_x, ∆q_y, ∆q_z] / h
-//!             ω = ∆q_w >= 0 ? ω : -ω
-//!
-//!         // Solve velocity constraints (dynamic friction and restitution)
-//!         solve_velocities(particles and bodies)
-//! ```
-//!
-//! where `h` is the substep size, `q` is the [rotation](Rotation) as a quaternion,
-//! `ω` is the [angular velocity](AngularVelocity), `I` is the [angular inertia tensor](`Inertia`) and `τ` is the
-//! [external torque](ExternalTorque).
-//!
-//! In Avian, the simulation loop is handled by various plugins. The [`PhysicsSchedulePlugin`] sets up
-//! the Bevy schedules[^1][^2] and system sets[^3][^4][^5], the [`BroadPhasePlugin`] manages the broad phase,
-//! the [`IntegratorPlugin`] handles position and velocity integration, and so on. You can find all of the plugins
-//! and their responsibilities [here](PhysicsPlugins).
-//!
-//! ### See also
-//!
-//! - [XPBD integration step](integrator)
-//! - [Constraints and how to create them](solver::xpbd#constraints)
-//! - [Schedules and sets used for the simulation loop](PhysicsSchedulePlugin#schedules-and-sets)
-//!
-//! ### Learning resources
-//!
-//! If you want to learn more about XPBD, I recommend taking a look at some of the papers.
-//! Especially the first one from 2020 was used heavily for the simulation loop and constraints in Avian.
-//!
-//! - XPBD: Müller M, Macklin M, Chentanez N, Jeschke S, Kim T. 2020. *[Detailed Rigid Body Simulation with Extended Position Based Dynamics](https://matthias-research.github.io/pages/publications/PBDBodies.pdf)*.
-//! - XPBD: Macklin M, Müller M, Chentanez N. 2016. *[XPBD: Position-Based Simulation of Compliant Constrained Dynamics](http://mmacklin.com/xpbd.pdf)*.
-//!
-//! The papers are quite academic, so you might instead prefer some videos and articles.
-//! The first one by Ten Minute Physics (Matthias Müller, one of the XPBD researchers) is great for understanding
-//! how XPBD differs from other simulation methods and how the constraints work.
-//!
-//! - Video: Ten Minute Physics. 2022. *[Getting ready to simulate the world with XPBD](https://youtu.be/jrociOAYqxA)*.
-//! - Notes: Nolan Tait. *[Bevy Physics: XPBD](https://taintedcoders.com/bevy/xpbd/)*.
-//! - Tutorial series: Johan Helsing. *[Tutorial: Making a physics engine with Bevy](https://johanhelsing.studio/posts/bevy-xpbd)*.
-//! (inspired this project)
-//!
 //! ## License
 //!
 //! Avian is free and open source. All code in the Avian repository is dual-licensed under either:
@@ -496,16 +405,6 @@
 //! or <http://www.apache.org/licenses/LICENSE-2.0>)
 //!
 //! at your option.
-//!
-//! [^1]: [`PhysicsSchedule`]
-//!
-//! [^2]: [`SubstepSchedule`]
-//!
-//! [^3]: [`PhysicsSet`]
-//!
-//! [^4]: [`PhysicsStepSet`]
-//!
-//! [^5]: [`SubstepSet`]
 
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(clippy::doc_markdown, missing_docs)]
@@ -625,7 +524,7 @@ use prelude::*;
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
 /// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
 /// - [`IntegratorPlugin`]: Handles motion caused by velocity, and applies external forces and gravity.
-/// - [`SolverPlugin`]: Solves [constraints](solver::xpbd#constraints) (contacts and joints).
+/// - [`SolverPlugin`]: Solves [constraints](dynamics::solver::xpbd#constraints) (contacts and joints).
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
 /// - [`SleepingPlugin`]: Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 /// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).
@@ -658,8 +557,8 @@ use prelude::*;
 /// ## Custom plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
-/// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with
-/// [`PhysicsSet`] or [`SubstepSet`].
+/// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like
+/// [`PhysicsStepSet`], [`SolverSet`], or [`SubstepSolverSet`](dynamics::solver::SubstepSolverSet).
 ///
 /// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
 ///
@@ -751,9 +650,9 @@ impl PhysicsPlugins {
     /// # Example
     ///
     /// ```no_run
-    /// use bevy::prelude::*;
     /// # #[cfg(feature = "2d")]
-    /// use bevy_newt_2d::prelude::*;
+    /// use avian2d::prelude::*;
+    /// use bevy::prelude::*;
     ///
     /// # #[cfg(feature = "2d")]
     /// fn main() {

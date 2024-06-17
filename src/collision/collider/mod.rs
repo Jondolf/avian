@@ -447,7 +447,7 @@ impl ColliderAabb {
         Self { min, max }
     }
 
-    /// Creates a new [`ColliderAabb`] from a given [`SharedShape`].
+    /// Creates a new [`ColliderAabb`] from a given `SharedShape`.
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")

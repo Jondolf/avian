@@ -16,7 +16,7 @@ with intuitive tuning parameters expressed only by the frequency in Hertz, a non
 damping ratio, and the time step. This formulation was popularized by Erin Catto,
 the author of [Box2D], and simplified further by Ross Nordby, the author of [Bepu].
 
-```rust
+```rust,ignore
 // Parameters
 let zeta = 1.0;               // Damping ratio (controls the amount of oscillation)
 let hertz = 5.0;              // Frequency (cycles per second)
@@ -41,7 +41,7 @@ while the impulse and mass coefficients are non-dimensional.
 Without soft constraints or Baumgarte stabilization, the contact impulse for the current iteration
 can be computed with the following formula using *Projected Gauss-Seidel* (PGS):
 
-```rust
+```rust,ignore
 let incremental_impulse = -effective_mass * normal_speed;
 ```
 
@@ -50,7 +50,7 @@ and `normal_speed` is the relative velocity along the contact normal.
 
 With Baumgarte stabilization, an additional bias term is added to account for overlap:
 
-```rust
+```rust,ignore
 let bias = bias_factor / delta_time * penetration_depth.max(0.0);
 let incremental_impulse = -effective_mass * (normal_speed + bias);
 ```
@@ -61,7 +61,7 @@ within a single step, typically in the [0.1, 0.3] range.
 Soft constraints modify the expression further by incorporating the softness
 parameters, dampening the response in a stable and controlled manner:
 
-```rust
+```rust,ignore
 let biased_normal_speed = normal_speed + bias_coefficient * separation;
 let scaled_effective_mass = mass_coefficient * effective_mass;
 let extra_impulse = impulse_coefficient * accumulated_impulse;
@@ -101,7 +101,7 @@ will attempt to fix all error in a single step.
 
 The CFM and ERP actually have a connection to the spring stiffness and damping constant:
 
-```rust
+```rust,ignore
 let cfm = 1.0 / (delta_time * stiffness + damping);
 let erp = (delta_time * stiffness) / (delta_time * stiffness + damping);
 ```
@@ -109,7 +109,7 @@ let erp = (delta_time * stiffness) / (delta_time * stiffness + damping);
 The `stiffness` and `damping` on the other hand can be computed based on
 the frequency and damping ratio introduced earlier:
 
-```rust
+```rust,ignore
 let stiffness = effective_mass * omega * omega;
 let damping = 2.0 * effective_mass * zeta * omega;
 ```

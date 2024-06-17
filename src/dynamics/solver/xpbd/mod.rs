@@ -1,9 +1,21 @@
-//! Contains constraints used by the [solver].
+//! Extended Position-Based Dynamics (XPBD) constraint functionality.
+//!
+//! XPBD is a simulation method that solves constraints at the position-level.
+//! Avian currently uses it for [joints](dynamics::solver::joints),
+//! while contacts use an impulse-based approach.
+//!
+//! This module contains traits and systems for XPBD functionality.
+//! The actual joint implementations are in [`dynamics::solver::joints`],
+//! but it is also possible to create your own constraints.
+//!
+//! The following section has an overview of what exactly constraints are,
+//! how they work with XPBD, and how you can define your own constraints.
 //!
 //! # Constraints
 //!
-//! **Constraints** are a way to model physical relationships between entities. They are an integral part of XPBD, and they can be used
-//! for things like [contact resolution](super::PenetrationConstraint), [joints](super::joints), soft bodies, and much more.
+//! **Constraints** are a way to model physical relationships between entities.
+//! They are an integral part of physics simulation, and they can be used for things
+//! like contact resolution, [joints](super::joints), soft bodies, and much more.
 //!
 //! At its core, a constraint is just a rule that is enforced by moving the participating entities in a way that satisfies that rule.
 //! For example, a distance constraint is satisfied when the distance between two entities is equal to the desired distance.
@@ -12,9 +24,8 @@
 //! They contain a `solve` method that receives the states of the participating entities as parameters.
 //! You can find more details on how to use each constraint by taking a look at their documentation.
 //!
-//! Below are the currently implemented constraints.
+//! Below are the currently implemented XPBD-based constraints.
 //!
-//! - [`PenetrationConstraint`](super::PenetrationConstraint)
 //! - [Joints](super::joints)
 //!     - [`FixedJoint`]
 //!     - [`DistanceJoint`]
@@ -22,12 +33,12 @@
 //!     - [`RevoluteJoint`]
 //!     - [`PrismaticJoint`]
 //!
-//! More constraint types will be added in future releases. If you need more constraints now, consider
-//! [creating your own constraints](#custom-constraints).
+//! Avian's [`ContactConstraint`](dynamics::solver::contact::ContactConstraint)
+//! is impulse-based instead.
 //!
 //! ## Custom constraints
 //!
-//! In Avian, you can easily create your own constraints using the same APIs that the engine uses for its own constraints.
+//! In Avian, you can easily create your own XPBD constraints using the same APIs that the engine uses for its own constraints.
 //!
 //! First, create a struct and implement the [`XpbdConstraint`] trait, giving the number of participating entities using generics.
 //! It should look similar to this:
@@ -72,12 +83,13 @@
 //!
 //! Take a look at [`XpbdConstraint::solve`] and the constraint [theory](#theory) to learn more about what to put in `solve`.
 //!
-//! Next, we need to add a system that solves the constraint during each run of the [solver]. If your constraint is
-//! a component like most of Avian's constraints, you can use the generic [`solve_constraint`] system that handles
-//! some of the background work for you.
+//! Next, we need to add a system that solves the constraint during each run of the [solver](dynamics::solver).
+//! If your constraint is a component like Avian's joints, you can use the generic [`solve_constraint`]
+//! system that handles some of the background work for you.
 //!
-//! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the
-//! [substepping schedule's](SubstepSchedule) [`SubstepSet::SolveUserConstraints`] set. It should look like this:
+//! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the [substepping schedule's](SubstepSchedule)
+//! [`SubstepSolverSet::SolveUserConstraints`](dynamics::solver::SubstepSolverSet::SolveUserConstraints) system set.
+//! It should look like this:
 //!
 //! ```ignore
 //! // Get substep schedule
@@ -91,7 +103,7 @@
 //! );
 //! ```
 //!
-//! Now just spawn an instance of the constraint, give it the participating entities, and the constraint should be getting
+//! Now, just spawn an instance of the constraint, give it the participating entities, and the constraint should be getting
 //! solved automatically according to the `solve` method!
 //!
 //! You can find a working example of a custom constraint
@@ -99,7 +111,7 @@
 //!
 //! ## Theory
 //!
-//! In this section, you can learn some of the theory behind how constraints work. Understanding the theory and maths isn't
+//! In this section, you can learn some of the theory behind how position-based constraints work. Understanding the theory and maths isn't
 //! important for using constraints, but it can be useful if you want to [create your own constraints](#custom-constraints).
 //!
 //! **Note**: In the following theory, primarily the word "particle" is used, but the same logic applies to normal
@@ -215,7 +227,7 @@ pub use positional_constraint::PositionConstraint;
 use crate::prelude::*;
 use bevy::{ecs::entity::MapEntities, prelude::*};
 
-/// A trait for all XPBD [constraints](solver::xpbd#constraints).
+/// A trait for all XPBD [constraints](self#constraints).
 pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// The entities participating in the constraint.
     fn entities(&self) -> [Entity; ENTITY_COUNT];

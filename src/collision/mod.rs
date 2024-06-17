@@ -2,8 +2,8 @@
 //!
 //! Collision detection involves determining pairs of objects that may currently be in contact
 //! (or are expected to come into contact), and computing contact data for each intersection.
-//! These contacts are then used by the [solver] to generate [`PenetrationConstraint`](solver::PenetrationConstraint)s
-//! and finally resolve overlap.
+//! These contacts are then used by the [solver](dynamics::solver) to generate
+//! [`ContactConstraint`](dynamics::solver::contact::ContactConstraint)s and finally resolve overlap.
 //!
 //! In Avian, collision detection is split into three plugins:
 //!
