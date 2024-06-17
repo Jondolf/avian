@@ -174,11 +174,10 @@ fn debug_render_axes(
             } else {
                 [1.0; 4]
             };
-            let [x_color, y_color, _z_color, center_color] = [
+            let [x_color, y_color, _z_color] = [
                 Color::hsla(0.0, 1.0 * mul[1], 0.5 * mul[2], 1.0 * mul[3]),
                 Color::hsla(120.0 * mul[0], 1.0 * mul[1], 0.4 * mul[2], 1.0 * mul[3]),
                 Color::hsla(220.0 * mul[0], 1.0 * mul[1], 0.6 * mul[2], 1.0 * mul[3]),
-                Color::hsla(60.0 * mul[0], 1.0 * mul[1], 0.5 * mul[2], 1.0 * mul[3]),
             ];
             let global_com = pos.0 + rot * local_com.0;
 
@@ -193,17 +192,6 @@ fn debug_render_axes(
                 let z = rot * (Vector::Z * lengths.z);
                 gizmos.draw_line(global_com - z, global_com + z, _z_color);
             }
-
-            // Draw dot at the center of mass
-            #[cfg(feature = "2d")]
-            gizmos.circle_2d(global_com.f32(), length_unit.0 * 0.05, center_color);
-            #[cfg(feature = "3d")]
-            gizmos.sphere(
-                global_com.f32(),
-                rot.f32(),
-                length_unit.0 * 0.05,
-                center_color,
-            );
         }
     }
 }
