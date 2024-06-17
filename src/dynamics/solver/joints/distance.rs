@@ -1,6 +1,6 @@
 //! [`DistanceJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -8,7 +8,6 @@ use bevy::{
     },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
 ///

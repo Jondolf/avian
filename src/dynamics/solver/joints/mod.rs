@@ -91,9 +91,8 @@ pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;
-use solver::xpbd::*;
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {

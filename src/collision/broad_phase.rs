@@ -64,13 +64,25 @@ pub enum BroadPhaseSet {
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Reflect, Resource, Default, Debug)]
+#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
+/// Contains the entities whose AABBs intersect the AABB of this entity.
+/// Updated automatically during broad phase collision detection.
+///
+/// Note that this component is only added to bodies with [`Ccd`] by default,
+/// but can be added to any entity.
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, Reflect)]
+#[reflect(Component)]
+pub struct AabbIntersections(pub Vec<Entity>);
+
 /// True if the rigid body hasn't moved.
 type IsBodyInactive = bool;
+
+/// True if the rigid body should store [`AabbIntersections`].
+type StoreAabbIntersections = bool;
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
@@ -81,6 +93,7 @@ struct AabbIntervals(
         ColliderAabb,
         CollisionLayers,
         IsBodyInactive,
+        StoreAabbIntersections,
     )>,
 );
 
@@ -99,15 +112,15 @@ fn update_aabb_intervals(
         &ColliderAabb,
         Option<&ColliderParent>,
         Option<&CollisionLayers>,
-        Ref<Position>,
-        Ref<Rotation>,
+        Has<AabbIntersections>,
+        Has<Sleeping>,
     )>,
     rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(
-        |(collider_entity, collider_parent, aabb, layers, is_inactive)| {
-            if let Ok((new_aabb, new_parent, new_layers, position, rotation)) =
+        |(collider_entity, collider_parent, aabb, layers, is_inactive, store_intersections)| {
+            if let Ok((new_aabb, new_parent, new_layers, new_store_intersections, is_sleeping)) =
                 aabbs.get(*collider_entity)
             {
                 *aabb = *new_aabb;
@@ -116,7 +129,8 @@ fn update_aabb_intervals(
 
                 let is_static =
                     new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
-                *is_inactive = is_static || (!position.is_changed() && !rotation.is_changed());
+                *is_inactive = is_static || is_sleeping;
+                *store_intersections = new_store_intersections;
 
                 true
             } else {
@@ -136,21 +150,25 @@ fn add_new_aabb_intervals(
             &ColliderAabb,
             Option<&RigidBody>,
             Option<&CollisionLayers>,
+            Has<AabbIntersections>,
         ),
         Added<ColliderAabb>,
     >,
     mut intervals: ResMut<AabbIntervals>,
 ) {
-    let aabbs = aabbs.iter().map(|(ent, parent, aabb, rb, layers)| {
-        (
-            ent,
-            parent.map_or(ColliderParent(ent), |p| *p),
-            *aabb,
-            // Default to treating collider as immovable/static for filtering unnecessary collision checks
-            layers.map_or(CollisionLayers::default(), |layers| *layers),
-            rb.map_or(false, |rb| rb.is_static()),
-        )
-    });
+    let aabbs = aabbs
+        .iter()
+        .map(|(ent, parent, aabb, rb, layers, store_intersections)| {
+            (
+                ent,
+                parent.map_or(ColliderParent(ent), |p| *p),
+                *aabb,
+                // Default to treating collider as immovable/static for filtering unnecessary collision checks
+                layers.map_or(CollisionLayers::default(), |layers| *layers),
+                rb.map_or(false, |rb| rb.is_static()),
+                store_intersections,
+            )
+        });
     intervals.0.extend(aabbs);
 }
 
@@ -158,8 +176,17 @@ fn add_new_aabb_intervals(
 fn collect_collision_pairs(
     intervals: ResMut<AabbIntervals>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut aabb_intersection_query: Query<&mut AabbIntersections>,
 ) {
-    sweep_and_prune(intervals, &mut broad_collision_pairs.0);
+    for mut intersections in &mut aabb_intersection_query {
+        intersections.clear();
+    }
+
+    sweep_and_prune(
+        intervals,
+        &mut broad_collision_pairs.0,
+        &mut aabb_intersection_query,
+    );
 }
 
 /// Sorts the entities by their minimum extents along an axis and collects the entity pairs that have intersecting AABBs.
@@ -168,6 +195,7 @@ fn collect_collision_pairs(
 fn sweep_and_prune(
     mut intervals: ResMut<AabbIntervals>,
     broad_collision_pairs: &mut Vec<(Entity, Entity)>,
+    aabb_intersection_query: &mut Query<&mut AabbIntersections>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
     insertion_sort(&mut intervals.0, |a, b| a.2.min.x > b.2.min.x);
@@ -176,8 +204,12 @@ fn sweep_and_prune(
     broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
-    for (i, (ent1, parent1, aabb1, layers1, inactive1)) in intervals.0.iter().enumerate() {
-        for (ent2, parent2, aabb2, layers2, inactive2) in intervals.0.iter().skip(i + 1) {
+    for (i, (ent1, parent1, aabb1, layers1, inactive1, store_intersections1)) in
+        intervals.0.iter().enumerate()
+    {
+        for (ent2, parent2, aabb2, layers2, inactive2, store_intersections2) in
+            intervals.0.iter().skip(i + 1)
+        {
             // x doesn't intersect; check this first so we can discard as soon as possible
             if aabb2.min.x > aabb1.max.x {
                 break;
@@ -200,7 +232,22 @@ fn sweep_and_prune(
                 continue;
             }
 
-            broad_collision_pairs.push((*ent1, *ent2));
+            if *ent1 < *ent2 {
+                broad_collision_pairs.push((*ent1, *ent2));
+            } else {
+                broad_collision_pairs.push((*ent2, *ent1));
+            }
+
+            if *store_intersections1 {
+                if let Ok(mut intersections) = aabb_intersection_query.get_mut(*ent1) {
+                    intersections.push(*ent2);
+                }
+            }
+            if *store_intersections2 {
+                if let Ok(mut intersections) = aabb_intersection_query.get_mut(*ent2) {
+                    intersections.push(*ent1);
+                }
+            }
         }
     }
 }

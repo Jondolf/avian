@@ -201,7 +201,8 @@ pub fn contact_manifolds(
                         normal1,
                         normal2,
                         -contact.dist,
-                        0,
+                        PackedFeatureId::UNKNOWN,
+                        PackedFeatureId::UNKNOWN,
                     )],
                     index: 0,
                 }];
@@ -238,15 +239,15 @@ pub fn contact_manifolds(
                 contacts: manifold
                     .contacts()
                     .iter()
-                    .enumerate()
-                    .map(|(contact_index, contact)| {
+                    .map(|contact| {
                         ContactData::new(
                             subpos1.transform_point(&contact.local_p1).into(),
                             subpos2.transform_point(&contact.local_p2).into(),
                             normal1,
                             normal2,
                             -contact.dist,
-                            contact_index,
+                            contact.fid1,
+                            contact.fid2,
                         )
                     })
                     .collect(),

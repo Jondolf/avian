@@ -581,12 +581,7 @@ pub mod prelude {
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
-        dynamics::{
-            self,
-            sleeping::SleepingPlugin,
-            solver::{joints::*, SolverPlugin},
-            *,
-        },
+        dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         position::{Position, Rotation},
         prepare::{init_transforms, update_mass_properties, PrepareConfig, PreparePlugin},
         schedule::*,
@@ -597,7 +592,9 @@ pub mod prelude {
     };
     pub(crate) use crate::{
         math::*,
-        position::{PreviousPosition, PreviousRotation, RotationValue},
+        position::{
+            PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation, RotationValue,
+        },
     };
     pub use avian_derive::*;
 }
@@ -723,6 +720,7 @@ use prelude::*;
 /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
 pub struct PhysicsPlugins {
     schedule: Interned<dyn ScheduleLabel>,
+    length_unit: Scalar,
 }
 
 impl PhysicsPlugins {
@@ -732,7 +730,47 @@ impl PhysicsPlugins {
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
+            length_unit: 1.0,
         }
+    }
+
+    /// Sets the value used for initializing the [`PhysicsLengthUnit`].
+    ///
+    /// This is essentially a units-per-meter scaling factor used for internal computations.
+    /// For example, a 2D game might use pixels as units and have an average object size
+    /// of 100 pixels. By setting the `length_unit` to `100.0`, the physics engine
+    /// will interpret 100 pixels as 1 meter for internal thresholds, improving stability.
+    ///
+    /// Note that this is *not* used to scale forces or any other user-facing inputs or outputs.
+    /// Instead, the value is used internally to scale some length-based tolerances
+    /// such as [`SleepingThreshold::linear`] and [`NarrowPhaseConfig::default_speculative_margin`],
+    /// as well as the scale used for [debug rendering](PhysicsDebugPlugin).
+    ///
+    /// Choosing the appropriate length unit can help improve stability and robustness.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use bevy::prelude::*;
+    /// # #[cfg(feature = "2d")]
+    /// use bevy_newt_2d::prelude::*;
+    ///
+    /// # #[cfg(feature = "2d")]
+    /// fn main() {
+    ///     App::new()
+    ///         .add_plugins((
+    ///             DefaultPlugins,
+    ///             // A 2D game with 100 pixels per meter
+    ///             PhysicsPlugins::default().with_length_unit(100.0),
+    ///         ))
+    ///         .run();
+    /// }
+    /// # #[cfg(not(feature = "2d"))]
+    /// # fn main() {} // Doc test needs main
+    /// ```
+    pub fn with_length_unit(mut self, unit: Scalar) -> Self {
+        self.length_unit = unit;
+        self
     }
 }
 
@@ -759,9 +797,9 @@ impl PluginGroup for PhysicsPlugins {
 
         builder
             .add(BroadPhasePlugin)
-            .add(IntegratorPlugin)
+            .add(IntegratorPlugin::default())
             .add(ContactReportingPlugin)
-            .add(SolverPlugin)
+            .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin::new(self.schedule))
             .add(SyncPlugin::new(self.schedule))

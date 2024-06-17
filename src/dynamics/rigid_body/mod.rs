@@ -1,4 +1,19 @@
-//! Commonly used components.
+//! Common components and bundles for rigid bodies.
+
+// Components
+mod forces;
+mod locked_axes;
+mod mass_properties;
+mod world_query;
+
+pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
+pub use locked_axes::LockedAxes;
+pub use mass_properties::*;
+pub use world_query::*;
+
+#[cfg(feature = "2d")]
+pub(crate) use forces::FloatZero;
+pub(crate) use forces::Torque;
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -489,7 +504,7 @@ pub struct Restitution {
 impl Restitution {
     /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
     ///
-    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`](#associatedconstant.PERFECTLY_INELASTIC).
+    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`].
     pub const ZERO: Self = Self {
         coefficient: 0.0,
         combine_rule: CoefficientCombine::Average,

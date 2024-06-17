@@ -35,6 +35,10 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
 
+/// A feature ID where the feature type is packed into the same value as the feature index.
+pub type PackedFeatureId = parry::shape::PackedFeatureId;
+
+// TODO: Refactor this into a contact graph.
 // Collisions are stored in an `IndexMap` that uses fxhash.
 // It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.
 //
@@ -117,11 +121,10 @@ impl Collisions {
         self.0
             .get(&(entity1, entity2))
             .filter(|contacts| contacts.during_current_frame)
-            .or_else(|| {
-                self.0
-                    .get(&(entity2, entity1))
-                    .filter(|contacts| contacts.during_current_frame)
-            })
+            .or(self
+                .0
+                .get(&(entity2, entity1))
+                .filter(|contacts| contacts.during_current_frame))
     }
 
     /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
@@ -255,11 +258,6 @@ impl Collisions {
     }
 }
 
-/// Stores the collision pairs from the previous frame.
-/// This is used for detecting when collisions have started or ended.
-#[derive(Resource, Clone, Debug, Default, Deref, DerefMut, PartialEq)]
-pub(super) struct PreviousCollisions(Collisions);
-
 /// All contacts between two colliders.
 ///
 /// The contacts are stored in contact manifolds.
@@ -272,14 +270,18 @@ pub struct Contacts {
     pub entity1: Entity,
     /// Second entity in the contact.
     pub entity2: Entity,
+    /// The entity of the first body involved in the contact.
+    pub body_entity1: Option<Entity>,
+    /// The entity of the second body involved in the contact.
+    pub body_entity2: Option<Entity>,
     /// A list of contact manifolds between two colliders.
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
     pub manifolds: Vec<ContactManifold>,
+    /// True if either of the colliders involved is a sensor.
+    pub is_sensor: bool,
     /// True if the bodies have been in contact during this frame.
     pub during_current_frame: bool,
-    /// True if the bodies have been in contact during this substep.
-    pub during_current_substep: bool,
     /// True if the bodies were in contact during the previous frame.
     pub during_previous_frame: bool,
     /// The total normal impulse applied to the first body in a collision.
@@ -289,8 +291,15 @@ pub struct Contacts {
     /// The total tangent impulse applied to the first body in a collision.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    #[cfg(feature = "2d")]
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Scalar,
+    /// The total tangent impulse applied to the first body in a collision.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    #[cfg(feature = "3d")]
+    #[doc(alias = "total_friction_impulse")]
+    pub total_tangent_impulse: Vector2,
 }
 
 impl Contacts {
@@ -306,8 +315,19 @@ impl Contacts {
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
     /// typically use `Time<Substeps>`.
+    #[cfg(feature = "2d")]
     #[doc(alias = "total_friction_force")]
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
+        self.total_tangent_impulse / delta_time
+    }
+
+    /// The force corresponding to the total tangent impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    #[cfg(feature = "3d")]
+    #[doc(alias = "total_friction_force")]
+    pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
         self.total_tangent_impulse / delta_time
     }
 }
@@ -338,6 +358,49 @@ impl ContactManifold {
     /// Returns the world-space contact normal pointing towards the exterior of the second entity.
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal2
+    }
+
+    /// Copies impulses from previous contacts to matching contacts in `self`.
+    ///
+    /// Contacts are first matched based on their [feature IDs](PackedFeatureId), and if they are unknown,
+    /// matching is done based on contact positions using the given `distance_threshold`
+    /// for determining if points are too far away from each other to be considered matching.
+    pub fn match_contacts(
+        &mut self,
+        previous_contacts: &[ContactData],
+        distance_threshold: Scalar,
+    ) {
+        // The squared maximum distance for two contact points to be considered matching.
+        let distance_threshold_squared = distance_threshold.powi(2);
+
+        for contact in self.contacts.iter_mut() {
+            for previous_contact in previous_contacts.iter() {
+                // If the feature IDs match, copy the contact impulses over for warm starting.
+                if contact.feature_id1 == previous_contact.feature_id1
+                    && contact.feature_id2 == previous_contact.feature_id2
+                {
+                    contact.normal_impulse = previous_contact.normal_impulse;
+                    contact.tangent_impulse = previous_contact.tangent_impulse;
+                    break;
+                }
+
+                let unknown_features = contact.feature_id1 == PackedFeatureId::UNKNOWN
+                    || contact.feature_id2 == PackedFeatureId::UNKNOWN;
+
+                // If the feature IDs are unknown and the contact positions match closely enough,
+                // copy the contact impulses over for warm starting.
+                if unknown_features
+                    && contact.point1.distance_squared(previous_contact.point1)
+                        < distance_threshold_squared
+                    && contact.point2.distance_squared(previous_contact.point2)
+                        < distance_threshold_squared
+                {
+                    contact.normal_impulse = previous_contact.normal_impulse;
+                    contact.tangent_impulse = previous_contact.tangent_impulse;
+                    break;
+                }
+            }
+        }
     }
 }
 
@@ -442,23 +505,46 @@ pub struct ContactData {
     ///
     /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
     /// the [`Collision`] event or the [`Collisions`] rsource.
+    #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
-    /// The index of the contact in a contact manifold if it is in one.
-    pub index: usize,
+    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    ///
+    /// ## Caveats
+    ///
+    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
+    /// It is recommended to access this before or after physics.
+    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
+    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
+    ///
+    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
+    /// the [`Collision`] event or the [`Collisions`] rsource.
+    #[cfg(feature = "3d")]
+    #[doc(alias = "friction_impulse")]
+    pub tangent_impulse: Vector2,
+    /// The contact feature ID on the first shape. This indicates the ID of
+    /// the vertex, edge, or face of the contact, if one can be determined.
+    pub feature_id1: PackedFeatureId,
+    /// The contact feature ID on the first shape. This indicates the ID of
+    /// the vertex, edge, or face of the contact, if one can be determined.
+    pub feature_id2: PackedFeatureId,
 }
 
 impl ContactData {
     /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
     ///
     /// The given `index` is the index of the contact in a contact manifold, if it is in one.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         point1: Vector,
         point2: Vector,
         normal1: Vector,
         normal2: Vector,
         penetration: Scalar,
-        index: usize,
+        feature_id1: PackedFeatureId,
+        feature_id2: PackedFeatureId,
     ) -> Self {
         Self {
             point1,
@@ -467,8 +553,9 @@ impl ContactData {
             normal2,
             penetration,
             normal_impulse: 0.0,
-            tangent_impulse: 0.0,
-            index,
+            tangent_impulse: default(),
+            feature_id1,
+            feature_id2,
         }
     }
 
@@ -484,8 +571,19 @@ impl ContactData {
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
     /// typically use `Time<Substeps>`.
+    #[cfg(feature = "2d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
+        self.tangent_impulse / delta_time
+    }
+
+    /// The force corresponding to the tangent impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>`.
+    #[cfg(feature = "3d")]
+    #[doc(alias = "friction_force")]
+    pub fn tangent_force(&self, delta_time: Scalar) -> Vector2 {
         self.tangent_impulse / delta_time
     }
 

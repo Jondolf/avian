@@ -1,11 +1,10 @@
 //! [`RevoluteJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
 ///

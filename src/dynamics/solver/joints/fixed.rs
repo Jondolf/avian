@@ -1,11 +1,10 @@
 //! [`FixedJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A fixed joint prevents any relative movement of the attached bodies.
 ///

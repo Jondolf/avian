@@ -20,6 +20,7 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
     prelude::*,
 };
+use narrow_phase::NarrowPhaseSet;
 
 /// A plugin for handling generic collider backend logic.
 ///
@@ -194,27 +195,23 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         physics_schedule
             .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
 
+        // Update child colliders before the narrow phase.
+        physics_schedule.add_systems(
+            (
+                propagate_collider_transforms,
+                update_child_collider_position,
+            )
+                .chain()
+                .in_set(NarrowPhaseSet::First)
+                .ambiguous_with_all(),
+        );
+
         #[cfg(all(
             feature = "3d",
             feature = "async-collider",
             feature = "default-collider"
         ))]
         app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
-
-        // Update child colliders before narrow phase in substepping loop
-        let substep_schedule = app
-            .get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first");
-        substep_schedule.add_systems(
-            (
-                propagate_collider_transforms,
-                update_child_collider_position,
-            )
-                .chain()
-                .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase)
-                .ambiguous_with_all(),
-        );
     }
 }
 
@@ -357,6 +354,7 @@ fn update_aabb<C: AnyCollider>(
             &Position,
             &Rotation,
             Option<&ColliderParent>,
+            Option<&SpeculativeMargin>,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -372,13 +370,28 @@ fn update_aabb<C: AnyCollider>(
         (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
         With<Children>,
     >,
-    dt: Res<Time>,
-    narrow_phase_config: Option<Res<NarrowPhaseConfig>>,
+    narow_phase_config: Res<NarrowPhaseConfig>,
+    length_unit: Res<PhysicsLengthUnit>,
+    time: Res<Time>,
 ) {
-    // Safety margin multiplier bigger than DELTA_TIME to account for sudden accelerations
-    let safety_margin_factor = 2.0 * dt.delta_seconds_adjusted();
+    let delta_secs = time.delta_seconds_adjusted();
+    let default_speculative_margin = length_unit.0 * narow_phase_config.default_speculative_margin;
+    let contact_tolerance = length_unit.0 * narow_phase_config.contact_tolerance;
 
-    for (collider, mut aabb, pos, rot, collider_parent, lin_vel, ang_vel) in &mut colliders {
+    for (collider, mut aabb, pos, rot, collider_parent, speculative_margin, lin_vel, ang_vel) in
+        &mut colliders
+    {
+        let speculative_margin =
+            speculative_margin.map_or(default_speculative_margin, |margin| margin.0);
+
+        if speculative_margin <= 0.0 {
+            *aabb = collider
+                .aabb(pos.0, *rot)
+                .grow(Vector::splat(contact_tolerance));
+            continue;
+        }
+
+        // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
         } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
@@ -407,51 +420,32 @@ fn update_aabb<C: AnyCollider>(
             #[cfg(feature = "2d")]
             {
                 (
-                    pos.0 + lin_vel.0 * safety_margin_factor,
-                    *rot * Rotation::radians(safety_margin_factor * ang_vel.0),
+                    pos.0
+                        + (lin_vel.0 * delta_secs)
+                            .clamp_length_max(speculative_margin.max(contact_tolerance)),
+                    *rot * Rotation::radians(ang_vel.0 * delta_secs),
                 )
             }
             #[cfg(feature = "3d")]
             {
                 let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
                 let (x, y, z, w) = (
-                    rot.x + safety_margin_factor * 0.5 * q.x,
-                    rot.y + safety_margin_factor * 0.5 * q.y,
-                    rot.z + safety_margin_factor * 0.5 * q.z,
-                    rot.w + safety_margin_factor * 0.5 * q.w,
+                    rot.x + delta_secs * 0.5 * q.x,
+                    rot.y + delta_secs * 0.5 * q.y,
+                    rot.z + delta_secs * 0.5 * q.z,
+                    rot.w + delta_secs * 0.5 * q.w,
                 );
                 (
-                    pos.0 + lin_vel.0 * safety_margin_factor,
+                    pos.0
+                        + (lin_vel.0 * delta_secs)
+                            .clamp_length_max(speculative_margin.max(contact_tolerance)),
                     Quaternion::from_xyzw(x, y, z, w).normalize(),
                 )
             }
         };
-
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
+        // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider.swept_aabb(start_pos.0, start_rot, end_pos, end_rot);
-
-        // Add narrow phase prediction distance to AABBs to avoid missed collisions
-        let prediction_distance = if let Some(ref config) = narrow_phase_config {
-            config.prediction_distance
-        } else {
-            #[cfg(feature = "2d")]
-            {
-                1.0
-            }
-            #[cfg(feature = "3d")]
-            {
-                0.005
-            }
-        };
-        aabb.max.x += prediction_distance;
-        aabb.min.x -= prediction_distance;
-        aabb.max.y += prediction_distance;
-        aabb.min.y -= prediction_distance;
-        #[cfg(feature = "3d")]
-        {
-            aabb.max.z += prediction_distance;
-            aabb.min.z -= prediction_distance;
-        }
     }
 }
 

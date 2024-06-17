@@ -97,11 +97,17 @@ impl From<&GlobalTransform> for Position {
     }
 }
 
-/// The position of a [rigid body](RigidBody) at the start of a substep.
+/// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
-pub struct PreviousPosition(pub Vector);
+pub struct PreSolveAccumulatedTranslation(pub Vector);
+
+/// The rotation accumulated before the XPBD position solve.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[reflect(Component)]
+pub struct PreSolveRotation(pub Rotation);
 
 /// Radians
 #[cfg(all(feature = "2d", feature = "default-collider"))]

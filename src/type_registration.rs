@@ -1,8 +1,10 @@
 use crate::{
-    collision::collider_backend::PreviousColliderTransform, prelude::*,
-    sync::PreviousGlobalTransform,
+    collision::collider_backend::PreviousColliderTransform,
+    prelude::*,
+    sync::{PreviousGlobalTransform, SyncConfig},
 };
 use bevy::prelude::*;
+use dynamics::solver::SolverConfig;
 
 /// Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
 pub struct PhysicsTypeRegistrationPlugin;
@@ -22,6 +24,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<TimeSleeping>()
             .register_type::<Position>()
             .register_type::<Rotation>()
+            .register_type::<PreSolveAccumulatedTranslation>()
             .register_type::<PreviousRotation>()
             .register_type::<PreviousGlobalTransform>()
             .register_type::<AccumulatedTranslation>()
@@ -53,6 +56,10 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
             .register_type::<ColliderTransform>()
-            .register_type::<PreviousColliderTransform>();
+            .register_type::<PreviousColliderTransform>()
+            .register_type::<SpeculativeMargin>()
+            .register_type::<NarrowPhaseConfig>()
+            .register_type::<SolverConfig>()
+            .register_type::<SyncConfig>();
     }
 }

@@ -290,7 +290,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ## User constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
-/// the [`SubstepSet::SolveUserConstraints`] set.
+/// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.
 /// You must provide the number of entities in the constraint using generics.
 ///
 /// It should look something like this:
@@ -302,7 +302,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 ///
 /// substeps.add_systems(
 ///     solve_constraint::<YourConstraint, ENTITY_COUNT>
-///         .in_set(SubstepSet::SolveUserConstraints),
+///         .in_set(SubstepSolverSet::SolveUserConstraints),
 /// );
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
@@ -347,6 +347,106 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
                 .try_into()
             {
                 constraint.solve(bodies, delta_secs);
+            }
+        }
+    }
+}
+
+/// Updates the linear velocity of all dynamic bodies based on the change in position from the XPBD solver.
+pub(super) fn project_linear_velocity(
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &PreSolveAccumulatedTranslation,
+            &AccumulatedTranslation,
+            &mut LinearVelocity,
+        ),
+        Without<Sleeping>,
+    >,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for (rb, prev_pos, translation, mut lin_vel) in &mut bodies {
+        // Static bodies have no velocity
+        if rb.is_static() && lin_vel.0 != Vector::ZERO {
+            lin_vel.0 = Vector::ZERO;
+        }
+
+        if rb.is_dynamic() {
+            // v = (x - x_prev) / h
+            let new_lin_vel = (translation.0 - prev_pos.0) / delta_secs;
+            // Avoid triggering bevy's change detection unnecessarily.
+            if new_lin_vel != Vector::ZERO && new_lin_vel.is_finite() {
+                lin_vel.0 += new_lin_vel;
+            }
+        }
+    }
+}
+
+/// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
+#[cfg(feature = "2d")]
+pub(super) fn project_angular_velocity(
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &Rotation,
+            &PreSolveRotation,
+            &mut AngularVelocity,
+        ),
+        Without<Sleeping>,
+    >,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for (rb, rot, prev_rot, mut ang_vel) in &mut bodies {
+        // Static bodies have no velocity
+        if rb.is_static() && ang_vel.0 != 0.0 {
+            ang_vel.0 = 0.0;
+        }
+
+        if rb.is_dynamic() {
+            let new_ang_vel = prev_rot.angle_between(*rot) / delta_secs;
+            // Avoid triggering bevy's change detection unnecessarily.
+            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
+                ang_vel.0 += new_ang_vel;
+            }
+        }
+    }
+}
+
+/// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
+#[cfg(feature = "3d")]
+pub(super) fn project_angular_velocity(
+    mut bodies: Query<
+        (
+            &RigidBody,
+            &Rotation,
+            &PreSolveRotation,
+            &mut AngularVelocity,
+        ),
+        Without<Sleeping>,
+    >,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for (rb, rot, prev_rot, mut ang_vel) in &mut bodies {
+        // Static bodies have no velocity
+        if rb.is_static() && ang_vel.0 != Vector::ZERO {
+            ang_vel.0 = Vector::ZERO;
+        }
+
+        if rb.is_dynamic() {
+            let delta_rot = rot.mul_quat(prev_rot.inverse().0);
+            let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
+            if delta_rot.w < 0.0 {
+                new_ang_vel = -new_ang_vel;
+            }
+            // Avoid triggering bevy's change detection unnecessarily.
+            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
+                ang_vel.0 += new_ang_vel;
             }
         }
     }

@@ -1,11 +1,10 @@
 //! [`SphericalJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
