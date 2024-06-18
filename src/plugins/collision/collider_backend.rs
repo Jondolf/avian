@@ -8,7 +8,6 @@ use crate::{
     broad_phase::BroadPhaseSet,
     prelude::*,
     prepare::{match_any, PrepareSet},
-    sync::SyncSet,
 };
 #[cfg(all(
     feature = "3d",
@@ -133,14 +132,12 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     )
                         .chain()
                         .run_if(match_any::<Added<C>>),
+                    update_collider_scale::<C>,
                     update_collider_mass_properties::<C>,
                 )
                     .chain()
                     .in_set(PrepareSet::Finalize)
                     .before(prepare::update_mass_properties),
-                update_collider_scale::<C>
-                    .after(SyncSet::Update)
-                    .before(SyncSet::Last),
             ),
         );
 
@@ -598,9 +595,9 @@ pub(crate) fn update_child_collider_position(
 pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut C), Without<Parent>>,
+        Query<(&Transform, &mut C), (Without<Parent>, Changed<Transform>)>,
         // Child colliders
-        Query<(&ColliderTransform, &mut C), With<Parent>>,
+        Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
 ) {
     // Update collider scale for root bodies
