@@ -637,6 +637,8 @@ impl Collider {
     }
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers.
+    ///
+    /// Note that the resulting collider will be hollow and have no interior. This makes it more prone to tunneling and other collision issues.
     pub fn trimesh(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
         SharedShape::trimesh(vertices, indices).into()
@@ -644,6 +646,8 @@ impl Collider {
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
     /// and flags controlling the preprocessing.
+    ///
+    /// Note that the resulting collider will be hollow and have no interior. This makes it more prone to tunneling and other collision issues.
     pub fn trimesh_with_config(
         vertices: Vec<Vector>,
         indices: Vec<[u32; 3]>,
