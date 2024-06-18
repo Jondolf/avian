@@ -634,11 +634,11 @@ pub(crate) fn propagate_collider_transforms(
                     parent.get(), entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
-                
+
                 let changed = transform.is_changed() || parent.is_changed();
                 let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
-                
+
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
                 // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
