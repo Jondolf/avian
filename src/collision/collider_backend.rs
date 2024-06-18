@@ -634,8 +634,11 @@ pub(crate) fn propagate_collider_transforms(
                     parent.get(), entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
+                
+                let changed = transform.is_changed() || parent.is_changed();
+                let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
-
+                
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
                 // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
@@ -644,26 +647,25 @@ pub(crate) fn propagate_collider_transforms(
                 // - Since each root entity is unique and the hierarchy is consistent and forest-like,
                 //   other root entities' `propagate_collider_transform_recursive` calls will not conflict with this one.
                 // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
+                let scale = (parent_transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON));
                 unsafe {
                     propagate_collider_transforms_recursive(
                         if is_child_rb {
                             ColliderTransform {
-                                scale: child_transform.scale,
+                                scale,
                                 ..default()
                             }
                         } else {
-                            let transform = ColliderTransform::from(*transform);
-
                             ColliderTransform {
-                                translation: transform.scale * child_transform.translation,
+                                translation: parent_transform.scale * child_transform.translation,
                                 rotation: child_transform.rotation,
-                                scale: (transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON)),
+                                scale,
                             }
                         },
                         &collider_query,
                         &parent_query,
                         child,
-                        transform.is_changed() || parent.is_changed()
+                        changed,
                     );
                 }
             }
