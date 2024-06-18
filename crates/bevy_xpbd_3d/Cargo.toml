@@ -59,7 +59,7 @@ bevy = { version = "0.14.0-rc" }
 bevy_math = { version = "0.14.0-rc" }
 parry3d = { version = "0.15", optional = true }
 parry3d-f64 = { version = "0.15", optional = true }
-nalgebra = { version = "0.32", features = ["convert-glam027"], optional = true }
+nalgebra = { version = "0.32.6", features = ["convert-glam027"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
