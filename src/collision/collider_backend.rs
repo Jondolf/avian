@@ -164,6 +164,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     (
                         propagate_collider_transforms,
                         update_child_collider_position,
+                        update_collider_scale::<C>,
                     )
                         .chain()
                         .run_if(match_any::<Added<C>>),
@@ -580,9 +581,9 @@ pub(crate) fn update_child_collider_position(
 pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut C), Without<Parent>>,
+        Query<(&Transform, &mut C), (Without<Parent>, Changed<Transform>)>,
         // Child colliders
-        Query<(&ColliderTransform, &mut C), With<Parent>>,
+        Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
 ) {
     // Update collider scale for root bodies
