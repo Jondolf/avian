@@ -113,7 +113,7 @@ pub trait ScalableCollider: AnyCollider {
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, Deref, PartialEq, DerefMut, Reflect)]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -165,8 +165,8 @@ pub struct AsyncCollider(pub ComputedCollider);
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, Reflect)]
-#[reflect(Debug, Component)]
+#[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
+#[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct AsyncSceneCollider {
