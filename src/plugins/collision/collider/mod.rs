@@ -857,7 +857,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn async_scene_collider_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
