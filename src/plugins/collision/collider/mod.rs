@@ -113,7 +113,10 @@ pub trait ScalableCollider: AnyCollider {
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
+#[derive(Component, Clone, Debug, Default, Deref, PartialEq, DerefMut, Reflect)]
+#[reflect(Debug, PartialEq, Component)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct AsyncCollider(pub ComputedCollider);
 
 /// A component that will automatically generate colliders for the meshes in a scene
@@ -275,7 +278,10 @@ impl Default for AsyncSceneColliderData {
 /// - [`Collider::convex_hull_from_mesh`]
 /// - [`Collider::convex_decomposition_from_mesh`]
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Reflect)]
+#[reflect(Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub enum ComputedCollider {
     /// A triangle mesh.
     #[default]
@@ -289,12 +295,12 @@ pub enum ComputedCollider {
     /// A convex hull.
     ConvexHull,
     /// A compound shape obtained from a decomposition into convex parts using the specified
-    /// [`VHACDParameters`].
+    /// [`VhacdParameters`].
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
-    ConvexDecomposition(VHACDParameters),
+    ConvexDecomposition(VhacdParameters),
 }
 
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
