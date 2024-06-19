@@ -165,7 +165,10 @@ pub struct AsyncCollider(pub ComputedCollider);
 /// }
 /// ```
 #[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect(Debug, Component)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct AsyncSceneCollider {
     /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
     /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
