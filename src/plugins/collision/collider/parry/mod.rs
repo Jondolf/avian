@@ -1080,7 +1080,7 @@ impl Collider {
     /// By using this, you can serialize and deserialize the collider's creation method
     /// separately from the collider itself via the [`ComputedCollider`] enum.
     pub fn try_from_mesh_with_computation(
-        #[allow(unused_variables)] mesh: &Mesh,
+        #[allow(unused_variables)] mesh: Option<&Mesh>,
         computed_collider: ComputedCollider,
     ) -> Option<Self> {
         match computed_collider {
@@ -1177,25 +1177,25 @@ impl Collider {
             ComputedCollider::ConvexHull { points } => Self::convex_hull(points),
             #[cfg(feature = "2d")]
             ComputedCollider::Heightfield { heights, scale } => {
-                Some(Self::heightfield(heights.clone(), scale))
+                Some(Self::heightfield(heights, scale))
             }
             #[cfg(feature = "3d")]
             ComputedCollider::Heightfield { heights, scale } => {
-                Some(Self::heightfield(heights.clone(), scale))
+                Some(Self::heightfield(heights, scale))
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            ComputedCollider::TrimeshFromMesh => Self::trimesh_from_mesh(mesh),
+            ComputedCollider::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
             #[cfg(all(
                 feature = "3d",
                 feature = "collider-from-mesh",
                 feature = "default-collider"
             ))]
             ComputedCollider::TrimeshFromMeshWithConfig(flags) => {
-                Self::trimesh_from_mesh_with_config(mesh, flags)
+                Self::trimesh_from_mesh_with_config(mesh?, flags)
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             ComputedCollider::ConvexDecompositionFromMesh => {
-                Self::convex_decomposition_from_mesh(mesh)
+                Self::convex_decomposition_from_mesh(mesh?)
             }
             #[cfg(all(
                 feature = "3d",
@@ -1203,10 +1203,10 @@ impl Collider {
                 feature = "default-collider"
             ))]
             ComputedCollider::ConvexDecompositionFromMeshWithConfig(params) => {
-                Self::convex_decomposition_from_mesh_with_config(mesh, &params)
+                Self::convex_decomposition_from_mesh_with_config(mesh?, &params)
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            ComputedCollider::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh),
+            ComputedCollider::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
         }
     }
 }

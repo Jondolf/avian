@@ -528,6 +528,26 @@ pub enum ComputedCollider {
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     ConvexHullFromMesh,
 }
+impl ComputedCollider {
+    /// Returns `true` if the collider type requires a mesh to be generated.
+    pub fn requires_mesh(&self) -> bool {
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+        {
+            matches!(
+                self,
+                Self::TrimeshFromMesh
+                    | Self::TrimeshFromMeshWithConfig(_)
+                    | Self::ConvexDecompositionFromMesh
+                    | Self::ConvexDecompositionFromMeshWithConfig(_)
+                    | Self::ConvexHullFromMesh
+            )
+        }
+        #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+        {
+            false
+        }
+    }
+}
 
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
 ///

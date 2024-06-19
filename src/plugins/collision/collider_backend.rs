@@ -259,19 +259,32 @@ fn init_colliders<C: AnyCollider>(
 pub fn init_async_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    async_colliders: Query<(Entity, &Handle<Mesh>, &AsyncCollider)>,
+    async_colliders: Query<(Entity, Option<&Handle<Mesh>>, &AsyncCollider)>,
 ) {
     for (entity, mesh_handle, async_collider) in async_colliders.iter() {
-        if let Some(mesh) = meshes.get(mesh_handle) {
-            let collider = Collider::try_from_mesh_with_computation(mesh, async_collider.0.clone());
-            if let Some(collider) = collider {
-                commands
-                    .entity(entity)
-                    .insert(collider)
-                    .remove::<AsyncCollider>();
-            } else {
-                error!("Unable to generate collider from mesh {:?}", mesh);
+        let mesh = if async_collider.0.requires_mesh() {
+            let mesh_handle = mesh_handle.expect("AsyncCollider requires a mesh, but was placed on an entity without a handle to one");
+            let mesh = meshes.get(mesh_handle);
+            if mesh.is_none() {
+                // Mesh required, but not loaded yet
+                continue;
             }
+            mesh
+        } else {
+            None
+        };
+
+        let collider = Collider::try_from_mesh_with_computation(mesh, async_collider.0.clone());
+        if let Some(collider) = collider {
+            commands
+                .entity(entity)
+                .insert(collider)
+                .remove::<AsyncCollider>();
+        } else {
+            error!(
+                "Unable to generate collider {:?} from mesh {:?}",
+                async_collider.0, mesh
+            );
         }
     }
 }
@@ -286,12 +299,15 @@ pub fn init_async_scene_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
-    async_colliders: Query<(Entity, &SceneInstance, &AsyncSceneCollider)>,
+    async_colliders: Query<(Entity, Option<&SceneInstance>, &AsyncSceneCollider)>,
     children: Query<&Children>,
-    mesh_handles: Query<(&Name, &Handle<Mesh>)>,
+    mesh_handles: Query<(&Name, Option<&Handle<Mesh>>)>,
 ) {
     for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
-        if scene_spawner.instance_is_ready(**scene_instance) {
+        if scene_instance
+            .map(|instance| scene_spawner.instance_is_ready(**instance))
+            .unwrap_or(true)
+        {
             for child_entity in children.iter_descendants(scene_entity) {
                 if let Ok((name, handle)) = mesh_handles.get(child_entity) {
                     let Some(collider_data) = async_scene_collider
@@ -307,8 +323,16 @@ pub fn init_async_scene_colliders(
                     else {
                         continue;
                     };
+                    let mesh = if collider_data.shape.requires_mesh() {
+                        let mesh_handle = handle.expect("AsyncCollider requires a mesh, but was placed on an entity without a handle to one");
+                        let mesh = meshes
+                            .get(mesh_handle)
+                            .expect("mesh should already be loaded");
+                        Some(mesh)
+                    } else {
+                        None
+                    };
 
-                    let mesh = meshes.get(handle).expect("mesh should already be loaded");
                     let collider =
                         Collider::try_from_mesh_with_computation(mesh, collider_data.shape);
                     if let Some(collider) = collider {
