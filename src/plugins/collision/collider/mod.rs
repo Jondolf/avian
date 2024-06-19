@@ -112,7 +112,7 @@ pub trait ScalableCollider: AnyCollider {
 ///     ));
 /// }
 /// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(feature = "async-collider")]
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -164,7 +164,7 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///     ));
 /// }
 /// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(feature = "async-collider")]
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -180,7 +180,7 @@ pub struct AsyncSceneCollider {
     pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
 }
 
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(feature = "async-collider")]
 impl AsyncSceneCollider {
     /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
     /// meshes set to the given `default_shape`.
@@ -188,9 +188,9 @@ impl AsyncSceneCollider {
     /// If the given collider type is `None`, all meshes except the ones in
     /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
-    pub fn new(default_shape: Option<ComputedCollider>) -> Self {
+    pub fn new(default_shape: impl Into<Option<ComputedCollider>>) -> Self {
         Self {
-            default_shape,
+            default_shape: default_shape.into(),
             meshes_by_name: default(),
         }
     }
@@ -791,5 +791,246 @@ impl MapEntities for CollidingEntities {
             .into_iter()
             .map(|e| entity_mapper.map_entity(e))
             .collect()
+    }
+}
+
+#[cfg(all(feature = "async-collider", test))]
+mod tests {
+    use super::*;
+    use bevy::{ecs::query::QueryData, scene::ScenePlugin};
+
+    #[test]
+    fn async_collider_requires_no_mesh_on_primitive() {
+        let mut app = create_test_app();
+
+        let entity = app
+            .world
+            .spawn(AsyncCollider(PRIMITIVE_COLLIDER.clone()))
+            .id();
+
+        app.update();
+
+        assert!(app.query_ok::<&Collider>(entity));
+        assert!(app.query_err::<&AsyncCollider>(entity));
+    }
+
+    #[test]
+    #[should_panic]
+    fn async_collider_requires_mesh_on_computed() {
+        let mut app = create_test_app();
+
+        app.world.spawn(AsyncCollider(COMPUTED_COLLIDER.clone()));
+
+        app.update();
+    }
+
+    #[test]
+    fn async_collider_converts_mesh_on_computed() {
+        let mut app = create_test_app();
+
+        let mesh_handle = app.add_mesh();
+        let entity = app
+            .world
+            .spawn((AsyncCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
+            .id();
+
+        app.update();
+
+        assert!(app.query_ok::<&Collider>(entity));
+        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_err::<&AsyncCollider>(entity));
+    }
+
+    #[test]
+    fn async_scene_collider_does_nothing_on_self_with_primitive() {
+        let mut app = create_test_app();
+
+        let entity = app
+            .world
+            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .id();
+
+        app.update();
+
+        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+        assert!(app.query_err::<&Collider>(entity));
+    }
+
+    #[test]
+    #[should_panic]
+    fn async_scene_collider_does_nothing_on_self_with_computed() {
+        let mut app = create_test_app();
+
+        let mesh_handle = app.add_mesh();
+        let entity = app
+            .world
+            .spawn((
+                AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()),
+                mesh_handle,
+            ))
+            .id();
+
+        app.update();
+
+        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+        assert!(app.query_err::<&Collider>(entity));
+    }
+
+    #[test]
+    fn async_scene_collider_does_not_require_mesh_on_self_with_computed() {
+        let mut app = create_test_app();
+
+        let entity = app
+            .world
+            .spawn(AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()))
+            .id();
+
+        app.update();
+
+        assert!(app.query_err::<&Collider>(entity));
+        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+    }
+
+    #[test]
+    fn async_scene_collider_inserts_primitive_colliders_on_all_descendants() {
+        let mut app = create_test_app();
+
+        // Hierarchy:
+        // - parent
+        //   - child1
+        //   - child2
+        //     - child3
+        let parent = app
+            .world
+            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .id();
+        let child1 = app.world.spawn(()).id();
+        let child2 = app.world.spawn(()).id();
+        let child3 = app.world.spawn(()).id();
+
+        app.world
+            .entity_mut(parent)
+            .push_children(&[child1, child2]);
+        app.world.entity_mut(child2).push_children(&[child3]);
+
+        assert!(app.query_err::<&Collider>(parent));
+        assert!(app.query_err::<&AsyncSceneCollider>(parent));
+
+        assert!(app.query_ok::<&Collider>(child1));
+        assert!(app.query_err::<&AsyncSceneCollider>(child1));
+
+        assert!(app.query_ok::<&Collider>(child2));
+        assert!(app.query_err::<&AsyncSceneCollider>(child2));
+
+        assert!(app.query_ok::<&Collider>(child3));
+        assert!(app.query_err::<&AsyncSceneCollider>(child3));
+    }
+
+    #[test]
+    fn async_scene_collider_inserts_computed_colliders_only_on_descendants_with_mesh() {
+        let mut app = create_test_app();
+        let mesh_handle = app.add_mesh();
+
+        // Hierarchy:
+        // - parent
+        //   - child1 (no mesh)
+        //   - child2 (no mesh)
+        //     - child3 (mesh)
+        //   - child4 (mesh)
+        //     - child5 (no mesh)
+        //   - child6 (mesh)
+        //   - child7 (mesh)
+        //     - child8 (mesh)
+
+        let parent = app
+            .world
+            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .id();
+        let child1 = app.world.spawn(()).id();
+        let child2 = app.world.spawn(()).id();
+        let child3 = app.world.spawn(mesh_handle.clone()).id();
+        let child4 = app.world.spawn(mesh_handle.clone()).id();
+        let child5 = app.world.spawn(()).id();
+        let child6 = app.world.spawn(mesh_handle.clone()).id();
+        let child7 = app.world.spawn(mesh_handle.clone()).id();
+        let child8 = app.world.spawn(mesh_handle.clone()).id();
+
+        app.world
+            .entity_mut(parent)
+            .push_children(&[child1, child2, child4, child6, child7]);
+        app.world.entity_mut(child2).push_children(&[child3]);
+        app.world.entity_mut(child4).push_children(&[child5]);
+        app.world.entity_mut(child7).push_children(&[child8]);
+
+        assert!(app.query_err::<&Collider>(parent));
+        assert!(app.query_err::<&AsyncSceneCollider>(parent));
+
+        assert!(app.query_err::<&Collider>(child1));
+        assert!(app.query_err::<&AsyncSceneCollider>(child1));
+
+        assert!(app.query_err::<&Collider>(child2));
+        assert!(app.query_err::<&AsyncSceneCollider>(child2));
+
+        assert!(app.query_ok::<&Collider>(child3));
+        assert!(app.query_err::<&AsyncSceneCollider>(child3));
+
+        assert!(app.query_ok::<&Collider>(child4));
+        assert!(app.query_err::<&AsyncSceneCollider>(child4));
+
+        assert!(app.query_err::<&Collider>(child5));
+        assert!(app.query_err::<&AsyncSceneCollider>(child5));
+
+        assert!(app.query_ok::<&Collider>(child6));
+        assert!(app.query_err::<&AsyncSceneCollider>(child6));
+
+        assert!(app.query_ok::<&Collider>(child7));
+        assert!(app.query_err::<&AsyncSceneCollider>(child7));
+
+        assert!(app.query_ok::<&Collider>(child8));
+        assert!(app.query_err::<&AsyncSceneCollider>(child8));
+    }
+
+    const PRIMITIVE_COLLIDER: ComputedCollider = ComputedCollider::Capsule {
+        height: 1.0,
+        radius: 0.5,
+    };
+
+    const COMPUTED_COLLIDER: ComputedCollider = ComputedCollider::TrimeshFromMesh;
+
+    fn create_test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            ScenePlugin,
+            PhysicsPlugins::default(),
+        ))
+        .init_resource::<Assets<Mesh>>();
+
+        app
+    }
+
+    trait AppExt {
+        fn query_ok<D: QueryData>(&mut self, entity: Entity) -> bool;
+        fn query_err<D: QueryData>(&mut self, entity: Entity) -> bool {
+            !self.query_ok::<D>(entity)
+        }
+        fn add_mesh(&mut self) -> Handle<Mesh>;
+    }
+
+    impl AppExt for App {
+        fn query_ok<D: QueryData>(&mut self, entity: Entity) -> bool {
+            let mut query = self.world.query::<D>();
+            let component = query.get(&self.world, entity);
+            component.is_ok()
+        }
+
+        fn add_mesh(&mut self) -> Handle<Mesh> {
+            self.world
+                .get_resource_mut::<Assets<Mesh>>()
+                .unwrap()
+                .add(Mesh::from(Cuboid::default()))
+        }
     }
 }

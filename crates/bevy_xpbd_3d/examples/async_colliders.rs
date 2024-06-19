@@ -25,7 +25,7 @@ fn setup(
             material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
-        AsyncCollider(ComputedCollider::TriMesh),
+        AsyncCollider(ComputedCollider::TrimeshFromMesh),
         RigidBody::Static,
     ));
 
@@ -41,9 +41,9 @@ fn setup(
         // Create colliders using convex decomposition.
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
-        AsyncSceneCollider::new(Some(ComputedCollider::ConvexDecomposition(
-            VHACDParameters::default(),
-        )))
+        AsyncSceneCollider::new(Some(
+            ComputedCollider::ConvexDecompositionFromMeshWithConfig(VhacdParameters::default()),
+        ))
         // Make the arms heavier to make it easier to stand upright
         .with_density_for_name("armL_mesh", 3.0)
         .with_density_for_name("armR_mesh", 3.0),

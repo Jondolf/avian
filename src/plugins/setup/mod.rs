@@ -116,7 +116,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<ColliderTransform>()
             .register_type::<PreviousColliderTransform>()
             .register_type::<ComputedCollider>();
-        #[cfg(all(feature = "3d", feature = "async-collider"))]
+        #[cfg(feature = "async-collider")]
         app.register_type::<AsyncCollider>()
             .register_type::<AsyncSceneCollider>()
             .register_type::<AsyncSceneColliderData>();

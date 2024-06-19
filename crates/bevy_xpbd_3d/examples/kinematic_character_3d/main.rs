@@ -66,7 +66,7 @@ fn setup(
             transform: Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
             ..default()
         },
-        AsyncSceneCollider::new(Some(ComputedCollider::ConvexHull)),
+        AsyncSceneCollider::new(Some(ComputedCollider::ConvexHullFromMesh)),
         RigidBody::Static,
     ));
 
