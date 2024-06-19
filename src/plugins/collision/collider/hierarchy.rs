@@ -68,7 +68,7 @@ impl<C: ScalableCollider> Plugin for ColliderHierarchyPlugin<C> {
              child_query: Query<&Children>,
              parent_query: Query<&Parent>,
              ancestor_query: Query<
-                (Entity, Has<Collider>),
+                (Entity, Has<C>),
                 Or<(With<ColliderAncestor>, With<C>)>,
             >| {
                 let entity = trigger.entity();
