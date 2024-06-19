@@ -114,7 +114,11 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
             .register_type::<ColliderTransform>()
-            .register_type::<PreviousColliderTransform>();
+            .register_type::<PreviousColliderTransform>()
+            .register_type::<ComputedCollider>();
+        #[cfg(all(feature = "3d", feature = "async-collider"))]
+        app.register_type::<AsyncCollider>()
+            .register_type::<AsyncSceneColliderData>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;
