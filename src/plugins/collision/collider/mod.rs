@@ -324,6 +324,7 @@ impl Default for LazyColliderHierarchyData {
 /// - [`Collider::convex_decomposition_from_mesh`]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
+#[non_exhaustive]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), derive(Default))]
