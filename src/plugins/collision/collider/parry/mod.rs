@@ -265,6 +265,10 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 /// - [`ColliderDensity`]
 /// - [`ColliderMassProperties`]
 ///
+/// If you need to specify the shape of the collider statically, use [`ColliderConstructor`] and build your collider
+/// with the [`Collider::try_from_constructor`] method.
+/// This can be done automatically on the `lazy-collider` feature with a [`LazyCollider`] component.
+///
 #[cfg_attr(
     feature = "3d",
     doc = "Colliders can also be generated automatically from meshes and scenes. See [`LazyCollider`] and [`LazyColliderHierarchy`]."
