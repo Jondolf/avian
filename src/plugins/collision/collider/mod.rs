@@ -900,6 +900,7 @@ mod tests {
         //   - child1
         //   - child2
         //     - child3
+
         let parent = app
             .world
             .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
@@ -913,17 +914,18 @@ mod tests {
             .push_children(&[child1, child2]);
         app.world.entity_mut(child2).push_children(&[child3]);
 
-        assert!(app.query_err::<&Collider>(parent));
+        app.update();
+
+        // No entities should have AsyncSceneCollider
         assert!(app.query_err::<&AsyncSceneCollider>(parent));
-
-        assert!(app.query_ok::<&Collider>(child1));
         assert!(app.query_err::<&AsyncSceneCollider>(child1));
-
-        assert!(app.query_ok::<&Collider>(child2));
         assert!(app.query_err::<&AsyncSceneCollider>(child2));
-
-        assert!(app.query_ok::<&Collider>(child3));
         assert!(app.query_err::<&AsyncSceneCollider>(child3));
+
+        assert!(app.query_err::<&Collider>(parent));
+        assert!(app.query_ok::<&Collider>(child1));
+        assert!(app.query_ok::<&Collider>(child2));
+        assert!(app.query_ok::<&Collider>(child3));
     }
 
     #[test]
@@ -962,32 +964,28 @@ mod tests {
         app.world.entity_mut(child4).push_children(&[child5]);
         app.world.entity_mut(child7).push_children(&[child8]);
 
-        assert!(app.query_err::<&Collider>(parent));
+        app.update();
+
+        // No entities should have AsyncSceneCollider
         assert!(app.query_err::<&AsyncSceneCollider>(parent));
-
-        assert!(app.query_err::<&Collider>(child1));
         assert!(app.query_err::<&AsyncSceneCollider>(child1));
-
-        assert!(app.query_err::<&Collider>(child2));
         assert!(app.query_err::<&AsyncSceneCollider>(child2));
-
-        assert!(app.query_ok::<&Collider>(child3));
         assert!(app.query_err::<&AsyncSceneCollider>(child3));
-
-        assert!(app.query_ok::<&Collider>(child4));
         assert!(app.query_err::<&AsyncSceneCollider>(child4));
-
-        assert!(app.query_err::<&Collider>(child5));
         assert!(app.query_err::<&AsyncSceneCollider>(child5));
-
-        assert!(app.query_ok::<&Collider>(child6));
         assert!(app.query_err::<&AsyncSceneCollider>(child6));
-
-        assert!(app.query_ok::<&Collider>(child7));
         assert!(app.query_err::<&AsyncSceneCollider>(child7));
-
-        assert!(app.query_ok::<&Collider>(child8));
         assert!(app.query_err::<&AsyncSceneCollider>(child8));
+
+        assert!(app.query_err::<&Collider>(parent));
+        assert!(app.query_err::<&Collider>(child1));
+        assert!(app.query_err::<&Collider>(child2));
+        assert!(app.query_ok::<&Collider>(child3));
+        assert!(app.query_ok::<&Collider>(child4));
+        assert!(app.query_err::<&Collider>(child5));
+        assert!(app.query_ok::<&Collider>(child6));
+        assert!(app.query_ok::<&Collider>(child7));
+        assert!(app.query_ok::<&Collider>(child8));
     }
 
     const PRIMITIVE_COLLIDER: ComputedCollider = ComputedCollider::Capsule {
