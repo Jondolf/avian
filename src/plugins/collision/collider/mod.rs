@@ -93,7 +93,7 @@ pub trait ScalableCollider: AnyCollider {
 }
 
 /// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
-/// The type of the generated collider can be specified using [`ComputedCollider`].
+/// The type of the generated collider can be specified using [`ColliderConstructor`].
 ///
 /// ## Example
 ///
@@ -104,7 +104,7 @@ pub trait ScalableCollider: AnyCollider {
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 ///     // Spawn a cube with a convex hull collider generated from the mesh
 ///     commands.spawn((
-///         AsyncCollider(ComputedCollider::ConvexHull),
+///         LazyCollider(ColliderConstructor::ConvexHull),
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
@@ -117,11 +117,11 @@ pub trait ScalableCollider: AnyCollider {
 #[reflect(Debug, PartialEq, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct AsyncCollider(pub ComputedCollider);
+pub struct LazyCollider(pub ColliderConstructor);
 
 /// A component that will automatically generate colliders for the meshes in a scene
 /// once the scene has been loaded. The type of the generated collider can be specified
-/// using [`ComputedCollider`].
+/// using [`ColliderConstructor`].
 ///
 /// ## Example
 ///
@@ -135,14 +135,14 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMesh)),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMesh))
+///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHull)
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
 ///     ));
@@ -150,14 +150,14 @@ pub struct AsyncCollider(pub ComputedCollider);
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(None)
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull),
+///         LazyColliderHierarchy::new(None)
+///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHull),
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMeshWithFlags(
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMeshWithFlags(
 ///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
 ///         )))
 ///         .without_shape_with_name("Tree"),
@@ -169,26 +169,26 @@ pub struct AsyncCollider(pub ComputedCollider);
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct AsyncSceneCollider {
+pub struct LazyColliderHierarchy {
     /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
     /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    pub default_shape: Option<ComputedCollider>,
+    pub default_shape: Option<ColliderConstructor>,
     /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
     /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
+    pub meshes_by_name: HashMap<String, Option<LazyColliderHierarchyData>>,
 }
 
 #[cfg(feature = "async-collider")]
-impl AsyncSceneCollider {
-    /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
+impl LazyColliderHierarchy {
+    /// Creates a new [`LazyColliderHierarchy`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
     /// If the given collider type is `None`, all meshes except the ones in
     /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
-    pub fn new(default_shape: impl Into<Option<ComputedCollider>>) -> Self {
+    pub fn new(default_shape: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_shape: default_shape.into(),
             meshes_by_name: default(),
@@ -196,13 +196,13 @@ impl AsyncSceneCollider {
     }
 
     /// Specifies the collider type used for a mesh with the given `name`.
-    pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
+    pub fn with_shape_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
             data.shape = shape;
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(AsyncSceneColliderData { shape, ..default() }),
+                Some(LazyColliderHierarchyData { shape, ..default() }),
             );
         }
         self
@@ -215,7 +215,7 @@ impl AsyncSceneCollider {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(AsyncSceneColliderData {
+                Some(LazyColliderHierarchyData {
                     layers,
                     ..default()
                 }),
@@ -231,7 +231,7 @@ impl AsyncSceneCollider {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(AsyncSceneColliderData {
+                Some(LazyColliderHierarchyData {
                     density,
                     ..default()
                 }),
@@ -248,16 +248,16 @@ impl AsyncSceneCollider {
     }
 }
 
-/// Configuration for a specific collider generated from a scene using [`AsyncSceneCollider`].
+/// Configuration for a specific collider generated from a scene using [`LazyColliderHierarchy`].
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
-pub struct AsyncSceneColliderData {
+pub struct LazyColliderHierarchyData {
     /// The type of collider generated for the mesh.
-    pub shape: ComputedCollider,
+    pub shape: ColliderConstructor,
     /// The [`CollisionLayers`] used for this collider.
     pub layers: CollisionLayers,
     /// The [`ColliderDensity`] used for this collider.
@@ -269,10 +269,10 @@ pub struct AsyncSceneColliderData {
     feature = "async-collider",
     feature = "collider-from-mesh"
 ))]
-impl Default for AsyncSceneColliderData {
+impl Default for LazyColliderHierarchyData {
     fn default() -> Self {
         Self {
-            shape: ComputedCollider::TrimeshFromMesh,
+            shape: ColliderConstructor::TrimeshFromMesh,
             layers: CollisionLayers::default(),
             density: 1.0,
         }
@@ -283,8 +283,8 @@ impl Default for AsyncSceneColliderData {
 ///
 /// Colliders can be created from meshes with the following components and methods:
 ///
-/// - [`AsyncCollider`] (requires `async-collider` features)
-/// - [`AsyncSceneCollider`] (requires `async-collider` features)
+/// - [`LazyCollider`] (requires `async-collider` features)
+/// - [`LazyColliderHierarchy`] (requires `async-collider` features)
 /// - [`Collider::trimesh_from_mesh`]
 /// - [`Collider::convex_hull_from_mesh`]
 /// - [`Collider::convex_decomposition_from_mesh`]
@@ -294,7 +294,7 @@ impl Default for AsyncSceneColliderData {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), derive(Default))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
-pub enum ComputedCollider {
+pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::circle`].
     #[cfg(feature = "2d")]
     Circle {
@@ -528,7 +528,7 @@ pub enum ComputedCollider {
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     ConvexHullFromMesh,
 }
-impl ComputedCollider {
+impl ColliderConstructor {
     /// Returns `true` if the collider type requires a mesh to be generated.
     pub fn requires_mesh(&self) -> bool {
         #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
@@ -800,71 +800,71 @@ mod tests {
     use bevy::{ecs::query::QueryData, scene::ScenePlugin};
 
     #[test]
-    fn async_collider_requires_no_mesh_on_primitive() {
+    fn lazy_collider_requires_no_mesh_on_primitive() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(AsyncCollider(PRIMITIVE_COLLIDER.clone()))
+            .spawn(LazyCollider(PRIMITIVE_COLLIDER.clone()))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_err::<&AsyncCollider>(entity));
+        assert!(app.query_err::<&LazyCollider>(entity));
     }
 
     #[test]
     #[should_panic]
-    fn async_collider_requires_mesh_on_computed() {
+    fn lazy_collider_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
-        app.world.spawn(AsyncCollider(COMPUTED_COLLIDER.clone()));
+        app.world.spawn(LazyCollider(collider_constructor.clone()));
 
         app.update();
     }
 
     #[test]
-    fn async_collider_converts_mesh_on_computed() {
+    fn lazy_collider_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
-            .spawn((AsyncCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
+            .spawn((LazyCollider(collider_constructor.clone()), mesh_handle))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&AsyncCollider>(entity));
+        assert!(app.query_err::<&LazyCollider>(entity));
     }
 
     #[test]
-    fn async_scene_collider_does_nothing_on_self_with_primitive() {
+    fn lazy_collider_hierarchy_does_nothing_on_self_with_primitive() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(LazyColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
             .id();
 
         app.update();
 
-        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
     #[test]
-    fn async_scene_collider_does_nothing_on_self_with_computed() {
+    fn lazy_collider_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
             .spawn((
-                AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()),
+                LazyColliderHierarchy::new(collider_constructor.clone()),
                 mesh_handle,
             ))
             .id();
@@ -872,27 +872,27 @@ mod tests {
         app.update();
 
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
     #[test]
-    fn async_scene_collider_does_not_require_mesh_on_self_with_computed() {
+    fn lazy_collider_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()))
+            .spawn(LazyColliderHierarchy::new(collider_constructor.clone()))
             .id();
 
         app.update();
 
         assert!(app.query_err::<&Collider>(entity));
-        assert!(app.query_err::<&AsyncSceneCollider>(entity));
+        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
     }
 
     #[test]
-    fn async_scene_collider_inserts_primitive_colliders_on_all_descendants() {
+    fn lazy_collider_hierarchy_inserts_primitive_colliders_on_all_descendants() {
         let mut app = create_test_app();
 
         // Hierarchy:
@@ -903,7 +903,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(LazyColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -916,11 +916,11 @@ mod tests {
 
         app.update();
 
-        // No entities should have AsyncSceneCollider
-        assert!(app.query_err::<&AsyncSceneCollider>(parent));
-        assert!(app.query_err::<&AsyncSceneCollider>(child1));
-        assert!(app.query_err::<&AsyncSceneCollider>(child2));
-        assert!(app.query_err::<&AsyncSceneCollider>(child3));
+        // No entities should have LazyColliderHierarchy
+        assert!(app.query_err::<&LazyColliderHierarchy>(parent));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child1));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child2));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child3));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_ok::<&Collider>(child1));
@@ -929,7 +929,7 @@ mod tests {
     }
 
     #[test]
-    fn async_scene_collider_inserts_computed_colliders_only_on_descendants_with_mesh() {
+    fn lazy_collider_hierarchy_inserts_collider_constructors_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
         let mesh_handle = app.add_mesh();
 
@@ -946,7 +946,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()))
+            .spawn(LazyColliderHierarchy::new(collider_constructor.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -966,16 +966,16 @@ mod tests {
 
         app.update();
 
-        // No entities should have AsyncSceneCollider
-        assert!(app.query_err::<&AsyncSceneCollider>(parent));
-        assert!(app.query_err::<&AsyncSceneCollider>(child1));
-        assert!(app.query_err::<&AsyncSceneCollider>(child2));
-        assert!(app.query_err::<&AsyncSceneCollider>(child3));
-        assert!(app.query_err::<&AsyncSceneCollider>(child4));
-        assert!(app.query_err::<&AsyncSceneCollider>(child5));
-        assert!(app.query_err::<&AsyncSceneCollider>(child6));
-        assert!(app.query_err::<&AsyncSceneCollider>(child7));
-        assert!(app.query_err::<&AsyncSceneCollider>(child8));
+        // No entities should have LazyColliderHierarchy
+        assert!(app.query_err::<&LazyColliderHierarchy>(parent));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child1));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child2));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child3));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child4));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child5));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child6));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child7));
+        assert!(app.query_err::<&LazyColliderHierarchy>(child8));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_err::<&Collider>(child1));
@@ -988,12 +988,12 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child8));
     }
 
-    const PRIMITIVE_COLLIDER: ComputedCollider = ComputedCollider::Capsule {
+    const PRIMITIVE_COLLIDER: ColliderConstructor = ColliderConstructor::Capsule {
         height: 1.0,
         radius: 0.5,
     };
 
-    const COMPUTED_COLLIDER: ComputedCollider = ComputedCollider::TrimeshFromMesh;
+    const collider_constructor: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
 
     fn create_test_app() -> App {
         let mut app = App::new();

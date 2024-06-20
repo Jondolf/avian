@@ -124,7 +124,7 @@ name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider"]
 
 [[example]]
-name = "async_colliders"
+name = "lazy_colliders"
 required-features = ["3d", "default-collider", "async-collider"]
 
 [[bench]]

@@ -145,7 +145,7 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+    doc = "    - Creating colliders from meshes with [`LazyCollider`] and [`LazyColliderHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)

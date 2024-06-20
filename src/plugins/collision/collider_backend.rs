@@ -176,7 +176,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             feature = "async-collider",
             feature = "default-collider"
         ))]
-        app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
+        app.add_systems(Update, (init_lazy_colliders, init_lazy_collider_hierarchys));
 
         // Update child colliders before narrow phase in substepping loop
         let substep_schedule = app
@@ -250,35 +250,35 @@ fn init_colliders<C: AnyCollider>(
     }
 }
 
-/// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
+/// Creates [`Collider`]s from [`LazyCollider`]s if the meshes have become available.
 #[cfg(all(
     feature = "3d",
     feature = "async-collider",
     feature = "default-collider"
 ))]
-pub fn init_async_colliders(
+pub fn init_lazy_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    async_colliders: Query<(
+    lazy_colliders: Query<(
         Entity,
         Option<&Handle<Mesh>>,
         Option<&Collider>,
         Option<&Name>,
-        &AsyncCollider,
+        &LazyCollider,
     )>,
 ) {
-    for (entity, mesh_handle, existing_collider, name, async_collider) in async_colliders.iter() {
+    for (entity, mesh_handle, existing_collider, name, lazy_collider) in lazy_colliders.iter() {
         let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
         if existing_collider.is_some() {
             warn!(
-                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?}, \
+                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
             continue;
         }
-        let mesh = if async_collider.0.requires_mesh() {
+        let mesh = if lazy_collider.0.requires_mesh() {
             let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
-                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?} that requires a mesh, \
+                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?} that requires a mesh, \
                 but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
@@ -290,36 +290,36 @@ pub fn init_async_colliders(
             None
         };
 
-        let collider = Collider::try_from_mesh_with_computation(mesh, async_collider.0.clone());
+        let collider = Collider::try_from_mesh_with_computation(mesh, lazy_collider.0.clone());
         if let Some(collider) = collider {
             commands
                 .entity(entity)
                 .insert(collider)
-                .remove::<AsyncCollider>();
+                .remove::<LazyCollider>();
         } else {
             error!(
-                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?}, \
+                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?}, \
                 but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }
     }
 }
 
-/// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
+/// Creates [`Collider`]s from [`LazyColliderHierarchy`]s if the scenes have become available.
 #[cfg(all(
     feature = "3d",
     feature = "async-collider",
     feature = "default-collider"
 ))]
-pub fn init_async_scene_colliders(
+pub fn init_lazy_collider_hierarchys(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
-    async_colliders: Query<(Entity, Option<&SceneInstance>, &AsyncSceneCollider)>,
+    lazy_colliders: Query<(Entity, Option<&SceneInstance>, &LazyColliderHierarchy)>,
     children: Query<&Children>,
     mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
-    for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
+    for (scene_entity, scene_instance, lazy_collider_hierarchy) in lazy_colliders.iter() {
         if scene_instance
             .map(|instance| scene_spawner.instance_is_ready(**instance))
             .unwrap_or(true)
@@ -329,22 +329,22 @@ pub fn init_async_scene_colliders(
                     let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
 
                     let default_collider = || {
-                        async_scene_collider
+                        lazy_collider_hierarchy
                             .default_shape
                             .clone()
-                            .map(|shape| AsyncSceneColliderData { shape, ..default() })
+                            .map(|shape| LazyColliderHierarchyData { shape, ..default() })
                     };
 
                     let collider_data = if let Some(name) = name {
-                        async_scene_collider
+                        lazy_collider_hierarchy
                             .meshes_by_name
                             .get(name.as_str())
                             .cloned()
                             .unwrap_or_else(default_collider)
                     } else if existing_collider.is_some() {
-                        warn!("Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
+                        warn!("Tried to add a collider to entity {pretty_name} via LazyColliderHierarchy {lazy_collider_hierarchy:#?}, \
                             but that entity already holds a collider. Skipping. \
-                            If this was intentional, add the name of the collider to overwrite to `AsyncSceneCollider.meshes_by_name`.");
+                            If this was intentional, add the name of the collider to overwrite to `LazyColliderHierarchy.meshes_by_name`.");
                         continue;
                     } else {
                         default_collider()
@@ -370,14 +370,16 @@ pub fn init_async_scene_colliders(
                         ));
                     } else {
                         error!(
-                            "Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
+                            "Tried to add a collider to entity {pretty_name} via LazyColliderHierarchy {lazy_collider_hierarchy:#?}, \
                             but the collider could not be generated from mesh {mesh:#?}. Skipping.",
                         );
                     }
                 }
             }
 
-            commands.entity(scene_entity).remove::<AsyncSceneCollider>();
+            commands
+                .entity(scene_entity)
+                .remove::<LazyColliderHierarchy>();
         }
     }
 }

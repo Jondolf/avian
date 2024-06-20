@@ -65,14 +65,14 @@ fn setup(
         },
     ));
 
-    // Environment (see `async_colliders` example for creating colliders from scenes)
+    // Environment (see `lazy_colliders` example for creating colliders from scenes)
     commands.spawn((
         SceneBundle {
             scene: assets.load("character_controller_demo.glb#Scene0"),
             transform: Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
             ..default()
         },
-        AsyncSceneCollider::new(Some(ComputedCollider::ConvexHullFromMesh)),
+        LazyColliderHierarchy::new(Some(ColliderConstructor::ConvexHullFromMesh)),
         RigidBody::Static,
     ));
 

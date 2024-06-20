@@ -267,7 +267,7 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 ///
 #[cfg_attr(
     feature = "3d",
-    doc = "Colliders can also be generated automatically from meshes and scenes. See [`AsyncCollider`] and [`AsyncSceneCollider`]."
+    doc = "Colliders can also be generated automatically from meshes and scenes. See [`LazyCollider`] and [`LazyColliderHierarchy`]."
 )]
 ///
 /// ### Multiple colliders
@@ -337,7 +337,7 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 /// - [Sensors](Sensor)
 #[cfg_attr(
     feature = "3d",
-    doc = "- Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+    doc = "- Creating colliders from meshes with [`LazyCollider`] and [`LazyColliderHierarchy`]"
 )]
 /// - [Get colliding entities](CollidingEntities)
 /// - [Collision events](ContactReportingPlugin#collision-events)
@@ -1078,39 +1078,39 @@ impl Collider {
 
     /// Attempts to create a collider from a mesh with the given computed collider.
     /// By using this, you can serialize and deserialize the collider's creation method
-    /// separately from the collider itself via the [`ComputedCollider`] enum.
+    /// separately from the collider itself via the [`ColliderConstructor`] enum.
     pub fn try_from_mesh_with_computation(
         #[allow(unused_variables)] mesh: Option<&Mesh>,
-        computed_collider: ComputedCollider,
+        collider_constructor: ColliderConstructor,
     ) -> Option<Self> {
-        match computed_collider {
+        match collider_constructor {
             #[cfg(feature = "2d")]
-            ComputedCollider::Circle { radius } => Some(Self::circle(radius)),
+            ColliderConstructor::Circle { radius } => Some(Self::circle(radius)),
             #[cfg(feature = "3d")]
-            ComputedCollider::Sphere { radius } => Some(Self::sphere(radius)),
+            ColliderConstructor::Sphere { radius } => Some(Self::sphere(radius)),
             #[cfg(feature = "2d")]
-            ComputedCollider::Ellipse {
+            ColliderConstructor::Ellipse {
                 half_width,
                 half_height,
             } => Some(Self::ellipse(half_width, half_height)),
             #[cfg(feature = "2d")]
-            ComputedCollider::Rectangle { x_length, y_length } => {
+            ColliderConstructor::Rectangle { x_length, y_length } => {
                 Some(Self::rectangle(x_length, y_length))
             }
             #[cfg(feature = "3d")]
-            ComputedCollider::Cuboid {
+            ColliderConstructor::Cuboid {
                 x_length,
                 y_length,
                 z_length,
             } => Some(Self::cuboid(x_length, y_length, z_length)),
             #[cfg(feature = "2d")]
-            ComputedCollider::RoundRectangle {
+            ColliderConstructor::RoundRectangle {
                 x_length,
                 y_length,
                 border_radius,
             } => Some(Self::round_rectangle(x_length, y_length, border_radius)),
             #[cfg(feature = "3d")]
-            ComputedCollider::RoundCuboid {
+            ColliderConstructor::RoundCuboid {
                 x_length,
                 y_length,
                 z_length,
@@ -1122,41 +1122,45 @@ impl Collider {
                 border_radius,
             )),
             #[cfg(feature = "3d")]
-            ComputedCollider::Cylinder { height, radius } => Some(Self::cylinder(height, radius)),
+            ColliderConstructor::Cylinder { height, radius } => {
+                Some(Self::cylinder(height, radius))
+            }
             #[cfg(feature = "3d")]
-            ComputedCollider::Cone { height, radius } => Some(Self::cone(height, radius)),
-            ComputedCollider::Capsule { height, radius } => Some(Self::capsule(height, radius)),
-            ComputedCollider::CapsuleEndpoints { a, b, radius } => {
+            ColliderConstructor::Cone { height, radius } => Some(Self::cone(height, radius)),
+            ColliderConstructor::Capsule { height, radius } => Some(Self::capsule(height, radius)),
+            ColliderConstructor::CapsuleEndpoints { a, b, radius } => {
                 Some(Self::capsule_endpoints(a, b, radius))
             }
-            ComputedCollider::Halfspace { outward_normal } => Some(Self::halfspace(outward_normal)),
-            ComputedCollider::Segment { a, b } => Some(Self::segment(a, b)),
-            ComputedCollider::Triangle { a, b, c } => Some(Self::triangle(a, b, c)),
+            ColliderConstructor::Halfspace { outward_normal } => {
+                Some(Self::halfspace(outward_normal))
+            }
+            ColliderConstructor::Segment { a, b } => Some(Self::segment(a, b)),
+            ColliderConstructor::Triangle { a, b, c } => Some(Self::triangle(a, b, c)),
             #[cfg(feature = "2d")]
-            ComputedCollider::RegularPolygon { circumradius, size } => {
+            ColliderConstructor::RegularPolygon { circumradius, size } => {
                 Some(Self::regular_polygon(circumradius, size))
             }
-            ComputedCollider::Polyline { vertices, indices } => {
+            ColliderConstructor::Polyline { vertices, indices } => {
                 Some(Self::polyline(vertices, indices))
             }
-            ComputedCollider::Trimesh { vertices, indices } => {
+            ColliderConstructor::Trimesh { vertices, indices } => {
                 Some(Self::trimesh(vertices, indices))
             }
-            ComputedCollider::TrimeshWithConfig {
+            ColliderConstructor::TrimeshWithConfig {
                 vertices,
                 indices,
                 flags,
             } => Some(Self::trimesh_with_config(vertices, indices, flags)),
             #[cfg(feature = "2d")]
-            ComputedCollider::ConvexDecomposition { vertices, indices } => {
+            ColliderConstructor::ConvexDecomposition { vertices, indices } => {
                 Some(Self::convex_decomposition(vertices, indices))
             }
             #[cfg(feature = "3d")]
-            ComputedCollider::ConvexDecomposition { vertices, indices } => {
+            ColliderConstructor::ConvexDecomposition { vertices, indices } => {
                 Some(Self::convex_decomposition(vertices, indices))
             }
             #[cfg(feature = "2d")]
-            ComputedCollider::ConvexDecompositionWithConfig {
+            ColliderConstructor::ConvexDecompositionWithConfig {
                 vertices,
                 indices,
                 params,
@@ -1164,7 +1168,7 @@ impl Collider {
                 vertices, indices, &params,
             )),
             #[cfg(feature = "3d")]
-            ComputedCollider::ConvexDecompositionWithConfig {
+            ColliderConstructor::ConvexDecompositionWithConfig {
                 vertices,
                 indices,
                 params,
@@ -1172,29 +1176,29 @@ impl Collider {
                 vertices, indices, params,
             )),
             #[cfg(feature = "2d")]
-            ComputedCollider::ConvexHull { points } => Self::convex_hull(points),
+            ColliderConstructor::ConvexHull { points } => Self::convex_hull(points),
             #[cfg(feature = "3d")]
-            ComputedCollider::ConvexHull { points } => Self::convex_hull(points),
+            ColliderConstructor::ConvexHull { points } => Self::convex_hull(points),
             #[cfg(feature = "2d")]
-            ComputedCollider::Heightfield { heights, scale } => {
+            ColliderConstructor::Heightfield { heights, scale } => {
                 Some(Self::heightfield(heights, scale))
             }
             #[cfg(feature = "3d")]
-            ComputedCollider::Heightfield { heights, scale } => {
+            ColliderConstructor::Heightfield { heights, scale } => {
                 Some(Self::heightfield(heights, scale))
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            ComputedCollider::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
+            ColliderConstructor::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
             #[cfg(all(
                 feature = "3d",
                 feature = "collider-from-mesh",
                 feature = "default-collider"
             ))]
-            ComputedCollider::TrimeshFromMeshWithConfig(flags) => {
+            ColliderConstructor::TrimeshFromMeshWithConfig(flags) => {
                 Self::trimesh_from_mesh_with_config(mesh?, flags)
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            ComputedCollider::ConvexDecompositionFromMesh => {
+            ColliderConstructor::ConvexDecompositionFromMesh => {
                 Self::convex_decomposition_from_mesh(mesh?)
             }
             #[cfg(all(
@@ -1202,11 +1206,11 @@ impl Collider {
                 feature = "collider-from-mesh",
                 feature = "default-collider"
             ))]
-            ComputedCollider::ConvexDecompositionFromMeshWithConfig(params) => {
+            ColliderConstructor::ConvexDecompositionFromMeshWithConfig(params) => {
                 Self::convex_decomposition_from_mesh_with_config(mesh?, &params)
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            ComputedCollider::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
+            ColliderConstructor::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
         }
     }
 }
