@@ -355,6 +355,8 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 ///
 /// To get a reference to the internal [`SharedShape`], you can use the [`Collider::shape()`]
 /// or [`Collider::shape_scaled()`] methods.
+///
+/// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] and/or [`LazyCollider`] as a workaround.
 #[derive(Clone, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collider {
