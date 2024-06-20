@@ -169,13 +169,13 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMesh)),
+///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMesh))
+///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh)
 ///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh)
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
@@ -191,9 +191,9 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMeshWithConfig(
+///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
 ///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
-///         )))
+///         ))
 ///         .without_shape_with_name("Tree"),
 ///     ));
 /// }

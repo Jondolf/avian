@@ -41,8 +41,8 @@ fn setup(
         // Create colliders using convex decomposition.
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
-        LazyColliderHierarchy::new(Some(
-            ColliderConstructor::ConvexDecompositionFromMeshWithConfig(VhacdParameters::default()),
+        LazyColliderHierarchy::new(ColliderConstructor::ConvexDecompositionFromMeshWithConfig(
+            VhacdParameters::default(),
         ))
         // Make the arms heavier to make it easier to stand upright
         .with_density_for_name("armL_mesh", 3.0)

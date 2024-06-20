@@ -66,7 +66,7 @@ fn setup(
             transform: Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
             ..default()
         },
-        LazyColliderHierarchy::new(Some(ColliderConstructor::ConvexHullFromMesh)),
+        LazyColliderHierarchy::new(ColliderConstructor::ConvexHullFromMesh),
         RigidBody::Static,
     ));
 
