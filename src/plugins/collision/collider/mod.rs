@@ -92,8 +92,18 @@ pub trait ScalableCollider: AnyCollider {
     }
 }
 
-/// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
+/// A component that will automatically generate a [`Collider`] at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
+/// This supports computing the shape dynamically from the mesh.
+///
+/// Since [`Collider`] is not [`Reflect`], you can use this type to statically statically
+/// specify a collider's shape instead.
+///
+/// This component will never override a pre-existing [`Collider`] component on the same entity.
+///
+/// ## See also
+///
+/// For inserting colliders on an entity's descendants, use [`LazyColliderHierarchy`].
 ///
 /// ## Example
 ///
@@ -119,9 +129,28 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct LazyCollider(pub ColliderConstructor);
 
-/// A component that will automatically generate colliders for the meshes in a scene
-/// once the scene has been loaded. The type of the generated collider can be specified
-/// using [`ColliderConstructor`].
+/// A component that will automatically generate [`Collider`]s on its descendants at runtime.
+/// The type of the generated collider can be specified using [`ColliderConstructor`].
+/// This supports computing the shape dynamically from the mesh, in which case only the descendants
+/// with a [`Mesh`] will have colliders generated.
+///
+/// In contrast to [`LazyCollider`], this component will *not* generate a collider on its own entity.
+///
+/// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
+/// wait until the scene is loaded before generating colliders.
+///
+/// The exact configuration for each descendant can be specified using [`LazyColliderHierarchyData`].
+///
+/// This component will only override a pre-existing [`Collider`] component on a descendant entity
+/// when it has been explicitly mentioned in the `meshes_by_name`.
+///
+/// ## See also
+///
+/// For inserting colliders on the same entity, use [`LazyCollider`].
+///
+/// ## Caveats
+///
+/// When a component has multiple ancestors with [`LazyColliderHierarchy`], the insertion order is undefined.
 ///
 /// ## Example
 ///
