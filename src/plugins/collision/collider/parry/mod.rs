@@ -1079,9 +1079,13 @@ impl Collider {
     /// Attempts to create a collider from a mesh with the given computed collider.
     /// By using this, you can serialize and deserialize the collider's creation method
     /// separately from the collider itself via the [`ColliderConstructor`] enum.
-    pub fn try_from_mesh_with_computation(
-        #[allow(unused_variables)] mesh: Option<&Mesh>,
+    ///
+    /// Returns `None` in the following cases:
+    /// - The given [`ColliderConstructor`] requires a mesh, but none was provided.
+    /// - Creating the collider from the given [`ColliderConstructor`] failed.
+    pub fn try_from_constructor(
         collider_constructor: ColliderConstructor,
+        #[allow(unused_variables)] mesh: Option<&Mesh>,
     ) -> Option<Self> {
         match collider_constructor {
             #[cfg(feature = "2d")]

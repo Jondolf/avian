@@ -290,7 +290,7 @@ pub fn init_lazy_colliders(
             None
         };
 
-        let collider = Collider::try_from_mesh_with_computation(mesh, lazy_collider.0.clone());
+        let collider = Collider::try_from_constructor(lazy_collider.0.clone(), mesh);
         if let Some(collider) = collider {
             commands
                 .entity(entity)
@@ -360,8 +360,7 @@ pub fn init_lazy_collider_hierarchys(
                         None
                     };
 
-                    let collider =
-                        Collider::try_from_mesh_with_computation(mesh, collider_data.shape);
+                    let collider = Collider::try_from_constructor(collider_data.shape, mesh);
                     if let Some(collider) = collider {
                         commands.entity(child_entity).insert((
                             collider,
