@@ -108,7 +108,7 @@ pub trait ScalableCollider: AnyCollider {
 /// ## Errors
 ///
 /// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
-/// requires a mesh, but the entity does not have a `Handle<Mesh>`` component.
+/// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
 ///
 /// ## Example
 ///
