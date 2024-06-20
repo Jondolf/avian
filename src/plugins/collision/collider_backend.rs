@@ -268,18 +268,19 @@ pub fn init_async_colliders(
     )>,
 ) {
     for (entity, mesh_handle, existing_collider, name, async_collider) in async_colliders.iter() {
+        let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
         if existing_collider.is_some() {
             warn!(
-                "Tried to add a collider to entity {name} via AsyncCollider, but that entity already holds a collider. Skipping.",
-                name= name.map(|n| n.as_str()).unwrap_or("<unnamed>")
+                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?}, \
+                but that entity already holds a collider. Skipping.",
             );
             continue;
         }
         let mesh = if async_collider.0.requires_mesh() {
             let mesh_handle = mesh_handle
                 .unwrap_or_else(|| 
-                    panic!("Tried to add a collider to entity {name} via AsyncCollider that requires a mesh, but no mesh handle was found", 
-                    name = name.map(|n| n.as_str()).unwrap_or("<unnamed>")));
+                    panic!("Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?} that requires a mesh, \
+                    but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
                 // Mesh required, but not loaded yet
@@ -298,8 +299,8 @@ pub fn init_async_colliders(
                 .remove::<AsyncCollider>();
         } else {
             error!(
-                "Unable to generate collider {:?} from mesh {:?}",
-                async_collider.0, mesh
+                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?}, \
+                but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }
     }
@@ -326,10 +327,11 @@ pub fn init_async_scene_colliders(
         {
             for child_entity in children.iter_descendants(scene_entity) {
                 if let Ok((name, existing_collider, handle)) = mesh_handles.get(child_entity) {
+                    let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
                     if existing_collider.is_some() {
                         warn!(
-                            "Tried to add a collider to entity {name} via AsyncSceneCollider, but that entity already holds a collider. Skipping.",
-                            name= name.map(|n| n.as_str()).unwrap_or("<unnamed>")
+                            "Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
+                            but that entity already holds a collider. Skipping.",
                         );
                         continue;
                     }
@@ -350,15 +352,7 @@ pub fn init_async_scene_colliders(
                         continue;
                     };
                     let mesh = if collider_data.shape.requires_mesh() {
-                        let mesh_handle = handle
-                            .unwrap_or_else(|| 
-                                panic!("Tried to add a collider to entity {name} via AsyncSceneCollider that requires a mesh, but no mesh handle was found", 
-                                name = name.map(|n| n.as_str()).unwrap_or("<unnamed>"))
-                            );
-                        let mesh = meshes
-                            .get(mesh_handle)
-                            .expect("mesh should already be loaded");
-                        Some(mesh)
+                        handle.and_then(|handle| meshes.get(handle))
                     } else {
                         None
                     };
@@ -373,8 +367,8 @@ pub fn init_async_scene_colliders(
                         ));
                     } else {
                         error!(
-                            "unable to generate collider from mesh {mesh:?} with name {name}",
-                            name = name.map(|n| n.as_str()).unwrap_or("<unnamed>")
+                            "Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
+                            but the collider could not be generated from mesh {mesh:#?}. Skipping.",
                         );
                     }
                 }

@@ -946,7 +946,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(AsyncSceneCollider::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(AsyncSceneCollider::new(COMPUTED_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
