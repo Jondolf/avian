@@ -277,10 +277,9 @@ pub fn init_async_colliders(
             continue;
         }
         let mesh = if async_collider.0.requires_mesh() {
-            let mesh_handle = mesh_handle
-                .unwrap_or_else(|| 
-                    panic!("Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?} that requires a mesh, \
-                    but no mesh handle was found"));
+            let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
+                "Tried to add a collider to entity {name} via AsyncCollider {async_collider:#?} that requires a mesh, \
+                but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
                 // Mesh required, but not loaded yet
@@ -328,29 +327,33 @@ pub fn init_async_scene_colliders(
             for child_entity in children.iter_descendants(scene_entity) {
                 if let Ok((name, existing_collider, handle)) = mesh_handles.get(child_entity) {
                     let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
-                    if existing_collider.is_some() {
-                        warn!(
-                            "Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
-                            but that entity already holds a collider. Skipping.",
-                        );
+
+                    let default_collider = || {
+                        async_scene_collider
+                            .default_shape
+                            .clone()
+                            .map(|shape| AsyncSceneColliderData { shape, ..default() })
+                    };
+
+                    let collider_data = if let Some(name) = name {
+                        async_scene_collider
+                            .meshes_by_name
+                            .get(name.as_str())
+                            .cloned()
+                            .unwrap_or_else(default_collider)
+                    } else if existing_collider.is_some() {
+                        warn!("Tried to add a collider to entity {pretty_name} via AsyncSceneCollider {async_scene_collider:#?}, \
+                            but that entity already holds a collider. Skipping. \
+                            If this was intentional, add the name of the collider to overwrite to `AsyncSceneCollider.meshes_by_name`.");
                         continue;
-                    }
-                    let Some(collider_data) = name
-                        .and_then(|name| {
-                            async_scene_collider
-                                .meshes_by_name
-                                .get(name.as_str())
-                                .cloned()
-                        })
-                        .unwrap_or(
-                            async_scene_collider
-                                .default_shape
-                                .clone()
-                                .map(|shape| AsyncSceneColliderData { shape, ..default() }),
-                        )
-                    else {
+                    } else {
+                        default_collider()
+                    };
+
+                    let Some(collider_data) = collider_data else {
                         continue;
                     };
+
                     let mesh = if collider_data.shape.requires_mesh() {
                         handle.and_then(|handle| meshes.get(handle))
                     } else {
