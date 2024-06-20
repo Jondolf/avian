@@ -105,6 +105,11 @@ pub trait ScalableCollider: AnyCollider {
 ///
 /// For inserting colliders on an entity's descendants, use [`LazyColliderHierarchy`].
 ///
+/// ## Errors
+///
+/// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
+/// requires a mesh, but the entity does not have a `Handle<Mesh>`` component.
+///
 /// ## Example
 ///
 /// ```
