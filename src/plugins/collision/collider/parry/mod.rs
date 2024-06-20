@@ -267,11 +267,11 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 ///
 /// If you need to specify the shape of the collider statically, use [`ColliderConstructor`] and build your collider
 /// with the [`Collider::try_from_constructor`] method.
-/// This can be done automatically on the `lazy-collider` feature with a [`LazyCollider`] component.
+/// This can be done automatically on the `deferred-collider` feature with a [`DeferredCollider`] component.
 ///
 #[cfg_attr(
     feature = "3d",
-    doc = "Colliders can also be generated automatically from meshes and scenes. See [`LazyCollider`] and [`LazyColliderHierarchy`]."
+    doc = "Colliders can also be generated automatically from meshes and scenes. See [`DeferredCollider`] and [`DeferredColliderHierarchy`]."
 )]
 ///
 /// ### Multiple colliders
@@ -341,7 +341,7 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 /// - [Sensors](Sensor)
 #[cfg_attr(
     feature = "3d",
-    doc = "- Creating colliders from meshes with [`LazyCollider`] and [`LazyColliderHierarchy`]"
+    doc = "- Creating colliders from meshes with [`DeferredCollider`] and [`DeferredColliderHierarchy`]"
 )]
 /// - [Get colliding entities](CollidingEntities)
 /// - [Collision events](ContactReportingPlugin#collision-events)
@@ -356,7 +356,7 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 /// To get a reference to the internal [`SharedShape`], you can use the [`Collider::shape()`]
 /// or [`Collider::shape_scaled()`] methods.
 ///
-/// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] and/or [`LazyCollider`] as a workaround.
+/// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] and/or [`DeferredCollider`] as a workaround.
 #[derive(Clone, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collider {

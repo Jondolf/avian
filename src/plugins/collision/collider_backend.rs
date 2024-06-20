@@ -11,7 +11,7 @@ use crate::{
 };
 #[cfg(all(
     feature = "3d",
-    feature = "lazy-collider",
+    feature = "deferred-collider",
     feature = "default-collider"
 ))]
 use bevy::scene::SceneInstance;
@@ -173,10 +173,13 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         #[cfg(all(
             feature = "3d",
-            feature = "lazy-collider",
+            feature = "deferred-collider",
             feature = "default-collider"
         ))]
-        app.add_systems(Update, (init_lazy_colliders, init_lazy_collider_hierarchys));
+        app.add_systems(
+            Update,
+            (init_deferred_colliders, init_deferred_collider_hierarchys),
+        );
 
         // Update child colliders before narrow phase in substepping loop
         let substep_schedule = app
@@ -250,35 +253,37 @@ fn init_colliders<C: AnyCollider>(
     }
 }
 
-/// Creates [`Collider`]s from [`LazyCollider`]s if the meshes have become available.
+/// Creates [`Collider`]s from [`DeferredCollider`]s if the meshes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "lazy-collider",
+    feature = "deferred-collider",
     feature = "default-collider"
 ))]
-pub fn init_lazy_colliders(
+pub fn init_deferred_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    lazy_colliders: Query<(
+    deferred_colliders: Query<(
         Entity,
         Option<&Handle<Mesh>>,
         Option<&Collider>,
         Option<&Name>,
-        &LazyCollider,
+        &DeferredCollider,
     )>,
 ) {
-    for (entity, mesh_handle, existing_collider, name, lazy_collider) in lazy_colliders.iter() {
+    for (entity, mesh_handle, existing_collider, name, deferred_collider) in
+        deferred_colliders.iter()
+    {
         let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
         if existing_collider.is_some() {
             warn!(
-                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?}, \
+                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
             continue;
         }
-        let mesh = if lazy_collider.0.requires_mesh() {
+        let mesh = if deferred_collider.0.requires_mesh() {
             let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
-                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?} that requires a mesh, \
+                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?} that requires a mesh, \
                 but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
@@ -290,36 +295,36 @@ pub fn init_lazy_colliders(
             None
         };
 
-        let collider = Collider::try_from_constructor(lazy_collider.0.clone(), mesh);
+        let collider = Collider::try_from_constructor(deferred_collider.0.clone(), mesh);
         if let Some(collider) = collider {
             commands
                 .entity(entity)
                 .insert(collider)
-                .remove::<LazyCollider>();
+                .remove::<DeferredCollider>();
         } else {
             error!(
-                "Tried to add a collider to entity {name} via LazyCollider {lazy_collider:#?}, \
+                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?}, \
                 but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }
     }
 }
 
-/// Creates [`Collider`]s from [`LazyColliderHierarchy`]s if the scenes have become available.
+/// Creates [`Collider`]s from [`DeferredColliderHierarchy`]s if the scenes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "lazy-collider",
+    feature = "deferred-collider",
     feature = "default-collider"
 ))]
-pub fn init_lazy_collider_hierarchys(
+pub fn init_deferred_collider_hierarchys(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
-    lazy_colliders: Query<(Entity, Option<&SceneInstance>, &LazyColliderHierarchy)>,
+    deferred_colliders: Query<(Entity, Option<&SceneInstance>, &DeferredColliderHierarchy)>,
     children: Query<&Children>,
     mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
-    for (scene_entity, scene_instance, lazy_collider_hierarchy) in lazy_colliders.iter() {
+    for (scene_entity, scene_instance, deferred_collider_hierarchy) in deferred_colliders.iter() {
         if scene_instance
             .map(|instance| scene_spawner.instance_is_ready(**instance))
             .unwrap_or(true)
@@ -329,22 +334,22 @@ pub fn init_lazy_collider_hierarchys(
                     let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
 
                     let default_collider = || {
-                        lazy_collider_hierarchy
+                        deferred_collider_hierarchy
                             .default_shape
                             .clone()
-                            .map(|shape| LazyColliderHierarchyData { shape, ..default() })
+                            .map(|shape| DeferredColliderHierarchyData { shape, ..default() })
                     };
 
                     let collider_data = if let Some(name) = name {
-                        lazy_collider_hierarchy
+                        deferred_collider_hierarchy
                             .meshes_by_name
                             .get(name.as_str())
                             .cloned()
                             .unwrap_or_else(default_collider)
                     } else if existing_collider.is_some() {
-                        warn!("Tried to add a collider to entity {pretty_name} via LazyColliderHierarchy {lazy_collider_hierarchy:#?}, \
+                        warn!("Tried to add a collider to entity {pretty_name} via DeferredColliderHierarchy {deferred_collider_hierarchy:#?}, \
                             but that entity already holds a collider. Skipping. \
-                            If this was intentional, add the name of the collider to overwrite to `LazyColliderHierarchy.meshes_by_name`.");
+                            If this was intentional, add the name of the collider to overwrite to `DeferredColliderHierarchy.meshes_by_name`.");
                         continue;
                     } else {
                         default_collider()
@@ -369,7 +374,7 @@ pub fn init_lazy_collider_hierarchys(
                         ));
                     } else {
                         error!(
-                            "Tried to add a collider to entity {pretty_name} via LazyColliderHierarchy {lazy_collider_hierarchy:#?}, \
+                            "Tried to add a collider to entity {pretty_name} via DeferredColliderHierarchy {deferred_collider_hierarchy:#?}, \
                             but the collider could not be generated from mesh {mesh:#?}. Skipping.",
                         );
                     }
@@ -378,7 +383,7 @@ pub fn init_lazy_collider_hierarchys(
 
             commands
                 .entity(scene_entity)
-                .remove::<LazyColliderHierarchy>();
+                .remove::<DeferredColliderHierarchy>();
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "lazy-collider"))]
+#[cfg(all(feature = "3d", feature = "deferred-collider"))]
 use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -103,7 +103,7 @@ pub trait ScalableCollider: AnyCollider {
 ///
 /// ## See also
 ///
-/// For inserting colliders on an entity's descendants, use [`LazyColliderHierarchy`].
+/// For inserting colliders on an entity's descendants, use [`DeferredColliderHierarchy`].
 ///
 /// ## Errors
 ///
@@ -119,7 +119,7 @@ pub trait ScalableCollider: AnyCollider {
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 ///     // Spawn a cube with a convex hull collider generated from the mesh
 ///     commands.spawn((
-///         LazyCollider(ColliderConstructor::ConvexHullFromMesh),
+///         DeferredCollider(ColliderConstructor::ConvexHullFromMesh),
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
@@ -127,35 +127,35 @@ pub trait ScalableCollider: AnyCollider {
 ///     ));
 /// }
 /// ```
-#[cfg(feature = "lazy-collider")]
+#[cfg(feature = "deferred-collider")]
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct LazyCollider(pub ColliderConstructor);
+pub struct DeferredCollider(pub ColliderConstructor);
 
 /// A component that will automatically generate [`Collider`]s on its descendants at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
 /// This supports computing the shape dynamically from the mesh, in which case only the descendants
 /// with a [`Mesh`] will have colliders generated.
 ///
-/// In contrast to [`LazyCollider`], this component will *not* generate a collider on its own entity.
+/// In contrast to [`DeferredCollider`], this component will *not* generate a collider on its own entity.
 ///
 /// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
 /// wait until the scene is loaded before generating colliders.
 ///
-/// The exact configuration for each descendant can be specified using [`LazyColliderHierarchyData`].
+/// The exact configuration for each descendant can be specified using [`DeferredColliderHierarchyData`].
 ///
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `meshes_by_name`.
 ///
 /// ## See also
 ///
-/// For inserting colliders on the same entity, use [`LazyCollider`].
+/// For inserting colliders on the same entity, use [`DeferredCollider`].
 ///
 /// ## Caveats
 ///
-/// When a component has multiple ancestors with [`LazyColliderHierarchy`], the insertion order is undefined.
+/// When a component has multiple ancestors with [`DeferredColliderHierarchy`], the insertion order is undefined.
 ///
 /// ## Example
 ///
@@ -169,13 +169,13 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh)
 ///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh)
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
@@ -184,26 +184,26 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(None)
+///         DeferredColliderHierarchy::new(None)
 ///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh),
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         LazyColliderHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
+///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
 ///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
 ///         ))
 ///         .without_shape_with_name("Tree"),
 ///     ));
 /// }
 /// ```
-#[cfg(feature = "lazy-collider")]
+#[cfg(feature = "deferred-collider")]
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct LazyColliderHierarchy {
+pub struct DeferredColliderHierarchy {
     /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
     /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     pub default_shape: Option<ColliderConstructor>,
@@ -211,12 +211,12 @@ pub struct LazyColliderHierarchy {
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
     /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<LazyColliderHierarchyData>>,
+    pub meshes_by_name: HashMap<String, Option<DeferredColliderHierarchyData>>,
 }
 
-#[cfg(feature = "lazy-collider")]
-impl LazyColliderHierarchy {
-    /// Creates a new [`LazyColliderHierarchy`] with the default collider type used for
+#[cfg(feature = "deferred-collider")]
+impl DeferredColliderHierarchy {
+    /// Creates a new [`DeferredColliderHierarchy`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
     /// If the given collider type is `None`, all meshes except the ones in
@@ -236,7 +236,7 @@ impl LazyColliderHierarchy {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(LazyColliderHierarchyData { shape, ..default() }),
+                Some(DeferredColliderHierarchyData { shape, ..default() }),
             );
         }
         self
@@ -249,7 +249,7 @@ impl LazyColliderHierarchy {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(LazyColliderHierarchyData {
+                Some(DeferredColliderHierarchyData {
                     layers,
                     ..default()
                 }),
@@ -265,7 +265,7 @@ impl LazyColliderHierarchy {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(LazyColliderHierarchyData {
+                Some(DeferredColliderHierarchyData {
                     density,
                     ..default()
                 }),
@@ -282,14 +282,14 @@ impl LazyColliderHierarchy {
     }
 }
 
-/// Configuration for a specific collider generated from a scene using [`LazyColliderHierarchy`].
-#[cfg(all(feature = "3d", feature = "lazy-collider"))]
+/// Configuration for a specific collider generated from a scene using [`DeferredColliderHierarchy`].
+#[cfg(all(feature = "3d", feature = "deferred-collider"))]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
-pub struct LazyColliderHierarchyData {
+pub struct DeferredColliderHierarchyData {
     /// The type of collider generated for the mesh.
     pub shape: ColliderConstructor,
     /// The [`CollisionLayers`] used for this collider.
@@ -300,10 +300,10 @@ pub struct LazyColliderHierarchyData {
 
 #[cfg(all(
     feature = "3d",
-    feature = "lazy-collider",
+    feature = "deferred-collider",
     feature = "collider-from-mesh"
 ))]
-impl Default for LazyColliderHierarchyData {
+impl Default for DeferredColliderHierarchyData {
     fn default() -> Self {
         Self {
             shape: ColliderConstructor::TrimeshFromMesh,
@@ -317,8 +317,8 @@ impl Default for LazyColliderHierarchyData {
 ///
 /// Colliders can be created from meshes with the following components and methods:
 ///
-/// - [`LazyCollider`] (requires `lazy-collider` features)
-/// - [`LazyColliderHierarchy`] (requires `lazy-collider` features)
+/// - [`DeferredCollider`] (requires `deferred-collider` features)
+/// - [`DeferredColliderHierarchy`] (requires `deferred-collider` features)
 /// - [`Collider::trimesh_from_mesh`]
 /// - [`Collider::convex_hull_from_mesh`]
 /// - [`Collider::convex_decomposition_from_mesh`]
@@ -829,77 +829,77 @@ impl MapEntities for CollidingEntities {
     }
 }
 
-#[cfg(all(feature = "lazy-collider", test))]
+#[cfg(all(feature = "deferred-collider", test))]
 mod tests {
     use super::*;
     use bevy::{ecs::query::QueryData, scene::ScenePlugin};
 
     #[test]
-    fn lazy_collider_requires_no_mesh_on_primitive() {
+    fn deferred_collider_requires_no_mesh_on_primitive() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(LazyCollider(PRIMITIVE_COLLIDER.clone()))
+            .spawn(DeferredCollider(PRIMITIVE_COLLIDER.clone()))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_err::<&LazyCollider>(entity));
+        assert!(app.query_err::<&DeferredCollider>(entity));
     }
 
     #[test]
     #[should_panic]
-    fn lazy_collider_requires_mesh_on_computed() {
+    fn deferred_collider_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
-        app.world.spawn(LazyCollider(COMPUTED_COLLIDER.clone()));
+        app.world.spawn(DeferredCollider(COMPUTED_COLLIDER.clone()));
 
         app.update();
     }
 
     #[test]
-    fn lazy_collider_converts_mesh_on_computed() {
+    fn deferred_collider_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
-            .spawn((LazyCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
+            .spawn((DeferredCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&LazyCollider>(entity));
+        assert!(app.query_err::<&DeferredCollider>(entity));
     }
 
     #[test]
-    fn lazy_collider_hierarchy_does_nothing_on_self_with_primitive() {
+    fn deferred_collider_hierarchy_does_nothing_on_self_with_primitive() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(LazyColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(DeferredColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
             .id();
 
         app.update();
 
-        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
     #[test]
-    fn lazy_collider_hierarchy_does_nothing_on_self_with_computed() {
+    fn deferred_collider_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
             .spawn((
-                LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()),
+                DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()),
                 mesh_handle,
             ))
             .id();
@@ -907,27 +907,27 @@ mod tests {
         app.update();
 
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
     #[test]
-    fn lazy_collider_hierarchy_does_not_require_mesh_on_self_with_computed() {
+    fn deferred_collider_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
 
         let entity = app
             .world
-            .spawn(LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
+            .spawn(DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
 
         app.update();
 
         assert!(app.query_err::<&Collider>(entity));
-        assert!(app.query_err::<&LazyColliderHierarchy>(entity));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
     }
 
     #[test]
-    fn lazy_collider_hierarchy_inserts_primitive_colliders_on_all_descendants() {
+    fn deferred_collider_hierarchy_inserts_primitive_colliders_on_all_descendants() {
         let mut app = create_test_app();
 
         // Hierarchy:
@@ -938,7 +938,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(LazyColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(DeferredColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -951,11 +951,11 @@ mod tests {
 
         app.update();
 
-        // No entities should have LazyColliderHierarchy
-        assert!(app.query_err::<&LazyColliderHierarchy>(parent));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child1));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child2));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child3));
+        // No entities should have DeferredColliderHierarchy
+        assert!(app.query_err::<&DeferredColliderHierarchy>(parent));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child1));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child2));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child3));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_ok::<&Collider>(child1));
@@ -964,7 +964,7 @@ mod tests {
     }
 
     #[test]
-    fn lazy_collider_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
+    fn deferred_collider_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
         let mesh_handle = app.add_mesh();
 
@@ -981,7 +981,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
+            .spawn(DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -1001,16 +1001,16 @@ mod tests {
 
         app.update();
 
-        // No entities should have LazyColliderHierarchy
-        assert!(app.query_err::<&LazyColliderHierarchy>(parent));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child1));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child2));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child3));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child4));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child5));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child6));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child7));
-        assert!(app.query_err::<&LazyColliderHierarchy>(child8));
+        // No entities should have DeferredColliderHierarchy
+        assert!(app.query_err::<&DeferredColliderHierarchy>(parent));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child1));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child2));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child3));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child4));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child5));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child6));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child7));
+        assert!(app.query_err::<&DeferredColliderHierarchy>(child8));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_err::<&Collider>(child1));

@@ -1,5 +1,5 @@
 //! An example showcasing how to create colliders for meshes and scenes
-//! using `LazyCollider` and `LazyColliderHierarchy` respectively.
+//! using `DeferredCollider` and `DeferredColliderHierarchy` respectively.
 
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
@@ -18,18 +18,18 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     assets: ResMut<AssetServer>,
 ) {
-    // Spawn ground and generate a collider for the mesh using LazyCollider
+    // Spawn ground and generate a collider for the mesh using DeferredCollider
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
             material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
-        LazyCollider(ColliderConstructor::TrimeshFromMesh),
+        DeferredCollider(ColliderConstructor::TrimeshFromMesh),
         RigidBody::Static,
     ));
 
-    // Spawn Ferris the crab and generate colliders for the scene using LazyColliderHierarchy
+    // Spawn Ferris the crab and generate colliders for the scene using DeferredColliderHierarchy
     commands.spawn((
         SceneBundle {
             // The model was made by RayMarch, licenced under CC0-1.0, and can be found here:
@@ -41,7 +41,7 @@ fn setup(
         // Create colliders using convex decomposition.
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
-        LazyColliderHierarchy::new(ColliderConstructor::ConvexDecompositionFromMeshWithConfig(
+        DeferredColliderHierarchy::new(ColliderConstructor::ConvexDecompositionFromMeshWithConfig(
             VhacdParameters::default(),
         ))
         // Make the arms heavier to make it easier to stand upright

@@ -116,10 +116,10 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<ColliderTransform>()
             .register_type::<PreviousColliderTransform>()
             .register_type::<ColliderConstructor>();
-        #[cfg(feature = "lazy-collider")]
-        app.register_type::<LazyCollider>()
-            .register_type::<LazyColliderHierarchy>()
-            .register_type::<LazyColliderHierarchyData>();
+        #[cfg(feature = "deferred-collider")]
+        app.register_type::<DeferredCollider>()
+            .register_type::<DeferredColliderHierarchy>()
+            .register_type::<DeferredColliderHierarchyData>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;

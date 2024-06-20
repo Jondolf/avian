@@ -62,7 +62,7 @@
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "| `lazy-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
+    doc = "| `deferred-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
 )]
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
@@ -145,7 +145,7 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`LazyCollider`] and [`LazyColliderHierarchy`]"
+    doc = "    - Creating colliders from meshes with [`DeferredCollider`] and [`DeferredColliderHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
