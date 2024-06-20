@@ -25,7 +25,7 @@ fn setup(
             material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
-        LazyCollider(ComputedCollider::TrimeshFromMesh),
+        LazyCollider(ColliderConstructor::TrimeshFromMesh),
         RigidBody::Static,
     ));
 
@@ -42,7 +42,7 @@ fn setup(
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
         LazyColliderHierarchy::new(Some(
-            ComputedCollider::ConvexDecompositionFromMeshWithConfig(VhacdParameters::default()),
+            ColliderConstructor::ConvexDecompositionFromMeshWithConfig(VhacdParameters::default()),
         ))
         // Make the arms heavier to make it easier to stand upright
         .with_density_for_name("armL_mesh", 3.0)

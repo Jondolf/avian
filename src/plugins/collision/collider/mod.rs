@@ -819,7 +819,7 @@ mod tests {
     fn lazy_collider_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
-        app.world.spawn(LazyCollider(collider_constructor.clone()));
+        app.world.spawn(LazyCollider(COMPUTED_COLLIDER.clone()));
 
         app.update();
     }
@@ -831,7 +831,7 @@ mod tests {
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
-            .spawn((LazyCollider(collider_constructor.clone()), mesh_handle))
+            .spawn((LazyCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
             .id();
 
         app.update();
@@ -864,7 +864,7 @@ mod tests {
         let entity = app
             .world
             .spawn((
-                LazyColliderHierarchy::new(collider_constructor.clone()),
+                LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()),
                 mesh_handle,
             ))
             .id();
@@ -882,7 +882,7 @@ mod tests {
 
         let entity = app
             .world
-            .spawn(LazyColliderHierarchy::new(collider_constructor.clone()))
+            .spawn(LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
 
         app.update();
@@ -929,7 +929,7 @@ mod tests {
     }
 
     #[test]
-    fn lazy_collider_hierarchy_inserts_collider_constructors_only_on_descendants_with_mesh() {
+    fn lazy_collider_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
         let mesh_handle = app.add_mesh();
 
@@ -946,7 +946,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(LazyColliderHierarchy::new(collider_constructor.clone()))
+            .spawn(LazyColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -993,7 +993,7 @@ mod tests {
         radius: 0.5,
     };
 
-    const collider_constructor: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
+    const COMPUTED_COLLIDER: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
 
     fn create_test_app() -> App {
         let mut app = App::new();
