@@ -114,7 +114,7 @@ pub trait ScalableCollider: AnyCollider {
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 ///     // Spawn a cube with a convex hull collider generated from the mesh
 ///     commands.spawn((
-///         LazyCollider(ColliderConstructor::ConvexHull),
+///         LazyCollider(ColliderConstructor::ConvexHullFromMesh),
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
@@ -164,14 +164,14 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMesh)),
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMesh)),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMesh))
-///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHull)
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMesh))
+///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh)
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
 ///     ));
@@ -180,13 +180,13 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
 ///         LazyColliderHierarchy::new(None)
-///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHull),
+///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh),
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         LazyColliderHierarchy::new(Some(ColliderConstructor::TriMeshWithFlags(
+///         LazyColliderHierarchy::new(Some(ColliderConstructor::TrimeshFromMeshWithConfig(
 ///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
 ///         )))
 ///         .without_shape_with_name("Tree"),
