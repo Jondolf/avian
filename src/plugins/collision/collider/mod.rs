@@ -1,5 +1,5 @@
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(all(feature = "3d", feature = "lazy-collider"))]
 use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -112,7 +112,7 @@ pub trait ScalableCollider: AnyCollider {
 ///     ));
 /// }
 /// ```
-#[cfg(feature = "async-collider")]
+#[cfg(feature = "lazy-collider")]
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -164,7 +164,7 @@ pub struct LazyCollider(pub ColliderConstructor);
 ///     ));
 /// }
 /// ```
-#[cfg(feature = "async-collider")]
+#[cfg(feature = "lazy-collider")]
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -180,7 +180,7 @@ pub struct LazyColliderHierarchy {
     pub meshes_by_name: HashMap<String, Option<LazyColliderHierarchyData>>,
 }
 
-#[cfg(feature = "async-collider")]
+#[cfg(feature = "lazy-collider")]
 impl LazyColliderHierarchy {
     /// Creates a new [`LazyColliderHierarchy`] with the default collider type used for
     /// meshes set to the given `default_shape`.
@@ -249,7 +249,7 @@ impl LazyColliderHierarchy {
 }
 
 /// Configuration for a specific collider generated from a scene using [`LazyColliderHierarchy`].
-#[cfg(all(feature = "3d", feature = "async-collider"))]
+#[cfg(all(feature = "3d", feature = "lazy-collider"))]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -266,7 +266,7 @@ pub struct LazyColliderHierarchyData {
 
 #[cfg(all(
     feature = "3d",
-    feature = "async-collider",
+    feature = "lazy-collider",
     feature = "collider-from-mesh"
 ))]
 impl Default for LazyColliderHierarchyData {
@@ -283,8 +283,8 @@ impl Default for LazyColliderHierarchyData {
 ///
 /// Colliders can be created from meshes with the following components and methods:
 ///
-/// - [`LazyCollider`] (requires `async-collider` features)
-/// - [`LazyColliderHierarchy`] (requires `async-collider` features)
+/// - [`LazyCollider`] (requires `lazy-collider` features)
+/// - [`LazyColliderHierarchy`] (requires `lazy-collider` features)
 /// - [`Collider::trimesh_from_mesh`]
 /// - [`Collider::convex_hull_from_mesh`]
 /// - [`Collider::convex_decomposition_from_mesh`]
@@ -794,7 +794,7 @@ impl MapEntities for CollidingEntities {
     }
 }
 
-#[cfg(all(feature = "async-collider", test))]
+#[cfg(all(feature = "lazy-collider", test))]
 mod tests {
     use super::*;
     use bevy::{ecs::query::QueryData, scene::ScenePlugin};

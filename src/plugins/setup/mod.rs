@@ -116,7 +116,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<ColliderTransform>()
             .register_type::<PreviousColliderTransform>()
             .register_type::<ColliderConstructor>();
-        #[cfg(feature = "async-collider")]
+        #[cfg(feature = "lazy-collider")]
         app.register_type::<LazyCollider>()
             .register_type::<LazyColliderHierarchy>()
             .register_type::<LazyColliderHierarchyData>();

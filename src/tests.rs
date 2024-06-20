@@ -30,7 +30,7 @@ macro_rules! setup_insta {
 fn create_app() -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
-    #[cfg(feature = "async-collider")]
+    #[cfg(feature = "lazy-collider")]
     {
         app.add_plugins((
             bevy::asset::AssetPlugin::default(),
@@ -252,7 +252,7 @@ fn no_ambiguity_errors() {
 
     app.add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)));
 
-    #[cfg(feature = "async-collider")]
+    #[cfg(feature = "lazy-collider")]
     {
         app.add_plugins((
             bevy::asset::AssetPlugin::default(),

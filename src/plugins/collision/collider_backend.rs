@@ -11,7 +11,7 @@ use crate::{
 };
 #[cfg(all(
     feature = "3d",
-    feature = "async-collider",
+    feature = "lazy-collider",
     feature = "default-collider"
 ))]
 use bevy::scene::SceneInstance;
@@ -173,7 +173,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         #[cfg(all(
             feature = "3d",
-            feature = "async-collider",
+            feature = "lazy-collider",
             feature = "default-collider"
         ))]
         app.add_systems(Update, (init_lazy_colliders, init_lazy_collider_hierarchys));
@@ -253,7 +253,7 @@ fn init_colliders<C: AnyCollider>(
 /// Creates [`Collider`]s from [`LazyCollider`]s if the meshes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "async-collider",
+    feature = "lazy-collider",
     feature = "default-collider"
 ))]
 pub fn init_lazy_colliders(
@@ -308,7 +308,7 @@ pub fn init_lazy_colliders(
 /// Creates [`Collider`]s from [`LazyColliderHierarchy`]s if the scenes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "async-collider",
+    feature = "lazy-collider",
     feature = "default-collider"
 ))]
 pub fn init_lazy_collider_hierarchys(
