@@ -78,8 +78,6 @@ impl Plugin for ColliderHierarchyPlugin {
                 .chain()
                 .run_if(match_any::<(Added<ColliderMarker>, Without<RigidBody>)>)
                 .in_set(PrepareSet::PropagateTransforms)
-                // Allowing ambiguities is required so that it's possible
-                // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
         );
 
@@ -93,7 +91,7 @@ impl Plugin for ColliderHierarchyPlugin {
             )
                 .chain()
                 .run_if(match_any::<Added<ColliderMarker>>)
-                .after(PrepareSet::PropagateTransforms)
+                .after(PrepareSet::InitTransforms)
                 .before(PrepareSet::Finalize),
         );
 
@@ -117,8 +115,7 @@ impl Plugin for ColliderHierarchyPlugin {
             )
                 .chain()
                 .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase)
-                .ambiguous_with_all(),
+                .before(SubstepSet::NarrowPhase),
         );
     }
 }

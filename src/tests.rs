@@ -29,7 +29,12 @@ macro_rules! setup_insta {
 
 fn create_app() -> App {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
+    app.add_plugins((
+        MinimalPlugins,
+        TransformPlugin,
+        HierarchyPlugin,
+        PhysicsPlugins::default(),
+    ));
     #[cfg(feature = "async-collider")]
     {
         app.add_plugins((
@@ -250,7 +255,11 @@ fn no_ambiguity_errors() {
 
     let mut app = App::new();
 
-    app.add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)));
+    app.add_plugins((
+        MinimalPlugins,
+        HierarchyPlugin,
+        PhysicsPlugins::new(DeterministicSchedule),
+    ));
 
     #[cfg(feature = "async-collider")]
     {

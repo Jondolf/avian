@@ -104,17 +104,13 @@ impl Plugin for PreparePlugin {
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
             self.schedule,
+            // Run transform propagation if new bodies have been added
             (
-                apply_deferred,
-                // Run transform propagation if new bodies have been added
-                (
-                    sync::sync_simple_transforms_physics,
-                    sync::propagate_transforms_physics,
-                )
-                    .chain()
-                    .run_if(match_any::<Added<RigidBody>>),
+                sync::sync_simple_transforms_physics,
+                sync::propagate_transforms_physics,
             )
                 .chain()
+                .run_if(match_any::<Added<RigidBody>>)
                 .in_set(PrepareSet::PropagateTransforms),
         )
         .add_systems(
