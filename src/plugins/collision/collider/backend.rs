@@ -4,12 +4,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{
-    broad_phase::BroadPhaseSet,
-    prelude::*,
-    prepare::{match_any, PrepareSet},
-    sync::SyncSet,
-};
+use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
 #[cfg(all(
     feature = "3d",
     feature = "async-collider",
@@ -23,17 +18,16 @@ use bevy::{
 
 /// A plugin for handling generic collider backend logic.
 ///
-/// - Initializes colliders.
+/// - Initializes colliders, including [`AsyncCollider`] and [`AsyncSceneCollider`].
 /// - Updates [`ColliderAabb`]s.
-/// - Updates [`ColliderParent`]s.
-/// - Updates collider mass properties.
-/// - Updates collider scale based on `Transform` scale.
-/// - Propagates child collider positions.
+/// - Updates collider mass properties, also updating rigid bodies accordingly.
+///
+/// This plugin should typically be used together with the [`ColliderHierarchyPlugin`].
 ///
 /// ## Custom collision backends
 ///
 /// By default, [`PhysicsPlugins`] adds this plugin for the [`Collider`] component.
-/// You can also create custom collider backends by implementing the [`AnyCollider`] and [`ScalableCollider`] traits.
+/// You can also create custom collider backends by implementing the [`AnyCollider`] trait for a type.
 ///
 /// To use a custom collider backend, simply add the [`ColliderBackendPlugin`] with your collider type:
 ///
@@ -60,8 +54,11 @@ use bevy::{
 /// }
 /// ```
 ///
-/// Assuming you have implemented [`AnyCollider`] and [`ScalableCollider`] correctly,
+/// Assuming you have implemented [`AnyCollider`] correctly,
 /// it should now work with the rest of the engine just like normal [`Collider`]s!
+///
+/// Remember to also add the [`ColliderHierarchyPlugin`] for your custom collider
+/// type if you want transforms to work for them.
 ///
 /// **Note**: [Spatial queries](spatial_query) are not supported for custom colliders yet.
 
@@ -128,52 +125,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 );
             });
 
-        // Run transform propagation if new colliders without rigid bodies have been added.
-        // The `PreparePlugin` should handle transform propagation for new rigid bodies.
-        app.add_systems(
-            self.schedule,
-            ((
-                bevy::transform::systems::sync_simple_transforms,
-                bevy::transform::systems::propagate_transforms,
-            )
-                .chain()
-                .run_if(match_any::<(Added<C>, Without<RigidBody>)>),)
-                .chain()
-                .in_set(PrepareSet::PropagateTransforms)
-                // Allowing ambiguities is required so that it's possible
-                // to have multiple collision backends at the same time.
-                .ambiguous_with_all(),
-        );
-
         app.add_systems(
             self.schedule,
             (
-                (
-                    init_colliders::<C>,
-                    apply_deferred,
-                    update_collider_parents::<C>,
-                    apply_deferred,
-                )
-                    .chain()
-                    .in_set(PrepareSet::InitColliders),
+                init_colliders::<C>.in_set(PrepareSet::InitColliders),
                 init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
-                (
-                    (
-                        propagate_collider_transforms,
-                        update_child_collider_position,
-                    )
-                        .chain()
-                        .run_if(match_any::<Added<C>>),
-                    update_collider_mass_properties::<C>,
-                )
-                    .chain()
+                update_collider_mass_properties::<C>
                     .in_set(PrepareSet::Finalize)
                     .before(prepare::update_mass_properties),
-                update_collider_scale::<C>
-                    .after(SyncSet::Update)
-                    .before(SyncSet::Last),
             ),
         );
 
@@ -191,40 +152,18 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        physics_schedule
-            .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
-
         #[cfg(all(
             feature = "3d",
             feature = "async-collider",
             feature = "default-collider"
         ))]
         app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
-
-        // Update child colliders before narrow phase in substepping loop
-        let substep_schedule = app
-            .get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first");
-        substep_schedule.add_systems(
-            (
-                propagate_collider_transforms,
-                update_child_collider_position,
-            )
-                .chain()
-                .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase)
-                .ambiguous_with_all(),
-        );
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(ColliderTransform);
-
 /// Initializes missing components for [colliders](Collider).
 #[allow(clippy::type_complexity)]
-fn init_colliders<C: AnyCollider>(
+pub(crate) fn init_colliders<C: AnyCollider>(
     mut commands: Commands,
     mut colliders: Query<
         (
@@ -455,43 +394,6 @@ fn update_aabb<C: AnyCollider>(
     }
 }
 
-#[allow(clippy::type_complexity)]
-fn update_collider_parents<C: AnyCollider>(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<C>), With<RigidBody>>,
-    children: Query<&Children>,
-    mut child_colliders: Query<Option<&mut ColliderParent>, (With<C>, Without<RigidBody>)>,
-) {
-    for (entity, collider_parent, has_collider) in &mut bodies {
-        if has_collider {
-            if let Some(mut collider_parent) = collider_parent {
-                collider_parent.0 = entity;
-            } else {
-                commands.entity(entity).try_insert((
-                    ColliderParent(entity),
-                    // Todo: This probably causes a one frame delay. Compute real value?
-                    ColliderTransform::default(),
-                    PreviousColliderTransform::default(),
-                ));
-            }
-        }
-        for child in children.iter_descendants(entity) {
-            if let Ok(collider_parent) = child_colliders.get_mut(child) {
-                if let Some(mut collider_parent) = collider_parent {
-                    collider_parent.0 = entity;
-                } else {
-                    commands.entity(child).insert((
-                        ColliderParent(entity),
-                        // Todo: This probably causes a one frame delay. Compute real value?
-                        ColliderTransform::default(),
-                        PreviousColliderTransform::default(),
-                    ));
-                }
-            }
-        }
-    }
-}
-
 /// A resource that stores the system ID for the system that reacts to collider removals.
 #[derive(Resource)]
 struct ColliderRemovalSystem(SystemId<(ColliderParent, ColliderMassProperties, ColliderTransform)>);
@@ -524,278 +426,9 @@ fn collider_removed(
     }
 }
 
-/// Updates colliders when the rigid bodies they were attached to have been removed.
-fn handle_rigid_body_removals(
-    mut commands: Commands,
-    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
-    bodies: Query<(), With<RigidBody>>,
-    removals: RemovedComponents<RigidBody>,
-) {
-    // Return if no rigid bodies have been removed
-    if removals.is_empty() {
-        return;
-    }
-
-    for (collider_entity, collider_parent) in &colliders {
-        // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderTransform.
-        if !bodies.contains(collider_parent.get()) {
-            commands.entity(collider_entity).remove::<(
-                ColliderParent,
-                ColliderTransform,
-                PreviousColliderTransform,
-            )>();
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-pub(crate) fn update_child_collider_position(
-    mut colliders: Query<
-        (
-            &ColliderTransform,
-            &mut Position,
-            &mut Rotation,
-            &ColliderParent,
-        ),
-        Without<RigidBody>,
-    >,
-    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
-) {
-    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
-        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
-            continue;
-        };
-
-        position.0 = parent_pos.0 + parent_rot.rotate(collider_transform.translation);
-        #[cfg(feature = "2d")]
-        {
-            *rotation = *parent_rot + collider_transform.rotation;
-        }
-        #[cfg(feature = "3d")]
-        {
-            *rotation = (parent_rot.0 * collider_transform.rotation.0)
-                .normalize()
-                .into();
-        }
-    }
-}
-
-/// Updates the scale of colliders based on [`Transform`] scale.
-#[allow(clippy::type_complexity)]
-pub fn update_collider_scale<C: ScalableCollider>(
-    mut colliders: ParamSet<(
-        // Root bodies
-        Query<(&Transform, &mut C), Without<Parent>>,
-        // Child colliders
-        Query<(&ColliderTransform, &mut C), With<Parent>>,
-    )>,
-) {
-    // Update collider scale for root bodies
-    for (transform, mut collider) in &mut colliders.p0() {
-        #[cfg(feature = "2d")]
-        let scale = transform.scale.truncate().adjust_precision();
-        #[cfg(feature = "3d")]
-        let scale = transform.scale.adjust_precision();
-        if scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(scale, 10);
-        }
-    }
-
-    // Update collider scale for child colliders
-    for (collider_transform, mut collider) in &mut colliders.p1() {
-        if collider_transform.scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(collider_transform.scale, 10);
-        }
-    }
-}
-
-/// Updates [`ColliderTransform`]s based on entity hierarchies. Each transform is computed by recursively
-/// traversing the children of each rigid body and adding their transforms together to form
-/// the total transform relative to the body.
-///
-/// This is largely a clone of `propagate_transforms` in `bevy_transform`.
-#[allow(clippy::type_complexity)]
-pub(crate) fn propagate_collider_transforms(
-    mut root_query: Query<(Entity, Ref<Transform>, &Children), Without<Parent>>,
-    collider_query: Query<
-        (
-            Ref<Transform>,
-            Option<&mut ColliderTransform>,
-            Option<&Children>,
-        ),
-        With<Parent>,
-    >,
-    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
-) {
-    root_query.par_iter_mut().for_each(
-        |(entity, transform,children)| {
-            for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
-                assert_eq!(
-                    parent.get(), entity,
-                    "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-                );
-                let child_transform = ColliderTransform::from(*child_transform);
-
-                // SAFETY:
-                // - `child` must have consistent parentage, or the above assertion would panic.
-                // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
-                // - We may operate as if all descendants are consistent, since `propagate_collider_transform_recursive` will panic before 
-                //   continuing to propagate if it encounters an entity with inconsistent parentage.
-                // - Since each root entity is unique and the hierarchy is consistent and forest-like,
-                //   other root entities' `propagate_collider_transform_recursive` calls will not conflict with this one.
-                // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
-                unsafe {
-                    propagate_collider_transforms_recursive(
-                        if is_child_rb {
-                            ColliderTransform {
-                                scale: child_transform.scale,
-                                ..default()
-                            }
-                        } else {
-                            let transform = ColliderTransform::from(*transform);
-
-                            ColliderTransform {
-                                translation: transform.scale * child_transform.translation,
-                                rotation: child_transform.rotation,
-                                scale: (transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON)),
-                            }
-                        },
-                        &collider_query,
-                        &parent_query,
-                        child,
-                        transform.is_changed() || parent.is_changed()
-                    );
-                }
-            }
-        },
-    );
-}
-
-/// Recursively computes the [`ColliderTransform`] for `entity` and all of its descendants
-/// by propagating transforms.
-///
-/// This is largely a clone of `propagate_recursive` in `bevy_transform`.
-///
-/// # Panics
-///
-/// If `entity`'s descendants have a malformed hierarchy, this function will panic occur before propagating
-/// the transforms of any malformed entities and their descendants.
-///
-/// # Safety
-///
-/// - While this function is running, `transform_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
-/// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
-#[allow(clippy::type_complexity)]
-unsafe fn propagate_collider_transforms_recursive(
-    transform: ColliderTransform,
-    collider_query: &Query<
-        (
-            Ref<Transform>,
-            Option<&mut ColliderTransform>,
-            Option<&Children>,
-        ),
-        With<Parent>,
-    >,
-    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
-    entity: Entity,
-    mut changed: bool,
-) {
-    let children = {
-        // SAFETY: This call cannot create aliased mutable references.
-        //   - The top level iteration parallelizes on the roots of the hierarchy.
-        //   - The caller ensures that each child has one and only one unique parent throughout the entire
-        //     hierarchy.
-        //
-        // For example, consider the following malformed hierarchy:
-        //
-        //     A
-        //   /   \
-        //  B     C
-        //   \   /
-        //     D
-        //
-        // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
-        // the above check will panic as the origin parent does match the recorded parent.
-        //
-        // Also consider the following case, where A and B are roots:
-        //
-        //  A       B
-        //   \     /
-        //    C   D
-        //     \ /
-        //      E
-        //
-        // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
-        // to mutably access E.
-        let Ok((transform_ref, collider_transform, children)) =
-            (unsafe { collider_query.get_unchecked(entity) })
-        else {
-            return;
-        };
-
-        changed |= transform_ref.is_changed();
-        if changed {
-            if let Some(mut collider_transform) = collider_transform {
-                if *collider_transform != transform {
-                    *collider_transform = transform;
-                }
-            }
-        }
-
-        children
-    };
-
-    let Some(children) = children else { return };
-    for (child, child_transform, is_rb, parent) in parent_query.iter_many(children) {
-        assert_eq!(
-            parent.get(), entity,
-            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-        );
-
-        let child_transform = ColliderTransform::from(*child_transform);
-
-        // SAFETY: The caller guarantees that `transform_query` will not be fetched
-        // for any descendants of `entity`, so it is safe to call `propagate_collider_transforms_recursive` for each child.
-        //
-        // The above assertion ensures that each child has one and only one unique parent throughout the
-        // entire hierarchy.
-        unsafe {
-            propagate_collider_transforms_recursive(
-                if is_rb {
-                    ColliderTransform {
-                        scale: child_transform.scale,
-                        ..default()
-                    }
-                } else {
-                    ColliderTransform {
-                        translation: transform.transform_point(child_transform.translation),
-                        #[cfg(feature = "2d")]
-                        rotation: transform.rotation + child_transform.rotation,
-                        #[cfg(feature = "3d")]
-                        rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
-                        scale: (transform.scale * child_transform.scale)
-                            .max(Vector::splat(Scalar::EPSILON)),
-                    }
-                },
-                collider_query,
-                parent_query,
-                child,
-                changed || parent.is_changed(),
-            );
-        }
-    }
-}
-
 /// Updates the mass properties of [`Collider`]s and [collider parents](ColliderParent).
 #[allow(clippy::type_complexity)]
-fn update_collider_mass_properties<C: AnyCollider>(
+pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
     mut mass_props: Query<(Entity, MassPropertiesQuery)>,
     mut colliders: Query<
         (

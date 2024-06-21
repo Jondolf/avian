@@ -1,3 +1,5 @@
+//! Components, traits, and plugins related to collider functionality.
+
 use crate::prelude::*;
 #[cfg(all(feature = "3d", feature = "async-collider"))]
 use bevy::utils::HashMap;
@@ -6,6 +8,13 @@ use bevy::{
     prelude::*,
     utils::HashSet,
 };
+
+mod backend;
+mod hierarchy;
+
+pub use backend::ColliderBackendPlugin;
+pub use hierarchy::ColliderHierarchyPlugin;
+pub(crate) use hierarchy::PreviousColliderTransform;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(

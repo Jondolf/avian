@@ -10,11 +10,10 @@
 //!
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 
-mod collider;
+pub mod collider;
 pub use collider::*;
 
 pub mod broad_phase;
-pub mod collider_backend;
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")
