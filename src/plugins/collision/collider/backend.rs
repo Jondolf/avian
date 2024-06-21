@@ -15,11 +15,13 @@ use bevy::{
     ecs::{intern::Interned, system::SystemId},
     prelude::*,
 };
+use sync::SyncSet;
 
 /// A plugin for handling generic collider backend logic.
 ///
 /// - Initializes colliders, including [`AsyncCollider`] and [`AsyncSceneCollider`].
 /// - Updates [`ColliderAabb`]s.
+/// - Updates collider scale based on `Transform` scale.
 /// - Updates collider mass properties, also updating rigid bodies accordingly.
 ///
 /// This plugin should typically be used together with the [`ColliderHierarchyPlugin`].
@@ -27,7 +29,8 @@ use bevy::{
 /// ## Custom collision backends
 ///
 /// By default, [`PhysicsPlugins`] adds this plugin for the [`Collider`] component.
-/// You can also create custom collider backends by implementing the [`AnyCollider`] trait for a type.
+/// You can also create custom collider backends by implementing the [`AnyCollider`]
+/// and [`ScalableCollider`] traits for a type.
 ///
 /// To use a custom collider backend, simply add the [`ColliderBackendPlugin`] with your collider type:
 ///
@@ -54,11 +57,8 @@ use bevy::{
 /// }
 /// ```
 ///
-/// Assuming you have implemented [`AnyCollider`] correctly,
+/// Assuming you have implemented the required traits correctly,
 /// it should now work with the rest of the engine just like normal [`Collider`]s!
-///
-/// Remember to also add the [`ColliderHierarchyPlugin`] for your custom collider
-/// type if you want transforms to work for them.
 ///
 /// **Note**: [Spatial queries](spatial_query) are not supported for custom colliders yet.
 
@@ -98,10 +98,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
+        // Also removes `ColliderMarker` components.
         app.world_mut()
             .register_component_hooks::<C>()
             .on_remove(|mut world, entity, _| {
-                let entity_ref = world.entity(entity);
+                // Remove the `ColliderMarker` associated with the collider.
+                // TODO: If the same entity had multiple *different* types of colliders, this would
+                //       get removed even if just one collider was removed. This is a very niche edge case though.
+                world.commands().entity(entity).remove::<ColliderMarker>();
+
+                let entity_ref = world.entity_mut(entity);
 
                 // Get the needed collider components.
                 // TODO: Is there an efficient way to do this with QueryState?
@@ -138,6 +144,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             ),
         );
 
+        // Update colliders based on the scale from `ColliderTransform`.
+        app.add_systems(
+            self.schedule,
+            update_collider_scale::<C>
+                .after(SyncSet::Update)
+                .before(SyncSet::Last),
+        );
+
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
@@ -161,6 +175,12 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     }
 }
 
+/// A marker component for colliders. Inserted and removed automatically.
+///
+/// This is useful for filtering collider entities regardless of the [collider backend](ColliderBackendPlugin).
+#[derive(Reflect, Component, Clone, Copy, Debug)]
+pub struct ColliderMarker;
+
 /// Initializes missing components for [colliders](Collider).
 #[allow(clippy::type_complexity)]
 pub(crate) fn init_colliders<C: AnyCollider>(
@@ -183,6 +203,7 @@ pub(crate) fn init_colliders<C: AnyCollider>(
             density,
             *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
             CollidingEntities::default(),
+            ColliderMarker,
         ));
     }
 }
@@ -390,6 +411,39 @@ fn update_aabb<C: AnyCollider>(
         {
             aabb.max.z += prediction_distance;
             aabb.min.z -= prediction_distance;
+        }
+    }
+}
+
+/// Updates the scale of colliders based on [`Transform`] scale.
+#[allow(clippy::type_complexity)]
+pub fn update_collider_scale<C: ScalableCollider>(
+    mut colliders: ParamSet<(
+        // Root bodies
+        Query<(&Transform, &mut C), Without<Parent>>,
+        // Child colliders
+        Query<(&ColliderTransform, &mut C), With<Parent>>,
+    )>,
+) {
+    // Update collider scale for root bodies
+    for (transform, mut collider) in &mut colliders.p0() {
+        #[cfg(feature = "2d")]
+        let scale = transform.scale.truncate().adjust_precision();
+        #[cfg(feature = "3d")]
+        let scale = transform.scale.adjust_precision();
+        if scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(scale, 10);
+        }
+    }
+
+    // Update collider scale for child colliders
+    for (collider_transform, mut collider) in &mut colliders.p1() {
+        if collider_transform.scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(collider_transform.scale, 10);
         }
     }
 }

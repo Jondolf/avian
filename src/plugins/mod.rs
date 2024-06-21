@@ -201,7 +201,7 @@ impl PluginGroup for PhysicsPlugins {
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
-            .add(ColliderHierarchyPlugin::<Collider>::new(self.schedule))
+            .add(ColliderHierarchyPlugin::new(self.schedule))
             .add(NarrowPhasePlugin::<Collider>::default());
 
         builder

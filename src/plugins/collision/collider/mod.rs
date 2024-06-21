@@ -12,7 +12,7 @@ use bevy::{
 mod backend;
 mod hierarchy;
 
-pub use backend::ColliderBackendPlugin;
+pub use backend::{ColliderBackendPlugin, ColliderMarker};
 pub use hierarchy::ColliderHierarchyPlugin;
 pub(crate) use hierarchy::PreviousColliderTransform;
 
