@@ -146,7 +146,7 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`DeferredCollider`] and [`DeferredColliderHierarchy`]"
+    doc = "    - Creating colliders from meshes with [`ColliderConstructor`] and [`DeferredColliderHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)

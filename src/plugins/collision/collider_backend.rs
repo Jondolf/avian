@@ -274,14 +274,14 @@ pub fn init_deferred_colliders(
         let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
         if existing_collider.is_some() {
             warn!(
-                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?}, \
+                "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
             continue;
         }
         let mesh = if constructor.requires_mesh() {
             let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
-                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?} that requires a mesh, \
+                "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
                 but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
@@ -301,7 +301,7 @@ pub fn init_deferred_colliders(
                 .remove::<ColliderConstructor>();
         } else {
             error!(
-                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?}, \
+                "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }

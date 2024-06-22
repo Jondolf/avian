@@ -1,5 +1,5 @@
 //! An example showcasing how to create colliders for meshes and scenes
-//! using `DeferredCollider` and `DeferredColliderHierarchy` respectively.
+//! using `ColliderConstructor` and `DeferredColliderHierarchy` respectively.
 
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
@@ -18,7 +18,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     assets: ResMut<AssetServer>,
 ) {
-    // Spawn ground and generate a collider for the mesh using DeferredCollider
+    // Spawn ground and generate a collider for the mesh using ColliderConstructor
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),

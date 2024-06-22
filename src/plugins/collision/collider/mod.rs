@@ -97,7 +97,7 @@ pub trait ScalableCollider: AnyCollider {
 /// This supports computing the shape dynamically from the mesh, in which case only the descendants
 /// with a [`Mesh`] will have colliders generated.
 ///
-/// In contrast to [`DeferredCollider`], this component will *not* generate a collider on its own entity.
+/// In contrast to [`ColliderConstructor`], this component will *not* generate a collider on its own entity.
 ///
 /// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
 /// wait until the scene is loaded before generating colliders.
@@ -109,7 +109,7 @@ pub trait ScalableCollider: AnyCollider {
 ///
 /// ## See also
 ///
-/// For inserting colliders on the same entity, use [`DeferredCollider`].
+/// For inserting colliders on the same entity, use [`ColliderConstructor`].
 ///
 /// ## Caveats
 ///
@@ -319,7 +319,7 @@ impl Default for DeferredColliderHierarchyData {
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 ///     // Spawn a cube with a convex hull collider generated from the mesh
 ///     commands.spawn((
-///         DeferredCollider(ColliderConstructor::ConvexHullFromMesh),
+///         ColliderConstructor::ConvexHullFromMesh,
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
