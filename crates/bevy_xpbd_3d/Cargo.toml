@@ -41,7 +41,7 @@ default-collider = ["dep:nalgebra"]
 parry-f32 = ["f32", "dep:parry3d", "default-collider"]
 parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
-collider-from-mesh = ["bevy/bevy_render"]
+collider-from-mesh = ["bevy/bevy_render", "3d"]
 deferred-collider = [
     #"bevy/bevy_scene", 
     #"bevy/bevy_gltf"
@@ -127,7 +127,7 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "trimesh_shapes_3d"
-required-features = ["3d", "default-collider"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "deferred_colliders"

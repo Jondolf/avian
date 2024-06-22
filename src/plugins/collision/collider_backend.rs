@@ -352,7 +352,7 @@ fn init_collider_constructor_hierarchies(
                     collider_constructor_hierarchy
                         .default_shape
                         .clone()
-                        .map(|shape| ColliderConstructorHierarchyData { shape, ..default() })
+                        .map(|shape| ColliderConstructorHierarchyData::from_constructor(shape))
                 };
 
                 let collider_data = if let Some(name) = name {

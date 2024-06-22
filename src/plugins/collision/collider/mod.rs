@@ -853,7 +853,7 @@ mod tests {
         assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     #[test]
     #[should_panic]
     fn collider_constructor_requires_mesh_on_computed() {
@@ -864,7 +864,7 @@ mod tests {
         app.update();
     }
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     #[test]
     fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
@@ -899,7 +899,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     #[test]
     fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
@@ -920,7 +920,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     #[test]
     fn collider_constructor_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
@@ -975,7 +975,7 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child3));
     }
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
@@ -1041,7 +1041,7 @@ mod tests {
         radius: 0.5,
     };
 
-    #[cfg(feature = "3d")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     const COMPUTED_COLLIDER: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
 
     fn create_test_app() -> App {
@@ -1064,7 +1064,7 @@ mod tests {
             !self.query_ok::<D>(entity)
         }
 
-        #[cfg(feature = "3d")]
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
         fn add_mesh(&mut self) -> Handle<Mesh>;
     }
 
@@ -1075,7 +1075,7 @@ mod tests {
             component.is_ok()
         }
 
-        #[cfg(feature = "3d")]
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
         fn add_mesh(&mut self) -> Handle<Mesh> {
             self.world
                 .get_resource_mut::<Assets<Mesh>>()
