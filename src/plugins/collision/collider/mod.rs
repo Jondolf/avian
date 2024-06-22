@@ -837,7 +837,9 @@ impl MapEntities for CollidingEntities {
 #[cfg(all(feature = "deferred-collider", test))]
 mod tests {
     use super::*;
-    use bevy::{ecs::query::QueryData, scene::ScenePlugin};
+    use bevy::ecs::query::QueryData;
+    #[cfg(feature = "bevy_scene")]
+    use bevy::scene::ScenePlugin;
 
     #[test]
     fn collider_constructor_requires_no_mesh_on_primitive() {
@@ -1047,6 +1049,7 @@ mod tests {
         app.add_plugins((
             MinimalPlugins,
             AssetPlugin::default(),
+            #[cfg(feature = "bevy_scene")]
             ScenePlugin,
             PhysicsPlugins::default(),
         ))

@@ -34,6 +34,7 @@ fn create_app() -> App {
     {
         app.add_plugins((
             bevy::asset::AssetPlugin::default(),
+            #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
         ))
         .init_resource::<Assets<Mesh>>();
@@ -256,6 +257,7 @@ fn no_ambiguity_errors() {
     {
         app.add_plugins((
             bevy::asset::AssetPlugin::default(),
+            #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
         ))
         .init_resource::<Assets<Mesh>>();
