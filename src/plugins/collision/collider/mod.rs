@@ -410,6 +410,8 @@ impl From<Transform> for ColliderTransform {
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///
+/// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
+///
 /// ## Example
 ///
 /// ```
@@ -420,7 +422,13 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+///     let collider = Collider::ball(0.5);
+///     commands.spawn((
+///         RigidBody::Static,
+///         MassPropertiesBundle::new_computed(&collider, 1.0),
+///         collider,
+///         Sensor,
+///     ));
 /// }
 /// ```
 #[doc(alias = "Trigger")]

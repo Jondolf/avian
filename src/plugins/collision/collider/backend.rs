@@ -131,6 +131,74 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 );
             });
 
+        // When the `Sensor` component is removed from a collider,
+        // remove the collider's contribution on the rigid body's mass properties.
+        app.observe(
+            |trigger: Trigger<OnAdd, Sensor>,
+             query: Query<(
+                &ColliderParent,
+                &ColliderMassProperties,
+                &PreviousColliderTransform,
+            )>,
+             mut body_query: Query<MassPropertiesQuery>| {
+                if let Ok((
+                    collider_parent,
+                    collider_mass_properties,
+                    previous_collider_transform,
+                )) = query.get(trigger.entity())
+                {
+                    if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
+                        // Subtract previous collider mass props from the body's own mass props.
+                        mass_properties -= ColliderMassProperties {
+                            center_of_mass: CenterOfMass(
+                                previous_collider_transform
+                                    .transform_point(collider_mass_properties.center_of_mass.0),
+                            ),
+                            ..*collider_mass_properties
+                        };
+                    }
+                }
+            },
+        );
+
+        // When the `Sensor` component is added to a collider,
+        // add the collider's mass properties to the rigid body's mass properties.
+        app.observe(
+            |trigger: Trigger<OnRemove, Sensor>,
+             mut collider_query: Query<(
+                Ref<C>,
+                &ColliderParent,
+                &ColliderDensity,
+                &mut ColliderMassProperties,
+                &ColliderTransform,
+            )>,
+             mut body_query: Query<MassPropertiesQuery>| {
+                if let Ok((
+                    collider,
+                    collider_parent,
+                    density,
+                    mut collider_mass_properties,
+                    collider_transform,
+                )) = collider_query.get_mut(trigger.entity())
+                {
+                    if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
+                        // Update collider mass props.
+                        *collider_mass_properties =
+                            collider.mass_properties(density.max(Scalar::EPSILON));
+
+                        // Add new collider mass props to the body's mass props.
+                        mass_properties += ColliderMassProperties {
+                            center_of_mass: CenterOfMass(
+                                collider_transform
+                                    .transform_point(collider_mass_properties.center_of_mass.0),
+                            ),
+                            ..*collider_mass_properties
+                        };
+                    }
+                }
+            },
+        );
+
         app.add_systems(
             self.schedule,
             (
@@ -493,12 +561,15 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
-        Or<(
-            Changed<C>,
-            Changed<ColliderTransform>,
-            Changed<ColliderDensity>,
-            Changed<ColliderMassProperties>,
-        )>,
+        (
+            Or<(
+                Changed<C>,
+                Changed<ColliderTransform>,
+                Changed<ColliderDensity>,
+                Changed<ColliderMassProperties>,
+            )>,
+            Without<Sensor>,
+        ),
     >,
 ) {
     for (
@@ -511,7 +582,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
     ) in &mut colliders
     {
         if let Ok((_, mut mass_properties)) = mass_props.get_mut(collider_parent.0) {
-            // Subtract previous collider mass props from the body's own mass props,
+            // Subtract previous collider mass props from the body's own mass props.
             // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
             if !collider.is_added() {
                 mass_properties -= ColliderMassProperties {
@@ -525,10 +596,10 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 
             previous_collider_transform.0 = *collider_transform;
 
-            // Update collider mass props
+            // Update collider mass props.
             *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
-            // Add new collider mass props to the body's mass props
+            // Add new collider mass props to the body's mass props.
             mass_properties += ColliderMassProperties {
                 center_of_mass: CenterOfMass(
                     collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
@@ -536,5 +607,109 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
                 ..*collider_mass_properties
             };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sensor_mass_properties() {
+        let mut app = App::new();
+
+        app.init_schedule(PhysicsSchedule)
+            .init_schedule(SubstepSchedule);
+
+        app.add_plugins((
+            PreparePlugin::new(PostUpdate),
+            ColliderBackendPlugin::<Collider>::new(PostUpdate),
+            ColliderHierarchyPlugin::new(PostUpdate),
+            HierarchyPlugin,
+        ));
+
+        let collider = Collider::capsule(2.0, 0.5);
+        let mass_properties = MassPropertiesBundle::new_computed(&collider, 1.0);
+
+        let parent = app
+            .world_mut()
+            .spawn((
+                RigidBody::Dynamic,
+                mass_properties.clone(),
+                TransformBundle::default(),
+            ))
+            .id();
+
+        let child = app
+            .world_mut()
+            .spawn((
+                collider,
+                TransformBundle::from_transform(Transform::from_xyz(1.0, 0.0, 0.0)),
+            ))
+            .set_parent(parent)
+            .id();
+
+        app.world_mut().run_schedule(PostUpdate);
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            2.0 * mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                > 0.0,
+        );
+
+        // Mark the collider as a sensor. It should no longer contribute to the mass properties of the rigid body.
+        let mut entity_mut = app.world_mut().entity_mut(child);
+        entity_mut.insert(Sensor);
+        entity_mut.flush();
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                == 0.0,
+        );
+
+        // Remove the sensor component. The collider should contribute to the mass properties of the rigid body again.
+        let mut entity_mut = app.world_mut().entity_mut(child);
+        entity_mut.remove::<Sensor>();
+        entity_mut.flush();
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            2.0 * mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                > 0.0,
+        );
     }
 }
