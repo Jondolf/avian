@@ -318,7 +318,11 @@ pub fn init_deferred_collider_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
-    deferred_colliders: Query<(Entity, Option<&SceneInstance>, &DeferredColliderHierarchy)>,
+    deferred_colliders: Query<(
+        Entity,
+        Option<&SceneInstance>,
+        &ColliderConstructorHierarchy,
+    )>,
     children: Query<&Children>,
     mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
@@ -335,7 +339,7 @@ pub fn init_deferred_collider_hierarchies(
                         deferred_collider_hierarchy
                             .default_shape
                             .clone()
-                            .map(|shape| DeferredColliderHierarchyData { shape, ..default() })
+                            .map(|shape| ColliderConstructorHierarchyData { shape, ..default() })
                     };
 
                     let collider_data = if let Some(name) = name {
@@ -345,9 +349,9 @@ pub fn init_deferred_collider_hierarchies(
                             .cloned()
                             .unwrap_or_else(default_collider)
                     } else if existing_collider.is_some() {
-                        warn!("Tried to add a collider to entity {pretty_name} via DeferredColliderHierarchy {deferred_collider_hierarchy:#?}, \
+                        warn!("Tried to add a collider to entity {pretty_name} via ColliderConstructorHierarchy {deferred_collider_hierarchy:#?}, \
                             but that entity already holds a collider. Skipping. \
-                            If this was intentional, add the name of the collider to overwrite to `DeferredColliderHierarchy.meshes_by_name`.");
+                            If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.meshes_by_name`.");
                         continue;
                     } else {
                         default_collider()
@@ -372,7 +376,7 @@ pub fn init_deferred_collider_hierarchies(
                         ));
                     } else {
                         error!(
-                            "Tried to add a collider to entity {pretty_name} via DeferredColliderHierarchy {deferred_collider_hierarchy:#?}, \
+                            "Tried to add a collider to entity {pretty_name} via ColliderConstructorHierarchy {deferred_collider_hierarchy:#?}, \
                             but the collider could not be generated from mesh {mesh:#?}. Skipping.",
                         );
                     }
@@ -381,7 +385,7 @@ pub fn init_deferred_collider_hierarchies(
 
             commands
                 .entity(scene_entity)
-                .remove::<DeferredColliderHierarchy>();
+                .remove::<ColliderConstructorHierarchy>();
         }
     }
 }

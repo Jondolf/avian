@@ -102,7 +102,7 @@ pub trait ScalableCollider: AnyCollider {
 /// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
 /// wait until the scene is loaded before generating colliders.
 ///
-/// The exact configuration for each descendant can be specified using [`DeferredColliderHierarchyData`].
+/// The exact configuration for each descendant can be specified using [`ColliderConstructorHierarchyData`].
 ///
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `meshes_by_name`.
@@ -113,7 +113,7 @@ pub trait ScalableCollider: AnyCollider {
 ///
 /// ## Caveats
 ///
-/// When a component has multiple ancestors with [`DeferredColliderHierarchy`], the insertion order is undefined.
+/// When a component has multiple ancestors with [`ColliderConstructorHierarchy`], the insertion order is undefined.
 ///
 /// ## Example
 ///
@@ -127,13 +127,13 @@ pub trait ScalableCollider: AnyCollider {
 ///     // Spawn the scene and automatically generate triangle mesh colliders
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
 ///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh)
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
@@ -142,14 +142,14 @@ pub trait ScalableCollider: AnyCollider {
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         DeferredColliderHierarchy::new(None)
+///         ColliderConstructorHierarchy::new(None)
 ///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh),
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         DeferredColliderHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
+///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
 ///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
 ///         ))
 ///         .without_shape_with_name("Tree"),
@@ -161,7 +161,7 @@ pub trait ScalableCollider: AnyCollider {
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct DeferredColliderHierarchy {
+pub struct ColliderConstructorHierarchy {
     /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
     /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
     pub default_shape: Option<ColliderConstructor>,
@@ -169,12 +169,12 @@ pub struct DeferredColliderHierarchy {
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
     /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<DeferredColliderHierarchyData>>,
+    pub meshes_by_name: HashMap<String, Option<ColliderConstructorHierarchyData>>,
 }
 
 #[cfg(feature = "deferred-collider")]
-impl DeferredColliderHierarchy {
-    /// Creates a new [`DeferredColliderHierarchy`] with the default collider type used for
+impl ColliderConstructorHierarchy {
+    /// Creates a new [`ColliderConstructorHierarchy`] with the default collider type used for
     /// meshes set to the given `default_shape`.
     ///
     /// If the given collider type is `None`, all meshes except the ones in
@@ -194,7 +194,7 @@ impl DeferredColliderHierarchy {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(DeferredColliderHierarchyData::from_constructor(shape)),
+                Some(ColliderConstructorHierarchyData::from_constructor(shape)),
             );
         }
         self
@@ -208,16 +208,16 @@ impl DeferredColliderHierarchy {
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(DeferredColliderHierarchyData {
+                Some(ColliderConstructorHierarchyData {
                     layers,
                     ..default()
                 }),
             );
             #[cfg(not(feature = "3d"))]
-            panic!("`DeferredColliderHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            panic!("`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
             #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
             panic!(
-                "`DeferredColliderHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
+                "`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
                 Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
         }
         self
@@ -232,16 +232,16 @@ impl DeferredColliderHierarchy {
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(DeferredColliderHierarchyData {
+                Some(ColliderConstructorHierarchyData {
                     density,
                     ..default()
                 }),
             );
             #[cfg(not(feature = "3d"))]
-            panic!("`DeferredColliderHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            panic!("`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
             #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
             panic!(
-                "`DeferredColliderHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
+                "`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
                 Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
         }
         self
@@ -255,14 +255,14 @@ impl DeferredColliderHierarchy {
     }
 }
 
-/// Configuration for a specific collider generated from a scene using [`DeferredColliderHierarchy`].
+/// Configuration for a specific collider generated from a scene using [`ColliderConstructorHierarchy`].
 #[cfg(feature = "deferred-collider")]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
-pub struct DeferredColliderHierarchyData {
+pub struct ColliderConstructorHierarchyData {
     /// The type of collider generated for the mesh.
     pub shape: ColliderConstructor,
     /// The [`CollisionLayers`] used for this collider.
@@ -271,8 +271,8 @@ pub struct DeferredColliderHierarchyData {
     pub density: Scalar,
 }
 
-impl DeferredColliderHierarchyData {
-    /// Creates a new [`DeferredColliderHierarchyData`] with the given `constructor`, default collision layers and a density of 1.0.
+impl ColliderConstructorHierarchyData {
+    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, default collision layers and a density of 1.0.
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
             shape: constructor,
@@ -287,7 +287,7 @@ impl DeferredColliderHierarchyData {
     feature = "deferred-collider",
     feature = "collider-from-mesh"
 ))]
-impl Default for DeferredColliderHierarchyData {
+impl Default for ColliderConstructorHierarchyData {
     fn default() -> Self {
         Self::from_constructor(ColliderConstructor::TrimeshFromMesh)
     }
@@ -303,7 +303,7 @@ impl Default for DeferredColliderHierarchyData {
 ///
 /// ## See also
 ///
-/// For inserting colliders on an entity's descendants, use [`DeferredColliderHierarchy`].
+/// For inserting colliders on an entity's descendants, use [`ColliderConstructorHierarchy`].
 ///
 /// ## Errors
 ///
@@ -886,12 +886,14 @@ mod tests {
 
         let entity = app
             .world
-            .spawn(DeferredColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(ColliderConstructorHierarchy::new(
+                PRIMITIVE_COLLIDER.clone(),
+            ))
             .id();
 
         app.update();
 
-        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
@@ -904,7 +906,7 @@ mod tests {
         let entity = app
             .world
             .spawn((
-                DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()),
+                ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()),
                 mesh_handle,
             ))
             .id();
@@ -912,7 +914,7 @@ mod tests {
         app.update();
 
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
 
@@ -923,13 +925,13 @@ mod tests {
 
         let entity = app
             .world
-            .spawn(DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
+            .spawn(ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
 
         app.update();
 
         assert!(app.query_err::<&Collider>(entity));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(entity));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
     }
 
     #[test]
@@ -944,7 +946,9 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(DeferredColliderHierarchy::new(PRIMITIVE_COLLIDER.clone()))
+            .spawn(ColliderConstructorHierarchy::new(
+                PRIMITIVE_COLLIDER.clone(),
+            ))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -957,11 +961,11 @@ mod tests {
 
         app.update();
 
-        // No entities should have DeferredColliderHierarchy
-        assert!(app.query_err::<&DeferredColliderHierarchy>(parent));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child1));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child2));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child3));
+        // No entities should have ColliderConstructorHierarchy
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(parent));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child1));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child2));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child3));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_ok::<&Collider>(child1));
@@ -988,7 +992,7 @@ mod tests {
 
         let parent = app
             .world
-            .spawn(DeferredColliderHierarchy::new(COMPUTED_COLLIDER.clone()))
+            .spawn(ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
         let child1 = app.world.spawn(()).id();
         let child2 = app.world.spawn(()).id();
@@ -1008,16 +1012,16 @@ mod tests {
 
         app.update();
 
-        // No entities should have DeferredColliderHierarchy
-        assert!(app.query_err::<&DeferredColliderHierarchy>(parent));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child1));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child2));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child3));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child4));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child5));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child6));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child7));
-        assert!(app.query_err::<&DeferredColliderHierarchy>(child8));
+        // No entities should have ColliderConstructorHierarchy
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(parent));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child1));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child2));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child3));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child4));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child5));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child6));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child7));
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(child8));
 
         assert!(app.query_err::<&Collider>(parent));
         assert!(app.query_err::<&Collider>(child1));

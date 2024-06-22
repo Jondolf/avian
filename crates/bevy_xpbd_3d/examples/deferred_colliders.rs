@@ -1,5 +1,5 @@
 //! An example showcasing how to create colliders for meshes and scenes
-//! using `ColliderConstructor` and `DeferredColliderHierarchy` respectively.
+//! using `ColliderConstructor` and `ColliderConstructorHierarchy` respectively.
 
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
@@ -29,7 +29,7 @@ fn setup(
         RigidBody::Static,
     ));
 
-    // Spawn Ferris the crab and generate colliders for the scene using DeferredColliderHierarchy
+    // Spawn Ferris the crab and generate colliders for the scene using ColliderConstructorHierarchy
     commands.spawn((
         SceneBundle {
             // The model was made by RayMarch, licenced under CC0-1.0, and can be found here:
@@ -41,7 +41,7 @@ fn setup(
         // Create colliders using convex decomposition.
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
-        DeferredColliderHierarchy::new(ColliderConstructor::ConvexDecompositionFromMeshWithConfig(
+        ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMeshWithConfig(
             VhacdParameters::default(),
         ))
         // Make the arms heavier to make it easier to stand upright
