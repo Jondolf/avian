@@ -840,7 +840,7 @@ mod tests {
     use bevy::{ecs::query::QueryData, scene::ScenePlugin};
 
     #[test]
-    fn deferred_collider_requires_no_mesh_on_primitive() {
+    fn collider_constructor_requires_no_mesh_on_primitive() {
         let mut app = create_test_app();
 
         let entity = app.world.spawn(PRIMITIVE_COLLIDER.clone()).id();
@@ -854,7 +854,7 @@ mod tests {
     #[cfg(feature = "3d")]
     #[test]
     #[should_panic]
-    fn deferred_collider_requires_mesh_on_computed() {
+    fn collider_constructor_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
         app.world.spawn(COMPUTED_COLLIDER.clone());
@@ -864,7 +864,7 @@ mod tests {
 
     #[cfg(feature = "3d")]
     #[test]
-    fn deferred_collider_converts_mesh_on_computed() {
+    fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
@@ -881,7 +881,7 @@ mod tests {
     }
 
     #[test]
-    fn deferred_collider_hierarchy_does_nothing_on_self_with_primitive() {
+    fn collider_constructor_hierarchy_does_nothing_on_self_with_primitive() {
         let mut app = create_test_app();
 
         let entity = app
@@ -899,7 +899,7 @@ mod tests {
 
     #[cfg(feature = "3d")]
     #[test]
-    fn deferred_collider_hierarchy_does_nothing_on_self_with_computed() {
+    fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
         let mesh_handle = app.add_mesh();
@@ -920,7 +920,7 @@ mod tests {
 
     #[cfg(feature = "3d")]
     #[test]
-    fn deferred_collider_hierarchy_does_not_require_mesh_on_self_with_computed() {
+    fn collider_constructor_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
 
         let entity = app
@@ -935,7 +935,7 @@ mod tests {
     }
 
     #[test]
-    fn deferred_collider_hierarchy_inserts_primitive_colliders_on_all_descendants() {
+    fn collider_constructor_hierarchy_inserts_primitive_colliders_on_all_descendants() {
         let mut app = create_test_app();
 
         // Hierarchy:
@@ -975,7 +975,7 @@ mod tests {
 
     #[cfg(feature = "3d")]
     #[test]
-    fn deferred_collider_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
+    fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
         let mesh_handle = app.add_mesh();
 

@@ -178,7 +178,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         ))]
         app.add_systems(
             Update,
-            (init_deferred_colliders, init_deferred_collider_hierarchies),
+            (
+                init_collider_constructors,
+                init_collider_constructor_hierarchies,
+            ),
         );
 
         // Update child colliders before narrow phase in substepping loop
@@ -259,7 +262,7 @@ fn init_colliders<C: AnyCollider>(
     feature = "deferred-collider",
     feature = "default-collider"
 ))]
-pub fn init_deferred_colliders(
+fn init_collider_constructors(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     constructors: Query<(
@@ -314,11 +317,11 @@ pub fn init_deferred_colliders(
     feature = "deferred-collider",
     feature = "default-collider"
 ))]
-pub fn init_deferred_collider_hierarchies(
+fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
-    deferred_colliders: Query<(
+    collider_constructors: Query<(
         Entity,
         Option<&SceneInstance>,
         &ColliderConstructorHierarchy,
@@ -326,7 +329,9 @@ pub fn init_deferred_collider_hierarchies(
     children: Query<&Children>,
     mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
-    for (scene_entity, scene_instance, deferred_collider_hierarchy) in deferred_colliders.iter() {
+    for (scene_entity, scene_instance, collider_constructor_hierarchy) in
+        collider_constructors.iter()
+    {
         if scene_instance
             .map(|instance| scene_spawner.instance_is_ready(**instance))
             .unwrap_or(true)
@@ -336,20 +341,20 @@ pub fn init_deferred_collider_hierarchies(
                     let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
 
                     let default_collider = || {
-                        deferred_collider_hierarchy
+                        collider_constructor_hierarchy
                             .default_shape
                             .clone()
                             .map(|shape| ColliderConstructorHierarchyData { shape, ..default() })
                     };
 
                     let collider_data = if let Some(name) = name {
-                        deferred_collider_hierarchy
+                        collider_constructor_hierarchy
                             .meshes_by_name
                             .get(name.as_str())
                             .cloned()
                             .unwrap_or_else(default_collider)
                     } else if existing_collider.is_some() {
-                        warn!("Tried to add a collider to entity {pretty_name} via ColliderConstructorHierarchy {deferred_collider_hierarchy:#?}, \
+                        warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                             but that entity already holds a collider. Skipping. \
                             If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.meshes_by_name`.");
                         continue;
@@ -376,7 +381,7 @@ pub fn init_deferred_collider_hierarchies(
                         ));
                     } else {
                         error!(
-                            "Tried to add a collider to entity {pretty_name} via ColliderConstructorHierarchy {deferred_collider_hierarchy:#?}, \
+                            "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                             but the collider could not be generated from mesh {mesh:#?}. Skipping.",
                         );
                     }
