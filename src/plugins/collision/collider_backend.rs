@@ -167,7 +167,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        #[cfg(all(feature = "3d", feature = "default-collider"))]
         app.add_systems(
             Update,
             (
@@ -249,7 +248,6 @@ fn init_colliders<C: AnyCollider>(
 }
 
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the meshes have become available.
-#[cfg(all(feature = "3d", feature = "default-collider"))]
 fn init_collider_constructors(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -300,7 +298,6 @@ fn init_collider_constructors(
 }
 
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the scenes have become available.
-#[cfg(all(feature = "3d", feature = "default-collider"))]
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
