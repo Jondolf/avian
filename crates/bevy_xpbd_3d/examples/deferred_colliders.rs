@@ -25,7 +25,7 @@ fn setup(
             material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
             ..default()
         },
-        DeferredCollider(ColliderConstructor::TrimeshFromMesh),
+        ColliderConstructor::TrimeshFromMesh,
         RigidBody::Static,
     ));
 

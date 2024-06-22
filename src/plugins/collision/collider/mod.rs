@@ -1,5 +1,5 @@
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "deferred-collider"))]
+#[cfg(feature = "deferred-collider")]
 use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -91,48 +91,6 @@ pub trait ScalableCollider: AnyCollider {
         self.set_scale(factor * self.scale(), detail)
     }
 }
-
-/// A component that will automatically generate a [`Collider`] at runtime.
-/// The type of the generated collider can be specified using [`ColliderConstructor`].
-/// This supports computing the shape dynamically from the mesh.
-///
-/// Since [`Collider`] is not [`Reflect`], you can use this type to statically statically
-/// specify a collider's shape instead.
-///
-/// This component will never override a pre-existing [`Collider`] component on the same entity.
-///
-/// ## See also
-///
-/// For inserting colliders on an entity's descendants, use [`DeferredColliderHierarchy`].
-///
-/// ## Errors
-///
-/// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
-/// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
-///
-/// ## Example
-///
-/// ```
-/// use bevy::prelude::*;
-/// use bevy_xpbd_3d::prelude::*;
-///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
-///     // Spawn a cube with a convex hull collider generated from the mesh
-///     commands.spawn((
-///         DeferredCollider(ColliderConstructor::ConvexHullFromMesh),
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
-///     ));
-/// }
-/// ```
-#[cfg(feature = "deferred-collider")]
-#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
-#[reflect(Debug, PartialEq, Component)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-pub struct DeferredCollider(pub ColliderConstructor);
 
 /// A component that will automatically generate [`Collider`]s on its descendants at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
@@ -236,7 +194,7 @@ impl DeferredColliderHierarchy {
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
-                Some(DeferredColliderHierarchyData { shape, ..default() }),
+                Some(DeferredColliderHierarchyData::from_constructor(shape)),
             );
         }
         self
@@ -247,6 +205,7 @@ impl DeferredColliderHierarchy {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
             data.layers = layers;
         } else {
+            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             self.meshes_by_name.insert(
                 name.to_string(),
                 Some(DeferredColliderHierarchyData {
@@ -254,15 +213,23 @@ impl DeferredColliderHierarchy {
                     ..default()
                 }),
             );
+            #[cfg(not(feature = "3d"))]
+            panic!("`DeferredColliderHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
+            panic!(
+                "`DeferredColliderHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
+                Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
         }
         self
     }
 
     /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
             data.density = density;
         } else {
+            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             self.meshes_by_name.insert(
                 name.to_string(),
                 Some(DeferredColliderHierarchyData {
@@ -270,6 +237,12 @@ impl DeferredColliderHierarchy {
                     ..default()
                 }),
             );
+            #[cfg(not(feature = "3d"))]
+            panic!("`DeferredColliderHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
+            panic!(
+                "`DeferredColliderHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
+                Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
         }
         self
     }
@@ -283,7 +256,7 @@ impl DeferredColliderHierarchy {
 }
 
 /// Configuration for a specific collider generated from a scene using [`DeferredColliderHierarchy`].
-#[cfg(all(feature = "3d", feature = "deferred-collider"))]
+#[cfg(feature = "deferred-collider")]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -298,6 +271,17 @@ pub struct DeferredColliderHierarchyData {
     pub density: Scalar,
 }
 
+impl DeferredColliderHierarchyData {
+    /// Creates a new [`DeferredColliderHierarchyData`] with the given `constructor`, default collision layers and a density of 1.0.
+    pub fn from_constructor(constructor: ColliderConstructor) -> Self {
+        Self {
+            shape: constructor,
+            layers: CollisionLayers::default(),
+            density: 1.0,
+        }
+    }
+}
+
 #[cfg(all(
     feature = "3d",
     feature = "deferred-collider",
@@ -305,25 +289,46 @@ pub struct DeferredColliderHierarchyData {
 ))]
 impl Default for DeferredColliderHierarchyData {
     fn default() -> Self {
-        Self {
-            shape: ColliderConstructor::TrimeshFromMesh,
-            layers: CollisionLayers::default(),
-            density: 1.0,
-        }
+        Self::from_constructor(ColliderConstructor::TrimeshFromMesh)
     }
 }
 
-/// Determines how a [`Collider`] is generated from a `Mesh`.
+/// A component that will automatically generate a [`Collider`] at runtime using [`Collider::try_from_constructor`].
+/// Enabling the `collider-from-mesh` feature activates support for computing the shape dynamically from the mesh attached to the same entity.
 ///
-/// Colliders can be created from meshes with the following components and methods:
+/// Since [`Collider`] is not [`Reflect`], you can use this type to statically statically
+/// specify a collider's shape instead.
 ///
-/// - [`DeferredCollider`] (requires `deferred-collider` features)
-/// - [`DeferredColliderHierarchy`] (requires `deferred-collider` features)
-/// - [`Collider::trimesh_from_mesh`]
-/// - [`Collider::convex_hull_from_mesh`]
-/// - [`Collider::convex_decomposition_from_mesh`]
-#[derive(Clone, Debug, PartialEq, Reflect)]
-#[reflect(Debug, PartialEq)]
+/// This component will never override a pre-existing [`Collider`] component on the same entity.
+///
+/// ## See also
+///
+/// For inserting colliders on an entity's descendants, use [`DeferredColliderHierarchy`].
+///
+/// ## Errors
+///
+/// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
+/// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
+///
+/// ## Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_xpbd_3d::prelude::*;
+///
+/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
+///     // Spawn a cube with a convex hull collider generated from the mesh
+///     commands.spawn((
+///         DeferredCollider(ColliderConstructor::ConvexHullFromMesh),
+///         PbrBundle {
+///             mesh: meshes.add(Mesh::from(Cuboid::default())),
+///             ..default()
+///         },
+///     ));
+/// }
+/// ```
+#[derive(Clone, Debug, PartialEq, Reflect, Component)]
+#[reflect(Debug, Component, PartialEq)]
 #[non_exhaustive]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -838,27 +843,26 @@ mod tests {
     fn deferred_collider_requires_no_mesh_on_primitive() {
         let mut app = create_test_app();
 
-        let entity = app
-            .world
-            .spawn(DeferredCollider(PRIMITIVE_COLLIDER.clone()))
-            .id();
+        let entity = app.world.spawn(PRIMITIVE_COLLIDER.clone()).id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_err::<&DeferredCollider>(entity));
+        assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
+    #[cfg(feature = "3d")]
     #[test]
     #[should_panic]
     fn deferred_collider_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
-        app.world.spawn(DeferredCollider(COMPUTED_COLLIDER.clone()));
+        app.world.spawn(COMPUTED_COLLIDER.clone());
 
         app.update();
     }
 
+    #[cfg(feature = "3d")]
     #[test]
     fn deferred_collider_converts_mesh_on_computed() {
         let mut app = create_test_app();
@@ -866,14 +870,14 @@ mod tests {
         let mesh_handle = app.add_mesh();
         let entity = app
             .world
-            .spawn((DeferredCollider(COMPUTED_COLLIDER.clone()), mesh_handle))
+            .spawn((COMPUTED_COLLIDER.clone(), mesh_handle))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
         assert!(app.query_ok::<&Handle<Mesh>>(entity));
-        assert!(app.query_err::<&DeferredCollider>(entity));
+        assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
     #[test]
@@ -891,6 +895,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
+    #[cfg(feature = "3d")]
     #[test]
     fn deferred_collider_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
@@ -911,6 +916,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
+    #[cfg(feature = "3d")]
     #[test]
     fn deferred_collider_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
@@ -963,6 +969,7 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child3));
     }
 
+    #[cfg(feature = "3d")]
     #[test]
     fn deferred_collider_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
@@ -1028,6 +1035,7 @@ mod tests {
         radius: 0.5,
     };
 
+    #[cfg(feature = "3d")]
     const COMPUTED_COLLIDER: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
 
     fn create_test_app() -> App {
@@ -1048,6 +1056,8 @@ mod tests {
         fn query_err<D: QueryData>(&mut self, entity: Entity) -> bool {
             !self.query_ok::<D>(entity)
         }
+
+        #[cfg(feature = "3d")]
         fn add_mesh(&mut self) -> Handle<Mesh>;
     }
 
@@ -1058,6 +1068,7 @@ mod tests {
             component.is_ok()
         }
 
+        #[cfg(feature = "3d")]
         fn add_mesh(&mut self) -> Handle<Mesh> {
             self.world
                 .get_resource_mut::<Assets<Mesh>>()

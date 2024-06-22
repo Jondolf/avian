@@ -117,8 +117,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PreviousColliderTransform>()
             .register_type::<ColliderConstructor>();
         #[cfg(feature = "deferred-collider")]
-        app.register_type::<DeferredCollider>()
-            .register_type::<DeferredColliderHierarchy>()
+        app.register_type::<DeferredColliderHierarchy>()
             .register_type::<DeferredColliderHierarchyData>();
 
         // Configure higher level system sets for the given schedule

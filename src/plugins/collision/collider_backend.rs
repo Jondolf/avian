@@ -178,7 +178,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         ))]
         app.add_systems(
             Update,
-            (init_deferred_colliders, init_deferred_collider_hierarchys),
+            (init_deferred_colliders, init_deferred_collider_hierarchies),
         );
 
         // Update child colliders before narrow phase in substepping loop
@@ -253,7 +253,7 @@ fn init_colliders<C: AnyCollider>(
     }
 }
 
-/// Creates [`Collider`]s from [`DeferredCollider`]s if the meshes have become available.
+/// Creates [`Collider`]s from [`ColliderConstructor`]s if the meshes have become available.
 #[cfg(all(
     feature = "3d",
     feature = "deferred-collider",
@@ -262,28 +262,26 @@ fn init_colliders<C: AnyCollider>(
 pub fn init_deferred_colliders(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    deferred_colliders: Query<(
+    constructors: Query<(
         Entity,
         Option<&Handle<Mesh>>,
         Option<&Collider>,
         Option<&Name>,
-        &DeferredCollider,
+        &ColliderConstructor,
     )>,
 ) {
-    for (entity, mesh_handle, existing_collider, name, deferred_collider) in
-        deferred_colliders.iter()
-    {
+    for (entity, mesh_handle, existing_collider, name, constructor) in constructors.iter() {
         let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
         if existing_collider.is_some() {
             warn!(
-                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?}, \
+                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
             continue;
         }
-        let mesh = if deferred_collider.0.requires_mesh() {
+        let mesh = if constructor.requires_mesh() {
             let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
-                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?} that requires a mesh, \
+                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?} that requires a mesh, \
                 but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
             if mesh.is_none() {
@@ -295,28 +293,28 @@ pub fn init_deferred_colliders(
             None
         };
 
-        let collider = Collider::try_from_constructor(deferred_collider.0.clone(), mesh);
+        let collider = Collider::try_from_constructor(constructor.clone(), mesh);
         if let Some(collider) = collider {
             commands
                 .entity(entity)
                 .insert(collider)
-                .remove::<DeferredCollider>();
+                .remove::<ColliderConstructor>();
         } else {
             error!(
-                "Tried to add a collider to entity {name} via DeferredCollider {deferred_collider:#?}, \
+                "Tried to add a collider to entity {name} via DeferredCollider {constructor:#?}, \
                 but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }
     }
 }
 
-/// Creates [`Collider`]s from [`DeferredColliderHierarchy`]s if the scenes have become available.
+/// Creates [`Collider`]s from [`ColliderConstructor`]s if the scenes have become available.
 #[cfg(all(
     feature = "3d",
     feature = "deferred-collider",
     feature = "default-collider"
 ))]
-pub fn init_deferred_collider_hierarchys(
+pub fn init_deferred_collider_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     scene_spawner: Res<SceneSpawner>,
