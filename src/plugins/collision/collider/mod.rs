@@ -1,5 +1,4 @@
 use crate::prelude::*;
-#[cfg(feature = "deferred-collider")]
 use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
@@ -156,7 +155,6 @@ pub trait ScalableCollider: AnyCollider {
 ///     ));
 /// }
 /// ```
-#[cfg(feature = "deferred-collider")]
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -172,7 +170,6 @@ pub struct ColliderConstructorHierarchy {
     pub meshes_by_name: HashMap<String, Option<ColliderConstructorHierarchyData>>,
 }
 
-#[cfg(feature = "deferred-collider")]
 impl ColliderConstructorHierarchy {
     /// Creates a new [`ColliderConstructorHierarchy`] with the default collider type used for
     /// meshes set to the given `default_shape`.
@@ -256,7 +253,6 @@ impl ColliderConstructorHierarchy {
 }
 
 /// Configuration for a specific collider generated from a scene using [`ColliderConstructorHierarchy`].
-#[cfg(feature = "deferred-collider")]
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -284,7 +280,6 @@ impl ColliderConstructorHierarchyData {
 
 #[cfg(all(
     feature = "3d",
-    feature = "deferred-collider",
     feature = "collider-from-mesh"
 ))]
 impl Default for ColliderConstructorHierarchyData {
@@ -834,7 +829,7 @@ impl MapEntities for CollidingEntities {
     }
 }
 
-#[cfg(all(feature = "deferred-collider", test))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use bevy::ecs::query::QueryData;

@@ -11,7 +11,6 @@ use crate::{
 };
 #[cfg(all(
     feature = "3d",
-    feature = "deferred-collider",
     feature = "default-collider",
     feature = "bevy_scene"
 ))]
@@ -174,7 +173,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         #[cfg(all(
             feature = "3d",
-            feature = "deferred-collider",
             feature = "default-collider"
         ))]
         app.add_systems(
@@ -260,7 +258,6 @@ fn init_colliders<C: AnyCollider>(
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the meshes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "deferred-collider",
     feature = "default-collider"
 ))]
 fn init_collider_constructors(
@@ -315,7 +312,6 @@ fn init_collider_constructors(
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the scenes have become available.
 #[cfg(all(
     feature = "3d",
-    feature = "deferred-collider",
     feature = "default-collider"
 ))]
 fn init_collider_constructor_hierarchies(

@@ -16,7 +16,6 @@ default = [
     "3d",
     "f32",
     "parry-f32",
-    "deferred-collider",
     "collider-from-mesh",
     "bevy_scene",
     "debug-plugin",
@@ -42,10 +41,6 @@ parry-f32 = ["f32", "dep:parry3d", "default-collider"]
 parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
 collider-from-mesh = ["bevy/bevy_render", "3d"]
-deferred-collider = [
-    #"bevy/bevy_scene", 
-    #"bevy/bevy_gltf"
-]
 bevy_scene = ["bevy/bevy_scene"]
 serialize = [
     "dep:serde",
@@ -83,11 +78,11 @@ insta = "1.0"
 
 [[example]]
 name = "dynamic_character_3d"
-required-features = ["3d", "default-collider", "deferred-collider", "bevy_scene"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "kinematic_character_3d"
-required-features = ["3d", "default-collider", "deferred-collider", "bevy_scene"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "cast_ray_predicate"
@@ -131,7 +126,7 @@ required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "deferred_colliders"
-required-features = ["3d", "default-collider", "deferred-collider", "bevy_scene"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[bench]]
 name = "cubes"

@@ -17,14 +17,12 @@ default = [
     "f32", 
     "parry-f32", 
     "debug-plugin", 
-    "deferred-collider",
     "parallel"
 ]
 2d = []
 f32 = []
 f64 = []
 
-deferred-collider = []
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
 parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]

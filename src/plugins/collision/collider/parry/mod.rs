@@ -267,7 +267,7 @@ impl From<TriMeshFlags> for parry::shape::TriMeshFlags {
 ///
 /// If you need to specify the shape of the collider statically, use [`ColliderConstructor`] and build your collider
 /// with the [`Collider::try_from_constructor`] method.
-/// This can be done automatically on the `deferred-collider` feature with a [`ColliderConstructor`] component.
+/// This can also be done automatically by simply placing the [`ColliderConstructor`] on an entity.
 ///
 #[cfg_attr(
     feature = "3d",
