@@ -268,7 +268,7 @@ pub struct ColliderConstructorHierarchyData {
 }
 
 impl ColliderConstructorHierarchyData {
-    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, default collision layers and a density of 1.0.
+    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything and a density of 1.0.
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
             constructor,
