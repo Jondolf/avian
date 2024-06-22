@@ -118,22 +118,46 @@ pub trait ScalableCollider: AnyCollider {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
 ///     let scene = assets.load("my_model.gltf#Scene0");
 ///
-///     // Spawn the scene and automatically generate triangle mesh colliders
+#[cfg_attr(
+    feature = "3d",
+    doc = "     // Spawn the scene and automatically generate triangle mesh colliders"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "     // Spawn the scene and automatically generate circle mesh colliders"
+)]
+///
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
+)]
 ///     ));
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
-///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
-///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh)
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh)"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),
+             .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1, y_length: 2 })"
+)]
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
 ///     ));
@@ -142,16 +166,30 @@ pub trait ScalableCollider: AnyCollider {
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
 ///         ColliderConstructorHierarchy::new(None)
-///             .with_shape_for_name("Tree", ColliderConstructor::ConvexHullFromMesh),
+#[cfg_attr(
+    feature = "3d",
+    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh),"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::Circle { radius: 2.0 }),"
+)]
 ///     ));
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
-///         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
-///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
-///         ))
-///         .without_shape_with_name("Tree"),
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
+             TriMeshFlags::MERGE_DUPLICATE_VERTICES
+         ))"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
+)]
+///         .without_constructor_for_name("Tree"),
 ///     ));
 /// }
 /// ```
@@ -176,7 +214,7 @@ impl ColliderConstructorHierarchy {
     ///
     /// If the given collider type is `None`, all meshes except the ones in
     /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
+    /// You can add named shapes using [`with_constructor_for_name`](Self::with_constructor_for_name).
     pub fn new(default_shape: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_shape: default_shape.into(),
@@ -185,7 +223,7 @@ impl ColliderConstructorHierarchy {
     }
 
     /// Specifies the collider type used for a mesh with the given `name`.
-    pub fn with_shape_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
+    pub fn with_constructor_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
             data.constructor = shape;
         } else {
@@ -211,17 +249,18 @@ impl ColliderConstructorHierarchy {
                 }),
             );
             #[cfg(not(feature = "3d"))]
-            panic!("`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            panic!("`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
+            Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first.");
             #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
             panic!(
                 "`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
-                Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
+                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new`, call `with_constructor_for_name` first, \
+                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh.");
         }
         self
     }
 
     /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
             data.density = density;
@@ -235,18 +274,20 @@ impl ColliderConstructorHierarchy {
                 }),
             );
             #[cfg(not(feature = "3d"))]
-            panic!("`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. Call `with_shape_for_name` first.");
+            panic!("`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
+                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first.");
             #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
             panic!(
                 "`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
-                Call `with_shape_for_name` first or enable the `collider-from-mesh` feature to use a default construction method.");
+                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new`, call `with_constructor_for_name` first, \
+                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh.");
         }
         self
     }
 
     /// Sets collider for the mesh associated with the given `name` to `None`, skipping
     /// collider generation for it.
-    pub fn without_shape_with_name(mut self, name: &str) -> Self {
+    pub fn without_constructor_for_name(mut self, name: &str) -> Self {
         self.meshes_by_name.insert(name.to_string(), None);
         self
     }
@@ -306,12 +347,24 @@ impl Default for ColliderConstructorHierarchyData {
 ///
 /// ```
 /// use bevy::prelude::*;
-/// use bevy_xpbd_3d::prelude::*;
+#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
-///     // Spawn a cube with a convex hull collider generated from the mesh
+#[cfg_attr(
+    feature = "3d",
+    doc = "      // Spawn a cube with a convex hull collider generated from the mesh"
+)]
+#[cfg_attr(feature = "2d", doc = "      // Spawn a circle with radius 2")]
 ///     commands.spawn((
-///         ColliderConstructor::ConvexHullFromMesh,
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructor::ConvexHullFromMesh,"
+)]
+#[cfg_attr(
+    feature = "2d",
+    doc = "         ColliderConstructor::Circle { radius = 2.0 },"
+)]
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
 ///             ..default()
