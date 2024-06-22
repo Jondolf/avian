@@ -9,7 +9,7 @@ use crate::{
     prelude::*,
     prepare::{match_any, PrepareSet},
 };
-#[cfg(all(feature = "3d", feature = "default-collider", feature = "bevy_scene"))]
+#[cfg(feature = "bevy_scene")]
 use bevy::scene::SceneInstance;
 use bevy::{
     prelude::*,
