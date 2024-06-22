@@ -131,7 +131,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 );
             });
 
-        // When the `Sensor` component is removed from a collider,
+        // When the `Sensor` component is added to a collider,
         // remove the collider's contribution on the rigid body's mass properties.
         app.observe(
             |trigger: Trigger<OnAdd, Sensor>,
@@ -161,7 +161,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             },
         );
 
-        // When the `Sensor` component is added to a collider,
+        // When the `Sensor` component is removed from a collider,
         // add the collider's mass properties to the rigid body's mass properties.
         app.observe(
             |trigger: Trigger<OnRemove, Sensor>,
