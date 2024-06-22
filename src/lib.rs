@@ -1,5 +1,4 @@
-#![allow(clippy::type_complexity)]
-#![allow(unexpected_cfgs)]
+#![allow(unexpected_cfgs, clippy::type_complexity)]
 //! # Bevy XPBD
 //!
 //! **Bevy XPBD** is a 2D and 3D physics engine based on
