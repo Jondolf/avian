@@ -9,11 +9,7 @@ use crate::{
     prelude::*,
     prepare::{match_any, PrepareSet},
 };
-#[cfg(all(
-    feature = "3d",
-    feature = "default-collider",
-    feature = "bevy_scene"
-))]
+#[cfg(all(feature = "3d", feature = "default-collider", feature = "bevy_scene"))]
 use bevy::scene::SceneInstance;
 use bevy::{
     prelude::*,
@@ -171,10 +167,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        #[cfg(all(
-            feature = "3d",
-            feature = "default-collider"
-        ))]
+        #[cfg(all(feature = "3d", feature = "default-collider"))]
         app.add_systems(
             Update,
             (
@@ -256,10 +249,7 @@ fn init_colliders<C: AnyCollider>(
 }
 
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the meshes have become available.
-#[cfg(all(
-    feature = "3d",
-    feature = "default-collider"
-))]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 fn init_collider_constructors(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -310,10 +300,7 @@ fn init_collider_constructors(
 }
 
 /// Creates [`Collider`]s from [`ColliderConstructor`]s if the scenes have become available.
-#[cfg(all(
-    feature = "3d",
-    feature = "default-collider"
-))]
+#[cfg(all(feature = "3d", feature = "default-collider"))]
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
@@ -370,13 +357,13 @@ fn init_collider_constructor_hierarchies(
                     continue;
                 };
 
-                let mesh = if collider_data.shape.requires_mesh() {
+                let mesh = if collider_data.constructor.requires_mesh() {
                     handle.and_then(|handle| meshes.get(handle))
                 } else {
                     None
                 };
 
-                let collider = Collider::try_from_constructor(collider_data.shape, mesh);
+                let collider = Collider::try_from_constructor(collider_data.constructor, mesh);
                 if let Some(collider) = collider {
                     commands.entity(child_entity).insert((
                         collider,

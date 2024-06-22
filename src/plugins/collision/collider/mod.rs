@@ -187,7 +187,7 @@ impl ColliderConstructorHierarchy {
     /// Specifies the collider type used for a mesh with the given `name`.
     pub fn with_shape_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
         if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.shape = shape;
+            data.constructor = shape;
         } else {
             self.meshes_by_name.insert(
                 name.to_string(),
@@ -260,7 +260,7 @@ impl ColliderConstructorHierarchy {
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
 pub struct ColliderConstructorHierarchyData {
     /// The type of collider generated for the mesh.
-    pub shape: ColliderConstructor,
+    pub constructor: ColliderConstructor,
     /// The [`CollisionLayers`] used for this collider.
     pub layers: CollisionLayers,
     /// The [`ColliderDensity`] used for this collider.
@@ -271,17 +271,14 @@ impl ColliderConstructorHierarchyData {
     /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, default collision layers and a density of 1.0.
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
-            shape: constructor,
+            constructor,
             layers: CollisionLayers::default(),
             density: 1.0,
         }
     }
 }
 
-#[cfg(all(
-    feature = "3d",
-    feature = "collider-from-mesh"
-))]
+#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
 impl Default for ColliderConstructorHierarchyData {
     fn default() -> Self {
         Self::from_constructor(ColliderConstructor::TrimeshFromMesh)
