@@ -363,7 +363,7 @@ impl Default for ColliderConstructorHierarchyData {
 )]
 #[cfg_attr(
     feature = "2d",
-    doc = "         ColliderConstructor::Circle { radius = 2.0 },"
+    doc = "         ColliderConstructor::Circle { radius: 2.0 },"
 )]
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
