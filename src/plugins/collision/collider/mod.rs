@@ -276,7 +276,7 @@ impl ColliderConstructorHierarchy {
         self.default_constructor
             .clone()
             .map(ColliderConstructorHierarchyData::from_constructor)
-            .or_else(|| {
+            .or({
                 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
                 {
                     Some(ColliderConstructorHierarchyData::default())
