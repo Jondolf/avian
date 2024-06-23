@@ -1082,7 +1082,7 @@ impl Collider {
         })
     }
 
-    /// Attempts to create a collider from a mesh with the given computed collider.
+    /// Attempts to create a collider from an optional mesh with the given [`ColliderConstructor`].
     /// By using this, you can serialize and deserialize the collider's creation method
     /// separately from the collider itself via the [`ColliderConstructor`] enum.
     ///
