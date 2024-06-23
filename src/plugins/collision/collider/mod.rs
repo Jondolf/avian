@@ -994,13 +994,13 @@ mod tests {
     #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_on_scene() {
-        let mut app = create_test_app();
-        app.add_plugins(bevy::gltf::GltfPlugin::default());
+        let mut app = create_gltf_test_app();
 
         let scene_handle = app
             .world
             .resource_mut::<AssetServer>()
             .load("ferris.glb#Scene0");
+
         app.world.spawn((
             SceneBundle {
                 scene: scene_handle,
@@ -1012,16 +1012,12 @@ mod tests {
             RigidBody::Dynamic,
         ));
 
-        loop {
+        while app
+            .world
+            .resource::<Events<bevy::scene::SceneInstanceReady>>()
+            .is_empty()
+        {
             app.update();
-            let scene_instance = app
-                .world
-                .query::<&bevy::scene::SceneInstance>()
-                .single(&app.world);
-            let scene_spawner = app.world.resource::<bevy::scene::SceneSpawner>();
-            if scene_spawner.instance_is_ready(**scene_instance) {
-                break;
-            }
         }
         app.update();
 
@@ -1059,6 +1055,30 @@ mod tests {
         ))
         .init_resource::<Assets<Mesh>>();
 
+        app
+    }
+
+    #[cfg(feature = "bevy_scene")]
+    fn create_gltf_test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((
+            (
+                MinimalPlugins,
+                bevy::transform::TransformPlugin::default(),
+                bevy::hierarchy::HierarchyPlugin::default(),
+                bevy::window::WindowPlugin::default(),
+                bevy::asset::AssetPlugin::default(),
+                bevy::scene::ScenePlugin::default(),
+                bevy::render::RenderPlugin::default(),
+                bevy::render::texture::ImagePlugin::default(),
+                bevy::core_pipeline::CorePipelinePlugin::default(),
+                bevy::pbr::PbrPlugin::default(),
+                bevy::gltf::GltfPlugin::default(),
+            ),
+            PhysicsPlugins::default(),
+        ));
+        app.finish();
+        app.cleanup();
         app
     }
 
