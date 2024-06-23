@@ -201,24 +201,24 @@ pub trait ScalableCollider: AnyCollider {
 pub struct ColliderConstructorHierarchy {
     /// The default collider type used for each mesh that isn't included in [`config`](#structfield.config).
     /// If `None`, all meshes except the ones in [`config`](#structfield.config) will be skipped.
-    pub default_shape: Option<ColliderConstructor>,
+    pub default_constructor: Option<ColliderConstructor>,
     /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
+    /// For the meshes not found in this `HashMap`, [`default_constructor`](#structfield.default_constructor)
     /// and all collision layers will be used instead.
     pub config: HashMap<String, Option<ColliderConstructorHierarchyData>>,
 }
 
 impl ColliderConstructorHierarchy {
     /// Creates a new [`ColliderConstructorHierarchy`] with the default collider type used for
-    /// meshes set to the given `default_shape`.
+    /// meshes set to the given `default_constructor`.
     ///
     /// If the given collider type is `None`, all meshes except the ones in
     /// [`config`](#structfield.config) will be skipped.
     /// You can add named shapes using [`with_constructor_for_name`](Self::with_constructor_for_name).
-    pub fn new(default_shape: impl Into<Option<ColliderConstructor>>) -> Self {
+    pub fn new(default_constructor: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
-            default_shape: default_shape.into(),
+            default_constructor: default_constructor.into(),
             config: default(),
         }
     }
