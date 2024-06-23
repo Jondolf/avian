@@ -1141,7 +1141,7 @@ impl Collider {
             ColliderConstructor::CapsuleEndpoints { a, b, radius } => {
                 Some(Self::capsule_endpoints(a, b, radius))
             }
-            ColliderConstructor::Halfspace { outward_normal } => {
+            ColliderConstructor::HalfSpace { outward_normal } => {
                 Some(Self::halfspace(outward_normal))
             }
             ColliderConstructor::Segment { a, b } => Some(Self::segment(a, b)),
@@ -1310,7 +1310,7 @@ fn scale_shape(
         TypedShape::Polyline(p) => Ok(SharedShape::new(p.clone().scaled(&scale.into()))),
         TypedShape::HalfSpace(h) => match h.scaled(&scale.into()) {
             None => {
-                log::error!("Failed to apply scale {} to Halfspace shape.", scale);
+                log::error!("Failed to apply scale {} to HalfSpace shape.", scale);
                 Ok(SharedShape::ball(0.0))
             }
             Some(scaled) => Ok(SharedShape::new(scaled)),
