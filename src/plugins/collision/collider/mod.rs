@@ -422,13 +422,7 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     let collider = Collider::ball(0.5);
-///     commands.spawn((
-///         RigidBody::Static,
-///         MassPropertiesBundle::new_computed(&collider, 1.0),
-///         collider,
-///         Sensor,
-///     ));
+///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
 /// }
 /// ```
 #[doc(alias = "Trigger")]
