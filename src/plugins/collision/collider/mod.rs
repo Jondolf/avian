@@ -187,7 +187,7 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(
     feature = "3d",
     doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
-             TriMeshFlags::MERGE_DUPLICATE_VERTICES
+             TrimeshFlags::MERGE_DUPLICATE_VERTICES
          ))"
 )]
 ///         .without_constructor_for_name("Tree"),
@@ -455,7 +455,7 @@ pub enum ColliderConstructor {
     TrimeshWithConfig {
         vertices: Vec<Vector>,
         indices: Vec<[u32; 3]>,
-        flags: TriMeshFlags,
+        flags: TrimeshFlags,
     },
     /// Constructs a collider with [`Collider::convex_decomposition`].
     #[cfg(feature = "2d")]
@@ -489,12 +489,12 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
     ConvexHull { points: Vec<Vector> },
-    /// Constructs a collider with [`Collider::heightfield`].
+    /// Constructs a collider with [`Collider::height_field`].
     #[cfg(feature = "2d")]
-    Heightfield { heights: Vec<Scalar>, scale: Vector },
-    /// Constructs a collider with [`Collider::heightfield`].
+    HeightField { heights: Vec<Scalar>, scale: Vector },
+    /// Constructs a collider with [`Collider::height_field`].
     #[cfg(feature = "3d")]
-    Heightfield {
+    HeightField {
         heights: Vec<Vec<Scalar>>,
         scale: Vector,
     },
@@ -508,7 +508,7 @@ pub enum ColliderConstructor {
         feature = "collider-from-mesh",
         feature = "default-collider"
     ))]
-    TrimeshFromMeshWithConfig(TriMeshFlags),
+    TrimeshFromMeshWithConfig(TrimeshFlags),
     /// Constructs a collider with [`Collider::convex_decomposition_from_mesh`].
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     ConvexDecompositionFromMesh,

@@ -241,7 +241,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 true,
                 color,
             ),
-            TypedShape::TriMesh(s) => {
+            TypedShape::Trimesh(s) => {
                 for tri in s.triangles() {
                     self.draw_collider(
                         &Collider::from(SharedShape::new(tri)),
