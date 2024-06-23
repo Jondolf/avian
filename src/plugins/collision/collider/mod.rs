@@ -101,7 +101,8 @@ pub trait ScalableCollider: AnyCollider {
 /// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
 /// wait until the scene is loaded before generating colliders.
 ///
-/// The exact configuration for each descendant can be specified using [`ColliderConstructorHierarchyData`].
+/// The exact configuration for each descendant can be specified using the helper methods
+/// such as [`with_constructor_for_name`](Self::with_constructor_for_name).
 ///
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `meshes_by_name`.
