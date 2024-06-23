@@ -199,7 +199,7 @@ bitflags::bitflags! {
     }
 }
 
-impl From<TrimeshFlags> for parry::shape::TrimeshFlags {
+impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     fn from(value: TrimeshFlags) -> Self {
         Self::from_bits(value.bits()).unwrap()
     }
@@ -404,7 +404,7 @@ impl std::fmt::Debug for Collider {
             TypedShape::Segment(shape) => write!(f, "{:?}", shape),
             TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
             TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::Trimesh(_) => write!(f, "Trimesh (not representable)"),
+            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
             TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
             TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
             TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
@@ -791,8 +791,8 @@ impl Collider {
     }
 
     /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape defined by the outward normal of its planar boundary.
-    pub fn half_space(outward_normal: Vector) -> Self {
-        SharedShape::half_space(nalgebra::Unit::new_normalize(outward_normal.into())).into()
+    pub fn halfspace(outward_normal: Vector) -> Self {
+        SharedShape::halfspace(nalgebra::Unit::new_normalize(outward_normal.into())).into()
     }
 
     /// Creates a collider with a segment shape defined by its endpoints `a` and `b`.
@@ -898,20 +898,20 @@ impl Collider {
         SharedShape::convex_hull(&points).map(Into::into)
     }
 
-    /// Creates a collider with a height_field shape.
+    /// Creates a collider with a heightfield shape.
     ///
-    /// A 2D height_field is a segment along the `X` axis, subdivided at regular intervals.
+    /// A 2D heightfield is a segment along the `X` axis, subdivided at regular intervals.
     ///
     /// `heights` is a list indicating the altitude of each subdivision point, and `scale` controls
     /// the scaling factor along each axis.
     #[cfg(feature = "2d")]
-    pub fn height_field(heights: Vec<Scalar>, scale: Vector) -> Self {
-        SharedShape::height_field(heights.into(), scale.into()).into()
+    pub fn heightfield(heights: Vec<Scalar>, scale: Vector) -> Self {
+        SharedShape::heightfield(heights.into(), scale.into()).into()
     }
 
-    /// Creates a collider with a height_field shape.
+    /// Creates a collider with a heightfield shape.
     ///
-    /// A 3D height_field is a rectangle on the `XZ` plane, subdivided in a grid pattern at regular intervals.
+    /// A 3D heightfield is a rectangle on the `XZ` plane, subdivided in a grid pattern at regular intervals.
     ///
     /// `heights` is a matrix indicating the altitude of each subdivision point. The number of rows indicates
     /// the number of subdivisions along the `X` axis, while the number of columns indicates the number of
@@ -919,7 +919,7 @@ impl Collider {
     ///
     /// `scale` controls the scaling factor along each axis.
     #[cfg(feature = "3d")]
-    pub fn height_field(heights: Vec<Vec<Scalar>>, scale: Vector) -> Self {
+    pub fn heightfield(heights: Vec<Vec<Scalar>>, scale: Vector) -> Self {
         let row_count = heights.len();
         let column_count = heights[0].len();
         let data: Vec<Scalar> = heights.into_iter().flatten().collect();
@@ -931,7 +931,7 @@ impl Collider {
         );
 
         let heights = nalgebra::DMatrix::from_vec(row_count, column_count, data);
-        SharedShape::height_field(heights, scale.into()).into()
+        SharedShape::heightfield(heights, scale.into()).into()
     }
 
     /// Creates a collider with a triangle mesh shape from a `Mesh`.
@@ -1141,8 +1141,8 @@ impl Collider {
             ColliderConstructor::CapsuleEndpoints { a, b, radius } => {
                 Some(Self::capsule_endpoints(a, b, radius))
             }
-            ColliderConstructor::HalfSpace { outward_normal } => {
-                Some(Self::half_space(outward_normal))
+            ColliderConstructor::Halfspace { outward_normal } => {
+                Some(Self::halfspace(outward_normal))
             }
             ColliderConstructor::Segment { a, b } => Some(Self::segment(a, b)),
             ColliderConstructor::Triangle { a, b, c } => Some(Self::triangle(a, b, c)),
@@ -1191,12 +1191,12 @@ impl Collider {
             #[cfg(feature = "3d")]
             ColliderConstructor::ConvexHull { points } => Self::convex_hull(points),
             #[cfg(feature = "2d")]
-            ColliderConstructor::HeightField { heights, scale } => {
-                Some(Self::height_field(heights, scale))
+            ColliderConstructor::Heightfield { heights, scale } => {
+                Some(Self::heightfield(heights, scale))
             }
             #[cfg(feature = "3d")]
-            ColliderConstructor::HeightField { heights, scale } => {
-                Some(Self::height_field(heights, scale))
+            ColliderConstructor::Heightfield { heights, scale } => {
+                Some(Self::heightfield(heights, scale))
             }
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
             ColliderConstructor::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
@@ -1306,11 +1306,11 @@ fn scale_shape(
             border_radius: t.border_radius,
             inner_shape: t.inner_shape.scaled(&scale.into()),
         })),
-        TypedShape::Trimesh(t) => Ok(SharedShape::new(t.clone().scaled(&scale.into()))),
+        TypedShape::TriMesh(t) => Ok(SharedShape::new(t.clone().scaled(&scale.into()))),
         TypedShape::Polyline(p) => Ok(SharedShape::new(p.clone().scaled(&scale.into()))),
         TypedShape::HalfSpace(h) => match h.scaled(&scale.into()) {
             None => {
-                log::error!("Failed to apply scale {} to HalfSpace shape.", scale);
+                log::error!("Failed to apply scale {} to Halfspace shape.", scale);
                 Ok(SharedShape::ball(0.0))
             }
             Some(scaled) => Ok(SharedShape::new(scaled)),

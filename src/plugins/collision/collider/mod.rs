@@ -432,8 +432,8 @@ pub enum ColliderConstructor {
         b: Vector,
         radius: Scalar,
     },
-    /// Constructs a collider with [`Collider::half_space`].
-    HalfSpace { outward_normal: Vector },
+    /// Constructs a collider with [`Collider::halfspace`].
+    Halfspace { outward_normal: Vector },
     /// Constructs a collider with [`Collider::segment`].
     Segment { a: Vector, b: Vector },
     /// Constructs a collider with [`Collider::triangle`].
@@ -489,12 +489,12 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
     ConvexHull { points: Vec<Vector> },
-    /// Constructs a collider with [`Collider::height_field`].
+    /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
-    HeightField { heights: Vec<Scalar>, scale: Vector },
-    /// Constructs a collider with [`Collider::height_field`].
+    Heightfield { heights: Vec<Scalar>, scale: Vector },
+    /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "3d")]
-    HeightField {
+    Heightfield {
         heights: Vec<Vec<Scalar>>,
         scale: Vector,
     },
