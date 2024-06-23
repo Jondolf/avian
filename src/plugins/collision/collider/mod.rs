@@ -1012,17 +1012,22 @@ mod tests {
             RigidBody::Dynamic,
         ));
 
-        while app
-            .world
-            .resource::<Events<bevy::scene::SceneInstanceReady>>()
-            .is_empty()
-        {
+        loop {
             app.update();
+            let scene_instance = app
+                .world
+                .query::<&bevy::scene::SceneInstance>()
+                .single(&app.world);
+            let scene_spawner = app.world.resource::<bevy::scene::SceneSpawner>();
+            if scene_spawner.instance_is_ready(**scene_instance) {
+                break;
+            }
         }
         app.update();
 
-        let mut query = app.world.query::<(&Name, &ColliderDensity)>();
-        let densities: HashMap<_, _> = query
+        let densities: HashMap<_, _> = app
+            .world
+            .query::<(&Name, &ColliderDensity)>()
             .iter(&app.world)
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
