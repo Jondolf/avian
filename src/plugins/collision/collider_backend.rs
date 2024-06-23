@@ -310,6 +310,7 @@ fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
+    #[cfg(feature = "bevy_scene")] scenes: Query<&Handle<Scene>>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
     collider_constructors: Query<(Entity, &ColliderConstructorHierarchy)>,
     children: Query<&Children>,
@@ -318,13 +319,16 @@ fn init_collider_constructor_hierarchies(
     for (scene_entity, collider_constructor_hierarchy) in collider_constructors.iter() {
         #[cfg(feature = "bevy_scene")]
         {
-            let scene_ready = scene_instances
-                .get(scene_entity)
-                .map(|instance| scene_spawner.instance_is_ready(**instance))
-                .unwrap_or(true);
-
-            if !scene_ready {
-                continue;
+            if scenes.contains(scene_entity) {
+                if let Ok(scene_instance) = scene_instances.get(scene_entity) {
+                    if !scene_spawner.instance_is_ready(**scene_instance) {
+                        // Wait for the scene to be ready
+                        continue;
+                    }
+                } else {
+                    // SceneInstance is added in the SpawnScene schedule, so it might not be available yet
+                    continue;
+                }
             }
         }
 
