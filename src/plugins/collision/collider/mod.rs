@@ -156,7 +156,7 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(
     feature = "2d",
     doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
-             .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1, y_length: 2 })"
+             .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1.0, y_length: 2.0 })"
 )]
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
