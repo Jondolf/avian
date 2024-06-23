@@ -369,7 +369,7 @@ fn init_collider_constructor_hierarchies(
                     commands.entity(child_entity).insert((
                         collider,
                         collider_data.layers,
-                        ColliderDensity(collider_data.density),
+                        collider_data.density,
                     ));
                 } else {
                     error!(

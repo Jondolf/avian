@@ -237,53 +237,14 @@ impl ColliderConstructorHierarchy {
     }
 
     /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
-    pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
-        if let Some(Some(data)) = self.config.get_mut(name) {
-            data.layers = layers;
-        } else {
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            self.config.insert(
-                name.to_string(),
-                Some(ColliderConstructorHierarchyData {
-                    layers,
-                    ..default()
-                }),
-            );
-            #[cfg(not(feature = "3d"))]
-            panic!("`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
-            Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first.");
-            #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
-            panic!(
-                "`ColliderConstructorHierarchy::with_layers_for_name` failed: the given `name` has no associated constructor. \
-                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new`, call `with_constructor_for_name` first, \
-                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh.");
-        }
-        self
+    pub fn with_layers_for_name(self, name: &str, layers: CollisionLayers) -> Self {
+        self.with_config_for_name(name, |config| config.layers = layers)
     }
 
     /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
-    pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
-        if let Some(Some(data)) = self.config.get_mut(name) {
-            data.density = density;
-        } else {
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            self.config.insert(
-                name.to_string(),
-                Some(ColliderConstructorHierarchyData {
-                    density,
-                    ..default()
-                }),
-            );
-            #[cfg(not(feature = "3d"))]
-            panic!("`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
-                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first.");
-            #[cfg(all(feature = "3d", not(feature = "collider-from-mesh")))]
-            panic!(
-                "`ColliderConstructorHierarchy::with_density_for_name` failed: the given `name` has no associated constructor. \
-                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new`, call `with_constructor_for_name` first, \
-                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh.");
-        }
-        self
+    pub fn with_density_for_name(self, name: &str, density: impl Into<ColliderDensity>) -> Self {
+        let density = density.into();
+        self.with_config_for_name(name, |config| config.density = density)
     }
 
     /// Sets collider for the mesh associated with the given `name` to `None`, skipping
@@ -291,6 +252,40 @@ impl ColliderConstructorHierarchy {
     pub fn without_constructor_for_name(mut self, name: &str) -> Self {
         self.config.insert(name.to_string(), None);
         self
+    }
+
+    fn with_config_for_name(
+        mut self,
+        name: &str,
+        mut mutate_config: impl FnMut(&mut ColliderConstructorHierarchyData),
+    ) -> Self {
+        if let Some(Some(config)) = self.config.get_mut(name) {
+            mutate_config(config);
+        } else {
+            let mut config = self.base_constructor_hierarchy_data().unwrap_or_else(||
+                panic!("Failed to configure collider constructor for \"{name}\" because it has no associated constructor. \
+                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first, \
+                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh."));
+            mutate_config(&mut config);
+            self.config.insert(name.to_string(), Some(config));
+        }
+        self
+    }
+
+    fn base_constructor_hierarchy_data(&self) -> Option<ColliderConstructorHierarchyData> {
+        self.default_constructor
+            .clone()
+            .map(ColliderConstructorHierarchyData::from_constructor)
+            .or_else(|| {
+                #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+                {
+                    Some(ColliderConstructorHierarchyData::default())
+                }
+                #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+                {
+                    None
+                }
+            })
     }
 }
 
@@ -306,18 +301,22 @@ pub struct ColliderConstructorHierarchyData {
     /// The [`CollisionLayers`] used for this collider.
     pub layers: CollisionLayers,
     /// The [`ColliderDensity`] used for this collider.
-    pub density: Scalar,
+    pub density: ColliderDensity,
 }
 
 impl ColliderConstructorHierarchyData {
-    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything and a density of 1.0.
+    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything,
+    /// and a density of [`ColliderConstructorHierarchyData::DEFAULT_DENSITY`].
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
             constructor,
             layers: CollisionLayers::default(),
-            density: 1.0,
+            density: Self::DEFAULT_DENSITY,
         }
     }
+
+    /// Density used for generated colliders if not specified otherwise.
+    pub const DEFAULT_DENSITY: ColliderDensity = ColliderDensity(1.0);
 }
 
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
