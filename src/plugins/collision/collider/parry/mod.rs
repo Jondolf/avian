@@ -1147,9 +1147,10 @@ impl Collider {
             ColliderConstructor::Segment { a, b } => Some(Self::segment(a, b)),
             ColliderConstructor::Triangle { a, b, c } => Some(Self::triangle(a, b, c)),
             #[cfg(feature = "2d")]
-            ColliderConstructor::RegularPolygon { circumradius, size } => {
-                Some(Self::regular_polygon(circumradius, size))
-            }
+            ColliderConstructor::RegularPolygon {
+                circumradius,
+                sides,
+            } => Some(Self::regular_polygon(circumradius, sides)),
             ColliderConstructor::Polyline { vertices, indices } => {
                 Some(Self::polyline(vertices, indices))
             }

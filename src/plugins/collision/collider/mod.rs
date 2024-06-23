@@ -500,7 +500,7 @@ pub enum ColliderConstructor {
         #[allow(missing_docs)]
         circumradius: f32,
         #[allow(missing_docs)]
-        size: usize,
+        sides: usize,
     },
     /// Constructs a collider with [`Collider::polyline`].
     Polyline {
