@@ -410,6 +410,8 @@ impl From<Transform> for ColliderTransform {
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///
+/// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
+///
 /// ## Example
 ///
 /// ```
