@@ -267,7 +267,7 @@ fn init_collider_constructors(
     )>,
 ) {
     for (entity, mesh_handle, existing_collider, name, constructor) in constructors.iter() {
-        let name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
+        let name = pretty_name(name, entity);
         if existing_collider.is_some() {
             warn!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
@@ -330,7 +330,7 @@ fn init_collider_constructor_hierarchies(
 
         for child_entity in children.iter_descendants(scene_entity) {
             if let Ok((name, existing_collider, handle)) = mesh_handles.get(child_entity) {
-                let pretty_name = name.map(|n| n.as_str()).unwrap_or("<unnamed>");
+                let pretty_name = pretty_name(name, child_entity);
 
                 let default_collider = || {
                     collider_constructor_hierarchy
@@ -384,6 +384,11 @@ fn init_collider_constructor_hierarchies(
             .entity(scene_entity)
             .remove::<ColliderConstructorHierarchy>();
     }
+}
+
+fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
+    name.map(|n| n.to_string())
+        .unwrap_or_else(|| format!("<unnamed entity {}>", entity.index()))
 }
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
