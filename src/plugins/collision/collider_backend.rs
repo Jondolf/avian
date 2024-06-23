@@ -247,7 +247,14 @@ fn init_colliders<C: AnyCollider>(
     }
 }
 
-/// Creates [`Collider`]s from [`ColliderConstructor`]s if the meshes have become available.
+/// Generates [`Collider`]s based on [`ColliderConstructor`]s.
+///
+/// If a [`ColliderConstructor`] requires a mesh, the system keeps running
+/// until the mesh associated with the mesh handle is available.
+///
+/// # Panics
+///
+/// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
 fn init_collider_constructors(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
