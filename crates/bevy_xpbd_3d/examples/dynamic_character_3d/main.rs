@@ -65,7 +65,7 @@ fn setup(
         },
     ));
 
-    // Environment (see `deferred_colliders` example for creating colliders from scenes)
+    // Environment (see the `collider_constructors` example for creating colliders from scenes)
     commands.spawn((
         SceneBundle {
             scene: assets.load("character_controller_demo.glb#Scene0"),

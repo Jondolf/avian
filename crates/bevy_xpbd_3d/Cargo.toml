@@ -125,7 +125,7 @@ name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
-name = "deferred_colliders"
+name = "collider_constructors"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[bench]]
