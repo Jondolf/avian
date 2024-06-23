@@ -792,7 +792,7 @@ impl Collider {
 
     /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape defined by the outward normal of its planar boundary.
     pub fn half_space(outward_normal: Vector) -> Self {
-        SharedShape::half_space(nalgebra::Unit::new_normalize(outward_normal.into())).into()
+        SharedShape::halfspace(nalgebra::Unit::new_normalize(outward_normal.into())).into()
     }
 
     /// Creates a collider with a segment shape defined by its endpoints `a` and `b`.
