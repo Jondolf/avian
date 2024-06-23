@@ -363,7 +363,11 @@ fn init_collider_constructor_hierarchies(
                 };
 
                 let mesh = if collider_data.constructor.requires_mesh() {
-                    handle.and_then(|handle| meshes.get(handle))
+                    if let Some(handle) = handle {
+                        meshes.get(handle)
+                    } else {
+                        continue;
+                    }
                 } else {
                     None
                 };
