@@ -137,12 +137,12 @@ pub trait ScalableCollider: AnyCollider {
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
 #[cfg_attr(
-    feature = "3d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),"
-)]
-#[cfg_attr(
     feature = "2d",
     doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),"
 )]
 ///     ));
 ///
@@ -150,14 +150,14 @@ pub trait ScalableCollider: AnyCollider {
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
 #[cfg_attr(
-    feature = "3d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
-             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh)"
-)]
-#[cfg_attr(
     feature = "2d",
     doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
              .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1.0, y_length: 2.0 })"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh)"
 )]
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
@@ -168,12 +168,12 @@ pub trait ScalableCollider: AnyCollider {
 ///         SceneBundle { scene: scene.clone(), ..default() },
 ///         ColliderConstructorHierarchy::new(None)
 #[cfg_attr(
-    feature = "3d",
-    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh),"
-)]
-#[cfg_attr(
     feature = "2d",
     doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::Circle { radius: 2.0 }),"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh),"
 )]
 ///     ));
 ///
@@ -181,14 +181,14 @@ pub trait ScalableCollider: AnyCollider {
 ///     commands.spawn((
 ///         SceneBundle { scene, ..default() },
 #[cfg_attr(
+    feature = "2d",
+    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
+)]
+#[cfg_attr(
     feature = "3d",
     doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
              TriMeshFlags::MERGE_DUPLICATE_VERTICES
          ))"
-)]
-#[cfg_attr(
-    feature = "2d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
 )]
 ///         .without_constructor_for_name("Tree"),
 ///     ));
@@ -352,19 +352,19 @@ impl Default for ColliderConstructorHierarchyData {
 #[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
+#[cfg_attr(feature = "2d", doc = "      // Spawn a circle with radius 2")]
 #[cfg_attr(
     feature = "3d",
     doc = "      // Spawn a cube with a convex hull collider generated from the mesh"
 )]
-#[cfg_attr(feature = "2d", doc = "      // Spawn a circle with radius 2")]
 ///     commands.spawn((
-#[cfg_attr(
-    feature = "3d",
-    doc = "         ColliderConstructor::ConvexHullFromMesh,"
-)]
 #[cfg_attr(
     feature = "2d",
     doc = "         ColliderConstructor::Circle { radius: 2.0 },"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "         ColliderConstructor::ConvexHullFromMesh,"
 )]
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),
