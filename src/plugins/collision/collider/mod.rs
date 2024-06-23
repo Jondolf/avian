@@ -105,7 +105,7 @@ pub trait ScalableCollider: AnyCollider {
 /// such as [`with_constructor_for_name`](Self::with_constructor_for_name).
 ///
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
-/// when it has been explicitly mentioned in the `meshes_by_name`.
+/// when it has been explicitly mentioned in the `config`.
 ///
 /// ## See also
 ///
@@ -199,14 +199,14 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct ColliderConstructorHierarchy {
-    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
-    /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
+    /// The default collider type used for each mesh that isn't included in [`config`](#structfield.config).
+    /// If `None`, all meshes except the ones in [`config`](#structfield.config) will be skipped.
     pub default_shape: Option<ColliderConstructor>,
     /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
     /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<ColliderConstructorHierarchyData>>,
+    pub config: HashMap<String, Option<ColliderConstructorHierarchyData>>,
 }
 
 impl ColliderConstructorHierarchy {
@@ -214,21 +214,21 @@ impl ColliderConstructorHierarchy {
     /// meshes set to the given `default_shape`.
     ///
     /// If the given collider type is `None`, all meshes except the ones in
-    /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
+    /// [`config`](#structfield.config) will be skipped.
     /// You can add named shapes using [`with_constructor_for_name`](Self::with_constructor_for_name).
     pub fn new(default_shape: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_shape: default_shape.into(),
-            meshes_by_name: default(),
+            config: default(),
         }
     }
 
     /// Specifies the collider type used for a mesh with the given `name`.
     pub fn with_constructor_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+        if let Some(Some(data)) = self.config.get_mut(name) {
             data.constructor = shape;
         } else {
-            self.meshes_by_name.insert(
+            self.config.insert(
                 name.to_string(),
                 Some(ColliderConstructorHierarchyData::from_constructor(shape)),
             );
@@ -238,11 +238,11 @@ impl ColliderConstructorHierarchy {
 
     /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
     pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+        if let Some(Some(data)) = self.config.get_mut(name) {
             data.layers = layers;
         } else {
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            self.meshes_by_name.insert(
+            self.config.insert(
                 name.to_string(),
                 Some(ColliderConstructorHierarchyData {
                     layers,
@@ -263,11 +263,11 @@ impl ColliderConstructorHierarchy {
 
     /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
     pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
+        if let Some(Some(data)) = self.config.get_mut(name) {
             data.density = density;
         } else {
             #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-            self.meshes_by_name.insert(
+            self.config.insert(
                 name.to_string(),
                 Some(ColliderConstructorHierarchyData {
                     density,
@@ -289,7 +289,7 @@ impl ColliderConstructorHierarchy {
     /// Sets collider for the mesh associated with the given `name` to `None`, skipping
     /// collider generation for it.
     pub fn without_constructor_for_name(mut self, name: &str) -> Self {
-        self.meshes_by_name.insert(name.to_string(), None);
+        self.config.insert(name.to_string(), None);
         self
     }
 }

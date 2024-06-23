@@ -342,14 +342,14 @@ fn init_collider_constructor_hierarchies(
 
                 let collider_data = if let Some(name) = name {
                     collider_constructor_hierarchy
-                        .meshes_by_name
+                        .config
                         .get(name.as_str())
                         .cloned()
                         .unwrap_or_else(default_collider)
                 } else if existing_collider.is_some() {
                     warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but that entity already holds a collider. Skipping. \
-                        If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.meshes_by_name`.");
+                        If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`.");
                     continue;
                 } else {
                     default_collider()
