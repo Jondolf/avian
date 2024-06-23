@@ -304,7 +304,9 @@ fn init_collider_constructors(
     }
 }
 
-/// Creates [`Collider`]s from [`ColliderConstructor`]s if the scenes have become available.
+/// Generates [`Collider`]s for descendants of entities with the [`ColliderConstructorHierarchy`] component.
+///
+/// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
