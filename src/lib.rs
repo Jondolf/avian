@@ -60,7 +60,7 @@
     feature = "3d",
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
 )]
-//! | `bevy_scene`           | Enables certain systems to automatically wait until a [`Scene`] has done loading before processing it                            | Yes                     |
+//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                              | Yes                     |
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
