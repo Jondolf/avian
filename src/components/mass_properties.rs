@@ -356,6 +356,13 @@ impl ColliderMassProperties {
     pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
         collider.mass_properties(density)
     }
+
+    /// Transforms the center of mass by the given [`ColliderTransform`].
+    #[inline]
+    pub fn transformed_by(mut self, transform: &ColliderTransform) -> Self {
+        self.center_of_mass.0 = transform.transform_point(self.center_of_mass.0);
+        self
+    }
 }
 
 impl Default for ColliderMassProperties {

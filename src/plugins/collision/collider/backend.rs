@@ -147,15 +147,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     previous_collider_transform,
                 )) = query.get(trigger.entity())
                 {
+                    // If the collider mass properties are zero, there is nothing to subtract.
+                    if *collider_mass_properties == ColliderMassProperties::ZERO {
+                        return;
+                    }
+
                     if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
                         // Subtract previous collider mass props from the body's own mass props.
-                        mass_properties -= ColliderMassProperties {
-                            center_of_mass: CenterOfMass(
-                                previous_collider_transform
-                                    .transform_point(collider_mass_properties.center_of_mass.0),
-                            ),
-                            ..*collider_mass_properties
-                        };
+                        mass_properties -=
+                            collider_mass_properties.transformed_by(previous_collider_transform);
                     }
                 }
             },
@@ -181,19 +181,19 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     collider_transform,
                 )) = collider_query.get_mut(trigger.entity())
                 {
+                    // If the collider mass properties are zero, there is nothing to add.
+                    if *collider_mass_properties == ColliderMassProperties::ZERO {
+                        return;
+                    }
+
                     if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
                         // Update collider mass props.
                         *collider_mass_properties =
                             collider.mass_properties(density.max(Scalar::EPSILON));
 
                         // Add new collider mass props to the body's mass props.
-                        mass_properties += ColliderMassProperties {
-                            center_of_mass: CenterOfMass(
-                                collider_transform
-                                    .transform_point(collider_mass_properties.center_of_mass.0),
-                            ),
-                            ..*collider_mass_properties
-                        };
+                        mass_properties +=
+                            collider_mass_properties.transformed_by(collider_transform);
                     }
                 }
             },
@@ -259,17 +259,23 @@ pub(crate) fn init_colliders<C: AnyCollider>(
             &C,
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
-            Option<&ColliderMassProperties>,
+            Has<Sensor>,
         ),
         Added<C>,
     >,
 ) {
-    for (entity, collider, aabb, density, mass_properties) in &mut colliders {
+    for (entity, collider, aabb, density, is_sensor) in &mut colliders {
         let density = *density.unwrap_or(&ColliderDensity::default());
+        let mass_properties = if is_sensor {
+            ColliderMassProperties::ZERO
+        } else {
+            collider.mass_properties(density.0)
+        };
+
         commands.entity(entity).try_insert((
             *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
             density,
-            *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
+            mass_properties,
             CollidingEntities::default(),
             ColliderMarker,
         ));
@@ -585,13 +591,8 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             // Subtract previous collider mass props from the body's own mass props.
             // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
             if !collider.is_added() {
-                mass_properties -= ColliderMassProperties {
-                    center_of_mass: CenterOfMass(
-                        previous_collider_transform
-                            .transform_point(collider_mass_properties.center_of_mass.0),
-                    ),
-                    ..*collider_mass_properties
-                };
+                mass_properties -=
+                    collider_mass_properties.transformed_by(&previous_collider_transform);
             }
 
             previous_collider_transform.0 = *collider_transform;
@@ -600,12 +601,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
             // Add new collider mass props to the body's mass props.
-            mass_properties += ColliderMassProperties {
-                center_of_mass: CenterOfMass(
-                    collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
-                ),
-                ..*collider_mass_properties
-            };
+            mass_properties += collider_mass_properties.transformed_by(collider_transform);
         }
     }
 }
