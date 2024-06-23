@@ -338,7 +338,7 @@ impl Default for ColliderConstructorHierarchyData {
 ///
 /// For inserting colliders on an entity's descendants, use [`ColliderConstructorHierarchy`].
 ///
-/// ## Errors
+/// ## Panics
 ///
 /// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
 /// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
