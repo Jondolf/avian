@@ -991,6 +991,50 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child8));
     }
 
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
+    #[test]
+    fn collider_constructor_hierarchy_inserts_computed_colliders_on_scene() {
+        let mut app = create_test_app();
+        app.add_plugins(bevy::gltf::GltfPlugin::default());
+
+        let scene_handle = app
+            .world
+            .resource_mut::<AssetServer>()
+            .load("ferris.glb#Scene0");
+        app.world.spawn((
+            SceneBundle {
+                scene: scene_handle,
+                ..default()
+            },
+            ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
+                .with_density_for_name("armL_mesh", 2.0)
+                .with_density_for_name("armR_mesh", 3.0),
+            RigidBody::Dynamic,
+        ));
+
+        while app
+            .world
+            .resource::<Events<bevy::scene::SceneInstanceReady>>()
+            .is_empty()
+        {
+            app.update();
+        }
+        app.update();
+
+        let mut query = app.world.query::<(&Name, &ColliderDensity)>();
+        let densities: HashMap<_, _> = query
+            .iter(&app.world)
+            .map(|(name, density)| (name.to_string(), density.0))
+            .collect();
+
+        assert_eq!(
+            densities["eyes_mesh"],
+            ColliderConstructorHierarchyConfig::DEFAULT_DENSITY.0
+        );
+        assert_eq!(densities["armL_mesh"], 2.0);
+        assert_eq!(densities["armR_mesh"], 3.0);
+    }
+
     const PRIMITIVE_COLLIDER: ColliderConstructor = ColliderConstructor::Capsule {
         height: 1.0,
         radius: 0.5,
