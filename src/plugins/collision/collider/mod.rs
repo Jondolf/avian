@@ -380,213 +380,123 @@ impl Default for ColliderConstructorHierarchyData {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), derive(Default))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
+#[allow(missing_docs)]
 pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::circle`].
     #[cfg(feature = "2d")]
-    Circle {
-        #[allow(missing_docs)]
-        radius: Scalar,
-    },
+    Circle { radius: Scalar },
     /// Constructs a collider with [`Collider::sphere`].
     #[cfg(feature = "3d")]
-    Sphere {
-        #[allow(missing_docs)]
-        radius: Scalar,
-    },
+    Sphere { radius: Scalar },
     /// Constructs a collider with [`Collider::ellipse`].
     #[cfg(feature = "2d")]
     Ellipse {
-        #[allow(missing_docs)]
         half_width: Scalar,
-        #[allow(missing_docs)]
         half_height: Scalar,
     },
     /// Constructs a collider with [`Collider::rectangle`].
     #[cfg(feature = "2d")]
-    Rectangle {
-        #[allow(missing_docs)]
-        x_length: Scalar,
-        #[allow(missing_docs)]
-        y_length: Scalar,
-    },
+    Rectangle { x_length: Scalar, y_length: Scalar },
     /// Constructs a collider with [`Collider::cuboid`].
     #[cfg(feature = "3d")]
     Cuboid {
-        #[allow(missing_docs)]
         x_length: Scalar,
-        #[allow(missing_docs)]
         y_length: Scalar,
-        #[allow(missing_docs)]
         z_length: Scalar,
     },
     /// Constructs a collider with [`Collider::round_rectangle`].
     #[cfg(feature = "2d")]
     RoundRectangle {
-        #[allow(missing_docs)]
         x_length: Scalar,
-        #[allow(missing_docs)]
         y_length: Scalar,
-        #[allow(missing_docs)]
         border_radius: Scalar,
     },
     /// Constructs a collider with [`Collider::round_cuboid`].
     #[cfg(feature = "3d")]
     RoundCuboid {
-        #[allow(missing_docs)]
         x_length: Scalar,
-        #[allow(missing_docs)]
         y_length: Scalar,
-        #[allow(missing_docs)]
         z_length: Scalar,
-        #[allow(missing_docs)]
         border_radius: Scalar,
     },
     /// Constructs a collider with [`Collider::cylinder`].
     #[cfg(feature = "3d")]
-    Cylinder {
-        #[allow(missing_docs)]
-        height: Scalar,
-        #[allow(missing_docs)]
-        radius: Scalar,
-    },
+    Cylinder { height: Scalar, radius: Scalar },
     /// Constructs a collider with [`Collider::cone`].
     #[cfg(feature = "3d")]
-    Cone {
-        #[allow(missing_docs)]
-        height: Scalar,
-        #[allow(missing_docs)]
-        radius: Scalar,
-    },
+    Cone { height: Scalar, radius: Scalar },
     /// Constructs a collider with [`Collider::capsule`].
-    Capsule {
-        #[allow(missing_docs)]
-        height: Scalar,
-        #[allow(missing_docs)]
-        radius: Scalar,
-    },
+    Capsule { height: Scalar, radius: Scalar },
     /// Constructs a collider with [`Collider::capsule_endpoints`].
     CapsuleEndpoints {
-        #[allow(missing_docs)]
         a: Vector,
-        #[allow(missing_docs)]
         b: Vector,
-        #[allow(missing_docs)]
         radius: Scalar,
     },
     /// Constructs a collider with [`Collider::halfspace`].
-    Halfspace {
-        #[allow(missing_docs)]
-        outward_normal: Vector,
-    },
+    Halfspace { outward_normal: Vector },
     /// Constructs a collider with [`Collider::segment`].
-    Segment {
-        #[allow(missing_docs)]
-        a: Vector,
-        #[allow(missing_docs)]
-        b: Vector,
-    },
+    Segment { a: Vector, b: Vector },
     /// Constructs a collider with [`Collider::triangle`].
-    Triangle {
-        #[allow(missing_docs)]
-        a: Vector,
-        #[allow(missing_docs)]
-        b: Vector,
-        #[allow(missing_docs)]
-        c: Vector,
-    },
+    Triangle { a: Vector, b: Vector, c: Vector },
     /// Constructs a collider with [`Collider::regular_polygon`].
     #[cfg(feature = "2d")]
-    RegularPolygon {
-        #[allow(missing_docs)]
-        circumradius: f32,
-        #[allow(missing_docs)]
-        sides: usize,
-    },
+    RegularPolygon { circumradius: f32, sides: usize },
     /// Constructs a collider with [`Collider::polyline`].
     Polyline {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Option<Vec<[u32; 2]>>,
     },
     /// Constructs a collider with [`Collider::trimesh`].
     Trimesh {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 3]>,
     },
     /// Constructs a collider with [`Collider::trimesh_with_config`].
     TrimeshWithConfig {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 3]>,
-        #[allow(missing_docs)]
         flags: TriMeshFlags,
     },
     /// Constructs a collider with [`Collider::convex_decomposition`].
     #[cfg(feature = "2d")]
     ConvexDecomposition {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 2]>,
     },
     /// Constructs a collider with [`Collider::convex_decomposition`].
     #[cfg(feature = "3d")]
     ConvexDecomposition {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 3]>,
     },
     /// Constructs a collider with [`Collider::convex_decomposition_with_config`].
     #[cfg(feature = "2d")]
     ConvexDecompositionWithConfig {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 2]>,
-        #[allow(missing_docs)]
         params: VhacdParameters,
     },
     /// Constructs a collider with [`Collider::convex_decomposition_with_config`].
     #[cfg(feature = "3d")]
     ConvexDecompositionWithConfig {
-        #[allow(missing_docs)]
         vertices: Vec<Vector>,
-        #[allow(missing_docs)]
         indices: Vec<[u32; 3]>,
-        #[allow(missing_docs)]
         params: VhacdParameters,
     },
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "2d")]
-    ConvexHull {
-        #[allow(missing_docs)]
-        points: Vec<Vector>,
-    },
+    ConvexHull { points: Vec<Vector> },
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
-    ConvexHull {
-        #[allow(missing_docs)]
-        points: Vec<Vector>,
-    },
+    ConvexHull { points: Vec<Vector> },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
-    Heightfield {
-        #[allow(missing_docs)]
-        heights: Vec<Scalar>,
-        #[allow(missing_docs)]
-        scale: Vector,
-    },
+    Heightfield { heights: Vec<Scalar>, scale: Vector },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "3d")]
     Heightfield {
-        #[allow(missing_docs)]
         heights: Vec<Vec<Scalar>>,
-        #[allow(missing_docs)]
         scale: Vector,
     },
     /// Constructs a collider with [`Collider::trimesh_from_mesh`].
