@@ -432,8 +432,8 @@ pub enum ColliderConstructor {
         b: Vector,
         radius: Scalar,
     },
-    /// Constructs a collider with [`Collider::halfspace`].
-    Halfspace { outward_normal: Vector },
+    /// Constructs a collider with [`Collider::half_space`].
+    HalfSpace { outward_normal: Vector },
     /// Constructs a collider with [`Collider::segment`].
     Segment { a: Vector, b: Vector },
     /// Constructs a collider with [`Collider::triangle`].
