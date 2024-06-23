@@ -317,20 +317,16 @@ fn init_collider_constructor_hierarchies(
     mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
     for (scene_entity, collider_constructor_hierarchy) in collider_constructors.iter() {
-        let scene_ready = {
-            #[cfg(feature = "bevy_scene")]
-            {
-                scene_instances
-                    .get(scene_entity)
-                    .map(|instance| scene_spawner.instance_is_ready(**instance))
-                    .unwrap_or(true)
-            }
-            #[cfg(not(feature = "bevy_scene"))]
-            true
-        };
+        #[cfg(feature = "bevy_scene")]
+        {
+            let scene_ready = scene_instances
+                .get(scene_entity)
+                .map(|instance| scene_spawner.instance_is_ready(**instance))
+                .unwrap_or(true);
 
-        if !scene_ready {
-            continue;
+            if !scene_ready {
+                continue;
+            }
         }
 
         for child_entity in children.iter_descendants(scene_entity) {
