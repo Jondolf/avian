@@ -126,12 +126,12 @@ pub trait ScalableCollider: AnyCollider {
 ///     let scene = assets.load("my_model.gltf#Scene0");
 ///
 #[cfg_attr(
-    feature = "3d",
-    doc = "     // Spawn the scene and automatically generate triangle mesh colliders"
+    feature = "2d",
+    doc = "     // Spawn the scene and automatically generate circle colliders"
 )]
 #[cfg_attr(
-    feature = "2d",
-    doc = "     // Spawn the scene and automatically generate circle mesh colliders"
+    feature = "3d",
+    doc = "     // Spawn the scene and automatically generate triangle mesh colliders"
 )]
 ///
 ///     commands.spawn((
