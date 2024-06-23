@@ -117,7 +117,7 @@ impl Plugin for PhysicsSetupPlugin {
             .register_type::<PreviousColliderTransform>()
             .register_type::<ColliderConstructor>()
             .register_type::<ColliderConstructorHierarchy>()
-            .register_type::<ColliderConstructorHierarchyData>();
+            .register_type::<ColliderConstructorHierarchyConfig>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;

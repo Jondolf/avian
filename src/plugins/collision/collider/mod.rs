@@ -206,7 +206,7 @@ pub struct ColliderConstructorHierarchy {
     /// Entries with a `None` value will be skipped.
     /// For the meshes not found in this `HashMap`, [`default_constructor`](#structfield.default_constructor)
     /// and all collision layers will be used instead.
-    pub config: HashMap<String, Option<ColliderConstructorHierarchyData>>,
+    pub config: HashMap<String, Option<ColliderConstructorHierarchyConfig>>,
 }
 
 impl ColliderConstructorHierarchy {
@@ -230,7 +230,7 @@ impl ColliderConstructorHierarchy {
         } else {
             self.config.insert(
                 name.to_string(),
-                Some(ColliderConstructorHierarchyData::from_constructor(shape)),
+                Some(ColliderConstructorHierarchyConfig::from_constructor(shape)),
             );
         }
         self
@@ -257,7 +257,7 @@ impl ColliderConstructorHierarchy {
     fn with_config_for_name(
         mut self,
         name: &str,
-        mut mutate_config: impl FnMut(&mut ColliderConstructorHierarchyData),
+        mut mutate_config: impl FnMut(&mut ColliderConstructorHierarchyConfig),
     ) -> Self {
         if let Some(Some(config)) = self.config.get_mut(name) {
             mutate_config(config);
@@ -272,14 +272,14 @@ impl ColliderConstructorHierarchy {
         self
     }
 
-    fn base_constructor_hierarchy_data(&self) -> Option<ColliderConstructorHierarchyData> {
+    fn base_constructor_hierarchy_data(&self) -> Option<ColliderConstructorHierarchyConfig> {
         self.default_constructor
             .clone()
-            .map(ColliderConstructorHierarchyData::from_constructor)
+            .map(ColliderConstructorHierarchyConfig::from_constructor)
             .or({
                 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
                 {
-                    Some(ColliderConstructorHierarchyData::default())
+                    Some(ColliderConstructorHierarchyConfig::default())
                 }
                 #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
                 {
@@ -295,7 +295,7 @@ impl ColliderConstructorHierarchy {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
-pub struct ColliderConstructorHierarchyData {
+pub struct ColliderConstructorHierarchyConfig {
     /// The type of collider generated for the mesh.
     pub constructor: ColliderConstructor,
     /// The [`CollisionLayers`] used for this collider.
@@ -304,9 +304,9 @@ pub struct ColliderConstructorHierarchyData {
     pub density: ColliderDensity,
 }
 
-impl ColliderConstructorHierarchyData {
-    /// Creates a new [`ColliderConstructorHierarchyData`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything,
-    /// and a density of [`ColliderConstructorHierarchyData::DEFAULT_DENSITY`].
+impl ColliderConstructorHierarchyConfig {
+    /// Creates a new [`ColliderConstructorHierarchyConfig`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything,
+    /// and a density of [`ColliderConstructorHierarchyConfig::DEFAULT_DENSITY`].
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
             constructor,
@@ -320,7 +320,7 @@ impl ColliderConstructorHierarchyData {
 }
 
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-impl Default for ColliderConstructorHierarchyData {
+impl Default for ColliderConstructorHierarchyConfig {
     fn default() -> Self {
         Self::from_constructor(ColliderConstructor::TrimeshFromMesh)
     }

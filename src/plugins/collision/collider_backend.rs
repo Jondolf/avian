@@ -336,7 +336,7 @@ fn init_collider_constructor_hierarchies(
                     collider_constructor_hierarchy
                         .default_constructor
                         .clone()
-                        .map(ColliderConstructorHierarchyData::from_constructor)
+                        .map(ColliderConstructorHierarchyConfig::from_constructor)
                 };
 
                 let collider_data = if let Some(name) = name {
