@@ -273,6 +273,7 @@ fn init_collider_constructors(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
+            commands.entity(entity).remove::<ColliderConstructor>();
             continue;
         }
         let mesh = if constructor.requires_mesh() {
@@ -291,16 +292,14 @@ fn init_collider_constructors(
 
         let collider = Collider::try_from_constructor(constructor.clone(), mesh);
         if let Some(collider) = collider {
-            commands
-                .entity(entity)
-                .insert(collider)
-                .remove::<ColliderConstructor>();
+            commands.entity(entity).insert(collider);
         } else {
             error!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but the collider could not be generated from mesh {mesh:#?}. Skipping.",
             );
         }
+        commands.entity(entity).remove::<ColliderConstructor>();
     }
 }
 
