@@ -181,15 +181,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     collider_transform,
                 )) = collider_query.get_mut(trigger.entity())
                 {
-                    // If the collider mass properties are zero, there is nothing to add.
-                    if *collider_mass_properties == ColliderMassProperties::ZERO {
-                        return;
-                    }
-
                     if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
                         // Update collider mass props.
                         *collider_mass_properties =
                             collider.mass_properties(density.max(Scalar::EPSILON));
+
+                        // If the collider mass properties are zero, there is nothing to add.
+                        if *collider_mass_properties == ColliderMassProperties::ZERO {
+                            return;
+                        }
 
                         // Add new collider mass props to the body's mass props.
                         mass_properties +=
