@@ -64,7 +64,7 @@ pub struct SleepingThreshold {
     ///
     /// This is implicitly scaled by the [`PhysicsLengthUnit`].
     ///
-    /// Default: `0.1`
+    /// Default: `0.15`
     pub linear: Scalar,
     /// The maximum angular velocity allowed for a body to be marked as sleeping.
     ///
@@ -75,7 +75,7 @@ pub struct SleepingThreshold {
 impl Default for SleepingThreshold {
     fn default() -> Self {
         Self {
-            linear: 0.1,
+            linear: 0.15,
             angular: 0.2,
         }
     }
@@ -301,8 +301,9 @@ fn wake_on_collision_ended(
         (Ref<Position>, &PhysicsChangeTicks),
         (Changed<Position>, Without<Sleeping>),
     >,
+    colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
     collisions: Res<Collisions>,
-    mut sleeping: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
+    mut sleeping: Query<(Entity, &mut TimeSleeping)>,
     system_tick: SystemChangeTick,
 ) {
     let this_run = system_tick.this_run();
@@ -317,10 +318,13 @@ fn wake_on_collision_ended(
                 c.entity1
             }
         });
-        if colliding_entities.any(|entity| {
-            moved_bodies
-                .get(entity)
-                .is_ok_and(|(pos, ticks)| is_changed_before_tick(pos, ticks.position, this_run))
+        if colliding_entities.any(|other_entity| {
+            colliders.get(other_entity).is_ok_and(|(p, transform)| {
+                transform.is_changed()
+                    || moved_bodies.get(p.get()).is_ok_and(|(pos, ticks)| {
+                        is_changed_before_tick(pos, ticks.position, this_run)
+                    })
+            })
         }) {
             commands.entity(entity).remove::<Sleeping>();
             time_sleeping.0 = 0.0;

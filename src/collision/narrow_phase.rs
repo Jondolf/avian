@@ -653,9 +653,10 @@ pub fn reset_collision_states(
         contacts.total_normal_impulse = 0.0;
         contacts.total_tangent_impulse = default();
 
-        if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) =
-            query.get_many([contacts.entity1, contacts.entity2])
-        {
+        if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
+            contacts.body_entity1.unwrap_or(contacts.entity1),
+            contacts.body_entity2.unwrap_or(contacts.entity2),
+        ]) {
             let active1 = !rb1.map_or(false, |rb| rb.is_static()) && !sleeping1;
             let active2 = !rb2.map_or(false, |rb| rb.is_static()) && !sleeping2;
 
