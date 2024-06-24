@@ -12,7 +12,14 @@ keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel"]
+default = [
+    "2d", 
+    "f32", 
+    "parry-f32", 
+    "debug-plugin", 
+    "parallel",
+    "bevy_scene",
+]
 2d = []
 f32 = []
 f64 = []
@@ -32,6 +39,7 @@ default-collider = ["dep:nalgebra"]
 parry-f32 = ["f32", "dep:parry2d", "default-collider"]
 parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
 
+bevy_scene = ["bevy/bevy_scene"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
@@ -56,6 +64,7 @@ derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
 itertools = "0.12"
+bitflags = "2.5.0"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }

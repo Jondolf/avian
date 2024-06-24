@@ -29,9 +29,11 @@ jobs:
         timeout-minutes: 60
         steps:
             - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
+            - uses: dtolnay/rust-toolchain@master
+              with:
+                toolchain: 1.78
             - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64,default-collider,parry-f64
+              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,bevy_xpbd_2d/2d,bevy_xpbd_3d/3d,bevy_xpbd_2d/f64,bevy_xpbd_3d/f64,default-collider,parry-f64,bevy_scene
 
     lints:
         name: Lints

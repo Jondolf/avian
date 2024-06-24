@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs, clippy::type_complexity, clippy::too_many_arguments)]
 //! # Bevy XPBD
 //!
 //! **Bevy XPBD** is a 2D and 3D physics engine based on
@@ -59,10 +60,7 @@
     feature = "3d",
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
 )]
-#![cfg_attr(
-    feature = "3d",
-    doc = "| `async-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
-)]
+//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                              | Yes                     |
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
@@ -144,7 +142,7 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+    doc = "    - Creating colliders from meshes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)

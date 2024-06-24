@@ -16,7 +16,8 @@ default = [
     "3d",
     "f32",
     "parry-f32",
-    "async-collider",
+    "collider-from-mesh",
+    "bevy_scene",
     "debug-plugin",
     "parallel",
 ]
@@ -39,8 +40,8 @@ default-collider = ["dep:nalgebra"]
 parry-f32 = ["f32", "dep:parry3d", "default-collider"]
 parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
-collider-from-mesh = ["bevy/bevy_render"]
-async-collider = ["bevy/bevy_scene", "bevy/bevy_gltf", "collider-from-mesh"]
+collider-from-mesh = ["bevy/bevy_render", "3d"]
+bevy_scene = ["bevy/bevy_scene"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
@@ -65,8 +66,10 @@ derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
 itertools = "0.12"
+bitflags = "2.5.0"
 
 [dev-dependencies]
+bevy = { version = "0.13", default-features = false, features = ["bevy_gltf"] }
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
 bevy_math = { version = "0.13", features = ["approx"] }
@@ -76,11 +79,11 @@ insta = "1.0"
 
 [[example]]
 name = "dynamic_character_3d"
-required-features = ["3d", "default-collider", "async-collider"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "kinematic_character_3d"
-required-features = ["3d", "default-collider", "async-collider"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "cast_ray_predicate"
@@ -120,11 +123,11 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "trimesh_shapes_3d"
-required-features = ["3d", "default-collider"]
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
-name = "async_colliders"
-required-features = ["3d", "default-collider", "async-collider"]
+name = "collider_constructors"
+required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[bench]]
 name = "cubes"

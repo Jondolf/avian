@@ -9,11 +9,7 @@ use crate::{
     prelude::*,
     prepare::{match_any, PrepareSet},
 };
-#[cfg(all(
-    feature = "3d",
-    feature = "async-collider",
-    feature = "default-collider"
-))]
+#[cfg(feature = "bevy_scene")]
 use bevy::scene::SceneInstance;
 use bevy::{
     prelude::*,
@@ -171,12 +167,13 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        #[cfg(all(
-            feature = "3d",
-            feature = "async-collider",
-            feature = "default-collider"
-        ))]
-        app.add_systems(Update, (init_async_colliders, init_async_scene_colliders));
+        app.add_systems(
+            Update,
+            (
+                init_collider_constructors,
+                init_collider_constructor_hierarchies,
+            ),
+        );
 
         // Update child colliders before narrow phase in substepping loop
         let substep_schedule = app
@@ -250,103 +247,156 @@ fn init_colliders<C: AnyCollider>(
     }
 }
 
-/// Creates [`Collider`]s from [`AsyncCollider`]s if the meshes have become available.
-#[cfg(all(
-    feature = "3d",
-    feature = "async-collider",
-    feature = "default-collider"
-))]
-pub fn init_async_colliders(
+/// Generates [`Collider`]s based on [`ColliderConstructor`]s.
+///
+/// If a [`ColliderConstructor`] requires a mesh, the system keeps running
+/// until the mesh associated with the mesh handle is available.
+///
+/// # Panics
+///
+/// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
+fn init_collider_constructors(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    async_colliders: Query<(Entity, &Handle<Mesh>, &AsyncCollider)>,
+    constructors: Query<(
+        Entity,
+        Option<&Handle<Mesh>>,
+        Option<&Collider>,
+        Option<&Name>,
+        &ColliderConstructor,
+    )>,
 ) {
-    for (entity, mesh_handle, async_collider) in async_colliders.iter() {
-        if let Some(mesh) = meshes.get(mesh_handle) {
-            let collider = match &async_collider.0 {
-                ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
-                ComputedCollider::TriMeshWithFlags(flags) => {
-                    Collider::trimesh_from_mesh_with_config(mesh, *flags)
-                }
-                ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
-                ComputedCollider::ConvexDecomposition(params) => {
-                    Collider::convex_decomposition_from_mesh_with_config(mesh, params)
-                }
-            };
-            if let Some(collider) = collider {
-                commands
-                    .entity(entity)
-                    .insert(collider)
-                    .remove::<AsyncCollider>();
-            } else {
-                error!("Unable to generate collider from mesh {:?}", mesh);
-            }
+    for (entity, mesh_handle, existing_collider, name, constructor) in constructors.iter() {
+        let name = pretty_name(name, entity);
+        if existing_collider.is_some() {
+            warn!(
+                "Tried to add a collider to entity {name} via {constructor:#?}, \
+                but that entity already holds a collider. Skipping.",
+            );
+            commands.entity(entity).remove::<ColliderConstructor>();
+            continue;
         }
+        let mesh = if constructor.requires_mesh() {
+            let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
+                "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
+                but no mesh handle was found"));
+            let mesh = meshes.get(mesh_handle);
+            if mesh.is_none() {
+                // Mesh required, but not loaded yet
+                continue;
+            }
+            mesh
+        } else {
+            None
+        };
+
+        let collider = Collider::try_from_constructor(constructor.clone(), mesh);
+        if let Some(collider) = collider {
+            commands.entity(entity).insert(collider);
+        } else {
+            error!(
+                "Tried to add a collider to entity {name} via {constructor:#?}, \
+                but the collider could not be generated from mesh {mesh:#?}. Skipping.",
+            );
+        }
+        commands.entity(entity).remove::<ColliderConstructor>();
     }
 }
 
-/// Creates [`Collider`]s from [`AsyncSceneCollider`]s if the scenes have become available.
-#[cfg(all(
-    feature = "3d",
-    feature = "async-collider",
-    feature = "default-collider"
-))]
-pub fn init_async_scene_colliders(
+/// Generates [`Collider`]s for descendants of entities with the [`ColliderConstructorHierarchy`] component.
+///
+/// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
+fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     meshes: Res<Assets<Mesh>>,
-    scene_spawner: Res<SceneSpawner>,
-    async_colliders: Query<(Entity, &SceneInstance, &AsyncSceneCollider)>,
+    #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
+    #[cfg(feature = "bevy_scene")] scenes: Query<&Handle<Scene>>,
+    #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
+    collider_constructors: Query<(Entity, &ColliderConstructorHierarchy)>,
     children: Query<&Children>,
-    mesh_handles: Query<(&Name, &Handle<Mesh>)>,
+    mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
 ) {
-    for (scene_entity, scene_instance, async_scene_collider) in async_colliders.iter() {
-        if scene_spawner.instance_is_ready(**scene_instance) {
-            for child_entity in children.iter_descendants(scene_entity) {
-                if let Ok((name, handle)) = mesh_handles.get(child_entity) {
-                    let Some(collider_data) = async_scene_collider
-                        .meshes_by_name
-                        .get(name.as_str())
-                        .cloned()
-                        .unwrap_or(
-                            async_scene_collider
-                                .default_shape
-                                .clone()
-                                .map(|shape| AsyncSceneColliderData { shape, ..default() }),
-                        )
-                    else {
+    for (scene_entity, collider_constructor_hierarchy) in collider_constructors.iter() {
+        #[cfg(feature = "bevy_scene")]
+        {
+            if scenes.contains(scene_entity) {
+                if let Ok(scene_instance) = scene_instances.get(scene_entity) {
+                    if !scene_spawner.instance_is_ready(**scene_instance) {
+                        // Wait for the scene to be ready
                         continue;
-                    };
-
-                    let mesh = meshes.get(handle).expect("mesh should already be loaded");
-
-                    let collider = match collider_data.shape {
-                        ComputedCollider::TriMesh => Collider::trimesh_from_mesh(mesh),
-                        ComputedCollider::TriMeshWithFlags(flags) => {
-                            Collider::trimesh_from_mesh_with_config(mesh, flags)
-                        }
-                        ComputedCollider::ConvexHull => Collider::convex_hull_from_mesh(mesh),
-                        ComputedCollider::ConvexDecomposition(params) => {
-                            Collider::convex_decomposition_from_mesh_with_config(mesh, &params)
-                        }
-                    };
-                    if let Some(collider) = collider {
-                        commands.entity(child_entity).insert((
-                            collider,
-                            collider_data.layers,
-                            ColliderDensity(collider_data.density),
-                        ));
-                    } else {
-                        error!(
-                            "unable to generate collider from mesh {:?} with name {}",
-                            mesh, name
-                        );
                     }
+                } else {
+                    // SceneInstance is added in the SpawnScene schedule, so it might not be available yet
+                    continue;
                 }
             }
-
-            commands.entity(scene_entity).remove::<AsyncSceneCollider>();
         }
+
+        for child_entity in children.iter_descendants(scene_entity) {
+            if let Ok((name, existing_collider, handle)) = mesh_handles.get(child_entity) {
+                let pretty_name = pretty_name(name, child_entity);
+
+                let default_collider = || {
+                    collider_constructor_hierarchy
+                        .default_constructor
+                        .clone()
+                        .map(ColliderConstructorHierarchyConfig::from_constructor)
+                };
+
+                let collider_data = if let Some(name) = name {
+                    collider_constructor_hierarchy
+                        .config
+                        .get(name.as_str())
+                        .cloned()
+                        .unwrap_or_else(default_collider)
+                } else if existing_collider.is_some() {
+                    warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                        but that entity already holds a collider. Skipping. \
+                        If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`.");
+                    continue;
+                } else {
+                    default_collider()
+                };
+
+                let Some(collider_data) = collider_data else {
+                    continue;
+                };
+
+                let mesh = if collider_data.constructor.requires_mesh() {
+                    if let Some(handle) = handle {
+                        meshes.get(handle)
+                    } else {
+                        continue;
+                    }
+                } else {
+                    None
+                };
+
+                let collider = Collider::try_from_constructor(collider_data.constructor, mesh);
+                if let Some(collider) = collider {
+                    commands.entity(child_entity).insert((
+                        collider,
+                        collider_data.layers,
+                        collider_data.density,
+                    ));
+                } else {
+                    error!(
+                        "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                        but the collider could not be generated from mesh {mesh:#?}. Skipping.",
+                    );
+                }
+            }
+        }
+
+        commands
+            .entity(scene_entity)
+            .remove::<ColliderConstructorHierarchy>();
     }
+}
+
+fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
+    name.map(|n| n.to_string())
+        .unwrap_or_else(|| format!("<unnamed entity {}>", entity.index()))
 }
 
 /// Updates the Axis-Aligned Bounding Boxes of all colliders. A safety margin will be added to account for sudden accelerations.
