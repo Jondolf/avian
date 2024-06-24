@@ -1001,16 +1001,19 @@ mod tests {
             .resource_mut::<AssetServer>()
             .load("ferris.glb#Scene0");
 
-        app.world.spawn((
-            SceneBundle {
-                scene: scene_handle,
-                ..default()
-            },
-            ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
-                .with_density_for_name("armL_mesh", 2.0)
-                .with_density_for_name("armR_mesh", 3.0),
-            RigidBody::Dynamic,
-        ));
+        let hierarchy = app
+            .world
+            .spawn((
+                SceneBundle {
+                    scene: scene_handle,
+                    ..default()
+                },
+                ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
+                    .with_density_for_name("armL_mesh", 2.0)
+                    .with_density_for_name("armR_mesh", 3.0),
+                RigidBody::Dynamic,
+            ))
+            .id();
 
         while app
             .world
@@ -1020,6 +1023,9 @@ mod tests {
             app.update();
         }
         app.update();
+
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(hierarchy));
+        assert!(app.query_err::<&Collider>(hierarchy));
 
         let densities: HashMap<_, _> = app
             .world
