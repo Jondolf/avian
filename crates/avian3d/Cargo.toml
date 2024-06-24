@@ -56,8 +56,8 @@ required-features = ["3d"]
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", default-features = false }
-bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0" }
+bevy = { version = "0.14.0-rc.3" }
+bevy_math = { version = "0.14.0-rc.3" }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.15", optional = true }
 parry3d-f64 = { version = "0.15", optional = true }
@@ -71,12 +71,12 @@ itertools = "0.13"
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", features = [
-    "approx",
-] }
+bevy_math = { version = "0.14.0-rc.3", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
+# bevy_mod_debugdump = "0.11"
+bevy_mod_debugdump = { git = "https://github.com/Vrixyz/bevy_mod_debugdump", branch = "bevy_0.14" }
 
 [[example]]
 name = "dynamic_character_3d"
@@ -129,6 +129,10 @@ required-features = ["3d", "default-collider"]
 [[example]]
 name = "async_colliders"
 required-features = ["3d", "default-collider", "async-collider"]
+
+[[example]]
+name = "debugdump_3d"
+required-features = ["3d"]
 
 [[bench]]
 name = "cubes"

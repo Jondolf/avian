@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", branch = "release-0.14.0", default-features = false }
+bevy = { version = "0.14.0-rc.3", default-features = false }
 avian3d = { path = "../avian3d", default-features = false }
 criterion = "0.5"
