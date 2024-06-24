@@ -287,7 +287,7 @@ pub enum PhysicsStepSet {
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(SubstepCount(30))
+///         .insert_resource(SubstepCount(12))
 ///         .run();
 /// }
 /// ```
@@ -298,7 +298,7 @@ pub struct SubstepCount(pub u32);
 
 impl Default for SubstepCount {
     fn default() -> Self {
-        Self(4)
+        Self(6)
     }
 }
 
