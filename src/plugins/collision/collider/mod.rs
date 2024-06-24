@@ -1058,23 +1058,11 @@ mod tests {
         app
     }
 
-    #[cfg(feature = "bevy_scene")]
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
         let mut app = App::new();
         app.add_plugins((
-            (
-                MinimalPlugins,
-                bevy::transform::TransformPlugin::default(),
-                bevy::hierarchy::HierarchyPlugin::default(),
-                bevy::window::WindowPlugin::default(),
-                bevy::asset::AssetPlugin::default(),
-                bevy::scene::ScenePlugin::default(),
-                bevy::render::RenderPlugin::default(),
-                bevy::render::texture::ImagePlugin::default(),
-                bevy::core_pipeline::CorePipelinePlugin::default(),
-                bevy::pbr::PbrPlugin::default(),
-                bevy::gltf::GltfPlugin::default(),
-            ),
+            DefaultPlugins.build().disable::<bevy::winit::WinitPlugin>(),
             PhysicsPlugins::default(),
         ));
         app.finish();
