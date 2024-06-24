@@ -481,46 +481,16 @@ pub struct ContactData {
     /// The impulse applied to the first body along the normal.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
-    ///
-    /// ## Caveats
-    ///
-    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
-    /// It is recommended to access this before or after physics.
-    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
-    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
-    ///
-    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
-    /// the [`Collision`] event or the [`Collisions`] rsource.
     pub normal_impulse: Scalar,
     /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
-    ///
-    /// ## Caveats
-    ///
-    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
-    /// It is recommended to access this before or after physics.
-    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
-    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
-    ///
-    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
-    /// the [`Collision`] event or the [`Collisions`] rsource.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
     /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
-    ///
-    /// ## Caveats
-    ///
-    /// * This will initially be zero after collision detection and will only be computed after constraint solving.
-    /// It is recommended to access this before or after physics.
-    /// * The impulse is from a single *substep*. Each physics frame has [`SubstepCount`] substeps.
-    /// * Impulses in contact events like [`Collision`] currently use the impulse from the *last* substep.
-    ///
-    /// The total impulse for a collision including all contacts can be accessed in [`Contacts`] returned by
-    /// the [`Collision`] event or the [`Collisions`] rsource.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Vector2,
