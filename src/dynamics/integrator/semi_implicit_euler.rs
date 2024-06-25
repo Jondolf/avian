@@ -5,7 +5,7 @@
 //! efficient than implicit Euler integration, has great energy conservation,
 //! and provides much better accuracy than explicit Euler integration.
 //!
-//! Semi-implicicit Euler integration evalutes the acceleration at
+//! Semi-implicit Euler integration evalutes the acceleration at
 //! the current timestep and the velocity at the next timestep:
 //!
 //! ```text
