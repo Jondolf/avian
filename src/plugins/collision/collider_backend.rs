@@ -376,8 +376,12 @@ fn init_collider_constructor_hierarchies(
                 if let Some(collider) = collider {
                     commands.entity(child_entity).insert((
                         collider,
-                        collider_data.layers,
-                        collider_data.density,
+                        collider_data
+                            .layers
+                            .unwrap_or(collider_constructor_hierarchy.default_layers),
+                        collider_data
+                            .density
+                            .unwrap_or(collider_constructor_hierarchy.default_density),
                     ));
                 } else {
                     error!(

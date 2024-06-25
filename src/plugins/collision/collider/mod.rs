@@ -199,31 +199,56 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct ColliderConstructorHierarchy {
-    /// The default collider type used for each mesh that isn't included in [`config`](#structfield.config).
-    /// If `None`, all meshes except the ones in [`config`](#structfield.config) will be skipped.
+    /// The default collider type used for each entity that isn't included in [`config`](Self::config).
+    /// If `None`, all entities except the ones in [`config`](Self::config) will be skipped.
     pub default_constructor: Option<ColliderConstructor>,
-    /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
-    /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_constructor`](#structfield.default_constructor)
-    /// and all collision layers will be used instead.
+    /// The default [`CollisionLayers`] used for colliders in the hierarchy.
+    ///
+    /// [`CollisionLayers::ALL`] by default.
+    pub default_layers: CollisionLayers,
+    /// The default [`ColliderDensity`] used for colliders in the hierarchy.
+    ///
+    /// `1.0` by default.
+    pub default_density: ColliderDensity,
+    /// Specifies data like the [`ColliderConstructor`] and [`CollisionLayers`] for entities
+    /// in the hierarchy by `Name`. Entries with a `None` value will be skipped.
+    ///
+    /// For the entities not found in this `HashMap`, [`default_constructor`](Self::default_constructor)
+    /// and [`CollisionLayers::ALL`] will be used instead.
     pub config: HashMap<String, Option<ColliderConstructorHierarchyConfig>>,
 }
 
 impl ColliderConstructorHierarchy {
-    /// Creates a new [`ColliderConstructorHierarchy`] with the default collider type used for
-    /// meshes set to the given `default_constructor`.
+    /// Creates a new [`ColliderConstructorHierarchy`] with the default [`ColliderConstructor`] used for
+    /// generating colliders set to the given `default_constructor`.
     ///
-    /// If the given collider type is `None`, all meshes except the ones in
-    /// [`config`](#structfield.config) will be skipped.
-    /// You can add named shapes using [`with_constructor_for_name`](Self::with_constructor_for_name).
+    /// If the given constructor type is `None`, collider generation is skipped
+    /// for all entities in the hierarchy except the ones in [`config`](Self::config).
+    ///
+    /// Collider constructors can be specified for individual entities using
+    /// [`with_constructor_for_name`](Self::with_constructor_for_name).
     pub fn new(default_constructor: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_constructor: default_constructor.into(),
+            default_layers: CollisionLayers::ALL,
+            default_density: ColliderDensity(1.0),
             config: default(),
         }
     }
 
-    /// Specifies the collider type used for a mesh with the given `name`.
+    /// Specifies the default [`CollisionLayers`] used for colliders not included in [`ColliderConstructorHierarchy::config`].
+    pub fn with_default_layers(mut self, layers: CollisionLayers) -> Self {
+        self.default_layers = layers;
+        self
+    }
+
+    /// Specifies the default [`ColliderDensity`] used for colliders not included in [`ColliderConstructorHierarchy::config`].
+    pub fn with_default_density(mut self, density: impl Into<ColliderDensity>) -> Self {
+        self.default_density = density.into();
+        self
+    }
+
+    /// Specifies the [`ColliderConstructor`] used for an entity with the given `name`.
     pub fn with_constructor_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
         if let Some(Some(data)) = self.config.get_mut(name) {
             data.constructor = shape;
@@ -236,19 +261,19 @@ impl ColliderConstructorHierarchy {
         self
     }
 
-    /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
+    /// Specifies the [`CollisionLayers`] used for an entity with the given `name`.
     pub fn with_layers_for_name(self, name: &str, layers: CollisionLayers) -> Self {
-        self.with_config_for_name(name, |config| config.layers = layers)
+        self.with_config_for_name(name, |config| config.layers = Some(layers))
     }
 
-    /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
+    /// Specifies the [`ColliderDensity`] used for an entity with the given `name`.
     pub fn with_density_for_name(self, name: &str, density: impl Into<ColliderDensity>) -> Self {
         let density = density.into();
-        self.with_config_for_name(name, |config| config.density = density)
+        self.with_config_for_name(name, |config| config.density = Some(density))
     }
 
-    /// Sets collider for the mesh associated with the given `name` to `None`, skipping
-    /// collider generation for it.
+    /// Sets the [`ColliderConstructor`] for the entity associated with the given `name` to `None`,
+    /// skipping collider generation for it.
     pub fn without_constructor_for_name(mut self, name: &str) -> Self {
         self.config.insert(name.to_string(), None);
         self
@@ -298,25 +323,21 @@ impl ColliderConstructorHierarchy {
 pub struct ColliderConstructorHierarchyConfig {
     /// The type of collider generated for the mesh.
     pub constructor: ColliderConstructor,
-    /// The [`CollisionLayers`] used for this collider.
-    pub layers: CollisionLayers,
-    /// The [`ColliderDensity`] used for this collider.
-    pub density: ColliderDensity,
+    /// The [`CollisionLayers`] used for this collider, if specified.
+    pub layers: Option<CollisionLayers>,
+    /// The [`ColliderDensity`] used for this collider, if specified.
+    pub density: Option<ColliderDensity>,
 }
 
 impl ColliderConstructorHierarchyConfig {
-    /// Creates a new [`ColliderConstructorHierarchyConfig`] with the given `constructor`, [`CollisionLayers`] set to belong and collide with everything,
-    /// and a density of [`ColliderConstructorHierarchyConfig::DEFAULT_DENSITY`].
+    /// Creates a new [`ColliderConstructorHierarchyConfig`] with the given `constructor`.
     pub fn from_constructor(constructor: ColliderConstructor) -> Self {
         Self {
             constructor,
-            layers: CollisionLayers::default(),
-            density: Self::DEFAULT_DENSITY,
+            layers: None,
+            density: None,
         }
     }
-
-    /// Density used for generated colliders if not specified otherwise.
-    pub const DEFAULT_DENSITY: ColliderDensity = ColliderDensity(1.0);
 }
 
 #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
@@ -1034,10 +1055,7 @@ mod tests {
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
 
-        assert_eq!(
-            densities["eyes_mesh"],
-            ColliderConstructorHierarchyConfig::DEFAULT_DENSITY.0
-        );
+        assert_eq!(densities["eyes_mesh"], 1.0);
         assert_eq!(densities["armL_mesh"], 2.0);
         assert_eq!(densities["armR_mesh"], 3.0);
     }
