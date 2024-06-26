@@ -1,4 +1,4 @@
-//! # Avian
+//! # ![Avian Physics](https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/logo.svg)
 //!
 //! **Avian** is a 2D and 3D physics engine based on
 //! [*Extended Position Based Dynamics* (XPBD)](#what-is-xpbd) for
@@ -507,6 +507,10 @@
 //!
 //! [^5]: [`SubstepSet`]
 
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png",
+    html_favicon_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png"
+)]
 #![allow(rustdoc::invalid_rust_codeblocks)]
 #![warn(clippy::doc_markdown, missing_docs)]
 
