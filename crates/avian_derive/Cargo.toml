@@ -10,6 +10,7 @@ readme = "README.md"
 
 [lib]
 proc-macro = true
+bench = false
 
 [dependencies]
 proc-macro2 = "1.0.78"

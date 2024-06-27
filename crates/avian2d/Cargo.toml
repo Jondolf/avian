@@ -44,6 +44,7 @@ serialize = [
 name = "avian2d"
 path = "../../src/lib.rs"
 required-features = ["2d"]
+bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
@@ -61,8 +62,10 @@ itertools = "0.13"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
+benches_common_2d = { path = "../benches_common_2d" }
 bevy_math = { version = "0.14.0-rc", features = ["approx"] }
 approx = "0.5"
+criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
 
 [[example]]
@@ -104,3 +107,8 @@ required-features = ["2d", "default-collider"]
 [[example]]
 name = "revolute_joint_2d"
 required-features = ["2d", "default-collider"]
+
+[[bench]]
+name = "pyramid"
+required-features = ["2d", "default-collider"]
+harness = false
