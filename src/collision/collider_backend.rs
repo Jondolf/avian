@@ -371,13 +371,13 @@ fn update_aabb<C: AnyCollider>(
         (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
         With<Children>,
     >,
-    narow_phase_config: Res<NarrowPhaseConfig>,
+    narrow_phase_config: Res<NarrowPhaseConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
-    let default_speculative_margin = length_unit.0 * narow_phase_config.default_speculative_margin;
-    let contact_tolerance = length_unit.0 * narow_phase_config.contact_tolerance;
+    let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
+    let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
 
     for (collider, mut aabb, pos, rot, collider_parent, speculative_margin, lin_vel, ang_vel) in
         &mut colliders

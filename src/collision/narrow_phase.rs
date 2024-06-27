@@ -512,11 +512,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             total_tangent_impulse,
         };
 
-        if !contacts.manifolds.is_empty() {
-            return Some(contacts);
-        }
-
-        None
+        (!contacts.manifolds.is_empty()).then_some(contacts)
     }
 
     /// Generates [`ContactConstraint`]s for the given bodies and their corresponding colliders
@@ -629,11 +625,10 @@ fn log_overlap_at_spawn(
                 None => format!("{:?}", contacts.entity2),
             };
             warn!(
-                "{} and {} are overlapping at spawn, which can result in explosive behavior.",
-                debug_id1, debug_id2,
+                "{debug_id1} and {debug_id2} are overlapping at spawn, which can result in explosive behavior.",
             );
-            debug!("{} is at {}", debug_id1, position1.0);
-            debug!("{} is at {}", debug_id2, position2.0);
+            debug!("{debug_id1} is at {}", position1.0);
+            debug!("{debug_id2} is at {}", position2.0);
         }
     }
 }

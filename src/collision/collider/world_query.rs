@@ -28,6 +28,6 @@ impl<'w, C: AnyCollider> ColliderQueryItem<'w, C> {
             + self
                 .accumulated_translation
                 .as_ref()
-                .map_or(default(), |t| t.0)
+                .map_or_else(default, |t| t.0)
     }
 }

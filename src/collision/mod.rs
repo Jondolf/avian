@@ -286,17 +286,17 @@ pub struct Contacts {
     pub during_previous_frame: bool,
     /// The total normal impulse applied to the first body in a collision.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     pub total_normal_impulse: Scalar,
     /// The total tangent impulse applied to the first body in a collision.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Scalar,
     /// The total tangent impulse applied to the first body in a collision.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Vector2,
@@ -306,7 +306,7 @@ impl Contacts {
     /// The force corresponding to the total normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     pub fn total_normal_force(&self, delta_time: Scalar) -> Scalar {
         self.total_normal_impulse / delta_time
     }
@@ -314,7 +314,7 @@ impl Contacts {
     /// The force corresponding to the total tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "total_friction_force")]
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
@@ -324,7 +324,7 @@ impl Contacts {
     /// The force corresponding to the total tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "total_friction_force")]
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
@@ -480,17 +480,17 @@ pub struct ContactData {
     pub penetration: Scalar,
     /// The impulse applied to the first body along the normal.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     pub normal_impulse: Scalar,
     /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
     /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Vector2,
@@ -532,7 +532,7 @@ impl ContactData {
     /// The force corresponding to the normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     pub fn normal_force(&self, delta_time: Scalar) -> Scalar {
         self.normal_impulse / delta_time
     }
@@ -540,7 +540,7 @@ impl ContactData {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
@@ -550,7 +550,7 @@ impl ContactData {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>`.
+    /// typically use `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Vector2 {
