@@ -52,6 +52,11 @@ impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Gravity>();
 
+        app.configure_sets(
+            self.schedule.intern(),
+            (IntegrationSet::Velocity, IntegrationSet::Position).chain(),
+        );
+
         app.get_schedule_mut(self.schedule.intern())
             .expect("add SubstepSchedule first")
             .add_systems((
