@@ -220,11 +220,17 @@ impl ColliderConstructorHierarchy {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
 pub struct ColliderConstructorHierarchyConfig {
-    /// The type of collider generated for the mesh, if specified.
+    /// The type of collider generated for the mesh.
+    ///
+    /// If `None`, [`ColliderConstructorHierarchy::default_constructor`] is used instead.
     pub constructor: Option<ColliderConstructor>,
-    /// The [`CollisionLayers`] used for this collider, if specified.
+    /// The [`CollisionLayers`] used for this collider.
+    ///
+    /// If `None`, [`ColliderConstructorHierarchy::default_layers`] is used instead.
     pub layers: Option<CollisionLayers>,
-    /// The [`ColliderDensity`] used for this collider, if specified.
+    /// The [`ColliderDensity`] used for this collider.
+    ///
+    /// If `None`, [`ColliderConstructorHierarchy::default_density`] is used instead.
     pub density: Option<ColliderDensity>,
 }
 
