@@ -198,15 +198,32 @@ impl RevoluteJoint {
         dt: Scalar,
     ) -> Torque {
         let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
-            // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
-            let a1 = body1.rotation.rotate_vec3(self.aligned_axis);
-            let b1 = body1
-                .rotation
-                .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
-            let b2 = body2
-                .rotation
-                .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
-            angle_limit.compute_correction(a1, b1, b2, PI)
+            #[cfg(feature = "2d")]
+            {
+                let angle = body2.rotation.mul(body1.rotation.inverse()).as_radians();
+
+                let correction = if angle < angle_limit.alpha {
+                    angle - angle_limit.alpha
+                } else if angle > angle_limit.beta {
+                    angle - angle_limit.beta
+                } else {
+                    return None;
+                };
+
+                Some(Vector3::Z * correction.min(PI))
+            }
+            #[cfg(feature = "3d")]
+            {
+                // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
+                let a1 = body1.rotation.rotate_vec3(self.aligned_axis);
+                let b1 = body1
+                    .rotation
+                    .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
+                let b2 = body2
+                    .rotation
+                    .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
+                angle_limit.compute_correction(a1, b1, b2, PI)
+            }
         }) else {
             return Torque::ZERO;
         };
