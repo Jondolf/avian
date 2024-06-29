@@ -337,10 +337,10 @@ fn init_collider_constructor_hierarchies(
                 let pretty_name = pretty_name(name, child_entity);
 
                 let default_collider = || {
-                    collider_constructor_hierarchy
-                        .default_constructor
-                        .clone()
-                        .map(ColliderConstructorHierarchyConfig::from_constructor)
+                    Some(ColliderConstructorHierarchyConfig {
+                        constructor: collider_constructor_hierarchy.default_constructor.clone(),
+                        ..default()
+                    })
                 };
 
                 let collider_data = if let Some(name) = name {
@@ -358,11 +358,21 @@ fn init_collider_constructor_hierarchies(
                     default_collider()
                 };
 
+                // If the configuration is explicitly set to `None`, skip this entity.
                 let Some(collider_data) = collider_data else {
                     continue;
                 };
 
-                let mesh = if collider_data.constructor.requires_mesh() {
+                // Use the configured constructor if specified, otherwise use the default constructor.
+                // If both are `None`, skip this entity.
+                let Some(constructor) = collider_data
+                    .constructor
+                    .or_else(|| collider_constructor_hierarchy.default_constructor.clone())
+                else {
+                    continue;
+                };
+
+                let mesh = if constructor.requires_mesh() {
                     if let Some(handle) = handle {
                         meshes.get(handle)
                     } else {
@@ -372,12 +382,17 @@ fn init_collider_constructor_hierarchies(
                     None
                 };
 
-                let collider = Collider::try_from_constructor(collider_data.constructor, mesh);
+                let collider = Collider::try_from_constructor(constructor, mesh);
+
                 if let Some(collider) = collider {
                     commands.entity(child_entity).insert((
                         collider,
-                        collider_data.layers,
-                        collider_data.density,
+                        collider_data
+                            .layers
+                            .unwrap_or(collider_constructor_hierarchy.default_layers),
+                        collider_data
+                            .density
+                            .unwrap_or(collider_constructor_hierarchy.default_density),
                     ));
                 } else {
                     error!(
