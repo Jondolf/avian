@@ -201,8 +201,6 @@ pub fn contact_manifolds(
                         normal1,
                         normal2,
                         -contact.dist,
-                        PackedFeatureId::UNKNOWN,
-                        PackedFeatureId::UNKNOWN,
                     )],
                     index: 0,
                 }];
@@ -246,9 +244,8 @@ pub fn contact_manifolds(
                             normal1,
                             normal2,
                             -contact.dist,
-                            contact.fid1,
-                            contact.fid2,
                         )
+                        .with_feature_ids(contact.fid1, contact.fid2)
                     })
                     .collect(),
                 index: manifold_index,

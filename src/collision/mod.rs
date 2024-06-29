@@ -35,7 +35,10 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
 
-/// A feature ID where the feature type is packed into the same value as the feature index.
+/// A feature ID indicating the type of a geometric feature: a vertex, an edge, or (in 3D) a face.
+///
+/// This type packs the feature type into the same value as the feature index,
+/// which indicates the specific vertex/edge/face that this ID belongs to.
 pub type PackedFeatureId = parry::shape::PackedFeatureId;
 
 // TODO: Refactor this into a contact graph.
@@ -505,7 +508,7 @@ pub struct ContactData {
 impl ContactData {
     /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
     ///
-    /// The given `index` is the index of the contact in a contact manifold, if it is in one.
+    /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         point1: Vector,
@@ -513,8 +516,6 @@ impl ContactData {
         normal1: Vector,
         normal2: Vector,
         penetration: Scalar,
-        feature_id1: PackedFeatureId,
-        feature_id2: PackedFeatureId,
     ) -> Self {
         Self {
             point1,
@@ -524,9 +525,16 @@ impl ContactData {
             penetration,
             normal_impulse: 0.0,
             tangent_impulse: default(),
-            feature_id1,
-            feature_id2,
+            feature_id1: PackedFeatureId::UNKNOWN,
+            feature_id2: PackedFeatureId::UNKNOWN,
         }
+    }
+
+    /// Sets the [feature IDs](PackedFeatureId) of the contact points.
+    pub fn with_feature_ids(mut self, id1: PackedFeatureId, id2: PackedFeatureId) -> Self {
+        self.feature_id1 = id1;
+        self.feature_id2 = id2;
+        self
     }
 
     /// The force corresponding to the normal impulse applied over `delta_time`.
