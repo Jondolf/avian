@@ -245,7 +245,9 @@ impl PrismaticJoint {
 
     #[cfg(feature = "3d")]
     fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
-        2.0 * (rot1.0 * rot2.inverse().0).xyz()
+        // TODO: The XPBD paper doesn't have this minus sign, but it seems to be needed for stability.
+        //       The angular correction code might have a wrong sign elsewhere.
+        -2.0 * (rot1.0 * rot2.inverse().0).xyz()
     }
 }
 
