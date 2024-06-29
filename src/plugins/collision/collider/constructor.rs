@@ -657,55 +657,7 @@ mod tests {
 
     #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
-    fn collider_constructor_hierarchy_inserts_computed_colliders_on_scene() {
-        let mut app = create_gltf_test_app();
-
-        let scene_handle = app
-            .world
-            .resource_mut::<AssetServer>()
-            .load("ferris.glb#Scene0");
-
-        let hierarchy = app
-            .world
-            .spawn((
-                SceneBundle {
-                    scene: scene_handle,
-                    ..default()
-                },
-                ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
-                    .with_density_for_name("armL_mesh", 2.0)
-                    .with_density_for_name("armR_mesh", 3.0),
-                RigidBody::Dynamic,
-            ))
-            .id();
-
-        while app
-            .world
-            .resource::<Events<bevy::scene::SceneInstanceReady>>()
-            .is_empty()
-        {
-            app.update();
-        }
-        app.update();
-
-        assert!(app.query_err::<&ColliderConstructorHierarchy>(hierarchy));
-        assert!(app.query_err::<&Collider>(hierarchy));
-
-        let densities: HashMap<_, _> = app
-            .world
-            .query::<(&Name, &ColliderDensity)>()
-            .iter(&app.world)
-            .map(|(name, density)| (name.to_string(), density.0))
-            .collect();
-
-        assert_eq!(densities["eyes_mesh"], 1.0);
-        assert_eq!(densities["armL_mesh"], 2.0);
-        assert_eq!(densities["armR_mesh"], 3.0);
-    }
-
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
-    #[test]
-    fn collider_constructor_hierarchy_inserts_correct_colliders_on_scene() {
+    fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
         let mut app = create_gltf_test_app();
@@ -722,11 +674,10 @@ mod tests {
                     scene: scene_handle,
                     ..default()
                 },
-                ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
-                    // Set the density of the eyes. This should not affect the constructor used.
-                    .with_density_for_name("eyes_mesh", 2.0)
+                ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
                     .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
+                    .with_density_for_name("armL_mesh", 2.0)
                     // Remove the right arm. Don't worry, crabs can regrow lost limbs!
                     .without_constructor_for_name("armR_mesh"),
                 RigidBody::Dynamic,
@@ -745,6 +696,19 @@ mod tests {
         assert!(app.query_err::<&ColliderConstructorHierarchy>(hierarchy));
         assert!(app.query_err::<&Collider>(hierarchy));
 
+        // Check densities
+        let densities: HashMap<_, _> = app
+            .world
+            .query::<(&Name, &ColliderDensity)>()
+            .iter(&app.world)
+            .map(|(name, density)| (name.to_string(), density.0))
+            .collect();
+
+        assert_eq!(densities["eyes_mesh"], 1.0);
+        assert_eq!(densities["armL_mesh"], 2.0);
+        assert!(densities.get("armR_mesh").is_none());
+
+        // Check collider shape types
         let colliders: HashMap<_, _> = app
             .world
             .query::<(&Name, &Collider)>()
@@ -754,7 +718,7 @@ mod tests {
 
         assert_eq!(
             colliders["eyes_mesh"].shape().shape_type(),
-            ShapeType::TriMesh
+            ShapeType::Compound
         );
         assert_eq!(
             colliders["armL_mesh"].shape().shape_type(),
@@ -787,9 +751,14 @@ mod tests {
 
     #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
+        use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
+
         let mut app = App::new();
         app.add_plugins((
-            DefaultPlugins.build().disable::<bevy::winit::WinitPlugin>(),
+            DefaultPlugins
+                .build()
+                .disable::<WinitPlugin>()
+                .disable::<DiagnosticsPlugin>(),
             PhysicsPlugins::default(),
         ));
         app.finish();
