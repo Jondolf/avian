@@ -703,6 +703,66 @@ mod tests {
         assert_eq!(densities["armR_mesh"], 3.0);
     }
 
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
+    #[test]
+    fn collider_constructor_hierarchy_inserts_correct_colliders_on_scene() {
+        use parry::shape::ShapeType;
+
+        let mut app = create_gltf_test_app();
+
+        let scene_handle = app
+            .world
+            .resource_mut::<AssetServer>()
+            .load("ferris.glb#Scene0");
+
+        let hierarchy = app
+            .world
+            .spawn((
+                SceneBundle {
+                    scene: scene_handle,
+                    ..default()
+                },
+                ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+                    // Set the density of the eyes. This should not affect the constructor used.
+                    .with_density_for_name("eyes_mesh", 2.0)
+                    // Use a primitive collider for the left arm.
+                    .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
+                    // Remove the right arm. Don't worry, crabs can regrow lost limbs!
+                    .without_constructor_for_name("armR_mesh"),
+                RigidBody::Dynamic,
+            ))
+            .id();
+
+        while app
+            .world
+            .resource::<Events<bevy::scene::SceneInstanceReady>>()
+            .is_empty()
+        {
+            app.update();
+        }
+        app.update();
+
+        assert!(app.query_err::<&ColliderConstructorHierarchy>(hierarchy));
+        assert!(app.query_err::<&Collider>(hierarchy));
+
+        let colliders: HashMap<_, _> = app
+            .world
+            .query::<(&Name, &Collider)>()
+            .iter(&app.world)
+            .map(|(name, collider)| (name.to_string(), collider))
+            .collect();
+
+        assert_eq!(
+            colliders["eyes_mesh"].shape().shape_type(),
+            ShapeType::TriMesh
+        );
+        assert_eq!(
+            colliders["armL_mesh"].shape().shape_type(),
+            ShapeType::Capsule
+        );
+        assert!(colliders.get("armR_mesh").is_none());
+    }
+
     const PRIMITIVE_COLLIDER: ColliderConstructor = ColliderConstructor::Capsule {
         height: 1.0,
         radius: 0.5,
