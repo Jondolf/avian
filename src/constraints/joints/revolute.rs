@@ -197,25 +197,25 @@ impl RevoluteJoint {
         body2: &mut RigidBodyQueryItem,
         dt: Scalar,
     ) -> Torque {
-        if let Some(angle_limit) = self.angle_limit {
-            let limit_axis = Vector3::new(
-                self.aligned_axis.z,
-                self.aligned_axis.x,
-                self.aligned_axis.y,
-            );
-            let a1 = body1.rotation.rotate_vec3(limit_axis);
-            let a2 = body2.rotation.rotate_vec3(limit_axis);
-            let n = a1.cross(a2).normalize();
+        let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
+            // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
+            let a1 = body1.rotation.rotate_vec3(self.aligned_axis);
+            let b1 = body1
+                .rotation
+                .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
+            let b2 = body2
+                .rotation
+                .rotate_vec3(self.aligned_axis.any_orthonormal_vector());
+            angle_limit.compute_correction(a1, b1, b2, PI)
+        }) else {
+            return Torque::ZERO;
+        };
 
-            if let Some(dq) = angle_limit.compute_correction(n, a1, a2, PI) {
-                let mut lagrange = self.angle_limit_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
-                self.angle_limit_lagrange = lagrange;
-                return torque;
-            }
-        }
-        Torque::ZERO
+        let mut lagrange = self.angle_limit_lagrange;
+        let torque =
+            self.align_orientation(body1, body2, correction, &mut lagrange, self.compliance, dt);
+        self.angle_limit_lagrange = lagrange;
+        torque
     }
 }
 
