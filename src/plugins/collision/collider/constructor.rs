@@ -124,8 +124,8 @@ pub struct ColliderConstructorHierarchy {
     /// Specifies data like the [`ColliderConstructor`] and [`CollisionLayers`] for entities
     /// in the hierarchy by `Name`. Entries with a `None` value will be skipped.
     ///
-    /// For the entities not found in this `HashMap`, [`default_constructor`](Self::default_constructor)
-    /// and [`CollisionLayers::ALL`] will be used instead.
+    /// For the entities not found in this `HashMap`, [`default_constructor`](Self::default_constructor),
+    /// [`default_layers`](Self::default_layers), and [`default_density`](Self::default_density) will be used instead.
     pub config: HashMap<String, Option<ColliderConstructorHierarchyConfig>>,
 }
 
@@ -160,13 +160,20 @@ impl ColliderConstructorHierarchy {
     }
 
     /// Specifies the [`ColliderConstructor`] used for an entity with the given `name`.
-    pub fn with_constructor_for_name(mut self, name: &str, shape: ColliderConstructor) -> Self {
+    pub fn with_constructor_for_name(
+        mut self,
+        name: &str,
+        constructor: ColliderConstructor,
+    ) -> Self {
         if let Some(Some(data)) = self.config.get_mut(name) {
-            data.constructor = shape;
+            data.constructor = Some(constructor);
         } else {
             self.config.insert(
                 name.to_string(),
-                Some(ColliderConstructorHierarchyConfig::from_constructor(shape)),
+                Some(ColliderConstructorHierarchyConfig {
+                    constructor: Some(constructor),
+                    ..default()
+                }),
             );
         }
         self
@@ -198,64 +205,27 @@ impl ColliderConstructorHierarchy {
         if let Some(Some(config)) = self.config.get_mut(name) {
             mutate_config(config);
         } else {
-            let mut config = self.base_constructor_hierarchy_data().unwrap_or_else(||
-                panic!("Failed to configure collider constructor for \"{name}\" because it has no associated constructor. \
-                Either specify a default constructor by passing one to `ColliderConstructorHierarchy::new` or call `with_constructor_for_name` first, \
-                or enable the `collider-from-mesh` feature to use a default construction method by reading the mesh."));
+            let mut config = ColliderConstructorHierarchyConfig::default();
             mutate_config(&mut config);
             self.config.insert(name.to_string(), Some(config));
         }
         self
     }
-
-    fn base_constructor_hierarchy_data(&self) -> Option<ColliderConstructorHierarchyConfig> {
-        self.default_constructor
-            .clone()
-            .map(ColliderConstructorHierarchyConfig::from_constructor)
-            .or({
-                #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-                {
-                    Some(ColliderConstructorHierarchyConfig::default())
-                }
-                #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
-                {
-                    None
-                }
-            })
-    }
 }
 
 /// Configuration for a specific collider generated from a scene using [`ColliderConstructorHierarchy`].
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, Default, PartialEq, Reflect)]
 #[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
 pub struct ColliderConstructorHierarchyConfig {
-    /// The type of collider generated for the mesh.
-    pub constructor: ColliderConstructor,
+    /// The type of collider generated for the mesh, if specified.
+    pub constructor: Option<ColliderConstructor>,
     /// The [`CollisionLayers`] used for this collider, if specified.
     pub layers: Option<CollisionLayers>,
     /// The [`ColliderDensity`] used for this collider, if specified.
     pub density: Option<ColliderDensity>,
-}
-
-impl ColliderConstructorHierarchyConfig {
-    /// Creates a new [`ColliderConstructorHierarchyConfig`] with the given `constructor`.
-    pub fn from_constructor(constructor: ColliderConstructor) -> Self {
-        Self {
-            constructor,
-            layers: None,
-            density: None,
-        }
-    }
-}
-
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-impl Default for ColliderConstructorHierarchyConfig {
-    fn default() -> Self {
-        Self::from_constructor(ColliderConstructor::TrimeshFromMesh)
-    }
 }
 
 /// A component that will automatically generate a [`Collider`] at runtime using [`Collider::try_from_constructor`].
@@ -455,6 +425,7 @@ pub enum ColliderConstructor {
     #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     ConvexHullFromMesh,
 }
+
 impl ColliderConstructor {
     /// Returns `true` if the collider type requires a mesh to be generated.
     pub fn requires_mesh(&self) -> bool {
