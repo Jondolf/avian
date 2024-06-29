@@ -157,7 +157,7 @@ impl ContactConstraint {
             }
 
             let point = ContactConstraintPoint {
-                // TODO: Apply warm starting scale.
+                // TODO: Apply warm starting scale here instead of in `warm_start`?
                 normal_part: ContactNormalPart::generate(
                     inverse_mass_sum,
                     i1,

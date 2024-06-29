@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use crate::{
     dynamics::solver::{
-        contact::ContactConstraint, ContactConstraints, ContactSoftnessCoefficients, SolverConfig,
+        contact::ContactConstraint, ContactConstraints, ContactSoftnessCoefficients,
     },
     prelude::*,
 };
@@ -14,7 +14,8 @@ use crate::{
 use bevy::tasks::{ComputeTaskPool, ParallelSlice};
 use bevy::{
     ecs::{
-        schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings},
+        intern::Interned,
+        schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
         system::SystemParam,
     },
     prelude::*,
@@ -33,14 +34,34 @@ use bevy::{
 /// the vast majority of applications, but for custom collisión backends
 /// you may use any collider that implements the [`AnyCollider`] trait.
 pub struct NarrowPhasePlugin<C: AnyCollider> {
+    schedule: Interned<dyn ScheduleLabel>,
+    /// If `true`, the narrow phase will generate [`ContactConstraint`]s
+    /// and add them to the [`ContactConstraints`] resource.
+    ///
+    /// Contact constraints are used by the [`SolverPlugin`] for solving contacts.
+    generate_constraints: bool,
     _phantom: PhantomData<C>,
+}
+
+impl<C: AnyCollider> NarrowPhasePlugin<C> {
+    /// Creates a [`NarrowPhasePlugin`] with the schedule used for running its systems
+    /// and whether it should generate [`ContactConstraint`]s for the [`ContactConstraints`] resource.
+    ///
+    /// Contact constraints are used by the [`SolverPlugin`] for solving contacts.
+    ///
+    /// The default schedule is [`PhysicsSchedule`].
+    pub fn new(schedule: impl ScheduleLabel, generate_constraints: bool) -> Self {
+        Self {
+            schedule: schedule.intern(),
+            generate_constraints,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
     fn default() -> Self {
-        Self {
-            _phantom: PhantomData,
-        }
+        Self::new(PhysicsSchedule, true)
     }
 }
 
@@ -55,8 +76,12 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
             .init_resource::<Collisions>()
             .register_type::<NarrowPhaseConfig>();
 
+        if self.generate_constraints {
+            app.init_resource::<ContactConstraints>();
+        }
+
         app.configure_sets(
-            PhysicsSchedule,
+            self.schedule,
             (
                 NarrowPhaseSet::First,
                 NarrowPhaseSet::CollectCollisions,
@@ -79,15 +104,12 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
                 });
         });
 
-        let physics_schedule = app
-            .get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first");
-
         // Manage collision states like `during_current_frame` and remove old contacts.
         // Only one narrow phase instance should do this.
         // TODO: It would be nice not to have collision state logic in the narrow phase.
         if is_first_instance {
-            physics_schedule.add_systems(
+            app.add_systems(
+                self.schedule,
                 (
                     // Reset collision states.
                     reset_collision_states
@@ -103,7 +125,8 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         }
 
         // Collect contacts into `Collisions`.
-        physics_schedule.add_systems(
+        app.add_systems(
+            self.schedule,
             collect_collisions::<C>
                 .in_set(NarrowPhaseSet::CollectCollisions)
                 // Allowing ambiguities is required so that it's possible
@@ -111,23 +134,28 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        // Generate contact constraints.
-        physics_schedule.add_systems(
-            generate_constraints::<C>
-                .in_set(NarrowPhaseSet::GenerateConstraints)
-                // Allowing ambiguities is required so that it's possible
-                // to have multiple collision backends at the same time.
-                .ambiguous_with_all(),
-        );
+        if self.generate_constraints {
+            // Generate contact constraints.
+            app.add_systems(
+                self.schedule,
+                generate_constraints::<C>
+                    .in_set(NarrowPhaseSet::GenerateConstraints)
+                    // Allowing ambiguities is required so that it's possible
+                    // to have multiple collision backends at the same time.
+                    .ambiguous_with_all(),
+            );
+        }
 
         if is_first_instance {
             #[cfg(debug_assertions)]
-            physics_schedule.add_systems(
+            app.add_systems(
+                self.schedule,
                 log_overlap_at_spawn
                     .in_set(NarrowPhaseSet::PostProcess)
                     .before(run_post_process_collisions_schedule),
             );
-            physics_schedule.add_systems(
+            app.add_systems(
+                self.schedule,
                 run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
             );
         }
@@ -159,6 +187,16 @@ pub struct NarrowPhaseConfig {
     ///
     /// Default: `0.005`
     pub contact_tolerance: Scalar,
+
+    /// If `true`, the current contacts will be matched with the previous contacts
+    /// based on feature IDs or contact positions, and the contact impulses from
+    /// the previous frame will be copied over for the new contacts.
+    ///
+    /// Using these impulses as the initial guess is referred to as *warm starting*,
+    /// and it can help the contact solver resolve overlap and stabilize much faster.
+    ///
+    /// Default: `true`
+    pub match_contacts: bool,
 }
 
 impl Default for NarrowPhaseConfig {
@@ -166,6 +204,7 @@ impl Default for NarrowPhaseConfig {
         Self {
             default_speculative_margin: Scalar::MAX,
             contact_tolerance: 0.005,
+            match_contacts: true,
         }
     }
 }
@@ -192,16 +231,9 @@ pub enum NarrowPhaseSet {
 fn collect_collisions<C: AnyCollider>(
     mut narrow_phase: NarrowPhase<C>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
-    solver_config: Res<SolverConfig>,
     time: Res<Time>,
 ) {
-    let warm_start = solver_config.warm_start_coefficient > 0.0;
-
-    narrow_phase.update(
-        &broad_collision_pairs,
-        warm_start,
-        time.delta_seconds_adjusted(),
-    );
+    narrow_phase.update(&broad_collision_pairs, time.delta_seconds_adjusted());
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -210,11 +242,9 @@ fn collect_collisions<C: AnyCollider>(
 fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
-    solver_config: Res<SolverConfig>,
     contact_softness: Res<ContactSoftnessCoefficients>,
     time: Res<Time>,
 ) {
-    let warm_start = solver_config.warm_start_coefficient > 0.0;
     let delta_secs = time.delta_seconds_adjusted();
 
     // Clear contact constraints.
@@ -255,7 +285,6 @@ fn generate_constraints<C: AnyCollider>(
                 &collider1,
                 &collider2,
                 *contact_softness,
-                warm_start,
                 delta_secs,
             );
         }
@@ -285,12 +314,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
 impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
-    fn update(
-        &mut self,
-        broad_collision_pairs: &[(Entity, Entity)],
-        warm_start: bool,
-        delta_secs: Scalar,
-    ) {
+    fn update(&mut self, broad_collision_pairs: &[(Entity, Entity)], delta_secs: Scalar) {
         // TODO: These scaled versions could be in their own resource
         //       and updated just before physics every frame.
         // Cache default margins scaled by the length unit.
@@ -312,7 +336,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                     // contact constraints for them.
                     for &(entity1, entity2) in chunks {
                         if let Some(contacts) =
-                            self.handle_entity_pair(entity1, entity2, warm_start, delta_secs)
+                            self.handle_entity_pair(entity1, entity2, delta_secs)
                         {
                             new_collisions.push(contacts);
                         }
@@ -331,9 +355,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair(entity1, entity2, warm_start, delta_secs)
-                {
+                if let Some(contacts) = self.handle_entity_pair(entity1, entity2, delta_secs) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -343,17 +365,11 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// Returns the [`Contacts`] between `entity1` and `entity2` if they are intersecting
     /// or expected to start intersecting within the next frame. This includes
     /// [speculative collision](dynamics::ccd#speculative-collision).
-    ///
-    /// If `match_contacts` is `true`, the current contacts will be matched with the previous contacts
-    /// based on feature IDs or contact positions, and the contact impulses from the previous frame
-    /// will be copied over for the new contacts. Using these impulses as the initial guess is referred to
-    /// as *warm starting*, and it can help the contact solver resolve overlap and stabilize much faster.
     #[allow(clippy::too_many_arguments)]
     pub fn handle_entity_pair(
         &self,
         entity1: Entity,
         entity2: Entity,
-        match_contacts: bool,
         delta_secs: Scalar,
     ) -> Option<Contacts> {
         let Ok([collider1, collider2]) = self.collider_query.get_many([entity1, entity2]) else {
@@ -424,7 +440,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         // At least as large as the contact tolerance.
         let max_contact_distance = effective_speculative_margin.max(*self.contact_tolerance);
 
-        self.compute_contact_pair(&collider1, &collider2, max_contact_distance, match_contacts)
+        self.compute_contact_pair(&collider1, &collider2, max_contact_distance)
     }
 
     /// Computes contacts between `collider1` and `collider2`.
@@ -433,18 +449,12 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// The given `max_distance` determines the maximum distance for a contact
     /// to be detected. A value greater than zero means that contacts are generated
     /// based on the closest points even if the shapes are separated.
-    ///
-    /// If `match_contacts` is `true`, the current contacts will be matched with the previous contacts
-    /// based on feature IDs or contact positions, and the contact impulses from the previous frame
-    /// will be copied over for the new contacts. Using these impulses as the initial guess is referred to
-    /// as *warm starting*, and it can help the contact solver resolve overlap and stabilize much faster.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn compute_contact_pair(
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         max_distance: Scalar,
-        match_contacts: bool,
     ) -> Option<Contacts> {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
@@ -477,7 +487,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         // Match contacts and copy previous contact impulses for warm starting the solver.
         // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
         //       If we let Parry handle contact matching, this wouldn't be needed.
-        if manifolds.len() <= 4 && match_contacts {
+        if manifolds.len() <= 4 && self.config.match_contacts {
             if let Some(previous_contacts) = previous_contacts {
                 // TODO: Cache this?
                 let distance_threshold = 0.1 * self.length_unit.0;
@@ -519,10 +529,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// based on the given `contacts`. The constraints are added to the `constraints` vector.
     ///
     /// The `contact_softness` is used to tune the damping and stiffness of the contact constraints.
-    ///
-    /// If `warm_start` is `true`, the constraints will be initialized with the impulses
-    /// stored in the contacts from the previous frame. This can help the solver resolve overlap
-    /// and stabilize much faster.
     #[allow(clippy::too_many_arguments)]
     pub fn generate_constraints(
         &self,
@@ -533,7 +539,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         contact_softness: ContactSoftnessCoefficients,
-        warm_start: bool,
         delta_secs: Scalar,
     ) {
         let inactive1 = body1.rb.is_static() || body1.is_sleeping;
@@ -590,7 +595,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                 friction,
                 restitution,
                 contact_softness,
-                warm_start,
+                self.config.match_contacts,
                 delta_secs,
             );
 
