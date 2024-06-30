@@ -319,7 +319,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
-    mut bodies: Query<(RigidBodyQuery, Option<&Sleeping>)>,
+    mut bodies: Query<RigidBodyQuery>,
     mut constraints: Query<&mut C, Without<RigidBody>>,
     time: Res<Time>,
 ) {
@@ -333,10 +333,10 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
     for mut constraint in &mut constraints {
         // Get components for entities
         if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
-            let none_dynamic = bodies.iter().all(|(body, _)| !body.rb.is_dynamic());
+            let none_dynamic = bodies.iter().all(|body| !body.rb.is_dynamic());
             let all_inactive = bodies
                 .iter()
-                .all(|(body, sleeping)| body.rb.is_static() || sleeping.is_some());
+                .all(|body| body.rb.is_static() || body.is_sleeping);
 
             // No constraint solving if none of the bodies is dynamic,
             // or if all of the bodies are either static or sleeping
@@ -345,8 +345,10 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
             }
 
             // At least one of the participating bodies is active, so wake up any sleeping bodies
-            for (body, sleeping) in &bodies {
-                if sleeping.is_some() {
+            for body in &mut bodies {
+                body.time_sleeping.0 = 0.0;
+
+                if body.is_sleeping {
                     commands.entity(body.entity).remove::<Sleeping>();
                 }
             }
@@ -354,7 +356,6 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
             // Get the bodies as an array and solve the constraint
             if let Ok(bodies) = bodies
                 .iter_mut()
-                .map(|(ref mut body, _)| body)
                 .collect::<Vec<&mut RigidBodyQueryItem>>()
                 .try_into()
             {
