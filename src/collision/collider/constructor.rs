@@ -742,6 +742,7 @@ mod tests {
             AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             ScenePlugin,
+            HierarchyPlugin,
             PhysicsPlugins::default(),
         ))
         .init_resource::<Assets<Mesh>>();
