@@ -53,6 +53,9 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
             .register_type::<ColliderTransform>()
-            .register_type::<PreviousColliderTransform>();
+            .register_type::<PreviousColliderTransform>()
+            .register_type::<ColliderConstructor>()
+            .register_type::<ColliderConstructorHierarchy>()
+            .register_type::<ColliderConstructorHierarchyConfig>();
     }
 }
