@@ -57,10 +57,7 @@
     feature = "3d",
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
 )]
-#![cfg_attr(
-    feature = "3d",
-    doc = "| `async-collider`       | Allows you to generate [`Collider`]s from mesh handles and scenes.                                                               | Yes                     |"
-)]
+//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                              | Yes                     |
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
 //! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
@@ -142,7 +139,7 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`AsyncCollider`] and [`AsyncSceneCollider`]"
+    doc = "    - Creating colliders from meshes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
@@ -410,7 +407,12 @@
     html_logo_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png",
     html_favicon_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png"
 )]
-#![allow(rustdoc::invalid_rust_codeblocks)]
+#![allow(
+    unexpected_cfgs,
+    clippy::type_complexity,
+    clippy::too_many_arguments,
+    rustdoc::invalid_rust_codeblocks
+)]
 #![warn(clippy::doc_markdown, missing_docs)]
 
 #[cfg(all(not(feature = "f32"), not(feature = "f64")))]
@@ -477,7 +479,7 @@ pub mod prelude {
         collision::{
             self,
             broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
-            collider_backend::ColliderBackendPlugin,
+            collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
             },
@@ -523,6 +525,7 @@ use prelude::*;
 /// and [colliders](Collider) and updates components.
 /// - [`ColliderBackendPlugin`]: Handles generic collider backend logic, like initializing colliders and AABBs
 /// and updating related components.
+/// - [`ColliderHierarchyPlugin`]: Handles transform propagation and [`ColliderParent`] updates for colliders.
 /// - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
@@ -688,7 +691,8 @@ impl PluginGroup for PhysicsPlugins {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
             .add(PhysicsTypeRegistrationPlugin)
-            .add(PreparePlugin::new(self.schedule));
+            .add(PreparePlugin::new(self.schedule))
+            .add(ColliderHierarchyPlugin::new(self.schedule));
 
         #[cfg(all(
             feature = "default-collider",

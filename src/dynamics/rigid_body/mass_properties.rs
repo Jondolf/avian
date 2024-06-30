@@ -291,6 +291,12 @@ impl Default for ColliderDensity {
     }
 }
 
+impl From<Scalar> for ColliderDensity {
+    fn from(density: Scalar) -> Self {
+        Self(density)
+    }
+}
+
 /// An automatically added component that contains the read-only mass properties of a [`Collider`].
 /// The density used for computing the mass properties can be configured using the [`ColliderDensity`]
 /// component.
@@ -356,6 +362,13 @@ impl ColliderMassProperties {
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
     pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
         collider.mass_properties(density)
+    }
+
+    /// Transforms the center of mass by the given [`ColliderTransform`].
+    #[inline]
+    pub fn transformed_by(mut self, transform: &ColliderTransform) -> Self {
+        self.center_of_mass.0 = transform.transform_point(self.center_of_mass.0);
+        self
     }
 }
 

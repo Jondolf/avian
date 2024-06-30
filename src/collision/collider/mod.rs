@@ -1,11 +1,18 @@
+//! Components, traits, and plugins related to collider functionality.
+
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
     utils::HashSet,
 };
+
+mod backend;
+mod hierarchy;
+
+pub use backend::{ColliderBackendPlugin, ColliderMarker};
+pub use hierarchy::ColliderHierarchyPlugin;
+pub(crate) use hierarchy::PreviousColliderTransform;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
@@ -21,6 +28,11 @@ pub use parry::*;
 
 mod world_query;
 pub use world_query::*;
+
+mod constructor;
+pub use constructor::{
+    ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
+};
 
 /// A trait for creating colliders from other types.
 pub trait IntoCollider<C: AnyCollider> {
@@ -93,211 +105,6 @@ pub trait ScalableCollider: AnyCollider {
     fn scale_by(&mut self, factor: Vector, detail: u32) {
         self.set_scale(factor * self.scale(), detail)
     }
-}
-
-/// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
-/// The type of the generated collider can be specified using [`ComputedCollider`].
-///
-/// ## Example
-///
-/// ```
-/// use avian3d::prelude::*;
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
-///     // Spawn a cube with a convex hull collider generated from the mesh
-///     commands.spawn((
-///         AsyncCollider(ComputedCollider::ConvexHull),
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
-///     ));
-/// }
-/// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
-pub struct AsyncCollider(pub ComputedCollider);
-
-/// A component that will automatically generate colliders for the meshes in a scene
-/// once the scene has been loaded. The type of the generated collider can be specified
-/// using [`ComputedCollider`].
-///
-/// ## Example
-///
-/// ```
-/// use avian3d::prelude::*;
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
-///     let scene = assets.load("my_model.gltf#Scene0");
-///
-///     // Spawn the scene and automatically generate triangle mesh colliders
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
-///     ));
-///
-///     // Specify configuration for specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
-///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
-///             .with_density_for_name("Tree", 2.5),
-///     ));
-///
-///     // Only generate colliders for specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(None)
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull),
-///     ));
-///
-///     // Generate colliders for everything except specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene, ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMeshWithFlags(
-///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
-///         )))
-///         .without_shape_with_name("Tree"),
-///     ));
-/// }
-/// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
-pub struct AsyncSceneCollider {
-    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
-    /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    pub default_shape: Option<ComputedCollider>,
-    /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
-    /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
-    /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
-}
-
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-impl AsyncSceneCollider {
-    /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
-    /// meshes set to the given `default_shape`.
-    ///
-    /// If the given collider type is `None`, all meshes except the ones in
-    /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
-    pub fn new(default_shape: Option<ComputedCollider>) -> Self {
-        Self {
-            default_shape,
-            meshes_by_name: default(),
-        }
-    }
-
-    /// Specifies the collider type used for a mesh with the given `name`.
-    pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.shape = shape;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData { shape, ..default() }),
-            );
-        }
-        self
-    }
-
-    /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
-    pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.layers = layers;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData {
-                    layers,
-                    ..default()
-                }),
-            );
-        }
-        self
-    }
-
-    /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
-    pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.density = density;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData {
-                    density,
-                    ..default()
-                }),
-            );
-        }
-        self
-    }
-
-    /// Sets collider for the mesh associated with the given `name` to `None`, skipping
-    /// collider generation for it.
-    pub fn without_shape_with_name(mut self, name: &str) -> Self {
-        self.meshes_by_name.insert(name.to_string(), None);
-        self
-    }
-}
-
-/// Configuration for a specific collider generated from a scene using [`AsyncSceneCollider`].
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Clone, Debug, PartialEq)]
-pub struct AsyncSceneColliderData {
-    /// The type of collider generated for the mesh.
-    pub shape: ComputedCollider,
-    /// The [`CollisionLayers`] used for this collider.
-    pub layers: CollisionLayers,
-    /// The [`ColliderDensity`] used for this collider.
-    pub density: Scalar,
-}
-
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-impl Default for AsyncSceneColliderData {
-    fn default() -> Self {
-        Self {
-            shape: ComputedCollider::TriMesh,
-            layers: CollisionLayers::default(),
-            density: 1.0,
-        }
-    }
-}
-
-/// Determines how a [`Collider`] is generated from a `Mesh`.
-///
-/// Colliders can be created from meshes with the following components and methods:
-///
-/// - [`AsyncCollider`] (requires `async-collider` features)
-/// - [`AsyncSceneCollider`] (requires `async-collider` features)
-/// - [`Collider::trimesh_from_mesh`]
-/// - [`Collider::convex_hull_from_mesh`]
-/// - [`Collider::convex_decomposition_from_mesh`]
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
-pub enum ComputedCollider {
-    /// A triangle mesh.
-    #[default]
-    TriMesh,
-    /// A triangle mesh with a custom configuration.
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
-    TriMeshWithFlags(TriMeshFlags),
-    /// A convex hull.
-    ConvexHull,
-    /// A compound shape obtained from a decomposition into convex parts using the specified
-    /// [`VHACDParameters`].
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
-    ConvexDecomposition(VHACDParameters),
 }
 
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
@@ -403,6 +210,8 @@ impl From<Transform> for ColliderTransform {
 /// Sensor colliders send [collision events](ContactReportingPlugin#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
+///
+/// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
 ///
 /// ## Example
 ///

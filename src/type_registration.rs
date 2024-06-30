@@ -1,5 +1,4 @@
 use crate::{
-    collision::collider_backend::PreviousColliderTransform,
     prelude::*,
     sync::{PreviousGlobalTransform, SyncConfig},
 };
@@ -60,6 +59,9 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<SpeculativeMargin>()
             .register_type::<NarrowPhaseConfig>()
             .register_type::<SolverConfig>()
-            .register_type::<SyncConfig>();
+            .register_type::<SyncConfig>()
+            .register_type::<ColliderConstructor>()
+            .register_type::<ColliderConstructorHierarchy>()
+            .register_type::<ColliderConstructorHierarchyConfig>();
     }
 }
