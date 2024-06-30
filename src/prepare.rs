@@ -52,10 +52,10 @@ impl Default for PreparePlugin {
 /// without having to worry about implementation details.
 ///
 /// 1. `PreInit`: Used for systems that must run before initialization.
-/// 2. `PropagateTransforms`: Responsible for propagating transforms.
-/// 3. `InitRigidBodies`: Responsible for initializing missing [`RigidBody`] components.
-/// 4. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
-/// 5. `InitColliders`: Responsible for initializing missing [`Collider`] components.
+/// 2. `InitRigidBodies`: Responsible for initializing missing [`RigidBody`] components.
+/// 3. `InitColliders`: Responsible for initializing missing [`Collider`] components.
+/// 4. `PropagateTransforms`: Responsible for propagating transforms.
+/// 5. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
 /// 6. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
 /// or vice versa.
 /// 7. `Finalize`: Responsible for performing final updates after everything is initialized.
@@ -63,14 +63,14 @@ impl Default for PreparePlugin {
 pub enum PrepareSet {
     /// Used for systems that must run before initialization.
     PreInit,
-    /// Responsible for propagating transforms.
-    PropagateTransforms,
     /// Responsible for initializing missing [`RigidBody`] components.
     InitRigidBodies,
-    /// Responsible for initializing missing mass properties for [`RigidBody`] components.
-    InitMassProperties,
     /// Responsible for initializing missing [`Collider`] components.
     InitColliders,
+    /// Responsible for propagating transforms.
+    PropagateTransforms,
+    /// Responsible for initializing missing mass properties for [`RigidBody`] components.
+    InitMassProperties,
     /// Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
     /// or vice versa. Parts of this system can be disabled with [`PrepareConfig`].
     /// Schedule your system with this to implement custom behavior for initializing transforms.
@@ -86,10 +86,10 @@ impl Plugin for PreparePlugin {
             self.schedule,
             (
                 PrepareSet::PreInit,
-                PrepareSet::PropagateTransforms,
                 PrepareSet::InitRigidBodies,
-                PrepareSet::InitMassProperties,
                 PrepareSet::InitColliders,
+                PrepareSet::InitMassProperties,
+                PrepareSet::PropagateTransforms,
                 PrepareSet::InitTransforms,
                 PrepareSet::Finalize,
             )
@@ -103,17 +103,13 @@ impl Plugin for PreparePlugin {
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
             self.schedule,
+            // Run transform propagation if new bodies have been added
             (
-                apply_deferred,
-                // Run transform propagation if new bodies have been added
-                (
-                    bevy::transform::systems::sync_simple_transforms,
-                    bevy::transform::systems::propagate_transforms,
-                )
-                    .chain()
-                    .run_if(match_any::<Added<RigidBody>>),
+                crate::sync::sync_simple_transforms_physics,
+                crate::sync::propagate_transforms_physics,
             )
                 .chain()
+                .run_if(match_any::<Added<RigidBody>>)
                 .in_set(PrepareSet::PropagateTransforms),
         )
         .add_systems(

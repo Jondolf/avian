@@ -580,7 +580,7 @@ pub mod prelude {
         collision::{
             self,
             broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
-            collider_backend::ColliderBackendPlugin,
+            collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
             },
@@ -629,6 +629,7 @@ use prelude::*;
 /// and [colliders](Collider) and updates components.
 /// - [`ColliderBackendPlugin`]: Handles generic collider backend logic, like initializing colliders and AABBs
 /// and updating related components.
+/// - [`ColliderHierarchyPlugin`]: Handles transform propagation and [`ColliderParent`] updates for colliders.
 /// - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
@@ -753,7 +754,8 @@ impl PluginGroup for PhysicsPlugins {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
             .add(PhysicsTypeRegistrationPlugin)
-            .add(PreparePlugin::new(self.schedule));
+            .add(PreparePlugin::new(self.schedule))
+            .add(ColliderHierarchyPlugin::new(self.schedule));
 
         #[cfg(all(
             feature = "default-collider",

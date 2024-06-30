@@ -4,11 +4,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{
-    broad_phase::BroadPhaseSet,
-    prelude::*,
-    prepare::{match_any, PrepareSet},
-};
+use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
 #[cfg(feature = "bevy_scene")]
 use bevy::scene::SceneInstance;
 use bevy::{
@@ -18,17 +14,18 @@ use bevy::{
 
 /// A plugin for handling generic collider backend logic.
 ///
-/// - Initializes colliders.
+/// - Initializes colliders, including [`AsyncCollider`] and [`AsyncSceneCollider`].
 /// - Updates [`ColliderAabb`]s.
-/// - Updates [`ColliderParent`]s.
-/// - Updates collider mass properties.
 /// - Updates collider scale based on `Transform` scale.
-/// - Propagates child collider positions.
+/// - Updates collider mass properties, also updating rigid bodies accordingly.
+///
+/// This plugin should typically be used together with the [`ColliderHierarchyPlugin`].
 ///
 /// ## Custom collision backends
 ///
 /// By default, [`PhysicsPlugins`] adds this plugin for the [`Collider`] component.
-/// You can also create custom collider backends by implementing the [`AnyCollider`] and [`ScalableCollider`] traits.
+/// You can also create custom collider backends by implementing the [`AnyCollider`]
+/// and [`ScalableCollider`] traits for a type.
 ///
 /// To use a custom collider backend, simply add the [`ColliderBackendPlugin`] with your collider type:
 ///
@@ -55,7 +52,7 @@ use bevy::{
 /// }
 /// ```
 ///
-/// Assuming you have implemented [`AnyCollider`] and [`ScalableCollider`] correctly,
+/// Assuming you have implemented the required traits correctly,
 /// it should now work with the rest of the engine just like normal [`Collider`]s!
 ///
 /// **Note**: [Spatial queries](spatial_query) are not supported for custom colliders yet.
@@ -96,10 +93,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
+        // Also removes `ColliderMarker` components.
         app.world_mut()
             .register_component_hooks::<C>()
             .on_remove(|mut world, entity, _| {
-                let entity_ref = world.entity(entity);
+                // Remove the `ColliderMarker` associated with the collider.
+                // TODO: If the same entity had multiple *different* types of colliders, this would
+                //       get removed even if just one collider was removed. This is a very niche edge case though.
+                world.commands().entity(entity).remove::<ColliderMarker>();
+
+                let entity_ref = world.entity_mut(entity);
 
                 // Get the needed collider components.
                 // TODO: Is there an efficient way to do this with QueryState?
@@ -123,44 +126,82 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 );
             });
 
-        // Run transform propagation if new colliders without rigid bodies have been added.
-        // The `PreparePlugin` should handle transform propagation for new rigid bodies.
-        app.add_systems(
-            self.schedule,
-            ((
-                bevy::transform::systems::sync_simple_transforms,
-                bevy::transform::systems::propagate_transforms,
-            )
-                .chain()
-                .run_if(match_any::<(Added<C>, Without<RigidBody>)>),)
-                .chain()
-                .in_set(PrepareSet::PropagateTransforms)
-                // Allowing ambiguities is required so that it's possible
-                // to have multiple collision backends at the same time.
-                .ambiguous_with_all(),
+        // When the `Sensor` component is added to a collider,
+        // remove the collider's contribution on the rigid body's mass properties.
+        app.observe(
+            |trigger: Trigger<OnAdd, Sensor>,
+             query: Query<(
+                &ColliderParent,
+                &ColliderMassProperties,
+                &PreviousColliderTransform,
+            )>,
+             mut body_query: Query<MassPropertiesQuery>| {
+                if let Ok((
+                    collider_parent,
+                    collider_mass_properties,
+                    previous_collider_transform,
+                )) = query.get(trigger.entity())
+                {
+                    // If the collider mass properties are zero, there is nothing to subtract.
+                    if *collider_mass_properties == ColliderMassProperties::ZERO {
+                        return;
+                    }
+
+                    if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
+                        // Subtract previous collider mass props from the body's own mass props.
+                        mass_properties -=
+                            collider_mass_properties.transformed_by(previous_collider_transform);
+                    }
+                }
+            },
+        );
+
+        // When the `Sensor` component is removed from a collider,
+        // add the collider's mass properties to the rigid body's mass properties.
+        app.observe(
+            |trigger: Trigger<OnRemove, Sensor>,
+             mut collider_query: Query<(
+                Ref<C>,
+                &ColliderParent,
+                &ColliderDensity,
+                &mut ColliderMassProperties,
+                &ColliderTransform,
+            )>,
+             mut body_query: Query<MassPropertiesQuery>| {
+                if let Ok((
+                    collider,
+                    collider_parent,
+                    density,
+                    mut collider_mass_properties,
+                    collider_transform,
+                )) = collider_query.get_mut(trigger.entity())
+                {
+                    if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
+                        // Update collider mass props.
+                        *collider_mass_properties =
+                            collider.mass_properties(density.max(Scalar::EPSILON));
+
+                        // If the collider mass properties are zero, there is nothing to add.
+                        if *collider_mass_properties == ColliderMassProperties::ZERO {
+                            return;
+                        }
+
+                        // Add new collider mass props to the body's mass props.
+                        mass_properties +=
+                            collider_mass_properties.transformed_by(collider_transform);
+                    }
+                }
+            },
         );
 
         app.add_systems(
             self.schedule,
             (
-                (
-                    init_colliders::<C>,
-                    apply_deferred,
-                    update_collider_parents::<C>,
-                    apply_deferred,
-                )
-                    .chain()
-                    .in_set(PrepareSet::InitColliders),
+                init_colliders::<C>.in_set(PrepareSet::InitColliders),
                 init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
                 (
-                    (
-                        propagate_collider_transforms,
-                        update_child_collider_position,
-                    )
-                        .chain()
-                        .run_if(match_any::<Added<C>>),
                     update_collider_scale::<C>,
                     update_collider_mass_properties::<C>,
                 )
@@ -184,9 +225,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
-        physics_schedule
-            .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
-
         app.add_systems(
             Update,
             (
@@ -194,31 +232,18 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 init_collider_constructor_hierarchies,
             ),
         );
-
-        // Update child colliders before narrow phase in substepping loop
-        let substep_schedule = app
-            .get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first");
-        substep_schedule.add_systems(
-            (
-                propagate_collider_transforms,
-                update_child_collider_position,
-            )
-                .chain()
-                .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase)
-                .ambiguous_with_all(),
-        );
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(ColliderTransform);
+/// A marker component for colliders. Inserted and removed automatically.
+///
+/// This is useful for filtering collider entities regardless of the [collider backend](ColliderBackendPlugin).
+#[derive(Reflect, Component, Clone, Copy, Debug)]
+pub struct ColliderMarker;
 
 /// Initializes missing components for [colliders](Collider).
 #[allow(clippy::type_complexity)]
-fn init_colliders<C: AnyCollider>(
+pub(crate) fn init_colliders<C: AnyCollider>(
     mut commands: Commands,
     mut colliders: Query<
         (
@@ -226,18 +251,25 @@ fn init_colliders<C: AnyCollider>(
             &C,
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
-            Option<&ColliderMassProperties>,
+            Has<Sensor>,
         ),
         Added<C>,
     >,
 ) {
-    for (entity, collider, aabb, density, mass_properties) in &mut colliders {
+    for (entity, collider, aabb, density, is_sensor) in &mut colliders {
         let density = *density.unwrap_or(&ColliderDensity::default());
+        let mass_properties = if is_sensor {
+            ColliderMassProperties::ZERO
+        } else {
+            collider.mass_properties(density.0)
+        };
+
         commands.entity(entity).try_insert((
             *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
             density,
-            *mass_properties.unwrap_or(&collider.mass_properties(density.0)),
+            mass_properties,
             CollidingEntities::default(),
+            ColliderMarker,
         ));
     }
 }
@@ -332,10 +364,10 @@ fn init_collider_constructor_hierarchies(
                 let pretty_name = pretty_name(name, child_entity);
 
                 let default_collider = || {
-                    collider_constructor_hierarchy
-                        .default_constructor
-                        .clone()
-                        .map(ColliderConstructorHierarchyConfig::from_constructor)
+                    Some(ColliderConstructorHierarchyConfig {
+                        constructor: collider_constructor_hierarchy.default_constructor.clone(),
+                        ..default()
+                    })
                 };
 
                 let collider_data = if let Some(name) = name {
@@ -353,11 +385,21 @@ fn init_collider_constructor_hierarchies(
                     default_collider()
                 };
 
+                // If the configuration is explicitly set to `None`, skip this entity.
                 let Some(collider_data) = collider_data else {
                     continue;
                 };
 
-                let mesh = if collider_data.constructor.requires_mesh() {
+                // Use the configured constructor if specified, otherwise use the default constructor.
+                // If both are `None`, skip this entity.
+                let Some(constructor) = collider_data
+                    .constructor
+                    .or_else(|| collider_constructor_hierarchy.default_constructor.clone())
+                else {
+                    continue;
+                };
+
+                let mesh = if constructor.requires_mesh() {
                     if let Some(handle) = handle {
                         meshes.get(handle)
                     } else {
@@ -367,12 +409,17 @@ fn init_collider_constructor_hierarchies(
                     None
                 };
 
-                let collider = Collider::try_from_constructor(collider_data.constructor, mesh);
+                let collider = Collider::try_from_constructor(constructor, mesh);
+
                 if let Some(collider) = collider {
                     commands.entity(child_entity).insert((
                         collider,
-                        collider_data.layers,
-                        collider_data.density,
+                        collider_data
+                            .layers
+                            .unwrap_or(collider_constructor_hierarchy.default_layers),
+                        collider_data
+                            .density
+                            .unwrap_or(collider_constructor_hierarchy.default_density),
                     ));
                 } else {
                     error!(
@@ -502,39 +549,35 @@ fn update_aabb<C: AnyCollider>(
     }
 }
 
+/// Updates the scale of colliders based on [`Transform`] scale.
 #[allow(clippy::type_complexity)]
-fn update_collider_parents<C: AnyCollider>(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<C>), With<RigidBody>>,
-    children: Query<&Children>,
-    mut child_colliders: Query<Option<&mut ColliderParent>, (With<C>, Without<RigidBody>)>,
+pub fn update_collider_scale<C: ScalableCollider>(
+    mut colliders: ParamSet<(
+        // Root bodies
+        Query<(&Transform, &mut C), (Without<Parent>, Changed<Transform>)>,
+        // Child colliders
+        Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
+    )>,
 ) {
-    for (entity, collider_parent, has_collider) in &mut bodies {
-        if has_collider {
-            if let Some(mut collider_parent) = collider_parent {
-                collider_parent.0 = entity;
-            } else {
-                commands.entity(entity).try_insert((
-                    ColliderParent(entity),
-                    // Todo: This probably causes a one frame delay. Compute real value?
-                    ColliderTransform::default(),
-                    PreviousColliderTransform::default(),
-                ));
-            }
+    // Update collider scale for root bodies
+    for (transform, mut collider) in &mut colliders.p0() {
+        #[cfg(feature = "2d")]
+        let scale = transform.scale.truncate().adjust_precision();
+        #[cfg(feature = "3d")]
+        let scale = transform.scale.adjust_precision();
+        if scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(scale, 10);
         }
-        for child in children.iter_descendants(entity) {
-            if let Ok(collider_parent) = child_colliders.get_mut(child) {
-                if let Some(mut collider_parent) = collider_parent {
-                    collider_parent.0 = entity;
-                } else {
-                    commands.entity(child).insert((
-                        ColliderParent(entity),
-                        // Todo: This probably causes a one frame delay. Compute real value?
-                        ColliderTransform::default(),
-                        PreviousColliderTransform::default(),
-                    ));
-                }
-            }
+    }
+
+    // Update collider scale for child colliders
+    for (collider_transform, mut collider) in &mut colliders.p1() {
+        if collider_transform.scale != collider.scale() {
+            // TODO: Support configurable subdivision count for shapes that
+            //       can't be represented without approximations after scaling.
+            collider.set_scale(collider_transform.scale, 10);
         }
     }
 }
@@ -571,280 +614,9 @@ fn collider_removed(
     }
 }
 
-/// Updates colliders when the rigid bodies they were attached to have been removed.
-fn handle_rigid_body_removals(
-    mut commands: Commands,
-    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
-    bodies: Query<(), With<RigidBody>>,
-    removals: RemovedComponents<RigidBody>,
-) {
-    // Return if no rigid bodies have been removed
-    if removals.is_empty() {
-        return;
-    }
-
-    for (collider_entity, collider_parent) in &colliders {
-        // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderTransform.
-        if !bodies.contains(collider_parent.get()) {
-            commands.entity(collider_entity).remove::<(
-                ColliderParent,
-                ColliderTransform,
-                PreviousColliderTransform,
-            )>();
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-pub(crate) fn update_child_collider_position(
-    mut colliders: Query<
-        (
-            &ColliderTransform,
-            &mut Position,
-            &mut Rotation,
-            &ColliderParent,
-        ),
-        Without<RigidBody>,
-    >,
-    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
-) {
-    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
-        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
-            continue;
-        };
-
-        position.0 = parent_pos.0 + parent_rot * collider_transform.translation;
-        #[cfg(feature = "2d")]
-        {
-            *rotation = *parent_rot * collider_transform.rotation;
-        }
-        #[cfg(feature = "3d")]
-        {
-            *rotation = (parent_rot.0 * collider_transform.rotation.0)
-                .normalize()
-                .into();
-        }
-    }
-}
-
-/// Updates the scale of colliders based on [`Transform`] scale.
-#[allow(clippy::type_complexity)]
-pub fn update_collider_scale<C: ScalableCollider>(
-    mut colliders: ParamSet<(
-        // Root bodies
-        Query<(&Transform, &mut C), (Without<Parent>, Changed<Transform>)>,
-        // Child colliders
-        Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
-    )>,
-) {
-    // Update collider scale for root bodies
-    for (transform, mut collider) in &mut colliders.p0() {
-        #[cfg(feature = "2d")]
-        let scale = transform.scale.truncate().adjust_precision();
-        #[cfg(feature = "3d")]
-        let scale = transform.scale.adjust_precision();
-        if scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(scale, 10);
-        }
-    }
-
-    // Update collider scale for child colliders
-    for (collider_transform, mut collider) in &mut colliders.p1() {
-        if collider_transform.scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(collider_transform.scale, 10);
-        }
-    }
-}
-
-/// Updates [`ColliderTransform`]s based on entity hierarchies. Each transform is computed by recursively
-/// traversing the children of each rigid body and adding their transforms together to form
-/// the total transform relative to the body.
-///
-/// This is largely a clone of `propagate_transforms` in `bevy_transform`.
-#[allow(clippy::type_complexity)]
-pub(crate) fn propagate_collider_transforms(
-    mut root_query: Query<(Entity, Ref<Transform>, &Children), Without<Parent>>,
-    collider_query: Query<
-        (
-            Ref<Transform>,
-            Option<&mut ColliderTransform>,
-            Option<&Children>,
-        ),
-        With<Parent>,
-    >,
-    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
-) {
-    root_query.par_iter_mut().for_each(
-        |(entity, transform,children)| {
-            for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
-                assert_eq!(
-                    parent.get(), entity,
-                    "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-                );
-
-                let changed = transform.is_changed() || parent.is_changed();
-                let parent_transform = ColliderTransform::from(*transform);
-                let child_transform = ColliderTransform::from(*child_transform);
-
-                // SAFETY:
-                // - `child` must have consistent parentage, or the above assertion would panic.
-                // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
-                // - We may operate as if all descendants are consistent, since `propagate_collider_transform_recursive` will panic before 
-                //   continuing to propagate if it encounters an entity with inconsistent parentage.
-                // - Since each root entity is unique and the hierarchy is consistent and forest-like,
-                //   other root entities' `propagate_collider_transform_recursive` calls will not conflict with this one.
-                // - Since this is the only place where `transform_query` gets used, there will be no conflicting fetches elsewhere.
-                let scale = (parent_transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON));
-                unsafe {
-                    propagate_collider_transforms_recursive(
-                        if is_child_rb {
-                            ColliderTransform {
-                                scale,
-                                ..default()
-                            }
-                        } else {
-                            ColliderTransform {
-                                translation: parent_transform.scale * child_transform.translation,
-                                rotation: child_transform.rotation,
-                                scale,
-                            }
-                        },
-                        &collider_query,
-                        &parent_query,
-                        child,
-                        changed,
-                    );
-                }
-            }
-        },
-    );
-}
-
-/// Recursively computes the [`ColliderTransform`] for `entity` and all of its descendants
-/// by propagating transforms.
-///
-/// This is largely a clone of `propagate_recursive` in `bevy_transform`.
-///
-/// # Panics
-///
-/// If `entity`'s descendants have a malformed hierarchy, this function will panic occur before propagating
-/// the transforms of any malformed entities and their descendants.
-///
-/// # Safety
-///
-/// - While this function is running, `transform_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
-/// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
-#[allow(clippy::type_complexity)]
-unsafe fn propagate_collider_transforms_recursive(
-    transform: ColliderTransform,
-    collider_query: &Query<
-        (
-            Ref<Transform>,
-            Option<&mut ColliderTransform>,
-            Option<&Children>,
-        ),
-        With<Parent>,
-    >,
-    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>)>,
-    entity: Entity,
-    mut changed: bool,
-) {
-    let children = {
-        // SAFETY: This call cannot create aliased mutable references.
-        //   - The top level iteration parallelizes on the roots of the hierarchy.
-        //   - The caller ensures that each child has one and only one unique parent throughout the entire
-        //     hierarchy.
-        //
-        // For example, consider the following malformed hierarchy:
-        //
-        //     A
-        //   /   \
-        //  B     C
-        //   \   /
-        //     D
-        //
-        // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
-        // the above check will panic as the origin parent does match the recorded parent.
-        //
-        // Also consider the following case, where A and B are roots:
-        //
-        //  A       B
-        //   \     /
-        //    C   D
-        //     \ /
-        //      E
-        //
-        // Even if these A and B start two separate tasks running in parallel, one of them will panic before attempting
-        // to mutably access E.
-        let Ok((transform_ref, collider_transform, children)) =
-            (unsafe { collider_query.get_unchecked(entity) })
-        else {
-            return;
-        };
-
-        changed |= transform_ref.is_changed();
-        if changed {
-            if let Some(mut collider_transform) = collider_transform {
-                if *collider_transform != transform {
-                    *collider_transform = transform;
-                }
-            }
-        }
-
-        children
-    };
-
-    let Some(children) = children else { return };
-    for (child, child_transform, is_rb, parent) in parent_query.iter_many(children) {
-        assert_eq!(
-            parent.get(), entity,
-            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-        );
-
-        let child_transform = ColliderTransform::from(*child_transform);
-
-        // SAFETY: The caller guarantees that `transform_query` will not be fetched
-        // for any descendants of `entity`, so it is safe to call `propagate_collider_transforms_recursive` for each child.
-        //
-        // The above assertion ensures that each child has one and only one unique parent throughout the
-        // entire hierarchy.
-        unsafe {
-            propagate_collider_transforms_recursive(
-                if is_rb {
-                    ColliderTransform {
-                        scale: child_transform.scale,
-                        ..default()
-                    }
-                } else {
-                    ColliderTransform {
-                        translation: transform.transform_point(child_transform.translation),
-                        #[cfg(feature = "2d")]
-                        rotation: transform.rotation * child_transform.rotation,
-                        #[cfg(feature = "3d")]
-                        rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
-                        scale: (transform.scale * child_transform.scale)
-                            .max(Vector::splat(Scalar::EPSILON)),
-                    }
-                },
-                collider_query,
-                parent_query,
-                child,
-                changed || parent.is_changed(),
-            );
-        }
-    }
-}
-
 /// Updates the mass properties of [`Collider`]s and [collider parents](ColliderParent).
 #[allow(clippy::type_complexity)]
-fn update_collider_mass_properties<C: AnyCollider>(
+pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
     mut mass_props: Query<(Entity, MassPropertiesQuery)>,
     mut colliders: Query<
         (
@@ -855,12 +627,15 @@ fn update_collider_mass_properties<C: AnyCollider>(
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
-        Or<(
-            Changed<C>,
-            Changed<ColliderTransform>,
-            Changed<ColliderDensity>,
-            Changed<ColliderMassProperties>,
-        )>,
+        (
+            Or<(
+                Changed<C>,
+                Changed<ColliderTransform>,
+                Changed<ColliderDensity>,
+                Changed<ColliderMassProperties>,
+            )>,
+            Without<Sensor>,
+        ),
     >,
 ) {
     for (
@@ -873,30 +648,124 @@ fn update_collider_mass_properties<C: AnyCollider>(
     ) in &mut colliders
     {
         if let Ok((_, mut mass_properties)) = mass_props.get_mut(collider_parent.0) {
-            // Subtract previous collider mass props from the body's own mass props,
+            // Subtract previous collider mass props from the body's own mass props.
             // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
             if !collider.is_added() {
-                mass_properties -= ColliderMassProperties {
-                    center_of_mass: CenterOfMass(
-                        previous_collider_transform
-                            .transform_point(collider_mass_properties.center_of_mass.0),
-                    ),
-                    ..*collider_mass_properties
-                };
+                mass_properties -=
+                    collider_mass_properties.transformed_by(&previous_collider_transform);
             }
 
             previous_collider_transform.0 = *collider_transform;
 
-            // Update collider mass props
+            // Update collider mass props.
             *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
-            // Add new collider mass props to the body's mass props
-            mass_properties += ColliderMassProperties {
-                center_of_mass: CenterOfMass(
-                    collider_transform.transform_point(collider_mass_properties.center_of_mass.0),
-                ),
-                ..*collider_mass_properties
-            };
+            // Add new collider mass props to the body's mass props.
+            mass_properties += collider_mass_properties.transformed_by(collider_transform);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sensor_mass_properties() {
+        let mut app = App::new();
+
+        app.init_schedule(PhysicsSchedule)
+            .init_schedule(SubstepSchedule);
+
+        app.add_plugins((
+            PreparePlugin::new(PostUpdate),
+            ColliderBackendPlugin::<Collider>::new(PostUpdate),
+            ColliderHierarchyPlugin::new(PostUpdate),
+            HierarchyPlugin,
+        ));
+
+        let collider = Collider::capsule(2.0, 0.5);
+        let mass_properties = MassPropertiesBundle::new_computed(&collider, 1.0);
+
+        let parent = app
+            .world_mut()
+            .spawn((
+                RigidBody::Dynamic,
+                mass_properties.clone(),
+                TransformBundle::default(),
+            ))
+            .id();
+
+        let child = app
+            .world_mut()
+            .spawn((
+                collider,
+                TransformBundle::from_transform(Transform::from_xyz(1.0, 0.0, 0.0)),
+            ))
+            .set_parent(parent)
+            .id();
+
+        app.world_mut().run_schedule(PostUpdate);
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            2.0 * mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                > 0.0,
+        );
+
+        // Mark the collider as a sensor. It should no longer contribute to the mass properties of the rigid body.
+        let mut entity_mut = app.world_mut().entity_mut(child);
+        entity_mut.insert(Sensor);
+        entity_mut.flush();
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                == 0.0,
+        );
+
+        // Remove the sensor component. The collider should contribute to the mass properties of the rigid body again.
+        let mut entity_mut = app.world_mut().entity_mut(child);
+        entity_mut.remove::<Sensor>();
+        entity_mut.flush();
+
+        assert_eq!(
+            app.world()
+                .entity(parent)
+                .get::<Mass>()
+                .expect("rigid body should have mass")
+                .0,
+            2.0 * mass_properties.mass.0,
+        );
+        assert!(
+            app.world()
+                .entity(parent)
+                .get::<CenterOfMass>()
+                .expect("rigid body should have a center of mass")
+                .x
+                > 0.0,
+        );
     }
 }

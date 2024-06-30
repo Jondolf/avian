@@ -16,7 +16,6 @@
 //! You can also find several utility methods for computing contacts in [`contact_query`].
 
 pub mod broad_phase;
-pub mod collider_backend;
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")
@@ -25,10 +24,10 @@ pub mod contact_query;
 pub mod contact_reporting;
 pub mod narrow_phase;
 
-mod collider;
-mod layers;
-
+pub mod collider;
 pub use collider::*;
+
+mod layers;
 pub use layers::*;
 
 use crate::prelude::*;

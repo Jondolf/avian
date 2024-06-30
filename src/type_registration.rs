@@ -1,6 +1,5 @@
 use crate::{
-    collision::collider_backend::PreviousColliderTransform, prelude::*,
-    sync::PreviousGlobalTransform,
+    collision::collider::PreviousColliderTransform, prelude::*, sync::PreviousGlobalTransform,
 };
 use bevy::prelude::*;
 
