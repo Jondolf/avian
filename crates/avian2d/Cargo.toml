@@ -81,6 +81,10 @@ name = "kinematic_character_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
+name = "ccd"
+required-features = ["2d", "default-collider"]
+
+[[example]]
 name = "chain_2d"
 required-features = ["2d", "default-collider"]
 
