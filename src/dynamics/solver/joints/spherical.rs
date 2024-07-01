@@ -200,10 +200,16 @@ impl SphericalJoint {
 
             let n = n / n_magnitude;
 
-            if let Some(dq) = joint_limit.compute_correction(n, a1, a2, PI) {
+            if let Some(correction) = joint_limit.compute_correction(n, a1, a2, PI) {
                 let mut lagrange = self.swing_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                let torque = self.align_orientation(
+                    body1,
+                    body2,
+                    correction,
+                    &mut lagrange,
+                    self.compliance,
+                    dt,
+                );
                 self.swing_lagrange = lagrange;
                 return torque;
             }
@@ -248,10 +254,16 @@ impl SphericalJoint {
 
             let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
 
-            if let Some(dq) = joint_limit.compute_correction(n, n1, n2, max_correction) {
+            if let Some(correction) = joint_limit.compute_correction(n, n1, n2, max_correction) {
                 let mut lagrange = self.twist_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                let torque = self.align_orientation(
+                    body1,
+                    body2,
+                    correction,
+                    &mut lagrange,
+                    self.compliance,
+                    dt,
+                );
                 self.twist_lagrange = lagrange;
                 return torque;
             }

@@ -65,11 +65,18 @@ impl XpbdConstraint<2> for RevoluteJoint {
         let [body1, body2] = bodies;
         let compliance = self.compliance;
 
-        // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
-        let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
-        let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
-        self.align_lagrange = lagrange;
+        #[cfg(feature = "3d")]
+        {
+            // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
+            let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
+            let mut lagrange = self.align_lagrange;
+            self.align_torque =
+                self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
+            self.align_lagrange = lagrange;
+        }
+
+        // Apply angle limits when rotating around the free axis
+        self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
 
         // Align positions
         let mut lagrange = self.position_lagrange;
@@ -83,9 +90,6 @@ impl XpbdConstraint<2> for RevoluteJoint {
             dt,
         );
         self.position_lagrange = lagrange;
-
-        // Apply angle limits when rotating around the free axis
-        self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
     }
 }
 
@@ -183,7 +187,8 @@ impl RevoluteJoint {
         }
     }
 
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
+    #[cfg(feature = "3d")]
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
         let a1 = rot1 * self.aligned_axis;
         let a2 = rot2 * self.aligned_axis;
         a1.cross(a2)
@@ -200,17 +205,7 @@ impl RevoluteJoint {
         let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
             #[cfg(feature = "2d")]
             {
-                let angle = body1.rotation.angle_between(*body2.rotation);
-
-                let correction = if angle < angle_limit.alpha {
-                    angle - angle_limit.alpha
-                } else if angle > angle_limit.beta {
-                    angle - angle_limit.beta
-                } else {
-                    return None;
-                };
-
-                Some(Vector3::Z * correction.min(PI))
+                angle_limit.compute_correction(*body1.rotation, *body2.rotation, dt)
             }
             #[cfg(feature = "3d")]
             {
@@ -218,7 +213,7 @@ impl RevoluteJoint {
                 let a1 = *body1.rotation * self.aligned_axis;
                 let b1 = *body1.rotation * self.aligned_axis.any_orthonormal_vector();
                 let b2 = *body2.rotation * self.aligned_axis.any_orthonormal_vector();
-                angle_limit.compute_correction(a1, b1, b2, PI)
+                angle_limit.compute_correction(a1, b1, b2, dt)
             }
         }) else {
             return Torque::ZERO;

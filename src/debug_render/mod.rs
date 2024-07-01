@@ -126,6 +126,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<PrismaticJoint>,
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
+                    #[cfg(feature = "3d")]
                     debug_render_joints::<SphericalJoint>,
                     debug_render_raycasts,
                     #[cfg(all(
