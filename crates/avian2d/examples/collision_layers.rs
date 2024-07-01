@@ -9,6 +9,8 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
+            // Add physics plugins and specify a units-per-meter scaling factor, 1 meter = 15 pixels.
+            // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
             PhysicsPlugins::default().with_length_unit(15.0),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))

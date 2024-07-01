@@ -7,7 +7,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
-            PhysicsPlugins::default().with_length_unit(50.0),
+            PhysicsPlugins::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(50))

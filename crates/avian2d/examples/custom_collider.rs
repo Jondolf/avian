@@ -9,6 +9,8 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
+            // Add physics plugins and specify a units-per-meter scaling factor, 1 meter = 10 pixels.
+            // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
             PhysicsPlugins::default().with_length_unit(10.0),
             // Add collider backend for our custom collider.
             // This handles things like initializing and updating required components
