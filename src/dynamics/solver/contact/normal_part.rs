@@ -36,12 +36,6 @@ impl ContactNormalPart {
         let i1 = inverse_inertia1.into().0;
         let i2 = inverse_inertia2.into().0;
 
-        let mut part = Self {
-            impulse: warm_start_impulse.unwrap_or_default(),
-            effective_mass: 0.0,
-            softness,
-        };
-
         // Derivation for the projected normal mass. This is for 3D, but the 2D version is basically equivalent.
         //
         // The penetration constraint function is the following:
@@ -95,9 +89,11 @@ impl ContactNormalPart {
         #[cfg(feature = "3d")]
         let k = inv_mass_sum + r1_cross_n.dot(i1 * r1_cross_n) + r2_cross_n.dot(i2 * r2_cross_n);
 
-        part.effective_mass = k.recip_or_zero();
-
-        part
+        Self {
+            impulse: warm_start_impulse.unwrap_or_default(),
+            effective_mass: k.recip_or_zero(),
+            softness,
+        }
     }
 
     /// Solves the non-penetration constraint, updating the total impulse in `self` and returning

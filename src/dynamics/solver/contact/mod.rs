@@ -253,16 +253,16 @@ impl ContactConstraint {
         let inv_inertia1 = body1.effective_world_inv_inertia();
         let inv_inertia2 = body2.effective_world_inv_inertia();
 
-        let normal = self.normal;
+        let delta_translation = body2.accumulated_translation.0 - body1.accumulated_translation.0;
 
         // Normal impulses
         for point in self.points.iter_mut() {
             let r1 = *body1.rotation * point.local_anchor1;
             let r2 = *body2.rotation * point.local_anchor2;
 
-            let delta_separation =
-                (body2.accumulated_translation.0 - body1.accumulated_translation.0) + (r2 - r1);
-            let separation = delta_separation.dot(normal) + point.initial_separation;
+            // TODO: Consider rotation delta for anchors
+            let delta_separation = delta_translation + (r2 - r1);
+            let separation = delta_separation.dot(self.normal) + point.initial_separation;
 
             // Fixed anchors
             let r1 = point.anchor1;
@@ -275,7 +275,7 @@ impl ContactConstraint {
             let impulse_magnitude = point.normal_part.solve_impulse(
                 separation,
                 relative_velocity,
-                normal,
+                self.normal,
                 use_bias,
                 max_overlap_solve_speed,
                 delta_secs,
@@ -284,7 +284,11 @@ impl ContactConstraint {
             // Store the maximum impulse for restitution.
             point.max_normal_impulse = impulse_magnitude.max(point.max_normal_impulse);
 
-            let impulse = impulse_magnitude * normal;
+            if impulse_magnitude == 0.0 {
+                continue;
+            }
+
+            let impulse = impulse_magnitude * self.normal;
 
             // Apply the impulse.
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
