@@ -1,5 +1,6 @@
 //! **Joints** are a way to connect entities in a way that restricts their movement relative to each other.
-//! They act as [constraints](solver::xpbd#constraints) that restrict different *Degrees Of Freedom* depending on the joint type.
+//! They act as [constraints](dynamics::solver::xpbd#constraints) that restrict different *Degrees Of Freedom*
+//! depending on the joint type.
 //!
 //! ## Degrees Of Freedom (DOF)
 //!
@@ -67,9 +68,9 @@
 //!
 //! ## Custom joints
 //!
-//! Joints are [constraints](solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
+//! Joints are [constraints](dynamics::solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
 //!
-//! The process of creating a joint is essentially the same as [creating a constraint](solver::xpbd#custom-constraints),
+//! The process of creating a joint is essentially the same as [creating a constraint](dynamics::solver::xpbd#custom-constraints),
 //! except you should also implement the [`Joint`] trait's methods. The trait has some useful helper methods
 //! like `align_position` and `align_orientation` to reduce some common boilerplate.
 //!
@@ -91,9 +92,8 @@ pub use prismatic::*;
 pub use revolute::*;
 pub use spherical::*;
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;
-use solver::xpbd::*;
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {

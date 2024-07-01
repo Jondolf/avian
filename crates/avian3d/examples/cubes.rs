@@ -2,11 +2,15 @@
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
-use examples_common_3d::XpbdExamplePlugin;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
@@ -43,7 +47,7 @@ fn setup(
     for x in -2..2 {
         for y in -2..2 {
             for z in -2..2 {
-                let position = Vec3::new(x as f32, y as f32 + 5.0, z as f32) * (cube_size + 0.05);
+                let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
                     PbrBundle {
                         mesh: cube_mesh.clone(),

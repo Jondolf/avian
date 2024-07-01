@@ -15,12 +15,14 @@ mod plugin;
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use examples_common_3d::ExampleCommonPlugin;
 use plugin::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
+            ExampleCommonPlugin,
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
         ))

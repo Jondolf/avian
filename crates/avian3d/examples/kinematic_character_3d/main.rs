@@ -11,17 +11,28 @@
 //! The character controller logic is contained within the `plugin` module.
 //!
 //! For a dynamic character controller, see the `dynamic_character_3d` example.
+//!
+//! ## Warning
+//!
+//! Note that this is *not* intended to be a fully featured character controller,
+//! and the collision logic is quite basic.
+//!
+//! For a better solution, consider implementing a "collide-and-slide" algorithm,
+//! or use an existing third party character controller plugin like Bevy Tnua
+//! (a dynamic character controller).
 
 mod plugin;
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use examples_common_3d::ExampleCommonPlugin;
 use plugin::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
+            ExampleCommonPlugin,
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
         ))

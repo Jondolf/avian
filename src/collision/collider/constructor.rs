@@ -29,9 +29,9 @@ use bevy::utils::HashMap;
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
 ///     let scene = assets.load("my_model.gltf#Scene0");
@@ -254,9 +254,9 @@ pub struct ColliderConstructorHierarchyConfig {
 /// ## Example
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-#[cfg_attr(feature = "2d", doc = "use bevy_xpbd_2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
 #[cfg_attr(feature = "2d", doc = "      // Spawn a circle with radius 2")]

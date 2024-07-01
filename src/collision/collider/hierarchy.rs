@@ -11,6 +11,7 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
+use narrow_phase::NarrowPhaseSet;
 
 /// A plugin for managing the collider hierarchy and related updates.
 ///
@@ -105,20 +106,15 @@ impl Plugin for ColliderHierarchyPlugin {
         physics_schedule
             .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
 
-        let substep_schedule = app
-            .get_schedule_mut(SubstepSchedule)
-            .expect("add SubstepSchedule first");
-
         // Propagate `ColliderTransform`s before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
-        substep_schedule.add_systems(
+        physics_schedule.add_systems(
             (
                 propagate_collider_transforms,
                 update_child_collider_position,
             )
                 .chain()
-                .after(SubstepSet::Integrate)
-                .before(SubstepSet::NarrowPhase),
+                .in_set(NarrowPhaseSet::First),
         );
     }
 }

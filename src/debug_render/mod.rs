@@ -26,7 +26,7 @@ use bevy::{
 /// - [Collider] wireframes
 /// - Using different colors for [sleeping](Sleeping) bodies
 /// - [Contacts]
-/// - [Joints](solver::joints)
+/// - [Joints](dynamics::solver::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
@@ -157,11 +157,14 @@ fn debug_render_axes(
     )>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     for (pos, rot, local_com, sleeping, render_config) in &bodies {
         // If the body is sleeping, the colors will be multiplied by the sleeping color multiplier
-        if let Some(lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
+        if let Some(mut lengths) = render_config.map_or(config.axis_lengths, |c| c.axis_lengths) {
+            lengths *= length_unit.0;
+
             let mul = if sleeping {
                 render_config
                     .map_or(config.sleeping_color_multiplier, |c| {
@@ -171,42 +174,24 @@ fn debug_render_axes(
             } else {
                 [1.0; 4]
             };
-            let [x_color, y_color, _z_color, center_color] = [
+            let [x_color, y_color, _z_color] = [
                 Color::hsla(0.0, 1.0 * mul[1], 0.5 * mul[2], 1.0 * mul[3]),
                 Color::hsla(120.0 * mul[0], 1.0 * mul[1], 0.4 * mul[2], 1.0 * mul[3]),
                 Color::hsla(220.0 * mul[0], 1.0 * mul[1], 0.6 * mul[2], 1.0 * mul[3]),
-                Color::hsla(60.0 * mul[0], 1.0 * mul[1], 0.5 * mul[2], 1.0 * mul[3]),
             ];
             let global_com = pos.0 + rot * local_com.0;
 
-            let x = rot * Vector::X * lengths.x;
+            let x = rot * (Vector::X * lengths.x);
             gizmos.draw_line(global_com - x, global_com + x, x_color);
 
-            let y = rot * Vector::Y * lengths.y;
+            let y = rot * (Vector::Y * lengths.y);
             gizmos.draw_line(global_com - y, global_com + y, y_color);
 
             #[cfg(feature = "3d")]
             {
-                let z = rot * Vector::Z * lengths.z;
+                let z = rot * (Vector::Z * lengths.z);
                 gizmos.draw_line(global_com - z, global_com + z, _z_color);
             }
-
-            // Draw dot at the center of mass
-            #[cfg(feature = "2d")]
-            gizmos.circle_2d(
-                global_com.f32(),
-                // Scale dot size based on axis lengths
-                (lengths.x + lengths.y) as f32 / 20.0,
-                center_color,
-            );
-            #[cfg(feature = "3d")]
-            gizmos.sphere(
-                global_com.f32(),
-                rot.f32(),
-                // Scale dot size based on axis lengths
-                (lengths.x + lengths.y + lengths.z) as f32 / 30.0,
-                center_color,
-            );
         }
     }
 }
@@ -309,10 +294,11 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    mut collisions: EventReader<Collision>,
+    collisions: Res<Collisions>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
 
@@ -320,7 +306,7 @@ fn debug_render_contacts(
         return;
     }
 
-    for Collision(contacts) in collisions.read() {
+    for contacts in collisions.iter() {
         let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
             continue;
         };
@@ -344,13 +330,13 @@ fn debug_render_contacts(
                 if let Some(color) = config.contact_point_color {
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.circle_2d(p1.f32(), 3.0, color);
-                        gizmos.circle_2d(p2.f32(), 3.0, color);
+                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0, color);
+                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0, color);
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1.f32(), default(), 0.025, color);
-                        gizmos.sphere(p2.f32(), default(), 0.025, color);
+                        gizmos.sphere(p1.f32(), default(), 0.1 * length_unit.0, color);
+                        gizmos.sphere(p2.f32(), default(), 0.1 * length_unit.0, color);
                     }
                 }
 
@@ -360,25 +346,17 @@ fn debug_render_contacts(
                     let color_dim = color.mix(&Color::BLACK, 0.5);
 
                     // The length of the normal arrows
-                    let length = match config.contact_normal_scale {
-                        ContactGizmoScale::Constant(length) => length,
-                        ContactGizmoScale::Scaled(scale) => {
-                            scale * contacts.total_normal_impulse
-                                / time.delta_seconds_f64().adjust_precision()
-                        }
-                    };
+                    let length = length_unit.0
+                        * match config.contact_normal_scale {
+                            ContactGizmoScale::Constant(length) => length,
+                            ContactGizmoScale::Scaled(scale) => {
+                                scale * contacts.total_normal_impulse
+                                    / time.delta_seconds_f64().adjust_precision()
+                            }
+                        };
 
-                    #[cfg(feature = "2d")]
-                    {
-                        gizmos.draw_arrow(p1, p1 + normal1 * length, 8.0, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * length, 8.0, color_dim);
-                    }
-
-                    #[cfg(feature = "3d")]
-                    {
-                        gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1, color);
-                        gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1, color_dim);
-                    }
+                    gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1 * length_unit.0, color);
+                    gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1 * length_unit.0, color_dim);
                 }
             }
         }
@@ -435,6 +413,7 @@ fn debug_render_raycasts(
     query: Query<(&RayCaster, &RayHits)>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     for (ray, hits) in &query {
@@ -451,6 +430,7 @@ fn debug_render_raycasts(
             ray_color,
             point_color,
             normal_color,
+            length_unit.0,
         );
     }
 }
@@ -463,6 +443,7 @@ fn debug_render_shapecasts(
     query: Query<(&ShapeCaster, &ShapeHits)>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     for (shape_caster, hits) in &query {
@@ -483,6 +464,7 @@ fn debug_render_shapecasts(
             shape_color,
             point_color,
             normal_color,
+            length_unit.0,
         );
     }
 }

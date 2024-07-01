@@ -9,6 +9,7 @@ use bevy::{
     ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
 };
+use dynamics::sleeping::PhysicsChangeTicks;
 
 /// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
 /// and updates components.
@@ -176,7 +177,6 @@ pub fn init_transforms<C: Component>(
             Option<&Transform>,
             Option<&GlobalTransform>,
             Option<&Position>,
-            Option<&PreviousPosition>,
             Option<&Rotation>,
             Option<&PreviousRotation>,
             Option<&Parent>,
@@ -198,17 +198,8 @@ pub fn init_transforms<C: Component>(
         return;
     }
 
-    for (
-        entity,
-        transform,
-        global_transform,
-        pos,
-        previous_pos,
-        rot,
-        previous_rot,
-        parent,
-        has_rigid_body,
-    ) in &query
+    for (entity, transform, global_transform, pos, rot, previous_rot, parent, has_rigid_body) in
+        &query
     {
         let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
         let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
@@ -349,15 +340,16 @@ pub fn init_transforms<C: Component>(
         // Insert the position and rotation.
         // The values are either unchanged (Position and Rotation already exist)
         // or computed based on the GlobalTransform.
-        // If the entity isn't a rigid body, adding PreviousPosition and PreviousRotation
+        // If the entity isn't a rigid body, adding PreSolveAccumulatedTranslation and PreviousRotation
         // is unnecessary.
         match (has_rigid_body, new_transform) {
             (true, None) => {
                 cmds.try_insert((
                     Position(new_position),
                     new_rotation,
-                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    PreSolveAccumulatedTranslation::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                    PreSolveRotation::default(),
                 ));
             }
             (true, Some(transform)) => {
@@ -365,8 +357,9 @@ pub fn init_transforms<C: Component>(
                     transform,
                     Position(new_position),
                     new_rotation,
-                    *previous_pos.unwrap_or(&PreviousPosition(new_position)),
+                    PreSolveAccumulatedTranslation::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
+                    PreSolveRotation::default(),
                 ));
             }
             (false, None) => {
@@ -424,6 +417,7 @@ fn init_rigid_bodies(
             *restitution.unwrap_or(&Restitution::default()),
             *friction.unwrap_or(&Friction::default()),
             *time_sleeping.unwrap_or(&TimeSleeping::default()),
+            PhysicsChangeTicks::default(),
         ));
     }
 }

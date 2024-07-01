@@ -90,10 +90,7 @@ pub struct PhysicsGizmos {
 impl Default for PhysicsGizmos {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "2d")]
-            axis_lengths: Some(Vector::new(5.0, 5.0)),
-            #[cfg(feature = "3d")]
-            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
+            axis_lengths: Some(Vector::splat(0.5)),
             aabb_color: None,
             collider_color: Some(ORANGE.into()),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
@@ -134,10 +131,7 @@ impl PhysicsGizmos {
     /// Creates a [`PhysicsGizmos`] configuration with all rendering options enabled.
     pub fn all() -> Self {
         Self {
-            #[cfg(feature = "2d")]
-            axis_lengths: Some(Vector::new(5.0, 5.0)),
-            #[cfg(feature = "3d")]
-            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
+            axis_lengths: Some(Vector::splat(0.5)),
             aabb_color: Some(Color::srgb(0.8, 0.8, 0.8)),
             collider_color: Some(ORANGE.into()),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),

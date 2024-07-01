@@ -3,11 +3,15 @@
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use examples_common_3d::XpbdExamplePlugin;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
+        ))
         .add_systems(Startup, setup)
         .run();
 }

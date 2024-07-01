@@ -1,11 +1,12 @@
 use crate::prelude::*;
 use bevy::prelude::*;
+use derive_more::From;
 
 #[cfg(feature = "3d")]
 use crate::utils::get_rotated_inertia_tensor;
 
 /// The mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct Mass(pub Scalar);
@@ -16,7 +17,7 @@ impl Mass {
 }
 
 /// The inverse mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct InverseMass(pub Scalar);
@@ -28,7 +29,7 @@ impl InverseMass {
 
 /// The moment of inertia of a body. This represents the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct Inertia(pub Scalar);
@@ -41,7 +42,7 @@ pub struct Inertia(pub Scalar);
 /// To get the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct Inertia(pub Matrix3);
@@ -116,7 +117,7 @@ impl Inertia {
 /// The inverse moment of inertia of the body. This represents the inverse of
 /// the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct InverseInertia(pub Scalar);
@@ -129,7 +130,7 @@ pub struct InverseInertia(pub Scalar);
 /// To get the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct InverseInertia(pub Matrix3);
@@ -182,7 +183,7 @@ impl From<Inertia> for InverseInertia {
 }
 
 /// The local center of mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
 pub struct CenterOfMass(pub Vector);

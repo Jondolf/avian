@@ -26,6 +26,9 @@ mod parry;
 ))]
 pub use parry::*;
 
+mod world_query;
+pub use world_query::*;
+
 mod constructor;
 pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
@@ -267,21 +270,46 @@ impl ColliderAabb {
     }
 
     /// Computes the center of the AABB,
+    #[inline(always)]
     pub fn center(self) -> Vector {
-        (self.min + self.max) / 2.0
+        self.min.midpoint(self.max)
     }
 
     /// Computes the size of the AABB.
+    #[inline(always)]
     pub fn size(self) -> Vector {
         self.max - self.min
     }
 
     /// Merges this AABB with another one.
+    #[inline(always)]
     pub fn merged(self, other: Self) -> Self {
         ColliderAabb {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
         }
+    }
+
+    /// Increases the size of the bounding volume in each direction by the given amount.
+    #[inline(always)]
+    pub fn grow(&self, amount: Vector) -> Self {
+        let b = Self {
+            min: self.min - amount,
+            max: self.max + amount,
+        };
+        debug_assert!(b.min.cmple(b.max).all());
+        b
+    }
+
+    /// Decreases the size of the bounding volume in each direction by the given amount.
+    #[inline(always)]
+    pub fn shrink(&self, amount: Vector) -> Self {
+        let b = Self {
+            min: self.min + amount,
+            max: self.max - amount,
+        };
+        debug_assert!(b.min.cmple(b.max).all());
+        b
     }
 
     /// Checks if `self` intersects with `other`.

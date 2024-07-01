@@ -61,24 +61,23 @@
 //! [Gauss-Seidel]: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
 //! [Semi-implicit Euler]: https://en.wikipedia.org/wiki/Semi-implicit_Euler_method
 
-// Core plugins and modules
+pub mod ccd;
 pub mod integrator;
+pub mod rigid_body;
 pub mod sleeping;
 pub mod solver;
 
-// Components
-mod forces;
-mod locked_axes;
-mod mass_properties;
-mod rigid_body;
-mod world_query;
+/// Re-exports common types related to the rigid body dynamics functionality.
+pub mod prelude {
+    pub use super::{
+        ccd::SpeculativeMargin,
+        integrator::{Gravity, IntegratorPlugin},
+        rigid_body::*,
+        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
+        solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
+    };
+}
 
-// Re-exports
-pub use forces::*;
-pub use integrator::{Gravity, IntegratorPlugin};
-pub use locked_axes::*;
-pub use mass_properties::*;
-pub use rigid_body::*;
-pub use sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold};
-pub use solver::SolverPlugin;
-pub use world_query::*;
+// For intra-doc links
+#[allow(unused_imports)]
+use crate::prelude::*;

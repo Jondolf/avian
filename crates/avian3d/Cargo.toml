@@ -54,6 +54,7 @@ serialize = [
 name = "avian3d"
 path = "../../src/lib.rs"
 required-features = ["3d"]
+bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
@@ -82,6 +83,7 @@ bevy_math = { version = "0.14.0-rc", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
+
 
 [[example]]
 name = "dynamic_character_3d"

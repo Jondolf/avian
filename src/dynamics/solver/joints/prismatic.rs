@@ -1,11 +1,10 @@
 //! [`PrismaticJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A prismatic joint prevents relative movement of the attached bodies, except for translation along one `free_axis`.
 ///

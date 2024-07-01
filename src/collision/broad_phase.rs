@@ -64,7 +64,7 @@ pub enum BroadPhaseSet {
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Reflect, Resource, Default, Debug)]
+#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
@@ -99,24 +99,26 @@ fn update_aabb_intervals(
         &ColliderAabb,
         Option<&ColliderParent>,
         Option<&CollisionLayers>,
-        Ref<Position>,
-        Ref<Rotation>,
+        Has<Sleeping>,
     )>,
     rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals.0.retain_mut(
         |(collider_entity, collider_parent, aabb, layers, is_inactive)| {
-            if let Ok((new_aabb, new_parent, new_layers, position, rotation)) =
-                aabbs.get(*collider_entity)
+            if let Ok((new_aabb, new_parent, new_layers, is_sleeping)) = aabbs.get(*collider_entity)
             {
+                if !new_aabb.min.is_finite() || !new_aabb.max.is_finite() {
+                    return false;
+                }
+
                 *aabb = *new_aabb;
                 *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
 
                 let is_static =
                     new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
-                *is_inactive = is_static || (!position.is_changed() && !rotation.is_changed());
+                *is_inactive = is_static || is_sleeping;
 
                 true
             } else {
@@ -200,7 +202,11 @@ fn sweep_and_prune(
                 continue;
             }
 
-            broad_collision_pairs.push((*ent1, *ent2));
+            if *ent1 < *ent2 {
+                broad_collision_pairs.push((*ent1, *ent2));
+            } else {
+                broad_collision_pairs.push((*ent2, *ent1));
+            }
         }
     }
 }

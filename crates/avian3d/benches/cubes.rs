@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 fn setup_cubes(app: &mut App, size: u32) {
+    app.insert_resource(SubstepCount(8));
     app.add_systems(Startup, move |mut commands: Commands| {
         commands.spawn((
             RigidBody::Static,

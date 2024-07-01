@@ -1,4 +1,19 @@
-//! Commonly used components.
+//! Common components and bundles for rigid bodies.
+
+// Components
+mod forces;
+mod locked_axes;
+mod mass_properties;
+mod world_query;
+
+pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
+pub use locked_axes::LockedAxes;
+pub use mass_properties::*;
+pub use world_query::*;
+
+#[cfg(feature = "2d")]
+pub(crate) use forces::FloatZero;
+pub(crate) use forces::Torque;
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -279,13 +294,13 @@ pub struct TimeSleeping(pub Scalar);
 #[reflect(Component)]
 pub struct SleepingDisabled;
 
-/// Translation accumulated during a sub-step.
+/// Translation accumulated during the physics frame.
 ///
 /// When updating position during integration or constraint solving, the required translation
 /// is added to [`AccumulatedTranslation`], instead of [`Position`]. This improves numerical stability
 /// of the simulation, especially for bodies far away from world origin.
 ///
-/// After each substep, actual [`Position`] is updated during [`SubstepSet::ApplyTranslation`].
+/// At the end of each physics frame, the actual [`Position`] is updated in [`SolverSet::ApplyTranslation`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[reflect(Component)]
@@ -489,7 +504,7 @@ pub struct Restitution {
 impl Restitution {
     /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
     ///
-    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`](#associatedconstant.PERFECTLY_INELASTIC).
+    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`].
     pub const ZERO: Self = Self {
         coefficient: 0.0,
         combine_rule: CoefficientCombine::Average,

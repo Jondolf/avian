@@ -2,11 +2,15 @@
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
-use examples_common_3d::XpbdExamplePlugin;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .insert_resource(AmbientLight {

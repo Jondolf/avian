@@ -30,7 +30,7 @@ use bevy::{
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
 /// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -72,8 +72,6 @@ impl Plugin for PhysicsSchedulePlugin {
                 .before(TransformSystem::TransformPropagate),
         );
 
-        // Configure higher level system sets for the given schedule
-        let schedule = self.schedule;
         app.configure_sets(
             schedule,
             (
@@ -96,11 +94,14 @@ impl Plugin for PhysicsSchedulePlugin {
 
             schedule.configure_sets(
                 (
+                    PhysicsStepSet::First,
                     PhysicsStepSet::BroadPhase,
-                    PhysicsStepSet::Substeps,
+                    PhysicsStepSet::NarrowPhase,
+                    PhysicsStepSet::Solver,
                     PhysicsStepSet::ReportContacts,
                     PhysicsStepSet::Sleeping,
                     PhysicsStepSet::SpatialQuery,
+                    PhysicsStepSet::Last,
                 )
                     .chain(),
             );
@@ -119,26 +120,12 @@ impl Plugin for PhysicsSchedulePlugin {
                     ambiguity_detection: LogLevel::Error,
                     ..default()
                 });
-
-            schedule.configure_sets(
-                (
-                    SubstepSet::Integrate,
-                    SubstepSet::NarrowPhase,
-                    SubstepSet::PostProcessCollisions,
-                    SubstepSet::SolveConstraints,
-                    SubstepSet::SolveUserConstraints,
-                    SubstepSet::UpdateVelocities,
-                    SubstepSet::SolveVelocities,
-                    SubstepSet::StoreImpulses,
-                    SubstepSet::ApplyTranslation,
-                )
-                    .chain(),
-            );
         });
 
+        // TODO: This should probably just be in the SolverPlugin.
         app.add_systems(
             PhysicsSchedule,
-            run_substep_schedule.in_set(PhysicsStepSet::Substeps),
+            run_substep_schedule.in_set(SolverSet::Substep),
         );
     }
 }
@@ -158,7 +145,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The substepping schedule that runs in [`SolverSet::Substep`].
 /// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
@@ -166,7 +153,8 @@ pub struct SubstepSchedule;
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
-/// The schedule is empty by default and runs in [`SubstepSet::PostProcessCollisions`].
+/// The schedule is empty by default and runs in
+/// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
 ///
 /// ## Example
 ///
@@ -212,12 +200,11 @@ pub struct PostProcessCollisions;
 ///
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-/// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
-/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
-/// the constraint solver.
+///   the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
 /// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
-/// [`SubstepSet::PostProcessCollisions`]. Empty by default.
+///   [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
+///   Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
@@ -237,27 +224,31 @@ pub enum PhysicsSet {
 
 /// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
 ///
-/// 1. Broad phase
-/// 2. Substeps
-///     1. Integrate
-///     2. Narrow phase
-///     3. Solve positional and angular constraints
-///     4. Update velocities
-///     5. Solve velocity constraints (dynamic friction and restitution)
-/// 3. Report contacts (send collision events)
-/// 4. Sleeping
-/// 5. Spatial queries
+/// 1. First (empty by default)
+/// 2. Broad phase
+/// 3. Narrow phase
+/// 4. Solver
+/// 5. Report contacts (send collision events)
+/// 6. Sleeping
+/// 7. Spatial queries
+/// 8. Last (empty by default)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
+    /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
+    First,
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
     /// [AABB](ColliderAabb) intersection tests.
     ///
     /// See [`BroadPhasePlugin`].
     BroadPhase,
-    /// Responsible for substepping, which is an inner loop inside a physics step.
+    /// Responsible for computing contacts between entities and sending collision events.
     ///
-    /// See [`SubstepSet`] and [`SubstepSchedule`].
-    Substeps,
+    /// See [`NarrowPhasePlugin`].
+    NarrowPhase,
+    /// Responsible for running the solver and its substepping loop.
+    ///
+    /// See [`SolverPlugin`] and [`SubstepSchedule`].
+    Solver,
     /// Responsible for sending collision events and updating [`CollidingEntities`].
     ///
     /// See [`ContactReportingPlugin`].
@@ -270,69 +261,8 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
-}
-
-/// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
-///
-/// 1. Integrate
-/// 2. Narrow phase
-/// 3. Post-process collisions
-/// 4. Solve positional and angular constraints
-/// 5. Update velocities
-/// 6. Solve velocity constraints (dynamic friction and restitution)
-/// 7. Store contact impulses in [`Collisions`].
-/// 8. Apply [`AccumulatedTranslation`] to positions.
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SubstepSet {
-    /// Responsible for integrating Newton's 2nd law of motion,
-    /// applying forces and moving entities according to their velocities.
-    ///
-    /// See [`IntegratorPlugin`].
-    Integrate,
-    /// Responsible for computing contacts between entities and sending collision events.
-    ///
-    /// See [`NarrowPhasePlugin`].
-    NarrowPhase,
-    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
-    /// to filter and modify collisions.
-    ///
-    /// If you want to modify or remove collisions after [`SubstepSet::NarrowPhase`], you can
-    /// add custom systems to this set, or to [`PostProcessCollisions`].
-    ///
-    /// See [`NarrowPhasePlugin`].
-    PostProcessCollisions,
-    /// The [solver] iterates through [constraints](solver::xpbd#constraints) and solves them.
-    ///
-    /// **Note**: If you want to [create your own constraints](solver::xpbd#custom-constraints),
-    /// you should add them in [`SubstepSet::SolveUserConstraints`]
-    /// to avoid system order ambiguities.
-    ///
-    /// See [`SolverPlugin`].
-    SolveConstraints,
-    /// The [solver] iterates through custom [constraints](solver::xpbd#constraints) created by the user and solves them.
-    ///
-    /// You can [create new constraints](solver::xpbd#custom-constraints) by implementing [`solver::xpbd::XpbdConstraint`]
-    /// for a component and adding the [constraint system](solver::solve_constraint) to this set.
-    ///
-    /// See [`SolverPlugin`].
-    SolveUserConstraints,
-    /// Responsible for updating velocities after [constraint](solver::xpbd#constraints) solving.
-    ///
-    /// See [`SolverPlugin`].
-    UpdateVelocities,
-    /// Responsible for applying dynamic friction, restitution and joint damping at the end of the
-    /// substepping loop.
-    ///
-    /// See [`SolverPlugin`].
-    SolveVelocities,
-    /// Contact impulses computed by the solver are stored in contacts in [`Collisions`].
-    ///
-    /// See [`SolverPlugin`].
-    StoreImpulses,
-    /// Responsible for applying translation accumulated during the substep.
-    ///
-    /// See [`SolverPlugin`].
-    ApplyTranslation,
+    /// Runs at the end of the [`PhysicsSchedule`]. Empty by default.
+    Last,
 }
 
 /// The number of substeps used in the simulation.
@@ -357,7 +287,7 @@ pub enum SubstepSet {
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(SubstepCount(30))
+///         .insert_resource(SubstepCount(12))
 ///         .run();
 /// }
 /// ```
@@ -368,7 +298,7 @@ pub struct SubstepCount(pub u32);
 
 impl Default for SubstepCount {
     fn default() -> Self {
-        Self(12)
+        Self(6)
     }
 }
 
