@@ -29,7 +29,7 @@
 //! - [Joints](super::joints)
 //!     - [`FixedJoint`]
 //!     - [`DistanceJoint`]
-//!     - [`SphericalJoint`]
+#![cfg_attr(feature = "3d", doc = "    - [`SphericalJoint`]")]
 //!     - [`RevoluteJoint`]
 //!     - [`PrismaticJoint`]
 //!
@@ -262,7 +262,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// A gradient is a vector that refers to the direction in which `c` increases the most.
     ///
     /// See the [constraint theory](#theory) for more information.
-    fn compute_lagrange_update(
+    fn compute_lagrange_update_with_gradients(
         &self,
         lagrange: Scalar,
         c: Scalar,
@@ -276,6 +276,36 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
             .iter()
             .enumerate()
             .fold(0.0, |acc, (i, w)| acc + *w * gradients[i].length_squared());
+
+        // Avoid division by zero
+        if w_sum <= Scalar::EPSILON {
+            return 0.0;
+        }
+
+        // tilde_a = a/h^2
+        let tilde_compliance = compliance / dt.powi(2);
+
+        (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
+    }
+
+    /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
+    /// the constraint for all participating particles. The constraint gradients are assumed to be unit-length.
+    ///
+    /// `c` is a scalar value returned by the [constraint function](self#constraint-functions).
+    /// When it is zero, the constraint is satisfied.
+    ///
+    /// See the [constraint theory](#theory) for more information.
+    fn compute_lagrange_update(
+        &self,
+        lagrange: Scalar,
+        c: Scalar,
+        inverse_masses: &[Scalar],
+        compliance: Scalar,
+        dt: Scalar,
+    ) -> Scalar {
+        // Compute the sum of all inverse masses.
+        // The gradients are unit length, so they don't need to be considered.
+        let w_sum: Scalar = inverse_masses.iter().copied().sum();
 
         // Avoid division by zero
         if w_sum <= Scalar::EPSILON {

@@ -153,7 +153,7 @@
 //!     - [Distance joint](DistanceJoint)
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
-//!     - [Spherical joint](SphericalJoint)
+#![cfg_attr(feature = "3d", doc = "    - [Spherical joint](SphericalJoint)")]
 //! - [Custom XPBD constraints](dynamics::solver::xpbd#constraints) (advanced)
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.

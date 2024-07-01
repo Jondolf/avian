@@ -14,7 +14,7 @@ use bevy::{
 
 /// A plugin for handling generic collider backend logic.
 ///
-/// - Initializes colliders, including [`AsyncCollider`] and [`AsyncSceneCollider`].
+/// - Initializes colliders, handles [`ColliderConstructor`] and [`ColliderConstructorHierarchy`].
 /// - Updates [`ColliderAabb`]s.
 /// - Updates collider scale based on `Transform` scale.
 /// - Updates collider mass properties, also updating rigid bodies accordingly.
