@@ -33,6 +33,7 @@ use self::{
 ///     5. [Solve constraints without bias to relax velocities](SubstepSolverSet::Relax)
 ///     6. [Solve XPBD constraints (joints)](SubstepSolverSet::SolveXpbdConstraints)
 ///     7. [Solve user-defined constraints](SubstepSolverSet::SolveUserConstraints)
+///     8. [Update velocities after XPBD constraint solving.](SubstepSolverSet::XpbdVelocityProjection)
 /// 3. [Apply restitution](SolverSet::Restitution)
 /// 4. [Finalize positions by applying](SolverSet::ApplyTranslation) [`AccumulatedTranslation`]
 /// 5. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
@@ -123,6 +124,7 @@ impl Plugin for SolverPlugin {
                 SubstepSolverSet::Relax,
                 SubstepSolverSet::SolveXpbdConstraints,
                 SubstepSolverSet::SolveUserConstraints,
+                SubstepSolverSet::XpbdVelocityProjection,
             )
                 .chain(),
         );
@@ -197,6 +199,14 @@ impl Plugin for SolverPlugin {
                 xpbd::solve_constraint::<SphericalJoint, 2>,
                 xpbd::solve_constraint::<PrismaticJoint, 2>,
                 xpbd::solve_constraint::<DistanceJoint, 2>,
+            )
+                .chain()
+                .in_set(SubstepSolverSet::SolveXpbdConstraints),
+        );
+
+        // Perform XPBD velocity updates after constraint solving.
+        substeps.add_systems(
+            (
                 xpbd::project_linear_velocity,
                 xpbd::project_angular_velocity,
                 joint_damping::<FixedJoint>,
@@ -207,7 +217,7 @@ impl Plugin for SolverPlugin {
                 joint_damping::<DistanceJoint>,
             )
                 .chain()
-                .in_set(SubstepSolverSet::SolveXpbdConstraints),
+                .in_set(SubstepSolverSet::XpbdVelocityProjection),
         );
     }
 }
@@ -304,6 +314,7 @@ pub enum SolverSet {
 /// 5. Solve constraints without bias to relax velocities ([`SubstepSolverSet::Relax`])
 /// 6. Solve joints using Extended Position-Based Dynamics (XPBD). ([`SubstepSolverSet::SolveXpbdConstraints`])
 /// 7. Solve user-defined constraints. ([`SubstepSolverSet::SolveUserConstraints`])
+/// 8. Update velocities after XPBD constraint solving. ([`SubstepSolverSet::XpbdVelocityProjection`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSolverSet {
     /// Warm starts the solver by applying the impulses from the previous frame or substep.
@@ -322,6 +333,8 @@ pub enum SubstepSolverSet {
     SolveXpbdConstraints,
     /// A system set for user constraints.
     SolveUserConstraints,
+    /// Performs velocity updates after XPBD constraint solving.
+    XpbdVelocityProjection,
 }
 
 /// Configuration parameters for the constraint solver that handles
