@@ -484,9 +484,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(point.f32(), 3.0 * length_unit, point_color);
+            self.circle_2d(point.f32(), 0.1 * length_unit, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(point.f32(), default(), 0.025 * length_unit, point_color);
+            self.sphere(point.f32(), default(), 0.1 * length_unit, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(
@@ -543,14 +543,9 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(hit.point1.f32(), 0.025 * length_unit, point_color);
+            self.circle_2d(hit.point1.f32(), 0.1 * length_unit, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(
-                hit.point1.f32(),
-                default(),
-                0.025 * length_unit,
-                point_color,
-            );
+            self.sphere(hit.point1.f32(), default(), 0.1 * length_unit, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(

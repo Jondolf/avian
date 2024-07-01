@@ -294,7 +294,7 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    mut collisions: EventReader<Collision>,
+    collisions: Res<Collisions>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,
@@ -306,7 +306,7 @@ fn debug_render_contacts(
         return;
     }
 
-    for Collision(contacts) in collisions.read() {
+    for contacts in collisions.iter() {
         let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
             continue;
         };
@@ -330,13 +330,13 @@ fn debug_render_contacts(
                 if let Some(color) = config.contact_point_color {
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.circle_2d(p1.f32(), 0.025 * length_unit.0, color);
-                        gizmos.circle_2d(p2.f32(), 0.025 * length_unit.0, color);
+                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0, color);
+                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0, color);
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1.f32(), default(), 0.025 * length_unit.0, color);
-                        gizmos.sphere(p2.f32(), default(), 0.025 * length_unit.0, color);
+                        gizmos.sphere(p1.f32(), default(), 0.1 * length_unit.0, color);
+                        gizmos.sphere(p2.f32(), default(), 0.1 * length_unit.0, color);
                     }
                 }
 
