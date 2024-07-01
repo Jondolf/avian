@@ -452,6 +452,7 @@ fn update_aabb<C: AnyCollider>(
             &Rotation,
             Option<&ColliderParent>,
             Option<&SpeculativeMargin>,
+            Has<SweptCcd>,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -475,11 +476,23 @@ fn update_aabb<C: AnyCollider>(
     let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
     let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
 
-    for (collider, mut aabb, pos, rot, collider_parent, speculative_margin, lin_vel, ang_vel) in
-        &mut colliders
+    for (
+        collider,
+        mut aabb,
+        pos,
+        rot,
+        collider_parent,
+        speculative_margin,
+        has_swept_ccd,
+        lin_vel,
+        ang_vel,
+    ) in &mut colliders
     {
-        let speculative_margin =
-            speculative_margin.map_or(default_speculative_margin, |margin| margin.0);
+        let speculative_margin = if has_swept_ccd {
+            Scalar::MAX
+        } else {
+            speculative_margin.map_or(default_speculative_margin, |margin| margin.0)
+        };
 
         if speculative_margin <= 0.0 {
             *aabb = collider
