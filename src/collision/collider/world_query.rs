@@ -1,3 +1,5 @@
+// This is at the module-level because `QueryData` generates a `ColliderQueryItem` type,
+// and we cannot easily document or allow missing docs for that.
 #![allow(missing_docs)]
 
 use crate::prelude::*;
