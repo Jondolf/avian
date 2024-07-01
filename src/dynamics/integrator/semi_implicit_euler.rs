@@ -76,6 +76,8 @@ pub fn integrate_position(
     locked_axes: LockedAxes,
     delta_seconds: Scalar,
 ) {
+    let lin_vel = locked_axes.apply_to_vec(lin_vel);
+
     // x = x_0 + v * Δt
     let next_pos = *pos + lin_vel * delta_seconds;
 
@@ -127,7 +129,7 @@ pub fn linear_acceleration(
         //
         // `gravity` below is the gravitational acceleration,
         // so it doesn't need to be divided by mass.
-        force * inv_mass + gravity
+        force * inv_mass + locked_axes.apply_to_vec(gravity)
     } else {
         Vector::ZERO
     }
