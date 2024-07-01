@@ -266,7 +266,7 @@ impl Plugin for CcdPlugin {
 
         physics.configure_sets(SweptCcdSet.in_set(SolverSet::PostSubstep));
 
-        physics.add_systems((solve_swept_ccd,).chain().in_set(SweptCcdSet));
+        physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));
     }
 }
 
