@@ -7,7 +7,7 @@ fn main() {
 
     app.add_plugins((DefaultPlugins, ExampleCommonPlugin));
 
-    // Add PhysicsPlugins and replace default broad phase with our custom broad phase
+    // Add PhysicsPlugins and replace the default broad phase with our custom broad phase.
     app.add_plugins(
         PhysicsPlugins::default()
             .build()
@@ -69,7 +69,10 @@ pub struct BruteForceBroadPhasePlugin;
 
 impl Plugin for BruteForceBroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        // Make sure the PhysicsSchedule is available
+        // Initialize the resource that the collision pairs are added to.
+        app.init_resource::<BroadCollisionPairs>();
+
+        // Make sure the PhysicsSchedule is available.
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
@@ -83,10 +86,10 @@ fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
 ) {
-    // Clear old collision pairs
+    // Clear old collision pairs.
     broad_collision_pairs.0.clear();
 
-    // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs
+    // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
     for [(ent_a, aabb_a, rb_a), (ent_b, aabb_b, rb_b)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect
         if (rb_a.is_dynamic() || rb_b.is_dynamic()) && aabb_a.intersects(aabb_b) {
