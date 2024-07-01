@@ -213,16 +213,16 @@ impl Plugin for SolverPlugin {
 }
 
 // TODO: Where should this type be and which plugin should initialize it?
-/// A resource for the approximate dimensions of most dynamic objects in the world.
+/// A units-per-meter scaling factor that adjusts the engine's internal properties
+/// to the scale of the world.
 ///
-/// This is essentially a units-per-meter scaling factor used for internal computations.
 /// For example, a 2D game might use pixels as units and have an average object size
-/// of 100 pixels. By setting the `length_unit` to `100.0`, the physics engine
+/// of around 100 pixels. By setting the length unit to `100.0`, the physics engine
 /// will interpret 100 pixels as 1 meter for internal thresholds, improving stability.
 ///
 /// Note that this is *not* used to scale forces or any other user-facing inputs or outputs.
-/// Instead, the value is used internally to scale some length-based tolerances
-/// such as [`SleepingThreshold::linear`] and [`NarrowPhaseConfig::default_speculative_margin`],
+/// Instead, the value is only used to scale some internal length-based tolerances, such as
+/// [`SleepingThreshold::linear`] and [`NarrowPhaseConfig::default_speculative_margin`],
 /// as well as the scale used for [debug rendering](PhysicsDebugPlugin).
 ///
 /// Choosing the appropriate length unit can help improve stability and robustness.

@@ -541,6 +541,39 @@ use prelude::*;
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
+/// ## World scale
+///
+/// The [`PhysicsLengthUnit`] resource is a units-per-meter scaling factor
+/// that adjusts the engine's internal properties to the scale of the world.
+/// It is recommended to configure the length unit to match the approximate length
+/// of the average dynamic object in the world to get the best simulation results.
+///
+/// For example, a 2D game might use pixels as units and have an average object size
+/// of around 100 pixels. By setting the length unit to `100.0`, the physics engine
+/// will interpret 100 pixels as 1 meter for internal thresholds, improving stability.
+///
+/// The length unit can be set by inserting the resource like normal,
+/// but it can also be specified through the [`PhysicsPlugins`] plugin group.
+///
+/// ```no_run
+/// # #[cfg(feature = "2d")]
+/// use avian2d::prelude::*;
+/// use bevy::prelude::*;
+///
+/// # #[cfg(feature = "2d")]
+/// fn main() {
+///     App::new()
+///         .add_plugins((
+///             DefaultPlugins,
+///             // A 2D game with 100 pixels per meter
+///             PhysicsPlugins::default().with_length_unit(100.0),
+///         ))
+///         .run();
+/// }
+/// # #[cfg(not(feature = "2d"))]
+/// # fn main() {} // Doc test needs main
+/// ```
+///
 /// ## Custom schedule
 ///
 /// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
@@ -640,16 +673,16 @@ impl PhysicsPlugins {
         }
     }
 
-    /// Sets the value used for initializing the [`PhysicsLengthUnit`].
+    /// Sets the value used for the [`PhysicsLengthUnit`], a units-per-meter scaling factor
+    /// that adjusts the engine's internal properties to the scale of the world.
     ///
-    /// This is essentially a units-per-meter scaling factor used for internal computations.
     /// For example, a 2D game might use pixels as units and have an average object size
-    /// of 100 pixels. By setting the `length_unit` to `100.0`, the physics engine
+    /// of around 100 pixels. By setting the length unit to `100.0`, the physics engine
     /// will interpret 100 pixels as 1 meter for internal thresholds, improving stability.
     ///
     /// Note that this is *not* used to scale forces or any other user-facing inputs or outputs.
-    /// Instead, the value is used internally to scale some length-based tolerances
-    /// such as [`SleepingThreshold::linear`] and [`NarrowPhaseConfig::default_speculative_margin`],
+    /// Instead, the value is only used to scale some internal length-based tolerances, such as
+    /// [`SleepingThreshold::linear`] and [`NarrowPhaseConfig::default_speculative_margin`],
     /// as well as the scale used for [debug rendering](PhysicsDebugPlugin).
     ///
     /// Choosing the appropriate length unit can help improve stability and robustness.
