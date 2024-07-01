@@ -319,17 +319,13 @@ impl SpeculativeMargin {
 /// A component that enables sweep-based [Continuous Collision Detection](ccd) (CCD)
 /// for a [`RigidBody`]. This helps prevent missed collisions for small and fast-moving objects.
 ///
-/// By default, CCD considers both translational and rotational motion, and is used
+/// By default, swept CCD considers both translational and rotational motion, and is used
 /// against all types of rigid bodies and colliders. This behavior can be modified
 /// by changing [`SweptCcd::mode`] and other properties.
 ///
 /// CCD is generally not useful for large or slow objects, as they are less likely
-/// to miss collisions. It is recommended to only use CCD when necessary,
-/// as it is more expensive than normal discrete collision detection.
-///
-/// This component specifically enables [Swept CCD](ccd#swept-ccd).
-/// [Speculative Collision](ccd#speculative-collision) is enabled by default
-/// and configured separately.
+/// to miss collisions. It is recommended to only use swept CCD when necessary,
+/// as it is more expensive than [speculative collision](ccd#speculative-collision) and discrete collision detection.
 ///
 /// Read the [module-level documentation](ccd) for more information about what CCD is,
 /// what it is used for, and what limitations and tradeoffs it can have.
@@ -342,7 +338,7 @@ impl SpeculativeMargin {
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     // Spawn a dynamic rigid body with CCD, travelling towards the right at a high speed.
+///     // Spawn a dynamic rigid body with swept CCD, travelling towards the right at a high speed.
 ///     // The default CCD configuration considers both translational and rotational motion.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
@@ -354,7 +350,7 @@ impl SpeculativeMargin {
 ///         TransformBundle::from_transform(Transform::from_xyz(-10.0, 3.0, 0.0)),
 ///     ));
 ///
-///     // Spawn another dynamic rigid body with CCD, but this time only considering
+///     // Spawn another dynamic rigid body with swept CCD, but this time only considering
 ///     // linear motion and not rotation.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
@@ -391,7 +387,7 @@ impl SpeculativeMargin {
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
 pub struct SweptCcd {
-    /// The type of sweep used for [sweep-based Continuous Collision Detection](ccd#swept-ccd).
+    /// The type of sweep used for swept CCD.
     ///
     /// If two entities with different sweep modes collide, [`SweepMode::NonLinear`]
     /// is preferred.
@@ -399,13 +395,13 @@ pub struct SweptCcd {
     /// The default is [`SweepMode::NonLinear`], which considers both translational
     /// and rotational motion.
     pub mode: SweepMode,
-    /// If `true`, [Continuous Collision Detection](ccd) is performed against dynamic rigid bodies.
+    /// If `true`, swept CCD is performed against dynamic rigid bodies.
     /// Otherwise, it is only performed against static geometry and kinematic bodies.
     ///
     /// The default is `true`.
     pub include_dynamic: bool,
     /// Determines how fast two bodies must be moving relative to each other
-    /// for [Continuous Collision Detection](ccd) to be activated for them.
+    /// for swept CCD to be activated for them.
     ///
     /// If the linear velocity is below this threshold, CCD is skipped,
     /// unless the angular velocity exceeds the `angular_threshold`.
@@ -413,7 +409,7 @@ pub struct SweptCcd {
     /// The default is `0.0`, meaning that CCD is performed regardless of the relative velocity.
     pub linear_threshold: Scalar,
     /// Determines how fast two bodies must be rotating relative to each other
-    /// for [Continuous Collision Detection](ccd) to be activated for them.
+    /// for swept CCD to be activated for them.
     ///
     /// If the angular velocity is below this threshold, CCD is skipped,
     /// unless the linear velocity exceeds the `linear_threshold`.
@@ -453,13 +449,21 @@ impl SweptCcd {
 
     /// Sets the linear and angular velocity thresholds in `self`,
     /// determining how fast two bodies must be moving relative to each other
-    /// for swept [Continuous Collision Detection](ccd) to be activated for them.
+    /// for swept CCD to be activated for them.
     ///
     /// CCD will be active if either of the two thresholds is exceeded.
     #[inline]
     pub const fn with_velocity_threshold(mut self, linear: Scalar, angular: Scalar) -> Self {
         self.linear_threshold = linear;
         self.angular_threshold = angular;
+        self
+    }
+
+    /// Sets whether swept CCD is performed against dynamic rigid bodies.
+    /// If `false`, it is only performed against static geometry and kinematic bodies.
+    #[inline]
+    pub const fn include_dynamic(mut self, should_include: bool) -> Self {
+        self.include_dynamic = should_include;
         self
     }
 }
@@ -473,7 +477,7 @@ impl SweptCcd {
 /// and rotational motion.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 pub enum SweepMode {
-    /// [Continuous Collision Detection](ccd) is performed using linear time-of-impact queries
+    /// [Swept CCD](ccd#swept-ccd) is performed using linear time-of-impact queries
     /// from the previous positions of [`SweptCcd`] bodies to their current positions,
     /// stopping the bodies at the first time of impact.
     ///
@@ -482,7 +486,7 @@ pub enum SweepMode {
     /// that also considers rotational motion, consider using [`SweepMode::NonLinear`].
     Linear,
 
-    /// [Continuous Collision Detection](ccd) is performed using non-linear time-of-impact queries
+    /// [Swept CCD](ccd#swept-ccd) is performed using non-linear time-of-impact queries
     /// from the previous positions of [`SweptCcd`] bodies to their current positions,
     /// stopping the bodies at the first time of impact.
     ///
