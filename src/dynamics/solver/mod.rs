@@ -88,17 +88,20 @@ impl Plugin for SolverPlugin {
                 .in_set(PhysicsStepSet::Solver),
         );
 
+        // Update previous rotations before the substepping loop.
+        physics.add_systems(
+            (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
+                for (rot, mut prev_rot) in &mut query {
+                    prev_rot.0 = *rot;
+                }
+            })
+            .in_set(SolverSet::PreSubstep),
+        );
+
         // Finalize the positions of bodies by applying the `AccumulatedTranslation`.
         // This runs after the substepping loop.
         physics.add_systems(
-            (
-                (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
-                    for (rot, mut prev_rot) in &mut query {
-                        prev_rot.0 = *rot;
-                    }
-                }),
-                apply_translation,
-            )
+            apply_translation
                 .chain()
                 .in_set(SolverSet::ApplyTranslation),
         );
