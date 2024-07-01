@@ -68,7 +68,7 @@ pub struct SleepingThreshold {
     pub linear: Scalar,
     /// The maximum angular velocity allowed for a body to be marked as sleeping.
     ///
-    /// Default: `0.2`
+    /// Default: `0.15`
     pub angular: Scalar,
 }
 
@@ -76,7 +76,7 @@ impl Default for SleepingThreshold {
     fn default() -> Self {
         Self {
             linear: 0.15,
-            angular: 0.2,
+            angular: 0.15,
         }
     }
 }
