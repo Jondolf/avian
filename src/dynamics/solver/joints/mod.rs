@@ -18,7 +18,10 @@
 //! | [`DistanceJoint`]  | 1 Translation, 1 Rotation | 2 Translations, 3 Rotations |
 //! | [`PrismaticJoint`] | 1 Translation             | 1 Translation               |
 //! | [`RevoluteJoint`]  | 1 Rotation                | 1 Rotation                  |
-//! | [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |
+#![cfg_attr(
+    feature = "3d",
+    doc = "| [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |"
+)]
 //!
 //! ## Using joints
 //!
