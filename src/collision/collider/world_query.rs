@@ -5,7 +5,9 @@
 use crate::prelude::*;
 use bevy::{ecs::query::QueryData, prelude::*};
 
-/// A [`QueryData`] struct to make code handling colliders in collisions cleaner.
+/// A [`QueryData`] struct to make code handling colliders cleaner.
+///
+/// This is mostly an internal type, but can also be used by users.
 #[derive(QueryData)]
 pub struct ColliderQuery<C: AnyCollider> {
     pub entity: Entity,
