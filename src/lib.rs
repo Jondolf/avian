@@ -533,7 +533,7 @@ use prelude::*;
 /// - [`IntegratorPlugin`]: Handles motion caused by velocity, and applies external forces and gravity.
 /// - [`SolverPlugin`]: Solves [constraints](dynamics::solver::xpbd#constraints) (contacts and joints).
 /// (dynamic [friction](Friction) and [restitution](Restitution)).
-/// - [`CcdPlugin`]: Performs sweep-based [Continuous Collision Detection](ccd) for bodies with the [`SweptCcd`] component.
+/// - [`CcdPlugin`]: Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.
 /// - [`SleepingPlugin`]: Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 /// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).
 /// - [`SyncPlugin`]: Keeps [`Position`] and [`Rotation`] in sync with `Transform`.

@@ -72,7 +72,7 @@ pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 /// Contains the entities whose AABBs intersect the AABB of this entity.
 /// Updated automatically during broad phase collision detection.
 ///
-/// Note that this component is only added to bodies with [`Ccd`] by default,
+/// Note that this component is only added to bodies with [`SweptCcd`] by default,
 /// but can be added to any entity.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, Reflect)]
 #[reflect(Component)]

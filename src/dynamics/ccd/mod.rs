@@ -228,7 +228,7 @@ use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
 
-/// A plugin for [Continuous Collision Detection](ccd).
+/// A plugin for [Continuous Collision Detection](self).
 pub struct CcdPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -270,7 +270,7 @@ impl Plugin for CcdPlugin {
     }
 }
 
-/// A system set for [Continuous Collision Detection](ccd) systems.
+/// A system set for [Continuous Collision Detection](self) systems.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SweptCcdSet;
 
@@ -316,7 +316,7 @@ impl SpeculativeMargin {
     pub const MAX: Self = Self(Scalar::MAX);
 }
 
-/// A component that enables sweep-based [Continuous Collision Detection](ccd) (CCD)
+/// A component that enables sweep-based [Continuous Collision Detection](self) (CCD)
 /// for a [`RigidBody`]. This helps prevent missed collisions for small and fast-moving objects.
 ///
 /// By default, swept CCD considers both translational and rotational motion, and is used
@@ -325,9 +325,9 @@ impl SpeculativeMargin {
 ///
 /// CCD is generally not useful for large or slow objects, as they are less likely
 /// to miss collisions. It is recommended to only use swept CCD when necessary,
-/// as it is more expensive than [speculative collision](ccd#speculative-collision) and discrete collision detection.
+/// as it is more expensive than [speculative collision](self#speculative-collision) and discrete collision detection.
 ///
-/// Read the [module-level documentation](ccd) for more information about what CCD is,
+/// Read the [module-level documentation](self) for more information about what CCD is,
 /// what it is used for, and what limitations and tradeoffs it can have.
 ///
 /// # Example
@@ -468,7 +468,7 @@ impl SweptCcd {
     }
 }
 
-/// The algorithm used for [Swept Continuous Collision Detection](ccd#swept-ccd).
+/// The algorithm used for [Swept Continuous Collision Detection](self#swept-ccd).
 ///
 /// If two entities with different sweep modes collide, [`SweepMode::NonLinear`]
 /// is preferred.
@@ -477,7 +477,7 @@ impl SweptCcd {
 /// and rotational motion.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 pub enum SweepMode {
-    /// [Swept CCD](ccd#swept-ccd) is performed using linear time-of-impact queries
+    /// [Swept CCD](self#swept-ccd) is performed using linear time-of-impact queries
     /// from the previous positions of [`SweptCcd`] bodies to their current positions,
     /// stopping the bodies at the first time of impact.
     ///
@@ -486,7 +486,7 @@ pub enum SweepMode {
     /// that also considers rotational motion, consider using [`SweepMode::NonLinear`].
     Linear,
 
-    /// [Swept CCD](ccd#swept-ccd) is performed using non-linear time-of-impact queries
+    /// [Swept CCD](self#swept-ccd) is performed using non-linear time-of-impact queries
     /// from the previous positions of [`SweptCcd`] bodies to their current positions,
     /// stopping the bodies at the first time of impact.
     ///
@@ -519,7 +519,7 @@ struct SweptCcdBodyQuery {
     com: &'static CenterOfMass,
 }
 
-/// Performs [sweep-based mContinuous Collision Detection](ccd#swept-ccd)
+/// Performs [sweep-based mContinuous Collision Detection](self#swept-ccd)
 /// by performing time-of-impact queries from the previous positions of [`SweptCcd`] bodies
 /// to their current positions, stopping the bodies at the first time of impact.
 ///
