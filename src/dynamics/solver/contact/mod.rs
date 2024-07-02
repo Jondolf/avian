@@ -91,14 +91,17 @@ impl ContactConstraint {
         collider_entity2: Entity,
         collider_transform1: Option<ColliderTransform>,
         collider_transform2: Option<ColliderTransform>,
-        collision_margin: Scalar,
-        speculative_margin: Scalar,
+        collision_margin: impl Into<CollisionMargin>,
+        speculative_margin: impl Into<SpeculativeMargin>,
         friction: Friction,
         restitution: Restitution,
         softness: SoftnessCoefficients,
         warm_start: bool,
         delta_secs: Scalar,
     ) -> Self {
+        let collision_margin: Scalar = collision_margin.into().0;
+        let speculative_margin: Scalar = speculative_margin.into().0;
+
         let normal = *body1.rotation * manifold.normal1;
 
         // TODO: Cache these?

@@ -606,7 +606,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
-        collision_margin: Scalar,
+        collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
     ) {

@@ -6,6 +6,7 @@ use bevy::{
     prelude::*,
     utils::HashSet,
 };
+use derive_more::From;
 
 mod backend;
 mod hierarchy;
@@ -395,7 +396,7 @@ impl Default for ColliderAabb {
 )]
 /// }
 /// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]

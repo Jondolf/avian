@@ -229,6 +229,7 @@ use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
 };
+use derive_more::From;
 use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
@@ -308,7 +309,7 @@ pub struct SweptCcdSet;
 ///     ));
 /// }
 /// ```
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Reflect)]
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Reflect, From)]
 #[reflect(Component)]
 #[doc(alias = "SweptCcdPredictionDistance")]
 pub struct SpeculativeMargin(pub Scalar);
