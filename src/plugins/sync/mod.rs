@@ -383,7 +383,7 @@ pub fn update_previous_global_transforms(
 // Propagation is unnecessary for everything else, because the physics engine should only modify the positions
 // of rigid bodies and their descendants. Bevy runs its own propagation near the end of the frame.
 
-/// Updates the [`GlobalTransform`] component of physics entities that aren't in the hierarchy.
+/// Updates the [`GlobalTransform`] component of physics entities that don't have other physics entities in the hierarchy.
 #[allow(clippy::type_complexity)]
 pub fn sync_simple_transforms_physics(
     mut query: ParamSet<(
@@ -392,7 +392,10 @@ pub fn sync_simple_transforms_physics(
             (
                 Or<(Changed<Transform>, Added<GlobalTransform>)>,
                 Without<Parent>,
-                Without<Children>,
+                Or<(
+                    Without<AncestorMarker<RigidBody>>,
+                    Without<AncestorMarker<ColliderMarker>>,
+                )>,
                 Or<(With<RigidBody>, With<ColliderMarker>)>,
             ),
         >,
@@ -400,7 +403,10 @@ pub fn sync_simple_transforms_physics(
             (Ref<Transform>, &mut GlobalTransform),
             (
                 Without<Parent>,
-                Without<Children>,
+                Or<(
+                    Without<AncestorMarker<RigidBody>>,
+                    Without<AncestorMarker<ColliderMarker>>,
+                )>,
                 Or<(With<RigidBody>, With<ColliderMarker>)>,
             ),
         >,
