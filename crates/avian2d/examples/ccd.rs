@@ -54,15 +54,15 @@ fn setup(mut commands: Commands) {
         SpriteBundle {
             sprite: Sprite {
                 color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(2.5, 400.0)),
+                custom_size: Some(Vec2::new(1.0, 400.0)),
                 ..default()
             },
             transform: Transform::from_xyz(-200.0, -200.0, 0.0),
             ..default()
         },
         RigidBody::Kinematic,
-        AngularVelocity(20.0),
-        Collider::rectangle(2.5, 400.0),
+        AngularVelocity(25.0),
+        Collider::rectangle(1.0, 400.0),
         // Enable swept CCD for this body. Considers both translational and rotational motion by default.
         // This could also be on the ball projectiles.
         SweptCcd::default(),
@@ -71,15 +71,15 @@ fn setup(mut commands: Commands) {
         SpriteBundle {
             sprite: Sprite {
                 color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(2.5, 400.0)),
+                custom_size: Some(Vec2::new(1.0, 400.0)),
                 ..default()
             },
             transform: Transform::from_xyz(200.0, -200.0, 0.0),
             ..default()
         },
         RigidBody::Kinematic,
-        AngularVelocity(-20.0),
-        Collider::rectangle(2.5, 400.0),
+        AngularVelocity(-25.0),
+        Collider::rectangle(1.0, 400.0),
         // Enable swept CCD for this body. Considers both translational and rotational motion by default.
         // This could also be on the ball projectiles.
         SweptCcd::default(),
@@ -146,10 +146,6 @@ fn spawn_balls(
         LinearVelocity(2000.0 * direction),
         Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
         Collider::from(circle),
-        // Specify an unbounded speculative margin used for speculative collision.
-        // The margin is already unbounded by default, but this component is added here
-        // to allow `update_config` to configure it.
-        SpeculativeMargin::MAX,
     ));
 }
 
@@ -164,6 +160,8 @@ fn update_config(
     mut ccd_bodies: Query<&mut SweptCcd>,
 ) {
     // Toggle speculative collision.
+    // Note: This sets the default speculative margin, but it can be overridden
+    //       for individual entities with the `SpeculativeMargin` component.
     if keys.just_pressed(KeyCode::Digit1) {
         let mut text = speculative_collision_text.single_mut();
         if narrow_phase_config.default_speculative_margin == Scalar::MAX {
