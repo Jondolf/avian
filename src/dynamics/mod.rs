@@ -70,7 +70,7 @@ pub mod solver;
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
     pub use super::{
-        ccd::SpeculativeMargin,
+        ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::*,
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},

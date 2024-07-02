@@ -20,7 +20,9 @@
 //! </svg>
 //!
 //! **Continuous Collision Detection** (CCD) aims to prevent tunneling.
-//! Currently, only [Speculative Collision](#speculative-collision) is supported.
+//! Currently, two approaches are supported: [Speculative Collision](#speculative-collision) and [Swept CCD](#swept-ccd).
+//! Speculative collision is enabled by default, but swept CCD is opt-in with the [`SweptCcd`] component.
+//! The two approaches can also be used together.
 //!
 //! ## Speculative Collision
 //!
@@ -113,6 +115,92 @@
 //! especially for thin objects spinning at very high speeds. This is typically quite rare however,
 //! and speculative collision should work fine for the majority of cases.
 //!
+//! For an approach that is more expensive but doesn't suffer from ghost collisions
+//! or missed collisions, consider using swept CCD, which is described in the following section.
+//!
+//! ## Swept CCD
+//!
+//! **Swept CCD** is a form of Continuous Collision Detection that sweeps potentially colliding objects
+//! from their previous positions to their current positions, and if a collision is found, moves the bodies
+//! back to the time of impact. This way, the normal collision algorithms will be able to detect and handle
+//! the collision during the next frame.
+//!
+//! There are two variants of swept CCD: [`Linear`](SweepMode::Linear)
+//! and [`NonLinear`](SweepMode::Linear). The difference between the two
+//! is that [`Linear`](SweepMode::Linear) only considers translational motion,
+//! so bodies can still pass through objects that are spinning at high speeds,
+//! while [`NonLinear`](SweepMode::NonLinear) also considers rotational motion,
+//! but is more expensive.
+//!
+//! <svg width="300" height="350" viewBox="0 0 300 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+//!     <rect x="141" y="1" width="18" height="298" fill="#64C850" stroke="black" stroke-width="2"/>
+//!     <circle cx="115" cy="150" r="24" stroke="#5064C8" stroke-width="2" stroke-dasharray="4 4"/>
+//!     <circle cx="25" cy="150" r="24" fill="#5064C8" stroke="black" stroke-width="2"/>
+//!     <path d="M115.707 150.707C116.098 150.317 116.098 149.683 115.707 149.293L109.343 142.929C108.953 142.538 108.319 142.538 107.929 142.929C107.538 143.319 107.538 143.953 107.929 144.343L113.586 150L107.929 155.657C107.538 156.047 107.538 156.681 107.929 157.071C108.319 157.462 108.953 157.462 109.343 157.071L115.707 150.707ZM25 151H115V149H25V151Z" fill="#E19664"/>
+//!     <text x="150" y="325" style="fill: #b4b4b4; font: 18px monospace; text-anchor: middle;">Linear / NonLinear</text>
+//! </svg>
+//!
+//! <svg width="600" height="350" viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+//!     <rect x="438.95" y="25.3488" width="18" height="298" transform="rotate(27.5 438.95 25.3488)" stroke="#64C850" stroke-width="2" stroke-dasharray="4 4"/>
+//!     <rect x="301" y="1" width="18" height="298" fill="#64C850" stroke="black" stroke-width="2"/>
+//!     <circle cx="425" cy="150" r="24" fill="#5064C8" stroke="black" stroke-width="2"/>
+//!     <text x="150" y="325" style="fill: #b4b4b4; font: 18px monospace; text-anchor: middle;">Linear</text>
+//!     <circle cx="310" cy="290" r="5" fill="#D9D9D9" stroke="black" stroke-width="2"/>
+//!     <path d="M322.96 148.816L323.331 149.745L323.331 149.745L322.96 148.816ZM361.786 156.786L361.078 157.493L361.078 157.493L361.786 156.786ZM365 161C365.552 161 366 160.552 366 160L366 151C366 150.448 365.552 150 365 150C364.448 150 364 150.448 364 151L364 159L356 159C355.448 159 355 159.448 355 160C355 160.552 355.448 161 356 161L365 161ZM320.371 150.928L323.331 149.745L322.588 147.888L319.629 149.072L320.371 150.928ZM361.078 157.493L364.293 160.707L365.707 159.293L362.493 156.078L361.078 157.493ZM323.331 149.745C336.331 144.545 351.178 147.592 361.078 157.493L362.493 156.078C352.027 145.612 336.331 142.391 322.588 147.888L323.331 149.745Z" fill="#E19664"/>
+//!     <rect x="259.442" y="133.366" width="18" height="298" transform="rotate(60 259.442 133.366)" stroke="#64C850" stroke-width="2" stroke-dasharray="4 4"/>
+//!     <rect x="1" y="1" width="18" height="298" fill="#64C850" stroke="black" stroke-width="2"/>
+//!     <circle cx="125" cy="150" r="24" fill="#5064C8" stroke="black" stroke-width="2"/>
+//!     <text x="450" y="325" style="fill: #b4b4b4; font: 18px monospace; text-anchor: middle;">NonLinear</text>
+//!     <circle cx="10" cy="290" r="5" fill="#D9D9D9" stroke="black" stroke-width="2"/>
+//!     <path d="M54.0561 245.357L53.1144 245.694L53.1144 245.694L54.0561 245.357ZM54.5719 248.904C55.071 249.14 55.6673 248.927 55.9037 248.428L59.7565 240.294C59.9929 239.795 59.7799 239.199 59.2808 238.963C58.7817 238.726 58.1854 238.939 57.949 239.438L54.5243 246.668L47.2944 243.243C46.7953 243.007 46.199 243.22 45.9626 243.719C45.7261 244.218 45.9391 244.815 46.4382 245.051L54.5719 248.904ZM53.1144 245.694L54.0582 248.336L55.9417 247.664L54.9978 245.021L53.1144 245.694ZM20.3714 230.928C33.4979 225.678 48.3594 232.379 53.1144 245.694L54.9978 245.021C49.8615 230.639 33.808 223.4 19.6286 229.071L20.3714 230.928Z" fill="#E19664"/>
+//! </svg>
+//!
+//! To enable swept CCD for a rigid body, simply add the [`SweptCcd`] component
+//! and make sure that the [`CcdPlugin`] is enabled. The plugin is included
+//! in the [`PhysicsPlugins`] plugin group.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+//! use bevy::prelude::*;
+//!
+//! fn setup(mut commands: Commands) {
+//!     // Spawn a rigid body with swept CCD enabled.
+//!     // `SweepMode::NonLinear` is used by default.
+//!     commands.spawn((
+//!         RigidBody::Dynamic,
+//!         Collider::capsule(2.0, 0.5),
+//!         SweptCcd::default(),
+//!     ));
+//! }
+//! ```
+//!
+//! See the [documentation](SweptCcd) of the component for more details
+//! and configuration options.
+//!
+//! Swept CCD is more expensive than [Speculative Collision](#speculative-collision),
+//! but it doesn't have the same issues with ghost collisions or missed collisions.
+//! It is primarily intended as a safety net when it is crucial that a body never
+//! tunnels through geometry. Swept CCD should only be used when necessary,
+//! as it also has its own set of problems.
+//!
+//! ### Caveats of Swept CCD
+//!
+//! The [`Linear`](SweepMode::Linear) and [`NonLinear`](SweepMode::Linear)
+//! approaches can lead to *time loss* or *time stealing*, where bodies appear to momentarily
+//! move slower when Swept CCD is active. This happens because they are essentially moved
+//! backwards in time to avoid missing the collision.
+//!
+//! Swept CCD might also not account for chain reactions properly, so if a fast-moving body
+//! bumps into another body, making it a fast-moving body that potentially bumps into
+//! even more bodies, the collisions might not propagate accurately.
+//! However, speculative contacts do detect secondary collisions quite well,
+//! so using the two together can help mitigate the issue.
+//!
+//! Time loss and chain reactions could also be better accounted for with a substepped
+//! time-of-impact solver, but that would be much more expensive and complex,
+//! so it is not yet supported.
+//!
 //! ## Other Ways to Avoid Tunneling
 //!
 //! CCD is one way to prevent objects from tunneling through each other,
@@ -130,8 +218,61 @@
 //!
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
-use crate::prelude::*;
-use bevy::prelude::*;
+
+use crate::{collision::broad_phase::AabbIntersections, prelude::*, prepare::PrepareSet};
+use bevy::{
+    ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
+    prelude::*,
+};
+use parry::query::{
+    cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
+};
+
+/// A plugin for [Continuous Collision Detection](self).
+pub struct CcdPlugin {
+    schedule: Interned<dyn ScheduleLabel>,
+}
+
+impl CcdPlugin {
+    /// Creates a [`CcdPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is `PostUpdate`.
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            schedule: schedule.intern(),
+        }
+    }
+}
+
+impl Default for CcdPlugin {
+    fn default() -> Self {
+        Self::new(PostUpdate)
+    }
+}
+
+impl Plugin for CcdPlugin {
+    fn build(&self, app: &mut App) {
+        app.register_type::<SweptCcd>().register_type::<SweepMode>();
+
+        app.add_systems(
+            self.schedule,
+            init_ccd_aabb_intersections.in_set(PrepareSet::InitColliders),
+        );
+
+        // Get the `PhysicsSchedule`, and panic if it doesn't exist.
+        let physics = app
+            .get_schedule_mut(PhysicsSchedule)
+            .expect("add PhysicsSchedule first");
+
+        physics.configure_sets(SweptCcdSet.in_set(SolverSet::PostSubstep));
+
+        physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));
+    }
+}
+
+/// A system set for [Continuous Collision Detection](self) systems.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct SweptCcdSet;
 
 /// The maximum distance at which [speculative contacts](self#speculative-collision)
 /// are generated for this entity. A value greater than zero helps prevent missing
@@ -164,10 +305,485 @@ use bevy::prelude::*;
 /// ```
 #[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Reflect)]
 #[reflect(Component)]
-#[doc(alias = "CcdPredictionDistance")]
+#[doc(alias = "SweptCcdPredictionDistance")]
 pub struct SpeculativeMargin(pub Scalar);
 
 impl SpeculativeMargin {
+    /// A zero speculative margin. Disables speculative collision for this entity.
+    pub const ZERO: Self = Self(0.0);
+
     /// An unbounded speculative margin.
     pub const MAX: Self = Self(Scalar::MAX);
+}
+
+/// A component that enables sweep-based [Continuous Collision Detection](self) (CCD)
+/// for a [`RigidBody`]. This helps prevent missed collisions for small and fast-moving objects.
+///
+/// By default, swept CCD considers both translational and rotational motion, and is used
+/// against all types of rigid bodies and colliders. This behavior can be modified
+/// by changing [`SweptCcd::mode`] and other properties.
+///
+/// CCD is generally not useful for large or slow objects, as they are less likely
+/// to miss collisions. It is recommended to only use swept CCD when necessary,
+/// as it is more expensive than [speculative collision](self#speculative-collision) and discrete collision detection.
+///
+/// Read the [module-level documentation](self) for more information about what CCD is,
+/// what it is used for, and what limitations and tradeoffs it can have.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// # #[cfg(feature = "f32")]
+/// fn setup(mut commands: Commands) {
+///     // Spawn a dynamic rigid body with swept CCD, travelling towards the right at a high speed.
+///     // The default CCD configuration considers both translational and rotational motion.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         SweptCcd::default(),
+#[cfg_attr(feature = "2d", doc = "        LinearVelocity(Vec2::X * 100.0),")]
+#[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
+///         TransformBundle::from_transform(Transform::from_xyz(-10.0, 3.0, 0.0)),
+///     ));
+///
+///     // Spawn another dynamic rigid body with swept CCD, but this time only considering
+///     // linear motion and not rotation.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         SweptCcd::LINEAR, // or `SweptCcd::new_with_mode(SweepMode::Linear)`
+#[cfg_attr(feature = "2d", doc = "        LinearVelocity(Vec2::X * 100.0),")]
+#[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
+///         TransformBundle::from_transform(Transform::from_xyz(-10.0, -3.0, 0.0)),
+///     ));
+///
+///     // Spawn a thin, long object rotating at a high speed.
+///     // The first ball should hit it, but the second one does not consider
+///     // rotational motion, and most likely passes through.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         LockedAxes::TRANSLATION_LOCKED,
+#[cfg_attr(feature = "2d", doc = "        AngularVelocity(100.0),")]
+#[cfg_attr(feature = "3d", doc = "        AngularVelocity(Vec3::Z * 100.0),")]
+#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(0.2, 10.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(0.2, 10.0, 10.0),")]
+///     ));
+///
+///     // Spawn another thin, long object, this time not rotating.
+///     // The second ball should now hit this.
+///     commands.spawn((
+///         RigidBody::Static,
+#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(0.2, 10.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(0.2, 10.0, 10.0),")]
+///         TransformBundle::from_transform(Transform::from_xyz(15.0, 0.0, 0.0)),
+///     ));
+/// }
+/// ```
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
+pub struct SweptCcd {
+    /// The type of sweep used for swept CCD.
+    ///
+    /// If two entities with different sweep modes collide, [`SweepMode::NonLinear`]
+    /// is preferred.
+    ///
+    /// The default is [`SweepMode::NonLinear`], which considers both translational
+    /// and rotational motion.
+    pub mode: SweepMode,
+    /// If `true`, swept CCD is performed against dynamic rigid bodies.
+    /// Otherwise, it is only performed against static geometry and kinematic bodies.
+    ///
+    /// The default is `true`.
+    pub include_dynamic: bool,
+    /// Determines how fast two bodies must be moving relative to each other
+    /// for swept CCD to be activated for them.
+    ///
+    /// If the linear velocity is below this threshold, CCD is skipped,
+    /// unless the angular velocity exceeds the `angular_threshold`.
+    ///
+    /// The default is `0.0`, meaning that CCD is performed regardless of the relative velocity.
+    pub linear_threshold: Scalar,
+    /// Determines how fast two bodies must be rotating relative to each other
+    /// for swept CCD to be activated for them.
+    ///
+    /// If the angular velocity is below this threshold, CCD is skipped,
+    /// unless the linear velocity exceeds the `linear_threshold`.
+    ///
+    /// The default is `0.0`, meaning that CCD is performed regardless of the relative velocity.
+    pub angular_threshold: Scalar,
+}
+
+impl Default for SweptCcd {
+    fn default() -> Self {
+        Self::NON_LINEAR
+    }
+}
+
+impl SweptCcd {
+    /// Continuous Collision Detection with [`SweepMode::Linear`].
+    ///
+    /// This only takes into account translational motion, and can lead to tunneling
+    /// against thin, fast-spinning objects.
+    pub const LINEAR: Self = Self::new_with_mode(SweepMode::Linear);
+
+    /// Continuous Collision Detection with [`SweepMode::NonLinear`].
+    ///
+    /// This takes into account both translational and rotational motion.
+    pub const NON_LINEAR: Self = Self::new_with_mode(SweepMode::NonLinear);
+
+    /// Creates a new [`SweptCcd`] configuration with the given [`SweepMode`].
+    #[inline]
+    pub const fn new_with_mode(mode: SweepMode) -> Self {
+        Self {
+            mode,
+            include_dynamic: true,
+            linear_threshold: 0.0,
+            angular_threshold: 0.0,
+        }
+    }
+
+    /// Sets the linear and angular velocity thresholds in `self`,
+    /// determining how fast two bodies must be moving relative to each other
+    /// for swept CCD to be activated for them.
+    ///
+    /// CCD will be active if either of the two thresholds is exceeded.
+    #[inline]
+    pub const fn with_velocity_threshold(mut self, linear: Scalar, angular: Scalar) -> Self {
+        self.linear_threshold = linear;
+        self.angular_threshold = angular;
+        self
+    }
+
+    /// Sets whether swept CCD is performed against dynamic rigid bodies.
+    /// If `false`, it is only performed against static geometry and kinematic bodies.
+    #[inline]
+    pub const fn include_dynamic(mut self, should_include: bool) -> Self {
+        self.include_dynamic = should_include;
+        self
+    }
+}
+
+/// The algorithm used for [Swept Continuous Collision Detection](self#swept-ccd).
+///
+/// If two entities with different sweep modes collide, [`SweepMode::NonLinear`]
+/// is preferred.
+///
+/// The default is [`SweepMode::NonLinear`], which considers both translational
+/// and rotational motion.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+pub enum SweepMode {
+    /// [Swept CCD](self#swept-ccd) is performed using linear time-of-impact queries
+    /// from the previous positions of [`SweptCcd`] bodies to their current positions,
+    /// stopping the bodies at the first time of impact.
+    ///
+    /// This mode only considers translational motion, and can lead to tunneling
+    /// against thin, fast-spinning objects. For the more expensive version
+    /// that also considers rotational motion, consider using [`SweepMode::NonLinear`].
+    Linear,
+
+    /// [Swept CCD](self#swept-ccd) is performed using non-linear time-of-impact queries
+    /// from the previous positions of [`SweptCcd`] bodies to their current positions,
+    /// stopping the bodies at the first time of impact.
+    ///
+    /// This mode considers both translational and rotational motion.
+    /// For the cheaper version that only considers translational motion,
+    /// consider using [`SweepMode::Linear`].
+    #[default]
+    NonLinear,
+}
+
+fn init_ccd_aabb_intersections(mut commands: Commands, query: Query<Entity, Added<SweptCcd>>) {
+    for entity in &query {
+        commands.entity(entity).insert(AabbIntersections::default());
+    }
+}
+
+#[derive(QueryData)]
+#[query_data(mutable)]
+struct SweptCcdBodyQuery {
+    entity: Entity,
+    rb: &'static RigidBody,
+    pos: &'static Position,
+    translation: Option<&'static mut AccumulatedTranslation>,
+    rot: &'static mut Rotation,
+    prev_rot: Option<&'static mut PreviousRotation>,
+    lin_vel: Option<&'static LinearVelocity>,
+    ang_vel: Option<&'static AngularVelocity>,
+    ccd: Option<&'static SweptCcd>,
+    collider: &'static Collider,
+    com: &'static CenterOfMass,
+}
+
+/// Performs [sweep-based mContinuous Collision Detection](self#swept-ccd)
+/// by performing time-of-impact queries from the previous positions of [`SweptCcd`] bodies
+/// to their current positions, stopping the bodies at the first time of impact.
+///
+/// This approach can lead to "time loss" or "time stealing", because the bodies
+/// are essentially moved back in time, making them appear to momentarily move slower.
+/// Secondary contacts are also not accounted for.
+#[allow(clippy::useless_conversion)]
+fn solve_swept_ccd(
+    ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
+    bodies: Query<SweptCcdBodyQuery>,
+    colliders: Query<(&Collider, &ColliderParent)>,
+    time: Res<Time>,
+    narrow_phase_config: Res<NarrowPhaseConfig>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    // TODO: Parallelize.
+    for (entity, intersections) in &ccd_query {
+        // Get the CCD body.
+        let Ok(SweptCcdBodyQueryItem {
+            pos: pos1,
+            translation: Some(mut translation1),
+            rot: mut rot1,
+            prev_rot: Some(prev_rot),
+            lin_vel: Some(lin_vel1),
+            ang_vel: Some(ang_vel1),
+            ccd: Some(ccd1),
+            collider: collider1,
+            com: com1,
+            ..
+        }) = (
+            // Safety: `get_unchecked` is only unsafe if there are multiple mutable references
+            //         to the same component, and this is ensured not to happen when iterating
+            //         over the AABB intersections below.
+            unsafe { bodies.get_unchecked(entity) }
+        )
+        else {
+            continue;
+        };
+
+        // The smallest time of impact found. Starts at the largest value,
+        // how long a body moves during a single frame due to position integration.
+        let (mut min_toi, mut min_toi_entity) = (delta_secs, None);
+
+        // Iterate through colliders intersecting the AABB of the CCD body.
+        for (collider2, collider_parent) in colliders.iter_many(intersections.iter()) {
+            debug_assert_ne!(
+                entity,
+                collider_parent.get(),
+                "collider AABB cannot intersect itself"
+            );
+
+            // Get the body associated with the collider.
+            // Safety: `AabbIntersections` should never contain the entity of a collider
+            //         with the same parent as the first body, and the entities
+            //         are also ensured to be different above.
+            if let Ok(body2) = unsafe { bodies.get_unchecked(collider_parent.get()) } {
+                if !ccd1.include_dynamic && body2.rb.is_dynamic() {
+                    continue;
+                }
+
+                let lin_vel2 = body2.lin_vel.copied().unwrap_or_default().0;
+                let ang_vel2 = body2.ang_vel.copied().unwrap_or_default().0;
+
+                #[cfg(feature = "2d")]
+                let ang_vel_below_threshold =
+                    (ang_vel1.0 - ang_vel2).abs() < ccd1.angular_threshold;
+                #[cfg(feature = "3d")]
+                let ang_vel_below_threshold =
+                    (ang_vel1.0 - ang_vel2).length_squared() < ccd1.angular_threshold.powi(2);
+
+                // If both the relative linear and relative angular velocity
+                // are below the defined thresholds, skip this body.
+                if ang_vel_below_threshold
+                    && (lin_vel1.0 - lin_vel2).length_squared() < ccd1.linear_threshold.powi(2)
+                {
+                    continue;
+                }
+
+                let iso1 = make_isometry(pos1.0, prev_rot.0);
+                let iso2 = make_isometry(
+                    body2.pos.0,
+                    body2.prev_rot.as_ref().map_or(*body2.rot, |rot| rot.0),
+                );
+
+                // TODO: Support child colliders
+                let motion1 = NonlinearRigidMotion::new(
+                    iso1,
+                    com1.0.into(),
+                    lin_vel1.0.into(),
+                    ang_vel1.0.into(),
+                );
+                let motion2 = NonlinearRigidMotion::new(
+                    iso2,
+                    body2.com.0.into(),
+                    lin_vel2.into(),
+                    ang_vel2.into(),
+                );
+
+                let sweep_mode = if ccd1.mode == SweepMode::Linear
+                    && body2.ccd.map_or(true, |ccd| ccd.mode == SweepMode::Linear)
+                {
+                    SweepMode::Linear
+                } else {
+                    SweepMode::NonLinear
+                };
+
+                if let Some(toi) = compute_ccd_toi(
+                    sweep_mode,
+                    &motion1,
+                    collider1,
+                    &motion2,
+                    collider2,
+                    min_toi,
+                    narrow_phase_config.default_speculative_margin,
+                ) {
+                    min_toi = toi;
+                    min_toi_entity = Some(collider_parent.get());
+                }
+            }
+        }
+
+        // Advance the bodies from the previous poses to the first time of impact.
+        if let Some(Ok(mut body2)) =
+            min_toi_entity.map(|entity| unsafe { bodies.get_unchecked(entity) })
+        {
+            let collider_lin_vel = body2.lin_vel.copied().unwrap_or_default().0;
+            let collider_ang_vel = body2.ang_vel.copied().unwrap_or_default().0;
+
+            // Overshoot slightly to make sure the bodies advance and don't get stuck.
+            let min_toi = min_toi * 1.0001;
+
+            translation1.0 = min_toi * lin_vel1.0;
+
+            // TODO: Abstract the integration logic to reuse it here
+            #[cfg(feature = "2d")]
+            {
+                *rot1 = prev_rot.0 * Rotation::radians(ang_vel1.0 * min_toi);
+            }
+            #[cfg(feature = "3d")]
+            {
+                let delta_rot = Quaternion::from_vec4(
+                    (ang_vel1.0 * min_toi / 2.0).extend(prev_rot.w * min_toi / 2.0),
+                ) * prev_rot.0 .0;
+                rot1.0 = (prev_rot.0 .0 + delta_rot).normalize();
+            }
+
+            if let Some(mut collider_translation) = body2.translation {
+                collider_translation.0 = min_toi * collider_lin_vel;
+            }
+            if let Some(ref collider_prev_rot) = body2.prev_rot {
+                #[cfg(feature = "2d")]
+                {
+                    *body2.rot =
+                        collider_prev_rot.0 * Rotation::radians(collider_ang_vel * min_toi);
+                }
+                #[cfg(feature = "3d")]
+                {
+                    let delta_rot = Quaternion::from_vec4(
+                        (collider_ang_vel * min_toi / 2.0)
+                            .extend(collider_prev_rot.w * min_toi / 2.0),
+                    ) * collider_prev_rot.0 .0;
+                    body2.rot.0 = (collider_prev_rot.0 .0 + delta_rot).normalize();
+                }
+            }
+        }
+    }
+}
+
+/// Computes the time of impact for the motion of two objects for Continuous Collision Detection.
+/// If the TOI is larger than `min_toi` or the shapes never touch, `None` is returned.
+fn compute_ccd_toi(
+    mode: SweepMode,
+    motion1: &NonlinearRigidMotion,
+    collider1: &Collider,
+    motion2: &NonlinearRigidMotion,
+    collider2: &Collider,
+    min_toi: Scalar,
+    prediction_distance: Scalar,
+) -> Option<Scalar> {
+    if mode == SweepMode::Linear {
+        if let Ok(Some(ShapeCastHit {
+            time_of_impact: toi,
+            ..
+        })) = cast_shapes(
+            &motion1.start,
+            &motion1.linvel,
+            collider1.shape_scaled().as_ref(),
+            &motion2.start,
+            &motion2.linvel,
+            collider2.shape_scaled().as_ref(),
+            ShapeCastOptions {
+                max_time_of_impact: min_toi,
+                stop_at_penetration: false,
+                ..default()
+            },
+        ) {
+            if toi > 0.0 && toi < min_toi {
+                // New smaller time of impact found
+                return Some(toi);
+            } else if toi == 0.0 {
+                // If the time of impact is zero, fall back to computing the TOI of a small circle
+                // around the centroid of the first body.
+                if let Ok(Some(ShapeCastHit {
+                    time_of_impact: toi,
+                    ..
+                })) = cast_shapes(
+                    &motion1.start,
+                    &motion1.linvel,
+                    collider1.shape_scaled().as_ref(),
+                    &motion2.start,
+                    &motion2.linvel,
+                    &parry::shape::Ball::new(prediction_distance),
+                    ShapeCastOptions {
+                        max_time_of_impact: min_toi,
+                        stop_at_penetration: false,
+                        ..default()
+                    },
+                ) {
+                    if toi > 0.0 && toi < min_toi {
+                        // New smaller time of impact found
+                        return Some(toi);
+                    }
+                }
+            }
+        }
+    } else if let Ok(Some(ShapeCastHit {
+        time_of_impact: toi,
+        ..
+    })) = cast_shapes_nonlinear(
+        motion1,
+        collider1.shape_scaled().as_ref(),
+        motion2,
+        collider2.shape_scaled().as_ref(),
+        0.0,
+        min_toi,
+        false,
+    ) {
+        if toi > 0.0 && toi < min_toi {
+            // New smaller time of impact found
+            return Some(toi);
+        } else if toi == 0.0 {
+            // If the time of impact is zero, fall back to computing the TOI of a small circle
+            // around the centroid of the first body.
+            if let Ok(Some(ShapeCastHit {
+                time_of_impact: toi,
+                ..
+            })) = cast_shapes_nonlinear(
+                motion1,
+                collider1.shape_scaled().as_ref(),
+                motion2,
+                &parry::shape::Ball::new(prediction_distance),
+                0.0,
+                min_toi,
+                false,
+            ) {
+                if toi > 0.0 && toi < min_toi {
+                    // New smaller time of impact found
+                    return Some(toi);
+                }
+            }
+        }
+    }
+
+    None
 }
