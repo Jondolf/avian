@@ -1,15 +1,18 @@
 [package]
 name = "bevy_xpbd_2d"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
-description = "A physics engine based on Extended Position Based Dynamics for the Bevy game engine"
+description = "Deprecated, use `avian2d` instead. A physics engine based on Extended Position Based Dynamics for the Bevy game engine"
 documentation = "https://docs.rs/bevy_xpbd_2d"
 repository = "https://github.com/Jondolf/bevy_xpbd"
 readme = "README.md"
 keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
+
+[badges]
+maintenance = { status = "deprecated" }
 
 [features]
 default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel"]

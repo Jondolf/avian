@@ -1,4 +1,10 @@
-//! # Bevy XPBD
+//! # Bevy XPBD (deprecated in favor of [Avian](https://github.com/Jondolf/avian))
+//!
+//! **⚠️ Bevy XPBD has been deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian).
+//! No further development or maintenance will be done for Bevy XPBD.
+//! See [#346](https://github.com/Jondolf/avian/issues/346) for background.**
+//!
+//! ---
 //!
 //! **Bevy XPBD** is a 2D and 3D physics engine based on
 //! [*Extended Position Based Dynamics* (XPBD)](#what-is-xpbd) for
@@ -23,11 +29,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! bevy_xpbd_2d = "0.4"
+//! bevy_xpbd_2d = "0.5"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! bevy_xpbd_3d = "0.4"
+//! bevy_xpbd_3d = "0.5"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -41,7 +47,7 @@
 //! [dependencies]
 //! # Add 3D Bevy XPBD with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! bevy_xpbd_3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! bevy_xpbd_3d = { version = "0.5", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ### Feature flags
