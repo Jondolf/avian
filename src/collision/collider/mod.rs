@@ -389,7 +389,7 @@ impl Default for ColliderAabb {
     // A margin of `0.1` is added around the shape.
     commands.spawn((
         RigidBody::Dynamic,
-        Collider::trimesh_from_mesh(&mesh),
+        Collider::trimesh_from_mesh(&mesh).unwrap(),
         CollisionMargin(0.1),
     ));"
 )]
