@@ -366,13 +366,13 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         let original_mass_props =
-            MassPropertiesBundle::new_computed(&Collider::capsule(2.4, 0.6), 3.9);
+            MassPropertiesBundle::new_computed(&Collider::capsule(0.6, 2.4), 3.9);
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(original_mass_props.clone());
 
         // Create collider mass properties
-        let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
+        let collider_mass_props = Collider::capsule(2.1, 7.4).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world_mut().query::<MassPropertiesQuery>();

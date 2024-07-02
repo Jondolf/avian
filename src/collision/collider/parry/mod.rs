@@ -220,8 +220,8 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// // Create a ball collider with a given radius
 #[cfg_attr(feature = "2d", doc = "commands.spawn(Collider::circle(0.5));")]
 #[cfg_attr(feature = "3d", doc = "commands.spawn(Collider::sphere(0.5));")]
-/// // Create a capsule collider with a given height and radius
-/// commands.spawn(Collider::capsule(2.0, 0.5));
+/// // Create a capsule collider with a given radius and height
+/// commands.spawn(Collider::capsule(0.5, 2.0));
 /// # }
 /// ```
 ///
@@ -763,34 +763,38 @@ impl Collider {
         .into()
     }
 
-    /// Creates a collider with a cylinder shape defined by its height along the `Y` axis and its radius on the `XZ` plane.
+    /// Creates a collider with a cylinder shape defined by its radius
+    /// on the `XZ` plane and its height along the `Y` axis.
     #[cfg(feature = "3d")]
-    pub fn cylinder(height: Scalar, radius: Scalar) -> Self {
+    pub fn cylinder(radius: Scalar, height: Scalar) -> Self {
         SharedShape::cylinder(height * 0.5, radius).into()
     }
 
-    /// Creates a collider with a cone shape defined by its height along the `Y` axis and the radius of its base on the `XZ` plane.
+    /// Creates a collider with a cone shape defined by the radius of its base
+    /// on the `XZ` plane and its height along the `Y` axis.
     #[cfg(feature = "3d")]
-    pub fn cone(height: Scalar, radius: Scalar) -> Self {
+    pub fn cone(radius: Scalar, height: Scalar) -> Self {
         SharedShape::cone(height * 0.5, radius).into()
     }
 
-    /// Creates a collider with a capsule shape defined by its height along the `Y` axis and its radius.
-    pub fn capsule(height: Scalar, radius: Scalar) -> Self {
+    /// Creates a collider with a capsule shape defined by its radius
+    /// and its height along the `Y` axis, excluding the hemispheres.
+    pub fn capsule(radius: Scalar, length: Scalar) -> Self {
         SharedShape::capsule(
-            (Vector::Y * height * 0.5).into(),
-            (Vector::NEG_Y * height * 0.5).into(),
+            (Vector::Y * length * 0.5).into(),
+            (Vector::NEG_Y * length * 0.5).into(),
             radius,
         )
         .into()
     }
 
-    /// Creates a collider with a capsule shape defined by its end points `a` and `b` and its radius.
-    pub fn capsule_endpoints(a: Vector, b: Vector, radius: Scalar) -> Self {
+    /// Creates a collider with a capsule shape defined by its radius and endpoints `a` and `b`.
+    pub fn capsule_endpoints(radius: Scalar, a: Vector, b: Vector) -> Self {
         SharedShape::capsule(a.into(), b.into(), radius).into()
     }
 
-    /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape defined by the outward normal of its planar boundary.
+    /// Creates a collider with a [half-space](https://en.wikipedia.org/wiki/Half-space_(geometry)) shape
+    /// defined by the outward normal of its planar boundary.
     pub fn half_space(outward_normal: Vector) -> Self {
         SharedShape::halfspace(nalgebra::Unit::new_normalize(outward_normal.into())).into()
     }
@@ -1132,14 +1136,14 @@ impl Collider {
                 border_radius,
             )),
             #[cfg(feature = "3d")]
-            ColliderConstructor::Cylinder { height, radius } => {
-                Some(Self::cylinder(height, radius))
+            ColliderConstructor::Cylinder { radius, height } => {
+                Some(Self::cylinder(radius, height))
             }
             #[cfg(feature = "3d")]
-            ColliderConstructor::Cone { height, radius } => Some(Self::cone(height, radius)),
-            ColliderConstructor::Capsule { height, radius } => Some(Self::capsule(height, radius)),
-            ColliderConstructor::CapsuleEndpoints { a, b, radius } => {
-                Some(Self::capsule_endpoints(a, b, radius))
+            ColliderConstructor::Cone { radius, height } => Some(Self::cone(radius, height)),
+            ColliderConstructor::Capsule { radius, height } => Some(Self::capsule(radius, height)),
+            ColliderConstructor::CapsuleEndpoints { radius, a, b } => {
+                Some(Self::capsule_endpoints(radius, a, b))
             }
             ColliderConstructor::HalfSpace { outward_normal } => {
                 Some(Self::half_space(outward_normal))

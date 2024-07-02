@@ -68,7 +68,7 @@
 //!     // Spawn a rigid body with a maximum speculative margin.
 //!     commands.spawn((
 //!         RigidBody::Dynamic,
-//!         Collider::capsule(2.0, 0.5),
+//!         Collider::capsule(0.5, 2.0),
 //!         SpeculativeMargin(2.0),
 //!     ));
 //! }
@@ -169,7 +169,7 @@
 //!     // `SweepMode::NonLinear` is used by default.
 //!     commands.spawn((
 //!         RigidBody::Dynamic,
-//!         Collider::capsule(2.0, 0.5),
+//!         Collider::capsule(0.5, 2.0),
 //!         SweptCcd::default(),
 //!     ));
 //! }
@@ -298,7 +298,7 @@ pub struct SweptCcdSet;
 ///     // Spawn a rigid body with an unbounded speculative margin.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::capsule(2.0, 0.5),
+///         Collider::capsule(0.5, 2.0),
 ///         SpeculativeMargin::MAX,
 ///     ));
 /// }

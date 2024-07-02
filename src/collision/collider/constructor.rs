@@ -328,17 +328,17 @@ pub enum ColliderConstructor {
     },
     /// Constructs a collider with [`Collider::cylinder`].
     #[cfg(feature = "3d")]
-    Cylinder { height: Scalar, radius: Scalar },
+    Cylinder { radius: Scalar, height: Scalar },
     /// Constructs a collider with [`Collider::cone`].
     #[cfg(feature = "3d")]
-    Cone { height: Scalar, radius: Scalar },
+    Cone { radius: Scalar, height: Scalar },
     /// Constructs a collider with [`Collider::capsule`].
-    Capsule { height: Scalar, radius: Scalar },
+    Capsule { radius: Scalar, height: Scalar },
     /// Constructs a collider with [`Collider::capsule_endpoints`].
     CapsuleEndpoints {
+        radius: Scalar,
         a: Vector,
         b: Vector,
-        radius: Scalar,
     },
     /// Constructs a collider with [`Collider::half_space`].
     HalfSpace { outward_normal: Vector },

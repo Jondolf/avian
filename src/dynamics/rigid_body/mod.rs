@@ -794,7 +794,7 @@ pub struct AngularDamping(pub Scalar);
 /// fn spawn_player(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::capsule(1.0, 0.4),
+///         Collider::capsule(0.4, 1.0),
 ///         Dominance(5),
 ///     ));
 /// }

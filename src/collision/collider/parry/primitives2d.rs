@@ -450,8 +450,8 @@ impl PointQuery for RegularPolygonWrapper {
 impl IntoCollider<Collider> for Capsule2d {
     fn collider(&self) -> Collider {
         Collider::capsule(
-            2.0 * self.half_length.adjust_precision(),
             self.radius.adjust_precision(),
+            2.0 * self.half_length.adjust_precision(),
         )
     }
 }
