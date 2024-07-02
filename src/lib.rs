@@ -21,11 +21,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! avian2d = "0.4"
+//! avian2d = "0.1"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! avian3d = "0.4"
+//! avian3d = "0.1"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,7 +39,7 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.4", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.1", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ### Feature flags
@@ -66,7 +66,7 @@
 //!
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
-//! ### Install the plugin
+//! ### Add the plugins
 //!
 //! Avian is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
@@ -115,7 +115,7 @@
 //! Below is a structured overview of the documentation for the various
 //! features of the engine.
 //!
-//! ### Rigid bodies
+//! ### Rigid body dynamics
 //!
 //! - [Rigid body types](RigidBody#rigid-body-types)
 //! - [Creating rigid bodies](RigidBody#creation)
@@ -127,7 +127,12 @@
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 //! - [Lock translational and rotational axes](LockedAxes)
 //! - [Dominance]
+//! - [Continuous Collision Detection (CCD)](dynamics::ccd)
+//!     - [Speculative collision](dynamics::ccd#speculative-collision)
+//!     - [Swept CCD](dynamics::ccd#swept-ccd)
 //! - [Automatic deactivation with sleeping](Sleeping)
+//!
+//! See the [`dynamics`] module for more details about rigid body dynamics in Avian.
 //!
 //! ### Collision detection
 //!
@@ -139,12 +144,14 @@
 //!     - [Sensors](Sensor)
 #![cfg_attr(
     feature = "3d",
-    doc = "    - Creating colliders from meshes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
+    doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
 //! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
+//!
+//! See the [`collision`] module for more details about collision detection and colliders in Avian.
 //!
 //! ### Constraints and joints
 //!
@@ -200,7 +207,7 @@
 //!
 //! ## Frequently asked questions
 //!
-//! - [How does Avian compare to Rapier and bevy_rapier?](#how-does-bevy-xpbd-compare-to-rapier-and-bevy_rapier)
+//! - [How does Avian compare to Rapier and bevy_rapier?](#how-does-avian-compare-to-rapier-and-bevy_rapier)
 //! - [Why is nothing happening?](#why-is-nothing-happening)
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
@@ -235,18 +242,14 @@
 //! from [custom schedules](PhysicsPlugins#custom-schedule) and [plugins](PhysicsPlugins#custom-plugins) to
 //! [custom joints](dynamics::solver::joints#custom-joints) and [constraints](dynamics::solver::xpbd#custom-constraints).
 //!
-//! In terms of the physics implementation, Rapier uses an impulse/velocity based solver, while Avian uses
-//! [Extended Position Based Dynamics](#what-is-xpbd). On paper, XPBD should be more stable and robust,
-//! but it hasn't been widely adopted in mainstream usage yet.
-//!
-//! One of the biggest disadvantages of Avian is that it is still very young, so it can have lots of bugs,
+//! One disadvantage of Avian is that it is still relatively young, so it can have more bugs,
 //! some missing features, and fewer community resources and third party crates. However, it is growing quite
 //! rapidly, and it is already pretty close to feature-parity with Rapier.
 //!
-//! At the end of the day, both engines are very solid options. If you are looking for a more mature and tested
+//! At the end of the day, both engines are solid options. If you are looking for a more mature and tested
 //! physics integration, `bevy_rapier` is the better choice, but if you prefer an engine with less overhead
 //! and a more native Bevy integration, consider using Avian. Their core APIs are also quite similar,
-//! so switching between them should be straightforward.
+//! so switching between them shouldn't be too difficult.
 //!
 //! ### Why is nothing happening?
 //!
@@ -257,10 +260,7 @@
 //!
 //! If your application is in 2D, you might be using pixels as length units. This will require you to use
 //! larger velocities and forces than you would in 3D. Make sure you set [`Gravity`] to some larger value
-//! as well, because its magnitude is 9.81 by default, which is tiny in pixels.
-//!
-//! Avian doesn't have a "physics scale" yet, but it will most likely be added in the future
-//! so that it's possible to define some kind of pixels per meter configuration.
+//! as well, because its magnitude is `9.81` by default, which is tiny in pixels.
 //!
 //! ### Why did my rigid body suddenly vanish?
 //!
@@ -281,9 +281,6 @@
 //! [profile.release]
 //! codegen-units = 1
 //! ```
-//!
-//! Note that Avian simply isn't very optimized yet, and it mostly runs on a single thread for now.
-//! This will be addressed in future releases.
 //!
 //! ### Why does my camera following jitter?
 //!
@@ -362,7 +359,7 @@
 //! - Only rigid bodies have rotation, particles typically don't (although we don't make a distinction yet).
 //!
 //! In external projects however, using [`Position`] and [`Rotation`] is only necessary when you
-//! need to manage positions in the [`SubstepSchedule`]. Elsewhere, you should be able to use `Transform`.
+//! need to manage positions within [`PhysicsSet::StepSimulation`]. Elsewhere, you should be able to use `Transform`.
 //!
 //! There is also a possibility that we will revisit this if/when Bevy has a `Transform2d` component.
 //! Using `Transform` feels more idiomatic and simple, so it would be nice if it could be used directly
@@ -378,8 +375,8 @@
 //! on both the server and the client to make sure the physics simulation is only advanced by one step
 //! each time the schedule runs.
 //!
-//! Note that while Avian should be locally deterministic, it can produce slightly different results on different
-//! machines.
+//! Note that while Avian should be locally deterministic (at least when single-threaded),
+//! it can produce slightly different results on different machines.
 //!
 //! ### Something else?
 //!
