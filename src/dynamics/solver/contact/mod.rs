@@ -91,6 +91,7 @@ impl ContactConstraint {
         collider_entity2: Entity,
         collider_transform1: Option<ColliderTransform>,
         collider_transform2: Option<ColliderTransform>,
+        collision_margin: Scalar,
         speculative_margin: Scalar,
         friction: Friction,
         restitution: Restitution,
@@ -131,6 +132,8 @@ impl ContactConstraint {
                 contact.point2 = transform.rotation * contact.point2 + transform.translation;
                 contact.normal2 = transform.rotation * contact.normal2;
             }
+
+            contact.penetration += collision_margin;
 
             let effective_distance = -contact.penetration;
 

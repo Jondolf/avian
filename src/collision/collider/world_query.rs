@@ -16,6 +16,7 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub rotation: Ref<'static, Rotation>,
     pub accumulated_translation: Option<Ref<'static, AccumulatedTranslation>>,
     pub transform: Option<&'static ColliderTransform>,
+    pub collision_margin: Option<&'static CollisionMargin>,
     pub speculative_margin: Option<&'static SpeculativeMargin>,
     pub is_rb: Has<RigidBody>,
     pub is_sensor: Has<Sensor>,

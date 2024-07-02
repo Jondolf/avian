@@ -128,6 +128,11 @@
 //! For shapes that are intended to be solid from the inside, it is recommended
 //! to use convex decomposition instead.
 //!
+//! If you must use triangle mesh colliders and are having stability issues, consider
+//! giving them a small amount of extra thickness using the [`CollisionMargin`] component.
+//! This helps prevent objects from passing through the surface while also reducing
+//! numerical errors and improving performance.
+//!
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 use crate::prelude::*;
