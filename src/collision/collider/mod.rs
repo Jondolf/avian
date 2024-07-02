@@ -341,9 +341,9 @@ impl Default for ColliderAabb {
     }
 }
 
-/// A component that adds an extra margin around [`Collider`] shapes to help maintain
-/// additional separation to other objects. This can be imagined as an extra shell
-/// or skin that adds artificial thickness.
+/// A component that adds an extra margin or "skin" around [`Collider`] shapes to help maintain
+/// additional separation to other objects. This added thickness can help improve
+/// stability and performance in some cases, especially for thin shapes such as trimeshes.
 ///
 /// There are three primary reasons for collision margins:
 ///
@@ -395,8 +395,9 @@ impl Default for ColliderAabb {
 )]
 /// }
 /// ```
-#[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 #[doc(alias = "ContactSkin")]
 pub struct CollisionMargin(pub Scalar);

@@ -294,14 +294,14 @@ fn generate_constraints<C: AnyCollider>(
             //
             // The collision margin adds artificial thickness to colliders for performance
             // and stability. See the `CollisionMargin` documentation for more details.
-            let collision_margin1 = collider1.collision_margin.map_or(
-                rb_collision_margin1.map_or(0.0, |margin| margin.0),
-                |margin| margin.0,
-            );
-            let collision_margin2 = collider2.collision_margin.map_or(
-                rb_collision_margin2.map_or(0.0, |margin| margin.0),
-                |margin| margin.0,
-            );
+            let collision_margin1 = collider1
+                .collision_margin
+                .or(rb_collision_margin1)
+                .map_or(0.0, |margin| margin.0);
+            let collision_margin2 = collider2
+                .collision_margin
+                .or(rb_collision_margin2)
+                .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
             // Generate contact constraints for the computed contacts
@@ -423,42 +423,40 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
-        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) =
-            body1_bundle.as_ref().map_or(
-                (Vector::ZERO, None, None),
-                |(body, collision_margin, speculative_margin)| {
-                    (
-                        body.linear_velocity.0,
-                        *collision_margin,
-                        *speculative_margin,
-                    )
-                },
-            );
-        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) =
-            body2_bundle.as_ref().map_or(
-                (Vector::ZERO, None, None),
-                |(body, collision_margin, speculative_margin)| {
-                    (
-                        body.linear_velocity.0,
-                        *collision_margin,
-                        *speculative_margin,
-                    )
-                },
-            );
+        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
+            .as_ref()
+            .map(|(body, collision_margin, speculative_margin)| {
+                (
+                    body.linear_velocity.0,
+                    *collision_margin,
+                    *speculative_margin,
+                )
+            })
+            .unwrap_or_default();
+        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
+            .as_ref()
+            .map(|(body, collision_margin, speculative_margin)| {
+                (
+                    body.linear_velocity.0,
+                    *collision_margin,
+                    *speculative_margin,
+                )
+            })
+            .unwrap_or_default();
 
         // Use the collider's own collision margin if specified, and fall back to the body's
         // collision margin.
         //
         // The collision margin adds artificial thickness to colliders for performance
         // and stability. See the `CollisionMargin` documentation for more details.
-        let collision_margin1 = collider1.collision_margin.map_or(
-            rb_collision_margin1.map_or(0.0, |margin| margin.0),
-            |margin| margin.0,
-        );
-        let collision_margin2 = collider2.collision_margin.map_or(
-            rb_collision_margin2.map_or(0.0, |margin| margin.0),
-            |margin| margin.0,
-        );
+        let collision_margin1 = collider1
+            .collision_margin
+            .or(rb_collision_margin1)
+            .map_or(0.0, |margin| margin.0);
+        let collision_margin2 = collider2
+            .collision_margin
+            .or(rb_collision_margin2)
+            .map_or(0.0, |margin| margin.0);
         let collision_margin_sum = collision_margin1 + collision_margin2;
 
         // Use the collider's own speculative margin if specified, and fall back to the body's
