@@ -160,9 +160,9 @@
 //! in the [`PhysicsPlugins`] plugin group.
 //!
 //! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
-#![cfg_attr(feature = "2d", doc = "use bevy_newt_2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use bevy_xpbd_3d::prelude::*;")]
 //!
 //! fn setup(mut commands: Commands) {
 //!     // Spawn a rigid body with swept CCD enabled.
@@ -337,6 +337,7 @@ impl SpeculativeMargin {
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
+/// # #[cfg(feature = "f32")]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body with swept CCD, travelling towards the right at a high speed.
 ///     // The default CCD configuration considers both translational and rotational motion.
@@ -354,7 +355,7 @@ impl SpeculativeMargin {
 ///     // linear motion and not rotation.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         SweptCcd::LINEAR_CAST, // or `SweptCcd::new_with_mode(SweepMode::Linear)`
+///         SweptCcd::LINEAR, // or `SweptCcd::new_with_mode(SweepMode::Linear)`
 #[cfg_attr(feature = "2d", doc = "        LinearVelocity(Vec2::X * 100.0),")]
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
