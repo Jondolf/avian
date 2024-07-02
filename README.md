@@ -1,4 +1,4 @@
-# ![Avian Physics](assets/branding/logo.svg)
+# ![Avian Physics](https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/logo.svg)
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/avian#license)
 [![ci](https://github.com/Jondolf/avian/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/avian/actions/workflows/ci.yml)
@@ -34,9 +34,11 @@ Below are some of the current features of Avian.
   - Linear and angular damping
   - Locking translational and rotational axes
   - Rigid body dominance
+  - Continuous Collision Detection (CCD)
   - Automatic deactivation with sleeping
 - Collision detection powered by [Parry](https://parry.rs)
   - Colliders with configurable collision layers, density, material properties and more
+  - Collider generation for meshes and entire scenes
   - Collision events
   - Access to colliding entities
   - Filtering and modifying collisions with custom systems
@@ -137,7 +139,7 @@ fn setup(
 
     // Camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Dir3::Y),
         ..default()
     });
 }
@@ -171,6 +173,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
   | Bevy | Bevy XPBD |
   | ---- | --------- |
+  | 0.14 | 0.5       |
   | 0.13 | 0.4       |
   | 0.12 | 0.3       |
   | 0.11 | 0.2       |
@@ -181,7 +184,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
-- Performance optimization (better broad phase, parallel solver...)
+- Performance optimization (better broad phase, parallel solver, proper SIMD...)
 - Joint motors
 - Articulations, aka. multibody joints
 - Proper cross-platform determinism
