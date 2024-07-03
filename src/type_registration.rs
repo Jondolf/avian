@@ -57,6 +57,8 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<ColliderTransform>()
             .register_type::<PreviousColliderTransform>()
             .register_type::<SpeculativeMargin>()
+            .register_type::<SweptCcd>()
+            .register_type::<CollisionMargin>()
             .register_type::<NarrowPhaseConfig>()
             .register_type::<SolverConfig>()
             .register_type::<SyncConfig>()

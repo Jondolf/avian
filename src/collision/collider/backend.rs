@@ -451,6 +451,7 @@ fn update_aabb<C: AnyCollider>(
             &Position,
             &Rotation,
             Option<&ColliderParent>,
+            Option<&CollisionMargin>,
             Option<&SpeculativeMargin>,
             Has<SweptCcd>,
             Option<&LinearVelocity>,
@@ -482,12 +483,14 @@ fn update_aabb<C: AnyCollider>(
         pos,
         rot,
         collider_parent,
+        collision_margin,
         speculative_margin,
         has_swept_ccd,
         lin_vel,
         ang_vel,
     ) in &mut colliders
     {
+        let collision_margin = collision_margin.map_or(0.0, |margin| margin.0);
         let speculative_margin = if has_swept_ccd {
             Scalar::MAX
         } else {
@@ -497,7 +500,7 @@ fn update_aabb<C: AnyCollider>(
         if speculative_margin <= 0.0 {
             *aabb = collider
                 .aabb(pos.0, *rot)
-                .grow(Vector::splat(contact_tolerance));
+                .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
 
@@ -555,7 +558,9 @@ fn update_aabb<C: AnyCollider>(
         };
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
-        *aabb = collider.swept_aabb(start_pos.0, start_rot, end_pos, end_rot);
+        *aabb = collider
+            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot)
+            .grow(Vector::splat(collision_margin));
     }
 }
 

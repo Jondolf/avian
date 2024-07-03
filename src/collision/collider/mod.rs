@@ -6,6 +6,7 @@ use bevy::{
     prelude::*,
     utils::HashSet,
 };
+use derive_more::From;
 
 mod backend;
 mod hierarchy;
@@ -340,6 +341,67 @@ impl Default for ColliderAabb {
         }
     }
 }
+
+/// A component that adds an extra margin or "skin" around [`Collider`] shapes to help maintain
+/// additional separation to other objects. This added thickness can help improve
+/// stability and performance in some cases, especially for thin shapes such as trimeshes.
+///
+/// There are three primary reasons for collision margins:
+///
+/// 1. Collision detection is often more efficient when shapes are not overlapping
+/// further than their collision margins. Deeply overlapping shapes require
+/// more expensive collision algorithms.
+///
+/// 2. Some shapes such as triangles and planes are infinitely thin,
+/// which can cause precision errors. A collision margin adds artificial
+/// thickness to shapes, improving stability.
+///
+/// 3. Overall, collision margins give the physics engine more
+/// room for error when resolving contacts. This can also help
+/// prevent visible artifacts such as objects poking through the ground.
+///
+/// If a rigid body with a [`CollisionMargin`] has colliders as child entities,
+/// and those colliders don't have their own [`CollisionMargin`] components,
+/// the colliders will use the rigid body's [`CollisionMargin`].
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+#[cfg_attr(
+    feature = "2d",
+    doc = "    // Spawn a rigid body with a collider.
+    // A margin of `0.1` is added around the shape.
+    commands.spawn((
+        RigidBody::Dynamic,
+        Collider::capsule(2.0, 0.5),
+        CollisionMargin(0.1),
+    ));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    let mesh = Mesh::from(Torus::default());
+
+    // Spawn a rigid body with a triangle mesh collider.
+    // A margin of `0.1` is added around the shape.
+    commands.spawn((
+        RigidBody::Dynamic,
+        Collider::trimesh_from_mesh(&mesh).unwrap(),
+        CollisionMargin(0.1),
+    ));"
+)]
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
+#[doc(alias = "ContactSkin")]
+pub struct CollisionMargin(pub Scalar);
 
 /// A component that stores the entities that are colliding with an entity.
 ///
