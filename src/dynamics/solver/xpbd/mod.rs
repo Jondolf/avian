@@ -99,7 +99,8 @@
 //!
 //! // Add custom constraint
 //! substeps.add_systems(
-//!     solve_constraint::<CustomConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
+//!     solve_constraint::<CustomConstraint, 2>
+//!         .in_set(SubstepSolverSet::SolveUserConstraints),
 //! );
 //! ```
 //!

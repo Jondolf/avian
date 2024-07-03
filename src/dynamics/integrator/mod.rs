@@ -1,9 +1,5 @@
-//! This module contains an [`IntegratorPlugin`] that handles applying forces
-//! and velocities to bodies in order to move them according to the equations of motion.
-//! This is done using *numerical integration*.
-//!
-//! Currently, only the [semi-implicit (symplectic) Euler](semi_implicit_euler) integration scheme
-//! is supported. It is the standard for game physics, being simple, efficient, and sufficiently accurate.
+//! Applies forces and velocities to bodies in order to move them according to the equations of motion
+//! using numerical integration.
 //!
 //! See [`IntegratorPlugin`].
 
@@ -25,8 +21,6 @@ use bevy::{
 /// is supported. It is the standard for game physics, being simple, efficient, and sufficiently accurate.
 ///
 /// The plugin adds systems in the [`IntegrationSet::Velocity`] and [`IntegrationSet::Position`] system sets.
-/// Note that the ordering and configuration for these system sets is left to external plugins,
-/// typically the [`SolverPlugin`].
 pub struct IntegratorPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }

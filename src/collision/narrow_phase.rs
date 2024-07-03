@@ -27,7 +27,7 @@ use bevy::{
 /// which is handled by the [`BroadPhasePlugin`].
 ///
 /// The results of the narrow phase are added into [`Collisions`].
-/// A [`ContactConstraint`] is generated for each contact manifold
+/// By default, a [`ContactConstraint`] is also generated for each contact manifold
 /// and added to the [`ContactConstraints`] resource.
 ///
 /// The plugin takes a collider type. This should be [`Collider`] for

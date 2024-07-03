@@ -516,26 +516,23 @@ use prelude::*;
 ///
 /// By default, the following plugins will be added:
 ///
-/// - [`PhysicsSchedulePlugin`]: Sets up the physics engine by initializing the necessary schedules, sets and resources.
-/// - [`PhysicsTypeRegistrationPlugin`]: Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
-/// - [`PreparePlugin`]: Runs systems at the start of each physics frame; initializes [rigid bodies](RigidBody)
-/// and [colliders](Collider) and updates components.
-/// - [`ColliderBackendPlugin`]: Handles generic collider backend logic, like initializing colliders and AABBs
-/// and updating related components.
-/// - [`ColliderHierarchyPlugin`]: Handles transform propagation and [`ColliderParent`] updates for colliders.
-/// - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
-/// [AABB](ColliderAabb) intersection checks.
-/// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
-/// - [`ContactReportingPlugin`]: Sends collision events and updates [`CollidingEntities`].
-/// - [`IntegratorPlugin`]: Handles motion caused by velocity, and applies external forces and gravity.
-/// - [`SolverPlugin`]: Solves [constraints](dynamics::solver::xpbd#constraints) (contacts and joints).
-/// (dynamic [friction](Friction) and [restitution](Restitution)).
-/// - [`CcdPlugin`]: Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.
-/// - [`SleepingPlugin`]: Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
-/// - [`SpatialQueryPlugin`]: Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).
-/// - [`SyncPlugin`]: Keeps [`Position`] and [`Rotation`] in sync with `Transform`.
-/// - [`PhysicsDebugPlugin`]: Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision)
-/// for debugging purposes (only with `debug-plugin` feature enabled).
+/// | Plugin                            | Description                                                                                                                                                |
+/// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+/// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
+/// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
+/// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
+/// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
+/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
+/// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
+/// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
+/// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
+/// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
+/// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
+/// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
+/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
+/// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
+/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
+/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///

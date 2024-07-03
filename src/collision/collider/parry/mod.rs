@@ -271,7 +271,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 ///
 #[cfg_attr(
     feature = "3d",
-    doc = "Colliders can also be generated automatically from meshes and scenes. See [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]."
+    doc = "Colliders can also be generated automatically for meshes and scenes. See [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]."
 )]
 ///
 /// ### Multiple colliders
@@ -341,7 +341,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Sensors](Sensor)
 #[cfg_attr(
     feature = "3d",
-    doc = "- Creating colliders from meshes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
+    doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 /// - [Get colliding entities](CollidingEntities)
 /// - [Collision events](ContactReportingPlugin#collision-events)

@@ -38,22 +38,21 @@ use bevy::utils::HashMap;
 ///
 #[cfg_attr(
     feature = "2d",
-    doc = "     // Spawn the scene and automatically generate circle colliders"
+    doc = "    // Spawn the scene and automatically generate circle colliders"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "     // Spawn the scene and automatically generate triangle mesh colliders"
+    doc = "    // Spawn the scene and automatically generate triangle mesh colliders"
 )]
-///
 ///     commands.spawn((
 ///         SceneBundle { scene: scene.clone(), ..default() },
 #[cfg_attr(
     feature = "2d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh),"
 )]
 ///     ));
 ///
@@ -62,13 +61,13 @@ use bevy::utils::HashMap;
 ///         SceneBundle { scene: scene.clone(), ..default() },
 #[cfg_attr(
     feature = "2d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
-             .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1.0, y_length: 2.0 })"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
+            .with_constructor_for_name(\"Tree\", ColliderConstructor::Rectangle { x_length: 1.0, y_length: 2.0 })"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
-             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh)"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMesh)
+            .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh)"
 )]
 ///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
 ///             .with_density_for_name("Tree", 2.5),
@@ -80,11 +79,11 @@ use bevy::utils::HashMap;
 ///         ColliderConstructorHierarchy::new(None)
 #[cfg_attr(
     feature = "2d",
-    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::Circle { radius: 2.0 }),"
+    doc = "            .with_constructor_for_name(\"Tree\", ColliderConstructor::Circle { radius: 2.0 }),"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "             .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh),"
+    doc = "            .with_constructor_for_name(\"Tree\", ColliderConstructor::ConvexHullFromMesh),"
 )]
 ///     ));
 ///
@@ -93,11 +92,11 @@ use bevy::utils::HashMap;
 ///         SceneBundle { scene, ..default() },
 #[cfg_attr(
     feature = "2d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "         ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
              TrimeshFlags::MERGE_DUPLICATE_VERTICES
          ))"
 )]
@@ -259,19 +258,19 @@ pub struct ColliderConstructorHierarchyConfig {
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
-#[cfg_attr(feature = "2d", doc = "      // Spawn a circle with radius 2")]
+#[cfg_attr(feature = "2d", doc = "     // Spawn a circle with radius 2")]
 #[cfg_attr(
     feature = "3d",
-    doc = "      // Spawn a cube with a convex hull collider generated from the mesh"
+    doc = "    // Spawn a cube with a convex hull collider generated from the mesh"
 )]
 ///     commands.spawn((
 #[cfg_attr(
     feature = "2d",
-    doc = "         ColliderConstructor::Circle { radius: 2.0 },"
+    doc = "        ColliderConstructor::Circle { radius: 2.0 },"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "         ColliderConstructor::ConvexHullFromMesh,"
+    doc = "        ColliderConstructor::ConvexHullFromMesh,"
 )]
 ///         PbrBundle {
 ///             mesh: meshes.add(Mesh::from(Cuboid::default())),

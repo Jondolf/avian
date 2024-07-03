@@ -65,7 +65,7 @@ use derive_more::From;
 ///
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
 ///
-/// By default, rigid bodies will get a mass based on their collider and density.
+/// By default, rigid bodies will get a mass based on the attached colliders and their densities.
 /// See [mass properties](#mass-properties).
 ///
 /// ## Movement
@@ -221,6 +221,7 @@ use derive_more::From;
 /// - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
+/// - [Continuous Collision Detection](dynamics::ccd)
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
