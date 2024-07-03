@@ -255,7 +255,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
-/// [`Sensor`], and [`CollisionLayers`].
+/// [`Sensor`], [`CollisionLayers`], and [`CollisionMargin`].
 ///
 /// In addition, Avian automatically adds some other components for colliders, like the following:
 ///
@@ -339,6 +339,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Friction] and [restitution](Restitution) (bounciness)
 /// - [Collision layers](CollisionLayers)
 /// - [Sensors](Sensor)
+/// - [Collision margins for adding extra thickness to colliders](CollisionMargin)
 #[cfg_attr(
     feature = "3d",
     doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
