@@ -11,6 +11,7 @@ use crate::prelude::*;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
+#[reflect(Debug, PartialEq)]
 pub enum TimestepMode {
     /// **Fixed timestep**: The physics simulation will be advanced by a fixed `delta`
     /// amount of time every frame until the accumulated `overstep` value has been consumed.
@@ -207,6 +208,7 @@ impl Default for TimestepMode {
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 #[reflect(Debug, PartialEq)]
 pub struct Physics {
     timestep_mode: TimestepMode,
