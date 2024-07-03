@@ -53,7 +53,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 #[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component)]
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
@@ -368,10 +368,10 @@ impl ShapeCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug, Reflect)]
+#[derive(Component, Clone, Debug, Reflect, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ShapeHits {
     pub(crate) vector: Vec<ShapeHitData>,
     pub(crate) count: u32,
@@ -418,6 +418,7 @@ impl MapEntities for ShapeHits {
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
     pub entity: Entity,

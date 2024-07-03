@@ -107,7 +107,7 @@ use bevy::utils::HashMap;
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component, Debug, PartialEq)]
+#[reflect(Component, Debug, PartialEq, Default)]
 pub struct ColliderConstructorHierarchy {
     /// The default collider type used for each entity that isn't included in [`config`](Self::config).
     /// If `None`, all entities except the ones in [`config`](Self::config) will be skipped.

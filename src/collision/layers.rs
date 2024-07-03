@@ -67,9 +67,10 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// // Bitwise operations for `LayerMask` unfortunately can't be const, so we need to access the `u32` values.
 /// pub const COMBINED: LayerMask = LayerMask(FIRST_LAYER.0 | LAST_LAYER.0);
 /// ```
-#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
+#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialEq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct LayerMask(pub u32);
 
 impl From<u32> for LayerMask {
@@ -333,7 +334,7 @@ impl Not for LayerMask {
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct CollisionLayers {
     /// The layers that an entity belongs to.
     #[doc(alias = "groups", alias = "layers")]

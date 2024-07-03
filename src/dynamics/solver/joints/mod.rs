@@ -186,6 +186,7 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct DistanceLimit {
     /// The minimum distance between two points.
     pub min: Scalar,
@@ -247,6 +248,7 @@ impl DistanceLimit {
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct AngleLimit {
     /// The minimum angle.
     pub min: Scalar,

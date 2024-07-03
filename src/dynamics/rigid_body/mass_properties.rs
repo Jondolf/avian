@@ -9,7 +9,7 @@ use crate::utils::get_rotated_inertia_tensor;
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Mass(pub Scalar);
 
 impl Mass {
@@ -21,7 +21,7 @@ impl Mass {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseMass(pub Scalar);
 
 impl InverseMass {
@@ -34,7 +34,7 @@ impl InverseMass {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Inertia(pub Scalar);
 
 /// The local moment of inertia of the body as a 3x3 tensor matrix.
@@ -48,7 +48,7 @@ pub struct Inertia(pub Scalar);
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct Inertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -124,7 +124,7 @@ impl Inertia {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseInertia(pub Scalar);
 
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix.
@@ -138,7 +138,7 @@ pub struct InverseInertia(pub Scalar);
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct InverseInertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -192,7 +192,7 @@ impl From<Inertia> for InverseInertia {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct CenterOfMass(pub Vector);
 
 impl CenterOfMass {
@@ -285,7 +285,7 @@ impl MassPropertiesBundle {
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderDensity(pub Scalar);
 
 impl ColliderDensity {
@@ -341,7 +341,7 @@ impl From<Scalar> for ColliderDensity {
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
     pub mass: Mass,

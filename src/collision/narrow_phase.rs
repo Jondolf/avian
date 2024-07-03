@@ -169,7 +169,7 @@ struct NarrowPhaseInitialized;
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Resource)]
+#[reflect(Debug, Resource, PartialEq)]
 pub struct NarrowPhaseConfig {
     /// The default maximum [speculative margin](SpeculativeMargin) used for
     /// [speculative collisions](dynamics::ccd#speculative-collision). This can be overridden

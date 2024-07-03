@@ -70,7 +70,7 @@ use parry::query::{
 #[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
@@ -354,10 +354,10 @@ impl RayCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Default, Reflect)]
+#[derive(Debug, Component, Clone, Default, Reflect, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct RayHits {
     pub(crate) vector: Vec<RayHitData>,
     /// The number of hits.
@@ -416,6 +416,7 @@ impl MapEntities for RayHits {
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,

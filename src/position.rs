@@ -38,7 +38,7 @@ use crate::math::Matrix;
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Position(pub Vector);
 
 impl Position {
@@ -102,14 +102,14 @@ impl From<&GlobalTransform> for Position {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct PreSolveAccumulatedTranslation(pub Vector);
 
 /// The rotation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct PreSolveRotation(pub Rotation);
 
 /// Radians
@@ -149,7 +149,7 @@ pub(crate) type RotationValue = Quaternion;
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, PartialEq)]
 #[cfg(feature = "2d")]
 pub struct Rotation {
     /// The cosine of the rotation angle in radians.
@@ -656,7 +656,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Rotation(pub Quaternion);
 
 #[cfg(feature = "3d")]
@@ -926,5 +926,5 @@ impl From<DQuat> for Rotation {
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component)]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct PreviousRotation(pub Rotation);

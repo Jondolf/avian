@@ -16,7 +16,7 @@ use bevy::{
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component, MapEntities)]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct FixedJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
