@@ -235,8 +235,7 @@ pub struct ColliderConstructorHierarchyConfig {
 /// A component that will automatically generate a [`Collider`] at runtime using [`Collider::try_from_constructor`].
 /// Enabling the `collider-from-mesh` feature activates support for computing the shape dynamically from the mesh attached to the same entity.
 ///
-/// Since [`Collider`] is not [`Reflect`], you can use this type to statically statically
-/// specify a collider's shape instead.
+/// Since [`Collider`] is not [`Reflect`], you can use this type to statically specify a collider's shape instead.
 ///
 /// This component will never override a pre-existing [`Collider`] component on the same entity.
 ///
