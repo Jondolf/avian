@@ -419,7 +419,6 @@ impl MapEntities for ShapeHits {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-#[reflect(Debug, PartialEq)]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
     pub entity: Entity,

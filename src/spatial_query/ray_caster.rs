@@ -417,7 +417,6 @@ impl MapEntities for RayHits {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-#[reflect(Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
