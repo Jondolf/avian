@@ -279,15 +279,30 @@ fn generate_constraints<C: AnyCollider>(
         let body2_bundle = collider2
             .parent
             .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
-        if let (Some(body1), Some(body2)) = (
-            body1_bundle.map(|(body, _)| body),
-            body2_bundle.map(|(body, _)| body),
+        if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
+            body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
+            body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
         ) {
             // At least one of the bodies must be dynamic for contact constraints
             // to be generated.
             if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
                 continue;
             }
+
+            // Use the collider's own collision margin if specified, and fall back to the body's
+            // collision margin.
+            //
+            // The collision margin adds artificial thickness to colliders for performance
+            // and stability. See the `CollisionMargin` documentation for more details.
+            let collision_margin1 = collider1
+                .collision_margin
+                .or(rb_collision_margin1)
+                .map_or(0.0, |margin| margin.0);
+            let collision_margin2 = collider2
+                .collision_margin
+                .or(rb_collision_margin2)
+                .map_or(0.0, |margin| margin.0);
+            let collision_margin_sum = collision_margin1 + collision_margin2;
 
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
@@ -298,6 +313,7 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
+                collision_margin_sum,
                 *contact_softness,
                 delta_secs,
             );
@@ -314,7 +330,15 @@ fn generate_constraints<C: AnyCollider>(
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     parallel_commands: ParallelCommands<'w, 's>,
     collider_query: Query<'w, 's, ColliderQuery<C>>,
-    body_query: Query<'w, 's, (RigidBodyQueryReadOnly, Option<&'static SpeculativeMargin>)>,
+    body_query: Query<
+        'w,
+        's,
+        (
+            RigidBodyQueryReadOnly,
+            Option<&'static CollisionMargin>,
+            Option<&'static SpeculativeMargin>,
+        ),
+    >,
     /// Contacts found by the narrow phase.
     pub collisions: ResMut<'w, Collisions>,
     /// Configuration options for the narrow phase.
@@ -399,16 +423,41 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
-        let (mut lin_vel1, rb_speculative_margin1) = body1_bundle
+        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
             .as_ref()
-            .map_or((Vector::ZERO, None), |(body, speculative_margin)| {
-                (body.linear_velocity.0, *speculative_margin)
-            });
-        let (mut lin_vel2, rb_speculative_margin2) = body2_bundle
+            .map(|(body, collision_margin, speculative_margin)| {
+                (
+                    body.linear_velocity.0,
+                    *collision_margin,
+                    *speculative_margin,
+                )
+            })
+            .unwrap_or_default();
+        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
             .as_ref()
-            .map_or((Vector::ZERO, None), |(body, speculative_margin)| {
-                (body.linear_velocity.0, *speculative_margin)
-            });
+            .map(|(body, collision_margin, speculative_margin)| {
+                (
+                    body.linear_velocity.0,
+                    *collision_margin,
+                    *speculative_margin,
+                )
+            })
+            .unwrap_or_default();
+
+        // Use the collider's own collision margin if specified, and fall back to the body's
+        // collision margin.
+        //
+        // The collision margin adds artificial thickness to colliders for performance
+        // and stability. See the `CollisionMargin` documentation for more details.
+        let collision_margin1 = collider1
+            .collision_margin
+            .or(rb_collision_margin1)
+            .map_or(0.0, |margin| margin.0);
+        let collision_margin2 = collider2
+            .collision_margin
+            .or(rb_collision_margin2)
+            .map_or(0.0, |margin| margin.0);
+        let collision_margin_sum = collision_margin1 + collision_margin2;
 
         // Use the collider's own speculative margin if specified, and fall back to the body's
         // speculative margin.
@@ -452,7 +501,8 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 
         // The maximum distance at which contacts are detected.
         // At least as large as the contact tolerance.
-        let max_contact_distance = effective_speculative_margin.max(*self.contact_tolerance);
+        let max_contact_distance =
+            effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
         self.compute_contact_pair(&collider1, &collider2, max_contact_distance)
     }
@@ -542,6 +592,10 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// Generates [`ContactConstraint`]s for the given bodies and their corresponding colliders
     /// based on the given `contacts`. The constraints are added to the `constraints` vector.
     ///
+    /// The `collision_margin` can be used to add artificial thickness to the colliders,
+    /// which can improve performance and stability in some cases. See [`CollisionMargin`]
+    /// for more details.
+    ///
     /// The `contact_softness` is used to tune the damping and stiffness of the contact constraints.
     #[allow(clippy::too_many_arguments)]
     pub fn generate_constraints(
@@ -552,6 +606,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
     ) {
@@ -604,6 +659,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                 collider2.entity,
                 collider1.transform.copied(),
                 collider2.transform.copied(),
+                collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
                 friction,

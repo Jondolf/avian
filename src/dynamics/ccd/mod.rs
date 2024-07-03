@@ -216,6 +216,11 @@
 //! For shapes that are intended to be solid from the inside, it is recommended
 //! to use convex decomposition instead.
 //!
+//! If you must use triangle mesh colliders and are having stability issues, consider
+//! giving them a small amount of extra thickness using the [`CollisionMargin`] component.
+//! This helps prevent objects from passing through the surface while also reducing
+//! numerical errors and improving performance.
+//!
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 
@@ -224,6 +229,7 @@ use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
 };
+use derive_more::From;
 use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
@@ -303,7 +309,7 @@ pub struct SweptCcdSet;
 ///     ));
 /// }
 /// ```
-#[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Reflect)]
+#[derive(Component, Clone, Copy, Debug, Deref, DerefMut, PartialEq, Reflect, From)]
 #[reflect(Component)]
 #[doc(alias = "SweptCcdPredictionDistance")]
 pub struct SpeculativeMargin(pub Scalar);
