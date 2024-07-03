@@ -54,7 +54,7 @@ fn setup(
         },
         Character,
         RigidBody::Dynamic,
-        Collider::capsule(20.0, 12.5),
+        Collider::capsule(12.5, 20.0),
         Name::new("Character"),
     ));
 

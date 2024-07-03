@@ -74,8 +74,8 @@ impl IntoCollider<Collider> for Cylinder {
 impl IntoCollider<Collider> for Capsule3d {
     fn collider(&self) -> Collider {
         Collider::capsule(
-            2.0 * self.half_length.adjust_precision(),
             self.radius.adjust_precision(),
+            2.0 * self.half_length.adjust_precision(),
         )
     }
 }
@@ -83,8 +83,8 @@ impl IntoCollider<Collider> for Capsule3d {
 impl IntoCollider<Collider> for Cone {
     fn collider(&self) -> Collider {
         Collider::cone(
-            self.height.adjust_precision(),
             self.radius.adjust_precision(),
+            self.height.adjust_precision(),
         )
     }
 }

@@ -44,7 +44,7 @@ fn setup(
             transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
-        CharacterControllerBundle::new(Collider::capsule(1.0, 0.4)).with_movement(
+        CharacterControllerBundle::new(Collider::capsule(0.4, 1.0)).with_movement(
             30.0,
             0.92,
             7.0,

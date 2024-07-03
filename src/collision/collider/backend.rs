@@ -694,7 +694,7 @@ mod tests {
             HierarchyPlugin,
         ));
 
-        let collider = Collider::capsule(2.0, 0.5);
+        let collider = Collider::capsule(0.5, 2.0);
         let mass_properties = MassPropertiesBundle::new_computed(&collider, 1.0);
 
         let parent = app
