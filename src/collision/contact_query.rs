@@ -263,6 +263,8 @@ pub fn contact_manifolds(
 /// The closest points can be computed using [`closest_points`].
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub enum ClosestPoints {
     /// The two shapes are intersecting each other.
     Intersecting,

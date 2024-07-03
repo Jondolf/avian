@@ -8,7 +8,8 @@ use crate::utils::get_rotated_inertia_tensor;
 /// The mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Mass(pub Scalar);
 
 impl Mass {
@@ -19,7 +20,8 @@ impl Mass {
 /// The inverse mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseMass(pub Scalar);
 
 impl InverseMass {
@@ -31,7 +33,8 @@ impl InverseMass {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Inertia(pub Scalar);
 
 /// The local moment of inertia of the body as a 3x3 tensor matrix.
@@ -44,7 +47,8 @@ pub struct Inertia(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct Inertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -119,7 +123,8 @@ impl Inertia {
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseInertia(pub Scalar);
 
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix.
@@ -132,7 +137,8 @@ pub struct InverseInertia(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct InverseInertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -185,7 +191,8 @@ impl From<Inertia> for InverseInertia {
 /// The local center of mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct CenterOfMass(pub Vector);
 
 impl CenterOfMass {
@@ -277,7 +284,8 @@ impl MassPropertiesBundle {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderDensity(pub Scalar);
 
 impl ColliderDensity {
@@ -332,7 +340,8 @@ impl From<Scalar> for ColliderDensity {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
     pub mass: Mass,

@@ -225,7 +225,8 @@ use derive_more::From;
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]
@@ -277,7 +278,8 @@ impl RigidBody {
 /// or for all entities by setting the [`SleepingThreshold`] to a negative value.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Sleeping;
 
 /// How long the velocity of the body has been below the [`SleepingThreshold`],
@@ -286,13 +288,15 @@ pub struct Sleeping;
 /// See [`Sleeping`] for further information.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct TimeSleeping(pub Scalar);
 
 /// Indicates that the body can not be deactivated by the physics engine. See [`Sleeping`] for information about sleeping.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct SleepingDisabled;
 
 /// Translation accumulated during the physics frame.
@@ -304,7 +308,8 @@ pub struct SleepingDisabled;
 /// At the end of each physics frame, the actual [`Position`] is updated in [`SolverSet::ApplyTranslation`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct AccumulatedTranslation(pub Vector);
 
 /// The linear velocity of a [rigid body](RigidBody).
@@ -324,7 +329,8 @@ pub struct AccumulatedTranslation(pub Vector);
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct LinearVelocity(pub Vector);
 
 impl LinearVelocity {
@@ -355,7 +361,8 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularVelocity(pub Scalar);
 
 /// The angular velocity of a [rigid body](RigidBody) as a rotation axis
@@ -376,7 +383,8 @@ pub struct AngularVelocity(pub Scalar);
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularVelocity(pub Vector);
 
 impl AngularVelocity {
@@ -426,7 +434,8 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct GravityScale(pub Scalar);
 
 /// Determines how coefficients are combined for [`Restitution`] and [`Friction`].
@@ -434,8 +443,10 @@ pub struct GravityScale(pub Scalar);
 ///
 /// When combine rules clash with each other, the following priority order is used:
 /// `Max > Multiply > Min > Average`.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Default, PartialEq)]
 pub enum CoefficientCombine {
     // The discriminants allow priority ordering to work automatically via comparison methods
     /// Coefficients are combined by computing their average.
@@ -491,7 +502,8 @@ pub enum CoefficientCombine {
 #[doc(alias = "Elasticity")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct Restitution {
     /// The [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
     ///
@@ -626,7 +638,8 @@ impl From<Scalar> for Restitution {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct Friction {
     /// Coefficient of dynamic friction.
     pub dynamic_coefficient: Scalar,
@@ -745,7 +758,8 @@ impl From<Scalar> for Friction {
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct LinearDamping(pub Scalar);
 
 /// Automatically slows down a dynamic [rigid body](RigidBody), decreasing its
@@ -771,7 +785,8 @@ pub struct LinearDamping(pub Scalar);
     Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Default, Deref, DerefMut, From,
 )]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularDamping(pub Scalar);
 
 /// **Dominance** allows [dynamic rigid bodies](RigidBody::Dynamic) to dominate
@@ -803,7 +818,8 @@ pub struct AngularDamping(pub Scalar);
 #[rustfmt::skip]
 #[derive(Component, Reflect, Debug, Clone, Copy, Default, Deref, DerefMut, From, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Dominance(pub i8);
 
 #[cfg(test)]

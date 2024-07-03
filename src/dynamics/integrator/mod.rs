@@ -117,7 +117,8 @@ pub enum IntegrationSet {
 /// You can also modify gravity while the app is running.
 #[derive(Reflect, Resource, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Resource)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Resource)]
 pub struct Gravity(pub Vector);
 
 impl Default for Gravity {

@@ -291,9 +291,10 @@ pub enum PhysicsStepSet {
 ///         .run();
 /// }
 /// ```
-#[derive(Reflect, Resource, Clone, Copy)]
+#[derive(Debug, Reflect, Resource, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Resource)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Resource, PartialEq)]
 pub struct SubstepCount(pub u32);
 
 impl Default for SubstepCount {

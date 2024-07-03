@@ -2,15 +2,20 @@
 
 use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
 
 /// A prismatic joint prevents relative movement of the attached bodies, except for translation along one `free_axis`.
 ///
 /// Prismatic joints can be useful for things like elevators, pistons, sliding doors and moving platforms.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct PrismaticJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
