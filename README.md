@@ -84,7 +84,8 @@ avian3d = "0.1"
 avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 ```
 
-Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
+Below is a very simple example where a cube with initial angular velocity falls onto a circular platform.
+This is a modified version of Bevy's [`3d_scene`](https://bevyengine.org/examples/3D%20Rendering/3d-scene/) example.
 
 ```rust
 use avian3d::prelude::*;
