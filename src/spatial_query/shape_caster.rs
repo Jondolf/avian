@@ -50,12 +50,13 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 ///     }
 /// }
 /// ```
-#[derive(Component)]
+#[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
     /// The shape being cast represented as a [`Collider`].
+    #[reflect(ignore)]
     pub shape: Collider,
     /// The local origin of the shape relative to the [`Position`] and [`Rotation`]
     /// of the shape caster entity or its parent.
@@ -365,7 +366,7 @@ impl ShapeCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ShapeHits {
     pub(crate) vector: Vec<ShapeHitData>,
@@ -410,7 +411,7 @@ impl MapEntities for ShapeHits {
 }
 
 /// Data related to a hit during a [shapecast](spatial_query#shapecasting).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
