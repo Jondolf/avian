@@ -67,7 +67,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// // Bitwise operations for `LayerMask` unfortunately can't be const, so we need to access the `u32` values.
 /// pub const COMBINED: LayerMask = LayerMask(FIRST_LAYER.0 | LAST_LAYER.0);
 /// ```
-#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
