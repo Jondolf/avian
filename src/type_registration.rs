@@ -52,6 +52,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<LockedAxes>()
             .register_type::<ColliderParent>()
             .register_type::<Dominance>()
+            .register_type::<ColliderAabb>()
             .register_type::<CollisionLayers>()
             .register_type::<CollidingEntities>()
             .register_type::<CoefficientCombine>()
@@ -68,6 +69,13 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<ColliderConstructorHierarchy>()
             .register_type::<ColliderConstructorHierarchyConfig>()
             .register_type::<RayCaster>()
-            .register_type::<ShapeCaster>();
+            .register_type::<ShapeCaster>()
+            .register_type::<DistanceJoint>()
+            .register_type::<FixedJoint>()
+            .register_type::<PrismaticJoint>()
+            .register_type::<RevoluteJoint>();
+
+        #[cfg(feature = "3d")]
+        app.register_type::<SphericalJoint>();
     }
 }

@@ -137,6 +137,8 @@ pub trait ScalableCollider: AnyCollider {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
 pub struct ColliderParent(pub(crate) Entity);
 
 impl ColliderParent {
@@ -160,6 +162,8 @@ impl MapEntities for ColliderParent {
 /// so you shouldn't modify it manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
 pub struct ColliderTransform {
     /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
@@ -230,12 +234,15 @@ impl From<Transform> for ColliderTransform {
 #[doc(alias = "Trigger")]
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a [collider](Collider).
-#[derive(Clone, Copy, Component, Debug, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
 pub struct ColliderAabb {
     /// The minimum point of the AABB.
     pub min: Vector,
@@ -427,6 +434,7 @@ pub struct CollisionMargin(pub Scalar);
 /// ```
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct CollidingEntities(pub HashSet<Entity>);
 

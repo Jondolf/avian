@@ -69,6 +69,7 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// ```
 #[derive(Reflect, Clone, Copy, Debug, Deref, DerefMut, Eq, PartialOrd, Ord)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct LayerMask(pub u32);
 
 impl From<u32> for LayerMask {
@@ -331,6 +332,7 @@ impl Not for LayerMask {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct CollisionLayers {
     /// The layers that an entity belongs to.

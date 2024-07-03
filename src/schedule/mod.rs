@@ -293,6 +293,7 @@ pub enum PhysicsStepSet {
 /// ```
 #[derive(Reflect, Resource, Clone, Copy)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
 pub struct SubstepCount(pub u32);
 

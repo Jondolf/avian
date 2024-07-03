@@ -37,6 +37,7 @@ use crate::math::Matrix;
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct Position(pub Vector);
 
@@ -100,12 +101,14 @@ impl From<&GlobalTransform> for Position {
 /// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct PreSolveAccumulatedTranslation(pub Vector);
 
 /// The rotation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct PreSolveRotation(pub Rotation);
 
@@ -144,8 +147,9 @@ pub(crate) type RotationValue = Quaternion;
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
-#[reflect(Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
 #[cfg(feature = "2d")]
 pub struct Rotation {
     /// The cosine of the rotation angle in radians.
@@ -651,6 +655,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct Rotation(pub Quaternion);
 
@@ -920,5 +925,6 @@ impl From<DQuat> for Rotation {
 /// The previous rotation of a body. See [`Rotation`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct PreviousRotation(pub Rotation);

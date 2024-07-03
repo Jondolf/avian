@@ -838,8 +838,9 @@ fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Enti
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PointProjection {
     /// The entity of the collider that the point was projected onto.
     pub entity: Entity,

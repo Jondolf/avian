@@ -89,6 +89,7 @@ impl FloatZero for Scalar {
 /// consider setting `persistent` to `false` and running [`apply_force`](Self::apply_force) in a system.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct ExternalForce {
     /// The total external force that will be applied.
@@ -228,6 +229,7 @@ impl ExternalForce {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct ExternalTorque {
     /// The total external torque that will be applied.
@@ -372,6 +374,7 @@ impl ExternalTorque {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 pub struct ExternalImpulse {
     /// The total external impulse that will be applied.
@@ -514,6 +517,7 @@ impl ExternalImpulse {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component)]
 #[doc(alias = "ExternalTorqueImpulse")]
 pub struct ExternalAngularImpulse {

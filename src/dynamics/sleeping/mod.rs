@@ -58,6 +58,7 @@ impl Plugin for SleepingPlugin {
 /// See [`Sleeping`] for further information about sleeping.
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
 pub struct SleepingThreshold {
     /// The maximum linear velocity allowed for a body to be marked as sleeping.
@@ -89,6 +90,7 @@ impl Default for SleepingThreshold {
 /// Default: `0.5`
 #[derive(Reflect, Resource, Clone, Copy, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
 pub struct DeactivationTime(pub Scalar);
 

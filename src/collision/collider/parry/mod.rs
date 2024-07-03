@@ -26,9 +26,9 @@ impl<T: IntoCollider<Collider>> From<T> for Collider {
 ///
 /// See <https://github.com/Unity-Technologies/VHACD#parameters> for details.
 #[derive(Clone, PartialEq, Debug, Reflect)]
-#[reflect(PartialEq, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(PartialEq, Debug)]
 pub struct VhacdParameters {
     /// Maximum concavity.
     ///
@@ -121,9 +121,9 @@ impl From<VhacdParameters> for parry::transformation::vhacd::VHACDParameters {
 /// Controls how the voxelization determines which voxel needs
 /// to be considered empty, and which ones will be considered full.
 #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
-#[reflect(Hash, PartialEq, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Hash, PartialEq, Debug)]
 pub enum FillMode {
     /// Only consider full the voxels intersecting the surface of the
     /// shape being voxelized.
@@ -161,9 +161,9 @@ bitflags::bitflags! {
     /// Flags used for the preprocessing of a triangle mesh collider.
     #[repr(transparent)]
     #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
-    #[reflect_value(Hash, PartialEq, Debug)]
     #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
     #[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
+    #[reflect_value(Hash, PartialEq, Debug)]
     pub struct  TrimeshFlags: u8 {
         /// If set, the half-edge topology of the trimesh will be computed if possible.
         const HALF_EDGE_TOPOLOGY = 0b0000_0001;

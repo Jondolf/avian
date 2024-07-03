@@ -66,6 +66,7 @@ pub enum BroadPhaseSet {
 /// A list of entity pairs for potential collisions collected during the broad phase.
 #[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 

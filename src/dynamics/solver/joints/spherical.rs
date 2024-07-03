@@ -2,15 +2,20 @@
 
 use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
 
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, MapEntities)]
 pub struct SphericalJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,

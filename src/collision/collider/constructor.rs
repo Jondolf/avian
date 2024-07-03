@@ -105,9 +105,9 @@ use bevy::utils::HashMap;
 /// }
 /// ```
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
-#[reflect(Debug, Component, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, PartialEq)]
 pub struct ColliderConstructorHierarchy {
     /// The default collider type used for each entity that isn't included in [`config`](Self::config).
     /// If `None`, all entities except the ones in [`config`](Self::config) will be skipped.
@@ -214,10 +214,9 @@ impl ColliderConstructorHierarchy {
 
 /// Configuration for a specific collider generated from a scene using [`ColliderConstructorHierarchy`].
 #[derive(Clone, Debug, Default, PartialEq, Reflect)]
-#[reflect(Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
+#[reflect(Debug, Default, PartialEq)]
 pub struct ColliderConstructorHierarchyConfig {
     /// The type of collider generated for the mesh.
     ///
@@ -280,12 +279,12 @@ pub struct ColliderConstructorHierarchyConfig {
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Reflect, Component)]
-#[reflect(Debug, Component, PartialEq)]
-#[non_exhaustive]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), derive(Default))]
 #[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
+#[reflect(Debug, Component, PartialEq)]
+#[non_exhaustive]
 #[allow(missing_docs)]
 pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::circle`].
