@@ -92,6 +92,7 @@ use bevy::prelude::*;
 
 fn main() {
     App::new()
+        // Enable physics
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .add_systems(Startup, setup)
         .run();
@@ -102,25 +103,25 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Plane
+    // Static physics object with a collision shape
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(8.0, 0.002, 8.0),
+        Collider::cylinder(4.0, 0.1),
         PbrBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
-            material: materials.add(Color::srgb(0.3, 0.5, 0.3)),
+            mesh: meshes.add(Cylinder::new(4.0, 0.1)),
+            material: materials.add(Color::WHITE),
             ..default()
         },
     ));
 
-    // Cube
+    // Dynamic physics object with a collision shape and initial angular velocity
     commands.spawn((
         RigidBody::Dynamic,
-        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
+        AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
         PbrBundle {
-            mesh: meshes.add(Cuboid::default()),
-            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
+            mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+            material: materials.add(Color::srgb_u8(124, 144, 255)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
@@ -129,7 +130,6 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 2_000_000.0,
             shadows_enabled: true,
             ..default()
         },
@@ -139,13 +139,13 @@ fn setup(
 
     // Camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Dir3::Y),
+        transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Dir3::Y),
         ..default()
     });
 }
 ```
 
-<https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4>
+![A spinning cube falling onto a circular platform](https://github.com/Jondolf/bevy_xpbd/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
 
 ## More examples
 
