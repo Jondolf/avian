@@ -170,7 +170,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         // Spawn an entity with mass properties
-        app.world.spawn(MassPropertiesBundle {
+        app.world_mut().spawn(MassPropertiesBundle {
             mass: Mass(1.6),
             inverse_mass: InverseMass(1.0 / 1.6),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
@@ -186,8 +186,8 @@ mod tests {
         };
 
         // Get the mass properties and add the collider mass properties
-        let mut query = app.world.query::<MassPropertiesQuery>();
-        let mut mass_props = query.single_mut(&mut app.world);
+        let mut query = app.world_mut().query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(app.world_mut());
         mass_props += collider_mass_props;
 
         // Test if values are correct
@@ -209,7 +209,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         // Spawn an entity with mass properties
-        app.world.spawn(MassPropertiesBundle {
+        app.world_mut().spawn(MassPropertiesBundle {
             mass: Mass(8.1),
             inverse_mass: InverseMass(1.0 / 8.1),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
@@ -225,8 +225,8 @@ mod tests {
         };
 
         // Get the mass properties and subtract the collider mass properties
-        let mut query = app.world.query::<MassPropertiesQuery>();
-        let mut mass_props = query.single_mut(&mut app.world);
+        let mut query = app.world_mut().query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(app.world_mut());
         mass_props -= collider_mass_props;
 
         // Test if values are correct.
@@ -255,14 +255,14 @@ mod tests {
             MassPropertiesBundle::new_computed(&Collider::capsule(2.4, 0.6), 3.9);
 
         // Spawn an entity with mass properties
-        app.world.spawn(original_mass_props.clone());
+        app.world_mut().spawn(original_mass_props.clone());
 
         // Create collider mass properties
         let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
-        let mut query = app.world.query::<MassPropertiesQuery>();
-        let mut mass_props = query.single_mut(&mut app.world);
+        let mut query = app.world_mut().query::<MassPropertiesQuery>();
+        let mut mass_props = query.single_mut(app.world_mut());
         mass_props += collider_mass_props;
         mass_props -= collider_mass_props;
 

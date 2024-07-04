@@ -1,13 +1,13 @@
 #![allow(clippy::unnecessary_cast)]
 
-use bevy::{pbr::NotShadowReceiver, prelude::*};
+use bevy::{color::palettes::css::RED, pbr::NotShadowReceiver, prelude::*};
 use bevy_xpbd_3d::{math::*, prelude::*};
 use examples_common_3d::XpbdExamplePlugin;
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, reset_colors, raycast).chain())
@@ -25,8 +25,8 @@ struct RayIndicator;
 #[derive(Component)]
 struct OutOfGlass(bool);
 
-const CUBE_COLOR: Color = Color::rgba(0.2, 0.7, 0.9, 1.0);
-const CUBE_COLOR_GLASS: Color = Color::rgba(0.2, 0.7, 0.9, 0.5);
+const CUBE_COLOR: Color = Color::srgba(0.2, 0.7, 0.9, 1.0);
+const CUBE_COLOR_GLASS: Color = Color::srgba(0.2, 0.7, 0.9, 0.5);
 
 fn setup(
     mut commands: Commands,
@@ -39,7 +39,7 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(0.7, 0.7, 0.8)),
+            material: materials.add(Color::srgb(0.7, 0.7, 0.8)),
             transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
             ..default()
         },
@@ -80,7 +80,7 @@ fn setup(
     commands.spawn((
         PbrBundle {
             mesh: cube_mesh.clone(),
-            material: materials.add(Color::rgb(1.0, 0.0, 0.0)),
+            material: materials.add(Color::srgb(1.0, 0.0, 0.0)),
             transform: Transform::from_xyz(-500.0, 2.0, 0.0)
                 .with_scale(Vec3::new(1000.0, 0.1, 0.1)),
             ..default()
@@ -158,7 +158,7 @@ fn raycast(
     mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
 ) {
     let origin = Vector::new(-200.0, 2.0, 0.0);
-    let direction = Direction3d::X;
+    let direction = Dir3::X;
 
     let mut ray_indicator_transform = indicator_transform.single_mut();
 
@@ -178,7 +178,7 @@ fn raycast(
         // set color of hit object to red
         if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
             if let Some(material) = materials.get_mut(material_handle) {
-                material.base_color = Color::RED;
+                material.base_color = RED.into();
             }
         }
 

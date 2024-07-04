@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::prelude::*;
+use crate::{prelude::*, utils};
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
     bounding_volume::Aabb,
@@ -8,16 +8,16 @@ use parry::{
     partitioning::Qbvh,
     query::{
         details::{
-            RayCompositeShapeToiAndNormalBestFirstVisitor, TOICompositeShapeShapeBestFirstVisitor,
+            NormalConstraints, RayCompositeShapeToiAndNormalBestFirstVisitor,
+            TOICompositeShapeShapeBestFirstVisitor,
         },
         point::PointCompositeShapeProjBestFirstVisitor,
         visitors::{
             BoundingVolumeIntersectionsVisitor, PointIntersectionsVisitor, RayIntersectionsVisitor,
         },
-        DefaultQueryDispatcher, QueryDispatcher,
+        DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions,
     },
     shape::{Shape, TypedSimdCompositeShape},
-    utils::DefaultStorage,
 };
 
 /// A resource for the spatial query pipeline.
@@ -182,7 +182,7 @@ impl SpatialQueryPipeline {
             .traverse_best_first(&mut visitor)
             .map(|(_, (entity_index, hit))| RayHitData {
                 entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.toi,
+                time_of_impact: hit.time_of_impact,
                 normal: hit.normal.into(),
             })
     }
@@ -224,7 +224,7 @@ impl SpatialQueryPipeline {
             .traverse_best_first(&mut visitor)
             .map(|(_, (entity_index, hit))| RayHitData {
                 entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.toi,
+                time_of_impact: hit.time_of_impact,
                 normal: hit.normal.into(),
             })
     }
@@ -310,7 +310,7 @@ impl SpatialQueryPipeline {
                     ) {
                         let hit = RayHitData {
                             entity,
-                            time_of_impact: hit.toi,
+                            time_of_impact: hit.time_of_impact,
                             normal: hit.normal.into(),
                         };
 
@@ -374,15 +374,18 @@ impl SpatialQueryPipeline {
             &shape_direction,
             &pipeline_shape,
             &**shape.shape_scaled(),
-            max_time_of_impact,
-            !ignore_origin_penetration,
+            ShapeCastOptions {
+                max_time_of_impact,
+                stop_at_penetration: !ignore_origin_penetration,
+                ..default()
+            },
         );
 
         self.qbvh
             .traverse_best_first(&mut visitor)
             .map(|(_, (entity_index, hit))| ShapeHitData {
                 entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.toi,
+                time_of_impact: hit.time_of_impact,
                 point1: hit.witness1.into(),
                 point2: hit.witness2.into(),
                 normal1: hit.normal1.into(),
@@ -488,8 +491,11 @@ impl SpatialQueryPipeline {
                 &shape_direction,
                 &pipeline_shape,
                 &**shape.shape_scaled(),
-                max_time_of_impact,
-                !ignore_origin_penetration,
+                ShapeCastOptions {
+                    max_time_of_impact,
+                    stop_at_penetration: !ignore_origin_penetration,
+                    ..default()
+                },
             );
 
             if let Some(hit) =
@@ -497,7 +503,7 @@ impl SpatialQueryPipeline {
                     .traverse_best_first(&mut visitor)
                     .map(|(_, (entity_index, hit))| ShapeHitData {
                         entity: self.entity_from_index(entity_index),
-                        time_of_impact: hit.toi,
+                        time_of_impact: hit.time_of_impact,
                         point1: hit.witness1.into(),
                         point2: hit.witness2.into(),
                         normal1: hit.normal1.into(),
@@ -744,13 +750,17 @@ pub(crate) struct QueryPipelineAsCompositeShape<'a> {
 
 impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
     type PartShape = dyn Shape;
+    type PartNormalConstraints = dyn NormalConstraints;
     type PartId = u32;
-    type QbvhStorage = DefaultStorage;
 
     fn map_typed_part_at(
         &self,
         shape_id: Self::PartId,
-        mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
+        mut f: impl FnMut(
+            Option<&Isometry<Scalar>>,
+            &Self::PartShape,
+            Option<&Self::PartNormalConstraints>,
+        ),
     ) {
         if let Some((entity, (iso, shape, layers))) =
             self.colliders.get_key_value(&entity_from_index_and_gen(
@@ -759,7 +769,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
             ))
         {
             if self.query_filter.test(*entity, *layers) {
-                f(Some(iso), &**shape.shape_scaled());
+                f(Some(iso), &**shape.shape_scaled(), None);
             }
         }
     }
@@ -767,12 +777,12 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
     fn map_untyped_part_at(
         &self,
         shape_id: Self::PartId,
-        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape),
+        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape, Option<&dyn NormalConstraints>),
     ) {
         self.map_typed_part_at(shape_id, f);
     }
 
-    fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
+    fn typed_qbvh(&self) -> &Qbvh<Self::PartId> {
         &self.pipeline.qbvh
     }
 }
@@ -786,13 +796,17 @@ pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
 
 impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
     type PartShape = dyn Shape;
+    type PartNormalConstraints = dyn NormalConstraints;
     type PartId = u32;
-    type QbvhStorage = DefaultStorage;
 
     fn map_typed_part_at(
         &self,
         shape_id: Self::PartId,
-        mut f: impl FnMut(Option<&Isometry<Scalar>>, &Self::PartShape),
+        mut f: impl FnMut(
+            Option<&Isometry<Scalar>>,
+            &Self::PartShape,
+            Option<&Self::PartNormalConstraints>,
+        ),
     ) {
         if let Some((entity, (iso, shape, layers))) =
             self.colliders.get_key_value(&entity_from_index_and_gen(
@@ -801,7 +815,7 @@ impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredic
             ))
         {
             if self.query_filter.test(*entity, *layers) && (self.predicate)(*entity) {
-                f(Some(iso), &**shape.shape_scaled());
+                f(Some(iso), &**shape.shape_scaled(), None);
             }
         }
     }
@@ -809,12 +823,12 @@ impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredic
     fn map_untyped_part_at(
         &self,
         shape_id: Self::PartId,
-        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape),
+        f: impl FnMut(Option<&Isometry<Scalar>>, &dyn Shape, Option<&dyn NormalConstraints>),
     ) {
         self.map_typed_part_at(shape_id, f);
     }
 
-    fn typed_qbvh(&self) -> &parry::partitioning::GenericQbvh<Self::PartId, Self::QbvhStorage> {
+    fn typed_qbvh(&self) -> &Qbvh<Self::PartId> {
         &self.pipeline.qbvh
     }
 }

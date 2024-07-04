@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
+    color::palettes::css::TOMATO,
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
@@ -50,7 +51,7 @@ fn pause_button(
             AppState::Paused => AppState::Running,
             AppState::Running => AppState::Paused,
         };
-        next_state.0 = Some(new_state);
+        next_state.set(new_state);
     }
 }
 
@@ -70,7 +71,7 @@ fn setup(mut commands: Commands) {
             TextStyle {
                 font: default(),
                 font_size: 20.0,
-                color: Color::TOMATO,
+                color: TOMATO.into(),
             },
         )
         .with_style(Style {

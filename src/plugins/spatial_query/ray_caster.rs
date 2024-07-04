@@ -48,7 +48,7 @@ use parry::query::{
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a ray at the center going right
-///     commands.spawn(RayCaster::new(Vec3::ZERO, Direction3d::X));
+///     commands.spawn(RayCaster::new(Vec3::ZERO, Dir3::X));
 ///     // ...spawn colliders and other things
 /// }
 ///
@@ -259,7 +259,7 @@ impl RayCaster {
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
                 |(_, (entity_index, hit))| RayHitData {
                     entity: query_pipeline.entity_from_index(entity_index),
-                    time_of_impact: hit.toi,
+                    time_of_impact: hit.time_of_impact,
                     normal: hit.normal.into(),
                 },
             ) {
@@ -289,13 +289,13 @@ impl RayCaster {
                             if (hits.vector.len() as u32) < hits.count + 1 {
                                 hits.vector.push(RayHitData {
                                     entity,
-                                    time_of_impact: hit.toi,
+                                    time_of_impact: hit.time_of_impact,
                                     normal: hit.normal.into(),
                                 });
                             } else {
                                 hits.vector[hits.count as usize] = RayHitData {
                                     entity,
-                                    time_of_impact: hit.toi,
+                                    time_of_impact: hit.time_of_impact,
                                     normal: hit.normal.into(),
                                 };
                             }

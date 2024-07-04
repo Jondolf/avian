@@ -1,3 +1,21 @@
+//! Components, traits, and plugins related to collider functionality.
+
+use crate::prelude::*;
+#[cfg(all(feature = "3d", feature = "async-collider"))]
+use bevy::utils::HashMap;
+use bevy::{
+    ecs::entity::{EntityMapper, MapEntities},
+    prelude::*,
+    utils::HashSet,
+};
+
+mod backend;
+mod hierarchy;
+
+pub use backend::{ColliderBackendPlugin, ColliderMarker};
+pub use hierarchy::ColliderHierarchyPlugin;
+pub(crate) use hierarchy::PreviousColliderTransform;
+
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
     feature = "default-collider",
@@ -13,13 +31,6 @@ pub use parry::*;
 mod constructor;
 pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
-};
-
-use crate::prelude::*;
-use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
-    prelude::*,
-    utils::HashSet,
 };
 
 /// A trait for creating colliders from other types.
@@ -198,6 +209,8 @@ impl From<Transform> for ColliderTransform {
 /// Sensor colliders send [collision events](ContactReportingPlugin#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
+///
+/// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
 ///
 /// ## Example
 ///

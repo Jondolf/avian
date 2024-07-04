@@ -5,7 +5,7 @@ use examples_common_3d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .insert_resource(SubstepCount(50))
         .add_systems(Startup, setup)
@@ -18,7 +18,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let cube_mesh = meshes.add(Cuboid::default());
-    let cube_material = materials.add(Color::rgb(0.8, 0.7, 0.6));
+    let cube_material = materials.add(Color::srgb(0.8, 0.7, 0.6));
 
     // Kinematic rotating "anchor" object
     let anchor = commands

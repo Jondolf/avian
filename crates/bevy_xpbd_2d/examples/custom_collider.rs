@@ -16,7 +16,7 @@ fn main() {
             // Enable collision detection for our custom collider.
             NarrowPhasePlugin::<CircleCollider>::default(),
         ))
-        .insert_resource(ClearColor(Color::rgb(0.01, 0.01, 0.025)))
+        .insert_resource(ClearColor(Color::srgb(0.01, 0.01, 0.025)))
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
         .add_systems(
@@ -147,8 +147,8 @@ fn setup(
     let center_radius = 200.0;
     let particle_radius = 5.0;
 
-    let red = materials.add(Color::rgb(0.9, 0.3, 0.3));
-    let blue = materials.add(Color::rgb(0.1, 0.6, 1.0));
+    let red = materials.add(Color::srgb(0.9, 0.3, 0.3));
+    let blue = materials.add(Color::srgb(0.1, 0.6, 1.0));
     let particle_mesh = meshes.add(Circle::new(particle_radius));
 
     // Spawn rotating body at the center.
@@ -156,7 +156,7 @@ fn setup(
         .spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(Circle::new(center_radius)).into(),
-                material: materials.add(Color::rgb(0.7, 0.7, 0.8)).clone(),
+                material: materials.add(Color::srgb(0.7, 0.7, 0.8)).clone(),
                 ..default()
             },
             RigidBody::Kinematic,

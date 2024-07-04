@@ -464,7 +464,7 @@ mod tests {
     fn collider_constructor_requires_no_mesh_on_primitive() {
         let mut app = create_test_app();
 
-        let entity = app.world.spawn(PRIMITIVE_COLLIDER.clone()).id();
+        let entity = app.world_mut().spawn(PRIMITIVE_COLLIDER.clone()).id();
 
         app.update();
 
@@ -478,7 +478,7 @@ mod tests {
     fn collider_constructor_requires_mesh_on_computed() {
         let mut app = create_test_app();
 
-        app.world.spawn(COMPUTED_COLLIDER.clone());
+        app.world_mut().spawn(COMPUTED_COLLIDER.clone());
 
         app.update();
     }
@@ -490,7 +490,7 @@ mod tests {
 
         let mesh_handle = app.add_mesh();
         let entity = app
-            .world
+            .world_mut()
             .spawn((COMPUTED_COLLIDER.clone(), mesh_handle))
             .id();
 
@@ -506,7 +506,7 @@ mod tests {
         let mut app = create_test_app();
 
         let entity = app
-            .world
+            .world_mut()
             .spawn(ColliderConstructorHierarchy::new(
                 PRIMITIVE_COLLIDER.clone(),
             ))
@@ -525,7 +525,7 @@ mod tests {
 
         let mesh_handle = app.add_mesh();
         let entity = app
-            .world
+            .world_mut()
             .spawn((
                 ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()),
                 mesh_handle,
@@ -545,7 +545,7 @@ mod tests {
         let mut app = create_test_app();
 
         let entity = app
-            .world
+            .world_mut()
             .spawn(ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
 
@@ -566,19 +566,19 @@ mod tests {
         //     - child3
 
         let parent = app
-            .world
+            .world_mut()
             .spawn(ColliderConstructorHierarchy::new(
                 PRIMITIVE_COLLIDER.clone(),
             ))
             .id();
-        let child1 = app.world.spawn(()).id();
-        let child2 = app.world.spawn(()).id();
-        let child3 = app.world.spawn(()).id();
+        let child1 = app.world_mut().spawn(()).id();
+        let child2 = app.world_mut().spawn(()).id();
+        let child3 = app.world_mut().spawn(()).id();
 
-        app.world
+        app.world_mut()
             .entity_mut(parent)
             .push_children(&[child1, child2]);
-        app.world.entity_mut(child2).push_children(&[child3]);
+        app.world_mut().entity_mut(child2).push_children(&[child3]);
 
         app.update();
 
@@ -612,24 +612,24 @@ mod tests {
         //     - child8 (mesh)
 
         let parent = app
-            .world
+            .world_mut()
             .spawn(ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()))
             .id();
-        let child1 = app.world.spawn(()).id();
-        let child2 = app.world.spawn(()).id();
-        let child3 = app.world.spawn(mesh_handle.clone()).id();
-        let child4 = app.world.spawn(mesh_handle.clone()).id();
-        let child5 = app.world.spawn(()).id();
-        let child6 = app.world.spawn(mesh_handle.clone()).id();
-        let child7 = app.world.spawn(mesh_handle.clone()).id();
-        let child8 = app.world.spawn(mesh_handle.clone()).id();
+        let child1 = app.world_mut().spawn(()).id();
+        let child2 = app.world_mut().spawn(()).id();
+        let child3 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child4 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child5 = app.world_mut().spawn(()).id();
+        let child6 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child7 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child8 = app.world_mut().spawn(mesh_handle.clone()).id();
 
-        app.world
+        app.world_mut()
             .entity_mut(parent)
             .push_children(&[child1, child2, child4, child6, child7]);
-        app.world.entity_mut(child2).push_children(&[child3]);
-        app.world.entity_mut(child4).push_children(&[child5]);
-        app.world.entity_mut(child7).push_children(&[child8]);
+        app.world_mut().entity_mut(child2).push_children(&[child3]);
+        app.world_mut().entity_mut(child4).push_children(&[child5]);
+        app.world_mut().entity_mut(child7).push_children(&[child8]);
 
         app.update();
 
@@ -663,12 +663,12 @@ mod tests {
         let mut app = create_gltf_test_app();
 
         let scene_handle = app
-            .world
+            .world_mut()
             .resource_mut::<AssetServer>()
             .load("ferris.glb#Scene0");
 
         let hierarchy = app
-            .world
+            .world_mut()
             .spawn((
                 SceneBundle {
                     scene: scene_handle,
@@ -685,7 +685,7 @@ mod tests {
             .id();
 
         while app
-            .world
+            .world()
             .resource::<Events<bevy::scene::SceneInstanceReady>>()
             .is_empty()
         {
@@ -698,9 +698,9 @@ mod tests {
 
         // Check densities
         let densities: HashMap<_, _> = app
-            .world
+            .world_mut()
             .query::<(&Name, &ColliderDensity)>()
-            .iter(&app.world)
+            .iter(app.world())
             .map(|(name, density)| (name.to_string(), density.0))
             .collect();
 
@@ -710,9 +710,9 @@ mod tests {
 
         // Check collider shape types
         let colliders: HashMap<_, _> = app
-            .world
+            .world_mut()
             .query::<(&Name, &Collider)>()
-            .iter(&app.world)
+            .iter(app.world())
             .map(|(name, collider)| (name.to_string(), collider))
             .collect();
 
@@ -778,14 +778,14 @@ mod tests {
 
     impl AppExt for App {
         fn query_ok<D: QueryData>(&mut self, entity: Entity) -> bool {
-            let mut query = self.world.query::<D>();
-            let component = query.get(&self.world, entity);
+            let mut query = self.world_mut().query::<D>();
+            let component = query.get(self.world(), entity);
             component.is_ok()
         }
 
         #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
         fn add_mesh(&mut self) -> Handle<Mesh> {
-            self.world
+            self.world_mut()
                 .get_resource_mut::<Assets<Mesh>>()
                 .unwrap()
                 .add(Mesh::from(Cuboid::default()))

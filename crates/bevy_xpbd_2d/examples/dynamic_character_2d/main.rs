@@ -27,7 +27,7 @@ fn main() {
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
         ))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
         .run();
@@ -42,7 +42,7 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(Capsule2d::new(12.5, 20.0)).into(),
-            material: materials.add(Color::rgb(0.2, 0.7, 0.9)),
+            material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
             transform: Transform::from_xyz(0.0, -100.0, 0.0),
             ..default()
         },
@@ -62,7 +62,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.0, 0.4, 0.7),
+                color: Color::srgb(0.0, 0.4, 0.7),
                 custom_size: Some(Vec2::new(30.0, 30.0)),
                 ..default()
             },
@@ -77,7 +77,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.7, 0.7, 0.8),
+                color: Color::srgb(0.7, 0.7, 0.8),
                 custom_size: Some(Vec2::new(1100.0, 50.0)),
                 ..default()
             },
@@ -90,7 +90,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.7, 0.7, 0.8),
+                color: Color::srgb(0.7, 0.7, 0.8),
                 custom_size: Some(Vec2::new(300.0, 25.0)),
                 ..default()
             },
@@ -103,7 +103,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.7, 0.7, 0.8),
+                color: Color::srgb(0.7, 0.7, 0.8),
                 custom_size: Some(Vec2::new(300.0, 25.0)),
                 ..default()
             },
@@ -116,7 +116,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.7, 0.7, 0.8),
+                color: Color::srgb(0.7, 0.7, 0.8),
                 custom_size: Some(Vec2::new(150.0, 80.0)),
                 ..default()
             },
@@ -129,7 +129,7 @@ fn setup(
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
-                color: Color::rgb(0.7, 0.7, 0.8),
+                color: Color::srgb(0.7, 0.7, 0.8),
                 custom_size: Some(Vec2::new(150.0, 80.0)),
                 ..default()
             },
@@ -161,7 +161,7 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(Color::rgb(0.4, 0.4, 0.5)),
+            material: materials.add(Color::srgb(0.4, 0.4, 0.5)),
             transform: Transform::from_xyz(-275.0, -150.0, 0.0),
             ..default()
         },
@@ -188,7 +188,7 @@ fn setup(
     commands.spawn((
         MaterialMesh2dBundle {
             mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(Color::rgb(0.4, 0.4, 0.5)),
+            material: materials.add(Color::srgb(0.4, 0.4, 0.5)),
             transform: Transform::from_xyz(380.0, -110.0, 0.0),
             ..default()
         },

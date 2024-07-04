@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
-description = "Provides derive implementations for Bevy XPBD"
+description = "Deprecated, use `avian_derive` instead. Provides derive implementations for Bevy XPBD"
 repository = "https://github.com/Jondolf/bevy_xpbd"
 readme = "README.md"
+
+[badges]
+maintenance = { status = "deprecated" }
 
 [lib]
 proc-macro = true

@@ -4,9 +4,9 @@ use crate::prelude::*;
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 use approx::assert_relative_eq;
-use bevy::{
-    ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
-};
+#[cfg(feature = "async-collider")]
+use bevy::ecs::schedule::ScheduleBuildSettings;
+use bevy::{prelude::*, time::TimeUpdateStrategy, utils::Instant};
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
 use std::time::Duration;
@@ -32,19 +32,23 @@ fn create_app() -> App {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
+        HierarchyPlugin,
         PhysicsPlugins::default(),
-        bevy::asset::AssetPlugin::default(),
-        #[cfg(feature = "bevy_scene")]
-        bevy::scene::ScenePlugin,
-    ))
-    .init_resource::<Assets<Mesh>>()
-    .insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
-
+    ));
+    #[cfg(feature = "async-collider")]
+    {
+        app.add_plugins((
+            bevy::asset::AssetPlugin::default(),
+            bevy::scene::ScenePlugin,
+        ))
+        .init_resource::<Assets<Mesh>>();
+    }
+    app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
     app
 }
 
 fn tick_60_fps(app: &mut App) {
-    let mut update_strategy = app.world.resource_mut::<TimeUpdateStrategy>();
+    let mut update_strategy = app.world_mut().resource_mut::<TimeUpdateStrategy>();
     let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
         unimplemented!()
     };
@@ -126,9 +130,9 @@ fn body_with_velocity_moves_on_first_frame() {
     // one tick only.
     tick_60_fps(&mut app);
 
-    let mut app_query = app.world.query::<(&Position, &RigidBody)>();
+    let mut app_query = app.world_mut().query::<(&Position, &RigidBody)>();
 
-    let (pos, _body) = app_query.single(&app.world);
+    let (pos, _body) = app_query.single(app.world());
 
     assert!(pos.x > 0.0);
 }
@@ -162,9 +166,9 @@ fn body_with_velocity_moves() {
         tick_60_fps(&mut app);
     }
 
-    let mut app_query = app.world.query::<(&Transform, &RigidBody)>();
+    let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
-    let (transform, _body) = app_query.single(&app.world);
+    let (transform, _body) = app_query.single(app.world());
 
     //assert!(transform.translation.x > 0., "box moves right");
     assert_relative_eq!(transform.translation.y, 0.);
@@ -203,9 +207,9 @@ fn cubes_simulation_is_deterministic_across_machines() {
         tick_60_fps(&mut app);
     }
 
-    let mut app_query = app.world.query::<(&Id, &Transform)>();
+    let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
 
-    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(&app.world).collect();
+    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(app.world()).collect();
     bodies.sort_by_key(|b| b.0);
 
     assert_debug_snapshot!(bodies);
@@ -228,10 +232,10 @@ fn cubes_simulation_is_locally_deterministic() {
             tick_60_fps(&mut app);
         }
 
-        let mut app_query = app.world.query::<(&Id, &Transform)>();
+        let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
 
         let mut bodies: Vec<(Id, Transform)> = app_query
-            .iter(&app.world)
+            .iter(app.world())
             .map(|(id, transform)| (*id, *transform))
             .collect();
         bodies.sort_by_key(|b| b.0);
@@ -249,10 +253,17 @@ fn no_ambiguity_errors() {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct DeterministicSchedule;
 
-    App::new()
-        .add_plugins((
-            MinimalPlugins,
-            PhysicsPlugins::new(DeterministicSchedule),
+    let mut app = App::new();
+
+    app.add_plugins((
+        MinimalPlugins,
+        HierarchyPlugin,
+        PhysicsPlugins::new(DeterministicSchedule),
+    ));
+
+    #[cfg(feature = "async-collider")]
+    {
+        app.add_plugins((
             bevy::asset::AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
@@ -268,4 +279,5 @@ fn no_ambiguity_errors() {
             w.run_schedule(DeterministicSchedule);
         })
         .update();
+    }
 }

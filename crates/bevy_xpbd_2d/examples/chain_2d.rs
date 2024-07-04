@@ -11,7 +11,7 @@ use examples_common_2d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(50))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
@@ -32,7 +32,7 @@ fn setup(
     let particle_count = 100;
     let particle_radius = 1.2;
     let particle_mesh: Mesh2dHandle = meshes.add(Circle::new(particle_radius as f32)).into();
-    let particle_material = materials.add(Color::rgb(0.2, 0.7, 0.9));
+    let particle_material = materials.add(Color::srgb(0.2, 0.7, 0.9));
 
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands

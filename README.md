@@ -1,4 +1,4 @@
-# Bevy XPBD
+# Bevy XPBD (deprecated in favor of [Avian](https://github.com/Jondolf/avian))
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
 [![ci](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml)
@@ -7,17 +7,14 @@
 [![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d?label=3D%20crates.io)](https://crates.io/crates/bevy_xpbd_3d)
 [![3D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_3d?label=3D%20docs.rs)](https://docs.rs/bevy_xpbd_3d)
 
-**Bevy XPBD** is a 2D and 3D physics engine based on _Extended Position Based Dynamics_ (XPBD)
-for the [Bevy game engine](https://bevyengine.org/).
+**⚠️ Bevy XPBD has been deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian).
+No further development or maintenance will be done for Bevy XPBD.
+See [#346](https://github.com/Jondolf/bevy_xpbd/issues/346) for background.**
 
 ---
 
-## Warning ⚠️
-
-Bevy XPBD will undergo major changes in the next release, coming out in tandem with Bevy 0.14.
-
-You can find an in-depth explanation of the situation and plans
-[here](https://github.com/Jondolf/bevy_xpbd/issues/346).
+**Bevy XPBD** is a 2D and 3D physics engine based on _Extended Position Based Dynamics_ (XPBD)
+for the [Bevy game engine](https://bevyengine.org/).
 
 ---
 
@@ -82,11 +79,11 @@ First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`
 ```toml
 # For 2D applications:
 [dependencies]
-bevy_xpbd_2d = "0.4"
+bevy_xpbd_2d = "0.5"
 
 # For 3D applications:
 [dependencies]
-bevy_xpbd_3d = "0.4"
+bevy_xpbd_3d = "0.5"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -117,7 +114,7 @@ fn setup(
         Collider::cuboid(8.0, 0.002, 8.0),
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3)),
+            material: materials.add(Color::srgb(0.3, 0.5, 0.3)),
             ..default()
         },
     ));
@@ -129,7 +126,7 @@ fn setup(
         Collider::cuboid(1.0, 1.0, 1.0),
         PbrBundle {
             mesh: meshes.add(Cuboid::default()),
-            material: materials.add(Color::rgb(0.8, 0.7, 0.6)),
+            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
@@ -173,8 +170,12 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Supported Bevy versions
 
+**Note**: Bevy XPBD is deprecated and won't support future versions of Bevy.
+Instead, it is recommended to use its successor [Avian](https://github.com/Jondolf/avian).
+
 | Bevy | Bevy XPBD |
 | ---- | --------- |
+| 0.14 | 0.5       |
 | 0.13 | 0.4       |
 | 0.12 | 0.3       |
 | 0.11 | 0.2       |

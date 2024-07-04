@@ -15,7 +15,7 @@
 //! and point projection, see [spatial queries](spatial_query).
 
 use crate::prelude::*;
-use parry::query::{PersistentQueryDispatcher, Unsupported};
+use parry::query::{PersistentQueryDispatcher, ShapeCastOptions, Unsupported};
 
 /// An error indicating that a [contact query](contact_query) is not supported for one of the [`Collider`] shapes.
 pub type UnsupportedShape = Unsupported;
@@ -515,7 +515,7 @@ pub fn intersection_test(
 }
 
 /// The way the [time of impact](time_of_impact) computation was terminated.
-pub type TimeOfImpactStatus = parry::query::details::TOIStatus;
+pub type TimeOfImpactStatus = parry::query::details::ShapeCastStatus;
 
 /// The result of a [time of impact](time_of_impact) computation between two moving [`Collider`]s.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -594,19 +594,22 @@ pub fn time_of_impact(
     let isometry1 = utils::make_isometry(position1.into(), rotation1);
     let isometry2 = utils::make_isometry(position2.into(), rotation2);
 
-    parry::query::time_of_impact(
+    parry::query::cast_shapes(
         &isometry1,
         &velocity1.0.into(),
         collider1.shape_scaled().0.as_ref(),
         &isometry2,
         &velocity2.0.into(),
         collider2.shape_scaled().0.as_ref(),
-        max_time_of_impact,
-        true,
+        ShapeCastOptions {
+            max_time_of_impact,
+            stop_at_penetration: true,
+            ..default()
+        },
     )
     .map(|toi| {
         toi.map(|toi| TimeOfImpact {
-            time_of_impact: toi.toi,
+            time_of_impact: toi.time_of_impact,
             point1: toi.witness1.into(),
             point2: toi.witness2.into(),
             normal1: toi.normal1.into(),

@@ -42,7 +42,7 @@
 //! # #[cfg(all(feature = "3d", feature = "f32"))]
 //! fn setup(mut commands: Commands) {
 //!     // Spawn a ray caster at the center with the rays travelling right
-//!     commands.spawn(RayCaster::new(Vec3::ZERO, Direction3d::X));
+//!     commands.spawn(RayCaster::new(Vec3::ZERO, Dir3::X));
 //!     // ...spawn colliders and other things
 //! }
 //!
@@ -102,7 +102,7 @@
 //!         Collider::sphere(0.5), // Shape
 //!         Vec3::ZERO,            // Origin
 //!         Quat::default(),       // Shape rotation
-//!         Direction3d::X         // Direction
+//!         Dir3::X         // Direction
 //!     ));
 //!     // ...spawn colliders and other things
 //! }
@@ -184,7 +184,7 @@ pub use shape_caster::*;
 pub use system_param::*;
 
 use crate::{prelude::*, prepare::PrepareSet};
-use bevy::{prelude::*, utils::intern::Interned};
+use bevy::{ecs::intern::Interned, prelude::*};
 
 /// Initializes the [`SpatialQueryPipeline`] resource and handles component-based [spatial queries](spatial_query)
 /// like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting) with

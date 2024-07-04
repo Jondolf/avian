@@ -177,12 +177,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         match collider.shape_scaled().as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                self.circle(
-                    position.extend(0.0).f32(),
-                    Direction3d::Z,
-                    s.radius as f32,
-                    color,
-                );
+                self.circle(position.extend(0.0).f32(), Dir3::Z, s.radius as f32, color);
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
@@ -439,7 +434,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 if _id == 1 {
                     if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
                         self.primitive_2d(
-                            ellipse.0,
+                            &ellipse.0,
                             position.f32(),
                             rotation.as_radians() as f32,
                             color,
@@ -450,7 +445,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                         collider.shape_scaled().as_shape::<RegularPolygonWrapper>()
                     {
                         self.primitive_2d(
-                            polygon.0,
+                            &polygon.0,
                             position.f32(),
                             rotation.as_radians() as f32,
                             color,
@@ -589,7 +584,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                 shape,
                 origin + hit.time_of_impact * direction.adjust_precision(),
                 shape_rotation,
-                Color::rgba(shape_color.r(), shape_color.g(), shape_color.b(), 0.3),
+                shape_color.with_alpha(0.3),
             );
         }
     }

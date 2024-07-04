@@ -7,7 +7,7 @@ use examples_common_3d::XpbdExamplePlugin;
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, XpbdExamplePlugin))
-        .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
+        .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .insert_resource(AmbientLight {
             brightness: 2.0,
@@ -33,7 +33,7 @@ fn setup(
     let particle_radius = 0.06;
     let particle_mesh = meshes.add(Sphere::new(particle_radius as f32).mesh().ico(5).unwrap());
     let particle_material = materials.add(StandardMaterial {
-        base_color: Color::rgb(0.2, 0.7, 0.9),
+        base_color: Color::srgb(0.2, 0.7, 0.9),
         unlit: true,
         ..default()
     });
@@ -130,7 +130,7 @@ fn ui(mut commands: Commands) {
                 width: Val::Percent(100.),
                 ..default()
             },
-            background_color: Color::rgba(0.15, 0.15, 0.15, 0.0).into(),
+            background_color: Color::srgba(0.15, 0.15, 0.15, 0.0).into(),
             ..default()
         })
         .with_children(|parent| {

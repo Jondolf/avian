@@ -201,7 +201,7 @@ bitflags::bitflags! {
 
 impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     fn from(value: TrimeshFlags) -> Self {
-        Self::from_bits(value.bits()).unwrap()
+        Self::from_bits(value.bits().into()).unwrap()
     }
 }
 
@@ -625,7 +625,7 @@ impl Collider {
             max_time_of_impact,
             solid,
         );
-        hit.map(|hit| (hit.toi, hit.normal.into()))
+        hit.map(|hit| (hit.time_of_impact, hit.normal.into()))
     }
 
     /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.

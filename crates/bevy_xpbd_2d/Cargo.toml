@@ -1,25 +1,21 @@
 [package]
 name = "bevy_xpbd_2d"
-version = "0.4.2"
+version = "0.5.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
-description = "A physics engine based on Extended Position Based Dynamics for the Bevy game engine"
+description = "Deprecated, use `avian2d` instead. A physics engine based on Extended Position Based Dynamics for the Bevy game engine"
 documentation = "https://docs.rs/bevy_xpbd_2d"
 repository = "https://github.com/Jondolf/bevy_xpbd"
 readme = "README.md"
 keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
+[badges]
+maintenance = { status = "deprecated" }
+
 [features]
-default = [
-    "2d", 
-    "f32", 
-    "parry-f32", 
-    "debug-plugin", 
-    "parallel",
-    "bevy_scene",
-]
+default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel", "bevy_scene"]
 2d = []
 f32 = []
 f64 = []
@@ -54,21 +50,23 @@ required-features = ["2d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.13", default-features = false }
-bevy_math = "0.13"
-parry2d = { version = "0.13", optional = true }
-parry2d-f64 = { version = "0.13", optional = true }
-nalgebra = { version = "0.32", features = ["convert-glam025"], optional = true }
+bevy = { version = "0.14", default-features = false }
+bevy_math = { version = "0.14" }
+parry2d = { version = "0.15", optional = true }
+parry2d-f64 = { version = "0.15", optional = true }
+nalgebra = { version = "0.32.6", features = [
+    "convert-glam027",
+], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
-itertools = "0.12"
+itertools = "0.13"
 bitflags = "2.5.0"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy_math = { version = "0.13", features = ["approx"] }
+bevy_math = { version = "0.14", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 

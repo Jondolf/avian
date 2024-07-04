@@ -3,7 +3,7 @@ use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
-use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
+use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOptions};
 
 /// A component used for [shapecasting](spatial_query#shapecasting).
 ///
@@ -38,7 +38,7 @@ use parry::query::details::TOICompositeShapeShapeBestFirstVisitor;
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Vec3::ZERO,
 ///         Quat::default(),
-///         Direction3d::X,
+///         Dir3::X,
 ///     ));
 /// }
 ///
@@ -307,14 +307,17 @@ impl ShapeCaster {
                 &shape_direction,
                 &pipeline_shape,
                 &**self.shape.shape_scaled(),
-                self.max_time_of_impact,
-                !self.ignore_origin_penetration,
+                ShapeCastOptions {
+                    max_time_of_impact: self.max_time_of_impact,
+                    stop_at_penetration: !self.ignore_origin_penetration,
+                    ..default()
+                },
             );
 
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
                 |(_, (entity_index, hit))| ShapeHitData {
                     entity: query_pipeline.entity_from_index(entity_index),
-                    time_of_impact: hit.toi,
+                    time_of_impact: hit.time_of_impact,
                     point1: hit.witness1.into(),
                     point2: hit.witness2.into(),
                     normal1: hit.normal1.into(),

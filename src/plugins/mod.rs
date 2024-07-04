@@ -31,9 +31,10 @@ pub mod solver;
 pub mod spatial_query;
 pub mod sync;
 
-use bevy::utils::intern::Interned;
 pub use collision::{
-    broad_phase::BroadPhasePlugin, collider_backend::*, contact_reporting::ContactReportingPlugin,
+    broad_phase::BroadPhasePlugin,
+    collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
+    contact_reporting::ContactReportingPlugin,
     narrow_phase::NarrowPhasePlugin,
 };
 #[cfg(feature = "debug-plugin")]
@@ -48,6 +49,7 @@ pub use sync::SyncPlugin;
 
 #[allow(unused_imports)]
 use crate::prelude::*; // For doc comments
+use bevy::ecs::intern::Interned;
 use bevy::prelude::*;
 
 /// A plugin group containing all of Bevy XPBD's plugins.
@@ -59,6 +61,7 @@ use bevy::prelude::*;
 /// and [colliders](Collider) and updates components.
 /// - [`ColliderBackendPlugin`]: Handles generic collider backend logic, like initializing colliders and AABBs
 /// and updating related components.
+/// - [`ColliderHierarchyPlugin`]: Handles transform propagation, scale updates, and [`ColliderParent`] updates for colliders.
 /// - [`BroadPhasePlugin`]: Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
 /// [AABB](ColliderAabb) intersection checks.
 /// - [`NarrowPhasePlugin`]: Computes contacts between entities and sends collision events.
@@ -198,6 +201,7 @@ impl PluginGroup for PhysicsPlugins {
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
+            .add(ColliderHierarchyPlugin::new(self.schedule))
             .add(NarrowPhasePlugin::<Collider>::default());
 
         builder
