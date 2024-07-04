@@ -90,7 +90,7 @@ bevy_xpbd_3d = "0.5"
 bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
 ```
 
-Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
+Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d-rendering/3d-scene/) example.
 
 ```rust
 use bevy::prelude::*;
