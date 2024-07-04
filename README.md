@@ -1,4 +1,4 @@
-# Bevy XPBD (deprecated in favor of [Avian](https://github.com/Jondolf/avian))
+# Bevy XPBD (soon deprecated in favor of [Avian](https://github.com/Jondolf/avian))
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
 [![ci](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml)
@@ -7,7 +7,7 @@
 [![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d?label=3D%20crates.io)](https://crates.io/crates/bevy_xpbd_3d)
 [![3D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_3d?label=3D%20docs.rs)](https://docs.rs/bevy_xpbd_3d)
 
-**⚠️ Bevy XPBD has been deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian).
+**⚠️ Bevy XPBD will be deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian) (releases today or tomorrow).
 No further development or maintenance will be done for Bevy XPBD.
 See [#346](https://github.com/Jondolf/bevy_xpbd/issues/346) for background.**
 
