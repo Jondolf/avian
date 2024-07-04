@@ -143,7 +143,7 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 90 degrees
-///     commands.spawn((RigidBody::Dynamic, Rotation::from_degrees(90.0)));
+///     commands.spawn((RigidBody::Dynamic, Rotation::degrees(90.0)));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
