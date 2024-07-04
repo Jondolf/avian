@@ -9,7 +9,7 @@
 
 **⚠️ Bevy XPBD has been deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian).
 No further development or maintenance will be done for Bevy XPBD.
-See [#346](https://github.com/Jondolf/avian/issues/346) for background.**
+See [#346](https://github.com/Jondolf/bevy_xpbd/issues/346) for background.**
 
 ---
 

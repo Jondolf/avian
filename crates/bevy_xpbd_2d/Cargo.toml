@@ -49,8 +49,8 @@ required-features = ["2d"]
 
 [dependencies]
 bevy_xpbd_derive = { path = "../bevy_xpbd_derive", version = "0.1" }
-bevy = { version = "0.14.0-rc", default-features = false }
-bevy_math = { version = "0.14.0-rc" }
+bevy = { version = "0.14", default-features = false }
+bevy_math = { version = "0.14" }
 parry2d = { version = "0.15", optional = true }
 parry2d-f64 = { version = "0.15", optional = true }
 nalgebra = { version = "0.32.6", features = [
@@ -64,7 +64,7 @@ itertools = "0.13"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
-bevy_math = { version = "0.14.0-rc", features = ["approx"] }
+bevy_math = { version = "0.14", features = ["approx"] }
 approx = "0.5"
 insta = "1.0"
 
