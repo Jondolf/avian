@@ -92,15 +92,16 @@ use bevy::utils::HashMap;
 ///         SceneBundle { scene, ..default() },
 #[cfg_attr(
     feature = "2d",
-    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })"
+    doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
+            .without_constructor_for_name(\"Tree\"),"
 )]
 #[cfg_attr(
     feature = "3d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::TrimeshFromMeshWithConfig(
              TrimeshFlags::MERGE_DUPLICATE_VERTICES
-         ))"
+        ))
+        .without_constructor_for_name(\"Tree\"),"
 )]
-///         .without_constructor_for_name("Tree"),
 ///     ));
 /// }
 /// ```
