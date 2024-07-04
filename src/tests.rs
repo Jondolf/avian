@@ -4,9 +4,9 @@ use crate::prelude::*;
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 use approx::assert_relative_eq;
-#[cfg(feature = "async-collider")]
-use bevy::ecs::schedule::ScheduleBuildSettings;
-use bevy::{prelude::*, time::TimeUpdateStrategy, utils::Instant};
+use bevy::{
+    ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
+};
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
 use std::time::Duration;
@@ -34,16 +34,13 @@ fn create_app() -> App {
         TransformPlugin,
         HierarchyPlugin,
         PhysicsPlugins::default(),
-    ));
-    #[cfg(feature = "async-collider")]
-    {
-        app.add_plugins((
-            bevy::asset::AssetPlugin::default(),
-            bevy::scene::ScenePlugin,
-        ))
-        .init_resource::<Assets<Mesh>>();
-    }
-    app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
+        bevy::asset::AssetPlugin::default(),
+        #[cfg(feature = "bevy_scene")]
+        bevy::scene::ScenePlugin,
+    ))
+    .init_resource::<Assets<Mesh>>()
+    .insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
+
     app
 }
 
@@ -253,17 +250,11 @@ fn no_ambiguity_errors() {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct DeterministicSchedule;
 
-    let mut app = App::new();
-
-    app.add_plugins((
-        MinimalPlugins,
-        HierarchyPlugin,
-        PhysicsPlugins::new(DeterministicSchedule),
-    ));
-
-    #[cfg(feature = "async-collider")]
-    {
-        app.add_plugins((
+    App::new()
+        .add_plugins((
+            MinimalPlugins,
+            HierarchyPlugin,
+            PhysicsPlugins::new(DeterministicSchedule),
             bevy::asset::AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
@@ -279,5 +270,4 @@ fn no_ambiguity_errors() {
             w.run_schedule(DeterministicSchedule);
         })
         .update();
-    }
 }
