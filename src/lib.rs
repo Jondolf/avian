@@ -1,4 +1,4 @@
-//! # ![Avian Physics](https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/logo.svg)
+//! # ![Avian Physics](https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/logo.svg)
 //!
 //! **Avian** is an ECS-based 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 //!
@@ -401,8 +401,8 @@
 //! at your option.
 
 #![doc(
-    html_logo_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png",
-    html_favicon_url = "https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/icon.png"
+    html_logo_url = "https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/icon.png",
+    html_favicon_url = "https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/icon.png"
 )]
 #![allow(
     unexpected_cfgs,

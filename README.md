@@ -1,4 +1,4 @@
-# ![Avian Physics](https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/logo.svg)
+# ![Avian Physics](https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/logo.svg)
 
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/avian#license)
 [![ci](https://github.com/Jondolf/avian/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/avian/actions/workflows/ci.yml)
@@ -85,7 +85,7 @@ avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 ```
 
 Below is a very simple example where a cube with initial angular velocity falls onto a circular platform.
-This is a modified version of Bevy's [`3d_scene`](https://bevyengine.org/examples/3D%20Rendering/3d-scene/) example.
+This is a modified version of Bevy's [`3d_scene`](https://bevyengine.org/examples/3d-rendering/3d-scene/) example.
 
 ```rust
 use avian3d::prelude::*;
@@ -146,7 +146,7 @@ fn setup(
 }
 ```
 
-![A spinning cube falling onto a circular platform](https://github.com/Jondolf/bevy_xpbd/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
+![A spinning cube falling onto a circular platform](https://github.com/Jondolf/avian/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
 
 ## More examples
 
