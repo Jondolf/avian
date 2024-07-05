@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/bevy_xpbd_2d", "crates/bevy_xpbd_3d"]
+members = ["crates/avian2d", "crates/avian3d"]
 resolver = "2"
 
 [profile.dev]

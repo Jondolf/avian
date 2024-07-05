@@ -1,0 +1,22 @@
+---
+source: crates/avian3d/../../src/tests.rs
+expression: transform
+---
+Transform {
+    translation: Vec3(
+        8.333334,
+        0.0,
+        0.0,
+    ),
+    rotation: Quat(
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    ),
+    scale: Vec3(
+        1.0,
+        1.0,
+        1.0,
+    ),
+}

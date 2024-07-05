@@ -1,26 +1,19 @@
-# Bevy XPBD (soon deprecated in favor of [Avian](https://github.com/Jondolf/avian))
+# ![Avian Physics](https://raw.githubusercontent.com/Jondolf/bevy_xpbd/avian/assets/branding/logo.svg)
 
-[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/bevy_xpbd#license)
-[![ci](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/bevy_xpbd/actions/workflows/ci.yml)
-[![2D crates.io](https://img.shields.io/crates/v/bevy_xpbd_2d?label=2D%20crates.io)](https://crates.io/crates/bevy_xpbd_2d)
-[![2D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_2d?label=2D%20docs.rs)](https://docs.rs/bevy_xpbd_2d)
-[![3D crates.io](https://img.shields.io/crates/v/bevy_xpbd_3d?label=3D%20crates.io)](https://crates.io/crates/bevy_xpbd_3d)
-[![3D docs.rs](https://img.shields.io/docsrs/bevy_xpbd_3d?label=3D%20docs.rs)](https://docs.rs/bevy_xpbd_3d)
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Jondolf/avian#license)
+[![ci](https://github.com/Jondolf/avian/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Jondolf/avian/actions/workflows/ci.yml)
+[![2D crates.io](https://img.shields.io/crates/v/avian2d?label=2D%20crates.io)](https://crates.io/crates/avian2d)
+[![2D docs.rs](https://img.shields.io/docsrs/avian2d?label=2D%20docs.rs)](https://docs.rs/avian2d)
+[![3D crates.io](https://img.shields.io/crates/v/avian3d?label=3D%20crates.io)](https://crates.io/crates/avian3d)
+[![3D docs.rs](https://img.shields.io/docsrs/avian3d?label=3D%20docs.rs)](https://docs.rs/avian3d)
 
-**⚠️ Bevy XPBD will be deprecated in favor of its successor [Avian](https://github.com/Jondolf/avian) (releases today or tomorrow).
-No further development or maintenance will be done for Bevy XPBD.
-See [#346](https://github.com/Jondolf/bevy_xpbd/issues/346) for background.**
-
----
-
-**Bevy XPBD** is a 2D and 3D physics engine based on _Extended Position Based Dynamics_ (XPBD)
-for the [Bevy game engine](https://bevyengine.org/).
+**Avian** is an ECS-based 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 
 ---
 
 ## Design
 
-Below are some of the core design principles used in Bevy XPBD.
+Below are some of the core design principles used in Avian.
 
 - **Made with Bevy, for Bevy.** No wrappers around existing engines.
 - **Provide an ergonomic and familiar API.** Ergonomics is key for a good experience.
@@ -32,7 +25,7 @@ Below are some of the core design principles used in Bevy XPBD.
 
 ## Features
 
-Below are some of the current features of Bevy XPBD.
+Below are some of the current features of Avian.
 
 - Dynamic, kinematic and static rigid bodies
   - Linear and angular velocity
@@ -41,17 +34,18 @@ Below are some of the current features of Bevy XPBD.
   - Linear and angular damping
   - Locking translational and rotational axes
   - Rigid body dominance
+  - Continuous Collision Detection (CCD)
   - Automatic deactivation with sleeping
 - Collision detection powered by [Parry](https://parry.rs)
   - Colliders with configurable collision layers, density, material properties and more
+  - Collider generation for meshes and entire scenes
   - Collision events
   - Access to colliding entities
   - Filtering and modifying collisions with custom systems
   - Manual contact queries and intersection tests
 - Constraints and joints
-  - Flexible API for creating position-based constraints
   - Several built-in joint types: fixed, distance, prismatic, revolute, spherical
-  - Support for custom joints and other constraints
+  - Support for custom joints and other constraints using XPBD
 - Spatial queries
   - Raycasting, shapecasting, point projection and intersection tests
   - Ergonomic component-based API for raycasts and shapecasts
@@ -64,40 +58,42 @@ Below are some of the current features of Bevy XPBD.
 - `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
-[Table of contents](https://docs.rs/bevy_xpbd_3d/latest/bevy_xpbd_3d/#table-of-contents)
+[Table of contents](https://docs.rs/avian3d/latest/avian3d/#table-of-contents)
 on docs.rs.
 
 ## Documentation
 
-- [2D documentation](https://docs.rs/bevy_xpbd_2d)
-- [3D documentation](https://docs.rs/bevy_xpbd_3d)
+- [2D documentation](https://docs.rs/avian2d)
+- [3D documentation](https://docs.rs/avian3d)
 
 ## Usage example
 
-First, add `bevy_xpbd_2d` or `bevy_xpbd_3d` to your dependencies in `Cargo.toml`:
+First, add `avian2d` or `avian3d` to your dependencies in `Cargo.toml`:
 
 ```toml
 # For 2D applications:
 [dependencies]
-bevy_xpbd_2d = "0.5"
+avian2d = "0.1"
 
 # For 3D applications:
 [dependencies]
-bevy_xpbd_3d = "0.5"
+avian3d = "0.1"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
-bevy_xpbd_3d = { git = "https://github.com/Jondolf/bevy_xpbd", branch = "main" }
+avian3d = { git = "https://github.com/Jondolf/avian", branch = "main" }
 ```
 
-Below is a very simple example where a box with initial angular velocity falls onto a plane. This is a modified version of Bevy's [3d_scene](https://bevyengine.org/examples/3d/3d-scene/) example.
+Below is a very simple example where a cube with initial angular velocity falls onto a circular platform.
+This is a modified version of Bevy's [`3d_scene`](https://bevyengine.org/examples/3D%20Rendering/3d-scene/) example.
 
 ```rust
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
 
 fn main() {
     App::new()
+        // Enable physics
         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .add_systems(Startup, setup)
         .run();
@@ -108,25 +104,25 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Plane
+    // Static physics object with a collision shape
     commands.spawn((
         RigidBody::Static,
-        Collider::cuboid(8.0, 0.002, 8.0),
+        Collider::cylinder(4.0, 0.1),
         PbrBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
-            material: materials.add(Color::srgb(0.3, 0.5, 0.3)),
+            mesh: meshes.add(Cylinder::new(4.0, 0.1)),
+            material: materials.add(Color::WHITE),
             ..default()
         },
     ));
 
-    // Cube
+    // Dynamic physics object with a collision shape and initial angular velocity
     commands.spawn((
         RigidBody::Dynamic,
-        AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
+        AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
         PbrBundle {
-            mesh: meshes.add(Cuboid::default()),
-            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
+            mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+            material: materials.add(Color::srgb_u8(124, 144, 255)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
         },
@@ -135,7 +131,6 @@ fn setup(
     // Light
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 2_000_000.0,
             shadows_enabled: true,
             ..default()
         },
@@ -145,17 +140,17 @@ fn setup(
 
     // Camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Vec3::Y),
+        transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Dir3::Y),
         ..default()
     });
 }
 ```
 
-<https://user-images.githubusercontent.com/57632562/230185604-b40441a2-48d8-4566-9b9e-be4825f4877e.mp4>
+![A spinning cube falling onto a circular platform](https://github.com/Jondolf/bevy_xpbd/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
 
 ## More examples
 
-You can find lots of 2D and 3D examples in [/crates/bevy_xpbd_2d/examples](/crates/bevy_xpbd_2d/examples) and [/crates/bevy_xpbd_3d/examples](/crates/bevy_xpbd_3d/examples) respectively.
+You can find lots of 2D and 3D examples in [/crates/avian2d/examples](/crates/avian2d/examples) and [/crates/avian3d/examples](/crates/avian3d/examples) respectively.
 
 The examples support both `f32` and `f64` precisions, so the code contains some feature-dependent types like `Scalar` and `Vector`.
 In actual usage these are not needed, so you can just use `f32` or `f64` types depending on the features you have chosen.
@@ -170,23 +165,27 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Supported Bevy versions
 
-**Note**: Bevy XPBD is deprecated and won't support future versions of Bevy.
-Instead, it is recommended to use its successor [Avian](https://github.com/Jondolf/avian).
+| Bevy | Avian |
+| ---- | ----- |
+| 0.14 | 0.1   |
 
-| Bevy | Bevy XPBD |
-| ---- | --------- |
-| 0.14 | 0.5       |
-| 0.13 | 0.4       |
-| 0.12 | 0.3       |
-| 0.11 | 0.2       |
-| 0.10 | 0.1       |
+<details>
+  <summary>Bevy XPBD versions (the predecessor of Avian)</summary>
+
+  | Bevy | Bevy XPBD |
+  | ---- | --------- |
+  | 0.14 | 0.5       |
+  | 0.13 | 0.4       |
+  | 0.12 | 0.3       |
+  | 0.11 | 0.2       |
+  | 0.10 | 0.1       |
+</details>
 
 ## Future features
 
-- Continuous collision detection (CCD)
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents
-- Performance optimization (better broad phase, parallel solver...)
+- Performance optimization (better broad phase, parallel solver, proper SIMD...)
 - Joint motors
 - Articulations, aka. multibody joints
 - Proper cross-platform determinism
@@ -200,7 +199,7 @@ For larger changes and additions, it's better to open an issue or ask me for inp
 before making a pull request.
 
 You can also ask for help or ask questions on the [Bevy Discord](https://discord.com/invite/gMUk5Ph)
-server's `bevy_xpbd` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
+server's `avian` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
 
 ## Acknowledgements
 
@@ -211,7 +210,7 @@ keeps me motivated to build the best engine I can.
 
 I would also like to give a special thanks to [Johan Helsing][johan-helsing]
 for inspiring this project and helping me significantly in the early stages.
-His original [tutorial series][johan-xpbd-tutorial] is the reason `bevy_xpbd`
+His original [tutorial series][johan-xpbd-tutorial] is the reason `avian`
 exists in the first place, and without his support and contributions,
 the project wouldn't be anywhere near where it is today.
 
@@ -220,7 +219,7 @@ the project wouldn't be anywhere near where it is today.
 
 ## License
 
-Bevy XPBD is free and open source. All code in this repository is dual-licensed under either:
+Avian is free and open source. All code in this repository is dual-licensed under either:
 
 - MIT License ([LICENSE-MIT](/LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 - Apache License, Version 2.0 ([LICENSE-APACHE](/LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)

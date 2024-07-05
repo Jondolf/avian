@@ -5,7 +5,10 @@ use crate::prelude::*;
 ))]
 use approx::assert_relative_eq;
 use bevy::{
-    ecs::schedule::ScheduleBuildSettings, prelude::*, time::TimeUpdateStrategy, utils::Instant,
+    ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel},
+    prelude::*,
+    time::TimeUpdateStrategy,
+    utils::Instant,
 };
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;

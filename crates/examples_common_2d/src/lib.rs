@@ -1,19 +1,17 @@
 use std::time::Duration;
 
+use avian2d::prelude::*;
 use bevy::{
     color::palettes::css::TOMATO,
     diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
     prelude::*,
 };
-use bevy_xpbd_2d::prelude::*;
 
-#[derive(Default)]
-pub struct XpbdExamplePlugin;
+pub struct ExampleCommonPlugin;
 
-impl Plugin for XpbdExamplePlugin {
+impl Plugin for ExampleCommonPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            PhysicsPlugins::default(),
             FrameTimeDiagnosticsPlugin,
             #[cfg(feature = "use-debug-plugin")]
             PhysicsDebugPlugin::default(),

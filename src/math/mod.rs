@@ -1,5 +1,6 @@
-//! Math types and traits used in the crate. Most of the math types are feature-dependent, so they will
-//! be different for `2d`/`3d` and `f32`/`f64`.
+//! Math types and traits used by the crate.
+//!
+//! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
 #[cfg(feature = "f32")]
 mod single;
@@ -12,6 +13,13 @@ mod double;
 pub use double::*;
 
 use bevy_math::{prelude::*, *};
+
+/// The active dimension.
+#[cfg(feature = "2d")]
+pub const DIM: usize = 2;
+/// The active dimension.
+#[cfg(feature = "3d")]
+pub const DIM: usize = 3;
 
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
@@ -91,4 +99,112 @@ impl AsF32 for Quat {
     fn f32(&self) -> Self::F32 {
         *self
     }
+}
+
+#[cfg(feature = "2d")]
+pub(crate) fn cross(a: Vector, b: Vector) -> Scalar {
+    a.perp_dot(b)
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn cross(a: Vector, b: Vector) -> Vector {
+    a.cross(b)
+}
+
+/// An extension trait for computing reciprocals without division by zero.
+pub trait RecipOrZero {
+    /// Computes the reciprocal of `self` if `self` is not zero,
+    /// and returns zero otherwise to avoid division by zero.
+    fn recip_or_zero(self) -> Self;
+}
+
+impl RecipOrZero for f32 {
+    fn recip_or_zero(self) -> Self {
+        if self != 0.0 {
+            self.recip()
+        } else {
+            0.0
+        }
+    }
+}
+
+impl RecipOrZero for f64 {
+    fn recip_or_zero(self) -> Self {
+        if self != 0.0 {
+            self.recip()
+        } else {
+            0.0
+        }
+    }
+}
+
+impl RecipOrZero for Vec2 {
+    fn recip_or_zero(self) -> Self {
+        Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
+    }
+}
+
+impl RecipOrZero for Vec3 {
+    fn recip_or_zero(self) -> Self {
+        Self::new(
+            self.x.recip_or_zero(),
+            self.y.recip_or_zero(),
+            self.z.recip_or_zero(),
+        )
+    }
+}
+
+impl RecipOrZero for DVec2 {
+    fn recip_or_zero(self) -> Self {
+        Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
+    }
+}
+
+impl RecipOrZero for DVec3 {
+    fn recip_or_zero(self) -> Self {
+        Self::new(
+            self.x.recip_or_zero(),
+            self.y.recip_or_zero(),
+            self.z.recip_or_zero(),
+        )
+    }
+}
+
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+use crate::prelude::*;
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+use parry::math::Isometry;
+
+#[cfg(all(
+    feature = "2d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.into())
+}
+
+#[cfg(all(
+    feature = "3d",
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub(crate) fn make_isometry(
+    position: impl Into<Position>,
+    rotation: impl Into<Rotation>,
+) -> Isometry<Scalar> {
+    let position: Position = position.into();
+    let rotation: Rotation = rotation.into();
+    Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
