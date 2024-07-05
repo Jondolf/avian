@@ -65,7 +65,7 @@
 //! use bevy::prelude::*;
 //!
 //! fn setup(mut commands: Commands) {
-//!     // Spawn a rigid body with a maximum speculative margin.
+//!     // Spawn a rigid body with a maximum bound for the speculative margin.
 //!     commands.spawn((
 //!         RigidBody::Dynamic,
 //!         Collider::capsule(0.5, 2.0),
