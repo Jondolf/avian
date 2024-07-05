@@ -7,7 +7,7 @@
 [![3D crates.io](https://img.shields.io/crates/v/avian3d?label=3D%20crates.io)](https://crates.io/crates/avian3d)
 [![3D docs.rs](https://img.shields.io/docsrs/avian3d?label=3D%20docs.rs)](https://docs.rs/avian3d)
 
-**Avian** is an ECS-based 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
+**Avian** is an ECS-driven 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 
 ---
 
