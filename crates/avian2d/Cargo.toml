@@ -8,7 +8,7 @@ description = "A physics engine based on Extended Position Based Dynamics for th
 documentation = "https://docs.rs/avian2d"
 repository = "https://github.com/Jondolf/avian"
 readme = "README.md"
-keywords = ["gamedev", "physics", "simulation", "xpbd", "bevy"]
+keywords = ["gamedev", "physics", "simulation", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
@@ -49,8 +49,8 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.14.0-rc", default-features = false }
-bevy_math = { version = "0.14.0-rc" }
+bevy = { version = "0.14", default-features = false }
+bevy_math = { version = "0.14" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.15", optional = true }
 parry2d-f64 = { version = "0.15", optional = true }
@@ -67,7 +67,7 @@ bitflags = "2.5.0"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.14.0-rc", features = ["approx"] }
+bevy_math = { version = "0.14", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
