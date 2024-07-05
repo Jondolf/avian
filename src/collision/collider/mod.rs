@@ -128,11 +128,22 @@ pub trait ScalableCollider: AnyCollider {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
-///         .with_children(|children| {
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
-///         });
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))
+        .with_children(|children| {
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+        });"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))
+        .with_children(|children| {
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+        });"
+)]
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
@@ -228,7 +239,14 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::circle(0.5), Sensor));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::sphere(0.5), Sensor));"
+)]
 /// }
 /// ```
 #[doc(alias = "Trigger")]
