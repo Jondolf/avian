@@ -11,6 +11,7 @@ cp -r LICENSE-MIT LICENSE-APACHE README.md "$tmp"/.
 ### Publish avian2d
 sed 's#\.\./\.\./src#src#g' crates/avian2d/Cargo.toml > "$tmp"/Cargo.toml
 cp -r crates/avian2d/examples "$tmp"/.
+cp -r crates/avian2d/benches "$tmp"/.
 cd "$tmp" && cargo publish
 
 ### Remove the 2D examples and return to previous directory
