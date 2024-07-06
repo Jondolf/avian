@@ -472,7 +472,7 @@ impl SpatialQueryPipeline {
     ) {
         // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
         //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
-        //       See https://github.com/Jondolf/avian/pull/402.
+        //       See https://github.com/Jondolf/avian/issues/403.
         let mut query_filter = query_filter.clone();
 
         let rotation: Rotation;
