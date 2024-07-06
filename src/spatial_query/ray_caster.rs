@@ -232,21 +232,21 @@ impl RayCaster {
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     pub(crate) fn cast(
-        &self,
+        &mut self,
         caster_entity: Entity,
         hits: &mut RayHits,
         query_pipeline: &SpatialQueryPipeline,
     ) {
-        let mut query_filter = self.query_filter.clone();
-
         if self.ignore_self {
-            query_filter.excluded_entities.insert(caster_entity);
+            self.query_filter.excluded_entities.insert(caster_entity);
+        } else {
+            self.query_filter.excluded_entities.remove(&caster_entity);
         }
 
         hits.count = 0;
 
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(query_filter);
+            let pipeline_shape = query_pipeline.as_composite_shape(&self.query_filter);
             let ray = parry::query::Ray::new(
                 self.global_origin().into(),
                 self.global_direction().adjust_precision().into(),
@@ -281,7 +281,7 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_index: &u32| {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if query_filter.test(entity, *layers) {
+                    if self.query_filter.test(entity, *layers) {
                         if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,

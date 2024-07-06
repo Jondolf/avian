@@ -127,7 +127,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
         self.query_pipeline
             .cast_ray(origin, direction, max_time_of_impact, solid, query_filter)
@@ -183,7 +183,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
         self.query_pipeline.cast_ray_predicate(
@@ -245,7 +245,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         max_time_of_impact: Scalar,
         max_hits: u32,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         self.query_pipeline.ray_hits(
             origin,
@@ -310,7 +310,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         callback: impl FnMut(RayHitData) -> bool,
     ) {
         self.query_pipeline.ray_hits_callback(
@@ -374,7 +374,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
         self.query_pipeline.cast_shape(
             shape,
@@ -443,7 +443,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         max_time_of_impact: Scalar,
         max_hits: u32,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         self.query_pipeline.shape_hits(
             shape,
@@ -517,7 +517,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         callback: impl FnMut(ShapeHitData) -> bool,
     ) {
         self.query_pipeline.shape_hits_callback(
@@ -567,7 +567,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
         self.query_pipeline
             .project_point(point, solid, query_filter)
@@ -603,7 +603,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     pub fn point_intersections(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         self.query_pipeline.point_intersections(point, query_filter)
     }
@@ -648,7 +648,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     pub fn point_intersections_callback(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
     ) {
         self.query_pipeline
@@ -758,7 +758,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         self.query_pipeline
             .shape_intersections(shape, shape_position, shape_rotation, query_filter)
@@ -810,7 +810,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
     ) {
         self.query_pipeline.shape_intersections_callback(
