@@ -106,7 +106,7 @@ impl ContactConstraint {
 
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
-        let inverse_mass_sum = body1.inverse_mass.0 + body2.inverse_mass.0;
+        let inverse_mass_sum = body1.inv_mass() + body2.inv_mass();
         let i1 = body1.effective_world_inv_inertia();
         let i2 = body2.effective_world_inv_inertia();
 
