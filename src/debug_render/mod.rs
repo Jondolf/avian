@@ -331,13 +331,13 @@ fn debug_render_contacts(
                 if let Some(color) = config.contact_point_color {
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0, color);
-                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0, color);
+                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0 as f32, color);
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1.f32(), default(), 0.1 * length_unit.0, color);
-                        gizmos.sphere(p2.f32(), default(), 0.1 * length_unit.0, color);
+                        gizmos.sphere(p1.f32(), default(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.sphere(p2.f32(), default(), 0.1 * length_unit.0 as f32, color);
                     }
                 }
 
