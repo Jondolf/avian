@@ -31,7 +31,7 @@ jobs:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene
+              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene
 
     lints:
         name: Lints
