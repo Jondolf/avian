@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use crate::prelude::*;
 use bevy::prelude::*;
 #[cfg(all(
@@ -157,7 +159,6 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
-    #[allow(clippy::unnecessary_cast)]
     fn draw_collider(
         &mut self,
         collider: &Collider,
@@ -484,9 +485,14 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(point.f32(), 0.1 * length_unit, point_color);
+            self.circle_2d(point.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(point.f32(), default(), 0.1 * length_unit, point_color);
+            self.sphere(
+                point.f32(),
+                default(),
+                0.1 * length_unit as f32,
+                point_color,
+            );
 
             // Draw hit normal as arrow
             self.draw_arrow(
@@ -543,9 +549,14 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(hit.point1.f32(), 0.1 * length_unit, point_color);
+            self.circle_2d(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(hit.point1.f32(), default(), 0.1 * length_unit, point_color);
+            self.sphere(
+                hit.point1.f32(),
+                default(),
+                0.1 * length_unit as f32,
+                point_color,
+            );
 
             // Draw hit normal as arrow
             self.draw_arrow(
