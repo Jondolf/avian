@@ -432,22 +432,16 @@ pub enum ColliderConstructor {
 
 impl ColliderConstructor {
     /// Returns `true` if the collider type requires a mesh to be generated.
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
     pub fn requires_mesh(&self) -> bool {
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-        {
-            matches!(
-                self,
-                Self::TrimeshFromMesh
-                    | Self::TrimeshFromMeshWithConfig(_)
-                    | Self::ConvexDecompositionFromMesh
-                    | Self::ConvexDecompositionFromMeshWithConfig(_)
-                    | Self::ConvexHullFromMesh
-            )
-        }
-        #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
-        {
-            false
-        }
+        matches!(
+            self,
+            Self::TrimeshFromMesh
+                | Self::TrimeshFromMeshWithConfig(_)
+                | Self::ConvexDecompositionFromMesh
+                | Self::ConvexDecompositionFromMeshWithConfig(_)
+                | Self::ConvexHullFromMesh
+        )
     }
 }
 

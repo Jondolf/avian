@@ -1073,16 +1073,23 @@ impl Collider {
         })
     }
 
-    /// Attempts to create a collider from an optional mesh with the given [`ColliderConstructor`].
+    /// Attempts to create a collider with the given [`ColliderConstructor`].
     /// By using this, you can serialize and deserialize the collider's creation method
     /// separately from the collider itself via the [`ColliderConstructor`] enum.
     ///
-    /// Returns `None` in the following cases:
-    /// - The given [`ColliderConstructor`] requires a mesh, but none was provided.
-    /// - Creating the collider from the given [`ColliderConstructor`] failed.
+    #[cfg_attr(
+        all(feature = "3d", feature = "collider-from-mesh"),
+        doc = "Returns `None` in the following cases:
+- The given [`ColliderConstructor`] requires a mesh, but none was provided.
+- Creating the collider from the given [`ColliderConstructor`] failed."
+    )]
+    #[cfg_attr(
+        not(all(feature = "3d", feature = "collider-from-mesh")),
+        doc = "Returns `None` if creating the collider from the given [`ColliderConstructor`] failed."
+    )]
     pub fn try_from_constructor(
         collider_constructor: ColliderConstructor,
-        #[allow(unused_variables)] mesh: Option<&Mesh>,
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh: Option<&Mesh>,
     ) -> Option<Self> {
         match collider_constructor {
             #[cfg(feature = "2d")]

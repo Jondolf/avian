@@ -284,16 +284,16 @@ pub(crate) fn init_colliders<C: AnyCollider>(
 /// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
 fn init_collider_constructors(
     mut commands: Commands,
-    meshes: Res<Assets<Mesh>>,
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] meshes: Res<Assets<Mesh>>,
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh_handles: Query<&Handle<Mesh>>,
     constructors: Query<(
         Entity,
-        Option<&Handle<Mesh>>,
         Option<&Collider>,
         Option<&Name>,
         &ColliderConstructor,
     )>,
 ) {
-    for (entity, mesh_handle, existing_collider, name, constructor) in constructors.iter() {
+    for (entity, existing_collider, name, constructor) in constructors.iter() {
         let name = pretty_name(name, entity);
         if existing_collider.is_some() {
             warn!(
@@ -303,8 +303,9 @@ fn init_collider_constructors(
             commands.entity(entity).remove::<ColliderConstructor>();
             continue;
         }
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
         let mesh = if constructor.requires_mesh() {
-            let mesh_handle = mesh_handle.unwrap_or_else(|| panic!(
+            let mesh_handle = mesh_handles.get(entity).unwrap_or_else(|_| panic!(
                 "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
                 but no mesh handle was found"));
             let mesh = meshes.get(mesh_handle);
@@ -317,13 +318,17 @@ fn init_collider_constructors(
             None
         };
 
+        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
         let collider = Collider::try_from_constructor(constructor.clone(), mesh);
+        #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+        let collider = Collider::try_from_constructor(constructor.clone());
+
         if let Some(collider) = collider {
             commands.entity(entity).insert(collider);
         } else {
             error!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
-                but the collider could not be generated from mesh {mesh:#?}. Skipping.",
+                but the collider could not be generated. Skipping.",
             );
         }
         commands.entity(entity).remove::<ColliderConstructor>();
@@ -335,13 +340,14 @@ fn init_collider_constructors(
 /// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
-    meshes: Res<Assets<Mesh>>,
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] meshes: Res<Assets<Mesh>>,
+    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh_handles: Query<&Handle<Mesh>>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
     #[cfg(feature = "bevy_scene")] scenes: Query<&Handle<Scene>>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
     collider_constructors: Query<(Entity, &ColliderConstructorHierarchy)>,
     children: Query<&Children>,
-    mesh_handles: Query<(Option<&Name>, Option<&Collider>, Option<&Handle<Mesh>>)>,
+    child_query: Query<(Option<&Name>, Option<&Collider>)>,
 ) {
     for (scene_entity, collider_constructor_hierarchy) in collider_constructors.iter() {
         #[cfg(feature = "bevy_scene")]
@@ -360,73 +366,79 @@ fn init_collider_constructor_hierarchies(
         }
 
         for child_entity in children.iter_descendants(scene_entity) {
-            if let Ok((name, existing_collider, handle)) = mesh_handles.get(child_entity) {
-                let pretty_name = pretty_name(name, child_entity);
+            let Ok((name, existing_collider)) = child_query.get(child_entity) else {
+                continue;
+            };
 
-                let default_collider = || {
-                    Some(ColliderConstructorHierarchyConfig {
-                        constructor: collider_constructor_hierarchy.default_constructor.clone(),
-                        ..default()
-                    })
-                };
+            let pretty_name = pretty_name(name, child_entity);
 
-                let collider_data = if let Some(name) = name {
-                    collider_constructor_hierarchy
-                        .config
-                        .get(name.as_str())
-                        .cloned()
-                        .unwrap_or_else(default_collider)
-                } else if existing_collider.is_some() {
-                    warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+            let default_collider = || {
+                Some(ColliderConstructorHierarchyConfig {
+                    constructor: collider_constructor_hierarchy.default_constructor.clone(),
+                    ..default()
+                })
+            };
+
+            let collider_data = if let Some(name) = name {
+                collider_constructor_hierarchy
+                    .config
+                    .get(name.as_str())
+                    .cloned()
+                    .unwrap_or_else(default_collider)
+            } else if existing_collider.is_some() {
+                warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but that entity already holds a collider. Skipping. \
                         If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`.");
-                    continue;
+                continue;
+            } else {
+                default_collider()
+            };
+
+            // If the configuration is explicitly set to `None`, skip this entity.
+            let Some(collider_data) = collider_data else {
+                continue;
+            };
+
+            // Use the configured constructor if specified, otherwise use the default constructor.
+            // If both are `None`, skip this entity.
+            let Some(constructor) = collider_data
+                .constructor
+                .or_else(|| collider_constructor_hierarchy.default_constructor.clone())
+            else {
+                continue;
+            };
+
+            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            let mesh = if constructor.requires_mesh() {
+                if let Ok(handle) = mesh_handles.get(child_entity) {
+                    meshes.get(handle)
                 } else {
-                    default_collider()
-                };
-
-                // If the configuration is explicitly set to `None`, skip this entity.
-                let Some(collider_data) = collider_data else {
                     continue;
-                };
-
-                // Use the configured constructor if specified, otherwise use the default constructor.
-                // If both are `None`, skip this entity.
-                let Some(constructor) = collider_data
-                    .constructor
-                    .or_else(|| collider_constructor_hierarchy.default_constructor.clone())
-                else {
-                    continue;
-                };
-
-                let mesh = if constructor.requires_mesh() {
-                    if let Some(handle) = handle {
-                        meshes.get(handle)
-                    } else {
-                        continue;
-                    }
-                } else {
-                    None
-                };
-
-                let collider = Collider::try_from_constructor(constructor, mesh);
-
-                if let Some(collider) = collider {
-                    commands.entity(child_entity).insert((
-                        collider,
-                        collider_data
-                            .layers
-                            .unwrap_or(collider_constructor_hierarchy.default_layers),
-                        collider_data
-                            .density
-                            .unwrap_or(collider_constructor_hierarchy.default_density),
-                    ));
-                } else {
-                    error!(
-                        "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
-                        but the collider could not be generated from mesh {mesh:#?}. Skipping.",
-                    );
                 }
+            } else {
+                None
+            };
+
+            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            let collider = Collider::try_from_constructor(constructor, mesh);
+            #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+            let collider = Collider::try_from_constructor(constructor);
+
+            if let Some(collider) = collider {
+                commands.entity(child_entity).insert((
+                    collider,
+                    collider_data
+                        .layers
+                        .unwrap_or(collider_constructor_hierarchy.default_layers),
+                    collider_data
+                        .density
+                        .unwrap_or(collider_constructor_hierarchy.default_density),
+                ));
+            } else {
+                error!(
+                        "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                        but the collider could not be generated. Skipping.",
+                    );
             }
         }
 
