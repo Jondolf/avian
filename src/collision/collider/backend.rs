@@ -284,8 +284,8 @@ pub(crate) fn init_colliders<C: AnyCollider>(
 /// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
 fn init_collider_constructors(
     mut commands: Commands,
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] meshes: Res<Assets<Mesh>>,
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh_handles: Query<&Handle<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Handle<Mesh>>,
     constructors: Query<(
         Entity,
         Option<&Collider>,
@@ -303,7 +303,7 @@ fn init_collider_constructors(
             commands.entity(entity).remove::<ColliderConstructor>();
             continue;
         }
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+        #[cfg(feature = "collider-from-mesh")]
         let mesh = if constructor.requires_mesh() {
             let mesh_handle = mesh_handles.get(entity).unwrap_or_else(|_| panic!(
                 "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
@@ -318,9 +318,9 @@ fn init_collider_constructors(
             None
         };
 
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+        #[cfg(feature = "collider-from-mesh")]
         let collider = Collider::try_from_constructor(constructor.clone(), mesh);
-        #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+        #[cfg(not(feature = "collider-from-mesh"))]
         let collider = Collider::try_from_constructor(constructor.clone());
 
         if let Some(collider) = collider {
@@ -340,8 +340,8 @@ fn init_collider_constructors(
 /// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] meshes: Res<Assets<Mesh>>,
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh_handles: Query<&Handle<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Handle<Mesh>>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
     #[cfg(feature = "bevy_scene")] scenes: Query<&Handle<Scene>>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
@@ -408,7 +408,7 @@ fn init_collider_constructor_hierarchies(
                 continue;
             };
 
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             let mesh = if constructor.requires_mesh() {
                 if let Ok(handle) = mesh_handles.get(child_entity) {
                     meshes.get(handle)
@@ -419,9 +419,9 @@ fn init_collider_constructor_hierarchies(
                 None
             };
 
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             let collider = Collider::try_from_constructor(constructor, mesh);
-            #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
+            #[cfg(not(feature = "collider-from-mesh"))]
             let collider = Collider::try_from_constructor(constructor);
 
             if let Some(collider) = collider {

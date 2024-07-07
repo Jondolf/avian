@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{make_isometry, prelude::*};
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{log, prelude::*};
 use collision::contact_query::UnsupportedShape;
@@ -939,7 +939,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::trimesh_with_flags(
@@ -976,7 +976,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh_with_config(mesh: &Mesh, flags: TrimeshFlags) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
@@ -1002,7 +1002,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_hull_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh)
             .and_then(|(vertices, _)| SharedShape::convex_hull(&vertices).map(|shape| shape.into()))
@@ -1027,7 +1027,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_decomposition_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::convex_decomposition(&vertices, &indices).into()
@@ -1058,7 +1058,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_decomposition_from_mesh_with_config(
         mesh: &Mesh,
         parameters: &VhacdParameters,
@@ -1078,18 +1078,18 @@ impl Collider {
     /// separately from the collider itself via the [`ColliderConstructor`] enum.
     ///
     #[cfg_attr(
-        all(feature = "3d", feature = "collider-from-mesh"),
+        feature = "collider-from-mesh",
         doc = "Returns `None` in the following cases:
 - The given [`ColliderConstructor`] requires a mesh, but none was provided.
 - Creating the collider from the given [`ColliderConstructor`] failed."
     )]
     #[cfg_attr(
-        not(all(feature = "3d", feature = "collider-from-mesh")),
+        not(feature = "collider-from-mesh"),
         doc = "Returns `None` if creating the collider from the given [`ColliderConstructor`] failed."
     )]
     pub fn try_from_constructor(
         collider_constructor: ColliderConstructor,
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))] mesh: Option<&Mesh>,
+        #[cfg(feature = "collider-from-mesh")] mesh: Option<&Mesh>,
     ) -> Option<Self> {
         match collider_constructor {
             #[cfg(feature = "2d")]
@@ -1196,38 +1196,30 @@ impl Collider {
             ColliderConstructor::Heightfield { heights, scale } => {
                 Some(Self::heightfield(heights, scale))
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
-            #[cfg(all(
-                feature = "3d",
-                feature = "collider-from-mesh",
-                feature = "default-collider"
-            ))]
+            #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
             ColliderConstructor::TrimeshFromMeshWithConfig(flags) => {
                 Self::trimesh_from_mesh_with_config(mesh?, flags)
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexDecompositionFromMesh => {
                 Self::convex_decomposition_from_mesh(mesh?)
             }
-            #[cfg(all(
-                feature = "3d",
-                feature = "collider-from-mesh",
-                feature = "default-collider"
-            ))]
+            #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
             ColliderConstructor::ConvexDecompositionFromMeshWithConfig(params) => {
                 Self::convex_decomposition_from_mesh_with_config(mesh?, &params)
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
         }
     }
 }
 
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 type VerticesIndices = (Vec<nalgebra::Point3<Scalar>>, Vec<[u32; 3]>);
 
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
     let indices = mesh.indices()?;
