@@ -102,7 +102,14 @@ impl ContactConstraint {
         let collision_margin: Scalar = collision_margin.into().0;
         let speculative_margin: Scalar = speculative_margin.into().0;
 
-        let normal = *body1.rotation * manifold.normal1;
+        // Local-space outward contact normal on the first body.
+        // The normal is transformed from collider-space to body-space.
+        let local_normal1 = collider_transform1.map_or(manifold.normal1, |transform| {
+            transform.rotation * manifold.normal1
+        });
+
+        // The world-space normal used for the contact solve.
+        let normal = *body1.rotation * local_normal1;
 
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
@@ -126,14 +133,12 @@ impl ContactConstraint {
             constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
         for mut contact in manifold.contacts.iter().copied() {
-            // Transform contact data from collider-space to body-space.
+            // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
                 contact.point1 = transform.rotation * contact.point1 + transform.translation;
-                contact.normal1 = transform.rotation * contact.normal1;
             }
             if let Some(transform) = collider_transform2 {
                 contact.point2 = transform.rotation * contact.point2 + transform.translation;
-                contact.normal2 = transform.rotation * contact.normal2;
             }
 
             contact.penetration += collision_margin;
