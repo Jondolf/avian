@@ -133,6 +133,15 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         }
     }
 
+    /// Returns the inverse mass. If the rigid body is not dynamic, zero is returned.
+    pub fn inv_mass(&self) -> Scalar {
+        if self.rb.is_dynamic() {
+            self.inverse_mass.0
+        } else {
+            0.0
+        }
+    }
+
     /// Computes the effective inverse mass, taking into account any translation locking.
     pub fn effective_inv_mass(&self) -> Vector {
         if !self.rb.is_dynamic() {
@@ -146,6 +155,26 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         }
 
         inv_mass
+    }
+
+    /// Returns the inverse inertia. If the rigid body is not dynamic, zero is returned.
+    #[cfg(feature = "2d")]
+    pub fn inv_inertia(&self) -> Scalar {
+        if self.rb.is_dynamic() {
+            self.inverse_inertia.0
+        } else {
+            0.0
+        }
+    }
+
+    /// Returns the inverse inertia tensor. If the rigid body is not dynamic, a zero matrix is returned.
+    #[cfg(feature = "3d")]
+    pub fn inv_inertia(&self) -> Matrix3 {
+        if self.rb.is_dynamic() {
+            self.inverse_inertia.0
+        } else {
+            Matrix3::ZERO
+        }
     }
 
     /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
