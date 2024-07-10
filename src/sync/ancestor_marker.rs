@@ -421,6 +421,21 @@ mod tests {
         app.world_mut().run_schedule(PostUpdate);
 
         assert!(!app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Make CY a child of AN again. The `AncestorMarker<C>` marker should
+        // now be added to AN.
+        let mut entity_mut = app.world_mut().entity_mut(an);
+        entity_mut.add_child(cy);
+
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Make CY an orphan and delete AN. This must not crash.
+        let mut entity_mut = app.world_mut().entity_mut(an);
+        entity_mut.remove_children(&[cy]);
+        entity_mut.despawn();
+
+        app.world_mut().run_schedule(PostUpdate);
     }
 
     #[test]
@@ -496,5 +511,11 @@ mod tests {
         assert!(!app.world().entity(bn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(cy).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Move all children from CY to BN and remove CY. This must not crash.
+        let mut entity_mut = app.world_mut().entity_mut(bn);
+        entity_mut.push_children(&[dn, en, fy, gy]);
+
+        app.world_mut().run_schedule(PostUpdate);
     }
 }
