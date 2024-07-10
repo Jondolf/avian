@@ -213,6 +213,13 @@ fn add_ancestor_markers<C: Component>(
     }
 }
 
+/// Remove the component from entity, unless it is already despawned.
+fn remove_component<T: Bundle>(commands: &mut Commands, entity: Entity) {
+    if let Some(mut entity_commands) = commands.get_entity(entity) {
+        entity_commands.remove::<T>();
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn remove_ancestor_markers<C: Component>(
     entity: Entity,
@@ -232,11 +239,11 @@ fn remove_ancestor_markers<C: Component>(
             if keep_marker {
                 return;
             } else {
-                commands.entity(entity).remove::<AncestorMarker<C>>();
+                remove_component::<AncestorMarker<C>>(commands, entity);
             }
         } else {
             // The parent has no children, so it cannot be an ancestor.
-            commands.entity(entity).remove::<AncestorMarker<C>>();
+            remove_component::<AncestorMarker<C>>(commands, entity);
         }
     }
 
@@ -254,11 +261,11 @@ fn remove_ancestor_markers<C: Component>(
             if keep_marker {
                 return;
             } else {
-                commands.entity(parent_entity).remove::<AncestorMarker<C>>();
+                remove_component::<AncestorMarker<C>>(commands, parent_entity);
             }
         } else {
             // The parent has no children, so it cannot be an ancestor.
-            commands.entity(parent_entity).remove::<AncestorMarker<C>>();
+            remove_component::<AncestorMarker<C>>(commands, entity);
         }
 
         previous_parent = parent_entity;
