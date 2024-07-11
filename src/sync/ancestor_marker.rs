@@ -213,6 +213,13 @@ fn add_ancestor_markers<C: Component>(
     }
 }
 
+/// Remove the component from entity, unless it is already despawned.
+fn remove_component<T: Bundle>(commands: &mut Commands, entity: Entity) {
+    if let Some(mut entity_commands) = commands.get_entity(entity) {
+        entity_commands.remove::<T>();
+    }
+}
+
 #[allow(clippy::type_complexity)]
 fn remove_ancestor_markers<C: Component>(
     entity: Entity,
@@ -232,11 +239,11 @@ fn remove_ancestor_markers<C: Component>(
             if keep_marker {
                 return;
             } else {
-                commands.entity(entity).remove::<AncestorMarker<C>>();
+                remove_component::<AncestorMarker<C>>(commands, entity);
             }
         } else {
             // The parent has no children, so it cannot be an ancestor.
-            commands.entity(entity).remove::<AncestorMarker<C>>();
+            remove_component::<AncestorMarker<C>>(commands, entity);
         }
     }
 
@@ -254,11 +261,11 @@ fn remove_ancestor_markers<C: Component>(
             if keep_marker {
                 return;
             } else {
-                commands.entity(parent_entity).remove::<AncestorMarker<C>>();
+                remove_component::<AncestorMarker<C>>(commands, parent_entity);
             }
         } else {
             // The parent has no children, so it cannot be an ancestor.
-            commands.entity(parent_entity).remove::<AncestorMarker<C>>();
+            remove_component::<AncestorMarker<C>>(commands, entity);
         }
 
         previous_parent = parent_entity;
@@ -414,6 +421,21 @@ mod tests {
         app.world_mut().run_schedule(PostUpdate);
 
         assert!(!app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Make CY a child of AN again. The `AncestorMarker<C>` marker should
+        // now be added to AN.
+        let mut entity_mut = app.world_mut().entity_mut(an);
+        entity_mut.add_child(cy);
+
+        app.world_mut().run_schedule(PostUpdate);
+        assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Make CY an orphan and delete AN. This must not crash.
+        let mut entity_mut = app.world_mut().entity_mut(an);
+        entity_mut.remove_children(&[cy]);
+        entity_mut.despawn();
+
+        app.world_mut().run_schedule(PostUpdate);
     }
 
     #[test]
@@ -489,5 +511,11 @@ mod tests {
         assert!(!app.world().entity(bn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(cy).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
+
+        // Move all children from CY to BN and remove CY. This must not crash.
+        let mut entity_mut = app.world_mut().entity_mut(bn);
+        entity_mut.push_children(&[dn, en, fy, gy]);
+
+        app.world_mut().run_schedule(PostUpdate);
     }
 }
