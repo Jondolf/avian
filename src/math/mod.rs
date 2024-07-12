@@ -208,3 +208,17 @@ pub(crate) fn make_isometry(
     let rotation: Rotation = rotation.into();
     Isometry::<Scalar>::new(position.0.into(), rotation.to_scaled_axis().into())
 }
+
+/// Computes the skew-symmetric matrix corresponding to the given vector.
+///
+/// ```text
+///                          [   0  -v.z  v.y ]
+/// skew_symmetric_mat3(v) = [  v.z   0  -v.x ]
+///                          [ -v.y  v.x   0  ]
+/// ```
+#[inline]
+#[must_use]
+#[cfg(feature = "3d")]
+pub fn skew_symmetric_mat3(v: Vector3) -> Matrix3 {
+    Matrix3::from_cols_array(&[0.0, v.z, -v.y, -v.z, 0.0, v.x, v.y, -v.x, 0.0])
+}
