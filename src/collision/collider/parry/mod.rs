@@ -196,6 +196,13 @@ bitflags::bitflags! {
         /// vertices will be merged. It will no longer be the case in the future once we decouple
         /// the computations.
         const DELETE_DUPLICATE_TRIANGLES = 0b0100_0000;
+        /// If set, a special treatment will be applied to contact manifold calculation to eliminate
+        /// or fix contacts normals that could lead to incorrect bumps in physics simulation
+        /// (especially on flat surfaces).
+        ///
+        /// This is achieved by taking into account adjacent triangle normals when computing contact
+        /// points for a given triangle.
+        const FIX_INTERNAL_EDGES = 0b1000_0000 | Self::ORIENTED.bits() | Self::MERGE_DUPLICATE_VERTICES.bits();
     }
 }
 
