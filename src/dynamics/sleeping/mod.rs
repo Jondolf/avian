@@ -174,6 +174,7 @@ pub fn mark_sleeping_bodies(
     }
 }
 
+/// A [`Tick`] corresponding to the end of the previous run of the [`PhysicsSchedule`].
 #[derive(Resource, Reflect, Default)]
 #[reflect(Resource, Default)]
 pub(crate) struct LastPhysicsTick(pub Tick);
