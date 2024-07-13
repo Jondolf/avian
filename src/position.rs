@@ -408,7 +408,13 @@ impl Rotation {
     #[must_use]
     /// Adds the given counterclockiwise angle in radians to the [`Rotation`].
     pub fn add_angle(&self, radians: Scalar) -> Self {
-        Rotation::from_sin_cos(self.sin + radians * self.cos, self.cos - radians * self.sin)
+        let rad_cos = radians.cos();
+        let rad_sin = radians.sin();
+        
+        let sin_value = self.sin*rad_cos + self.cos*rad_sin;
+        let cos_value = self.cos*rad_cos - self.sin*rad_sin;
+        
+        Rotation::from_sin_cos(sin_value, cos_value)
             .normalize()
     }
 
