@@ -407,9 +407,16 @@ impl Rotation {
     #[inline]
     #[must_use]
     /// Adds the given counterclockiwise angle in radians to the [`Rotation`].
+    /// Uses small-angle approximation
     pub fn add_angle(&self, radians: Scalar) -> Self {
-        Rotation::from_sin_cos(self.sin + radians * self.cos, self.cos - radians * self.sin)
-            .normalize()
+        let (sin, cos) = (self.sin + radians * self.cos, self.cos - radians * self.sin);
+        let magnitude_squared = sin * sin + cos * cos;
+        let magnitude_recip = if magnitude_squared > 0.0 {
+            magnitude_squared.sqrt().recip()
+        } else {
+            0.0
+        };
+        Rotation::from_sin_cos(sin * magnitude_recip, cos * magnitude_recip)
     }
 
     /// Performs a linear interpolation between `self` and `rhs` based on
