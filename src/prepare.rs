@@ -9,7 +9,6 @@ use bevy::{
     ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
 };
-use dynamics::sleeping::PhysicsChangeTicks;
 
 /// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
 /// and updates components.
@@ -417,7 +416,6 @@ fn init_rigid_bodies(
             *restitution.unwrap_or(&Restitution::default()),
             *friction.unwrap_or(&Friction::default()),
             *time_sleeping.unwrap_or(&TimeSleeping::default()),
-            PhysicsChangeTicks::default(),
         ));
     }
 }

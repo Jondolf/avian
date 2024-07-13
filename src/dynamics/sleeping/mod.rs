@@ -24,7 +24,8 @@ pub struct SleepingPlugin;
 impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SleepingThreshold>()
-            .init_resource::<DeactivationTime>();
+            .init_resource::<DeactivationTime>()
+            .init_resource::<LastPhysicsTick>();
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -32,22 +33,26 @@ impl Plugin for SleepingPlugin {
 
         // TODO: Where exactly should this be in the schedule?
         physics_schedule.add_systems(
-            update_physics_change_ticks
+            (
+                wake_on_changed,
+                wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>),
+                mark_sleeping_bodies,
+            )
+                .chain()
                 .after(PhysicsStepSet::First)
                 .before(PhysicsStepSet::BroadPhase),
         );
 
         physics_schedule
-            .add_systems(wake_on_collision_ended.in_set(PhysicsStepSet::ReportContacts))
-            .add_systems(
-                (
-                    mark_sleeping_bodies,
-                    wake_on_changed,
-                    wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>),
-                )
-                    .chain()
-                    .in_set(PhysicsStepSet::Sleeping),
-            );
+            .add_systems(wake_on_collision_ended.in_set(PhysicsStepSet::ReportContacts));
+
+        physics_schedule.add_systems(
+            (|mut last_physics_tick: ResMut<LastPhysicsTick>,
+              system_change_tick: SystemChangeTick| {
+                last_physics_tick.0 = system_change_tick.this_run();
+            })
+            .after(PhysicsStepSet::Last),
+        );
     }
 }
 
@@ -169,53 +174,9 @@ pub fn mark_sleeping_bodies(
     }
 }
 
-#[derive(Component)]
-pub(crate) struct PhysicsChangeTicks {
-    position: Tick,
-    rotation: Tick,
-    lin_vel: Tick,
-    ang_vel: Tick,
-}
-
-impl Default for PhysicsChangeTicks {
-    fn default() -> Self {
-        Self {
-            position: Tick::new(0),
-            rotation: Tick::new(0),
-            lin_vel: Tick::new(0),
-            ang_vel: Tick::new(0),
-        }
-    }
-}
-
-#[allow(clippy::type_complexity)]
-fn update_physics_change_ticks(
-    mut query: Query<(
-        &mut PhysicsChangeTicks,
-        Ref<Position>,
-        Ref<Rotation>,
-        Ref<LinearVelocity>,
-        Ref<AngularVelocity>,
-    )>,
-    system_tick: SystemChangeTick,
-) {
-    let this_run = system_tick.this_run().get();
-
-    for (mut changes, pos, rot, lin_vel, ang_vel) in &mut query {
-        if pos.is_changed() {
-            changes.position.set(this_run);
-        }
-        if rot.is_changed() {
-            changes.rotation.set(this_run);
-        }
-        if lin_vel.is_changed() {
-            changes.lin_vel.set(this_run);
-        }
-        if ang_vel.is_changed() {
-            changes.ang_vel.set(this_run);
-        }
-    }
-}
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource, Default)]
+pub(crate) struct LastPhysicsTick(pub Tick);
 
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed by the user.
@@ -232,7 +193,6 @@ pub(crate) fn wake_on_changed(
                 Ref<Rotation>,
                 Ref<LinearVelocity>,
                 Ref<AngularVelocity>,
-                &PhysicsChangeTicks,
                 &mut TimeSleeping,
             ),
             (
@@ -258,15 +218,16 @@ pub(crate) fn wake_on_changed(
             )>,
         >,
     )>,
+    last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
 ) {
     let this_run = system_tick.this_run();
 
-    for (entity, pos, rot, lin_vel, ang_vel, ticks, mut time_sleeping) in &mut query.p0() {
-        if is_changed_before_tick(pos, ticks.position, this_run)
-            || is_changed_before_tick(rot, ticks.rotation, this_run)
-            || is_changed_before_tick(lin_vel, ticks.lin_vel, this_run)
-            || is_changed_before_tick(ang_vel, ticks.ang_vel, this_run)
+    for (entity, pos, rot, lin_vel, ang_vel, mut time_sleeping) in &mut query.p0() {
+        if is_changed_after_tick(pos, last_physics_tick.0, this_run)
+            || is_changed_after_tick(rot, last_physics_tick.0, this_run)
+            || is_changed_after_tick(lin_vel, last_physics_tick.0, this_run)
+            || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)
         {
             commands.entity(entity).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
@@ -279,8 +240,9 @@ pub(crate) fn wake_on_changed(
     }
 }
 
-fn is_changed_before_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_run: Tick) -> bool {
-    component_ref.is_changed() && !component_ref.last_changed().is_newer_than(tick, this_run)
+fn is_changed_after_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_run: Tick) -> bool {
+    let last_changed = component_ref.last_changed();
+    component_ref.is_changed() && last_changed.is_newer_than(tick, this_run)
 }
 
 /// Removes the [`Sleeping`] component from all sleeping bodies.
@@ -299,17 +261,11 @@ fn wake_all_sleeping_bodies(
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
     mut commands: Commands,
-    moved_bodies: Query<
-        (Ref<Position>, &PhysicsChangeTicks),
-        (Changed<Position>, Without<Sleeping>),
-    >,
+    moved_bodies: Query<Ref<Position>, (Changed<Position>, Without<Sleeping>)>,
     colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
     collisions: Res<Collisions>,
     mut sleeping: Query<(Entity, &mut TimeSleeping)>,
-    system_tick: SystemChangeTick,
 ) {
-    let this_run = system_tick.this_run();
-
     // Wake up bodies when a body they're colliding with moves.
     for (entity, mut time_sleeping) in &mut sleeping {
         // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
@@ -323,9 +279,7 @@ fn wake_on_collision_ended(
         if colliding_entities.any(|other_entity| {
             colliders.get(other_entity).is_ok_and(|(p, transform)| {
                 transform.is_changed()
-                    || moved_bodies.get(p.get()).is_ok_and(|(pos, ticks)| {
-                        is_changed_before_tick(pos, ticks.position, this_run)
-                    })
+                    || moved_bodies.get(p.get()).is_ok_and(|pos| pos.is_changed())
             })
         }) {
             commands.entity(entity).remove::<Sleeping>();

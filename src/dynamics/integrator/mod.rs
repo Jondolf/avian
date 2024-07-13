@@ -61,12 +61,12 @@ impl Plugin for IntegratorPlugin {
         app.get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first")
             .add_systems(
-                apply_impulses
-                    .before(PhysicsStepSet::Solver)
-                    // The scheduling shouldn't matter as long as it's before the solver.
-                    .ambiguous_with_all(),
-            )
-            .add_systems(clear_forces_and_impulses.after(PhysicsStepSet::SpatialQuery));
+                (
+                    apply_impulses.before(SolverSet::Substep),
+                    clear_forces_and_impulses.after(SolverSet::Substep),
+                )
+                    .in_set(PhysicsStepSet::Solver),
+            );
     }
 }
 
