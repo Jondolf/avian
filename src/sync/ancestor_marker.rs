@@ -78,6 +78,9 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
             },
         );
 
+        // Initialize `HierarchyEvent` in case `HierarchyPlugin` is not added.
+        app.add_event::<HierarchyEvent>();
+
         // Update markers when changes are made to the hierarchy.
         // TODO: This should be an observer. It'd remove the need for this scheduling nonsense
         //       and make the implementation more robust.
@@ -89,13 +92,6 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
         } else {
             app.add_systems(self.schedule, update_markers_on_hierarchy_changes::<C>);
         }
-    }
-
-    fn finish(&self, app: &mut App) {
-        assert!(
-            app.is_plugin_added::<HierarchyPlugin>(),
-            "`AncestorMarkerPlugin` requires Bevy's `HierarchyPlugin` to function.",
-        );
     }
 }
 

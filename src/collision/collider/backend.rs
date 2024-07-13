@@ -211,6 +211,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             ),
         );
 
+        // Update collider parents for colliders that are on the same entity as the rigid body.
+        app.add_systems(
+            self.schedule,
+            update_root_collider_parents::<C>
+                .after(PrepareSet::InitColliders)
+                .before(PrepareSet::Finalize),
+        );
+
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
@@ -271,6 +279,31 @@ pub(crate) fn init_colliders<C: AnyCollider>(
             CollidingEntities::default(),
             ColliderMarker,
         ));
+    }
+}
+
+/// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
+///
+/// The [`ColliderHierarchyPlugin`] should be used to handle hierarchies.
+#[allow(clippy::type_complexity)]
+fn update_root_collider_parents<C: AnyCollider>(
+    mut commands: Commands,
+    mut bodies: Query<
+        (Entity, Option<&mut ColliderParent>),
+        (With<RigidBody>, With<C>, Or<(Added<RigidBody>, Added<C>)>),
+    >,
+) {
+    for (entity, collider_parent) in &mut bodies {
+        if let Some(mut collider_parent) = collider_parent {
+            collider_parent.0 = entity;
+        } else {
+            commands.entity(entity).try_insert((
+                ColliderParent(entity),
+                // TODO: This probably causes a one frame delay. Compute real value?
+                ColliderTransform::default(),
+                PreviousColliderTransform::default(),
+            ));
+        }
     }
 }
 

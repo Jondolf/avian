@@ -117,35 +117,33 @@ impl Plugin for ColliderHierarchyPlugin {
                 .in_set(NarrowPhaseSet::First),
         );
     }
+
+    fn finish(&self, app: &mut App) {
+        if !app.is_plugin_added::<HierarchyPlugin>() {
+            warn!("`ColliderHierarchyPlugin` requires Bevy's `HierarchyPlugin` to function. If you don't need collider hierarchies, consider disabling this plugin.",);
+        }
+    }
 }
 
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
 pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
 
+/// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
+///
+/// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
+/// on the same entity as the rigid body.
 #[allow(clippy::type_complexity)]
 fn update_collider_parents(
     mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<ColliderMarker>), With<RigidBody>>,
+    mut bodies: Query<Entity, (With<RigidBody>, With<AncestorMarker<ColliderMarker>>)>,
     children: Query<&Children>,
     mut child_colliders: Query<
         Option<&mut ColliderParent>,
         (With<ColliderMarker>, Without<RigidBody>),
     >,
 ) {
-    for (entity, collider_parent, has_collider) in &mut bodies {
-        if has_collider {
-            if let Some(mut collider_parent) = collider_parent {
-                collider_parent.0 = entity;
-            } else {
-                commands.entity(entity).try_insert((
-                    ColliderParent(entity),
-                    // TODO: This probably causes a one frame delay. Compute real value?
-                    ColliderTransform::default(),
-                    PreviousColliderTransform::default(),
-                ));
-            }
-        }
+    for entity in &mut bodies {
         for child in children.iter_descendants(entity) {
             if let Ok(collider_parent) = child_colliders.get_mut(child) {
                 if let Some(mut collider_parent) = collider_parent {

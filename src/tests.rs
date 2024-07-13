@@ -35,8 +35,9 @@ fn create_app() -> App {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        HierarchyPlugin,
-        PhysicsPlugins::default(),
+        PhysicsPlugins::default()
+            .build()
+            .disable::<ColliderHierarchyPlugin>(),
         bevy::asset::AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
         bevy::scene::ScenePlugin,
@@ -256,8 +257,9 @@ fn no_ambiguity_errors() {
     App::new()
         .add_plugins((
             MinimalPlugins,
-            HierarchyPlugin,
-            PhysicsPlugins::new(DeterministicSchedule),
+            PhysicsPlugins::new(DeterministicSchedule)
+                .build()
+                .disable::<ColliderHierarchyPlugin>(),
             bevy::asset::AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
