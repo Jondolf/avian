@@ -35,7 +35,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///     // Cast ray and print first hit
 ///     if let Some(first_hit) = spatial_query.cast_ray(
 ///         Vec3::ZERO,                    // Origin
-///         Dir3::X,                // Direction
+///         Dir3::X,                       // Direction
 ///         100.0,                         // Maximum time of impact (travel distance)
 ///         true,                          // Does the ray treat colliders as "solid"
 ///         SpatialQueryFilter::default(), // Query filter
@@ -46,7 +46,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///     // Cast ray and get up to 20 hits
 ///     let hits = spatial_query.ray_hits(
 ///         Vec3::ZERO,                    // Origin
-///         Dir3::X,                // Direction
+///         Dir3::X,                       // Direction
 ///         100.0,                         // Maximum time of impact (travel distance)
 ///         20,                            // Maximum number of hits
 ///         true,                          // Does the ray treat colliders as "solid"
@@ -112,7 +112,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     // Cast ray and print first hit
     ///     if let Some(first_hit) = spatial_query.cast_ray(
     ///         Vec3::ZERO,                    // Origin
-    ///         Dir3::X,                // Direction
+    ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
     ///         SpatialQueryFilter::default(), // Query filter
@@ -164,7 +164,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     // Cast ray and print first hit
     ///     if let Some(first_hit) = spatial_query.cast_ray_predicate(
     ///         Vec3::ZERO,                    // Origin
-    ///         Dir3::X,                // Direction
+    ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
     ///         SpatialQueryFilter::default(), // Query filter
@@ -225,7 +225,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     // Cast ray and get hits
     ///     let hits = spatial_query.ray_hits(
     ///         Vec3::ZERO,                    // Origin
-    ///         Dir3::X,                // Direction
+    ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         20,                            // Maximum number of hits
     ///         true,                          // Does the ray treat colliders as "solid"
@@ -288,7 +288,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     // Cast ray and get all hits
     ///     spatial_query.ray_hits_callback(
     ///         Vec3::ZERO,                    // Origin
-    ///         Dir3::X,                // Direction
+    ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
     ///         SpatialQueryFilter::default(), // Query filter
@@ -356,7 +356,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Origin
     ///         Quat::default(),                 // Shape rotation
-    ///         Dir3::X,                  // Direction
+    ///         Dir3::X,                         // Direction
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         true,                            // Should initial penetration at the origin be ignored
     ///         SpatialQueryFilter::default(),   // Query filter
@@ -420,7 +420,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Origin
     ///         Quat::default(),                 // Shape rotation
-    ///         Dir3::X,                  // Direction
+    ///         Dir3::X,                         // Direction
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         20,                              // Max hits
     ///         true,                            // Should initial penetration at the origin be ignored
@@ -492,7 +492,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Origin
     ///         Quat::default(),                 // Shape rotation
-    ///         Dir3::X,                  // Direction
+    ///         Dir3::X,                         // Direction
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         true,                            // Should initial penetration at the origin be ignored
     ///         SpatialQueryFilter::default(),   // Query filter
