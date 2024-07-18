@@ -1,69 +1,7 @@
 //! Clocks used for tracking physics simulation time.
 
-use std::time::Duration;
-
-use bevy::prelude::*;
-
 use crate::prelude::*;
-
-/// The type of timestep used for the [`Time<Physics>`](Physics) clock.
-#[derive(Reflect, Clone, Copy, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, PartialEq)]
-pub enum TimestepMode {
-    /// **Fixed timestep**: The physics simulation will be advanced by a fixed `delta`
-    /// amount of time every frame until the accumulated `overstep` value has been consumed.
-    /// This means that physics can run 0, 1, 2 or more times per frame based on how long the
-    /// previous frames took.
-    ///
-    /// To avoid "death spirals" where each frame takes longer and longer
-    /// to simulate, `overstep` can only be advanced by `max_delta_overstep`
-    /// during a single frame.
-    ///
-    /// A fixed timestep allows consistent behavior across different machines and frame rates.
-    Fixed {
-        /// The amount of time that the simulation should be advanced by during a step.
-        delta: Duration,
-        /// The amount of accumulated time. The simulation will consume it in steps of `delta`
-        /// to try to catch up to real time.
-        overstep: Duration,
-        /// The maximum amount of time that can be added to `overstep` during a single frame.
-        /// Lower values help prevent "death spirals" where each frame takes longer and longer
-        /// to simulate.
-        ///
-        /// Defaults to `1.0 / 60.0` seconds (60 Hz).
-        max_delta_overstep: Duration,
-    },
-    /// **Fixed delta, once per frame**: The physics simulation will be advanced by
-    /// a fixed `delta` amount of time once per frame. This should only be used
-    /// in cases where you can guarantee a fixed number of executions,
-    /// like in `FixedUpdate` or on a server.
-    FixedOnce {
-        /// The amount of time that the simulation should be advanced by during a step.
-        delta: Duration,
-    },
-    /// **Variable timestep**: The physics simulation will be advanced by
-    /// `Time::delta_seconds().min(max_delta)` seconds at each Bevy tick.
-    /// Frame rate will affect the simulation result.
-    Variable {
-        /// The maximum amount of time the physics simulation can be advanced at once.
-        /// This makes sure that the simulation doesn't break when the delta time is large.
-        ///
-        /// A good default is `1.0 / 60.0` seconds (60 Hz).
-        max_delta: Duration,
-    },
-}
-
-impl Default for TimestepMode {
-    fn default() -> Self {
-        Self::Fixed {
-            delta: Duration::default(),
-            overstep: Duration::default(),
-            max_delta_overstep: Duration::from_secs_f64(1.0 / 60.0),
-        }
-    }
-}
+use bevy::prelude::*;
 
 /// The clock representing physics time, following `Time<Real>`.
 /// Can be configured to use a fixed or variable timestep.
