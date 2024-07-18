@@ -3,50 +3,18 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-/// The clock representing physics time, following `Time<Real>`.
-/// Can be configured to use a fixed or variable timestep.
+/// The clock representing physics time, following the [`Time`] clock used by the schedule that physics runs in.
 ///
-/// The clock is automatically set as the generic `Time` resource for
+/// In [`FixedUpdate`] (the default), this uses [`Time<Fixed>`](Fixed), while in schedules such as [`Update`],
+/// a variable timestep following [`Time<Virtual>`](Virtual) is used.
+///
+/// [`Time<Physics>`](Physics) is automatically set as the generic [`Time`] resource for
 /// the [`PhysicsSchedule`].
-///
-/// By default, a fixed timestep of 60 Hz is used.
-///
-/// ## Usage
-///
-/// The timestep used for advancing the simulation can be configured by overwriting
-/// the [`Time<Physics>`](Physics) resource:
-///
-/// ```no_run
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::{prelude::*, utils::Duration};
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(Time::new_with(Physics::fixed_hz(144.0)))
-///         .run();
-/// }
-///```
-///
-/// In the [`PhysicsSchedule`], the generic `Time` resource is automatically
-/// replaced by [`Time<Physics>`](Physics), so time works in a unified
-/// way across schedules:
-///
-/// ```
-/// # use bevy::prelude::*;
-/// #
-/// // In `Update`, `Time` is `Time<Virtual>`, but in `PhysicsSchedule` it's `Time<Physics>`
-/// fn print_delta_time(time: Res<Time>) {
-///     println!("{}", time.delta_seconds());
-/// }
-/// ```
 ///
 /// ### Physics speed
 ///
-/// The relative speed of physics can be configured at startup using
-/// [`with_relative_speed`](PhysicsTime::with_relative_speed) or when the app is running
-/// using [`set_relative_speed`](PhysicsTime::set_relative_speed):
+/// The relative speed of [`Time<Physics>`](Physics) can be configured at startup
+/// using [`with_relative_speed`], or when the app is running using [`set_relative_speed`]:
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -60,9 +28,12 @@ use bevy::prelude::*;
 ///         .insert_resource(Time::<Physics>::default().with_relative_speed(0.5))
 ///         .run();
 /// }
-///```
+/// ```
 ///
-/// ### Pausing, resuming and stepping physics
+/// [`with_relative_speed`]: PhysicsTime::with_relative_speed
+/// [`set_relative_speed`]: PhysicsTime::set_relative_speed
+///
+/// ### Pausing, resuming, and stepping physics
 ///
 /// [`Time<Physics>`](Physics) can be used to pause and resume the simulation:
 ///
@@ -167,7 +138,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     fn relative_speed(&self) -> f32;
 
     /// Returns the speed of physics relative to your system clock as an `f64`.
@@ -175,7 +146,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     fn relative_speed_f64(&self) -> f64;
 
     /// Sets the speed of physics relative to your system clock, given as an `f32`.
@@ -185,7 +156,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     ///
     /// # Panics
     ///
@@ -199,7 +170,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     ///
     /// # Panics
     ///
@@ -213,7 +184,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     ///
     /// # Panics
     ///
@@ -227,7 +198,7 @@ pub trait PhysicsTime {
     ///
     /// The speed impacts the accuracy of the simulation, and large values may
     /// cause jittering or missed collisions. You can improve simulation consistency
-    /// by adjusting your [timestep](`TimestepMode`) at the cost of performance.
+    /// by adjusting your timestep at the cost of performance.
     ///
     /// # Panics
     ///

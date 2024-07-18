@@ -178,7 +178,6 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [Physics timestep](Physics#usage)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
