@@ -209,99 +209,21 @@ impl Default for TimestepMode {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct Physics {
-    timestep_mode: TimestepMode,
     paused: bool,
     relative_speed: f64,
 }
 
 impl Default for Physics {
     fn default() -> Self {
-        // Corresponds to 60 Hz.
-        // TODO: Bevy's fixed timestep is 64 Hz, but it causes physics
-        //       to be run twice in a single frame every 0.25 seconds.
-        //       It would be nice to have the timestep be more unified though.
-        Self::fixed_hz(60.0)
-    }
-}
-
-impl Physics {
-    /// Creates a new [`Physics`] clock with the given type of [timestep](TimestepMode).
-    pub const fn from_timestep(timestep_mode: TimestepMode) -> Self {
         Self {
-            timestep_mode,
             paused: false,
             relative_speed: 1.0,
         }
-    }
-
-    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::Fixed`]
-    /// using the given frequency in Hertz (1/second).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `hz` is zero, negative or not finite.
-    pub fn fixed_hz(hz: f64) -> Self {
-        assert!(hz > 0.0, "Hz less than or equal to zero");
-        assert!(hz.is_finite(), "Hz is infinite");
-        Self::from_timestep(TimestepMode::Fixed {
-            delta: Duration::from_secs_f64(1.0 / hz),
-            overstep: Duration::ZERO,
-            max_delta_overstep: Duration::from_secs_f64(1.0 / 60.0),
-        })
-    }
-
-    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::FixedOnce`]
-    /// using the given frequency in Hertz (1/second).
-    ///
-    /// Unlike with [`TimestepMode::Fixed`], the [`PhysicsSchedule`] will only be run once per frame
-    /// instead of accumulating time and running physics until the accumulator has been consumed.
-    /// This can be useful for [server usage](crate#can-the-engine-be-used-on-servers)
-    /// where the server and client must be kept in sync.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `hz` is zero, negative or not finite.
-    pub fn fixed_once_hz(hz: f64) -> Self {
-        assert!(hz > 0.0, "Hz less than or equal to zero");
-        assert!(hz.is_finite(), "Hz is infinite");
-        Self::from_timestep(TimestepMode::FixedOnce {
-            delta: Duration::from_secs_f64(1.0 / hz),
-        })
-    }
-
-    /// Returns a new [`Time<Physics>`](Physics) clock with a [`TimestepMode::Variable`]
-    /// using the given maximum duration that the simulation can be advanced by during
-    /// a single frame in seconds.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `max_delta_seconds` is zero or negative.
-    pub fn variable(max_delta_seconds: f64) -> Self {
-        assert!(
-            max_delta_seconds > 0.0,
-            "max delta less than or equal to zero"
-        );
-        Self::from_timestep(TimestepMode::Variable {
-            max_delta: Duration::from_secs_f64(max_delta_seconds),
-        })
     }
 }
 
 /// An extension trait for [`Time<Physics>`](Physics).
 pub trait PhysicsTime {
-    /// Creates a new [`Time<Physics>`](Physics) clock with the given type
-    /// of [timestep](TimestepMode).
-    fn from_timestep(timestep_mode: TimestepMode) -> Self;
-
-    /// Gets the type of [timestep](TimestepMode) used for running physics.
-    fn timestep_mode(&self) -> TimestepMode;
-
-    /// Mutably gets the type of [timestep](TimestepMode) used for running physics.
-    fn timestep_mode_mut(&mut self) -> &mut TimestepMode;
-
-    /// Sets the type of [timestep](TimestepMode) used for running physics.
-    fn set_timestep_mode(&mut self, timestep_mode: TimestepMode);
-
     /// Returns the speed of physics relative to your system clock as an `f32`.
     /// This is also known as "time scaling" or "time dilation" in other engines.
     ///
@@ -386,22 +308,6 @@ pub trait PhysicsTime {
 }
 
 impl PhysicsTime for Time<Physics> {
-    fn from_timestep(timestep_mode: TimestepMode) -> Self {
-        Self::new_with(Physics::from_timestep(timestep_mode))
-    }
-
-    fn timestep_mode(&self) -> TimestepMode {
-        self.context().timestep_mode
-    }
-
-    fn timestep_mode_mut(&mut self) -> &mut TimestepMode {
-        &mut self.context_mut().timestep_mode
-    }
-
-    fn set_timestep_mode(&mut self, timestep_mode: TimestepMode) {
-        self.context_mut().timestep_mode = timestep_mode;
-    }
-
     fn with_relative_speed(self, ratio: f32) -> Self {
         self.with_relative_speed_f64(ratio as f64)
     }

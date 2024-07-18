@@ -33,7 +33,7 @@ pub struct PreparePlugin {
 impl PreparePlugin {
     /// Creates a [`PreparePlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -43,7 +43,7 @@ impl PreparePlugin {
 
 impl Default for PreparePlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedUpdate)
     }
 }
 

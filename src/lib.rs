@@ -710,7 +710,7 @@ impl PhysicsPlugins {
 
 impl Default for PhysicsPlugins {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedUpdate)
     }
 }
 
