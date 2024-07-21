@@ -1,6 +1,6 @@
 use crate::{
     prelude::*,
-    sync::{PreviousGlobalTransform, SyncConfig},
+    sync::{ancestor_marker::AncestorMarker, PreviousGlobalTransform, SyncConfig},
 };
 use bevy::prelude::*;
 use broad_phase::AabbIntersections;
@@ -68,6 +68,8 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<ColliderConstructor>()
             .register_type::<ColliderConstructorHierarchy>()
             .register_type::<ColliderConstructorHierarchyConfig>()
+            .register_type::<AncestorMarker<RigidBody>>()
+            .register_type::<AncestorMarker<ColliderMarker>>()
             .register_type::<RayCaster>()
             .register_type::<ShapeCaster>()
             .register_type::<DistanceJoint>()
