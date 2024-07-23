@@ -436,7 +436,7 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct GravityScale(pub Scalar);
 
-impl Default for GravityScale{
+impl Default for GravityScale {
     fn default() -> Self {
         Self(1.0)
     }
