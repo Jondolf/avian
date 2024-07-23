@@ -689,7 +689,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 #[cfg(debug_assertions)]
 fn log_overlap_at_spawn(
     collisions: Res<Collisions>,
-    added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position)>,
+    added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position), Without<Sensor>>,
 ) {
     for contacts in collisions.get_internal().values() {
         let Ok([(rb1, name1, position1), (rb2, name2, position2)]) = added_bodies.get_many([
