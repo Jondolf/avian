@@ -430,9 +430,7 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 ///     ));
 /// }
 /// ```
-#[derive(
-    Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From,
-)]
+#[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
@@ -440,7 +438,7 @@ pub struct GravityScale(pub Scalar);
 
 impl Default for GravityScale{
     fn default() -> Self {
-        Self(1.0f32)
+        Self(1.0)
     }
 }
 
