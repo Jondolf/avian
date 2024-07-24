@@ -204,7 +204,7 @@ pub struct SpatialQueryPlugin {
 impl SpatialQueryPlugin {
     /// Creates a [`SpatialQueryPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `FixedUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -214,7 +214,7 @@ impl SpatialQueryPlugin {
 
 impl Default for SpatialQueryPlugin {
     fn default() -> Self {
-        Self::new(FixedUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 

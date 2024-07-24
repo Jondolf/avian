@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 /// The clock representing physics time, following the [`Time`] clock used by the schedule that physics runs in.
 ///
-/// In [`FixedUpdate`] (the default), this uses [`Time<Fixed>`](Fixed), while in schedules such as [`Update`],
+/// In [`FixedPostUpdate`] and other fixed schedules, this uses [`Time<Fixed>`](Fixed), while in schedules such as [`Update`],
 /// a variable timestep following [`Time<Virtual>`](Virtual) is used.
 ///
 /// [`Time<Physics>`](Physics) is automatically set as the generic [`Time`] resource for

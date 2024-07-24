@@ -65,7 +65,7 @@ pub struct ColliderBackendPlugin<C: ScalableCollider> {
 impl<C: ScalableCollider> ColliderBackendPlugin<C> {
     /// Creates a [`ColliderBackendPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `FixedUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -77,7 +77,7 @@ impl<C: ScalableCollider> ColliderBackendPlugin<C> {
 impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
     fn default() -> Self {
         Self {
-            schedule: FixedUpdate.intern(),
+            schedule: FixedPostUpdate.intern(),
             _phantom: PhantomData,
         }
     }
@@ -738,9 +738,9 @@ mod tests {
             .init_schedule(SubstepSchedule);
 
         app.add_plugins((
-            PreparePlugin::new(FixedUpdate),
-            ColliderBackendPlugin::<Collider>::new(FixedUpdate),
-            ColliderHierarchyPlugin::new(FixedUpdate),
+            PreparePlugin::new(FixedPostUpdate),
+            ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
+            ColliderHierarchyPlugin::new(FixedPostUpdate),
             HierarchyPlugin,
         ));
 
@@ -765,7 +765,7 @@ mod tests {
             .set_parent(parent)
             .id();
 
-        app.world_mut().run_schedule(FixedUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert_eq!(
             app.world()
