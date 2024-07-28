@@ -66,7 +66,7 @@ pub type PackedFeatureId = parry::shape::PackedFeatureId;
 /// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
 /// - [`contains`](Self::contains)
 /// - [`collisions_with_entity`](Self::collisions_with_entity) and
-/// [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
+///   [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
 ///
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.

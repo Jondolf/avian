@@ -253,7 +253,7 @@ pub(crate) fn propagate_collider_transforms(
                 let changed = transform.is_changed() || parent.is_changed();
                 let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
-                let scale = (parent_transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON));
+                let scale = parent_transform.scale * child_transform.scale;
 
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
@@ -301,9 +301,9 @@ pub(crate) fn propagate_collider_transforms(
 /// # Safety
 ///
 /// - While this function is running, `collider_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
+///   nor any of its descendants.
 /// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
+///   is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_collider_transforms_recursive(
     transform: ColliderTransform,
@@ -372,6 +372,7 @@ unsafe fn propagate_collider_transforms_recursive(
         );
 
         let child_transform = ColliderTransform::from(*child_transform);
+        let scale = transform.scale * child_transform.scale;
 
         // SAFETY: The caller guarantees that `collider_query` will not be fetched
         // for any descendants of `entity`, so it is safe to call `propagate_collider_transforms_recursive` for each child.
@@ -381,10 +382,7 @@ unsafe fn propagate_collider_transforms_recursive(
         unsafe {
             propagate_collider_transforms_recursive(
                 if is_rb {
-                    ColliderTransform {
-                        scale: child_transform.scale,
-                        ..default()
-                    }
+                    ColliderTransform { scale, ..default() }
                 } else {
                     ColliderTransform {
                         translation: transform.transform_point(child_transform.translation),
@@ -392,8 +390,7 @@ unsafe fn propagate_collider_transforms_recursive(
                         rotation: transform.rotation * child_transform.rotation,
                         #[cfg(feature = "3d")]
                         rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
-                        scale: (transform.scale * child_transform.scale)
-                            .max(Vector::splat(Scalar::EPSILON)),
+                        scale,
                     }
                 },
                 collider_query,

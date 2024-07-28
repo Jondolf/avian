@@ -9,10 +9,12 @@ pub(crate) type Torque = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type Torque = Vector;
 
+#[cfg(feature = "2d")]
 pub(crate) trait FloatZero {
     const ZERO: Self;
 }
 
+#[cfg(feature = "2d")]
 impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
