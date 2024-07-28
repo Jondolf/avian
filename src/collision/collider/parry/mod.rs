@@ -1261,13 +1261,14 @@ fn scale_shape(
     scale: Vector,
     num_subdivisions: u32,
 ) -> Result<SharedShape, UnsupportedShape> {
+    let scale = scale.abs();
     match shape.as_typed_shape() {
-        TypedShape::Cuboid(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
+        TypedShape::Cuboid(s) => Ok(SharedShape::new(s.scaled(&scale.abs().into()))),
         TypedShape::RoundCuboid(s) => Ok(SharedShape::new(RoundShape {
             border_radius: s.border_radius,
-            inner_shape: s.inner_shape.scaled(&scale.into()),
+            inner_shape: s.inner_shape.scaled(&scale.abs().into()),
         })),
-        TypedShape::Capsule(c) => match c.scaled(&scale.into(), num_subdivisions) {
+        TypedShape::Capsule(c) => match c.scaled(&scale.abs().into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Capsule shape.", scale);
                 Ok(SharedShape::ball(0.0))
@@ -1279,16 +1280,16 @@ fn scale_shape(
             #[cfg(feature = "2d")]
             {
                 if scale.x == scale.y {
-                    Ok(SharedShape::ball(b.radius * scale.x))
+                    Ok(SharedShape::ball(b.radius * scale.x.abs()))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
                     Ok(SharedShape::new(EllipseWrapper(Ellipse {
-                        half_size: Vec2::splat(b.radius as f32) * scale.f32(),
+                        half_size: Vec2::splat(b.radius as f32) * scale.f32().abs(),
                     })))
                 }
             }
             #[cfg(feature = "3d")]
-            match b.scaled(&scale.into(), num_subdivisions) {
+            match b.scaled(&scale.abs().into(), num_subdivisions) {
                 None => {
                     log::error!("Failed to apply scale {} to Ball shape.", scale);
                     Ok(SharedShape::ball(0.0))
@@ -1360,7 +1361,7 @@ fn scale_shape(
             }
         }
         #[cfg(feature = "3d")]
-        TypedShape::Cylinder(c) => match c.scaled(&scale.into(), num_subdivisions) {
+        TypedShape::Cylinder(c) => match c.scaled(&scale.abs().into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Cylinder shape.", scale);
                 Ok(SharedShape::ball(0.0))
@@ -1370,7 +1371,7 @@ fn scale_shape(
         },
         #[cfg(feature = "3d")]
         TypedShape::RoundCylinder(c) => {
-            match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
+            match c.inner_shape.scaled(&scale.abs().into(), num_subdivisions) {
                 None => {
                     log::error!("Failed to apply scale {} to RoundCylinder shape.", scale);
                     Ok(SharedShape::ball(0.0))
@@ -1434,7 +1435,7 @@ fn scale_shape(
             if _id == 1 {
                 if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
-                        half_size: ellipse.half_size * scale.f32(),
+                        half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
             } else if _id == 2 {
@@ -1442,7 +1443,7 @@ fn scale_shape(
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonWrapper(
                             RegularPolygon::new(
-                                polygon.circumradius() * scale.x as f32,
+                                polygon.circumradius() * scale.x.abs() as f32,
                                 polygon.sides,
                             ),
                         )));
