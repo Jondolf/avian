@@ -57,7 +57,7 @@ impl Default for PreparePlugin {
 /// 4. `PropagateTransforms`: Responsible for propagating transforms.
 /// 5. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
 /// 6. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
-/// or vice versa.
+///    or vice versa.
 /// 7. `Finalize`: Responsible for performing final updates after everything is initialized.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrepareSet {

@@ -301,9 +301,9 @@ pub(crate) fn propagate_collider_transforms(
 /// # Safety
 ///
 /// - While this function is running, `collider_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
+///   nor any of its descendants.
 /// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
+///   is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_collider_transforms_recursive(
     transform: ColliderTransform,

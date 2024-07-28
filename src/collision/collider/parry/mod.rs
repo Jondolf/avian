@@ -617,7 +617,7 @@ impl Collider {
     /// - `ray_direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     pub fn cast_ray(
         &self,
         translation: impl Into<Position>,
