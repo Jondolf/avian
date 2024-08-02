@@ -105,6 +105,8 @@ impl LayerMask {
     pub const ALL: Self = Self(0xffff_ffff);
     /// Contains no layers.
     pub const NONE: Self = Self(0);
+    /// Contains the default layer.
+    pub const DEFAULT: Self = Self(1);
 
     /// Adds the given `layers` to `self`.
     ///
@@ -345,6 +347,12 @@ pub struct CollisionLayers {
 }
 
 impl CollisionLayers {
+    /// Contains the default layer and all filters.
+    pub const DEFAULT: Self = Self {
+        memberships: LayerMask::DEFAULT,
+        filters: LayerMask::ALL,
+    };
+
     /// Contains all memberships and filters.
     pub const ALL: Self = Self {
         memberships: LayerMask::ALL,
@@ -399,10 +407,7 @@ impl CollisionLayers {
 
 impl Default for CollisionLayers {
     fn default() -> Self {
-        Self {
-            memberships: LayerMask::ALL,
-            filters: LayerMask::ALL,
-        }
+        CollisionLayers::DEFAULT
     }
 }
 

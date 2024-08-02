@@ -26,8 +26,8 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
         }
     };
 
-    if variants.len() > 32 {
-        return quote! { compile_error!("PhysicsLayer only supports a maximum of 32 layers"); }
+    if variants.len() > 31 {
+        return quote! { compile_error!("PhysicsLayer only supports a maximum of 31 layers"); }
             .into();
     }
 
@@ -38,7 +38,7 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
             if !variant.fields.is_empty() {
                 return Err(variant.fields.span());
             }
-            let bits: u32 = 1 << index;
+            let bits: u32 = 1 << (index + 1);
             let ident = &variant.ident;
 
             Ok(quote! { #enum_ident::#ident => #bits, })
