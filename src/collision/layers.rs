@@ -266,9 +266,9 @@ impl Not for LayerMask {
 /// #
 /// #[derive(PhysicsLayer)]
 /// enum GameLayer {
-///     Player, // Layer 0
-///     Enemy,  // Layer 1
-///     Ground, // Layer 2
+///     Ground, // Layer 0 - the default layer that objects are assigned to
+///     Player, // Layer 1
+///     Enemy,  // Layer 2
 /// }
 ///
 /// // Player collides with enemies and the ground, but not with other players
@@ -293,7 +293,7 @@ impl Not for LayerMask {
 /// # use bevy::prelude::Commands;
 /// #
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
-/// pub const FIRST_LAYER: u32 = 1 << 0;
+/// pub const FIRST_LAYER: u32 = 1 << 0; // Note: this is the default layer.
 /// pub const SECOND_LAYER: u32 = 1 << 1;
 /// pub const LAST_LAYER: u32 = 1 << 31;
 ///
