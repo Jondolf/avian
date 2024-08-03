@@ -30,15 +30,12 @@ pub use collider::*;
 mod layers;
 pub use layers::*;
 
+mod feature_id;
+pub use feature_id::PackedFeatureId;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
-
-/// A feature ID indicating the type of a geometric feature: a vertex, an edge, or (in 3D) a face.
-///
-/// This type packs the feature type into the same value as the feature index,
-/// which indicates the specific vertex/edge/face that this ID belongs to.
-pub type PackedFeatureId = parry::shape::PackedFeatureId;
 
 // TODO: Refactor this into a contact graph.
 // Collisions are stored in an `IndexMap` that uses fxhash.

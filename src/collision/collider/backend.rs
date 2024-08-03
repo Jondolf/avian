@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
-#[cfg(feature = "bevy_scene")]
+#[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
@@ -233,6 +233,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
+        #[cfg(feature = "default-collider")]
         app.add_systems(
             Update,
             (
@@ -315,6 +316,7 @@ fn update_root_collider_parents<C: AnyCollider>(
 /// # Panics
 ///
 /// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
+#[cfg(feature = "default-collider")]
 fn init_collider_constructors(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
@@ -371,6 +373,7 @@ fn init_collider_constructors(
 /// Generates [`Collider`]s for descendants of entities with the [`ColliderConstructorHierarchy`] component.
 ///
 /// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
+#[cfg(feature = "default-collider")]
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
@@ -481,6 +484,7 @@ fn init_collider_constructor_hierarchies(
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
     name.map(|n| n.to_string())
         .unwrap_or_else(|| format!("<unnamed entity {}>", entity.index()))
@@ -728,9 +732,11 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "default-collider")]
     use super::*;
 
     #[test]
+    #[cfg(feature = "default-collider")]
     fn sensor_mass_properties() {
         let mut app = App::new();
 

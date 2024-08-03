@@ -125,10 +125,6 @@ impl Plugin for ColliderHierarchyPlugin {
     }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
-
 /// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
 ///
 /// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
