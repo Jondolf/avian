@@ -237,11 +237,11 @@ fn sweep_and_prune(
                 continue;
             }
 
-            if *ent1 < *ent2 {
-                broad_collision_pairs.push((*ent1, *ent2));
-            } else {
-                broad_collision_pairs.push((*ent2, *ent1));
-            }
+            // if *ent1 < *ent2 {
+            broad_collision_pairs.push((*ent1, *ent2));
+            // } else {
+            //     broad_collision_pairs.push((*ent2, *ent1));
+            // }
 
             if *store_intersections1 {
                 if let Ok(mut intersections) = aabb_intersection_query.get_mut(*ent1) {
