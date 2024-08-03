@@ -120,6 +120,8 @@
 //!
 //! ## Swept CCD
 //!
+//! *Note: Swept CCD currently only supports the built-in `Collider`.*
+//!
 //! **Swept CCD** is a form of Continuous Collision Detection that sweeps potentially colliding objects
 //! from their previous positions to their current positions, and if a collision is found, moves the bodies
 //! back to the time of impact. This way, the normal collision algorithms will be able to detect and handle
@@ -225,11 +227,14 @@
 //! However, this comes at the cost of worse performance for the entire simulation.
 
 use crate::{collision::broad_phase::AabbIntersections, prelude::*, prepare::PrepareSet};
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
+use bevy::ecs::query::QueryData;
 use bevy::{
-    ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
+    ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
 use derive_more::From;
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
@@ -272,6 +277,7 @@ impl Plugin for CcdPlugin {
 
         physics.configure_sets(SweptCcdSet.in_set(SolverSet::PostSubstep));
 
+        #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
         physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));
     }
 }
@@ -510,6 +516,7 @@ fn init_ccd_aabb_intersections(mut commands: Commands, query: Query<Entity, Adde
     }
 }
 
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 #[derive(QueryData)]
 #[query_data(mutable)]
 struct SweptCcdBodyQuery {
@@ -534,6 +541,7 @@ struct SweptCcdBodyQuery {
 /// are essentially moved back in time, making them appear to momentarily move slower.
 /// Secondary contacts are also not accounted for.
 #[allow(clippy::useless_conversion)]
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn solve_swept_ccd(
     ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
@@ -698,6 +706,7 @@ fn solve_swept_ccd(
 
 /// Computes the time of impact for the motion of two objects for Continuous Collision Detection.
 /// If the TOI is larger than `min_toi` or the shapes never touch, `None` is returned.
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn compute_ccd_toi(
     mode: SweepMode,
     motion1: &NonlinearRigidMotion,

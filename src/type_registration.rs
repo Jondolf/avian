@@ -65,17 +65,19 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<NarrowPhaseConfig>()
             .register_type::<SolverConfig>()
             .register_type::<SyncConfig>()
-            .register_type::<ColliderConstructor>()
-            .register_type::<ColliderConstructorHierarchy>()
-            .register_type::<ColliderConstructorHierarchyConfig>()
             .register_type::<AncestorMarker<RigidBody>>()
             .register_type::<AncestorMarker<ColliderMarker>>()
             .register_type::<RayCaster>()
-            .register_type::<ShapeCaster>()
             .register_type::<DistanceJoint>()
             .register_type::<FixedJoint>()
             .register_type::<PrismaticJoint>()
             .register_type::<RevoluteJoint>();
+
+        #[cfg(feature = "default-collider")]
+        app.register_type::<ColliderConstructor>()
+            .register_type::<ColliderConstructorHierarchy>()
+            .register_type::<ColliderConstructorHierarchyConfig>()
+            .register_type::<ShapeCaster>();
 
         #[cfg(feature = "3d")]
         app.register_type::<SphericalJoint>();

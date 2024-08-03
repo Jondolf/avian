@@ -472,6 +472,8 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
+    #[cfg(feature = "default-collider")]
+    pub(crate) use crate::position::RotationValue;
     pub use crate::{
         collision::{
             self,
@@ -494,9 +496,7 @@ pub mod prelude {
     };
     pub(crate) use crate::{
         math::*,
-        position::{
-            PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation, RotationValue,
-        },
+        position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
     };
     pub use avian_derive::*;
 }
