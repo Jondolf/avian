@@ -281,8 +281,8 @@ pub struct ColliderConstructorHierarchyConfig {
 #[derive(Clone, Debug, PartialEq, Reflect, Component)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), derive(Default))]
-#[cfg_attr(all(feature = "3d", feature = "collider-from-mesh"), reflect(Default))]
+#[cfg_attr(feature = "collider-from-mesh", derive(Default))]
+#[cfg_attr(feature = "collider-from-mesh", reflect(Default))]
 #[reflect(Debug, Component, PartialEq)]
 #[non_exhaustive]
 #[allow(missing_docs)]
@@ -405,7 +405,7 @@ pub enum ColliderConstructor {
         scale: Vector,
     },
     /// Constructs a collider with [`Collider::trimesh_from_mesh`].
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[default]
     TrimeshFromMesh,
     /// Constructs a collider with [`Collider::trimesh_from_mesh_with_config`].
@@ -416,7 +416,7 @@ pub enum ColliderConstructor {
     ))]
     TrimeshFromMeshWithConfig(TrimeshFlags),
     /// Constructs a collider with [`Collider::convex_decomposition_from_mesh`].
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     ConvexDecompositionFromMesh,
     /// Constructs a collider with [`Collider::convex_decomposition_from_mesh_with_config`].
     #[cfg(all(
@@ -426,28 +426,22 @@ pub enum ColliderConstructor {
     ))]
     ConvexDecompositionFromMeshWithConfig(VhacdParameters),
     /// Constructs a collider with [`Collider::convex_hull_from_mesh`].
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     ConvexHullFromMesh,
 }
 
 impl ColliderConstructor {
     /// Returns `true` if the collider type requires a mesh to be generated.
+    #[cfg(feature = "collider-from-mesh")]
     pub fn requires_mesh(&self) -> bool {
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-        {
-            matches!(
-                self,
-                Self::TrimeshFromMesh
-                    | Self::TrimeshFromMeshWithConfig(_)
-                    | Self::ConvexDecompositionFromMesh
-                    | Self::ConvexDecompositionFromMeshWithConfig(_)
-                    | Self::ConvexHullFromMesh
-            )
-        }
-        #[cfg(not(all(feature = "3d", feature = "collider-from-mesh")))]
-        {
-            false
-        }
+        matches!(
+            self,
+            Self::TrimeshFromMesh
+                | Self::TrimeshFromMeshWithConfig(_)
+                | Self::ConvexDecompositionFromMesh
+                | Self::ConvexDecompositionFromMeshWithConfig(_)
+                | Self::ConvexHullFromMesh
+        )
     }
 }
 
@@ -470,7 +464,7 @@ mod tests {
         assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[test]
     #[should_panic]
     fn collider_constructor_requires_mesh_on_computed() {
@@ -481,7 +475,7 @@ mod tests {
         app.update();
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[test]
     fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
@@ -516,7 +510,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[test]
     fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
@@ -537,7 +531,7 @@ mod tests {
         assert!(app.query_err::<&Collider>(entity));
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[test]
     fn collider_constructor_hierarchy_does_not_require_mesh_on_self_with_computed() {
         let mut app = create_test_app();
@@ -592,7 +586,7 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child3));
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
@@ -653,7 +647,7 @@ mod tests {
         assert!(app.query_ok::<&Collider>(child8));
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
+    #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
@@ -730,7 +724,7 @@ mod tests {
         radius: 0.5,
     };
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     const COMPUTED_COLLIDER: ColliderConstructor = ColliderConstructor::TrimeshFromMesh;
 
     fn create_test_app() -> App {
@@ -748,7 +742,7 @@ mod tests {
         app
     }
 
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh", feature = "bevy_scene"))]
+    #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
         use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
 
@@ -771,7 +765,7 @@ mod tests {
             !self.query_ok::<D>(entity)
         }
 
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+        #[cfg(feature = "collider-from-mesh")]
         fn add_mesh(&mut self) -> Handle<Mesh>;
     }
 
@@ -782,7 +776,7 @@ mod tests {
             component.is_ok()
         }
 
-        #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+        #[cfg(feature = "collider-from-mesh")]
         fn add_mesh(&mut self) -> Handle<Mesh> {
             self.world_mut()
                 .get_resource_mut::<Assets<Mesh>>()

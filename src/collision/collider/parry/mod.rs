@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{make_isometry, prelude::*};
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::{log, prelude::*};
 use collision::contact_query::UnsupportedShape;
@@ -196,6 +196,13 @@ bitflags::bitflags! {
         /// vertices will be merged. It will no longer be the case in the future once we decouple
         /// the computations.
         const DELETE_DUPLICATE_TRIANGLES = 0b0100_0000;
+        /// If set, a special treatment will be applied to contact manifold calculation to eliminate
+        /// or fix contacts normals that could lead to incorrect bumps in physics simulation
+        /// (especially on flat surfaces).
+        ///
+        /// This is achieved by taking into account adjacent triangle normals when computing contact
+        /// points for a given triangle.
+        const FIX_INTERNAL_EDGES = 0b1000_0000 | Self::ORIENTED.bits() | Self::MERGE_DUPLICATE_VERTICES.bits();
     }
 }
 
@@ -610,7 +617,7 @@ impl Collider {
     /// - `ray_direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     pub fn cast_ray(
         &self,
         translation: impl Into<Position>,
@@ -939,7 +946,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::trimesh_with_flags(
@@ -976,7 +983,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh_with_config(mesh: &Mesh, flags: TrimeshFlags) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
@@ -1002,7 +1009,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_hull_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh)
             .and_then(|(vertices, _)| SharedShape::convex_hull(&vertices).map(|shape| shape.into()))
@@ -1027,7 +1034,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_decomposition_from_mesh(mesh: &Mesh) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
             SharedShape::convex_decomposition(&vertices, &indices).into()
@@ -1058,7 +1065,7 @@ impl Collider {
     ///     ));
     /// }
     /// ```
-    #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+    #[cfg(feature = "collider-from-mesh")]
     pub fn convex_decomposition_from_mesh_with_config(
         mesh: &Mesh,
         parameters: &VhacdParameters,
@@ -1073,16 +1080,23 @@ impl Collider {
         })
     }
 
-    /// Attempts to create a collider from an optional mesh with the given [`ColliderConstructor`].
+    /// Attempts to create a collider with the given [`ColliderConstructor`].
     /// By using this, you can serialize and deserialize the collider's creation method
     /// separately from the collider itself via the [`ColliderConstructor`] enum.
     ///
-    /// Returns `None` in the following cases:
-    /// - The given [`ColliderConstructor`] requires a mesh, but none was provided.
-    /// - Creating the collider from the given [`ColliderConstructor`] failed.
+    #[cfg_attr(
+        feature = "collider-from-mesh",
+        doc = "Returns `None` in the following cases:
+- The given [`ColliderConstructor`] requires a mesh, but none was provided.
+- Creating the collider from the given [`ColliderConstructor`] failed."
+    )]
+    #[cfg_attr(
+        not(feature = "collider-from-mesh"),
+        doc = "Returns `None` if creating the collider from the given [`ColliderConstructor`] failed."
+    )]
     pub fn try_from_constructor(
         collider_constructor: ColliderConstructor,
-        #[allow(unused_variables)] mesh: Option<&Mesh>,
+        #[cfg(feature = "collider-from-mesh")] mesh: Option<&Mesh>,
     ) -> Option<Self> {
         match collider_constructor {
             #[cfg(feature = "2d")]
@@ -1189,38 +1203,30 @@ impl Collider {
             ColliderConstructor::Heightfield { heights, scale } => {
                 Some(Self::heightfield(heights, scale))
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::TrimeshFromMesh => Self::trimesh_from_mesh(mesh?),
-            #[cfg(all(
-                feature = "3d",
-                feature = "collider-from-mesh",
-                feature = "default-collider"
-            ))]
+            #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
             ColliderConstructor::TrimeshFromMeshWithConfig(flags) => {
                 Self::trimesh_from_mesh_with_config(mesh?, flags)
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexDecompositionFromMesh => {
                 Self::convex_decomposition_from_mesh(mesh?)
             }
-            #[cfg(all(
-                feature = "3d",
-                feature = "collider-from-mesh",
-                feature = "default-collider"
-            ))]
+            #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
             ColliderConstructor::ConvexDecompositionFromMeshWithConfig(params) => {
                 Self::convex_decomposition_from_mesh_with_config(mesh?, &params)
             }
-            #[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+            #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
         }
     }
 }
 
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 type VerticesIndices = (Vec<nalgebra::Point3<Scalar>>, Vec<[u32; 3]>);
 
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
+#[cfg(feature = "collider-from-mesh")]
 fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
     let indices = mesh.indices()?;
@@ -1255,13 +1261,14 @@ fn scale_shape(
     scale: Vector,
     num_subdivisions: u32,
 ) -> Result<SharedShape, UnsupportedShape> {
+    let scale = scale.abs();
     match shape.as_typed_shape() {
-        TypedShape::Cuboid(s) => Ok(SharedShape::new(s.scaled(&scale.into()))),
+        TypedShape::Cuboid(s) => Ok(SharedShape::new(s.scaled(&scale.abs().into()))),
         TypedShape::RoundCuboid(s) => Ok(SharedShape::new(RoundShape {
             border_radius: s.border_radius,
-            inner_shape: s.inner_shape.scaled(&scale.into()),
+            inner_shape: s.inner_shape.scaled(&scale.abs().into()),
         })),
-        TypedShape::Capsule(c) => match c.scaled(&scale.into(), num_subdivisions) {
+        TypedShape::Capsule(c) => match c.scaled(&scale.abs().into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Capsule shape.", scale);
                 Ok(SharedShape::ball(0.0))
@@ -1273,16 +1280,16 @@ fn scale_shape(
             #[cfg(feature = "2d")]
             {
                 if scale.x == scale.y {
-                    Ok(SharedShape::ball(b.radius * scale.x))
+                    Ok(SharedShape::ball(b.radius * scale.x.abs()))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
                     Ok(SharedShape::new(EllipseWrapper(Ellipse {
-                        half_size: Vec2::splat(b.radius as f32) * scale.f32(),
+                        half_size: Vec2::splat(b.radius as f32) * scale.f32().abs(),
                     })))
                 }
             }
             #[cfg(feature = "3d")]
-            match b.scaled(&scale.into(), num_subdivisions) {
+            match b.scaled(&scale.abs().into(), num_subdivisions) {
                 None => {
                     log::error!("Failed to apply scale {} to Ball shape.", scale);
                     Ok(SharedShape::ball(0.0))
@@ -1354,7 +1361,7 @@ fn scale_shape(
             }
         }
         #[cfg(feature = "3d")]
-        TypedShape::Cylinder(c) => match c.scaled(&scale.into(), num_subdivisions) {
+        TypedShape::Cylinder(c) => match c.scaled(&scale.abs().into(), num_subdivisions) {
             None => {
                 log::error!("Failed to apply scale {} to Cylinder shape.", scale);
                 Ok(SharedShape::ball(0.0))
@@ -1364,7 +1371,7 @@ fn scale_shape(
         },
         #[cfg(feature = "3d")]
         TypedShape::RoundCylinder(c) => {
-            match c.inner_shape.scaled(&scale.into(), num_subdivisions) {
+            match c.inner_shape.scaled(&scale.abs().into(), num_subdivisions) {
                 None => {
                     log::error!("Failed to apply scale {} to RoundCylinder shape.", scale);
                     Ok(SharedShape::ball(0.0))
@@ -1428,7 +1435,7 @@ fn scale_shape(
             if _id == 1 {
                 if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
-                        half_size: ellipse.half_size * scale.f32(),
+                        half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
             } else if _id == 2 {
@@ -1436,7 +1443,7 @@ fn scale_shape(
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonWrapper(
                             RegularPolygon::new(
-                                polygon.circumradius() * scale.x as f32,
+                                polygon.circumradius() * scale.x.abs() as f32,
                                 polygon.sides,
                             ),
                         )));

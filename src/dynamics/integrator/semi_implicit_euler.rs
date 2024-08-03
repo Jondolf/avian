@@ -38,11 +38,14 @@ pub fn integrate_velocity(
     force: Vector,
     torque: TorqueValue,
     inv_mass: Scalar,
-    inv_inertia: InertiaValue,
+    inv_inertia: impl Into<InverseInertia>,
+    rotation: Rotation,
     locked_axes: LockedAxes,
     gravity: Vector,
     delta_seconds: Scalar,
 ) {
+    let inv_inertia = inv_inertia.into();
+
     // Compute linear acceleration.
     let lin_acc = linear_acceleration(force, inv_mass, locked_axes, gravity);
 
@@ -54,11 +57,35 @@ pub fn integrate_velocity(
     }
 
     // Compute angular acceleration.
-    let ang_acc = angular_acceleration(*ang_vel, torque, inv_inertia, locked_axes);
+    let ang_acc = angular_acceleration(torque, inv_inertia.rotated(&rotation).0, locked_axes);
 
-    // Compute next angular velocity.
-    // ω = ω_0 + α * Δt
-    let delta_ang_vel = ang_acc * delta_seconds;
+    // Compute angular velocity delta.
+    // Δω = α * Δt
+    #[allow(unused_mut)]
+    let mut delta_ang_vel = ang_acc * delta_seconds;
+
+    #[cfg(feature = "3d")]
+    {
+        // In 3D, we should also handle gyroscopic motion, which accounts for
+        // non-spherical shapes that may wobble as they spin in the air.
+        //
+        // Gyroscopic motion happens when the inertia tensor is not uniform, causing
+        // the angular momentum to point in a different direction than the angular velocity.
+        //
+        // The gyroscopic torque is τ = ω x Iω.
+        //
+        // However, the basic semi-implicit approach can blow up, as semi-implicit Euler
+        // extrapolates velocity and the gyroscopic torque is quadratic in the angular velocity.
+        // Thus, we use implicit Euler, which is much more accurate and stable, although slightly more expensive.
+        let effective_inertia = locked_axes.apply_to_rotation(inv_inertia.inverse().0);
+        delta_ang_vel += solve_gyroscopic_torque(
+            *ang_vel,
+            rotation.0,
+            Inertia(effective_inertia),
+            delta_seconds,
+        );
+    }
+
     if delta_ang_vel != AngularVelocity::ZERO.0 && delta_ang_vel.is_finite() {
         *ang_vel += delta_ang_vel;
     }
@@ -136,17 +163,21 @@ pub fn linear_acceleration(
 }
 
 /// Computes angular acceleration based on the current angular velocity, torque, and inertia.
-#[allow(unused_variables)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "
+Note that this does not account for gyroscopic motion. To compute the gyroscopic angular velocity
+correction, use `solve_gyroscopic_torque`."
+)]
 pub fn angular_acceleration(
-    ang_vel: AngularValue,
     torque: TorqueValue,
-    inv_inertia: InertiaValue,
+    world_inv_inertia: InertiaValue,
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
-    let inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+    let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
 
-    if inv_inertia != InverseInertia::ZERO.0 && inv_inertia.is_finite() {
+    if effective_inv_inertia != InverseInertia::ZERO.0 && effective_inv_inertia.is_finite() {
         // Newton's 2nd law for rotational movement:
         //
         // τ = I * α
@@ -154,17 +185,45 @@ pub fn angular_acceleration(
         //
         // where α (alpha) is the angular acceleration,
         // τ (tau) is the torque, and I is the moment of inertia.
-        #[cfg(feature = "2d")]
-        {
-            inv_inertia * torque
-        }
-        #[cfg(feature = "3d")]
-        {
-            inv_inertia * (torque - ang_vel.cross(inv_inertia.inverse() * ang_vel))
-        }
+        world_inv_inertia * torque
     } else {
         AngularValue::ZERO
     }
+}
+
+/// Computes the angular correction caused by gyroscopic motion,
+/// which may cause objects with non-uniform angular inertia to wobble
+/// while spinning.
+#[cfg(feature = "3d")]
+pub fn solve_gyroscopic_torque(
+    ang_vel: Vector,
+    rotation: Quaternion,
+    local_inertia: Inertia,
+    delta_seconds: Scalar,
+) -> Vector {
+    // Based on the "Gyroscopic Motion" section of Erin Catto's GDC 2015 slides on Numerical Methods.
+    // https://box2d.org/files/ErinCatto_NumericalMethods_GDC2015.pdf
+
+    // Convert angular velocity to body coordinates so that we can use the local angular inertia
+    let local_ang_vel = rotation.inverse() * ang_vel;
+
+    // Compute body-space angular momentum
+    let angular_momentum = local_inertia.0 * local_ang_vel;
+
+    // Compute Jacobian
+    let jacobian = local_inertia.0
+        + delta_seconds
+            * (skew_symmetric_mat3(local_ang_vel) * local_inertia.0
+                - skew_symmetric_mat3(angular_momentum));
+
+    // Residual vector
+    let f = delta_seconds * local_ang_vel.cross(angular_momentum);
+
+    // Do one Newton-Raphson iteration
+    let delta_ang_vel = -jacobian.inverse() * f;
+
+    // Convert back to world coordinates
+    rotation * delta_ang_vel
 }
 
 #[cfg(test)]
@@ -201,6 +260,7 @@ mod tests {
                 default(),
                 inv_mass,
                 inv_inertia,
+                rotation,
                 default(),
                 gravity,
                 1.0 / 10.0,

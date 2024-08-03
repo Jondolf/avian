@@ -157,7 +157,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::cast_ray`]
@@ -196,10 +196,10 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
-    /// entity should be ignored.
+    ///   entity should be ignored.
     ///
     /// See also: [`SpatialQuery::cast_ray`]
     pub fn cast_ray_predicate(
@@ -241,7 +241,7 @@ impl SpatialQueryPipeline {
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::ray_hits`]
@@ -280,7 +280,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -339,8 +339,8 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::cast_shape`]
@@ -405,8 +405,8 @@ impl SpatialQueryPipeline {
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -452,8 +452,8 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -533,7 +533,7 @@ impl SpatialQueryPipeline {
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
-    /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::project_point`]

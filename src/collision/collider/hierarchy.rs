@@ -117,35 +117,29 @@ impl Plugin for ColliderHierarchyPlugin {
                 .in_set(NarrowPhaseSet::First),
         );
     }
+
+    fn finish(&self, app: &mut App) {
+        if !app.is_plugin_added::<HierarchyPlugin>() {
+            warn!("`ColliderHierarchyPlugin` requires Bevy's `HierarchyPlugin` to function. If you don't need collider hierarchies, consider disabling this plugin.",);
+        }
+    }
 }
 
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
-
+/// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
+///
+/// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
+/// on the same entity as the rigid body.
 #[allow(clippy::type_complexity)]
 fn update_collider_parents(
     mut commands: Commands,
-    mut bodies: Query<(Entity, Option<&mut ColliderParent>, Has<ColliderMarker>), With<RigidBody>>,
+    mut bodies: Query<Entity, (With<RigidBody>, With<AncestorMarker<ColliderMarker>>)>,
     children: Query<&Children>,
     mut child_colliders: Query<
         Option<&mut ColliderParent>,
         (With<ColliderMarker>, Without<RigidBody>),
     >,
 ) {
-    for (entity, collider_parent, has_collider) in &mut bodies {
-        if has_collider {
-            if let Some(mut collider_parent) = collider_parent {
-                collider_parent.0 = entity;
-            } else {
-                commands.entity(entity).try_insert((
-                    ColliderParent(entity),
-                    // TODO: This probably causes a one frame delay. Compute real value?
-                    ColliderTransform::default(),
-                    PreviousColliderTransform::default(),
-                ));
-            }
-        }
+    for entity in &mut bodies {
         for child in children.iter_descendants(entity) {
             if let Ok(collider_parent) = child_colliders.get_mut(child) {
                 if let Some(mut collider_parent) = collider_parent {
@@ -255,7 +249,7 @@ pub(crate) fn propagate_collider_transforms(
                 let changed = transform.is_changed() || parent.is_changed();
                 let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
-                let scale = (parent_transform.scale * child_transform.scale).max(Vector::splat(Scalar::EPSILON));
+                let scale = parent_transform.scale * child_transform.scale;
 
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
@@ -303,9 +297,9 @@ pub(crate) fn propagate_collider_transforms(
 /// # Safety
 ///
 /// - While this function is running, `collider_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
+///   nor any of its descendants.
 /// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
+///   is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_collider_transforms_recursive(
     transform: ColliderTransform,
@@ -374,6 +368,7 @@ unsafe fn propagate_collider_transforms_recursive(
         );
 
         let child_transform = ColliderTransform::from(*child_transform);
+        let scale = transform.scale * child_transform.scale;
 
         // SAFETY: The caller guarantees that `collider_query` will not be fetched
         // for any descendants of `entity`, so it is safe to call `propagate_collider_transforms_recursive` for each child.
@@ -383,10 +378,7 @@ unsafe fn propagate_collider_transforms_recursive(
         unsafe {
             propagate_collider_transforms_recursive(
                 if is_rb {
-                    ColliderTransform {
-                        scale: child_transform.scale,
-                        ..default()
-                    }
+                    ColliderTransform { scale, ..default() }
                 } else {
                     ColliderTransform {
                         translation: transform.transform_point(child_transform.translation),
@@ -394,8 +386,7 @@ unsafe fn propagate_collider_transforms_recursive(
                         rotation: transform.rotation * child_transform.rotation,
                         #[cfg(feature = "3d")]
                         rotation: Rotation(transform.rotation.0 * child_transform.rotation.0),
-                        scale: (transform.scale * child_transform.scale)
-                            .max(Vector::splat(Scalar::EPSILON)),
+                        scale,
                     }
                 },
                 collider_query,

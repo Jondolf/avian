@@ -238,7 +238,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// There are two main steps to solving a constraint:
     ///
     /// 1. Compute the generalized inverse masses, [gradients](self#constraint-gradients)
-    /// and the [Lagrange multiplier](self#lagrange-multipliers) update.
+    ///    and the [Lagrange multiplier](self#lagrange-multipliers) update.
     /// 2. Apply corrections along the gradients using the Lagrange multiplier update.
     ///
     /// [`XpbdConstraint`] provides the [`compute_lagrange_update`](XpbdConstraint::compute_lagrange_update)

@@ -135,6 +135,18 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         );
 
         if self.generate_constraints {
+            if is_first_instance {
+                // Clear contact constraints.
+                app.add_systems(
+                    self.schedule,
+                    (|mut constraints: ResMut<ContactConstraints>| {
+                        constraints.clear();
+                    })
+                    .after(NarrowPhaseSet::PostProcess)
+                    .before(NarrowPhaseSet::GenerateConstraints),
+                );
+            }
+
             // Generate contact constraints.
             app.add_systems(
                 self.schedule,
@@ -261,9 +273,6 @@ fn generate_constraints<C: AnyCollider>(
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
-
-    // Clear contact constraints.
-    constraints.clear();
 
     // TODO: Parallelize.
     for contacts in narrow_phase.collisions.get_internal().values() {

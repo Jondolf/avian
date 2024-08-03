@@ -245,7 +245,7 @@ pub fn contact_manifolds(
                             normal2,
                             -contact.dist,
                         )
-                        .with_feature_ids(contact.fid1, contact.fid2)
+                        .with_feature_ids(contact.fid1.into(), contact.fid2.into())
                     })
                     .collect(),
                 index: manifold_index,
