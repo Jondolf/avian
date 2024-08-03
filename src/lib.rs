@@ -368,7 +368,7 @@
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Avian it is straightforward
 //! to [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics) if needed.
-//! By default, physics runs at a fixed timestep in `FixedPostUpdate`.
+//! By default, physics runs at a fixed timestep in [`FixedPostUpdate`].
 //!
 //! ### Something else?
 //!
