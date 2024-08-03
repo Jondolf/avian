@@ -433,8 +433,8 @@ fn update_shape_caster_positions(
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
-fn raycast(mut rays: Query<(Entity, &RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
-    for (entity, ray, mut hits) in &mut rays {
+fn raycast(mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
+    for (entity, mut ray, mut hits) in &mut rays {
         if ray.enabled {
             ray.cast(entity, &mut hits, &spatial_query.query_pipeline);
         } else if !hits.is_empty() {
