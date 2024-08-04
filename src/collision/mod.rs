@@ -205,10 +205,15 @@ impl Collisions {
     /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](Self::get_mut)
     /// or [`iter_mut`](Self::iter_mut).
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // TODO: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
-        // entity ID. This requires changes elsewhere as well though.
-        self.0
-            .insert((contacts.entity1, contacts.entity2), contacts)
+        // order the keys by entity ID so that we don't get duplicate contacts between
+        // two entities
+        if contacts.entity1 < contacts.entity2 {
+            self.0
+                .insert((contacts.entity1, contacts.entity2), contacts)
+        } else {
+            self.0
+                .insert((contacts.entity2, contacts.entity1), contacts)
+        }
     }
 
     /// Extends [`Collisions`] with all collision pairs in the given iterable.
