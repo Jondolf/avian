@@ -375,8 +375,12 @@ impl ContactManifold {
         for contact in self.contacts.iter_mut() {
             for previous_contact in previous_contacts.iter() {
                 // If the feature IDs match, copy the contact impulses over for warm starting.
-                if contact.feature_id1 == previous_contact.feature_id1
-                    && contact.feature_id2 == previous_contact.feature_id2
+                if (contact.feature_id1 == previous_contact.feature_id1
+                    && contact.feature_id2 == previous_contact.feature_id2) ||
+                    // we have to check both directions because the entities are sorted in order
+                    // of aabb.min.x, which could have changed even the two objects in contact are the same
+                    (contact.feature_id2 == previous_contact.feature_id1
+                    && contact.feature_id1 == previous_contact.feature_id2)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
                     contact.tangent_impulse = previous_contact.tangent_impulse;
@@ -389,10 +393,15 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && contact.point1.distance_squared(previous_contact.point1)
+                    && (contact.point1.distance_squared(previous_contact.point1)
                         < distance_threshold_squared
                     && contact.point2.distance_squared(previous_contact.point2)
+                        < distance_threshold_squared) || (
+                    contact.point1.distance_squared(previous_contact.point2)
                         < distance_threshold_squared
+                        && contact.point2.distance_squared(previous_contact.point1)
+                            < distance_threshold_squared
+                    )
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
                     contact.tangent_impulse = previous_contact.tangent_impulse;
