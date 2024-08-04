@@ -546,14 +546,17 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         );
 
         // Get the previous contacts if there are any.
-        let previous_contacts = self
-            .collisions
-            .get_internal()
-            .get(&(collider1.entity, collider2.entity))
-            .or(self
+        let previous_contacts = if collider1.entity < collider2.entity {
+            self
                 .collisions
                 .get_internal()
-                .get(&(collider2.entity, collider1.entity)));
+                .get(&(collider1.entity, collider2.entity))
+        } else {
+            self
+                .collisions
+                .get_internal()
+                .get(&(collider2.entity, collider1.entity))
+        };
 
         let mut total_normal_impulse = 0.0;
         let mut total_tangent_impulse = default();
