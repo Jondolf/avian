@@ -72,17 +72,6 @@ impl Plugin for PhysicsSchedulePlugin {
                 .before(TransformSystem::TransformPropagate),
         );
 
-        app.configure_sets(
-            schedule,
-            (
-                PhysicsSet::Prepare,
-                PhysicsSet::StepSimulation,
-                PhysicsSet::Sync,
-            )
-                .chain()
-                .before(TransformSystem::TransformPropagate),
-        );
-
         // Set up the physics schedule, the schedule that advances the physics simulation
         app.edit_schedule(PhysicsSchedule, |schedule| {
             schedule
