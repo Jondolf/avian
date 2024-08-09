@@ -91,8 +91,36 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
+        let hooks = app.world_mut().register_component_hooks::<C>();
+
         // Initialize missing components for colliders.
-        app.observe(on_add_collider::<C>);
+        hooks.on_add(|mut world, entity, _| {
+            let entity_ref = world.entity(entity);
+
+            let collider = entity_ref.get::<C>().unwrap();
+            let aabb = entity_ref
+                .get::<ColliderAabb>()
+                .copied()
+                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default()));
+            let density = entity_ref
+                .get::<ColliderDensity>()
+                .copied()
+                .unwrap_or_default();
+
+            let mass_properties = if entity_ref.get::<Sensor>().is_some() {
+                ColliderMassProperties::ZERO
+            } else {
+                collider.mass_properties(density.0)
+            };
+
+            world.commands().entity(entity).try_insert((
+                aabb,
+                density,
+                mass_properties,
+                CollidingEntities::default(),
+                ColliderMarker,
+            ));
+        });
 
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
@@ -249,40 +277,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 /// This is useful for filtering collider entities regardless of the [collider backend](ColliderBackendPlugin).
 #[derive(Reflect, Component, Clone, Copy, Debug)]
 pub struct ColliderMarker;
-
-/// Initializes missing components for [colliders](Collider).
-pub(crate) fn on_add_collider<C: AnyCollider>(
-    trigger: Trigger<OnAdd, C>,
-    mut commands: Commands,
-    colliders: Query<
-        (
-            &C,
-            Option<&ColliderAabb>,
-            Option<&ColliderDensity>,
-            Has<Sensor>,
-        ),
-        Added<C>,
-    >,
-) {
-    let Ok((collider, aabb, density, is_sensor)) = colliders.get(trigger.entity()) else {
-        return;
-    };
-
-    let density = *density.unwrap_or(&ColliderDensity::default());
-    let mass_properties = if is_sensor {
-        ColliderMassProperties::ZERO
-    } else {
-        collider.mass_properties(density.0)
-    };
-
-    commands.entity(trigger.entity()).try_insert((
-        *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
-        density,
-        mass_properties,
-        CollidingEntities::default(),
-        ColliderMarker,
-    ));
-}
 
 /// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
 ///

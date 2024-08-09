@@ -92,8 +92,64 @@ impl Plugin for PreparePlugin {
         app.init_resource::<PrepareConfig>()
             .register_type::<PrepareConfig>();
 
+        // NOTE: This will be redundant once we have required components.
         // Initialize missing components for rigid bodies.
-        app.observe(on_add_rigid_body);
+        app.world_mut()
+            .register_component_hooks::<RigidBody>()
+            .on_add(|mut world, entity, _| {
+                let entity_ref = world.entity(entity);
+
+                let lin_vel = *entity_ref.get::<LinearVelocity>().unwrap_or(&default());
+                let ang_vel = *entity_ref.get::<AngularVelocity>().unwrap_or(&default());
+                let force = *entity_ref.get::<ExternalForce>().unwrap_or(&default());
+                let torque = *entity_ref.get::<ExternalTorque>().unwrap_or(&default());
+                let impulse = *entity_ref.get::<ExternalImpulse>().unwrap_or(&default());
+                let angular_impulse = *entity_ref
+                    .get::<ExternalAngularImpulse>()
+                    .unwrap_or(&default());
+                let restitution = *entity_ref.get::<Restitution>().unwrap_or(&default());
+                let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
+                let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
+
+                let mass = entity_ref.get::<Mass>().copied();
+                let inverse_mass = entity_ref.get::<InverseMass>().copied();
+                let inertia = entity_ref.get::<Inertia>().copied();
+                let inverse_inertia = entity_ref.get::<InverseInertia>().copied();
+                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
+
+                let mut commands = world.commands();
+                let mut entity_commands = commands.entity(entity);
+
+                entity_commands.try_insert((
+                    AccumulatedTranslation::default(),
+                    lin_vel,
+                    ang_vel,
+                    PreSolveLinearVelocity::default(),
+                    PreSolveAngularVelocity::default(),
+                    force,
+                    torque,
+                    impulse,
+                    angular_impulse,
+                    restitution,
+                    friction,
+                    time_sleeping,
+                ));
+
+                entity_commands.try_insert((
+                    mass.unwrap_or(Mass(
+                        inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
+                    )),
+                    inverse_mass.unwrap_or(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
+                    inertia.unwrap_or(
+                        inverse_inertia
+                            .map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
+                    ),
+                    inverse_inertia.unwrap_or(
+                        inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()),
+                    ),
+                    center_of_mass,
+                ));
+            });
 
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
@@ -374,55 +430,6 @@ struct RigidBodyInitializationQuery {
     inertia: Option<&'static Inertia>,
     inverse_inertia: Option<&'static InverseInertia>,
     center_of_mass: Option<&'static CenterOfMass>,
-}
-
-// NOTE: This will be redundant once we have required components.
-/// Initializes missing components for [rigid bodies](RigidBody).
-fn on_add_rigid_body(
-    trigger: Trigger<OnAdd, RigidBody>,
-    mut commands: Commands,
-    bodies: Query<RigidBodyInitializationQuery, Added<RigidBody>>,
-) {
-    let Ok(rb) = bodies.get(trigger.entity()) else {
-        return;
-    };
-
-    // Two separate inserts needed because of tuple size limit
-    let mut entity_commands = commands.entity(trigger.entity());
-
-    entity_commands.try_insert((
-        AccumulatedTranslation(Vector::ZERO),
-        *rb.lin_vel.unwrap_or(&LinearVelocity::default()),
-        *rb.ang_vel.unwrap_or(&AngularVelocity::default()),
-        PreSolveLinearVelocity::default(),
-        PreSolveAngularVelocity::default(),
-        *rb.force.unwrap_or(&ExternalForce::default()),
-        *rb.torque.unwrap_or(&ExternalTorque::default()),
-        *rb.impulse.unwrap_or(&ExternalImpulse::default()),
-        *rb.angular_impulse
-            .unwrap_or(&ExternalAngularImpulse::default()),
-        *rb.restitution.unwrap_or(&Restitution::default()),
-        *rb.friction.unwrap_or(&Friction::default()),
-        *rb.time_sleeping.unwrap_or(&TimeSleeping::default()),
-    ));
-
-    entity_commands.try_insert((
-        *rb.mass.unwrap_or(&Mass(
-            rb.inverse_mass
-                .map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-        )),
-        *rb.inverse_mass
-            .unwrap_or(&InverseMass(rb.mass.map_or(0.0, |mass| 1.0 / mass.0))),
-        *rb.inertia.unwrap_or(
-            &rb.inverse_inertia
-                .map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-        ),
-        *rb.inverse_inertia.unwrap_or(
-            &rb.inertia
-                .map_or(InverseInertia::ZERO, |inertia| inertia.inverse()),
-        ),
-        *rb.center_of_mass.unwrap_or(&CenterOfMass::default()),
-    ));
 }
 
 /// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.
