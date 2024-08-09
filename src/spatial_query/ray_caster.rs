@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        component::{ComponentHooks, StorageType},
+        entity::{EntityMapper, MapEntities},
+    },
     prelude::*,
 };
 #[cfg(all(
@@ -67,7 +70,7 @@ use parry::query::{
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
@@ -315,6 +318,26 @@ impl RayCaster {
                 RayIntersectionsVisitor::new(&ray, self.max_time_of_impact, &mut leaf_callback);
             query_pipeline.qbvh.traverse_depth_first(&mut visitor);
         }
+    }
+}
+
+impl Component for RayCaster {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            let ray_caster = world.get::<RayCaster>(entity).unwrap();
+            let max_hits = if ray_caster.max_hits == u32::MAX {
+                10
+            } else {
+                ray_caster.max_hits as usize
+            };
+
+            world.commands().entity(entity).try_insert(RayHits {
+                vector: Vec::with_capacity(max_hits),
+                count: 0,
+            });
+        });
     }
 }
 

@@ -6,7 +6,11 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
+    ecs::{
+        intern::Interned,
+        query::{QueryData, QueryFilter},
+        schedule::ScheduleLabel,
+    },
     prelude::*,
 };
 
@@ -51,26 +55,17 @@ impl Default for PreparePlugin {
 /// You can use these to schedule your own initialization systems
 /// without having to worry about implementation details.
 ///
-/// 1. `PreInit`: Used for systems that must run before initialization.
-/// 2. `InitRigidBodies`: Responsible for initializing missing [`RigidBody`] components.
-/// 3. `InitColliders`: Responsible for initializing missing [`Collider`] components.
-/// 4. `PropagateTransforms`: Responsible for propagating transforms.
-/// 5. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
-/// 6. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
+/// 1. `First`: Runs at the start of the preparation step.
+/// 2. `PropagateTransforms`: Responsible for propagating transforms.
+/// 3. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
 ///    or vice versa.
-/// 7. `Finalize`: Responsible for performing final updates after everything is initialized.
+/// 4. `Finalize`: Responsible for performing final updates after everything is initialized and updated.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrepareSet {
-    /// Used for systems that must run before initialization.
-    PreInit,
-    /// Responsible for initializing missing [`RigidBody`] components.
-    InitRigidBodies,
-    /// Responsible for initializing missing [`Collider`] components.
-    InitColliders,
+    /// Runs at the start of the preparation step.
+    First,
     /// Responsible for propagating transforms.
     PropagateTransforms,
-    /// Responsible for initializing missing mass properties for [`RigidBody`] components.
-    InitMassProperties,
     /// Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
     /// or vice versa. Parts of this system can be disabled with [`PrepareConfig`].
     /// Schedule your system with this to implement custom behavior for initializing transforms.
@@ -85,10 +80,7 @@ impl Plugin for PreparePlugin {
         app.configure_sets(
             self.schedule,
             (
-                PrepareSet::PreInit,
-                PrepareSet::InitRigidBodies,
-                PrepareSet::InitColliders,
-                PrepareSet::InitMassProperties,
+                PrepareSet::First,
                 PrepareSet::PropagateTransforms,
                 PrepareSet::InitTransforms,
                 PrepareSet::Finalize,
@@ -99,6 +91,9 @@ impl Plugin for PreparePlugin {
 
         app.init_resource::<PrepareConfig>()
             .register_type::<PrepareConfig>();
+
+        // Initialize missing components for rigid bodies.
+        app.observe(on_add_rigid_body);
 
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
@@ -111,14 +106,6 @@ impl Plugin for PreparePlugin {
                 .chain()
                 .run_if(match_any::<Added<RigidBody>>)
                 .in_set(PrepareSet::PropagateTransforms),
-        )
-        .add_systems(
-            self.schedule,
-            init_rigid_bodies.in_set(PrepareSet::InitRigidBodies),
-        )
-        .add_systems(
-            self.schedule,
-            init_mass_properties.in_set(PrepareSet::InitMassProperties),
         )
         .add_systems(
             self.schedule,
@@ -371,84 +358,71 @@ pub fn init_transforms<C: Component>(
     }
 }
 
-/// Initializes missing components for [rigid bodies](RigidBody).
-fn init_rigid_bodies(
-    mut commands: Commands,
-    mut bodies: Query<
-        (
-            Entity,
-            Option<&LinearVelocity>,
-            Option<&AngularVelocity>,
-            Option<&ExternalForce>,
-            Option<&ExternalTorque>,
-            Option<&ExternalImpulse>,
-            Option<&ExternalAngularImpulse>,
-            Option<&Restitution>,
-            Option<&Friction>,
-            Option<&TimeSleeping>,
-        ),
-        Added<RigidBody>,
-    >,
-) {
-    for (
-        entity,
-        lin_vel,
-        ang_vel,
-        force,
-        torque,
-        impulse,
-        angular_impulse,
-        restitution,
-        friction,
-        time_sleeping,
-    ) in &mut bodies
-    {
-        commands.entity(entity).try_insert((
-            AccumulatedTranslation(Vector::ZERO),
-            *lin_vel.unwrap_or(&LinearVelocity::default()),
-            *ang_vel.unwrap_or(&AngularVelocity::default()),
-            PreSolveLinearVelocity::default(),
-            PreSolveAngularVelocity::default(),
-            *force.unwrap_or(&ExternalForce::default()),
-            *torque.unwrap_or(&ExternalTorque::default()),
-            *impulse.unwrap_or(&ExternalImpulse::default()),
-            *angular_impulse.unwrap_or(&ExternalAngularImpulse::default()),
-            *restitution.unwrap_or(&Restitution::default()),
-            *friction.unwrap_or(&Friction::default()),
-            *time_sleeping.unwrap_or(&TimeSleeping::default()),
-        ));
-    }
+#[derive(QueryData)]
+struct RigidBodyInitializationQuery {
+    lin_vel: Option<&'static LinearVelocity>,
+    ang_vel: Option<&'static AngularVelocity>,
+    force: Option<&'static ExternalForce>,
+    torque: Option<&'static ExternalTorque>,
+    impulse: Option<&'static ExternalImpulse>,
+    angular_impulse: Option<&'static ExternalAngularImpulse>,
+    restitution: Option<&'static Restitution>,
+    friction: Option<&'static Friction>,
+    time_sleeping: Option<&'static TimeSleeping>,
+    mass: Option<&'static Mass>,
+    inverse_mass: Option<&'static InverseMass>,
+    inertia: Option<&'static Inertia>,
+    inverse_inertia: Option<&'static InverseInertia>,
+    center_of_mass: Option<&'static CenterOfMass>,
 }
 
-/// Initializes missing mass properties for [rigid bodies](RigidBody).
-fn init_mass_properties(
+// NOTE: This will be redundant once we have required components.
+/// Initializes missing components for [rigid bodies](RigidBody).
+fn on_add_rigid_body(
+    trigger: Trigger<OnAdd, RigidBody>,
     mut commands: Commands,
-    mass_properties: Query<
-        (
-            Entity,
-            Option<&Mass>,
-            Option<&InverseMass>,
-            Option<&Inertia>,
-            Option<&InverseInertia>,
-            Option<&CenterOfMass>,
-        ),
-        Added<RigidBody>,
-    >,
+    bodies: Query<RigidBodyInitializationQuery, Added<RigidBody>>,
 ) {
-    for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        commands.entity(entity).try_insert((
-            *mass.unwrap_or(&Mass(
-                inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-            )),
-            *inverse_mass.unwrap_or(&InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
-            *inertia.unwrap_or(
-                &inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-            ),
-            *inverse_inertia
-                .unwrap_or(&inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse())),
-            *center_of_mass.unwrap_or(&CenterOfMass::default()),
-        ));
-    }
+    let Ok(rb) = bodies.get(trigger.entity()) else {
+        return;
+    };
+
+    // Two separate inserts needed because of tuple size limit
+    let mut entity_commands = commands.entity(trigger.entity());
+
+    entity_commands.try_insert((
+        AccumulatedTranslation(Vector::ZERO),
+        *rb.lin_vel.unwrap_or(&LinearVelocity::default()),
+        *rb.ang_vel.unwrap_or(&AngularVelocity::default()),
+        PreSolveLinearVelocity::default(),
+        PreSolveAngularVelocity::default(),
+        *rb.force.unwrap_or(&ExternalForce::default()),
+        *rb.torque.unwrap_or(&ExternalTorque::default()),
+        *rb.impulse.unwrap_or(&ExternalImpulse::default()),
+        *rb.angular_impulse
+            .unwrap_or(&ExternalAngularImpulse::default()),
+        *rb.restitution.unwrap_or(&Restitution::default()),
+        *rb.friction.unwrap_or(&Friction::default()),
+        *rb.time_sleeping.unwrap_or(&TimeSleeping::default()),
+    ));
+
+    entity_commands.try_insert((
+        *rb.mass.unwrap_or(&Mass(
+            rb.inverse_mass
+                .map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
+        )),
+        *rb.inverse_mass
+            .unwrap_or(&InverseMass(rb.mass.map_or(0.0, |mass| 1.0 / mass.0))),
+        *rb.inertia.unwrap_or(
+            &rb.inverse_inertia
+                .map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
+        ),
+        *rb.inverse_inertia.unwrap_or(
+            &rb.inertia
+                .map_or(InverseInertia::ZERO, |inertia| inertia.inverse()),
+        ),
+        *rb.center_of_mass.unwrap_or(&CenterOfMass::default()),
+    ));
 }
 
 /// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.

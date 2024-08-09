@@ -58,17 +58,13 @@ impl Plugin for ColliderHierarchyPlugin {
 
         app.configure_sets(
             self.schedule,
-            MarkColliderAncestors
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::PropagateTransforms),
+            MarkColliderAncestors.before(PrepareSet::PropagateTransforms),
         );
 
         // Update collider parents.
         app.add_systems(
             self.schedule,
-            update_collider_parents
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::Finalize),
+            update_collider_parents.before(PrepareSet::Finalize),
         );
 
         // Run transform propagation if new colliders without rigid bodies have been added.

@@ -91,6 +91,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
+        // Initialize missing components for colliders.
+        app.observe(on_add_collider::<C>);
+
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
         // Also removes `ColliderMarker` components.
@@ -197,7 +200,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.add_systems(
             self.schedule,
             (
-                init_colliders::<C>.in_set(PrepareSet::InitColliders),
                 init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
@@ -214,9 +216,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // Update collider parents for colliders that are on the same entity as the rigid body.
         app.add_systems(
             self.schedule,
-            update_root_collider_parents::<C>
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::Finalize),
+            update_root_collider_parents::<C>.before(PrepareSet::Finalize),
         );
 
         let physics_schedule = app
@@ -251,12 +251,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 pub struct ColliderMarker;
 
 /// Initializes missing components for [colliders](Collider).
-#[allow(clippy::type_complexity)]
-pub(crate) fn init_colliders<C: AnyCollider>(
+pub(crate) fn on_add_collider<C: AnyCollider>(
+    trigger: Trigger<OnAdd, C>,
     mut commands: Commands,
-    mut colliders: Query<
+    colliders: Query<
         (
-            Entity,
             &C,
             Option<&ColliderAabb>,
             Option<&ColliderDensity>,
@@ -265,28 +264,29 @@ pub(crate) fn init_colliders<C: AnyCollider>(
         Added<C>,
     >,
 ) {
-    for (entity, collider, aabb, density, is_sensor) in &mut colliders {
-        let density = *density.unwrap_or(&ColliderDensity::default());
-        let mass_properties = if is_sensor {
-            ColliderMassProperties::ZERO
-        } else {
-            collider.mass_properties(density.0)
-        };
+    let Ok((collider, aabb, density, is_sensor)) = colliders.get(trigger.entity()) else {
+        return;
+    };
 
-        commands.entity(entity).try_insert((
-            *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
-            density,
-            mass_properties,
-            CollidingEntities::default(),
-            ColliderMarker,
-        ));
-    }
+    let density = *density.unwrap_or(&ColliderDensity::default());
+    let mass_properties = if is_sensor {
+        ColliderMassProperties::ZERO
+    } else {
+        collider.mass_properties(density.0)
+    };
+
+    commands.entity(trigger.entity()).try_insert((
+        *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
+        density,
+        mass_properties,
+        CollidingEntities::default(),
+        ColliderMarker,
+    ));
 }
 
 /// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
 ///
 /// The [`ColliderHierarchyPlugin`] should be used to handle hierarchies.
-#[allow(clippy::type_complexity)]
 fn update_root_collider_parents<C: AnyCollider>(
     mut commands: Commands,
     mut bodies: Query<

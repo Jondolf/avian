@@ -735,9 +735,9 @@ impl PluginGroup for PhysicsPlugins {
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
-            .add(CcdPlugin::new(self.schedule))
+            .add(CcdPlugin)
             .add(SleepingPlugin)
-            .add(SpatialQueryPlugin::new(self.schedule))
+            .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
     }
 }

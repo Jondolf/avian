@@ -226,11 +226,11 @@
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 
-use crate::{collision::broad_phase::AabbIntersections, prelude::*, prepare::PrepareSet};
+use crate::{collision::broad_phase::AabbIntersections, prelude::*};
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use bevy::ecs::query::QueryData;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel},
+    ecs::component::{ComponentHooks, StorageType},
     prelude::*,
 };
 use derive_more::From;
@@ -240,35 +240,11 @@ use parry::query::{
 };
 
 /// A plugin for [Continuous Collision Detection](self).
-pub struct CcdPlugin {
-    schedule: Interned<dyn ScheduleLabel>,
-}
-
-impl CcdPlugin {
-    /// Creates a [`CcdPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
-    ///
-    /// The default schedule is `PostUpdate`.
-    pub fn new(schedule: impl ScheduleLabel) -> Self {
-        Self {
-            schedule: schedule.intern(),
-        }
-    }
-}
-
-impl Default for CcdPlugin {
-    fn default() -> Self {
-        Self::new(PostUpdate)
-    }
-}
+pub struct CcdPlugin;
 
 impl Plugin for CcdPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<SweptCcd>().register_type::<SweepMode>();
-
-        app.add_systems(
-            self.schedule,
-            init_ccd_aabb_intersections.in_set(PrepareSet::InitColliders),
-        );
 
         // Get the `PhysicsSchedule`, and panic if it doesn't exist.
         let physics = app
@@ -397,7 +373,7 @@ impl SpeculativeMargin {
 ///     ));
 /// }
 /// ```
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
 pub struct SweptCcd {
     /// The type of sweep used for swept CCD.
@@ -481,6 +457,19 @@ impl SweptCcd {
     }
 }
 
+impl Component for SweptCcd {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            world
+                .commands()
+                .entity(entity)
+                .insert(AabbIntersections::default());
+        });
+    }
+}
+
 /// The algorithm used for [Swept Continuous Collision Detection](self#swept-ccd).
 ///
 /// If two entities with different sweep modes collide, [`SweepMode::NonLinear`]
@@ -508,12 +497,6 @@ pub enum SweepMode {
     /// consider using [`SweepMode::Linear`].
     #[default]
     NonLinear,
-}
-
-fn init_ccd_aabb_intersections(mut commands: Commands, query: Query<Entity, Added<SweptCcd>>) {
-    for entity in &query {
-        commands.entity(entity).insert(AabbIntersections::default());
-    }
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
