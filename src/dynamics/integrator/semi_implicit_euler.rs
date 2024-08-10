@@ -77,7 +77,7 @@ pub fn integrate_velocity(
         // However, the basic semi-implicit approach can blow up, as semi-implicit Euler
         // extrapolates velocity and the gyroscopic torque is quadratic in the angular velocity.
         // Thus, we use implicit Euler, which is much more accurate and stable, although slightly more expensive.
-        let effective_inertia = locked_axes.apply_to_rotation(inv_inertia.inverse().0);
+        let effective_inertia = locked_axes.apply_to_rotation(inv_inertia.0).inverse();
         delta_ang_vel += solve_gyroscopic_torque(
             *ang_vel,
             rotation.0,
