@@ -281,6 +281,9 @@ impl ShapeCaster {
         hits: &mut ShapeHits,
         query_pipeline: &SpatialQueryPipeline,
     ) {
+        // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
+        //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
+        //       See https://github.com/Jondolf/avian/issues/403.
         let mut query_filter = self.query_filter.clone();
 
         if self.ignore_self {
@@ -303,7 +306,7 @@ impl ShapeCaster {
         let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.count < self.max_hits {
-            let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(&query_filter);
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*query_pipeline.dispatcher,
                 &shape_isometry,

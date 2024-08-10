@@ -49,9 +49,9 @@ impl SpatialQueryPipeline {
         SpatialQueryPipeline::default()
     }
 
-    pub(crate) fn as_composite_shape(
-        &self,
-        query_filter: SpatialQueryFilter,
+    pub(crate) fn as_composite_shape<'a>(
+        &'a self,
+        query_filter: &'a SpatialQueryFilter,
     ) -> QueryPipelineAsCompositeShape {
         QueryPipelineAsCompositeShape {
             pipeline: self,
@@ -62,7 +62,7 @@ impl SpatialQueryPipeline {
 
     pub(crate) fn as_composite_shape_with_predicate<'a>(
         &'a self,
-        query_filter: SpatialQueryFilter,
+        query_filter: &'a SpatialQueryFilter,
         predicate: &'a dyn Fn(Entity) -> bool,
     ) -> QueryPipelineAsCompositeShapeWithPredicate {
         QueryPipelineAsCompositeShapeWithPredicate {
@@ -167,7 +167,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape(query_filter);
         let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
@@ -208,7 +208,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
@@ -252,7 +252,7 @@ impl SpatialQueryPipeline {
         max_time_of_impact: Scalar,
         max_hits: u32,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         let mut hits = Vec::with_capacity(10);
         self.ray_hits_callback(
@@ -291,7 +291,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(RayHitData) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -353,7 +353,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
         let rotation: Rotation;
         #[cfg(feature = "2d")]
@@ -421,7 +421,7 @@ impl SpatialQueryPipeline {
         max_time_of_impact: Scalar,
         max_hits: u32,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         let mut hits = Vec::with_capacity(10);
         self.shape_hits_callback(
@@ -467,9 +467,14 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        mut query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(ShapeHitData) -> bool,
     ) {
+        // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
+        //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
+        //       See https://github.com/Jondolf/avian/issues/403.
+        let mut query_filter = query_filter.clone();
+
         let rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -484,7 +489,7 @@ impl SpatialQueryPipeline {
         let shape_direction = direction.adjust_precision().into();
 
         loop {
-            let pipeline_shape = self.as_composite_shape(query_filter.clone());
+            let pipeline_shape = self.as_composite_shape(&query_filter);
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*self.dispatcher,
                 &shape_isometry,
@@ -536,7 +541,7 @@ impl SpatialQueryPipeline {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
         let point = point.into();
         let pipeline_shape = self.as_composite_shape(query_filter);
@@ -564,7 +569,7 @@ impl SpatialQueryPipeline {
     pub fn point_intersections(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
         self.point_intersections_callback(point, query_filter, |e| {
@@ -588,7 +593,7 @@ impl SpatialQueryPipeline {
     pub fn point_intersections_callback(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let point = point.into();
@@ -663,7 +668,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
         self.shape_intersections_callback(
@@ -697,7 +702,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -745,7 +750,7 @@ impl SpatialQueryPipeline {
 pub(crate) struct QueryPipelineAsCompositeShape<'a> {
     colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
-    query_filter: SpatialQueryFilter,
+    query_filter: &'a SpatialQueryFilter,
 }
 
 impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
@@ -790,7 +795,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
 pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
     colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
-    query_filter: SpatialQueryFilter,
+    query_filter: &'a SpatialQueryFilter,
     predicate: &'b dyn Fn(Entity) -> bool,
 }
 
