@@ -85,7 +85,7 @@ impl Plugin for SyncPlugin {
 
         app.configure_sets(
             self.schedule,
-            MarkRigidBodyAncestors.in_set(PrepareSet::PreInit),
+            MarkRigidBodyAncestors.in_set(PrepareSet::First),
         );
 
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
