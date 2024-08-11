@@ -295,18 +295,20 @@ fn collide_and_slide(
             &Collider,
             Entity,
             Has<Grounded>,
-            &CharacterController,
+            &mut CharacterController,
         ),
-        (With<RigidBody>,),
+        With<RigidBody>,
     >,
     mut spatial_query: SpatialQuery,
     time: Res<Time>,
 ) {
+    let delta_seconds = time.delta_seconds_f64().adjust_precision();
+
     // Iterate over all character controllers and run the recursive_collide_and_slide function.
-    for (mut transform, _max_slope_angle, collider, entity, grounded, character_controller) in
+    for (mut transform, _max_slope_angle, collider, entity, grounded, mut character_controller) in
         &mut character_controllers
     {
-        let velocity = character_controller.velocity * time.delta_seconds_f64().adjust_precision();
+        let velocity = character_controller.velocity * delta_seconds;
 
         // Filter out ourself from the spatial query.
         let mut filter = SpatialQueryFilter::default().with_excluded_entities([entity]);
@@ -315,7 +317,7 @@ fn collide_and_slide(
         // where tight corridors can cause the character to get stuck or otherwise forced into the ground
         let mut planes = Vec::new();
 
-        let new_velocity = recursive_collide_and_slide(
+        let translation = recursive_collide_and_slide(
             &mut spatial_query,
             &mut filter,
             &collider,
@@ -329,7 +331,13 @@ fn collide_and_slide(
         );
 
         // Move us to the new position
-        transform.translation += new_velocity;
+        transform.translation += translation;
+
+        // Update the velocity
+        let new_velocity = translation / delta_seconds;
+        if new_velocity.is_finite() {
+            character_controller.velocity = new_velocity;
+        }
     }
 }
 
@@ -340,7 +348,7 @@ fn collide_and_slide(
 /// Its based upon the collide-and-slide algorithm, which is a common approach for
 /// handling collisions with kinematic bodies.
 ///
-/// /This specific implementation is based primarily on [Improved Collision detection and Response](https://www.peroxide.dk/papers/collision/collision.pdf).
+/// This specific implementation is based primarily on [Improved Collision detection and Response](https://www.peroxide.dk/papers/collision/collision.pdf).
 /// by Kasper Fauerby.
 fn recursive_collide_and_slide(
     spatial_query: &mut spatial_query::SpatialQuery,
@@ -354,7 +362,6 @@ fn recursive_collide_and_slide(
     up_vector: Vec3,
     grounded: bool,
 ) -> Vec3 {
-
     if max_depth == 0 {
         return velocity;
     }
