@@ -17,7 +17,7 @@
 //!
 //! Note that this is *not* intended to be a fully featured character controller,
 //! and the collision logic is quite basic.
-//! 
+//!
 //! You may encounter several issues with this implementation, such as:
 //! Character getting stuck in tight spaces and jittering on surfaces with high slopes.
 

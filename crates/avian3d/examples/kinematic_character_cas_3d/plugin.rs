@@ -1,7 +1,6 @@
 use avian3d::{math::*, prelude::*};
 use bevy::{ecs::query::Has, prelude::*};
-
-// Skin width for the character controller. 
+// Skin width for the character controller.
 // Basically a small offset to make the collider appear slightly larger.
 pub const SKIN_WIDTH: f32 = 0.01;
 // Number of collision steps for the collide and slide algorithm to act upon.
@@ -20,10 +19,10 @@ impl Plugin for CharacterControllerPlugin {
                     apply_gravity,
                     movement,
                     apply_movement_damping,
-                    collide_and_slide,
                 )
                     .chain(),
-            );
+            )
+            .add_systems(PostProcessCollisions, collide_and_slide);
     }
 }
 
@@ -249,8 +248,10 @@ fn movement(
         {
             match event {
                 MovementAction::Move(direction) => {
-                    character_controller.velocity.x += direction.x * movement_acceleration.0 * delta_time;
-                    character_controller.velocity.z -= direction.y * movement_acceleration.0 * delta_time;
+                    character_controller.velocity.x +=
+                        direction.x * movement_acceleration.0 * delta_time;
+                    character_controller.velocity.z -=
+                        direction.y * movement_acceleration.0 * delta_time;
                 }
                 MovementAction::Jump => {
                     if is_grounded {
@@ -294,7 +295,7 @@ fn collide_and_slide(
             &Collider,
             Entity,
             Option<&Grounded>,
-            &CharacterController
+            &CharacterController,
         ),
         (With<RigidBody>, With<CharacterController>),
     >,
@@ -302,12 +303,14 @@ fn collide_and_slide(
     time: Res<Time>,
 ) {
     // Iterate over all character controllers and run the recursive_collide_and_slide function.
-    for (mut transform, max_slope_angle, collider, entity, grounded, character_controller) in &mut character_controllers {
+    for (mut transform, _max_slope_angle, collider, entity, grounded, character_controller) in
+        &mut character_controllers
+    {
         let velocity = character_controller.velocity * time.delta_seconds_f64().adjust_precision();
 
         // Filter out ourself from the spatial query.
         let mut filter = SpatialQueryFilter::default().with_excluded_entities([entity]);
-        
+
         // This algorithm keeps a list of planes for the function in order to prevent a "crushing" effect
         // where tight corridors can cause the character to get stuck or otherwise forced into the ground
         let mut planes = Vec::new();
@@ -351,7 +354,6 @@ fn recursive_collide_and_slide(
     up_vector: Vec3,
     grounded: bool,
 ) -> Vec3 {
-    
     // If we're grounded we can safely ignore the up vector
     let velocity = if grounded {
         // Filter out the up vector from the velocity if its negative (i.e. we're moving downwards)
@@ -435,6 +437,6 @@ fn recursive_collide_and_slide(
             padding,
             planes,
             up_vector,
-            grounded
+            grounded,
         );
 }
