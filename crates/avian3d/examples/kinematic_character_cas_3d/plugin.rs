@@ -4,7 +4,7 @@ use bevy::{ecs::query::Has, prelude::*};
 // Basically a small offset to make the collider appear slightly larger.
 pub const SKIN_WIDTH: f32 = 0.01;
 // Number of collision steps for the collide and slide algorithm to act upon.
-pub const COLLISION_STEPS: usize = 20;
+pub const COLLISION_STEPS: usize = 5;
 pub struct CharacterControllerPlugin;
 
 impl Plugin for CharacterControllerPlugin {
@@ -294,10 +294,10 @@ fn collide_and_slide(
             Option<&MaxSlopeAngle>,
             &Collider,
             Entity,
-            Option<&Grounded>,
+            Has<Grounded>,
             &CharacterController,
         ),
-        (With<RigidBody>, With<CharacterController>),
+        (With<RigidBody>,),
     >,
     mut spatial_query: SpatialQuery,
     time: Res<Time>,
@@ -325,7 +325,7 @@ fn collide_and_slide(
             SKIN_WIDTH,
             &mut planes,
             Vector::Y,
-            grounded.is_some(),
+            grounded,
         );
 
         // Move us to the new position
