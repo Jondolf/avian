@@ -354,23 +354,12 @@ fn recursive_collide_and_slide(
     up_vector: Vec3,
     grounded: bool,
 ) -> Vec3 {
-    // If we're grounded we can safely ignore the up vector
-    let velocity = if grounded {
-        // Filter out the up vector from the velocity if its negative (i.e. we're moving downwards)
-        if velocity.dot(up_vector) < 0.0 {
-            velocity - up_vector * velocity.dot(up_vector)
-        } else {
-            velocity
-        }
-    } else {
-        velocity
-    };
 
     if max_depth == 0 {
         return velocity;
     }
 
-    if velocity == Vec3::ZERO {
+    if velocity.length_squared() < 0.00001 {
         return Vec3::ZERO;
     }
 
