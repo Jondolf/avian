@@ -5,7 +5,7 @@
 use std::marker::PhantomData;
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
-#[cfg(feature = "bevy_scene")]
+#[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
@@ -90,6 +90,37 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let collider_removed_id = app.world_mut().register_system(collider_removed);
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
+
+        let hooks = app.world_mut().register_component_hooks::<C>();
+
+        // Initialize missing components for colliders.
+        hooks.on_add(|mut world, entity, _| {
+            let entity_ref = world.entity(entity);
+
+            let collider = entity_ref.get::<C>().unwrap();
+            let aabb = entity_ref
+                .get::<ColliderAabb>()
+                .copied()
+                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default()));
+            let density = entity_ref
+                .get::<ColliderDensity>()
+                .copied()
+                .unwrap_or_default();
+
+            let mass_properties = if entity_ref.get::<Sensor>().is_some() {
+                ColliderMassProperties::ZERO
+            } else {
+                collider.mass_properties(density.0)
+            };
+
+            world.commands().entity(entity).try_insert((
+                aabb,
+                density,
+                mass_properties,
+                CollidingEntities::default(),
+                ColliderMarker,
+            ));
+        });
 
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
@@ -197,7 +228,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.add_systems(
             self.schedule,
             (
-                init_colliders::<C>.in_set(PrepareSet::InitColliders),
                 init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
@@ -214,9 +244,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // Update collider parents for colliders that are on the same entity as the rigid body.
         app.add_systems(
             self.schedule,
-            update_root_collider_parents::<C>
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::Finalize),
+            update_root_collider_parents::<C>.before(PrepareSet::Finalize),
         );
 
         let physics_schedule = app
@@ -233,6 +261,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .ambiguous_with_all(),
         );
 
+        #[cfg(feature = "default-collider")]
         app.add_systems(
             Update,
             (
@@ -249,43 +278,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 #[derive(Reflect, Component, Clone, Copy, Debug)]
 pub struct ColliderMarker;
 
-/// Initializes missing components for [colliders](Collider).
-#[allow(clippy::type_complexity)]
-pub(crate) fn init_colliders<C: AnyCollider>(
-    mut commands: Commands,
-    mut colliders: Query<
-        (
-            Entity,
-            &C,
-            Option<&ColliderAabb>,
-            Option<&ColliderDensity>,
-            Has<Sensor>,
-        ),
-        Added<C>,
-    >,
-) {
-    for (entity, collider, aabb, density, is_sensor) in &mut colliders {
-        let density = *density.unwrap_or(&ColliderDensity::default());
-        let mass_properties = if is_sensor {
-            ColliderMassProperties::ZERO
-        } else {
-            collider.mass_properties(density.0)
-        };
-
-        commands.entity(entity).try_insert((
-            *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
-            density,
-            mass_properties,
-            CollidingEntities::default(),
-            ColliderMarker,
-        ));
-    }
-}
-
 /// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
 ///
 /// The [`ColliderHierarchyPlugin`] should be used to handle hierarchies.
-#[allow(clippy::type_complexity)]
 fn update_root_collider_parents<C: AnyCollider>(
     mut commands: Commands,
     mut bodies: Query<
@@ -315,6 +310,7 @@ fn update_root_collider_parents<C: AnyCollider>(
 /// # Panics
 ///
 /// Panics if the [`ColliderConstructor`] requires a mesh but no mesh handle is found.
+#[cfg(feature = "default-collider")]
 fn init_collider_constructors(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
@@ -371,6 +367,7 @@ fn init_collider_constructors(
 /// Generates [`Collider`]s for descendants of entities with the [`ColliderConstructorHierarchy`] component.
 ///
 /// If an entity has a `SceneInstance`, its collider hierarchy is only generated once the scene is ready.
+#[cfg(feature = "default-collider")]
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
@@ -481,6 +478,7 @@ fn init_collider_constructor_hierarchies(
     }
 }
 
+#[cfg(feature = "default-collider")]
 fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
     name.map(|n| n.to_string())
         .unwrap_or_else(|| format!("<unnamed entity {}>", entity.index()))
@@ -728,9 +726,11 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "default-collider")]
     use super::*;
 
     #[test]
+    #[cfg(feature = "default-collider")]
     fn sensor_mass_properties() {
         let mut app = App::new();
 

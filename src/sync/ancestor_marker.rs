@@ -98,9 +98,17 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
 /// A marker component that marks an entity as an ancestor of an entity with the given component `C`.
 ///
 /// This is added and removed automatically by the [`AncestorMarkerPlugin`] if it is enabled.
-#[derive(Component, Reflect)]
+#[derive(Component, Copy, Reflect)]
+#[reflect(Component, Default)]
 pub struct AncestorMarker<C: Component> {
+    #[reflect(ignore)]
     _phantom: PhantomData<C>,
+}
+
+impl<C: Component> Clone for AncestorMarker<C> {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
 }
 
 impl<C: Component> Default for AncestorMarker<C> {

@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        component::{ComponentHooks, StorageType},
+        entity::{EntityMapper, MapEntities},
+    },
     prelude::*,
 };
 use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOptions};
@@ -50,7 +53,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component)]
@@ -281,6 +284,9 @@ impl ShapeCaster {
         hits: &mut ShapeHits,
         query_pipeline: &SpatialQueryPipeline,
     ) {
+        // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
+        //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
+        //       See https://github.com/Jondolf/avian/issues/403.
         let mut query_filter = self.query_filter.clone();
 
         if self.ignore_self {
@@ -303,7 +309,7 @@ impl ShapeCaster {
         let shape_direction = self.global_direction().adjust_precision().into();
 
         while hits.count < self.max_hits {
-            let pipeline_shape = query_pipeline.as_composite_shape(query_filter.clone());
+            let pipeline_shape = query_pipeline.as_composite_shape(&query_filter);
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*query_pipeline.dispatcher,
                 &shape_isometry,
@@ -339,6 +345,26 @@ impl ShapeCaster {
                 return;
             }
         }
+    }
+}
+
+impl Component for ShapeCaster {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            let shape_caster = world.get::<ShapeCaster>(entity).unwrap();
+            let max_hits = if shape_caster.max_hits == u32::MAX {
+                10
+            } else {
+                shape_caster.max_hits as usize
+            };
+
+            world.commands().entity(entity).try_insert(ShapeHits {
+                vector: Vec::with_capacity(max_hits),
+                count: 0,
+            });
+        });
     }
 }
 

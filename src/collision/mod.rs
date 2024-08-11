@@ -30,15 +30,12 @@ pub use collider::*;
 mod layers;
 pub use layers::*;
 
+mod feature_id;
+pub use feature_id::PackedFeatureId;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
-
-/// A feature ID indicating the type of a geometric feature: a vertex, an edge, or (in 3D) a face.
-///
-/// This type packs the feature type into the same value as the feature index,
-/// which indicates the specific vertex/edge/face that this ID belongs to.
-pub type PackedFeatureId = parry::shape::PackedFeatureId;
 
 // TODO: Refactor this into a contact graph.
 // Collisions are stored in an `IndexMap` that uses fxhash.
@@ -66,7 +63,7 @@ pub type PackedFeatureId = parry::shape::PackedFeatureId;
 /// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
 /// - [`contains`](Self::contains)
 /// - [`collisions_with_entity`](Self::collisions_with_entity) and
-/// [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
+///   [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
 ///
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.

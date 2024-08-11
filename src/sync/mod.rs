@@ -85,7 +85,7 @@ impl Plugin for SyncPlugin {
 
         app.configure_sets(
             self.schedule,
-            MarkRigidBodyAncestors.in_set(PrepareSet::PreInit),
+            MarkRigidBodyAncestors.in_set(PrepareSet::First),
         );
 
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
@@ -558,9 +558,9 @@ pub fn propagate_transforms_physics(
 /// # Safety
 ///
 /// - While this function is running, `transform_query` must not have any fetches for `entity`,
-/// nor any of its descendants.
+///   nor any of its descendants.
 /// - The caller must ensure that the hierarchy leading to `entity`
-/// is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
+///   is well-formed and must remain as a tree or a forest. Each entity must have at most one parent.
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_transforms_physics_recursive(
     parent: &GlobalTransform,

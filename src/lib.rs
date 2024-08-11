@@ -464,6 +464,8 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
+    #[cfg(feature = "default-collider")]
+    pub(crate) use crate::position::RotationValue;
     pub use crate::{
         collision::{
             self,
@@ -486,9 +488,7 @@ pub mod prelude {
     };
     pub(crate) use crate::{
         math::*,
-        position::{
-            PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation, RotationValue,
-        },
+        position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
     };
     pub use avian_derive::*;
 }
@@ -724,9 +724,9 @@ impl PluginGroup for PhysicsPlugins {
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
-            .add(CcdPlugin::new(self.schedule))
+            .add(CcdPlugin)
             .add(SleepingPlugin)
-            .add(SpatialQueryPlugin::new(self.schedule))
+            .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
     }
 }

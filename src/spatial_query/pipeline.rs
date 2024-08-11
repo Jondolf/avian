@@ -49,9 +49,9 @@ impl SpatialQueryPipeline {
         SpatialQueryPipeline::default()
     }
 
-    pub(crate) fn as_composite_shape(
-        &self,
-        query_filter: SpatialQueryFilter,
+    pub(crate) fn as_composite_shape<'a>(
+        &'a self,
+        query_filter: &'a SpatialQueryFilter,
     ) -> QueryPipelineAsCompositeShape {
         QueryPipelineAsCompositeShape {
             pipeline: self,
@@ -62,7 +62,7 @@ impl SpatialQueryPipeline {
 
     pub(crate) fn as_composite_shape_with_predicate<'a>(
         &'a self,
-        query_filter: SpatialQueryFilter,
+        query_filter: &'a SpatialQueryFilter,
         predicate: &'a dyn Fn(Entity) -> bool,
     ) -> QueryPipelineAsCompositeShapeWithPredicate {
         QueryPipelineAsCompositeShapeWithPredicate {
@@ -157,7 +157,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::cast_ray`]
@@ -167,7 +167,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape(query_filter);
         let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
@@ -196,10 +196,10 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
-    /// entity should be ignored.
+    ///   entity should be ignored.
     ///
     /// See also: [`SpatialQuery::cast_ray`]
     pub fn cast_ray_predicate(
@@ -208,7 +208,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
         let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
@@ -241,7 +241,7 @@ impl SpatialQueryPipeline {
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::ray_hits`]
@@ -252,7 +252,7 @@ impl SpatialQueryPipeline {
         max_time_of_impact: Scalar,
         max_hits: u32,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         let mut hits = Vec::with_capacity(10);
         self.ray_hits_callback(
@@ -280,7 +280,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_time_of_impact`: The maximum distance that the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
-    /// Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -291,7 +291,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(RayHitData) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -339,8 +339,8 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::cast_shape`]
@@ -353,7 +353,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
         let rotation: Rotation;
         #[cfg(feature = "2d")]
@@ -405,8 +405,8 @@ impl SpatialQueryPipeline {
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -421,7 +421,7 @@ impl SpatialQueryPipeline {
         max_time_of_impact: Scalar,
         max_hits: u32,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         let mut hits = Vec::with_capacity(10);
         self.shape_hits_callback(
@@ -452,8 +452,8 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    /// shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    /// hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -467,9 +467,14 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        mut query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(ShapeHitData) -> bool,
     ) {
+        // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
+        //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
+        //       See https://github.com/Jondolf/avian/issues/403.
+        let mut query_filter = query_filter.clone();
+
         let rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -484,7 +489,7 @@ impl SpatialQueryPipeline {
         let shape_direction = direction.adjust_precision().into();
 
         loop {
-            let pipeline_shape = self.as_composite_shape(query_filter.clone());
+            let pipeline_shape = self.as_composite_shape(&query_filter);
             let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
                 &*self.dispatcher,
                 &shape_isometry,
@@ -528,7 +533,7 @@ impl SpatialQueryPipeline {
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
-    /// Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// See also: [`SpatialQuery::project_point`]
@@ -536,7 +541,7 @@ impl SpatialQueryPipeline {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
         let point = point.into();
         let pipeline_shape = self.as_composite_shape(query_filter);
@@ -564,7 +569,7 @@ impl SpatialQueryPipeline {
     pub fn point_intersections(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
         self.point_intersections_callback(point, query_filter, |e| {
@@ -588,7 +593,7 @@ impl SpatialQueryPipeline {
     pub fn point_intersections_callback(
         &self,
         point: Vector,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let point = point.into();
@@ -663,7 +668,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
         self.shape_intersections_callback(
@@ -697,7 +702,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -745,7 +750,7 @@ impl SpatialQueryPipeline {
 pub(crate) struct QueryPipelineAsCompositeShape<'a> {
     colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
-    query_filter: SpatialQueryFilter,
+    query_filter: &'a SpatialQueryFilter,
 }
 
 impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
@@ -790,7 +795,7 @@ impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
 pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
     colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
-    query_filter: SpatialQueryFilter,
+    query_filter: &'a SpatialQueryFilter,
     predicate: &'b dyn Fn(Entity) -> bool,
 }
 

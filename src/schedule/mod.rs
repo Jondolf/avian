@@ -25,11 +25,11 @@ use bevy::{
 /// This plugin initializes and configures the following schedules and system sets:
 ///
 /// - [`PhysicsSet`]: High-level system sets for the main phases of the physics engine.
-/// You can use these to schedule your own systems before or after physics is run without
-/// having to worry about implementation details.
+///   You can use these to schedule your own systems before or after physics is run without
+///   having to worry about implementation details.
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-/// the broad phase and the substepping loop.
+///   the broad phase and the substepping loop.
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
@@ -60,17 +60,6 @@ impl Plugin for PhysicsSchedulePlugin {
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;
-
-        app.configure_sets(
-            schedule,
-            (
-                PhysicsSet::Prepare,
-                PhysicsSet::StepSimulation,
-                PhysicsSet::Sync,
-            )
-                .chain()
-                .before(TransformSystem::TransformPropagate),
-        );
 
         app.configure_sets(
             schedule,
@@ -191,10 +180,10 @@ pub struct PostProcessCollisions;
 /// having to worry about implementation details.
 ///
 /// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
-/// updating several components.
+///    updating several components.
 /// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
 /// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
-/// and [`Rotation`] in sync with `Transform`.
+///    and [`Rotation`] in sync with `Transform`.
 ///
 /// ## See also
 ///
