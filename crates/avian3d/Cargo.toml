@@ -92,6 +92,10 @@ name = "kinematic_character_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
+name = "kinematic_character_cas_3d"
+required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
 name = "cast_ray_predicate"
 required-features = ["3d", "default-collider"]
 
