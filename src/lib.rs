@@ -178,7 +178,6 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [Physics timestep](Physics#usage)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
@@ -367,16 +366,9 @@
 //!
 //! ### Can the engine be used on servers?
 //!
-//! Yes! Networking often requires running the simulation in a specific schedule, and in Avian you can
-//! [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics)
-//! to whatever you want.
-//!
-//! One configuration is to run the client in `FixedUpdate`, and to use a fixed timestep for [`Time<Physics>`](Physics)
-//! on both the server and the client to make sure the physics simulation is only advanced by one step
-//! each time the schedule runs.
-//!
-//! Note that while Avian should be locally deterministic (at least when single-threaded),
-//! it can produce slightly different results on different machines.
+//! Yes! Networking often requires running the simulation in a specific schedule, and in Avian it is straightforward
+//! to [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics) if needed.
+//! By default, physics runs at a fixed timestep in [`FixedPostUpdate`].
 //!
 //! ### Something else?
 //!
@@ -580,14 +572,11 @@ use prelude::*;
 ///
 /// fn main() {
 ///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::new(FixedUpdate)))
+///         // Run physics at a variable timestep in `PostUpdate`.
+///         .add_plugins((DefaultPlugins, PhysicsPlugins::new(PostUpdate)))
 ///         .run();
 /// }
 /// ```
-///
-/// Note that using `FixedUpdate` with a fixed [physics timestep](Physics) can produce unexpected results due to two separate
-/// fixed timesteps. However, using `FixedUpdate` can be useful for [networking usage](crate#can-the-engine-be-used-on-servers)
-/// when you need to keep the client and server in sync.
 ///
 /// ## Custom plugins
 ///
@@ -710,7 +699,7 @@ impl PhysicsPlugins {
 
 impl Default for PhysicsPlugins {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
