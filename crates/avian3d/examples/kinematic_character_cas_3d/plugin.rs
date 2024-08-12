@@ -485,7 +485,7 @@ pub fn snap_to_floor(
             // Get our distance based on travel time
             let distance = cast_result.time_of_impact - SKIN_WIDTH;
             // Move us down
-            transform.translation.y -= distance - SKIN_WIDTH;
+            transform.translation.y -= distance;
         }
     }
 }
