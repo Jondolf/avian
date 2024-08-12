@@ -22,7 +22,7 @@ impl Plugin for CharacterControllerPlugin {
                 )
                     .chain(),
             )
-            .add_systems(PostProcessCollisions, collide_and_slide);
+            .add_systems(PostProcessCollisions, (collide_and_slide, snap_to_floor).chain());
     }
 }
 
@@ -432,4 +432,33 @@ fn recursive_collide_and_slide(
             up_vector,
             grounded,
         );
+}
+
+
+pub fn snap_to_floor(
+    mut query: Query<(&mut Transform, &Collider, Has<Grounded>, Entity, &CharacterController)>,
+    spatial_query: SpatialQuery,
+) {
+    for (mut transform, collider, grounded, entity, controller) in &mut query {
+        let cast_result = if let Some(cast_result) = spatial_query.cast_shape(
+            collider,
+            transform.translation,
+            transform.rotation,
+            Dir3::NEG_Y,
+            0.2,
+            true,
+            &SpatialQueryFilter::default().with_excluded_entities([entity]),
+        ) {
+            cast_result
+        } else {
+            continue;
+        };
+
+        if grounded && controller.velocity.y <= 0.02 && cast_result.time_of_impact > 0.0 {
+            // Get our distance based on travel time
+            let distance = cast_result.time_of_impact - SKIN_WIDTH;
+            // Move us down
+            transform.translation.y -= distance;
+        }
+    }
 }
