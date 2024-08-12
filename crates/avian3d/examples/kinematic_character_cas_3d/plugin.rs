@@ -22,7 +22,10 @@ impl Plugin for CharacterControllerPlugin {
                 )
                     .chain(),
             )
-            .add_systems(PostProcessCollisions, (snap_to_floor, collide_and_slide).chain());
+            .add_systems(
+                PostProcessCollisions,
+                (snap_to_floor, collide_and_slide).chain(),
+            );
     }
 }
 
@@ -328,7 +331,7 @@ fn collide_and_slide(
             &mut planes,
             Vector::Y,
             grounded,
-            max_slope_angle
+            max_slope_angle,
         );
 
         // Move us to the new position
@@ -397,7 +400,7 @@ fn recursive_collide_and_slide(
         planes.clear();
     }
 
-    let mut should_slope_slide = true; 
+    let mut should_slope_slide = true;
     // We only want to handle this if the controller set a max slope angle
     if let Some(max_slope_angle) = max_slope_angle {
         let angle = cast_result.normal1.angle_between(up_vector);
@@ -453,9 +456,14 @@ fn recursive_collide_and_slide(
         );
 }
 
-
 pub fn snap_to_floor(
-    mut query: Query<(&mut Transform, &Collider, Has<Grounded>, Entity, &CharacterController)>,
+    mut query: Query<(
+        &mut Transform,
+        &Collider,
+        Has<Grounded>,
+        Entity,
+        &CharacterController,
+    )>,
     spatial_query: SpatialQuery,
 ) {
     for (mut transform, collider, grounded, entity, controller) in &mut query {
@@ -477,7 +485,7 @@ pub fn snap_to_floor(
             // Get our distance based on travel time
             let distance = cast_result.time_of_impact - SKIN_WIDTH;
             // Move us down
-            transform.translation.y -= distance;
+            transform.translation.y -= distance - SKIN_WIDTH;
         }
     }
 }
