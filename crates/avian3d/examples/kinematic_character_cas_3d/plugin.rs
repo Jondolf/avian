@@ -22,7 +22,7 @@ impl Plugin for CharacterControllerPlugin {
                 )
                     .chain(),
             )
-            .add_systems(PostProcessCollisions, (collide_and_slide, snap_to_floor).chain());
+            .add_systems(PostProcessCollisions, (snap_to_floor, collide_and_slide).chain());
     }
 }
 
@@ -305,7 +305,7 @@ fn collide_and_slide(
     let delta_seconds = time.delta_seconds_f64().adjust_precision();
 
     // Iterate over all character controllers and run the recursive_collide_and_slide function.
-    for (mut transform, _max_slope_angle, collider, entity, grounded, mut character_controller) in
+    for (mut transform, max_slope_angle, collider, entity, grounded, mut character_controller) in
         &mut character_controllers
     {
         let velocity = character_controller.velocity * delta_seconds;
@@ -328,6 +328,7 @@ fn collide_and_slide(
             &mut planes,
             Vector::Y,
             grounded,
+            max_slope_angle
         );
 
         // Move us to the new position
@@ -358,6 +359,7 @@ fn recursive_collide_and_slide(
     planes: &mut Vec<Vec3>,
     up_vector: Vec3,
     grounded: bool,
+    max_slope_angle: Option<&MaxSlopeAngle>,
 ) -> Vec3 {
     if max_depth == 0 {
         return velocity;
@@ -395,6 +397,22 @@ fn recursive_collide_and_slide(
         planes.clear();
     }
 
+    // Slope sliding behavior
+    let mut should_slope_slide = true; 
+    if let Some(max_slope_angle) = max_slope_angle {
+        let angle = cast_result.normal1.angle_between(up_vector);
+        if angle < max_slope_angle.0 {
+            should_slope_slide = false;
+        }
+    }
+
+    let velocity = if !should_slope_slide && velocity.dot(up_vector) < 0.0 {
+        velocity - up_vector * velocity.dot(up_vector)
+    } else {
+        velocity
+    };
+
+
     planes.push(cast_result.normal1);
 
     let surface_point = velocity * (cast_result.time_of_impact - padding).max(0.0);
@@ -402,7 +420,6 @@ fn recursive_collide_and_slide(
 
     let mut projected_velocity =
         remaining_velocity - cast_result.normal1 * remaining_velocity.dot(cast_result.normal1);
-
     // Performance: This could get expensive with a lot of planes. We should optimize this later.
     if planes.len() > 1 {
         for (plane, next_plane) in planes
@@ -431,6 +448,7 @@ fn recursive_collide_and_slide(
             planes,
             up_vector,
             grounded,
+            max_slope_angle,
         );
 }
 
@@ -454,7 +472,7 @@ pub fn snap_to_floor(
             continue;
         };
 
-        if grounded && controller.velocity.y <= 0.02 && cast_result.time_of_impact > 0.0 {
+        if grounded && controller.velocity.y <= 0.0 && cast_result.time_of_impact > 0.0 {
             // Get our distance based on travel time
             let distance = cast_result.time_of_impact - SKIN_WIDTH;
             // Move us down
