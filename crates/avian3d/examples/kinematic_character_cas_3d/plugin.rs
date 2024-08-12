@@ -397,21 +397,22 @@ fn recursive_collide_and_slide(
         planes.clear();
     }
 
-    // Slope sliding behavior
     let mut should_slope_slide = true; 
+    // We only want to handle this if the controller set a max slope angle
     if let Some(max_slope_angle) = max_slope_angle {
         let angle = cast_result.normal1.angle_between(up_vector);
-        if angle < max_slope_angle.0 {
+        // If the slope isn't very steep and its a floor there's no reason to slide.
+        if angle < max_slope_angle.0 && cast_result.normal1.dot(up_vector) > 0.0 {
             should_slope_slide = false;
         }
     }
 
+    // Eliminate gravity if we're not suppoosed to slide right now.
     let velocity = if !should_slope_slide && velocity.dot(up_vector) < 0.0 {
         velocity - up_vector * velocity.dot(up_vector)
     } else {
         velocity
     };
-
 
     planes.push(cast_result.normal1);
 
