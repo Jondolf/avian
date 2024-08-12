@@ -334,10 +334,7 @@ fn collide_and_slide(
         transform.translation += translation;
 
         // Update the velocity
-        let new_velocity = translation / delta_seconds;
-        if new_velocity.is_finite() {
-            character_controller.velocity = new_velocity;
-        }
+        character_controller.velocity = translation / delta_seconds;
     }
 }
 
