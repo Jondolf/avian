@@ -38,7 +38,7 @@ pub struct PhysicsSchedulePlugin {
 impl PhysicsSchedulePlugin {
     /// Creates a [`PhysicsSchedulePlugin`] using the given schedule for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -48,7 +48,7 @@ impl PhysicsSchedulePlugin {
 
 impl Default for PhysicsSchedulePlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
@@ -295,61 +295,26 @@ impl Default for SubstepCount {
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
-        let real_delta = world.resource::<Time<Real>>().delta();
-        let old_delta = world.resource::<Time<Physics>>().delta();
         let is_paused = world.resource::<Time<Physics>>().is_paused();
         let old_clock = world.resource::<Time>().as_generic();
         let physics_clock = world.resource_mut::<Time<Physics>>();
 
         // Get the scaled timestep delta time based on the timestep mode.
-        let timestep = match physics_clock.timestep_mode() {
-            TimestepMode::Fixed { delta, .. } => delta.mul_f64(physics_clock.relative_speed_f64()),
-            TimestepMode::FixedOnce { delta } => delta.mul_f64(physics_clock.relative_speed_f64()),
-            TimestepMode::Variable { max_delta } => {
-                let scaled_delta = real_delta.mul_f64(physics_clock.relative_speed_f64());
-                scaled_delta.min(max_delta)
-            }
-        };
-
-        // How many steps should be run during this frame.
-        // For `TimestepMode::Fixed`, this is computed using the accumulated overstep.
-        let mut queued_steps = 1;
-
-        if !is_first_run.0 {
-            if let TimestepMode::Fixed {
-                delta,
-                overstep,
-                max_delta_overstep,
-            } = world.resource_mut::<Time<Physics>>().timestep_mode_mut()
-            {
-                // If paused, add the `Physics` delta time, otherwise add real time.
-                if is_paused {
-                    *overstep += old_delta;
-                } else {
-                    *overstep += real_delta.min(*max_delta_overstep);
-                }
-
-                // Consume as many steps as possible with the fixed `delta`.
-                queued_steps = (overstep.as_secs_f64() / delta.as_secs_f64()) as usize;
-                *overstep -= delta.mul_f64(queued_steps as f64);
-            }
-        }
+        let timestep = old_clock
+            .delta()
+            .mul_f64(physics_clock.relative_speed_f64());
 
         // Advance physics clock by timestep if not paused.
         if !is_paused {
             world.resource_mut::<Time<Physics>>().advance_by(timestep);
         }
 
-        if world.resource::<Time<Physics>>().delta() >= timestep {
-            // Set generic `Time` resource to `Time<Physics>`.
-            *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
+        // Set generic `Time` resource to `Time<Physics>`.
+        *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 
-            // Advance simulation by the number of queued steps.
-            for _ in 0..queued_steps {
-                trace!("running PhysicsSchedule");
-                schedule.run(world);
-            }
-        }
+        // Advance simulation.
+        trace!("running PhysicsSchedule");
+        schedule.run(world);
 
         // If physics is paused, reset delta time to stop simulation
         // unless users manually advance `Time<Physics>`.

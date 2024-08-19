@@ -18,8 +18,6 @@ pub fn bench_app<M: Measurement>(
                 PhysicsPlugins::default(),
             ));
 
-            app.insert_resource(Time::new_with(Physics::fixed_once_hz(60.0)));
-
             setup(&mut app);
 
             while app.plugins_state() != PluginsState::Ready {

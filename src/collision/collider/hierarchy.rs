@@ -27,7 +27,7 @@ pub struct ColliderHierarchyPlugin {
 impl ColliderHierarchyPlugin {
     /// Creates a [`ColliderHierarchyPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -38,7 +38,7 @@ impl ColliderHierarchyPlugin {
 impl Default for ColliderHierarchyPlugin {
     fn default() -> Self {
         Self {
-            schedule: PostUpdate.intern(),
+            schedule: FixedPostUpdate.intern(),
         }
     }
 }
