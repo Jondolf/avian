@@ -131,6 +131,7 @@ pub fn integrate_position(
         if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
             let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
             rot.0 = delta_rot * rot.0;
+            rot.renormalize();
         }
     }
 }

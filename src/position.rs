@@ -701,6 +701,15 @@ impl Rotation {
     pub fn slerp(self, end: Self, t: Scalar) -> Self {
         Self(self.0.slerp(end.0, t))
     }
+
+    /// Performs a renormalization of the contained quaternion
+    #[inline]
+    pub fn renormalize(&mut self) {
+        let length_squared = self.0.length_squared();
+        // 1/L = (L^2)^-(1/2) = ~= 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+        let approx_inv_length = 0.5 * (3.0 - length_squared);
+        self.0 = Quaternion::from_vec4(Vec4::from(self.0) * approx_inv_length);
+    }
 }
 
 #[cfg(feature = "3d")]

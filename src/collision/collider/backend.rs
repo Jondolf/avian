@@ -586,6 +586,7 @@ fn update_aabb<C: AnyCollider>(
             {
                 let mut end_rot =
                     Rotation(Quaternion::from_scaled_axis(ang_vel.0 * delta_secs) * rot.0);
+                end_rot.renormalize();
                 (
                     pos.0
                         + (lin_vel.0 * delta_secs)

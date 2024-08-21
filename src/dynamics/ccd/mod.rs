@@ -661,6 +661,7 @@ fn solve_swept_ccd(
             {
                 let delta_rot = Quaternion::from_scaled_axis(ang_vel1.0 * min_toi);
                 rot1.0 = delta_rot * prev_rot.0 .0;
+                rot1.renormalize();
             }
 
             if let Some(mut collider_translation) = body2.translation {
@@ -677,6 +678,7 @@ fn solve_swept_ccd(
                     let delta_rot = Quaternion::from_scaled_axis(collider_ang_vel * min_toi);
 
                     body2.rot.0 = delta_rot * collider_prev_rot.0 .0;
+                    body2.rot.renormalize();
                 }
             }
         }
