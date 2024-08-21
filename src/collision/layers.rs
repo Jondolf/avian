@@ -33,9 +33,10 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// #
 /// #[derive(PhysicsLayer, Clone, Copy, Debug)]
 /// enum GameLayer {
-///     Player, // Layer 0
-///     Enemy,  // Layer 1
-///     Ground, // Layer 2
+///     Default, // Layer 0
+///     Player,  // Layer 1
+///     Enemy,   // Layer 2
+///     Ground,  // Layer 3
 /// }
 ///
 /// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
@@ -238,8 +239,12 @@ impl Not for LayerMask {
 /// - The memberships of `A` contain a layer that is also in the filters of `B`
 /// - The memberships of `B` contain a layer that is also in the filters of `A`
 ///
-/// Colliders without this component can be considered as having all memberships and filters, and they can
-/// interact with everything that belongs on any layer.
+/// The memberships and filters are stored as [`LayerMask`]s, which represent [bitmasks] for layers.
+/// The first bit `0b0001` is reserved for the default layer, which all entities belong to by default.
+///
+/// Colliders without this component have all filters and can interact with any layer.
+///
+/// [bitmasks]: https://en.wikipedia.org/wiki/Mask_(computing)
 ///
 /// ## Creation
 ///
@@ -266,13 +271,17 @@ impl Not for LayerMask {
 /// #
 /// #[derive(PhysicsLayer)]
 /// enum GameLayer {
-///     Ground, // Layer 0 - the default layer that objects are assigned to
-///     Player, // Layer 1
-///     Enemy,  // Layer 2
+///     Default, // Layer 0 - the default layer that objects are assigned to
+///     Player,  // Layer 1
+///     Enemy,   // Layer 2
+///     Ground,  // Layer 3
 /// }
 ///
 /// // Player collides with enemies and the ground, but not with other players
-/// let layers = CollisionLayers::new(GameLayer::Player, [GameLayer::Enemy, GameLayer::Ground]);
+/// let layers = CollisionLayers::new(
+///     GameLayer::Player,
+///     [GameLayer::Default, GameLayer::Enemy, GameLayer::Ground],
+/// );
 /// ```
 ///
 /// You can also use [`LayerMask`] directly:
@@ -423,6 +432,7 @@ mod tests {
 
     #[derive(PhysicsLayer)]
     enum GameLayer {
+        Default,
         Player,
         Enemy,
         Ground,
@@ -430,11 +440,13 @@ mod tests {
 
     #[test]
     fn creation() {
-        let with_bitmask = CollisionLayers::new(0b0010, 0b0101);
-        let with_enum =
-            CollisionLayers::new(GameLayer::Enemy, [GameLayer::Player, GameLayer::Ground]);
+        let with_bitmask = CollisionLayers::new(0b00100, 0b01011);
+        let with_enum = CollisionLayers::new(
+            GameLayer::Enemy,
+            [GameLayer::Default, GameLayer::Player, GameLayer::Ground],
+        );
         let with_layers =
-            CollisionLayers::new(LayerMask::from(GameLayer::Enemy), LayerMask(0b0101));
+            CollisionLayers::new(LayerMask::from(GameLayer::Enemy), LayerMask(0b01011));
 
         assert_eq!(with_bitmask, with_enum);
         assert_eq!(with_bitmask, with_layers);
