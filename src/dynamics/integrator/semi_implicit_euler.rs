@@ -129,8 +129,8 @@ pub fn integrate_position(
         // Maybe there's a simpler and more numerically stable way?
         let scaled_axis = ang_vel * delta_seconds;
         if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
-            let delta_rot = Quaternion::from_vec4((scaled_axis / 2.0).extend(0.0)) * rot.0;
-            rot.0 = (rot.0 + delta_rot).normalize();
+            let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
+            rot.0 = delta_rot * rot.0;
         }
     }
 }
