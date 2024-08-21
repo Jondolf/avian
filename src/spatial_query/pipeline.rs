@@ -169,22 +169,14 @@ impl SpatialQueryPipeline {
         solid: bool,
         query_filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
-        let pipeline_shape = self.as_composite_shape(query_filter);
-        let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
-        let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
-            &pipeline_shape,
-            &ray,
+        self.cast_ray_predicate(
+            origin,
+            direction,
             max_time_of_impact,
             solid,
-        );
-
-        self.qbvh
-            .traverse_best_first(&mut visitor)
-            .map(|(_, (entity_index, hit))| RayHitData {
-                entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.time_of_impact,
-                normal: hit.normal.into(),
-            })
+            query_filter,
+            &|_| true,
+        )
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -355,6 +347,50 @@ impl SpatialQueryPipeline {
         ignore_origin_penetration: bool,
         query_filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
+        self.cast_shape_predicate(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            max_time_of_impact,
+            ignore_origin_penetration,
+            query_filter,
+            &|_| true,
+        )
+    }
+
+    /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
+    /// with a collider. If there are no hits, `None` is returned.
+    ///
+    /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
+    ///
+    /// ## Arguments
+    ///
+    /// - `shape`: The shape being cast represented as a [`Collider`].
+    /// - `origin`: Where the shape is cast from.
+    /// - `shape_rotation`: The rotation of the shape being cast.
+    /// - `direction`: What direction the shape is cast in.
+    /// - `max_time_of_impact`: The maximum distance that the shape can travel.
+    /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
+    ///     shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///     hit will be returned.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
+    ///     entity should be ignored.
+    ///
+    /// See also: [`SpatialQuery::cast_shape`]
+    #[allow(clippy::too_many_arguments)]
+    pub fn cast_shape_predicate(
+        &self,
+        shape: &Collider,
+        origin: Vector,
+        shape_rotation: RotationValue,
+        direction: Dir,
+        max_time_of_impact: Scalar,
+        ignore_origin_penetration: bool,
+        query_filter: SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<ShapeHitData> {
         let rotation: Rotation;
         #[cfg(feature = "2d")]
         {
@@ -367,7 +403,7 @@ impl SpatialQueryPipeline {
 
         let shape_isometry = make_isometry(origin, rotation);
         let shape_direction = direction.adjust_precision().into();
-        let pipeline_shape = self.as_composite_shape(query_filter);
+        let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
             &*self.dispatcher,
             &shape_isometry,
@@ -543,8 +579,31 @@ impl SpatialQueryPipeline {
         solid: bool,
         query_filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
+        self.project_point_predicate(point, solid, query_filter, &|_| true)
+    }
+
+    /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
+    /// If one isn't found, `None` is returned.
+    ///
+    /// ## Arguments
+    ///
+    /// - `point`: The point that should be projected.
+    /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
+    ///     Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
+    ///     entity should be ignored.
+    ///
+    /// See also: [`SpatialQuery::project_point`]
+    pub fn project_point_predicate(
+        &self,
+        point: Vector,
+        solid: bool,
+        query_filter: SpatialQueryFilter,
+        predicate: &dyn Fn(Entity) -> bool,
+    ) -> Option<PointProjection> {
         let point = point.into();
-        let pipeline_shape = self.as_composite_shape(query_filter);
+        let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
         let mut visitor =
             PointCompositeShapeProjBestFirstVisitor::new(&pipeline_shape, &point, solid);
 
