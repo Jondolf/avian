@@ -33,14 +33,14 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// #
 /// #[derive(PhysicsLayer, Clone, Copy, Debug)]
 /// enum GameLayer {
-///     Default, // Layer 0
+///     Default, // Layer 0 - the default layer that objects are assigned to
 ///     Player,  // Layer 1
 ///     Enemy,   // Layer 2
 ///     Ground,  // Layer 3
 /// }
 ///
 /// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
-/// assert_eq!(LayerMask(0b0010), GameLayer::Enemy);
+/// assert_eq!(LayerMask(0b00100), GameLayer::Enemy);
 /// ```
 ///
 /// Bitwise operations can be used to modify and combine masks:
