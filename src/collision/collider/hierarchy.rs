@@ -27,7 +27,7 @@ pub struct ColliderHierarchyPlugin {
 impl ColliderHierarchyPlugin {
     /// Creates a [`ColliderHierarchyPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -38,7 +38,7 @@ impl ColliderHierarchyPlugin {
 impl Default for ColliderHierarchyPlugin {
     fn default() -> Self {
         Self {
-            schedule: PostUpdate.intern(),
+            schedule: FixedPostUpdate.intern(),
         }
     }
 }
@@ -58,16 +58,14 @@ impl Plugin for ColliderHierarchyPlugin {
 
         app.configure_sets(
             self.schedule,
-            MarkColliderAncestors
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::PropagateTransforms),
+            MarkColliderAncestors.before(PrepareSet::PropagateTransforms),
         );
 
         // Update collider parents.
         app.add_systems(
             self.schedule,
             update_collider_parents
-                .after(PrepareSet::InitColliders)
+                .after(PrepareSet::PropagateTransforms)
                 .before(PrepareSet::Finalize),
         );
 
@@ -124,10 +122,6 @@ impl Plugin for ColliderHierarchyPlugin {
         }
     }
 }
-
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
 
 /// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
 ///

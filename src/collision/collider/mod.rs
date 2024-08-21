@@ -13,7 +13,6 @@ mod hierarchy;
 
 pub use backend::{ColliderBackendPlugin, ColliderMarker};
 pub use hierarchy::ColliderHierarchyPlugin;
-pub(crate) use hierarchy::PreviousColliderTransform;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
@@ -30,7 +29,9 @@ pub use parry::*;
 mod world_query;
 pub use world_query::*;
 
+#[cfg(feature = "default-collider")]
 mod constructor;
+#[cfg(feature = "default-collider")]
 pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
 };
@@ -466,3 +467,7 @@ impl MapEntities for CollidingEntities {
             .collect()
     }
 }
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
+pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
