@@ -388,7 +388,7 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_time_of_impact: Scalar,
         ignore_origin_penetration: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<ShapeHitData> {
         let rotation: Rotation;
@@ -599,7 +599,7 @@ impl SpatialQueryPipeline {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: SpatialQueryFilter,
+        query_filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<PointProjection> {
         let point = point.into();
