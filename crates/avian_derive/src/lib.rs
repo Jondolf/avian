@@ -87,6 +87,7 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
         );
     };
 
+    // Move the default variant to the front (this probably isn't the best way to do this)
     let mut variants = variants.iter().collect::<Vec<_>>();
     let default_variant = variants.remove(default_variant_index);
     variants.insert(0, default_variant);
