@@ -699,6 +699,11 @@ fn log_overlap_at_spawn(
             continue;
         };
 
+        // only warn if at least one of the bodies is dynamic
+        if !rb1.is_dynamic() && !rb2.is_dynamic() {
+            continue;
+        }
+
         if rb1.is_added() || rb2.is_added() {
             // If the RigidBody entity has a name, use that for debug.
             let debug_id1 = match name1 {
