@@ -2,7 +2,8 @@
 
 use proc_macro::TokenStream;
 
-use quote::{quote, quote_spanned};
+use proc_macro_error::{abort, emit_error, proc_macro_error};
+use quote::quote;
 use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 
 // Modified macro from the discontinued Heron
@@ -38,15 +39,14 @@ use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 /// // The `GameLayer::Ground` layer is the fourth layer, so its bit value is `1 << 3`.
 /// assert_eq!(GameLayer::Ground.to_bits(), 1 << 3);
 /// ```
+#[proc_macro_error]
 #[proc_macro_derive(PhysicsLayer)]
 pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let enum_ident = input.ident;
 
     fn non_enum_item_error(span: proc_macro2::Span) -> TokenStream {
-        syn::Error::new(span, "only enums can automatically derive `PhysicsLayer`")
-            .into_compile_error()
-            .into()
+        abort!(span, "only enums can automatically derive `PhysicsLayer`");
     }
     let variants = match &input.data {
         Data::Enum(data) => &data.variants,
@@ -59,12 +59,10 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     };
 
     if variants.len() > 32 {
-        return syn::Error::new(
-            enum_ident.span(),
-            "`PhysicsLayer` only supports a maximum of 32 layers",
-        )
-        .into_compile_error()
-        .into();
+        emit_error!(
+            enum_ident,
+            "`PhysicsLayer` only supports a maximum of 32 layers"
+        );
     }
 
     let mut default_variant_index = None;
@@ -73,9 +71,8 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
         for attr in variant.attrs.iter() {
             if attr.path().is_ident("default") {
                 if default_variant_index.is_some() {
-                    return syn::Error::new(attr.span(), "multiple defaults")
-                        .into_compile_error()
-                        .into();
+                    emit_error!(enum_ident, "multiple defaults");
+                    break;
                 }
                 default_variant_index = Some(i);
             }
@@ -83,22 +80,11 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     }
 
     let Some(default_variant_index) = default_variant_index else {
-        return syn::Error::new(
-            enum_ident.span(),
-            "`PhysicsLayer` requires a default variant with the `#[default]` attribute. For example:
-
-#[derive(PhysicsLayer, Default)]
-enum ExampleLayer {
-    #[default]
-    Default,
-    Player,
-    Ground,
-}
-
-Note that manually using `impl Default for ExampleLayer` is not supported.",
-        )
-        .into_compile_error()
-        .into();
+        abort!(
+            enum_ident,
+            "`PhysicsLayer` enums must derive `Default` and have a variant annotated with the `#[default]` attribute.";
+            note = "Manually implementing `Default` using `impl Default for FooLayer` is not supported."
+        );
     };
 
     let mut variants = variants.iter().collect::<Vec<_>>();
@@ -121,7 +107,12 @@ Note that manually using `impl Default for ExampleLayer` is not supported.",
 
     let to_bits = match to_bits_result {
         Ok(tokens) => tokens,
-        Err(span) => return quote_spanned! { span=> compile_error!("can only derive `PhysicsLayer` for enums without fields"); }.into(),
+        Err(span) => {
+            abort!(
+                span,
+                "can only derive `PhysicsLayer` for enums without fields"
+            );
+        }
     };
 
     let all_bits: u32 = if variants.len() == 32 {
