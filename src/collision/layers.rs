@@ -6,14 +6,17 @@ use bevy::prelude::*;
 /// Physics layers are used heavily by [`CollisionLayers`].
 ///
 /// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
-pub trait PhysicsLayer: Sized {
+pub trait PhysicsLayer: Sized + Default {
     /// Converts the layer to a bitmask.
     fn to_bits(&self) -> u32;
     /// Creates a layer bitmask with all bits set to 1.
     fn all_bits() -> u32;
 }
 
-impl<L: PhysicsLayer> PhysicsLayer for &L {
+impl<'a, L: PhysicsLayer> PhysicsLayer for &'a L
+where
+    &'a L: Default,
+{
     fn to_bits(&self) -> u32 {
         L::to_bits(self)
     }
@@ -26,13 +29,15 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// A bitmask for layers.
 ///
 /// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
+/// The first bit `0b0001` is reserved for the default layer, which all entities belong to by default.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer, Clone, Copy, Debug)]
+/// #[derive(PhysicsLayer, Default)]
 /// enum GameLayer {
+///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
 ///     Player,  // Layer 1
 ///     Enemy,   // Layer 2
@@ -269,8 +274,9 @@ impl Not for LayerMask {
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer)]
+/// #[derive(PhysicsLayer, Default)]
 /// enum GameLayer {
+///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
 ///     Player,  // Layer 1
 ///     Enemy,   // Layer 2
@@ -430,8 +436,9 @@ mod tests {
 
     use crate::prelude::*;
 
-    #[derive(PhysicsLayer)]
+    #[derive(PhysicsLayer, Default)]
     enum GameLayer {
+        #[default]
         Default,
         Player,
         Enemy,

@@ -20,8 +20,10 @@ fn main() {
 }
 
 // Define the collision layers
-#[derive(PhysicsLayer)]
+#[derive(PhysicsLayer, Default)]
 enum Layer {
+    #[default]
+    Default,
     Blue,
     Red,
 }
