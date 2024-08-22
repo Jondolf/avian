@@ -35,7 +35,7 @@ where
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer, Default)]
+/// #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 /// enum GameLayer {
 ///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
@@ -43,6 +43,12 @@ where
 ///     Enemy,   // Layer 2
 ///     Ground,  // Layer 3
 /// }
+///
+/// // The first bit is reserved for the default layer.
+/// assert_eq!(GameLayer::default().to_bits(), 1 << 0);
+///
+/// // The `GameLayer::Ground` layer is the fourth layer, so its bit value is `1 << 3`.
+/// assert_eq!(GameLayer::Ground.to_bits(), 1 << 3);
 ///
 /// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
 /// assert_eq!(LayerMask(0b00100), GameLayer::Enemy);
