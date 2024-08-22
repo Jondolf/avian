@@ -24,7 +24,7 @@ use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 /// # Example
 ///
 /// ```ignore
-/// #[derive(PhysicsLayer, Default)]
+/// #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 /// enum GameLayer {
 ///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
