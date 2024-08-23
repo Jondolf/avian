@@ -144,8 +144,8 @@ fn integrate_velocities(
             &mut AngularVelocity,
             &ExternalForce,
             &ExternalTorque,
-            &InverseMass,
-            &InverseInertia,
+            &Mass,
+            &AngularInertia,
             Option<&LinearDamping>,
             Option<&AngularDamping>,
             Option<&GravityScale>,
@@ -163,13 +163,13 @@ fn integrate_velocities(
             rb,
             pos,
             prev_pos,
-            rot,
+            _rot,
             mut lin_vel,
             mut ang_vel,
             force,
             torque,
-            inv_mass,
-            inv_inertia,
+            mass,
+            angular_inertia,
             lin_damping,
             ang_damping,
             gravity_scale,
@@ -218,9 +218,9 @@ fn integrate_velocities(
                 &mut ang_vel.0,
                 external_force,
                 external_torque,
-                inv_mass.0,
-                *inv_inertia,
-                *rot,
+                *mass,
+                *angular_inertia,
+                *_rot,
                 locked_axes,
                 gravity,
                 delta_secs,
@@ -301,8 +301,8 @@ type ImpulseQueryComponents = (
     &'static mut LinearVelocity,
     &'static mut AngularVelocity,
     &'static Rotation,
-    &'static InverseMass,
-    &'static InverseInertia,
+    &'static Mass,
+    &'static AngularInertia,
     Option<&'static LockedAxes>,
 );
 
@@ -313,9 +313,9 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
         ang_impulse,
         mut lin_vel,
         mut ang_vel,
-        rotation,
-        inv_mass,
-        inv_inertia,
+        _rotation,
+        mass,
+        angular_inertia,
         locked_axes,
     ) in &mut bodies
     {
@@ -325,8 +325,12 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
 
         let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass.0));
-        let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.rotated(rotation).0);
+        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse));
+        #[cfg(feature = "2d")]
+        let effective_inv_inertia = locked_axes.apply_to_rotation(angular_inertia.inverse);
+        #[cfg(feature = "3d")]
+        let effective_inv_inertia =
+            locked_axes.apply_to_rotation(angular_inertia.rotated_inverse(_rotation.0));
 
         // Avoid triggering bevy's change detection unnecessarily.
         let delta_lin_vel = impulse.impulse() * effective_inv_mass;

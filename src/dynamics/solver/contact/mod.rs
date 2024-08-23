@@ -113,9 +113,9 @@ impl ContactConstraint {
 
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
-        let inverse_mass_sum = body1.inv_mass() + body2.inv_mass();
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let inverse_mass_sum = body1.mass().inverse + body2.mass().inverse;
+        let i1 = body1.effective_world_angular_intertia();
+        let i2 = body2.effective_world_angular_intertia();
 
         let mut constraint = Self {
             entity1: body1.entity,

@@ -678,7 +678,7 @@ pub fn joint_damping<T: Joint>(
             &RigidBody,
             &mut LinearVelocity,
             &mut AngularVelocity,
-            &InverseMass,
+            &Mass,
             Option<&Dominance>,
         ),
         Without<Sleeping>,
@@ -690,7 +690,7 @@ pub fn joint_damping<T: Joint>(
 
     for joint in &joints {
         if let Ok(
-            [(rb1, mut lin_vel1, mut ang_vel1, inv_mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, inv_mass2, dominance2)],
+            [(rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2)],
         ) = bodies.get_many_mut(joint.entities())
         {
             let delta_omega =
@@ -706,8 +706,8 @@ pub fn joint_damping<T: Joint>(
             let delta_v =
                 (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
 
-            let w1 = if rb1.is_dynamic() { inv_mass1.0 } else { 0.0 };
-            let w2 = if rb2.is_dynamic() { inv_mass2.0 } else { 0.0 };
+            let w1 = if rb1.is_dynamic() { mass1.inverse } else { 0.0 };
+            let w2 = if rb2.is_dynamic() { mass2.inverse } else { 0.0 };
 
             if w1 + w2 <= Scalar::EPSILON {
                 continue;
@@ -719,10 +719,10 @@ pub fn joint_damping<T: Joint>(
             let dominance2 = dominance2.map_or(0, |dominance| dominance.0);
 
             if rb1.is_dynamic() && (!rb2.is_dynamic() || dominance1 <= dominance2) {
-                lin_vel1.0 += p * inv_mass1.0;
+                lin_vel1.0 += p * mass1.inverse;
             }
             if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
-                lin_vel2.0 -= p * inv_mass2.0;
+                lin_vel2.0 -= p * mass2.inverse;
             }
         }
     }

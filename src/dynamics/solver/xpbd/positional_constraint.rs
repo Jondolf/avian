@@ -92,7 +92,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            body.inverse_mass.0 + body.inverse_inertia.0 * r.perp_dot(n).powi(2)
+            body.mass.inverse + body.angular_inertia.inverse * r.perp_dot(n).powi(2)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -115,7 +115,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
             // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
             // a^T * b = a • b
-            body.inverse_mass.0 + r_cross_n.dot(inverse_inertia * r_cross_n)
+            body.mass.inverse + r_cross_n.dot(inverse_inertia * r_cross_n)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0

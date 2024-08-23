@@ -258,7 +258,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "2d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector3) -> Scalar {
         if body.rb.is_dynamic() {
-            axis.dot(body.inverse_inertia.0 * axis)
+            axis.dot(body.angular_inertia.inverse * axis)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0

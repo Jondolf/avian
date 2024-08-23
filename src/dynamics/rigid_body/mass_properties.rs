@@ -2,40 +2,124 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
 
-#[cfg(feature = "3d")]
-use crate::utils::get_rotated_inertia_tensor;
+// TODO: Add comments
+// TODO: Add ìs_finite and other helpers
+// TODO: Add debug assertions
+// TODO: Improve docs
 
 /// The mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct Mass(pub Scalar);
+pub struct Mass {
+    pub inverse: Scalar,
+}
 
 impl Mass {
     /// Zero mass.
-    pub const ZERO: Self = Self(0.0);
+    pub const ZERO: Self = Self {
+        inverse: Scalar::MAX,
+    };
+
+    /// Infinite mass.
+    pub const INFINITY: Self = Self { inverse: 0.0 };
+
+    #[inline]
+    pub fn new(mass: Scalar) -> Self {
+        Self {
+            inverse: mass.recip_or_zero(),
+        }
+    }
+
+    #[inline]
+    pub fn from_inverse(inverse_mass: Scalar) -> Self {
+        Self {
+            inverse: inverse_mass,
+        }
+    }
+
+    #[inline]
+    pub fn value(self) -> Scalar {
+        self.inverse.recip_or_zero()
+    }
+
+    #[inline]
+    pub fn set(&mut self, mass: Scalar) {
+        self.inverse = mass.recip_or_zero();
+    }
 }
 
-/// The inverse mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct InverseMass(pub Scalar);
+#[cfg(feature = "2d")]
+type AngularVector = Scalar;
 
-impl InverseMass {
-    /// Zero inverse mass.
-    pub const ZERO: Self = Self(0.0);
-}
+#[cfg(feature = "3d")]
+type AngularVector = Vector;
 
 /// The moment of inertia of a body. This represents the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct Inertia(pub Scalar);
+pub struct AngularInertia {
+    pub inverse: Scalar,
+}
+
+#[cfg(feature = "2d")]
+impl AngularInertia {
+    /// Zero mass.
+    pub const ZERO: Self = Self {
+        inverse: Scalar::MAX,
+    };
+
+    /// Infinite mass.
+    pub const INFINITY: Self = Self { inverse: 0.0 };
+
+    #[inline]
+    pub fn new(angular_inertia: Scalar) -> Self {
+        Self {
+            inverse: angular_inertia.recip_or_zero(),
+        }
+    }
+
+    #[inline]
+    pub fn from_inverse(inverse_angular_inertia: Scalar) -> Self {
+        Self {
+            inverse: inverse_angular_inertia,
+        }
+    }
+
+    #[inline]
+    pub fn value(self) -> Scalar {
+        self.inverse.recip_or_zero()
+    }
+
+    #[inline]
+    pub fn set(&mut self, angular_inertia: Scalar) {
+        self.inverse = angular_inertia.recip_or_zero();
+    }
+
+    /// Computes the inertia of a body with the given mass, shifted by the given offset.
+    #[inline]
+    pub fn shifted(&self, mass: Scalar, offset: Vector) -> Scalar {
+        if mass > 0.0 && mass.is_finite() {
+            self.inverse.recip_or_zero() + offset.length_squared() * mass
+        } else {
+            self.inverse.recip_or_zero()
+        }
+    }
+
+    /// Computes the inverse inertia of a body with the given mass, shifted by the given offset.
+    #[inline]
+    pub fn shifted_inverse(&self, mass: Scalar, offset: Vector) -> Scalar {
+        if mass > 0.0 && mass.is_finite() {
+            self.inverse + offset.length_squared() * mass
+        } else {
+            self.inverse
+        }
+    }
+}
 
 /// The local moment of inertia of the body as a 3x3 tensor matrix.
 /// This represents the torque needed for a desired angular acceleration along different axes.
@@ -45,90 +129,139 @@ pub struct Inertia(pub Scalar);
 /// To get the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct Inertia(pub Matrix3);
+pub struct AngularInertia {
+    pub inverse: Matrix3,
+}
+
+impl Default for AngularInertia {
+    fn default() -> Self {
+        Self::INFINITY
+    }
+}
 
 #[cfg(feature = "3d")]
-impl Default for Inertia {
-    fn default() -> Self {
-        Self(Matrix3::ZERO)
-    }
-}
-
-impl Inertia {
+impl AngularInertia {
     /// Zero angular inertia.
-    #[cfg(feature = "2d")]
-    pub const ZERO: Self = Self(0.0);
-    /// Zero angular inertia.
-    #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Matrix3::ZERO);
+    pub const ZERO: Self = Self {
+        inverse: Matrix::from_diagonal(Vector::MAX),
+    };
 
-    /// In 2D this does nothing, but it is there for convenience so that
-    /// you don't have to handle 2D and 3D separately.
-    #[cfg(feature = "2d")]
-    #[allow(dead_code)]
-    pub(crate) fn rotated(&self, _rot: &Rotation) -> Self {
-        *self
+    /// Infinite angular inertia.
+    pub const INFINITY: Self = Self {
+        inverse: Matrix::ZERO,
+    };
+
+    /// Creates a new [`AngularInertia`] from the inertia tensor.
+    #[inline]
+    pub fn new(tensor: Matrix) -> Self {
+        let inverse = tensor.inverse();
+        Self { inverse }
     }
 
-    /// Returns the inertia tensor's world-space version that takes
-    /// the body's orientation into account.
-    #[cfg(feature = "3d")]
-    pub fn rotated(&self, rot: &Rotation) -> Self {
-        Self(get_rotated_inertia_tensor(self.0, rot.0))
-    }
-
-    /// Returns the inverted moment of inertia.
-    #[cfg(feature = "2d")]
-    pub fn inverse(&self) -> InverseInertia {
-        InverseInertia(1.0 / self.0)
-    }
-
-    /// Returns the inverted moment of inertia.
-    #[cfg(feature = "3d")]
-    pub fn inverse(&self) -> InverseInertia {
-        InverseInertia(self.0.inverse())
-    }
-
-    /// Computes the inertia of a body with the given mass, shifted by the given offset.
-    #[cfg(feature = "2d")]
-    pub fn shifted(&self, mass: Scalar, offset: Vector) -> Scalar {
-        if mass > 0.0 && mass.is_finite() {
-            self.0 + offset.length_squared() * mass
-        } else {
-            self.0
+    /// Creates a new [`AngularInertia`] from the inverse inertia tensor.
+    #[inline]
+    pub fn from_inverse(inverse_tensor: Matrix) -> Self {
+        Self {
+            inverse: inverse_tensor,
         }
     }
 
-    /// Computes the inertia of a body with the given mass, shifted by the given offset.
-    #[cfg(feature = "3d")]
+    /// Creates a new [`AngularInertia`] from the principal inertia
+    /// and the orientation of the local inertial frame.
+    #[inline]
+    pub fn from_principal(principal_inertia: Vector, orientation: Quaternion) -> Self {
+        Self {
+            inverse: Matrix::from_quat(orientation)
+                * Matrix::from_diagonal(principal_inertia.recip_or_zero())
+                * Matrix::from_quat(orientation.inverse()),
+        }
+    }
+
+    /// Creates a new [`AngularInertia`] from the inverse principal inertia
+    /// and the orientation of the local inertial frame.
+    #[inline]
+    pub fn from_inverse_principal(
+        inverse_principal_inertia: Vector,
+        orientation: Quaternion,
+    ) -> Self {
+        Self {
+            inverse: Matrix::from_quat(orientation)
+                * Matrix::from_diagonal(inverse_principal_inertia)
+                * Matrix::from_quat(orientation.inverse()),
+        }
+    }
+
+    /// Returns the angular inertia tensor.
+    ///
+    /// Equivalent to [`AngularInertia::tensor`].
+    #[inline]
+    pub fn value(self) -> Matrix {
+        self.tensor()
+    }
+
+    /// Returns the angular inertia tensor.
+    ///
+    /// Equivalent to [`AngularInertia::value`].
+    #[inline]
+    pub fn tensor(self) -> Matrix {
+        self.inverse.inverse()
+    }
+
+    /// Sets the angular inertia tensor.
+    #[inline]
+    pub fn set(&mut self, tensor: Matrix) {
+        self.inverse = tensor.inverse();
+    }
+
+    /// Computes the angular inertia with the given rotation.
+    #[inline]
+    pub fn rotated(&self, rotation: Quaternion) -> Matrix {
+        let rot_mat3 = Matrix3::from_quat(rotation);
+        (rot_mat3 * self.inverse.inverse()) * rot_mat3.transpose()
+    }
+
+    /// Computes the inverse angular inertia with the given rotation.
+    #[inline]
+    pub fn rotated_inverse(&self, rotation: Quaternion) -> Matrix {
+        let rot_mat3 = Matrix3::from_quat(rotation);
+        (rot_mat3 * self.inverse) * rot_mat3.transpose()
+    }
+
+    /// Computes the angular inertia shifted by the given offset, taking into account the given mass.
+    #[inline]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
         if mass > 0.0 && mass.is_finite() {
-            let diag = offset.length_squared();
-            let diagm = Matrix3::from_diagonal(Vector::splat(diag));
+            let diagonal_element = offset.length_squared();
+            let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
             let offset_outer_product =
                 Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
-            self.0 + (diagm + offset_outer_product) * mass
+            self.tensor() + (diagonal_mat + offset_outer_product) * mass
         } else {
-            self.0
+            self.tensor()
+        }
+    }
+
+    /// Computes the inverse angular inertia shifted by the given offset, taking into account the given mass.
+    #[inline]
+    pub fn shifted_inverse(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+        if mass > 0.0 && mass.is_finite() {
+            let diagonal_element = offset.length_squared();
+            let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
+            let offset_outer_product =
+                Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
+            self.inverse + (diagonal_mat + offset_outer_product) * mass
+        } else {
+            self.inverse
         }
     }
 }
 
-/// The inverse moment of inertia of the body. This represents the inverse of
-/// the torque needed for a desired angular acceleration.
-#[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct InverseInertia(pub Scalar);
-
-/// The local inverse moment of inertia of the body as a 3x3 tensor matrix.
-/// This represents the inverse of the torque needed for a desired angular acceleration along different axes.
+/// The local moment of inertia of the body as a 3x3 tensor matrix.
+/// This represents the torque needed for a desired angular acceleration about the XYZ axes.
 ///
 /// This is computed in local-space, so the object's orientation is not taken into account.
 ///
@@ -139,54 +272,7 @@ pub struct InverseInertia(pub Scalar);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct InverseInertia(pub Matrix3);
-
-#[cfg(feature = "3d")]
-impl Default for InverseInertia {
-    fn default() -> Self {
-        InverseInertia(Matrix3::ZERO)
-    }
-}
-
-impl InverseInertia {
-    /// Zero inverse angular inertia.
-    #[cfg(feature = "2d")]
-    pub const ZERO: Self = Self(0.0);
-    /// Zero inverse angular inertia.
-    #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Matrix3::ZERO);
-
-    /// In 2D this does nothing, but it is there for convenience so that
-    /// you don't have to handle 2D and 3D separately.
-    #[cfg(feature = "2d")]
-    pub fn rotated(&self, _rot: &Rotation) -> Self {
-        *self
-    }
-
-    /// Returns the inertia tensor's world-space version that takes the body's orientation into account.
-    #[cfg(feature = "3d")]
-    pub fn rotated(&self, rot: &Rotation) -> Self {
-        Self(get_rotated_inertia_tensor(self.0, rot.0))
-    }
-
-    /// Returns the original moment of inertia.
-    #[cfg(feature = "2d")]
-    pub fn inverse(&self) -> Inertia {
-        Inertia(1.0 / self.0)
-    }
-
-    /// Returns the original moment of inertia.
-    #[cfg(feature = "3d")]
-    pub fn inverse(&self) -> Inertia {
-        Inertia(self.0.inverse())
-    }
-}
-
-impl From<Inertia> for InverseInertia {
-    fn from(inertia: Inertia) -> Self {
-        inertia.inverse()
-    }
-}
+pub struct WorldAngularInertia(pub AngularInertia);
 
 /// The local center of mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -231,9 +317,7 @@ impl CenterOfMass {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct MassPropertiesBundle {
     pub mass: Mass,
-    pub inverse_mass: InverseMass,
-    pub inertia: Inertia,
-    pub inverse_inertia: InverseInertia,
+    pub angular_inertia: AngularInertia,
     pub center_of_mass: CenterOfMass,
 }
 
@@ -246,18 +330,14 @@ impl MassPropertiesBundle {
     pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
         let ColliderMassProperties {
             mass,
-            inverse_mass,
-            inertia,
-            inverse_inertia,
+            angular_inertia,
             center_of_mass,
             ..
         } = collider.mass_properties(density);
 
         Self {
             mass,
-            inverse_mass,
-            inertia,
-            inverse_inertia,
+            angular_inertia,
             center_of_mass,
         }
     }
@@ -310,7 +390,7 @@ impl From<Scalar> for ColliderDensity {
 /// component.
 ///
 /// These mass properties will be added to the [rigid body's](RigidBody) actual [`Mass`],
-/// [`InverseMass`], [`Inertia`], [`InverseInertia`] and [`CenterOfMass`] components.
+/// [`Mass`], [`AngularInertia`], [`AngularInertia`] and [`CenterOfMass`] components.
 ///
 /// ## Example
 ///
@@ -345,12 +425,8 @@ impl From<Scalar> for ColliderDensity {
 pub struct ColliderMassProperties {
     /// Mass given by collider.
     pub mass: Mass,
-    /// Inverse mass given by collider.
-    pub inverse_mass: InverseMass,
     /// Inertia given by collider.
-    pub inertia: Inertia,
-    /// Inverse inertia given by collider.
-    pub inverse_inertia: InverseInertia,
+    pub angular_inertia: AngularInertia,
     /// Local center of mass given by collider.
     pub center_of_mass: CenterOfMass,
 }
@@ -359,9 +435,7 @@ impl ColliderMassProperties {
     /// The collider has no mass.
     pub const ZERO: Self = Self {
         mass: Mass::ZERO,
-        inverse_mass: InverseMass(Scalar::INFINITY),
-        inertia: Inertia::ZERO,
-        inverse_inertia: InverseInertia::ZERO,
+        angular_inertia: AngularInertia::ZERO,
         center_of_mass: CenterOfMass::ZERO,
     };
 
