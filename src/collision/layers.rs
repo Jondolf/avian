@@ -6,14 +6,17 @@ use bevy::prelude::*;
 /// Physics layers are used heavily by [`CollisionLayers`].
 ///
 /// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
-pub trait PhysicsLayer: Sized {
+pub trait PhysicsLayer: Sized + Default {
     /// Converts the layer to a bitmask.
     fn to_bits(&self) -> u32;
     /// Creates a layer bitmask with all bits set to 1.
     fn all_bits() -> u32;
 }
 
-impl<L: PhysicsLayer> PhysicsLayer for &L {
+impl<'a, L: PhysicsLayer> PhysicsLayer for &'a L
+where
+    &'a L: Default,
+{
     fn to_bits(&self) -> u32 {
         L::to_bits(self)
     }
@@ -26,18 +29,26 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// A bitmask for layers.
 ///
 /// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
+/// The first bit `0b0001` is reserved for the default layer, which all entities belong to by default.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer, Clone, Copy, Debug)]
+/// #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 /// enum GameLayer {
+///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
 ///     Player,  // Layer 1
 ///     Enemy,   // Layer 2
 ///     Ground,  // Layer 3
 /// }
+///
+/// // The first bit is reserved for the default layer.
+/// assert_eq!(GameLayer::default().to_bits(), 1 << 0);
+///
+/// // The `GameLayer::Ground` layer is the fourth layer, so its bit value is `1 << 3`.
+/// assert_eq!(GameLayer::Ground.to_bits(), 1 << 3);
 ///
 /// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
 /// assert_eq!(LayerMask(0b00100), GameLayer::Enemy);
@@ -269,8 +280,9 @@ impl Not for LayerMask {
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer)]
+/// #[derive(PhysicsLayer, Default)]
 /// enum GameLayer {
+///     #[default]
 ///     Default, // Layer 0 - the default layer that objects are assigned to
 ///     Player,  // Layer 1
 ///     Enemy,   // Layer 2
@@ -430,8 +442,9 @@ mod tests {
 
     use crate::prelude::*;
 
-    #[derive(PhysicsLayer)]
+    #[derive(PhysicsLayer, Default)]
     enum GameLayer {
+        #[default]
         Default,
         Player,
         Enemy,
