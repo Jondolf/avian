@@ -65,7 +65,7 @@ pub struct ColliderBackendPlugin<C: ScalableCollider> {
 impl<C: ScalableCollider> ColliderBackendPlugin<C> {
     /// Creates a [`ColliderBackendPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -77,7 +77,7 @@ impl<C: ScalableCollider> ColliderBackendPlugin<C> {
 impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
     fn default() -> Self {
         Self {
-            schedule: PostUpdate.intern(),
+            schedule: FixedPostUpdate.intern(),
             _phantom: PhantomData,
         }
     }
@@ -90,6 +90,37 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let collider_removed_id = app.world_mut().register_system(collider_removed);
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
+
+        let hooks = app.world_mut().register_component_hooks::<C>();
+
+        // Initialize missing components for colliders.
+        hooks.on_add(|mut world, entity, _| {
+            let entity_ref = world.entity(entity);
+
+            let collider = entity_ref.get::<C>().unwrap();
+            let aabb = entity_ref
+                .get::<ColliderAabb>()
+                .copied()
+                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default()));
+            let density = entity_ref
+                .get::<ColliderDensity>()
+                .copied()
+                .unwrap_or_default();
+
+            let mass_properties = if entity_ref.get::<Sensor>().is_some() {
+                ColliderMassProperties::ZERO
+            } else {
+                collider.mass_properties(density.0)
+            };
+
+            world.commands().entity(entity).try_insert((
+                aabb,
+                density,
+                mass_properties,
+                CollidingEntities::default(),
+                ColliderMarker,
+            ));
+        });
 
         // Register a component hook that updates mass properties of rigid bodies
         // when the colliders attached to them are removed.
@@ -197,7 +228,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.add_systems(
             self.schedule,
             (
-                init_colliders::<C>.in_set(PrepareSet::InitColliders),
                 init_transforms::<C>
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
@@ -214,9 +244,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // Update collider parents for colliders that are on the same entity as the rigid body.
         app.add_systems(
             self.schedule,
-            update_root_collider_parents::<C>
-                .after(PrepareSet::InitColliders)
-                .before(PrepareSet::Finalize),
+            update_root_collider_parents::<C>.before(PrepareSet::Finalize),
         );
 
         let physics_schedule = app
@@ -250,43 +278,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 #[derive(Reflect, Component, Clone, Copy, Debug)]
 pub struct ColliderMarker;
 
-/// Initializes missing components for [colliders](Collider).
-#[allow(clippy::type_complexity)]
-pub(crate) fn init_colliders<C: AnyCollider>(
-    mut commands: Commands,
-    mut colliders: Query<
-        (
-            Entity,
-            &C,
-            Option<&ColliderAabb>,
-            Option<&ColliderDensity>,
-            Has<Sensor>,
-        ),
-        Added<C>,
-    >,
-) {
-    for (entity, collider, aabb, density, is_sensor) in &mut colliders {
-        let density = *density.unwrap_or(&ColliderDensity::default());
-        let mass_properties = if is_sensor {
-            ColliderMassProperties::ZERO
-        } else {
-            collider.mass_properties(density.0)
-        };
-
-        commands.entity(entity).try_insert((
-            *aabb.unwrap_or(&collider.aabb(Vector::ZERO, Rotation::default())),
-            density,
-            mass_properties,
-            CollidingEntities::default(),
-            ColliderMarker,
-        ));
-    }
-}
-
 /// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
 ///
 /// The [`ColliderHierarchyPlugin`] should be used to handle hierarchies.
-#[allow(clippy::type_complexity)]
 fn update_root_collider_parents<C: AnyCollider>(
     mut commands: Commands,
     mut bodies: Query<
@@ -590,18 +584,14 @@ fn update_aabb<C: AnyCollider>(
             }
             #[cfg(feature = "3d")]
             {
-                let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
-                let (x, y, z, w) = (
-                    rot.x + delta_secs * 0.5 * q.x,
-                    rot.y + delta_secs * 0.5 * q.y,
-                    rot.z + delta_secs * 0.5 * q.z,
-                    rot.w + delta_secs * 0.5 * q.w,
-                );
+                let mut end_rot =
+                    Rotation(Quaternion::from_scaled_axis(ang_vel.0 * delta_secs) * rot.0);
+                end_rot.renormalize();
                 (
                     pos.0
                         + (lin_vel.0 * delta_secs)
                             .clamp_length_max(speculative_margin.max(contact_tolerance)),
-                    Quaternion::from_xyzw(x, y, z, w).normalize(),
+                    end_rot,
                 )
             }
         };
@@ -744,9 +734,9 @@ mod tests {
             .init_schedule(SubstepSchedule);
 
         app.add_plugins((
-            PreparePlugin::new(PostUpdate),
-            ColliderBackendPlugin::<Collider>::new(PostUpdate),
-            ColliderHierarchyPlugin::new(PostUpdate),
+            PreparePlugin::new(FixedPostUpdate),
+            ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
+            ColliderHierarchyPlugin::new(FixedPostUpdate),
             HierarchyPlugin,
         ));
 
@@ -771,7 +761,7 @@ mod tests {
             .set_parent(parent)
             .id();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert_eq!(
             app.world()

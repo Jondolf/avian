@@ -287,7 +287,10 @@ mod tests {
     fn add_and_remove_component() {
         let mut app = App::new();
 
-        app.add_plugins((AncestorMarkerPlugin::<C>::new(PostUpdate), HierarchyPlugin));
+        app.add_plugins((
+            AncestorMarkerPlugin::<C>::new(FixedPostUpdate),
+            HierarchyPlugin,
+        ));
 
         // Set up an entity tree like the following:
         //
@@ -313,7 +316,7 @@ mod tests {
         let fy = app.world_mut().spawn(C).set_parent(dn).id();
         let gy = app.world_mut().spawn(C).set_parent(dn).id();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
@@ -328,7 +331,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(fy);
         entity_mut.remove::<C>();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(app.world().entity(dn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -339,7 +342,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(gy);
         entity_mut.remove::<C>();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(dn).contains::<AncestorMarker<C>>());
         assert!(!app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -350,7 +353,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(cy);
         entity_mut.remove::<C>();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(an).contains::<AncestorMarker<C>>());
     }
@@ -359,7 +362,10 @@ mod tests {
     fn remove_children() {
         let mut app = App::new();
 
-        app.add_plugins((AncestorMarkerPlugin::<C>::new(PostUpdate), HierarchyPlugin));
+        app.add_plugins((
+            AncestorMarkerPlugin::<C>::new(FixedPostUpdate),
+            HierarchyPlugin,
+        ));
 
         // Set up an entity tree like the following:
         //
@@ -385,7 +391,7 @@ mod tests {
         let fy = app.world_mut().spawn(C).set_parent(dn).id();
         let gy = app.world_mut().spawn(C).set_parent(dn).id();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
@@ -400,7 +406,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(dn);
         entity_mut.remove_children(&[fy]);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(app.world().entity(dn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -411,7 +417,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(dn);
         entity_mut.remove_children(&[gy]);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(dn).contains::<AncestorMarker<C>>());
         assert!(!app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -422,7 +428,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(an);
         entity_mut.remove_children(&[cy]);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(an).contains::<AncestorMarker<C>>());
 
@@ -431,7 +437,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(an);
         entity_mut.add_child(cy);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
 
         // Make CY an orphan and delete AN. This must not crash.
@@ -439,14 +445,17 @@ mod tests {
         entity_mut.remove_children(&[cy]);
         entity_mut.despawn();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
     }
 
     #[test]
     fn move_children() {
         let mut app = App::new();
 
-        app.add_plugins((AncestorMarkerPlugin::<C>::new(PostUpdate), HierarchyPlugin));
+        app.add_plugins((
+            AncestorMarkerPlugin::<C>::new(FixedPostUpdate),
+            HierarchyPlugin,
+        ));
 
         // Set up an entity tree like the following:
         //
@@ -472,7 +481,7 @@ mod tests {
         let fy = app.world_mut().spawn(C).set_parent(dn).id();
         let gy = app.world_mut().spawn(C).set_parent(dn).id();
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
@@ -487,7 +496,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(bn);
         entity_mut.add_child(fy);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(app.world().entity(bn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(dn).contains::<AncestorMarker<C>>());
@@ -499,7 +508,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(bn);
         entity_mut.add_child(gy);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(dn).contains::<AncestorMarker<C>>());
         assert!(!app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -510,7 +519,7 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(cy);
         entity_mut.push_children(&[fy, gy]);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         assert!(!app.world().entity(bn).contains::<AncestorMarker<C>>());
         assert!(app.world().entity(cy).contains::<AncestorMarker<C>>());
@@ -520,6 +529,6 @@ mod tests {
         let mut entity_mut = app.world_mut().entity_mut(bn);
         entity_mut.push_children(&[dn, en, fy, gy]);
 
-        app.world_mut().run_schedule(PostUpdate);
+        app.world_mut().run_schedule(FixedPostUpdate);
     }
 }

@@ -77,13 +77,9 @@ pub fn integrate_velocity(
         // However, the basic semi-implicit approach can blow up, as semi-implicit Euler
         // extrapolates velocity and the gyroscopic torque is quadratic in the angular velocity.
         // Thus, we use implicit Euler, which is much more accurate and stable, although slightly more expensive.
-        let effective_inertia = locked_axes.apply_to_rotation(inv_inertia.inverse().0);
-        delta_ang_vel += solve_gyroscopic_torque(
-            *ang_vel,
-            rotation.0,
-            Inertia(effective_inertia),
-            delta_seconds,
-        );
+        let delta_ang_vel_gyro =
+            solve_gyroscopic_torque(*ang_vel, rotation.0, inv_inertia.inverse(), delta_seconds);
+        delta_ang_vel += locked_axes.apply_to_angular_velocity(delta_ang_vel_gyro);
     }
 
     if delta_ang_vel != AngularVelocity::ZERO.0 && delta_ang_vel.is_finite() {
@@ -127,11 +123,11 @@ pub fn integrate_position(
     {
         // This is a bit more complicated because quaternions are weird.
         // Maybe there's a simpler and more numerically stable way?
-        let delta_rot = Quaternion::from_vec4(
-            (ang_vel * delta_seconds / 2.0).extend(rot.w * delta_seconds / 2.0),
-        ) * rot.0;
-        if delta_rot.w != 0.0 && delta_rot.is_finite() {
-            rot.0 = (rot.0 + delta_rot).normalize();
+        let scaled_axis = ang_vel * delta_seconds;
+        if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
+            let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
+            rot.0 = delta_rot * rot.0;
+            rot.renormalize();
         }
     }
 }
