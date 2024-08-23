@@ -117,13 +117,13 @@ impl Collisions {
     ///
     /// The order of the entities does not matter.
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
+        // the keys are always sorted in order of `Entity`
+        if entity2 < entity1 {
+            return self.get(entity2, entity1);
+        }
         self.0
             .get(&(entity1, entity2))
             .filter(|contacts| contacts.during_current_frame)
-            .or(self
-                .0
-                .get(&(entity2, entity1))
-                .filter(|contacts| contacts.during_current_frame))
     }
 
     /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
@@ -131,17 +131,13 @@ impl Collisions {
     ///
     /// The order of the entities does not matter.
     pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
-        // For lifetime reasons, the mutable borrows can't be in the same scope,
-        // so we check if the key exists first (there's probably a better way though)
-        if self.0.contains_key(&(entity1, entity2)) {
-            self.0
-                .get_mut(&(entity1, entity2))
-                .filter(|contacts| contacts.during_current_frame)
-        } else {
-            self.0
-                .get_mut(&(entity2, entity1))
-                .filter(|contacts| contacts.during_current_frame)
+        // the keys are always sorted in entity order
+        if entity2 < entity1 {
+            return self.get_mut(entity2, entity1);
         }
+        self.0
+            .get_mut(&(entity1, entity2))
+            .filter(|contacts| contacts.during_current_frame)
     }
 
     /// Returns `true` if the given entities have been in contact during this frame.
@@ -205,10 +201,15 @@ impl Collisions {
     /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](Self::get_mut)
     /// or [`iter_mut`](Self::iter_mut).
     pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // TODO: We might want to order the data by Entity ID so that entity1, point1 etc. are for the "smaller"
-        // entity ID. This requires changes elsewhere as well though.
-        self.0
-            .insert((contacts.entity1, contacts.entity2), contacts)
+        // order the keys by entity ID so that we don't get duplicate contacts
+        // between two entities
+        if contacts.entity1 < contacts.entity2 {
+            self.0
+                .insert((contacts.entity1, contacts.entity2), contacts)
+        } else {
+            self.0
+                .insert((contacts.entity2, contacts.entity1), contacts)
+        }
     }
 
     /// Extends [`Collisions`] with all collision pairs in the given iterable.
@@ -375,8 +376,12 @@ impl ContactManifold {
         for contact in self.contacts.iter_mut() {
             for previous_contact in previous_contacts.iter() {
                 // If the feature IDs match, copy the contact impulses over for warm starting.
-                if contact.feature_id1 == previous_contact.feature_id1
-                    && contact.feature_id2 == previous_contact.feature_id2
+                if (contact.feature_id1 == previous_contact.feature_id1
+                    && contact.feature_id2 == previous_contact.feature_id2) ||
+                    // we have to check both directions because the entities are sorted in order
+                    // of aabb.min.x, which could have changed even the two objects in contact are the same
+                    (contact.feature_id2 == previous_contact.feature_id1
+                    && contact.feature_id1 == previous_contact.feature_id2)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
                     contact.tangent_impulse = previous_contact.tangent_impulse;
@@ -389,10 +394,14 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && contact.point1.distance_squared(previous_contact.point1)
+                    && (contact.point1.distance_squared(previous_contact.point1)
                         < distance_threshold_squared
-                    && contact.point2.distance_squared(previous_contact.point2)
+                        && contact.point2.distance_squared(previous_contact.point2)
+                            < distance_threshold_squared)
+                    || (contact.point1.distance_squared(previous_contact.point2)
                         < distance_threshold_squared
+                        && contact.point2.distance_squared(previous_contact.point1)
+                            < distance_threshold_squared)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
                     contact.tangent_impulse = previous_contact.tangent_impulse;
