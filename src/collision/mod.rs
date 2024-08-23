@@ -396,13 +396,12 @@ impl ContactManifold {
                 if unknown_features
                     && (contact.point1.distance_squared(previous_contact.point1)
                         < distance_threshold_squared
-                    && contact.point2.distance_squared(previous_contact.point2)
-                        < distance_threshold_squared) || (
-                    contact.point1.distance_squared(previous_contact.point2)
+                        && contact.point2.distance_squared(previous_contact.point2)
+                            < distance_threshold_squared)
+                    || (contact.point1.distance_squared(previous_contact.point2)
                         < distance_threshold_squared
                         && contact.point2.distance_squared(previous_contact.point1)
-                            < distance_threshold_squared
-                    )
+                            < distance_threshold_squared)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
                     contact.tangent_impulse = previous_contact.tangent_impulse;

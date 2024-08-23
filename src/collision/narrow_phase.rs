@@ -547,13 +547,11 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 
         // Get the previous contacts if there are any.
         let previous_contacts = if collider1.entity < collider2.entity {
-            self
-                .collisions
+            self.collisions
                 .get_internal()
                 .get(&(collider1.entity, collider2.entity))
         } else {
-            self
-                .collisions
+            self.collisions
                 .get_internal()
                 .get(&(collider2.entity, collider1.entity))
         };
