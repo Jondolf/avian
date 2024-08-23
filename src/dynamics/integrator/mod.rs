@@ -28,7 +28,7 @@ pub struct IntegratorPlugin {
 impl IntegratorPlugin {
     /// Creates a [`IntegratorPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is [`SubstepSchedule`].
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
