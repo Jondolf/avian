@@ -584,18 +584,14 @@ fn update_aabb<C: AnyCollider>(
             }
             #[cfg(feature = "3d")]
             {
-                let q = Quaternion::from_vec4(ang_vel.0.extend(0.0)) * rot.0;
-                let (x, y, z, w) = (
-                    rot.x + delta_secs * 0.5 * q.x,
-                    rot.y + delta_secs * 0.5 * q.y,
-                    rot.z + delta_secs * 0.5 * q.z,
-                    rot.w + delta_secs * 0.5 * q.w,
-                );
+                let mut end_rot =
+                    Rotation(Quaternion::from_scaled_axis(ang_vel.0 * delta_secs) * rot.0);
+                end_rot.renormalize();
                 (
                     pos.0
                         + (lin_vel.0 * delta_secs)
                             .clamp_length_max(speculative_margin.max(contact_tolerance)),
-                    Quaternion::from_xyzw(x, y, z, w).normalize(),
+                    end_rot,
                 )
             }
         };

@@ -48,7 +48,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
             #[cfg(feature = "2d")]
             {
-                let delta_angle = Self::get_delta_rot(*body1.rotation, inv_inertia1, r1, impulse);
+                let delta_angle = Self::get_delta_rot(inv_inertia1, r1, impulse);
                 *body1.rotation = body1.rotation.add_angle(delta_angle);
             }
             #[cfg(feature = "3d")]
@@ -57,8 +57,9 @@ pub trait PositionConstraint: XpbdConstraint<2> {
                 // which causes stability issues (see #235) and panics when trying to rotate unit vectors.
                 // TODO: It would be nice to avoid normalization if possible.
                 //       Maybe the math above can be done in a way that keeps rotations normalized?
-                let delta_quat = Self::get_delta_rot(*body1.rotation, inv_inertia1, r1, impulse);
-                body1.rotation.0 = (body1.rotation.0 + delta_quat).normalize();
+                let delta_quat = Self::get_delta_rot(inv_inertia1, r1, impulse);
+                body1.rotation.0 = delta_quat * body1.rotation.0;
+                body1.rotation.renormalize();
             }
         }
         if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
@@ -66,14 +67,15 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
             #[cfg(feature = "2d")]
             {
-                let delta_angle = Self::get_delta_rot(*body2.rotation, inv_inertia2, r2, -impulse);
+                let delta_angle = Self::get_delta_rot(inv_inertia2, r2, -impulse);
                 *body2.rotation = body2.rotation.add_angle(delta_angle);
             }
             #[cfg(feature = "3d")]
             {
                 // See comments for `body1` above.
-                let delta_quat = Self::get_delta_rot(*body2.rotation, inv_inertia2, r2, -impulse);
-                body2.rotation.0 = (body2.rotation.0 + delta_quat).normalize();
+                let delta_quat = Self::get_delta_rot(inv_inertia2, r2, -impulse);
+                body2.rotation.0 = delta_quat * body2.rotation.0;
+                body2.rotation.renormalize();
             }
         }
 
@@ -122,16 +124,16 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
     /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "2d")]
-    fn get_delta_rot(_rot: Rotation, inverse_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
+    fn get_delta_rot(inverse_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
         // Equation 8/9 but in 2D
         inverse_inertia * r.perp_dot(p)
     }
 
     /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "3d")]
-    fn get_delta_rot(rot: Rotation, inverse_inertia: Matrix3, r: Vector, p: Vector) -> Quaternion {
+    fn get_delta_rot(inverse_inertia: Matrix3, r: Vector, p: Vector) -> Quaternion {
         // Equation 8/9
-        Quaternion::from_vec4(0.5 * (inverse_inertia * r.cross(p)).extend(0.0)) * rot.0
+        Quaternion::from_scaled_axis(inverse_inertia * r.cross(p))
     }
 
     /// Computes the force acting along the constraint using the equation f = lambda * n / h^2
