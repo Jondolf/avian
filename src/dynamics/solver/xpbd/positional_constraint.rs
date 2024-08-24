@@ -37,10 +37,10 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         r1: Vector,
         r2: Vector,
     ) -> Vector {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_inverse_inertia();
+        let inv_inertia2 = body2.effective_global_inverse_inertia();
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -92,7 +92,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            body.mass.inverse + body.angular_inertia.inverse * r.perp_dot(n).powi(2)
+            body.mass.inverse() + body.angular_inertia.inverse() * r.perp_dot(n).powi(2)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -109,13 +109,13 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            let inverse_inertia = body.effective_world_inv_inertia();
+            let inverse_inertia = body.effective_global_inverse_inertia();
 
             let r_cross_n = r.cross(n); // Compute the cross product only once
 
             // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
             // a^T * b = a • b
-            body.mass.inverse + r_cross_n.dot(inverse_inertia * r_cross_n)
+            body.mass.inverse() + r_cross_n.dot(inverse_inertia * r_cross_n)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0

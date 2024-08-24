@@ -324,8 +324,8 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
 
         let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse));
-        let effective_inv_inertia = locked_axes.apply_to_rotation(global_angular_inertia.inverse);
+        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
+        let effective_inv_inertia = locked_axes.apply_to_rotation(global_angular_inertia.inverse());
 
         // Avoid triggering bevy's change detection unnecessarily.
         let delta_lin_vel = impulse.impulse() * effective_inv_mass;

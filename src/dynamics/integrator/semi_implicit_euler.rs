@@ -46,7 +46,7 @@ pub fn integrate_velocity(
     delta_seconds: Scalar,
 ) {
     // Compute linear acceleration.
-    let lin_acc = linear_acceleration(force, mass.inverse, locked_axes, gravity);
+    let lin_acc = linear_acceleration(force, mass.inverse(), locked_axes, gravity);
 
     // Compute next linear velocity.
     // v = v_0 + a * Δt
@@ -57,9 +57,9 @@ pub fn integrate_velocity(
 
     // Compute angular acceleration.
     #[cfg(feature = "2d")]
-    let ang_acc = angular_acceleration(torque, angular_inertia.inverse, locked_axes);
+    let ang_acc = angular_acceleration(torque, angular_inertia.inverse(), locked_axes);
     #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(torque, global_angular_inertia.inverse, locked_axes);
+    let ang_acc = angular_acceleration(torque, global_angular_inertia.inverse(), locked_axes);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -179,7 +179,7 @@ pub fn angular_acceleration(
     // Effective inverse inertia along each axis
     let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
 
-    if effective_inv_inertia != AngularInertia::INFINITY.inverse
+    if effective_inv_inertia != AngularInertia::INFINITY.inverse()
         && effective_inv_inertia.is_finite()
     {
         // Newton's 2nd law for rotational movement:

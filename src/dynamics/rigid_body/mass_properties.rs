@@ -13,7 +13,7 @@ use derive_more::From;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct Mass {
-    pub inverse: Scalar,
+    inverse: Scalar,
 }
 
 impl Mass {
@@ -45,6 +45,11 @@ impl Mass {
     }
 
     #[inline]
+    pub fn inverse(self) -> Scalar {
+        self.inverse
+    }
+
+    #[inline]
     pub fn set(&mut self, mass: impl Into<Mass>) {
         *self = mass.into();
     }
@@ -69,7 +74,7 @@ type AngularVector = Vector;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularInertia {
-    pub inverse: Scalar,
+    inverse: Scalar,
 }
 
 #[cfg(feature = "2d")]
@@ -99,6 +104,11 @@ impl AngularInertia {
     #[inline]
     pub fn value(self) -> Scalar {
         self.inverse.recip_or_zero()
+    }
+
+    #[inline]
+    pub fn inverse(self) -> Scalar {
+        self.inverse
     }
 
     #[inline]
@@ -147,7 +157,7 @@ impl From<Scalar> for AngularInertia {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 pub struct AngularInertia {
-    pub inverse: Matrix3,
+    inverse: Matrix3,
 }
 
 impl Default for AngularInertia {
@@ -216,12 +226,28 @@ impl AngularInertia {
         self.tensor()
     }
 
+    /// Returns the inverse of the angular inertia tensor.
+    ///
+    /// Equivalent to [`AngularInertia::inverse_tensor`].
+    #[inline]
+    pub fn inverse(self) -> Matrix {
+        self.inverse
+    }
+
     /// Returns the angular inertia tensor.
     ///
     /// Equivalent to [`AngularInertia::value`].
     #[inline]
     pub fn tensor(self) -> Matrix {
         self.inverse.inverse_or_zero()
+    }
+
+    /// Returns the inverse of the angular inertia tensor.
+    ///
+    /// Equivalent to [`AngularInertia::inverse_tensor`].
+    #[inline]
+    pub fn inverse_tensor(self) -> Matrix {
+        self.inverse
     }
 
     /// Sets the angular inertia tensor.

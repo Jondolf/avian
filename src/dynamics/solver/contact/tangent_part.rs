@@ -39,8 +39,8 @@ impl ContactTangentPart {
     ) -> Self {
         let angular_inertia1: AngularInertia = angular_inertia1.into();
         let angular_inertia2: AngularInertia = angular_inertia2.into();
-        let i1 = angular_inertia1.inverse;
-        let i2 = angular_inertia2.inverse;
+        let i1 = angular_inertia1.inverse();
+        let i2 = angular_inertia2.inverse();
 
         let mut part = Self {
             impulse: warm_start_impulse.unwrap_or_default(),

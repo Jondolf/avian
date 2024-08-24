@@ -49,12 +49,12 @@ impl<'w> RigidBodyQueryItem<'w> {
     }
 
     /// Computes the effective inverse mass, taking into account any translation locking.
-    pub fn effective_inv_mass(&self) -> Vector {
+    pub fn effective_inverse_mass(&self) -> Vector {
         if !self.rb.is_dynamic() {
             return Vector::ZERO;
         }
 
-        let mut inv_mass = Vector::splat(self.mass.inverse);
+        let mut inv_mass = Vector::splat(self.mass.inverse());
 
         if let Some(locked_axes) = self.locked_axes {
             inv_mass = locked_axes.apply_to_vec(inv_mass);
@@ -65,12 +65,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
     /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
     #[cfg(feature = "2d")]
-    pub fn effective_world_inv_inertia(&self) -> Scalar {
+    pub fn effective_global_inverse_inertia(&self) -> Scalar {
         if !self.rb.is_dynamic() {
             return 0.0;
         }
 
-        let mut inv_inertia = self.angular_inertia.inverse;
+        let mut inv_inertia = self.angular_inertia.inverse();
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
@@ -81,12 +81,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
     /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+    pub fn effective_global_inverse_inertia(&self) -> Matrix3 {
         if !self.rb.is_dynamic() {
             return Matrix3::ZERO;
         }
 
-        let mut inv_inertia = self.global_angular_inertia.inverse;
+        let mut inv_inertia = self.global_angular_inertia.inverse();
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
@@ -148,7 +148,7 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
             return Vector::ZERO;
         }
 
-        let mut inv_mass = Vector::splat(self.mass.inverse);
+        let mut inv_mass = Vector::splat(self.mass.inverse());
 
         if let Some(locked_axes) = self.locked_axes {
             inv_mass = locked_axes.apply_to_vec(inv_mass);
@@ -173,7 +173,7 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         }
 
         #[cfg(feature = "2d")]
-        let mut inv_inertia = self.angular_inertia.inverse;
+        let mut inv_inertia = self.angular_inertia.inverse();
         #[cfg(feature = "3d")]
         let mut inv_inertia = self.angular_inertia.rotated_inverse(self.rotation.0);
 
@@ -308,7 +308,7 @@ mod tests {
         // Test if values are correct
         // (reference values were calculated by hand)
         assert_relative_eq!(mass_props.mass.value(), 9.7);
-        assert_relative_eq!(mass_props.mass.inverse, 1.0 / 9.7);
+        assert_relative_eq!(mass_props.mass.inverse(), 1.0 / 9.7);
         assert_relative_eq!(
             mass_props.center_of_mass.0,
             Vector::X * 0.375_257 + Vector::Y * 0.835_051,
@@ -346,7 +346,7 @@ mod tests {
         // The reference values were calculated by hand.
         // The center of mass is computed as: (com1 * mass1 - com2 * mass2) / (mass1 - mass2).max(0.0)
         assert_relative_eq!(mass_props.mass.value(), 6.5);
-        assert_relative_eq!(mass_props.mass.inverse, 1.0 / 6.5);
+        assert_relative_eq!(mass_props.mass.inverse(), 1.0 / 6.5);
         assert_relative_eq!(
             mass_props.center_of_mass.0,
             Vector::NEG_X * 5.030_769 + Vector::NEG_Y * 0.246_153,
@@ -388,8 +388,8 @@ mod tests {
             epsilon = 0.001
         );
         assert_relative_eq!(
-            mass_props.mass.inverse,
-            original_mass_props.mass.inverse,
+            mass_props.mass.inverse(),
+            original_mass_props.mass.inverse(),
             epsilon = 0.000_001
         );
         assert_relative_eq!(
@@ -398,8 +398,8 @@ mod tests {
             epsilon = 0.01
         );
         assert_relative_eq!(
-            mass_props.angular_inertia.inverse,
-            original_mass_props.angular_inertia.inverse,
+            mass_props.angular_inertia.inverse(),
+            original_mass_props.angular_inertia.inverse(),
             epsilon = 0.001
         );
         assert_relative_eq!(
