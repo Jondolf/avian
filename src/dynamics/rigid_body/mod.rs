@@ -207,7 +207,7 @@ use derive_more::From;
 #[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
 ///     ColliderDensity(0.0),
-///     Mass(5.0),
+///     Mass::new(5.0),
 ///     // ...the rest of the mass properties
 /// ));
 /// # }

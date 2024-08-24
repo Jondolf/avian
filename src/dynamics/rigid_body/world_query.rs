@@ -289,15 +289,23 @@ mod tests {
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
             mass: Mass::new(1.6),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(1.6),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
-            ..default()
         });
 
         // Create collider mass properties that will be added to the existing mass properties
         let collider_mass_props = ColliderMassProperties {
             mass: Mass::new(8.1),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(56.2),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
+                56.2, 62.7, 71.4,
+            ))),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
         };
 
         // Get the mass properties and add the collider mass properties
@@ -326,15 +334,23 @@ mod tests {
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
             mass: Mass::new(8.1),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(56.2),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
+                56.2, 62.7, 71.4,
+            ))),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
-            ..default()
         });
 
         // Create collider mass properties that will be subtracted from the existing mass properties
         let collider_mass_props = ColliderMassProperties {
             mass: Mass::new(1.6),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(1.6),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
         };
 
         // Get the mass properties and subtract the collider mass properties

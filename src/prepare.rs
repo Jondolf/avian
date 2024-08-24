@@ -161,9 +161,9 @@ impl Plugin for PreparePlugin {
         .add_systems(
             self.schedule,
             (
+                warn_missing_mass,
                 #[cfg(feature = "3d")]
                 update_global_angular_inertia::<Added<RigidBody>>,
-                warn_missing_mass,
                 clamp_collider_density,
                 clamp_restitution,
                 // All the components we added above must exist before we can simulate the bodies.
