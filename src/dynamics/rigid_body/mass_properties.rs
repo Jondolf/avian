@@ -2,9 +2,6 @@ use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
 
-// TODO: Add ìs_finite and other helpers
-// TODO: Add debug assertions
-
 /// The mass of a dynamic [rigid body].
 ///
 /// [rigid body]: RigidBody
@@ -46,14 +43,16 @@ impl Mass {
     /// Creates a new [`Mass`] from the given mass.
     #[inline]
     pub fn new(mass: Scalar) -> Self {
-        Self {
-            inverse: mass.recip_or_zero(),
-        }
+        debug_assert!(mass >= 0.0, "mass must be positive or zero");
+
+        Self::from_inverse(mass.recip_or_zero())
     }
 
     /// Creates a new [`Mass`] from the given inverse mass.
     #[inline]
     pub fn from_inverse(inverse_mass: Scalar) -> Self {
+        debug_assert!(inverse_mass >= 0.0, "inverse mass must be positive or zero");
+
         Self {
             inverse: inverse_mass,
         }
@@ -80,6 +79,23 @@ impl Mass {
     #[inline]
     pub fn set(&mut self, mass: impl Into<Mass>) {
         *self = mass.into();
+    }
+
+    /// Returns `true` if the mass is neither infinite nor NaN.
+    #[inline]
+    pub fn is_finite(self) -> bool {
+        !self.is_infinite() && !self.is_nan()
+    }
+
+    /// Returns `true` if the mass is positive infinity or negative infinity.
+    pub fn is_infinite(self) -> bool {
+        self == Self::INFINITY
+    }
+
+    /// Returns `true` if the mass is NaN.
+    #[inline]
+    pub fn is_nan(self) -> bool {
+        self.inverse.is_nan()
     }
 }
 
@@ -132,14 +148,22 @@ impl AngularInertia {
     /// Creates a new [`AngularInertia`] from the given angular inertia.
     #[inline]
     pub fn new(angular_inertia: Scalar) -> Self {
-        Self {
-            inverse: angular_inertia.recip_or_zero(),
-        }
+        debug_assert!(
+            angular_inertia >= 0.0,
+            "angular inertia must be positive or zero",
+        );
+
+        Self::from_inverse(angular_inertia.recip_or_zero())
     }
 
     /// Creates a new [`AngularInertia`] from the given inverse angular inertia.
     #[inline]
     pub fn from_inverse(inverse_angular_inertia: Scalar) -> Self {
+        debug_assert!(
+            inverse_angular_inertia >= 0.0,
+            "inverse angular inertia must be positive or zero",
+        );
+
         Self {
             inverse: inverse_angular_inertia,
         }
@@ -187,6 +211,23 @@ impl AngularInertia {
             self.inverse
         }
     }
+
+    /// Returns `true` if the angular inertia is neither infinite nor NaN.
+    #[inline]
+    pub fn is_finite(self) -> bool {
+        !self.is_infinite() && !self.is_nan()
+    }
+
+    /// Returns `true` if the angular inertia is positive infinity or negative infinity.
+    pub fn is_infinite(self) -> bool {
+        self == Self::INFINITY
+    }
+
+    /// Returns `true` if the angular inertia is NaN.
+    #[inline]
+    pub fn is_nan(self) -> bool {
+        self.inverse.is_nan()
+    }
 }
 
 #[cfg(feature = "2d")]
@@ -205,6 +246,8 @@ impl From<Scalar> for AngularInertia {
 ///
 /// To manually compute the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
+///
+/// The angular inertia tensor should be symmetric and positive definite.
 ///
 /// [rigid body]: RigidBody
 ///
@@ -248,15 +291,21 @@ impl AngularInertia {
     };
 
     /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
+    ///
+    /// The tensor should be symmetric and positive definite.
     #[inline]
     pub fn new(tensor: Matrix) -> Self {
-        let inverse = tensor.inverse_or_zero();
-        Self { inverse }
+        Self::from_inverse(tensor.inverse_or_zero())
     }
 
     /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
+    ///
+    /// The tensor should be symmetric and positive definite.
     #[inline]
     pub fn from_inverse(inverse_tensor: Matrix) -> Self {
+        // TODO: Check if the matrix is symmetric, or even add custom `SymmetricMat2` and `SymmetricMat3` types.
+        //       We could also check that it's positive definite, but that'd be somewhat expensive and require
+        //       either Cholesky decomposition or computing the eigenvalues.
         Self {
             inverse: inverse_tensor,
         }
@@ -381,6 +430,23 @@ impl AngularInertia {
         } else {
             self.inverse
         }
+    }
+
+    /// Returns `true` if the angular inertia is neither infinite nor NaN.
+    #[inline]
+    pub fn is_finite(self) -> bool {
+        !self.is_infinite() && !self.is_nan()
+    }
+
+    /// Returns `true` if the angular inertia is positive infinity or negative infinity.
+    pub fn is_infinite(self) -> bool {
+        self == Self::INFINITY
+    }
+
+    /// Returns `true` if the angular inertia is NaN.
+    #[inline]
+    pub fn is_nan(self) -> bool {
+        self.inverse.is_nan()
     }
 }
 
