@@ -170,6 +170,53 @@ impl RecipOrZero for DVec3 {
     }
 }
 
+/// An extension trait for computing inverses without division by zero.
+pub trait InverseOrZero {
+    /// Computes the inverse of `self` if `self` is not zero,
+    /// and returns zero otherwise to avoid division by zero.
+    fn inverse_or_zero(self) -> Self;
+}
+
+impl InverseOrZero for Mat2 {
+    fn inverse_or_zero(self) -> Self {
+        if self == Self::ZERO {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for DMat2 {
+    fn inverse_or_zero(self) -> Self {
+        if self == Self::ZERO {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for Mat3 {
+    fn inverse_or_zero(self) -> Self {
+        if self == Self::ZERO {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for DMat3 {
+    fn inverse_or_zero(self) -> Self {
+        if self == Self::ZERO {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")

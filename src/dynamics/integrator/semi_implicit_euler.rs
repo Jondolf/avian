@@ -82,8 +82,12 @@ pub fn integrate_velocity(
         // However, the basic semi-implicit approach can blow up, as semi-implicit Euler
         // extrapolates velocity and the gyroscopic torque is quadratic in the angular velocity.
         // Thus, we use implicit Euler, which is much more accurate and stable, although slightly more expensive.
-        let delta_ang_vel_gyro =
-            solve_gyroscopic_torque(*ang_vel, rotation.0, angular_inertia.inverse, delta_seconds);
+        let delta_ang_vel_gyro = solve_gyroscopic_torque(
+            *ang_vel,
+            rotation.0,
+            angular_inertia.tensor(),
+            delta_seconds,
+        );
         delta_ang_vel += locked_axes.apply_to_angular_velocity(delta_ang_vel_gyro);
     }
 
@@ -178,7 +182,9 @@ pub fn angular_acceleration(
     // Effective inverse inertia along each axis
     let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
 
-    if effective_inv_inertia != AngularInertia::ZERO.inverse && effective_inv_inertia.is_finite() {
+    if effective_inv_inertia != AngularInertia::INFINITY.inverse
+        && effective_inv_inertia.is_finite()
+    {
         // Newton's 2nd law for rotational movement:
         //
         // τ = I * α
