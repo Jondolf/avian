@@ -167,7 +167,7 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
     }
 
     /// Computes the effective world-space angular inertia, taking into account any rotation locking.
-    pub fn effective_world_angular_inertia(&self) -> AngularInertia {
+    pub fn effective_global_angular_inertia(&self) -> AngularInertia {
         if !self.rb.is_dynamic() {
             return AngularInertia::INFINITY;
         }
