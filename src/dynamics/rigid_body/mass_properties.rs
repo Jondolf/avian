@@ -446,6 +446,13 @@ impl ColliderMassProperties {
         center_of_mass: CenterOfMass::ZERO,
     };
 
+    /// The collider has infinite mass.
+    pub const INFINITY: Self = Self {
+        mass: Mass::INFINITY,
+        angular_inertia: AngularInertia::INFINITY,
+        center_of_mass: CenterOfMass::ZERO,
+    };
+
     /// Computes mass properties from a given collider and density.
     ///
     /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually

@@ -120,7 +120,7 @@ pub trait RecipOrZero {
 
 impl RecipOrZero for f32 {
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -130,7 +130,7 @@ impl RecipOrZero for f32 {
 
 impl RecipOrZero for f64 {
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -179,7 +179,7 @@ pub trait InverseOrZero {
 
 impl InverseOrZero for Mat2 {
     fn inverse_or_zero(self) -> Self {
-        if self == Self::ZERO {
+        if self.determinant() == 0.0 {
             Self::ZERO
         } else {
             self.inverse()
@@ -189,7 +189,7 @@ impl InverseOrZero for Mat2 {
 
 impl InverseOrZero for DMat2 {
     fn inverse_or_zero(self) -> Self {
-        if self == Self::ZERO {
+        if self.determinant() == 0.0 {
             Self::ZERO
         } else {
             self.inverse()
@@ -199,7 +199,7 @@ impl InverseOrZero for DMat2 {
 
 impl InverseOrZero for Mat3 {
     fn inverse_or_zero(self) -> Self {
-        if self == Self::ZERO {
+        if self.determinant() == 0.0 {
             Self::ZERO
         } else {
             self.inverse()
@@ -209,7 +209,7 @@ impl InverseOrZero for Mat3 {
 
 impl InverseOrZero for DMat3 {
     fn inverse_or_zero(self) -> Self {
-        if self == Self::ZERO {
+        if self.determinant() == 0.0 {
             Self::ZERO
         } else {
             self.inverse()
