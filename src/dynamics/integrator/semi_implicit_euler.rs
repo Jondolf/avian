@@ -31,7 +31,7 @@ use super::*;
 /// the linear and angular velocity after `delta_seconds` have passed.
 ///
 /// This uses [semi-implicit (symplectic) Euler integration](self).
-#[allow(clippy::too_many_arguments, unused_variables)]
+#[allow(clippy::too_many_arguments)]
 pub fn integrate_velocity(
     lin_vel: &mut Vector,
     ang_vel: &mut AngularValue,
