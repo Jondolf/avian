@@ -245,12 +245,12 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
 
 impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
-        let mass1 = self.mass.value();
-        let mass2 = rhs.mass.value();
-
-        if mass1 + mass2 <= 0.0 {
+        if self.mass.inverse() + rhs.mass.inverse() <= 0.0 {
             return;
         }
+
+        let mass1 = self.mass.value();
+        let mass2 = rhs.mass.value();
 
         let new_mass = (mass1 - mass2).max(0.0);
         let com1 = self.center_of_mass.0;
