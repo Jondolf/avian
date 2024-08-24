@@ -407,6 +407,7 @@ pub fn init_transforms<C: Component>(
     }
 }
 
+/// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
 #[cfg(feature = "3d")]
 pub fn update_global_angular_inertia<F: QueryFilter>(
     mut query: Query<
