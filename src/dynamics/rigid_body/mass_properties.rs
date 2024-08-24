@@ -280,6 +280,36 @@ impl From<Matrix> for AngularInertia {
     }
 }
 
+// In 2D, the global angular inertia is the same as the local angular inertia.
+#[cfg(feature = "2d")]
+pub(crate) type GlobalAngularInertia = AngularInertia;
+
+/// The world-space moment of inertia of the body as a 3x3 tensor matrix.
+/// This represents the torque needed for a desired angular acceleration about the XYZ axes.
+#[cfg(feature = "3d")]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
+pub struct GlobalAngularInertia(AngularInertia);
+
+#[cfg(feature = "3d")]
+impl GlobalAngularInertia {
+    pub fn new(local_angular_inertia: AngularInertia, rotation: impl Into<Quaternion>) -> Self {
+        Self(AngularInertia::from_inverse(
+            local_angular_inertia.rotated_inverse(rotation.into()),
+        ))
+    }
+
+    pub fn update(
+        &mut self,
+        local_angular_inertia: AngularInertia,
+        rotation: impl Into<Quaternion>,
+    ) {
+        *self = Self::new(local_angular_inertia, rotation);
+    }
+}
+
 /// The local center of mass of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]

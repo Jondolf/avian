@@ -23,6 +23,8 @@ pub struct RigidBodyQuery {
     pub(crate) pre_solve_angular_velocity: &'static mut PreSolveAngularVelocity,
     pub mass: &'static mut Mass,
     pub angular_inertia: &'static mut AngularInertia,
+    #[cfg(feature = "3d")]
+    pub global_angular_inertia: &'static mut GlobalAngularInertia,
     pub center_of_mass: &'static mut CenterOfMass,
     pub friction: &'static Friction,
     pub restitution: &'static Restitution,
@@ -84,7 +86,7 @@ impl<'w> RigidBodyQueryItem<'w> {
             return Matrix3::ZERO;
         }
 
-        let mut inv_inertia = self.angular_inertia.rotated_inverse(self.rotation.0);
+        let mut inv_inertia = self.global_angular_inertia.inverse;
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);

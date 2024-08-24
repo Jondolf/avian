@@ -133,7 +133,13 @@ impl Plugin for PreparePlugin {
                     time_sleeping,
                 ));
 
-                entity_commands.try_insert((mass, angular_inertia, center_of_mass));
+                entity_commands.try_insert((
+                    mass,
+                    angular_inertia,
+                    #[cfg(feature = "3d")]
+                    GlobalAngularInertia::default(),
+                    center_of_mass,
+                ));
             });
 
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
@@ -155,6 +161,8 @@ impl Plugin for PreparePlugin {
         .add_systems(
             self.schedule,
             (
+                #[cfg(feature = "3d")]
+                update_global_angular_inertia::<Added<RigidBody>>,
                 warn_missing_mass,
                 clamp_collider_density,
                 clamp_restitution,
@@ -397,6 +405,20 @@ pub fn init_transforms<C: Component>(
             }
         }
     }
+}
+
+#[cfg(feature = "3d")]
+pub fn update_global_angular_inertia<F: QueryFilter>(
+    mut query: Query<
+        (&Rotation, &AngularInertia, &mut GlobalAngularInertia),
+        (Or<(Changed<AngularInertia>, Changed<Rotation>)>, F),
+    >,
+) {
+    query
+        .par_iter_mut()
+        .for_each(|(rotation, angular_inertia, mut global_angular_inertia)| {
+            global_angular_inertia.update(*angular_inertia, rotation.0);
+        });
 }
 
 #[derive(QueryData)]

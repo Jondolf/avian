@@ -39,7 +39,8 @@ pub fn integrate_velocity(
     torque: TorqueValue,
     mass: Mass,
     angular_inertia: AngularInertia,
-    rotation: Rotation,
+    #[cfg(feature = "3d")] global_angular_inertia: GlobalAngularInertia,
+    #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
     gravity: Vector,
     delta_seconds: Scalar,
@@ -58,11 +59,7 @@ pub fn integrate_velocity(
     #[cfg(feature = "2d")]
     let ang_acc = angular_acceleration(torque, angular_inertia.inverse, locked_axes);
     #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(
-        torque,
-        angular_inertia.rotated_inverse(rotation.0),
-        locked_axes,
-    );
+    let ang_acc = angular_acceleration(torque, global_angular_inertia.inverse, locked_axes);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -267,6 +264,9 @@ mod tests {
                 default(),
                 mass,
                 angular_inertia,
+                #[cfg(feature = "3d")]
+                GlobalAngularInertia::new(angular_inertia, rotation),
+                #[cfg(feature = "3d")]
                 rotation,
                 default(),
                 gravity,
