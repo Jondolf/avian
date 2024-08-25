@@ -63,36 +63,31 @@ impl<'w> RigidBodyQueryItem<'w> {
         inv_mass
     }
 
-    /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
-    #[cfg(feature = "2d")]
-    pub fn effective_global_inverse_inertia(&self) -> Scalar {
-        if !self.rb.is_dynamic() {
-            return 0.0;
+    /// Returns the local angular inertia. If the rigid body is not dynamic, the returned angular inertia is infinite.
+    pub fn angular_inertia(&self) -> AngularInertia {
+        if self.rb.is_dynamic() {
+            *self.angular_inertia
+        } else {
+            AngularInertia::INFINITY
         }
-
-        let mut inv_inertia = self.angular_inertia.inverse();
-
-        if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
-        }
-
-        inv_inertia
     }
 
-    /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
-    #[cfg(feature = "3d")]
-    pub fn effective_global_inverse_inertia(&self) -> Matrix3 {
+    /// Computes the effective world-space angular inertia, taking into account any rotation locking.
+    pub fn effective_global_angular_inertia(&self) -> AngularInertia {
         if !self.rb.is_dynamic() {
-            return Matrix3::ZERO;
+            return AngularInertia::INFINITY;
         }
 
-        let mut inv_inertia = self.global_angular_inertia.inverse();
+        #[cfg(feature = "2d")]
+        let mut angular_inertia = *self.angular_inertia;
+        #[cfg(feature = "3d")]
+        let mut angular_inertia = **self.global_angular_inertia;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
         }
 
-        inv_inertia
+        angular_inertia
     }
 
     /// Returns the current position of the body. This is a sum of the [`Position`] and
@@ -173,15 +168,15 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         }
 
         #[cfg(feature = "2d")]
-        let mut inv_inertia = self.angular_inertia.inverse();
+        let mut angular_inertia = *self.angular_inertia;
         #[cfg(feature = "3d")]
-        let mut inv_inertia = self.angular_inertia.rotated_inverse(self.rotation.0);
+        let mut angular_inertia = **self.global_angular_inertia;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
         }
 
-        AngularInertia::from_inverse(inv_inertia)
+        angular_inertia
     }
 
     /// Returns the current position of the body. This is a sum of the [`Position`] and
@@ -292,7 +287,7 @@ mod tests {
             #[cfg(feature = "2d")]
             angular_inertia: AngularInertia::new(1.6),
             #[cfg(feature = "3d")]
-            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
+            angular_inertia: AngularInertia::new(Vector::new(1.6, 2.4, 3.2)),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
         });
 
@@ -302,9 +297,7 @@ mod tests {
             #[cfg(feature = "2d")]
             angular_inertia: AngularInertia::new(56.2),
             #[cfg(feature = "3d")]
-            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
-                56.2, 62.7, 71.4,
-            ))),
+            angular_inertia: AngularInertia::new(Vector::new(56.2, 62.7, 71.4)),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
         };
 
@@ -337,9 +330,7 @@ mod tests {
             #[cfg(feature = "2d")]
             angular_inertia: AngularInertia::new(56.2),
             #[cfg(feature = "3d")]
-            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
-                56.2, 62.7, 71.4,
-            ))),
+            angular_inertia: AngularInertia::new(Vector::new(56.2, 62.7, 71.4)),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
         });
 
@@ -349,7 +340,7 @@ mod tests {
             #[cfg(feature = "2d")]
             angular_inertia: AngularInertia::new(1.6),
             #[cfg(feature = "3d")]
-            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
+            angular_inertia: AngularInertia::new(Vector::new(1.6, 2.4, 3.2)),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
         };
 

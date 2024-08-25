@@ -288,10 +288,6 @@ type AngularValue = Vector;
 type TorqueValue = Scalar;
 #[cfg(feature = "3d")]
 type TorqueValue = Vector;
-#[cfg(feature = "2d")]
-type InertiaValue = Scalar;
-#[cfg(feature = "3d")]
-type InertiaValue = Matrix3;
 
 type ImpulseQueryComponents = (
     &'static RigidBody,

@@ -234,6 +234,36 @@ impl LockedAxes {
         rotation
     }
 
+    /// Sets the given angular inertia to zero if rotational axes are locked.
+    #[cfg(feature = "2d")]
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        mut angular_inertia: AngularInertia,
+    ) -> AngularInertia {
+        if self.is_rotation_locked() {
+            *angular_inertia.inverse_mut() = 0.0;
+        }
+        angular_inertia
+    }
+
+    /// Sets axes of the given angular inertia to zero based on the [`LockedAxes`] configuration.
+    #[cfg(feature = "3d")]
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        mut angular_inertia: AngularInertia,
+    ) -> AngularInertia {
+        if self.is_rotation_x_locked() {
+            angular_inertia.inverse_mut().x_axis = Vector::ZERO;
+        }
+        if self.is_rotation_y_locked() {
+            angular_inertia.inverse_mut().y_axis = Vector::ZERO;
+        }
+        if self.is_rotation_z_locked() {
+            angular_inertia.inverse_mut().z_axis = Vector::ZERO;
+        }
+        angular_inertia
+    }
+
     /// Sets the given angular velocity to zero if rotational axes are locked.
     #[cfg(feature = "2d")]
     pub(crate) fn apply_to_angular_velocity(&self, mut angular_velocity: Scalar) -> Scalar {

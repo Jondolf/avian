@@ -46,7 +46,7 @@ pub fn integrate_velocity(
     delta_seconds: Scalar,
 ) {
     // Compute linear acceleration.
-    let lin_acc = linear_acceleration(force, mass.inverse(), locked_axes, gravity);
+    let lin_acc = linear_acceleration(force, mass, locked_axes, gravity);
 
     // Compute next linear velocity.
     // v = v_0 + a * Δt
@@ -57,9 +57,9 @@ pub fn integrate_velocity(
 
     // Compute angular acceleration.
     #[cfg(feature = "2d")]
-    let ang_acc = angular_acceleration(torque, angular_inertia.inverse(), locked_axes);
+    let ang_acc = angular_acceleration(torque, angular_inertia, locked_axes);
     #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(torque, global_angular_inertia.inverse(), locked_axes);
+    let ang_acc = angular_acceleration(torque, *global_angular_inertia, locked_axes);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -141,14 +141,14 @@ pub fn integrate_position(
 /// Computes linear acceleration based on the given forces and mass.
 pub fn linear_acceleration(
     force: Vector,
-    inv_mass: Scalar,
+    mass: Mass,
     locked_axes: LockedAxes,
     gravity: Vector,
 ) -> Vector {
     // Effective inverse mass along each axis
-    let inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass));
+    let effective_inverse_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
 
-    if inv_mass != Vector::ZERO && inv_mass.is_finite() {
+    if effective_inverse_mass != Vector::ZERO && effective_inverse_mass.is_finite() {
         // Newton's 2nd law for translational movement:
         //
         // F = m * a
@@ -158,7 +158,7 @@ pub fn linear_acceleration(
         //
         // `gravity` below is the gravitational acceleration,
         // so it doesn't need to be divided by mass.
-        force * inv_mass + locked_axes.apply_to_vec(gravity)
+        force * effective_inverse_mass + locked_axes.apply_to_vec(gravity)
     } else {
         Vector::ZERO
     }
@@ -173,14 +173,14 @@ correction, use `solve_gyroscopic_torque`."
 )]
 pub fn angular_acceleration(
     torque: TorqueValue,
-    world_inv_inertia: InertiaValue,
+    global_angular_inertia: AngularInertia,
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
-    let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
+    let effective_angular_inertia = locked_axes.apply_to_angular_inertia(global_angular_inertia);
 
-    if effective_inv_inertia != AngularInertia::INFINITY.inverse()
-        && effective_inv_inertia.is_finite()
+    if effective_angular_inertia != AngularInertia::INFINITY
+        && effective_angular_inertia.is_finite()
     {
         // Newton's 2nd law for rotational movement:
         //
@@ -189,7 +189,7 @@ pub fn angular_acceleration(
         //
         // where α (alpha) is the angular acceleration,
         // τ (tau) is the torque, and I is the moment of inertia.
-        world_inv_inertia * torque
+        effective_angular_inertia.inverse() * torque
     } else {
         AngularValue::ZERO
     }
@@ -251,7 +251,7 @@ mod tests {
         #[cfg(feature = "2d")]
         let angular_inertia = AngularInertia::new(1.0);
         #[cfg(feature = "3d")]
-        let angular_inertia = AngularInertia::new(Matrix::IDENTITY);
+        let angular_inertia = AngularInertia::new(Vector::ONE);
 
         let gravity = Vector::NEG_Y * 9.81;
 

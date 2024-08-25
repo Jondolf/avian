@@ -459,7 +459,7 @@ impl AnyCollider for Collider {
                 props.inv_principal_inertia_sqrt * props.inv_principal_inertia_sqrt,
             ),
             #[cfg(feature = "3d")]
-            angular_inertia: AngularInertia::from_inverse(
+            angular_inertia: AngularInertia::from_inverse_tensor(
                 props.reconstruct_inverse_inertia_matrix().into(),
             ),
             center_of_mass: CenterOfMass(props.local_com.into()),

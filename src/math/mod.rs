@@ -119,6 +119,7 @@ pub trait RecipOrZero {
 }
 
 impl RecipOrZero for f32 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         if self != 0.0 && self.is_finite() {
             self.recip()
@@ -129,6 +130,7 @@ impl RecipOrZero for f32 {
 }
 
 impl RecipOrZero for f64 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         if self != 0.0 && self.is_finite() {
             self.recip()
@@ -139,12 +141,14 @@ impl RecipOrZero for f64 {
 }
 
 impl RecipOrZero for Vec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for Vec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -155,12 +159,14 @@ impl RecipOrZero for Vec3 {
 }
 
 impl RecipOrZero for DVec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for DVec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -170,14 +176,15 @@ impl RecipOrZero for DVec3 {
     }
 }
 
-/// An extension trait for computing inverses without division by zero.
-pub trait InverseOrZero {
+/// An extension trait for matrix types.
+pub trait MatExt {
     /// Computes the inverse of `self` if `self` is not zero,
     /// and returns zero otherwise to avoid division by zero.
     fn inverse_or_zero(self) -> Self;
 }
 
-impl InverseOrZero for Mat2 {
+impl MatExt for Mat2 {
+    #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {
             Self::ZERO
@@ -187,7 +194,8 @@ impl InverseOrZero for Mat2 {
     }
 }
 
-impl InverseOrZero for DMat2 {
+impl MatExt for DMat2 {
+    #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {
             Self::ZERO
@@ -197,7 +205,8 @@ impl InverseOrZero for DMat2 {
     }
 }
 
-impl InverseOrZero for Mat3 {
+impl MatExt for Mat3 {
+    #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {
             Self::ZERO
@@ -207,7 +216,8 @@ impl InverseOrZero for Mat3 {
     }
 }
 
-impl InverseOrZero for DMat3 {
+impl MatExt for DMat3 {
+    #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {
             Self::ZERO

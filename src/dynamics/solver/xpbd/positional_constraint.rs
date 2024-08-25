@@ -39,8 +39,8 @@ pub trait PositionConstraint: XpbdConstraint<2> {
     ) -> Vector {
         let inv_mass1 = body1.effective_inverse_mass();
         let inv_mass2 = body2.effective_inverse_mass();
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -109,7 +109,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            let inverse_inertia = body.effective_global_inverse_inertia();
+            let inverse_inertia = body.effective_global_angular_inertia().inverse();
 
             let r_cross_n = r.cross(n); // Compute the cross product only once
 

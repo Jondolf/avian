@@ -217,8 +217,8 @@ impl ContactConstraint {
     ) {
         let inv_mass1 = body1.effective_inverse_mass();
         let inv_mass2 = body2.effective_inverse_mass();
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         for point in self.points.iter() {
             // Fixed anchors
@@ -261,8 +261,8 @@ impl ContactConstraint {
     ) {
         let inv_mass1 = body1.effective_inverse_mass();
         let inv_mass2 = body2.effective_inverse_mass();
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         let delta_translation = body2.accumulated_translation.0 - body1.accumulated_translation.0;
 
@@ -370,8 +370,8 @@ impl ContactConstraint {
 
             let inv_mass1 = body1.effective_inverse_mass();
             let inv_mass2 = body2.effective_inverse_mass();
-            let inv_inertia1 = body1.effective_global_inverse_inertia();
-            let inv_inertia2 = body2.effective_global_inverse_inertia();
+            let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+            let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
             // Relative velocity at contact point
             let relative_velocity = body2.velocity_at_point(r2) - body1.velocity_at_point(r1);

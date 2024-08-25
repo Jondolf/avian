@@ -148,11 +148,6 @@ impl AngularInertia {
     /// Creates a new [`AngularInertia`] from the given angular inertia.
     #[inline]
     pub fn new(angular_inertia: Scalar) -> Self {
-        debug_assert!(
-            angular_inertia >= 0.0,
-            "angular inertia must be positive or zero",
-        );
-
         Self::from_inverse(angular_inertia.recip_or_zero())
     }
 
@@ -184,6 +179,14 @@ impl AngularInertia {
     #[inline]
     pub fn inverse(self) -> Scalar {
         self.inverse
+    }
+
+    /// Returns a mutable reference to the inverse of the angular inertia tensor.
+    ///
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    #[inline]
+    pub fn inverse_mut(&mut self) -> &mut Scalar {
+        &mut self.inverse
     }
 
     /// Sets the angular inertia.
@@ -269,6 +272,8 @@ impl From<Scalar> for AngularInertia {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 pub struct AngularInertia {
+    // TODO: The matrix should be symmetric and positive definite.
+    //       We could add a custom `SymmetricMat3` type to enforce symmetricity and reduce memory usage.
     inverse: Matrix3,
 }
 
@@ -278,6 +283,7 @@ impl Default for AngularInertia {
     }
 }
 
+// TODO: Add `principal_inertia` and `local_inertial_frame` helpers. This requires an eigensolver.
 #[cfg(feature = "3d")]
 impl AngularInertia {
     /// Zero angular inertia.
@@ -290,49 +296,104 @@ impl AngularInertia {
         inverse: Matrix::ZERO,
     };
 
-    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
+    /// Creates a new [`AngularInertia`] from the given principal inertia.
     ///
-    /// The tensor should be symmetric and positive definite.
-    #[inline]
-    pub fn new(tensor: Matrix) -> Self {
-        Self::from_inverse(tensor.inverse_or_zero())
-    }
-
-    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
+    /// The principal inertia represents the torque needed for a desired angular acceleration
+    /// about the local coordinate axes.
     ///
-    /// The tensor should be symmetric and positive definite.
+    /// To specify the orientation of the local inertial frame, consider using [`AngularInertia::new_with_orientation`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if any component of the principal inertia is negative when `debug_assertions` are enabled.
     #[inline]
-    pub fn from_inverse(inverse_tensor: Matrix) -> Self {
-        // TODO: Check if the matrix is symmetric, or even add custom `SymmetricMat2` and `SymmetricMat3` types.
-        //       We could also check that it's positive definite, but that'd be somewhat expensive and require
-        //       either Cholesky decomposition or computing the eigenvalues.
-        Self {
-            inverse: inverse_tensor,
-        }
+    #[doc(alias = "from_principal_inertia")]
+    pub fn new(principal_inertia: Vector) -> Self {
+        Self::from_inverse(principal_inertia.recip_or_zero())
     }
 
     /// Creates a new [`AngularInertia`] from the given principal inertia
     /// and the orientation of the local inertial frame.
+    ///
+    /// The principal inertia represents the torque needed for a desired angular acceleration
+    /// about the local coordinate axes defined by the given `orientation`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any component of the principal inertia is negative when `debug_assertions` are enabled.
     #[inline]
-    pub fn from_principal(principal_inertia: Vector, orientation: Quaternion) -> Self {
+    #[doc(alias = "from_principal_inertia_with_orientation")]
+    pub fn new_with_local_frame(principal_inertia: Vector, orientation: Quaternion) -> Self {
+        Self::from_inverse_with_local_frame(principal_inertia.recip_or_zero(), orientation)
+    }
+
+    /// Creates a new [`AngularInertia`] from the given inverse principal inertia.
+    ///
+    /// The principal inertia represents the torque needed for a desired angular acceleration
+    /// about the local coordinate axes.
+    ///
+    /// To specify the orientation of the local inertial frame, consider using [`AngularInertia::from_inverse_with_orientation`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if any component of the principal inertia is negative when `debug_assertions` are enabled.
+    #[inline]
+    pub fn from_inverse(inverse_principal_inertia: Vector) -> Self {
+        debug_assert!(
+            inverse_principal_inertia.cmpge(Vector::ZERO).all(),
+            "principal inertia must be positive or zero for all axes"
+        );
+
         Self {
-            inverse: Matrix::from_quat(orientation)
-                * Matrix::from_diagonal(principal_inertia.recip_or_zero())
-                * Matrix::from_quat(orientation.inverse()),
+            inverse: Matrix::from_diagonal(inverse_principal_inertia),
         }
     }
 
     /// Creates a new [`AngularInertia`] from the given inverse principal inertia
     /// and the orientation of the local inertial frame.
+    ///
+    /// The principal inertia represents the torque needed for a desired angular acceleration
+    /// about the local coordinate axes defined by the given `orientation`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any component of the principal inertia is negative when `debug_assertions` are enabled.
     #[inline]
-    pub fn from_inverse_principal(
+    pub fn from_inverse_with_local_frame(
         inverse_principal_inertia: Vector,
         orientation: Quaternion,
     ) -> Self {
+        debug_assert!(
+            inverse_principal_inertia.cmpge(Vector::ZERO).all(),
+            "principal inertia must be positive or zero for all axes"
+        );
+
         Self {
             inverse: Matrix::from_quat(orientation)
                 * Matrix::from_diagonal(inverse_principal_inertia)
                 * Matrix::from_quat(orientation.inverse()),
+        }
+    }
+
+    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
+    ///
+    /// The tensor should be symmetric and positive definite.
+    #[inline]
+    #[doc(alias = "from_mat3")]
+    pub fn from_tensor(tensor: Matrix) -> Self {
+        Self::from_inverse_tensor(tensor.inverse_or_zero())
+    }
+
+    // TODO: We could have a `try_from_` version that checks if the tensor is symmetric and positive definite.
+    //       Checking that it's positive definite would require Cholesky decomposition or computing the eigenvalues.
+    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
+    ///
+    /// The tensor should be symmetric and positive definite.
+    #[inline]
+    #[doc(alias = "from_inverse_mat3")]
+    pub fn from_inverse_tensor(inverse_tensor: Matrix) -> Self {
+        Self {
+            inverse: inverse_tensor,
         }
     }
 
@@ -344,7 +405,7 @@ impl AngularInertia {
     ///
     /// Equivalent to [`AngularInertia::tensor`].
     #[inline]
-    pub fn value(self) -> Matrix {
+    pub(crate) fn value(self) -> Matrix {
         self.tensor()
     }
 
@@ -354,8 +415,16 @@ impl AngularInertia {
     ///
     /// Equivalent to [`AngularInertia::inverse_tensor`].
     #[inline]
-    pub fn inverse(self) -> Matrix {
-        self.inverse
+    pub(crate) fn inverse(self) -> Matrix {
+        self.inverse_tensor()
+    }
+
+    /// Returns a mutable reference to the inverse of the angular inertia tensor.
+    ///
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    #[inline]
+    pub(crate) fn inverse_mut(&mut self) -> &mut Matrix {
+        self.inverse_tensor_mut()
     }
 
     /// Returns the angular inertia tensor.
@@ -363,9 +432,8 @@ impl AngularInertia {
     /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
     /// instead of `angular_inertia.value().inverse() * foo`.
-    ///
-    /// Equivalent to [`AngularInertia::value`].
     #[inline]
+    #[doc(alias = "as_mat3")]
     pub fn tensor(self) -> Matrix {
         self.inverse.inverse_or_zero()
     }
@@ -373,11 +441,19 @@ impl AngularInertia {
     /// Returns the inverse of the angular inertia tensor.
     ///
     /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
-    ///
-    /// Equivalent to [`AngularInertia::inverse_tensor`].
     #[inline]
+    #[doc(alias = "as_inverse_mat3")]
     pub fn inverse_tensor(self) -> Matrix {
         self.inverse
+    }
+
+    /// Returns a mutable reference to the inverse of the angular inertia tensor.
+    ///
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    #[inline]
+    #[doc(alias = "as_inverse_mat3_mut")]
+    pub fn inverse_tensor_mut(&mut self) -> &mut Matrix {
+        &mut self.inverse
     }
 
     /// Sets the angular inertia tensor.
@@ -390,23 +466,20 @@ impl AngularInertia {
     ///
     /// This can be used to transform the local angular inertia to world space.
     #[inline]
-    pub fn rotated(&self, rotation: Quaternion) -> Matrix {
+    pub fn rotated(&self, rotation: Quaternion) -> Self {
         let rot_mat3 = Matrix3::from_quat(rotation);
-        (rot_mat3 * self.tensor()) * rot_mat3.transpose()
-    }
-
-    /// Computes the inverse angular inertia with the given rotation.
-    ///
-    /// This can be used to transform the local inverse angular inertia to world space.
-    #[inline]
-    pub fn rotated_inverse(&self, rotation: Quaternion) -> Matrix {
-        let rot_mat3 = Matrix3::from_quat(rotation);
-        (rot_mat3 * self.inverse) * rot_mat3.transpose()
+        Self::from_inverse_tensor((rot_mat3 * self.inverse) * rot_mat3.transpose())
     }
 
     /// Computes the angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
-    pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+    pub(crate) fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+        self.shifted_tensor(mass, offset)
+    }
+
+    /// Computes the angular inertia tensor shifted by the given offset, taking into account the given mass.
+    #[inline]
+    pub fn shifted_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
         if mass > 0.0 && mass.is_finite() && offset != Vector::ZERO {
             let diagonal_element = offset.length_squared();
             let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
@@ -420,7 +493,7 @@ impl AngularInertia {
 
     /// Computes the inverse angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
-    pub fn shifted_inverse(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+    pub fn shifted_inverse_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
         if mass > 0.0 && mass.is_finite() && offset != Vector::ZERO {
             let diagonal_element = offset.length_squared();
             let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
@@ -453,7 +526,7 @@ impl AngularInertia {
 #[cfg(feature = "3d")]
 impl From<Matrix> for AngularInertia {
     fn from(tensor: Matrix) -> Self {
-        Self::new(tensor)
+        Self::from_tensor(tensor)
     }
 }
 
@@ -483,8 +556,8 @@ impl GlobalAngularInertia {
         rotation: impl Into<Quaternion>,
     ) -> Self {
         let local_angular_inertia: AngularInertia = local_angular_inertia.into();
-        Self(AngularInertia::from_inverse(
-            local_angular_inertia.rotated_inverse(rotation.into()),
+        Self(AngularInertia::from_inverse_tensor(
+            local_angular_inertia.rotated(rotation.into()).inverse(),
         ))
     }
 
@@ -495,6 +568,13 @@ impl GlobalAngularInertia {
         rotation: impl Into<Quaternion>,
     ) {
         *self = Self::new(local_angular_inertia, rotation);
+    }
+}
+
+#[cfg(feature = "3d")]
+impl From<Matrix> for GlobalAngularInertia {
+    fn from(tensor: Matrix) -> Self {
+        Self(AngularInertia::from_tensor(tensor))
     }
 }
 

@@ -32,8 +32,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         body2: &mut RigidBodyQueryItem,
         impulse: Scalar,
     ) -> Scalar {
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -80,8 +80,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         body2: &mut RigidBodyQueryItem,
         impulse: Vector,
     ) -> Vector {
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
@@ -120,8 +120,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
             return Torque::ZERO;
         }
 
-        let w1 = body1.effective_global_inverse_inertia();
-        let w2 = body2.effective_global_inverse_inertia();
+        let w1 = body1.effective_global_angular_inertia().inverse();
+        let w2 = body2.effective_global_angular_inertia().inverse();
         let w = [w1, w2];
 
         // Compute Lagrange multiplier update
@@ -193,8 +193,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // `axis.z` is 1 or -1 and it controls if the body should rotate counterclockwise or clockwise
         let p = -delta_lagrange * axis.z;
 
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -227,8 +227,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Compute angular impulse
         let p = -delta_lagrange * axis;
 
-        let inv_inertia1 = body1.effective_global_inverse_inertia();
-        let inv_inertia2 = body2.effective_global_inverse_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply rotational updates
         if body1.rb.is_dynamic() {
@@ -270,7 +270,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "3d")]
     fn compute_generalized_inverse_mass(&self, body: &RigidBodyQueryItem, axis: Vector) -> Scalar {
         if body.rb.is_dynamic() {
-            axis.dot(body.effective_global_inverse_inertia() * axis)
+            axis.dot(body.effective_global_angular_inertia().inverse() * axis)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
