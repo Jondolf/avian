@@ -39,6 +39,7 @@ serialize = [
     "bevy/serialize",
     "parry2d?/serde-serialize",
     "parry2d-f64?/serde-serialize",
+    "bitflags/serde",
 ]
 
 [lib]
