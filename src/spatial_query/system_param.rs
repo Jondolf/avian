@@ -60,32 +60,12 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 /// }
 /// ```
 #[derive(SystemParam)]
-pub struct SpatialQuery<'w, 's> {
-    pub(crate) colliders: Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static Position,
-            &'static Rotation,
-            &'static Collider,
-            Option<&'static CollisionLayers>,
-        ),
-    >,
-    pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
+pub struct SpatialQuery<'w> {
     /// The [`SpatialQueryPipeline`].
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
 
-impl<'w, 's> SpatialQuery<'w, 's> {
-    /// Updates the colliders in the pipeline. This is done automatically once per physics frame in
-    /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
-    /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].
-    pub fn update_pipeline(&mut self) {
-        self.query_pipeline
-            .update(self.colliders.iter(), self.added_colliders.iter());
-    }
-
+impl<'w> SpatialQuery<'w> {
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///

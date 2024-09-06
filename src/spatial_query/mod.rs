@@ -199,7 +199,7 @@ impl Plugin for SpatialQueryPlugin {
                 ))]
                 (
                     update_shape_caster_positions,
-                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                    update_spatial_query_pipeline,
                     raycast,
                     shapecast,
                 )
@@ -209,6 +209,29 @@ impl Plugin for SpatialQueryPlugin {
                 .in_set(PhysicsStepSet::SpatialQuery),
         );
     }
+}
+
+/// Updates the [`SpatialQueryPipeline`]. This should be done whenever colliders are created, removed, moved, or otherwise modified
+/// in a way that could affect collisions or spatial queries.
+///
+/// By default, this system is run once every physics frame by the [`SpatialQueryPlugin`], in [`PhysicsStepSet::SpatialQuery`].
+/// You may run additional instances of this system if you want more control over when the pipeline is updated.
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub fn update_spatial_query_pipeline(
+    colliders: Query<(
+        Entity,
+        &Position,
+        &Rotation,
+        &Collider,
+        Option<&CollisionLayers>,
+    )>,
+    added_colliders: Query<Entity, Added<Collider>>,
+    mut query_pipeline: ResMut<SpatialQueryPipeline>,
+) {
+    query_pipeline.update(colliders.iter(), added_colliders.iter());
 }
 
 type RayCasterPositionQueryComponents = (
