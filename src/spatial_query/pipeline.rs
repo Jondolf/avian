@@ -5,7 +5,7 @@ use bevy::{prelude::*, utils::HashMap};
 use parry::{
     bounding_volume::Aabb,
     math::Isometry,
-    partitioning::Qbvh,
+    partitioning::{Qbvh, QbvhUpdateWorkspace},
     query::{
         details::{
             NormalConstraints, RayCompositeShapeToiAndNormalBestFirstVisitor,
@@ -28,6 +28,7 @@ use parry::{
 pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
+    pub(crate) workspace: QbvhUpdateWorkspace,
     pub(crate) colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
     pub(crate) entity_generations: HashMap<u32, u32>,
 }
@@ -37,6 +38,7 @@ impl Default for SpatialQueryPipeline {
         Self {
             qbvh: Qbvh::new(),
             dispatcher: Arc::new(DefaultQueryDispatcher),
+            workspace: QbvhUpdateWorkspace::default(),
             colliders: HashMap::default(),
             entity_generations: HashMap::default(),
         }
@@ -73,8 +75,8 @@ impl SpatialQueryPipeline {
         }
     }
 
-    /// Updates the associated acceleration structures with a new set of entities.
-    pub fn update<'a>(
+    /// Fully rebuilds the associated acceleration structures with a new set of entities.
+    pub fn rebuild_full<'a>(
         &mut self,
         colliders: impl Iterator<
             Item = (
@@ -100,10 +102,10 @@ impl SpatialQueryPipeline {
             })
             .collect();
 
-        self.update_internal(colliders, added_colliders)
+        self.rebuild_internal(colliders, added_colliders)
     }
 
-    fn update_internal(
+    fn rebuild_internal(
         &mut self,
         colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
         added: impl Iterator<Item = Entity>,
@@ -118,6 +120,116 @@ impl SpatialQueryPipeline {
             } else {
                 self.entity_generations.insert(index, added.generation());
             }
+        }
+
+        struct DataGenerator<'a>(
+            &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        );
+
+        impl<'a> parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'a> {
+            fn size_hint(&self) -> usize {
+                self.0.len()
+            }
+
+            #[inline(always)]
+            fn for_each(&mut self, mut f: impl FnMut(u32, parry::bounding_volume::Aabb)) {
+                for (entity, co) in self.0.iter() {
+                    // Compute and return AABB
+                    let (iso, shape, _) = co;
+                    let aabb = shape.shape_scaled().compute_aabb(iso);
+                    f(entity.index(), aabb)
+                }
+            }
+        }
+
+        self.qbvh
+            .clear_and_rebuild(DataGenerator(&self.colliders), 0.01);
+    }
+
+    /// Incrementally updates the associated acceleration structures with the added, modified, and removed entities.
+    pub fn update_incremental<'a>(
+        &mut self,
+        colliders: impl Iterator<
+            Item = (
+                Entity,
+                &'a Position,
+                &'a Rotation,
+                &'a Collider,
+                Option<&'a CollisionLayers>,
+            ),
+        >,
+        added_colliders: impl Iterator<Item = Entity>,
+        changed_colliders: impl Iterator<Item = Entity>,
+        removed_colliders: impl Iterator<Item = Entity>,
+        refit_and_rebalance: bool,
+    ) {
+        let colliders = colliders
+            .map(|(entity, position, rotation, collider, layers)| {
+                (
+                    entity,
+                    (
+                        make_isometry(position.0, *rotation),
+                        collider.clone(),
+                        layers.map_or(CollisionLayers::default(), |layers| *layers),
+                    ),
+                )
+            })
+            .collect();
+
+        let added_colliders = added_colliders.collect::<Vec<_>>();
+        let modified_colliders = changed_colliders.collect::<Vec<_>>();
+        let removed_colliders = removed_colliders.collect::<Vec<_>>();
+
+        self.update_incremental_internal(
+            colliders,
+            &added_colliders,
+            &modified_colliders,
+            &removed_colliders,
+            refit_and_rebalance,
+        )
+    }
+
+    fn update_incremental_internal(
+        &mut self,
+        colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        added: &[Entity],
+        modified: &[Entity],
+        removed: &[Entity],
+        refit_and_rebalance: bool,
+    ) {
+        self.colliders = colliders;
+
+        // Insert or update generations of added entities
+        for added in added {
+            let index = added.index();
+            if let Some(generation) = self.entity_generations.get_mut(&index) {
+                *generation = added.generation();
+            } else {
+                self.entity_generations.insert(index, added.generation());
+            }
+        }
+
+        for removed in removed {
+            self.qbvh.remove(removed.index());
+        }
+
+        for modified in modified {
+            if self.colliders.contains_key(modified) {
+                self.qbvh.pre_update_or_insert(modified.index());
+            }
+        }
+
+        if refit_and_rebalance {
+            let _ = self.qbvh.refit(0.0, &mut self.workspace, |entity_index| {
+                // Construct entity ID
+                let generation = self.entity_generations.get(entity_index).map_or(0, |i| *i);
+                let entity = entity_from_index_and_gen(*entity_index, generation);
+                // Compute and return AABB
+                let (iso, shape, _) = self.colliders.get(&entity).unwrap();
+                let aabb = shape.shape_scaled().compute_aabb(iso);
+                aabb
+            });
+            self.qbvh.rebalance(0.0, &mut self.workspace);
         }
 
         struct DataGenerator<'a>(

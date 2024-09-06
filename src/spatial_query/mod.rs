@@ -184,7 +184,15 @@ impl Plugin for SpatialQueryPlugin {
             feature = "default-collider",
             any(feature = "parry-f32", feature = "parry-f64")
         ))]
-        app.init_resource::<SpatialQueryPipeline>();
+        app.init_resource::<SpatialQueryPipeline>()
+            .init_resource::<RemovedColliders>();
+
+        app.observe(
+            |trigger: Trigger<OnRemove, Collider>,
+             mut removed_colliders: ResMut<RemovedColliders>| {
+                removed_colliders.push(trigger.entity());
+            },
+        );
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -211,16 +219,21 @@ impl Plugin for SpatialQueryPlugin {
     }
 }
 
-/// Updates the [`SpatialQueryPipeline`]. This should be done whenever colliders are created, removed, moved, or otherwise modified
-/// in a way that could affect collisions or spatial queries.
-///
-/// By default, this system is run once every physics frame by the [`SpatialQueryPlugin`], in [`PhysicsStepSet::SpatialQuery`].
-/// You may run additional instances of this system if you want more control over when the pipeline is updated.
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
-pub fn update_spatial_query_pipeline(
+#[derive(Resource, Default, Deref, DerefMut)]
+struct RemovedColliders(Vec<Entity>);
+
+/// Rebuilds the [`SpatialQueryPipeline`]. This may be useful when very large changes are made to the world.
+///
+/// This is not run by default. Instead, incremental updates are done by the [`update_spatial_query_pipeline`] system.
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+pub fn rebuild_spatial_query_pipeline(
     colliders: Query<(
         Entity,
         &Position,
@@ -231,7 +244,50 @@ pub fn update_spatial_query_pipeline(
     added_colliders: Query<Entity, Added<Collider>>,
     mut query_pipeline: ResMut<SpatialQueryPipeline>,
 ) {
-    query_pipeline.update(colliders.iter(), added_colliders.iter());
+    query_pipeline.rebuild_full(colliders.iter(), added_colliders.iter());
+}
+
+/// Updates the [`SpatialQueryPipeline`]. This should be done whenever colliders are created, removed, moved, or otherwise modified
+/// in a way that could affect collisions or spatial queries.
+///
+/// By default, this system is run once every physics frame by the [`SpatialQueryPlugin`], in [`PhysicsStepSet::SpatialQuery`].
+/// You may run additional instances of this system if you want more control over when the pipeline is updated.
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
+#[allow(private_interfaces)]
+pub fn update_spatial_query_pipeline(
+    colliders: Query<(
+        Entity,
+        &Position,
+        &Rotation,
+        &Collider,
+        Option<&CollisionLayers>,
+    )>,
+    added_colliders: Query<Entity, Added<Collider>>,
+    changed_colliders: Query<
+        Entity,
+        (
+            Or<(
+                Changed<Position>,
+                Changed<Rotation>,
+                Changed<Collider>,
+                Changed<CollisionLayers>,
+            )>,
+            With<Collider>,
+        ),
+    >,
+    mut removed_colliders: ResMut<RemovedColliders>,
+    mut query_pipeline: ResMut<SpatialQueryPipeline>,
+) {
+    query_pipeline.update_incremental(
+        colliders.iter(),
+        added_colliders.iter(),
+        changed_colliders.iter(),
+        removed_colliders.drain(0..),
+        true,
+    );
 }
 
 type RayCasterPositionQueryComponents = (
