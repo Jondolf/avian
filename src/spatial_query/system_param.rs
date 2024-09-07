@@ -392,6 +392,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `origin`: Where the shape is cast from.
     /// - `shape_rotation`: The rotation of the shape being cast.
     /// - `direction`: What direction the shape is cast in.
+    /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `false`.
     ///
     /// ## Example
