@@ -159,9 +159,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_ray_predicate`]
-    /// - [`SpatialQuery::ray_hits`]
-    /// - [`SpatialQuery::ray_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_ray_predicate`]
+    /// - [`SpatialQueryPipeline::ray_hits`]
+    /// - [`SpatialQueryPipeline::ray_hits_callback`]
     pub fn cast_ray(
         &self,
         origin: Vector,
@@ -183,9 +183,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_ray`]
-    /// - [`SpatialQuery::ray_hits`]
-    /// - [`SpatialQuery::ray_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_ray`]
+    /// - [`SpatialQueryPipeline::ray_hits`]
+    /// - [`SpatialQueryPipeline::ray_hits_callback`]
     pub fn cast_ray_predicate(
         &self,
         origin: Vector,
@@ -225,9 +225,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_ray`]
-    /// - [`SpatialQuery::cast_ray_predicate`]
-    /// - [`SpatialQuery::ray_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_ray`]
+    /// - [`SpatialQueryPipeline::cast_ray_predicate`]
+    /// - [`SpatialQueryPipeline::ray_hits_callback`]
     pub fn ray_hits(
         &self,
         origin: Vector,
@@ -257,9 +257,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_ray`]
-    /// - [`SpatialQuery::cast_ray_predicate`]
-    /// - [`SpatialQuery::ray_hits`]
+    /// - [`SpatialQueryPipeline::cast_ray`]
+    /// - [`SpatialQueryPipeline::cast_ray_predicate`]
+    /// - [`SpatialQueryPipeline::ray_hits`]
     pub fn ray_hits_callback(
         &self,
         origin: Vector,
@@ -314,9 +314,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_shape_predicate`]
-    /// - [`SpatialQuery::shape_hits`]
-    /// - [`SpatialQuery::shape_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_shape_predicate`]
+    /// - [`SpatialQueryPipeline::shape_hits`]
+    /// - [`SpatialQueryPipeline::shape_hits_callback`]
     #[allow(clippy::too_many_arguments)]
     pub fn cast_shape(
         &self,
@@ -345,9 +345,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_shape`]
-    /// - [`SpatialQuery::shape_hits`]
-    /// - [`SpatialQuery::shape_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_shape`]
+    /// - [`SpatialQueryPipeline::shape_hits`]
+    /// - [`SpatialQueryPipeline::shape_hits_callback`]
     #[allow(clippy::too_many_arguments)]
     pub fn cast_shape_predicate(
         &self,
@@ -411,9 +411,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_shape`]
-    /// - [`SpatialQuery::cast_shape_predicate`]
-    /// - [`SpatialQuery::shape_hits_callback`]
+    /// - [`SpatialQueryPipeline::cast_shape`]
+    /// - [`SpatialQueryPipeline::cast_shape_predicate`]
+    /// - [`SpatialQueryPipeline::shape_hits_callback`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits(
         &self,
@@ -447,9 +447,9 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::cast_shape`]
-    /// - [`SpatialQuery::cast_shape_predicate`]
-    /// - [`SpatialQuery::shape_hits`]
+    /// - [`SpatialQueryPipeline::cast_shape`]
+    /// - [`SpatialQueryPipeline::cast_shape_predicate`]
+    /// - [`SpatialQueryPipeline::shape_hits`]
     #[allow(clippy::too_many_arguments)]
     pub fn shape_hits_callback(
         &self,
@@ -531,7 +531,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::project_point_predicate`]
+    /// - [`SpatialQueryPipeline::project_point_predicate`]
     pub fn project_point(
         &self,
         point: Vector,
@@ -554,7 +554,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::project_point`]
+    /// - [`SpatialQueryPipeline::project_point`]
     pub fn project_point_predicate(
         &self,
         point: Vector,
@@ -586,7 +586,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::point_intersections_callback`]
+    /// - [`SpatialQueryPipeline::point_intersections_callback`]
     pub fn point_intersections(
         &self,
         point: Vector,
@@ -612,7 +612,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::point_intersections`]
+    /// - [`SpatialQueryPipeline::point_intersections`]
     pub fn point_intersections_callback(
         &self,
         point: Vector,
@@ -642,7 +642,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::aabb_intersections_with_aabb_callback`]
+    /// - [`SpatialQueryPipeline::aabb_intersections_with_aabb_callback`]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
         let mut intersections = vec![];
         self.aabb_intersections_with_aabb_callback(aabb, |e| {
@@ -658,7 +658,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::aabb_intersections_with_aabb`]
+    /// - [`SpatialQueryPipeline::aabb_intersections_with_aabb`]
     pub fn aabb_intersections_with_aabb_callback(
         &self,
         aabb: ColliderAabb,
@@ -691,7 +691,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::shape_intersections_callback`]
+    /// - [`SpatialQueryPipeline::shape_intersections_callback`]
     pub fn shape_intersections(
         &self,
         shape: &Collider,
@@ -727,7 +727,7 @@ impl SpatialQueryPipeline {
     ///
     /// ## Related Methods
     ///
-    /// - [`SpatialQuery::shape_intersections`]
+    /// - [`SpatialQueryPipeline::shape_intersections`]
     pub fn shape_intersections_callback(
         &self,
         shape: &Collider,
