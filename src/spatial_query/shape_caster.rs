@@ -60,45 +60,57 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
+
     /// The shape being cast represented as a [`Collider`].
     #[reflect(ignore)]
     pub shape: Collider,
+
     /// The local origin of the shape relative to the [`Position`] and [`Rotation`]
     /// of the shape caster entity or its parent.
     ///
     /// To get the global origin, use the `global_origin` method.
     pub origin: Vector,
+
     /// The global origin of the shape.
     global_origin: Vector,
+
     /// The local rotation of the shape being cast relative to the [`Rotation`]
     /// of the shape caster entity or its parent. Expressed in radians.
     ///
     /// To get the global shape rotation, use the `global_shape_rotation` method.
     #[cfg(feature = "2d")]
     pub shape_rotation: Scalar,
+
     /// The local rotation of the shape being cast relative to the [`Rotation`]
     /// of the shape caster entity or its parent.
     ///
     /// To get the global shape rotation, use the `global_shape_rotation` method.
     #[cfg(feature = "3d")]
     pub shape_rotation: Quaternion,
+
     /// The global rotation of the shape.
     #[cfg(feature = "2d")]
     global_shape_rotation: Scalar,
+
     /// The global rotation of the shape.
     #[cfg(feature = "3d")]
     global_shape_rotation: Quaternion,
+
     /// The local direction of the shapecast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
     pub direction: Dir,
+
     /// The global direction of the shapecast.
     global_direction: Dir,
+
     /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
     /// until a hit is found.
     pub max_time_of_impact: Scalar,
+
     /// The maximum number of hits allowed. By default this is one and only the first hit is returned.
     pub max_hits: u32,
+
     /// Controls how the shapecast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
@@ -106,8 +118,10 @@ pub struct ShapeCaster {
     /// the shapecast will not stop immediately, and will instead continue until another hit.\
     /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub ignore_origin_penetration: bool,
+
     /// If true, the shape caster ignores hits against its own [`Collider`]. This is the default.
     pub ignore_self: bool,
+
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
 }
@@ -365,6 +379,54 @@ impl Component for ShapeCaster {
                 count: 0,
             });
         });
+    }
+}
+
+/// Configuration for a shape cast.
+#[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct ShapeCastConfig {
+    /// The maximum distance the shape can travel.
+    ///
+    /// By default, this is infinite.
+    #[doc(alias = "max_time_of_impact")]
+    pub max_distance: Scalar,
+
+    /// The separation distance at which the shapes will be considered as impacting.
+    ///
+    /// If the shapes are separated by a distance smaller than `target_distance` at the origin of the cast,
+    /// the computed contact points and normals are only reliable if [`ShapeCastConfig::compute_contact_on_penetration`]
+    /// is set to `true`.
+    ///
+    /// By default, this is `0.0`, so the shapes will only be considered as impacting when they first touch.
+    pub target_distance: Scalar,
+
+    /// If `true`, contact points and normals will be calculated even when the cast distance is `0.0`.
+    ///
+    /// The default is `true`.
+    pub compute_impact_on_penetration: bool,
+
+    /// If `true` *and* the shape is travelling away from the object that was hit,
+    /// the cast will ignore any impact that happens at the cast origin.
+    ///
+    /// The default is `false`.
+    pub ignore_penetration: bool,
+
+    /// A filter for configuring which entities are included in the spatial query.
+    pub filter: SpatialQueryFilter,
+}
+
+impl Default for ShapeCastConfig {
+    fn default() -> Self {
+        Self {
+            max_distance: Scalar::MAX,
+            target_distance: 0.0,
+            compute_impact_on_penetration: true,
+            ignore_penetration: false,
+            filter: SpatialQueryFilter::default(),
+        }
     }
 }
 

@@ -77,35 +77,44 @@ use parry::query::{
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
+
     /// The local origin of the ray relative to the [`Position`] and [`Rotation`] of the ray entity or its parent.
     ///
     /// To get the global origin, use the `global_origin` method.
     pub origin: Vector,
+
     /// The global origin of the ray.
     global_origin: Vector,
+
     /// The local direction of the ray relative to the [`Rotation`] of the ray entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
     pub direction: Dir,
+
     /// The global direction of the ray.
     global_direction: Dir,
+
     /// The maximum distance the ray can travel. By default this is infinite, so the ray will travel
     /// until all hits up to `max_hits` have been checked.
     pub max_time_of_impact: Scalar,
+
     /// The maximum number of hits allowed.
     ///
     /// When there are more hits than `max_hits`, **some hits will be missed**.
     /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
     /// is enough to contain all hits.
     pub max_hits: u32,
+
     /// Controls how the ray behaves when the ray origin is inside of a [collider](Collider).
     ///
     /// If `solid` is true, the point of intersection will be the ray origin itself.\
     /// If `solid` is false, the collider will be considered to have no interior, and the point of intersection
     /// will be at the collider shape's boundary.
     pub solid: bool,
+
     /// If true, the ray caster ignores hits against its own [`Collider`]. This is the default.
     pub ignore_self: bool,
+
     /// Rules that determine which colliders are taken into account in the query.
     pub query_filter: SpatialQueryFilter,
 }
@@ -338,6 +347,39 @@ impl Component for RayCaster {
                 count: 0,
             });
         });
+    }
+}
+
+/// Configuration for a ray cast.
+#[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct RayCastConfig {
+    /// The maximum distance the ray can travel.
+    ///
+    /// By default, this is infinite.
+    #[doc(alias = "max_time_of_impact")]
+    pub max_distance: Scalar,
+
+    /// If `true`, shapes will be treated as solid, and the ray cast will return with a distance of `0.0`
+    /// if the ray origin is inside of the shape. Otherwise, shapes will be treated as hollow, and the ray
+    /// will always return a hit at the shape's boundary.
+    ///
+    /// By default, this is `true`.
+    pub solid: bool,
+
+    /// A filter for configuring which entities are included in the spatial query.
+    pub filter: SpatialQueryFilter,
+}
+
+impl Default for RayCastConfig {
+    fn default() -> Self {
+        Self {
+            max_distance: Scalar::MAX,
+            solid: true,
+            filter: SpatialQueryFilter::default(),
+        }
     }
 }
 

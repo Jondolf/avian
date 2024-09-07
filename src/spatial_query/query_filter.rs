@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{prelude::*, utils::EntityHashSet};
 
 use crate::prelude::*;
 
@@ -36,7 +36,7 @@ pub struct SpatialQueryFilter {
     /// Specifies which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub mask: LayerMask,
     /// Entities that will not be included in [spatial queries](crate::spatial_query).
-    pub excluded_entities: HashSet<Entity>,
+    pub excluded_entities: EntityHashSet<Entity>,
 }
 
 impl Default for SpatialQueryFilter {
@@ -61,7 +61,7 @@ impl SpatialQueryFilter {
     /// Creates a new [`SpatialQueryFilter`] with the given entities excluded from the [spatial query](crate::spatial_query).
     pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
         Self {
-            excluded_entities: HashSet::from_iter(entities),
+            excluded_entities: EntityHashSet::from_iter(entities),
             ..default()
         }
     }
@@ -75,7 +75,7 @@ impl SpatialQueryFilter {
 
     /// Excludes the given entities from the [spatial query](crate::spatial_query).
     pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
-        self.excluded_entities = HashSet::from_iter(entities);
+        self.excluded_entities = EntityHashSet::from_iter(entities);
         self
     }
 
