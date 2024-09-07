@@ -1,4 +1,7 @@
-use bevy::{prelude::*, utils::EntityHashSet};
+use bevy::{
+    prelude::*,
+    utils::{EntityHash, EntityHashSet},
+};
 
 use crate::prelude::*;
 
@@ -41,14 +44,17 @@ pub struct SpatialQueryFilter {
 
 impl Default for SpatialQueryFilter {
     fn default() -> Self {
-        Self {
-            mask: LayerMask::ALL,
-            excluded_entities: default(),
-        }
+        Self::DEFAULT
     }
 }
 
 impl SpatialQueryFilter {
+    /// The default [`SpatialQueryFilter`] configuration that includes all collision layers and has no excluded entities.
+    pub const DEFAULT: Self = Self {
+        mask: LayerMask::ALL,
+        excluded_entities: EntityHashSet::with_hasher(EntityHash),
+    };
+
     /// Creates a new [`SpatialQueryFilter`] with the given [`LayerMask`] determining
     /// which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub fn from_mask(mask: impl Into<LayerMask>) -> Self {

@@ -395,36 +395,44 @@ impl Default for RayCastConfig {
 }
 
 impl RayCastConfig {
+    /// The default [`RayCastConfig`] configuration.
+    pub const DEFAULT: Self = Self {
+        max_distance: Scalar::MAX,
+        solid: true,
+        filter: SpatialQueryFilter::DEFAULT,
+    };
+
     /// Creates a new [`RayCastConfig`] with a given maximum distance the ray can travel.
     #[inline]
-    pub fn from_max_distance(max_distance: Scalar) -> Self {
+    pub const fn from_max_distance(max_distance: Scalar) -> Self {
         Self {
             max_distance,
-            ..default()
+            solid: true,
+            filter: SpatialQueryFilter::DEFAULT,
         }
     }
 
     /// Creates a new [`RayCastConfig`] with a given [`SpatialQueryFilter`].
     #[inline]
-    pub fn from_filter(filter: SpatialQueryFilter) -> Self {
+    pub const fn from_filter(filter: SpatialQueryFilter) -> Self {
         Self {
+            max_distance: Scalar::MAX,
+            solid: true,
             filter,
-            ..default()
         }
     }
 
     /// Sets the maximum distance the ray can travel.
     #[inline]
-    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+    pub const fn with_max_distance(mut self, max_distance: Scalar) -> Self {
         self.max_distance = max_distance;
         self
     }
 
     /// Sets the [`SpatialQueryFilter`] for the ray cast.
     #[inline]
-    pub fn with_filter(mut self, filter: SpatialQueryFilter) -> Self {
-        self.filter = filter;
-        self
+    pub const fn with_filter(&self, filter: SpatialQueryFilter) -> Self {
+        Self { filter, ..*self }
     }
 }
 

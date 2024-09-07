@@ -463,64 +463,75 @@ pub struct ShapeCastConfig {
 
 impl Default for ShapeCastConfig {
     fn default() -> Self {
-        Self {
-            max_distance: Scalar::MAX,
-            target_distance: 0.0,
-            compute_impact_on_penetration: true,
-            ignore_origin_penetration: false,
-            filter: SpatialQueryFilter::default(),
-        }
+        Self::DEFAULT
     }
 }
 
 impl ShapeCastConfig {
+    /// The default [`ShapeCastConfig`] configuration.
+    pub const DEFAULT: Self = Self {
+        max_distance: Scalar::MAX,
+        target_distance: 0.0,
+        compute_impact_on_penetration: true,
+        ignore_origin_penetration: false,
+        filter: SpatialQueryFilter::DEFAULT,
+    };
+
     /// Creates a new [`ShapeCastConfig`] with a given maximum distance the shape can travel.
     #[inline]
-    pub fn from_max_distance(max_distance: Scalar) -> Self {
+    pub const fn from_max_distance(max_distance: Scalar) -> Self {
         Self {
             max_distance,
-            ..default()
+            target_distance: 0.0,
+            compute_impact_on_penetration: true,
+            ignore_origin_penetration: false,
+            filter: SpatialQueryFilter::DEFAULT,
         }
     }
 
     /// Creates a new [`ShapeCastConfig`] with a given separation distance at which
     /// the shapes will be considered as impacting.
     #[inline]
-    pub fn from_target_distance(target_distance: Scalar) -> Self {
+    pub const fn from_target_distance(target_distance: Scalar) -> Self {
         Self {
+            max_distance: Scalar::MAX,
             target_distance,
-            ..default()
+            compute_impact_on_penetration: true,
+            ignore_origin_penetration: false,
+            filter: SpatialQueryFilter::DEFAULT,
         }
     }
 
     /// Creates a new [`ShapeCastConfig`] with a given [`SpatialQueryFilter`].
     #[inline]
-    pub fn from_filter(filter: SpatialQueryFilter) -> Self {
+    pub const fn from_filter(filter: SpatialQueryFilter) -> Self {
         Self {
+            max_distance: Scalar::MAX,
+            target_distance: 0.0,
+            compute_impact_on_penetration: true,
+            ignore_origin_penetration: false,
             filter,
-            ..default()
         }
     }
 
     /// Sets the maximum distance the shape can travel.
     #[inline]
-    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+    pub const fn with_max_distance(mut self, max_distance: Scalar) -> Self {
         self.max_distance = max_distance;
         self
     }
 
     /// Sets the separation distance at which the shapes will be considered as impacting.
     #[inline]
-    pub fn with_target_distance(mut self, target_distance: Scalar) -> Self {
+    pub const fn with_target_distance(mut self, target_distance: Scalar) -> Self {
         self.target_distance = target_distance;
         self
     }
 
     /// Sets the [`SpatialQueryFilter`] for the shape cast.
     #[inline]
-    pub fn with_filter(mut self, filter: SpatialQueryFilter) -> Self {
-        self.filter = filter;
-        self
+    pub const fn with_filter(&self, filter: SpatialQueryFilter) -> Self {
+        Self { filter, ..*self }
     }
 }
 
