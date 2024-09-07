@@ -458,7 +458,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact until `max_hits` is reached.
+    /// in the order of distance until `max_hits` is reached.
     ///
     /// ## Arguments
     ///
@@ -523,7 +523,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
+    /// in the order of distance, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments

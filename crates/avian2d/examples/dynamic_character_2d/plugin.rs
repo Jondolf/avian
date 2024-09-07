@@ -106,7 +106,7 @@ impl CharacterControllerBundle {
             rigid_body: RigidBody::Dynamic,
             collider,
             ground_caster: ShapeCaster::new(caster_shape, Vector::ZERO, 0.0, Dir2::NEG_Y)
-                .with_max_time_of_impact(10.0),
+                .with_max_distance(10.0),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             movement: MovementBundle::default(),
         }

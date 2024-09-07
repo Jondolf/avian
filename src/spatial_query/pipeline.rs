@@ -206,7 +206,7 @@ impl SpatialQueryPipeline {
             .traverse_best_first(&mut visitor)
             .map(|(_, (entity_index, hit))| RayHitData {
                 entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.time_of_impact,
+                distance: hit.time_of_impact,
                 normal: hit.normal.into(),
             })
     }
@@ -283,7 +283,7 @@ impl SpatialQueryPipeline {
                     ) {
                         let hit = RayHitData {
                             entity,
-                            time_of_impact: hit.time_of_impact,
+                            distance: hit.time_of_impact,
                             normal: hit.normal.into(),
                         };
 
@@ -379,7 +379,7 @@ impl SpatialQueryPipeline {
             &**shape.shape_scaled(),
             ShapeCastOptions {
                 max_time_of_impact: config.max_distance,
-                stop_at_penetration: !config.ignore_penetration,
+                stop_at_penetration: !config.ignore_origin_penetration,
                 compute_impact_geometry_on_penetration: config.compute_impact_on_penetration,
                 ..default()
             },
@@ -389,7 +389,7 @@ impl SpatialQueryPipeline {
             .traverse_best_first(&mut visitor)
             .map(|(_, (entity_index, hit))| ShapeHitData {
                 entity: self.entity_from_index(entity_index),
-                time_of_impact: hit.time_of_impact,
+                distance: hit.time_of_impact,
                 point1: hit.witness1.into(),
                 point2: hit.witness2.into(),
                 normal1: hit.normal1.into(),
@@ -398,7 +398,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact until `max_hits` is reached.
+    /// in the order of distance until `max_hits` is reached.
     ///
     /// ## Arguments
     ///
@@ -433,7 +433,7 @@ impl SpatialQueryPipeline {
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
-    /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
+    /// in the order of distance, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
     /// ## Arguments
@@ -468,7 +468,7 @@ impl SpatialQueryPipeline {
         let shape_cast_options = ShapeCastOptions {
             max_time_of_impact: config.max_distance,
             target_distance: config.target_distance,
-            stop_at_penetration: !config.ignore_penetration,
+            stop_at_penetration: !config.ignore_origin_penetration,
             compute_impact_geometry_on_penetration: config.compute_impact_on_penetration,
         };
 
@@ -501,7 +501,7 @@ impl SpatialQueryPipeline {
                     .traverse_best_first(&mut visitor)
                     .map(|(_, (entity_index, hit))| ShapeHitData {
                         entity: self.entity_from_index(entity_index),
-                        time_of_impact: hit.time_of_impact,
+                        distance: hit.time_of_impact,
                         point1: hit.witness1.into(),
                         point2: hit.witness2.into(),
                         normal1: hit.normal1.into(),

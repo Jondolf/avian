@@ -20,9 +20,8 @@
 //! a variety of things like getting information about the environment for character controllers and AI,
 //! and even rendering using ray tracing.
 //!
-//! For each hit during raycasting, the hit entity, a *time of impact* and a normal will be stored in [`RayHitData`].
-//! The time of impact refers to how long the ray travelled, which is essentially the distance from the ray origin to
-//! the point of intersection.
+//! For each hit during raycasting, the hit entity, a distance, and a normal will be stored in [`RayHitData`].
+//! The distance is the distance from the ray origin to the point of intersection, indicating how far the ray travelled.
 //!
 //! There are two ways to perform raycasts.
 //!
@@ -59,7 +58,7 @@
 //!             println!(
 //!                 "Hit entity {:?} at {} with normal {}",
 //!                 hit.entity,
-//!                 ray.origin + *ray.direction * hit.time_of_impact,
+//!                 ray.origin + *ray.direction * hit.distance,
 //!                 hit.normal,
 //!             );
 //!         }
@@ -76,9 +75,8 @@
 //! we have an entire shape travelling along a half-line. One use case is determining how far an object can move
 //! before it hits the environment.
 //!
-//! For each hit during shapecasting, the hit entity, the *time of impact*, two local points of intersection and two local
-//! normals will be stored in [`ShapeHitData`]. The time of impact refers to how long the shape travelled before the initial
-//! hit, which is essentially the distance from the shape origin to the global point of intersection.
+//! For each hit during shapecasting, the hit entity, a distance, two world-space points of intersection and two world-space
+//! normals will be stored in [`ShapeHitData`]. The distance refers to how long the shape travelled before the initial hit.
 //!
 //! There are two ways to perform shapecasts.
 //!
@@ -107,7 +105,7 @@
 //!         Collider::sphere(0.5), // Shape
 //!         Vec3::ZERO,            // Origin
 //!         Quat::default(),       // Shape rotation
-//!         Dir3::X         // Direction
+//!         Dir3::X                // Direction
 //!     ));
 //!     // ...spawn colliders and other things
 //! }
