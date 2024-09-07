@@ -473,6 +473,57 @@ impl Default for ShapeCastConfig {
     }
 }
 
+impl ShapeCastConfig {
+    /// Creates a new [`ShapeCastConfig`] with a given maximum distance the shape can travel.
+    #[inline]
+    pub fn from_max_distance(max_distance: Scalar) -> Self {
+        Self {
+            max_distance,
+            ..default()
+        }
+    }
+
+    /// Creates a new [`ShapeCastConfig`] with a given separation distance at which
+    /// the shapes will be considered as impacting.
+    #[inline]
+    pub fn from_target_distance(target_distance: Scalar) -> Self {
+        Self {
+            target_distance,
+            ..default()
+        }
+    }
+
+    /// Creates a new [`ShapeCastConfig`] with a given [`SpatialQueryFilter`].
+    #[inline]
+    pub fn from_filter(filter: SpatialQueryFilter) -> Self {
+        Self {
+            filter,
+            ..default()
+        }
+    }
+
+    /// Sets the maximum distance the shape can travel.
+    #[inline]
+    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// Sets the separation distance at which the shapes will be considered as impacting.
+    #[inline]
+    pub fn with_target_distance(mut self, target_distance: Scalar) -> Self {
+        self.target_distance = target_distance;
+        self
+    }
+
+    /// Sets the [`SpatialQueryFilter`] for the shape cast.
+    #[inline]
+    pub fn with_filter(mut self, filter: SpatialQueryFilter) -> Self {
+        self.filter = filter;
+        self
+    }
+}
+
 /// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of distance.
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`ShapeCaster`]. By default only

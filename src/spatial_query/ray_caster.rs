@@ -394,6 +394,40 @@ impl Default for RayCastConfig {
     }
 }
 
+impl RayCastConfig {
+    /// Creates a new [`RayCastConfig`] with a given maximum distance the ray can travel.
+    #[inline]
+    pub fn from_max_distance(max_distance: Scalar) -> Self {
+        Self {
+            max_distance,
+            ..default()
+        }
+    }
+
+    /// Creates a new [`RayCastConfig`] with a given [`SpatialQueryFilter`].
+    #[inline]
+    pub fn from_filter(filter: SpatialQueryFilter) -> Self {
+        Self {
+            filter,
+            ..default()
+        }
+    }
+
+    /// Sets the maximum distance the ray can travel.
+    #[inline]
+    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// Sets the [`SpatialQueryFilter`] for the ray cast.
+    #[inline]
+    pub fn with_filter(mut self, filter: SpatialQueryFilter) -> Self {
+        self.filter = filter;
+        self
+    }
+}
+
 /// Contains the hits of a ray cast by a [`RayCaster`].
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].
@@ -492,8 +526,10 @@ impl MapEntities for RayHits {
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
+
     /// How long the ray travelled. This is the distance between the ray origin and the point of intersection.
     pub distance: Scalar,
+
     /// The normal at the point of intersection, expressed in world space.
     pub normal: Vector,
 }
