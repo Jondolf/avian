@@ -265,10 +265,18 @@ fn wake_on_collision_ended(
     moved_bodies: Query<Ref<Position>, (Changed<Position>, Without<Sleeping>)>,
     colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
     collisions: Res<Collisions>,
-    mut sleeping: Query<(Entity, &mut TimeSleeping)>,
+    mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
 ) {
     // Wake up bodies when a body they're colliding with moves.
-    for (entity, mut time_sleeping) in &mut sleeping {
+    for (entity, mut time_sleeping, is_sleeping) in &mut sleeping {
+        // Skip anything that isn't currently sleeping and already has a time_sleeping of zero.
+        // We can't gate the sleeping query using With<Sleeping> here because must also reset
+        // non-zero time_sleeping to 0 when a colliding body moves.
+        let must_check = is_sleeping || time_sleeping.0 > 0.0;
+        if !must_check {
+            continue;
+        }
+
         // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
         let mut colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
             if entity == c.entity1 {
@@ -293,11 +301,11 @@ fn wake_on_collision_ended(
         if contacts.during_current_frame || !contacts.during_previous_frame {
             continue;
         }
-        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity1) {
+        if let Ok((_, mut time_sleeping, _)) = sleeping.get_mut(contacts.entity1) {
             commands.entity(contacts.entity1).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
-        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity2) {
+        if let Ok((_, mut time_sleeping, _)) = sleeping.get_mut(contacts.entity2) {
             commands.entity(contacts.entity2).remove::<Sleeping>();
             time_sleeping.0 = 0.0;
         }
