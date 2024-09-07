@@ -466,7 +466,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         normal_color: Color,
         length_unit: Scalar,
     ) {
-        let max_toi = hits
+        let max_distance = hits
             .iter()
             .max_by(|a, b| a.distance.total_cmp(&b.distance))
             .map_or(max_distance, |hit| hit.distance);
@@ -474,7 +474,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // Draw ray as arrow
         self.draw_arrow(
             origin,
-            origin + direction.adjust_precision() * max_toi,
+            origin + direction.adjust_precision() * max_distance,
             0.1 * length_unit,
             ray_color,
         );
@@ -528,7 +528,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         #[cfg(feature = "3d")]
         let shape_rotation = Rotation(shape_rotation.normalize());
 
-        let max_toi = hits
+        let max_distance = hits
             .iter()
             .max_by(|a, b| a.distance.total_cmp(&b.distance))
             .map_or(max_distance, |hit| hit.distance);
@@ -540,7 +540,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // TODO: We could render the swept collider outline instead
         self.draw_arrow(
             origin,
-            origin + max_toi * direction.adjust_precision(),
+            origin + max_distance * direction.adjust_precision(),
             0.1 * length_unit,
             ray_color,
         );
