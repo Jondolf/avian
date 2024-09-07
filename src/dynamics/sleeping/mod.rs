@@ -291,7 +291,9 @@ fn wake_on_collision_ended(
                     || moved_bodies.get(p.get()).is_ok_and(|pos| pos.is_changed())
             })
         }) {
-            commands.entity(entity).remove::<Sleeping>();
+            if is_sleeping {
+                commands.entity(entity).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
     }
@@ -301,12 +303,16 @@ fn wake_on_collision_ended(
         if contacts.during_current_frame || !contacts.during_previous_frame {
             continue;
         }
-        if let Ok((_, mut time_sleeping, _)) = sleeping.get_mut(contacts.entity1) {
-            commands.entity(contacts.entity1).remove::<Sleeping>();
+        if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity1) {
+            if is_sleeping {
+                commands.entity(contacts.entity1).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
-        if let Ok((_, mut time_sleeping, _)) = sleeping.get_mut(contacts.entity2) {
-            commands.entity(contacts.entity2).remove::<Sleeping>();
+        if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity2) {
+            if is_sleeping {
+                commands.entity(contacts.entity2).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
     }
