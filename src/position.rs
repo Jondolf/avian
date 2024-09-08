@@ -754,6 +754,22 @@ impl Rotation {
 }
 
 #[cfg(feature = "3d")]
+impl std::ops::Mul for Rotation {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self(self.0 * rhs.0)
+    }
+}
+
+#[cfg(feature = "3d")]
+impl std::ops::MulAssign for Rotation {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
+    }
+}
+
+#[cfg(feature = "3d")]
 impl core::ops::Mul<Vector> for Rotation {
     type Output = Vector;
 
