@@ -25,6 +25,10 @@ pub struct SphericalJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// Rotation applied on the first body. This allows to orient the body relative to the `swing_axis`.
+    pub local_rotation1: Rotation,
+    /// Rotation applied on the second body.
+    pub local_rotation2: Rotation,
     /// An axis that the attached bodies can swing around. This is normally the x-axis.
     pub swing_axis: Vector3,
     /// An axis that the attached bodies can twist around. This is normally the y-axis.
@@ -96,6 +100,8 @@ impl Joint for SphericalJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
+            local_rotation1: Rotation::default(),
+            local_rotation2: Rotation::default(),
             swing_axis: Vector3::X,
             twist_axis: Vector3::Y,
             swing_limit: None,
@@ -193,8 +199,8 @@ impl SphericalJoint {
         dt: Scalar,
     ) -> Torque {
         if let Some(joint_limit) = self.swing_limit {
-            let a1 = *body1.rotation * self.swing_axis;
-            let a2 = *body2.rotation * self.swing_axis;
+            let a1 = *body1.rotation * self.local_rotation1 * self.swing_axis;
+            let a2 = *body2.rotation * self.local_rotation2 * self.swing_axis;
 
             let n = a1.cross(a2);
             let n_magnitude = n.length();
@@ -230,11 +236,11 @@ impl SphericalJoint {
         dt: Scalar,
     ) -> Torque {
         if let Some(joint_limit) = self.twist_limit {
-            let a1 = *body1.rotation * self.swing_axis;
-            let a2 = *body2.rotation * self.swing_axis;
+            let a1 = *body1.rotation * self.local_rotation1 * self.swing_axis;
+            let a2 = *body2.rotation * self.local_rotation2 * self.swing_axis;
 
-            let b1 = *body1.rotation * self.twist_axis;
-            let b2 = *body2.rotation * self.twist_axis;
+            let b1 = *body1.rotation * self.local_rotation1 * self.twist_axis;
+            let b2 = *body2.rotation * self.local_rotation2 * self.twist_axis;
 
             let n = a1 + a2;
             let n_magnitude = n.length();
