@@ -95,9 +95,39 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Initialize missing components for colliders.
         hooks.on_add(|mut world, entity, _| {
-            let entity_ref = world.entity(entity);
+            let parent_global_transform = world
+                .entity(entity)
+                .get::<Parent>()
+                .and_then(|parent| world.entity(parent.get()).get::<GlobalTransform>().copied())
+                .unwrap_or_default();
+            let transform = world
+                .entity(entity)
+                .get::<Transform>()
+                .copied()
+                .unwrap_or_default();
+            let global_transform = parent_global_transform * transform;
+            let scale = global_transform.compute_transform().scale;
+            #[cfg(feature = "2d")]
+            let scale = scale.xy();
+            // Make sure the is initialized with the correct scale.
+            // This overwrites the scale set by the constructor, but that one is
+            // meant to be only changed after initialization.
+            // You may notice that this will fail if the hierarchy's scale was updated in this
+            // frame. Remember that `GlobalTransform` is not updated inbetween fixed updates.
+            // But this is fine, as `update_collider_scale` will be updated in the next fixed update anyways.
+            // The reason why we care about initializing this scale here is for those users that opted out of
+            // `update_collider_scale` in order to do their own interpolation, which implies that they won't touch
+            // the `Transform` component before the collider is initialized, which in turn means that it will
+            // always be initialized with the correct `GlobalTransform`.
+            world
+                .entity_mut(entity)
+                .get_mut::<C>()
+                .unwrap()
+                .set_scale(scale, 10);
 
+            let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
+
             let aabb = entity_ref
                 .get::<ColliderAabb>()
                 .copied()
