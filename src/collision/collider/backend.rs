@@ -4,7 +4,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
+use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
@@ -642,7 +642,12 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
+    sync_config: Res<SyncConfig>,
 ) {
+    if !sync_config.transform_to_collider_scale {
+        return;
+    }
+
     // Update collider scale for root bodies
     for (transform, mut collider) in &mut colliders.p0() {
         #[cfg(feature = "2d")]
