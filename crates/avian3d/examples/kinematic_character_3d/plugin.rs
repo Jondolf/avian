@@ -19,9 +19,12 @@ impl Plugin for CharacterControllerPlugin {
                     .chain(),
             )
             .add_systems(
-                // Run collision handling in substep schedule
-                SubstepSchedule,
-                kinematic_controller_collisions.in_set(SubstepSet::SolveUserConstraints),
+                // Run collision handling after collision detection.
+                //
+                // NOTE: The collision implementation here is very basic and a bit buggy.
+                //       A collide-and-slide algorithm would likely work better.
+                PostProcessCollisions,
+                kinematic_controller_collisions,
             );
     }
 }
@@ -284,31 +287,28 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// Kinematic bodies do not get pushed by collisions by default,
 /// so it needs to be done manually.
 ///
-/// This system performs very basic collision response for kinematic
-/// character controllers by pushing them along their contact normals
-/// by the current penetration depths.
+/// This system handles collision response for kinematic character controllers
+/// by pushing them along their contact normals by the current penetration depth,
+/// and applying velocity corrections in order to snap to slopes, slide along walls,
+/// and predict collisions using speculative contacts.
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
     collisions: Res<Collisions>,
+    bodies: Query<&RigidBody>,
     collider_parents: Query<&ColliderParent, Without<Sensor>>,
     mut character_controllers: Query<
         (
-            &RigidBody,
             &mut Position,
             &Rotation,
             &mut LinearVelocity,
             Option<&MaxSlopeAngle>,
         ),
-        With<CharacterController>,
+        (With<RigidBody>, With<CharacterController>),
     >,
+    time: Res<Time>,
 ) {
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
-        // If the collision didn't happen during this substep, skip the collision
-        if !contacts.during_current_substep {
-            continue;
-        }
-
         // Get the rigid body entities of the colliders (colliders could be children)
         let Ok([collider_parent1, collider_parent2]) =
             collider_parents.get_many([contacts.entity1, contacts.entity2])
@@ -319,19 +319,31 @@ fn kinematic_controller_collisions(
         // Get the body of the character controller and whether it is the first
         // or second entity in the collision.
         let is_first: bool;
-        let (rb, mut position, rotation, mut linear_velocity, max_slope_angle) =
+
+        let character_rb: RigidBody;
+        let is_other_dynamic: bool;
+
+        let (mut position, rotation, mut linear_velocity, max_slope_angle) =
             if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
                 is_first = true;
+                character_rb = *bodies.get(collider_parent1.get()).unwrap();
+                is_other_dynamic = bodies
+                    .get(collider_parent2.get())
+                    .is_ok_and(|rb| rb.is_dynamic());
                 character
             } else if let Ok(character) = character_controllers.get_mut(collider_parent2.get()) {
                 is_first = false;
+                character_rb = *bodies.get(collider_parent2.get()).unwrap();
+                is_other_dynamic = bodies
+                    .get(collider_parent1.get())
+                    .is_ok_and(|rb| rb.is_dynamic());
                 character
             } else {
                 continue;
             };
 
-        // This system only handles collision response for kinematic character controllers
-        if !rb.is_kinematic() {
+        // This system only handles collision response for kinematic character controllers.
+        if !character_rb.is_kinematic() {
             continue;
         }
 
@@ -344,17 +356,94 @@ fn kinematic_controller_collisions(
                 -manifold.global_normal2(rotation)
             };
 
-            // Solve each penetrating contact in the manifold
-            for contact in manifold.contacts.iter().filter(|c| c.penetration > 0.0) {
-                position.0 += normal * contact.penetration;
+            let mut deepest_penetration: Scalar = Scalar::MIN;
+
+            // Solve each penetrating contact in the manifold.
+            for contact in manifold.contacts.iter() {
+                if contact.penetration > 0.0 {
+                    position.0 += normal * contact.penetration;
+                }
+                deepest_penetration = deepest_penetration.max(contact.penetration);
             }
 
-            // If the slope isn't too steep to walk on but the character
-            // is falling, reset vertical velocity.
-            if max_slope_angle.is_some_and(|angle| normal.angle_between(Vector::Y).abs() <= angle.0)
-                && linear_velocity.y < 0.0
-            {
-                linear_velocity.y = linear_velocity.y.max(0.0);
+            // For now, this system only handles velocity corrections for collisions against static geometry.
+            if is_other_dynamic {
+                continue;
+            }
+
+            // Determine if the slope is climbable or if it's too steep to walk on.
+            let slope_angle = normal.angle_between(Vector::Y);
+            let climbable = max_slope_angle.is_some_and(|angle| slope_angle.abs() <= angle.0);
+
+            if deepest_penetration > 0.0 {
+                // If the slope is climbable, snap the velocity so that the character
+                // up and down the surface smoothly.
+                if climbable {
+                    // Points in the normal's direction in the XZ plane.
+                    let normal_direction_xz =
+                        normal.reject_from_normalized(Vector::Y).normalize_or_zero();
+
+                    // The movement speed along the direction above.
+                    let linear_velocity_xz = linear_velocity.dot(normal_direction_xz);
+
+                    // Snap the Y speed based on the speed at which the character is moving
+                    // up or down the slope, and how steep the slope is.
+                    //
+                    // A 2D visualization of the slope, the contact normal, and the velocity components:
+                    //
+                    //             ╱
+                    //     normal ╱
+                    // *         ╱
+                    // │   *    ╱   velocity_x
+                    // │       * - - - - - -
+                    // │           *       | velocity_y
+                    // │               *   |
+                    // *───────────────────*
+
+                    let max_y_speed = -linear_velocity_xz * slope_angle.tan();
+                    linear_velocity.y = linear_velocity.y.max(max_y_speed);
+                } else {
+                    // The character is intersecting an unclimbable object, like a wall.
+                    // We want the character to slide along the surface, similarly to
+                    // a collide-and-slide algorithm.
+
+                    // Don't apply an impulse if the character is moving away from the surface.
+                    if linear_velocity.dot(normal) > 0.0 {
+                        continue;
+                    }
+
+                    // Slide along the surface, rejecting the velocity along the contact normal.
+                    let impulse = linear_velocity.reject_from_normalized(normal);
+                    linear_velocity.0 = impulse;
+                }
+            } else {
+                // The character is not yet intersecting the other object,
+                // but the narrow phase detected a speculative collision.
+                //
+                // We need to push back the part of the velocity
+                // that would cause penetration within the next frame.
+
+                let normal_speed = linear_velocity.dot(normal);
+
+                // Don't apply an impulse if the character is moving away from the surface.
+                if normal_speed > 0.0 {
+                    continue;
+                }
+
+                // Compute the impulse to apply.
+                let impulse_magnitude = normal_speed
+                    - (deepest_penetration / time.delta_seconds_f64().adjust_precision());
+                let mut impulse = impulse_magnitude * normal;
+
+                // Apply the impulse differently depending on the slope angle.
+                if climbable {
+                    // Avoid sliding down slopes.
+                    linear_velocity.y -= impulse.y.min(0.0);
+                } else {
+                    // Avoid climbing up walls.
+                    impulse.y = impulse.y.max(0.0);
+                    linear_velocity.0 -= impulse;
+                }
             }
         }
     }

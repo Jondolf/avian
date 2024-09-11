@@ -1,5 +1,5 @@
 use avian3d::{
-    dynamics::solver::{solve_constraint, xpbd::*},
+    dynamics::solver::{xpbd::*, SubstepSolverSet},
     math::*,
     prelude::*,
 };
@@ -7,20 +7,26 @@ use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     let mut app = App::new();
 
     // Add plugins and startup system
-    app.add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-        .add_systems(Startup, setup);
+    app.add_plugins((
+        DefaultPlugins,
+        ExampleCommonPlugin,
+        PhysicsPlugins::default(),
+    ))
+    .add_systems(Startup, setup);
 
     // Get physics substep schedule and add our custom distance constraint
     let substeps = app
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_systems(
-        solve_constraint::<CustomDistanceConstraint, 2>.in_set(SubstepSet::SolveUserConstraints),
+        solve_constraint::<CustomDistanceConstraint, 2>
+            .in_set(SubstepSolverSet::SolveUserConstraints),
     );
 
     // Run the app
@@ -73,19 +79,14 @@ impl XpbdConstraint<2> for CustomDistanceConstraint {
         // Compute generalized inverse masses (method from PositionConstraint)
         let w1 = self.compute_generalized_inverse_mass(body1, r1, n);
         let w2 = self.compute_generalized_inverse_mass(body2, r2, n);
-        let w = [w1, w2];
-
-        // Constraint gradients, i.e. how the bodies should be moved
-        // relative to each other in order to satisfy the constraint
-        let gradients = [n, -n];
 
         // Compute Lagrange multiplier update, essentially the signed magnitude of the correction
         let delta_lagrange =
-            self.compute_lagrange_update(self.lagrange, c, &gradients, &w, self.compliance, dt);
+            self.compute_lagrange_update(self.lagrange, c, &[w1, w2], self.compliance, dt);
         self.lagrange += delta_lagrange;
 
         // Apply positional correction (method from PositionConstraint)
-        self.apply_positional_correction(body1, body2, delta_lagrange, n, r1, r2);
+        self.apply_positional_lagrange_update(body1, body2, delta_lagrange, n, r1, r2);
     }
 }
 

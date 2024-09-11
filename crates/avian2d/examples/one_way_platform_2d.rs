@@ -6,13 +6,18 @@
 
 use avian2d::{math::*, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
-use examples_common_2d::XpbdExamplePlugin;
+use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            // Add physics plugins and specify a units-per-meter scaling factor, 1 meter = 20 pixels.
+            // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
+            PhysicsPlugins::default().with_length_unit(20.0),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, pass_through_one_way_platform))
@@ -249,16 +254,6 @@ fn one_way_platform(
     // This assumes that Collisions contains empty entries for entities
     // that were once colliding but no longer are.
     collisions.retain(|contacts| {
-        // This is used in a couple of if statements below; writing here for brevity below.
-        fn any_penetrating(contacts: &Contacts) -> bool {
-            contacts.manifolds.iter().any(|manifold| {
-                manifold
-                    .contacts
-                    .iter()
-                    .any(|contact| contact.penetration > 0.0)
-            })
-        }
-
         // Differentiate between which normal of the manifold we should use
         enum RelevantNormal {
             Normal1,
@@ -279,9 +274,16 @@ fn one_way_platform(
             };
 
         if one_way_platform.0.contains(&other_entity) {
-            // If we were already allowing a collision for a particular entity,
-            // and if it is penetrating us still, continue to allow it to do so.
-            if any_penetrating(contacts) {
+            let any_penetrating = contacts.manifolds.iter().any(|manifold| {
+                manifold
+                    .contacts
+                    .iter()
+                    .any(|contact| contact.penetration > 0.0)
+            });
+
+            if any_penetrating {
+                // If we were already allowing a collision for a particular entity,
+                // and if it is penetrating us still, continue to allow it to do so.
                 return false;
             } else {
                 // If it's no longer penetrating us, forget it.
@@ -311,14 +313,11 @@ fn one_way_platform(
                     normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
                 }) {
                     true
-                } else if any_penetrating(contacts) {
-                    // If it's already penetrating, ignore the collision and register
+                } else {
+                    // Otherwise, ignore the collision and register
                     // the other entity as one that's currently penetrating.
                     one_way_platform.0.insert(other_entity);
                     false
-                } else {
-                    // In all other cases, allow this collision.
-                    true
                 }
             }
         }

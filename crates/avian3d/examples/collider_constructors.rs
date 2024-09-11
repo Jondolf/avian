@@ -1,13 +1,17 @@
 //! An example showcasing how to create colliders for meshes and scenes
-//! using `AsyncCollider` and `AsyncSceneCollider` respectively.
+//! using `ColliderConstructor` and `ColliderConstructorHierarchy` respectively.
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
-use examples_common_3d::XpbdExamplePlugin;
+use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            PhysicsPlugins::default(),
+        ))
         .add_systems(Startup, setup)
         .run();
 }
@@ -18,18 +22,18 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     assets: ResMut<AssetServer>,
 ) {
-    // Spawn ground and generate a collider for the mesh using AsyncCollider
+    // Spawn ground and generate a collider for the mesh using ColliderConstructor
     commands.spawn((
         PbrBundle {
             mesh: meshes.add(Plane3d::default().mesh().size(8.0, 8.0)),
             material: materials.add(Color::srgb(0.3, 0.5, 0.3)),
             ..default()
         },
-        AsyncCollider(ComputedCollider::TriMesh),
+        ColliderConstructor::TrimeshFromMesh,
         RigidBody::Static,
     ));
 
-    // Spawn Ferris the crab and generate colliders for the scene using AsyncSceneCollider
+    // Spawn Ferris the crab and generate colliders for the scene using ColliderConstructorHierarchy
     commands.spawn((
         SceneBundle {
             // The model was made by RayMarch, licenced under CC0-1.0, and can be found here:
@@ -41,12 +45,10 @@ fn setup(
         // Create colliders using convex decomposition.
         // This takes longer than creating a trimesh or convex hull collider,
         // but is more performant for collision detection.
-        AsyncSceneCollider::new(Some(ComputedCollider::ConvexDecomposition(
-            VHACDParameters::default(),
-        )))
-        // Make the arms heavier to make it easier to stand upright
-        .with_density_for_name("armL_mesh", 3.0)
-        .with_density_for_name("armR_mesh", 3.0),
+        ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
+            // Make the arms heavier to make it easier to stand upright
+            .with_density_for_name("armL_mesh", 3.0)
+            .with_density_for_name("armR_mesh", 3.0),
         RigidBody::Dynamic,
     ));
 

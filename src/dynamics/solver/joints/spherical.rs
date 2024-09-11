@@ -1,17 +1,21 @@
 //! [`SphericalJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct SphericalJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -201,10 +205,16 @@ impl SphericalJoint {
 
             let n = n / n_magnitude;
 
-            if let Some(dq) = joint_limit.compute_correction(n, a1, a2, PI) {
+            if let Some(correction) = joint_limit.compute_correction(n, a1, a2, PI) {
                 let mut lagrange = self.swing_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                let torque = self.align_orientation(
+                    body1,
+                    body2,
+                    correction,
+                    &mut lagrange,
+                    self.compliance,
+                    dt,
+                );
                 self.swing_lagrange = lagrange;
                 return torque;
             }
@@ -249,10 +259,16 @@ impl SphericalJoint {
 
             let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
 
-            if let Some(dq) = joint_limit.compute_correction(n, n1, n2, max_correction) {
+            if let Some(correction) = joint_limit.compute_correction(n, n1, n2, max_correction) {
                 let mut lagrange = self.twist_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
+                let torque = self.align_orientation(
+                    body1,
+                    body2,
+                    correction,
+                    &mut lagrange,
+                    self.compliance,
+                    dt,
+                );
                 self.twist_lagrange = lagrange;
                 return torque;
             }

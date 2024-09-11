@@ -1,17 +1,21 @@
 //! [`RevoluteJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A revolute joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
 ///
 /// Revolute joints can be useful for things like wheels, fans, revolving doors etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct RevoluteJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -66,11 +70,18 @@ impl XpbdConstraint<2> for RevoluteJoint {
         let [body1, body2] = bodies;
         let compliance = self.compliance;
 
-        // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
-        let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
-        let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
-        self.align_lagrange = lagrange;
+        #[cfg(feature = "3d")]
+        {
+            // Constrain the relative rotation of the bodies, only allowing rotation around one free axis
+            let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
+            let mut lagrange = self.align_lagrange;
+            self.align_torque =
+                self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
+            self.align_lagrange = lagrange;
+        }
+
+        // Apply angle limits when rotating around the free axis
+        self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
 
         // Align positions
         let mut lagrange = self.position_lagrange;
@@ -84,9 +95,6 @@ impl XpbdConstraint<2> for RevoluteJoint {
             dt,
         );
         self.position_lagrange = lagrange;
-
-        // Apply angle limits when rotating around the free axis
-        self.angle_limit_torque = self.apply_angle_limits(body1, body2, dt);
     }
 }
 
@@ -184,7 +192,8 @@ impl RevoluteJoint {
         }
     }
 
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
+    #[cfg(feature = "3d")]
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
         let a1 = rot1 * self.aligned_axis;
         let a2 = rot2 * self.aligned_axis;
         a1.cross(a2)
@@ -198,25 +207,28 @@ impl RevoluteJoint {
         body2: &mut RigidBodyQueryItem,
         dt: Scalar,
     ) -> Torque {
-        if let Some(angle_limit) = self.angle_limit {
-            let limit_axis = Vector3::new(
-                self.aligned_axis.z,
-                self.aligned_axis.x,
-                self.aligned_axis.y,
-            );
-            let a1 = *body1.rotation * limit_axis;
-            let a2 = *body2.rotation * limit_axis;
-            let n = a1.cross(a2).normalize();
-
-            if let Some(dq) = angle_limit.compute_correction(n, a1, a2, PI) {
-                let mut lagrange = self.angle_limit_lagrange;
-                let torque =
-                    self.align_orientation(body1, body2, dq, &mut lagrange, self.compliance, dt);
-                self.angle_limit_lagrange = lagrange;
-                return torque;
+        let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
+            #[cfg(feature = "2d")]
+            {
+                angle_limit.compute_correction(*body1.rotation, *body2.rotation, dt)
             }
-        }
-        Torque::ZERO
+            #[cfg(feature = "3d")]
+            {
+                // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
+                let a1 = *body1.rotation * self.aligned_axis;
+                let b1 = *body1.rotation * self.aligned_axis.any_orthonormal_vector();
+                let b2 = *body2.rotation * self.aligned_axis.any_orthonormal_vector();
+                angle_limit.compute_correction(a1, b1, b2, dt)
+            }
+        }) else {
+            return Torque::ZERO;
+        };
+
+        let mut lagrange = self.angle_limit_lagrange;
+        let torque =
+            self.align_orientation(body1, body2, correction, &mut lagrange, self.compliance, dt);
+        self.angle_limit_lagrange = lagrange;
+        torque
     }
 }
 

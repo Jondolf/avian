@@ -8,7 +8,6 @@ use bevy::{
     ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel},
     prelude::*,
     time::TimeUpdateStrategy,
-    utils::Instant,
 };
 #[cfg(feature = "enhanced-determinism")]
 use insta::assert_debug_snapshot;
@@ -32,26 +31,34 @@ macro_rules! setup_insta {
 
 fn create_app() -> App {
     let mut app = App::new();
-    app.add_plugins((MinimalPlugins, TransformPlugin, PhysicsPlugins::default()));
-    #[cfg(feature = "async-collider")]
-    {
-        app.add_plugins((
-            bevy::asset::AssetPlugin::default(),
-            bevy::scene::ScenePlugin,
-        ))
-        .init_resource::<Assets<Mesh>>();
-    }
-    app.insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
+
+    app.add_plugins((
+        MinimalPlugins,
+        TransformPlugin,
+        PhysicsPlugins::default()
+            .build()
+            .disable::<ColliderHierarchyPlugin>(),
+        bevy::asset::AssetPlugin::default(),
+        #[cfg(feature = "bevy_scene")]
+        bevy::scene::ScenePlugin,
+    ))
+    .init_resource::<Assets<Mesh>>()
+    .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+        1.0 / 60.0,
+    )));
+
     app
 }
 
-fn tick_60_fps(app: &mut App) {
-    let mut update_strategy = app.world_mut().resource_mut::<TimeUpdateStrategy>();
-    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
-        unimplemented!()
-    };
-    *update_strategy =
-        TimeUpdateStrategy::ManualInstant(prev_time + Duration::from_secs_f64(1. / 60.));
+fn tick_app(app: &mut App, timestep: f64) {
+    let strategy = TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(timestep));
+
+    if let Some(mut update_strategy) = app.world_mut().get_resource_mut::<TimeUpdateStrategy>() {
+        *update_strategy = strategy;
+    } else {
+        app.insert_resource(strategy);
+    }
+
     app.update();
 }
 
@@ -96,43 +103,10 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = create_app();
 
     for _ in 0..500 {
-        tick_60_fps(&mut app);
+        tick_app(&mut app, 1.0 / 60.0);
     }
 
     Ok(())
-}
-
-#[test]
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
-fn body_with_velocity_moves_on_first_frame() {
-    let mut app = create_app();
-
-    app.insert_resource(Gravity::ZERO);
-
-    app.add_systems(Startup, |mut commands: Commands| {
-        // move right at 1 unit per second
-        commands.spawn((
-            SpatialBundle::default(),
-            RigidBody::Dynamic,
-            LinearVelocity(Vector::X),
-            #[cfg(feature = "2d")]
-            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
-            #[cfg(feature = "3d")]
-            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
-        ));
-    });
-
-    // one tick only.
-    tick_60_fps(&mut app);
-
-    let mut app_query = app.world_mut().query::<(&Position, &RigidBody)>();
-
-    let (pos, _body) = app_query.single(app.world());
-
-    assert!(pos.x > 0.0);
 }
 
 #[test]
@@ -158,17 +132,19 @@ fn body_with_velocity_moves() {
         ));
     });
 
+    // Run startup systems
+    app.update();
+
     const UPDATES: usize = 500;
 
     for _ in 0..UPDATES {
-        tick_60_fps(&mut app);
+        tick_app(&mut app, 1.0 / 60.0);
     }
 
     let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
     let (transform, _body) = app_query.single(app.world());
 
-    //assert!(transform.translation.x > 0., "box moves right");
     assert_relative_eq!(transform.translation.y, 0.);
     assert_relative_eq!(transform.translation.z, 0.);
 
@@ -198,11 +174,14 @@ fn cubes_simulation_is_deterministic_across_machines() {
 
     app.add_systems(Startup, setup_cubes_simulation);
 
+    // Run startup systems
+    app.update();
+
     const SECONDS: usize = 10;
     const UPDATES: usize = 60 * SECONDS;
 
     for _ in 0..UPDATES {
-        tick_60_fps(&mut app);
+        tick_app(&mut app, 1.0 / 60.0);
     }
 
     let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
@@ -223,11 +202,14 @@ fn cubes_simulation_is_locally_deterministic() {
 
         app.add_systems(Startup, setup_cubes_simulation);
 
+        // Run startup systems
+        app.update();
+
         const SECONDS: usize = 5;
         const UPDATES: usize = 60 * SECONDS;
 
         for _ in 0..UPDATES {
-            tick_60_fps(&mut app);
+            tick_app(&mut app, 1.0 / 60.0);
         }
 
         let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
@@ -251,28 +233,25 @@ fn no_ambiguity_errors() {
     #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
     struct DeterministicSchedule;
 
-    let mut app = App::new();
-
-    app.add_plugins((MinimalPlugins, PhysicsPlugins::new(DeterministicSchedule)));
-
-    #[cfg(feature = "async-collider")]
-    {
-        app.add_plugins((
+    App::new()
+        .add_plugins((
+            MinimalPlugins,
+            PhysicsPlugins::new(DeterministicSchedule)
+                .build()
+                .disable::<ColliderHierarchyPlugin>(),
             bevy::asset::AssetPlugin::default(),
+            #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
         ))
-        .init_resource::<Assets<Mesh>>();
-    }
-
-    app.edit_schedule(DeterministicSchedule, |s| {
-        s.set_build_settings(ScheduleBuildSettings {
-            ambiguity_detection: LogLevel::Error,
-            ..default()
-        });
-    })
-    .add_systems(Update, |w: &mut World| {
-        w.run_schedule(DeterministicSchedule);
-    });
-
-    app.update();
+        .init_resource::<Assets<Mesh>>()
+        .edit_schedule(DeterministicSchedule, |s| {
+            s.set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Error,
+                ..default()
+            });
+        })
+        .add_systems(Update, |w: &mut World| {
+            w.run_schedule(DeterministicSchedule);
+        })
+        .update();
 }

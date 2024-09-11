@@ -7,13 +7,11 @@ use bevy::{
     prelude::*,
 };
 
-#[derive(Default)]
-pub struct XpbdExamplePlugin;
+pub struct ExampleCommonPlugin;
 
-impl Plugin for XpbdExamplePlugin {
+impl Plugin for ExampleCommonPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            PhysicsPlugins::default(),
             FrameTimeDiagnosticsPlugin,
             #[cfg(feature = "use-debug-plugin")]
             PhysicsDebugPlugin::default(),

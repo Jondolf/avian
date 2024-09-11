@@ -19,7 +19,7 @@ use crate::prelude::*;
 /// fn spawn(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         Collider::capsule(1.0, 0.5),
+///         Collider::capsule(0.5, 1.0),
 #[cfg_attr(feature = "2d", doc = "        LockedAxes::ROTATION_LOCKED,")]
 #[cfg_attr(feature = "3d", doc = "        LockedAxes::new().lock_rotation_z(),")]
 ///     ));
@@ -27,7 +27,8 @@ use crate::prelude::*;
 /// ```
 #[derive(Component, Reflect, Clone, Copy, Debug, Default, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default)]
 pub struct LockedAxes(u8);
 
 impl LockedAxes {
@@ -61,12 +62,14 @@ impl LockedAxes {
     }
 
     /// Locks translation along the `X` axis.
+    #[must_use]
     pub const fn lock_translation_x(mut self) -> Self {
         self.0 |= 0b100_000;
         self
     }
 
     /// Locks translation along the `Y` axis.
+    #[must_use]
     pub const fn lock_translation_y(mut self) -> Self {
         self.0 |= 0b010_000;
         self
@@ -74,6 +77,7 @@ impl LockedAxes {
 
     /// Locks translation along the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_translation_z(mut self) -> Self {
         self.0 |= 0b001_000;
         self
@@ -88,6 +92,7 @@ impl LockedAxes {
 
     /// Locks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_rotation_y(mut self) -> Self {
         self.0 |= 0b000_010;
         self
@@ -95,6 +100,7 @@ impl LockedAxes {
 
     /// Locks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_rotation_z(mut self) -> Self {
         self.0 |= 0b000_001;
         self
@@ -102,18 +108,21 @@ impl LockedAxes {
 
     /// Locks all rotation.
     #[cfg(feature = "2d")]
+    #[must_use]
     pub const fn lock_rotation(mut self) -> Self {
         self.0 |= 0b000_001;
         self
     }
 
     /// Unlocks translation along the `X` axis.
+    #[must_use]
     pub const fn unlock_translation_x(mut self) -> Self {
         self.0 &= !0b100_000;
         self
     }
 
     /// Unlocks translation along the `Y` axis.
+    #[must_use]
     pub const fn unlock_translation_y(mut self) -> Self {
         self.0 &= !0b010_000;
         self
@@ -121,6 +130,7 @@ impl LockedAxes {
 
     /// Unlocks translation along the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_translation_z(mut self) -> Self {
         self.0 &= !0b001_000;
         self
@@ -128,6 +138,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `X` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_x(mut self) -> Self {
         self.0 &= !0b000_100;
         self
@@ -135,6 +146,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_y(mut self) -> Self {
         self.0 &= !0b000_010;
         self
@@ -142,6 +154,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_z(mut self) -> Self {
         self.0 &= !0b000_001;
         self
@@ -149,6 +162,7 @@ impl LockedAxes {
 
     /// Unlocks all rotation.
     #[cfg(feature = "2d")]
+    #[must_use]
     pub const fn unlock_rotation(mut self) -> Self {
         self.0 &= !0b000_001;
         self

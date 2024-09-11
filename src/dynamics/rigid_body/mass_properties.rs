@@ -1,13 +1,15 @@
 use crate::prelude::*;
 use bevy::prelude::*;
+use derive_more::From;
 
 #[cfg(feature = "3d")]
 use crate::utils::get_rotated_inertia_tensor;
 
 /// The mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Mass(pub Scalar);
 
 impl Mass {
@@ -16,9 +18,10 @@ impl Mass {
 }
 
 /// The inverse mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseMass(pub Scalar);
 
 impl InverseMass {
@@ -28,9 +31,10 @@ impl InverseMass {
 
 /// The moment of inertia of a body. This represents the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Inertia(pub Scalar);
 
 /// The local moment of inertia of the body as a 3x3 tensor matrix.
@@ -41,9 +45,10 @@ pub struct Inertia(pub Scalar);
 /// To get the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct Inertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -116,9 +121,10 @@ impl Inertia {
 /// The inverse moment of inertia of the body. This represents the inverse of
 /// the torque needed for a desired angular acceleration.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct InverseInertia(pub Scalar);
 
 /// The local inverse moment of inertia of the body as a 3x3 tensor matrix.
@@ -129,9 +135,10 @@ pub struct InverseInertia(pub Scalar);
 /// To get the world-space version that takes the body's rotation into account,
 /// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
 #[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct InverseInertia(pub Matrix3);
 
 #[cfg(feature = "3d")]
@@ -182,9 +189,10 @@ impl From<Inertia> for InverseInertia {
 }
 
 /// The local center of mass of a body.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct CenterOfMass(pub Vector);
 
 impl CenterOfMass {
@@ -276,7 +284,8 @@ impl MassPropertiesBundle {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderDensity(pub Scalar);
 
 impl ColliderDensity {
@@ -287,6 +296,12 @@ impl ColliderDensity {
 impl Default for ColliderDensity {
     fn default() -> Self {
         Self(1.0)
+    }
+}
+
+impl From<Scalar> for ColliderDensity {
+    fn from(density: Scalar) -> Self {
+        Self(density)
     }
 }
 
@@ -325,7 +340,8 @@ impl Default for ColliderDensity {
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderMassProperties {
     /// Mass given by collider.
     pub mass: Mass,
@@ -355,6 +371,13 @@ impl ColliderMassProperties {
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
     pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
         collider.mass_properties(density)
+    }
+
+    /// Transforms the center of mass by the given [`ColliderTransform`].
+    #[inline]
+    pub fn transformed_by(mut self, transform: &ColliderTransform) -> Self {
+        self.center_of_mass.0 = transform.transform_point(self.center_of_mass.0);
+        self
     }
 }
 

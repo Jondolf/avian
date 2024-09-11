@@ -15,12 +15,14 @@ mod plugin;
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use examples_common_3d::ExampleCommonPlugin;
 use plugin::*;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
+            ExampleCommonPlugin,
             PhysicsPlugins::default(),
             CharacterControllerPlugin,
         ))
@@ -42,7 +44,7 @@ fn setup(
             transform: Transform::from_xyz(0.0, 1.5, 0.0),
             ..default()
         },
-        CharacterControllerBundle::new(Collider::capsule(1.0, 0.4)).with_movement(
+        CharacterControllerBundle::new(Collider::capsule(0.4, 1.0)).with_movement(
             30.0,
             0.92,
             7.0,
@@ -65,14 +67,14 @@ fn setup(
         },
     ));
 
-    // Environment (see `async_colliders` example for creating colliders from scenes)
+    // Environment (see the `collider_constructors` example for creating colliders from scenes)
     commands.spawn((
         SceneBundle {
             scene: assets.load("character_controller_demo.glb#Scene0"),
             transform: Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
             ..default()
         },
-        AsyncSceneCollider::new(Some(ComputedCollider::ConvexHull)),
+        ColliderConstructorHierarchy::new(ColliderConstructor::ConvexHullFromMesh),
         RigidBody::Static,
     ));
 

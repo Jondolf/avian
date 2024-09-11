@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast)]
+
 use crate::prelude::*;
 use bevy::prelude::*;
 #[cfg(all(
@@ -58,6 +60,7 @@ pub trait PhysicsGizmoExt {
         ray_color: Color,
         point_color: Color,
         normal_color: Color,
+        length_unit: Scalar,
     );
 
     /// Draws the results of a [shapecast](SpatialQuery#shapecasting).
@@ -78,6 +81,7 @@ pub trait PhysicsGizmoExt {
         shape_color: Color,
         point_color: Color,
         normal_color: Color,
+        length_unit: Scalar,
     );
 }
 
@@ -155,7 +159,6 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
-    #[allow(clippy::unnecessary_cast)]
     fn draw_collider(
         &mut self,
         collider: &Collider,
@@ -461,6 +464,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         ray_color: Color,
         point_color: Color,
         normal_color: Color,
+        length_unit: Scalar,
     ) {
         let max_toi = hits
             .iter()
@@ -468,18 +472,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             .map_or(max_time_of_impact, |hit| hit.time_of_impact);
 
         // Draw ray as arrow
-        #[cfg(feature = "2d")]
         self.draw_arrow(
             origin,
             origin + direction.adjust_precision() * max_toi,
-            8.0,
-            ray_color,
-        );
-        #[cfg(feature = "3d")]
-        self.draw_arrow(
-            origin,
-            origin + direction.adjust_precision() * max_toi,
-            0.1,
+            0.1 * length_unit,
             ray_color,
         );
 
@@ -489,15 +485,22 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(point.f32(), 3.0, point_color);
+            self.circle_2d(point.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(point.f32(), default(), 0.025, point_color);
+            self.sphere(
+                point.f32(),
+                default(),
+                0.1 * length_unit as f32,
+                point_color,
+            );
 
             // Draw hit normal as arrow
-            #[cfg(feature = "2d")]
-            self.draw_arrow(point, point + hit.normal * 30.0, 8.0, normal_color);
-            #[cfg(feature = "3d")]
-            self.draw_arrow(point, point + hit.normal * 0.5, 0.1, normal_color);
+            self.draw_arrow(
+                point,
+                point + hit.normal * 0.5 * length_unit,
+                0.1 * length_unit,
+                normal_color,
+            );
         }
     }
 
@@ -519,6 +522,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         shape_color: Color,
         point_color: Color,
         normal_color: Color,
+        length_unit: Scalar,
     ) {
         let shape_rotation = shape_rotation.into();
         #[cfg(feature = "3d")]
@@ -534,18 +538,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
 
         // Draw arrow from origin to position of shape at final hit
         // TODO: We could render the swept collider outline instead
-        #[cfg(feature = "2d")]
         self.draw_arrow(
             origin,
             origin + max_toi * direction.adjust_precision(),
-            8.0,
-            ray_color,
-        );
-        #[cfg(feature = "3d")]
-        self.draw_arrow(
-            origin,
-            origin + max_toi * direction.adjust_precision(),
-            0.1,
+            0.1 * length_unit,
             ray_color,
         );
 
@@ -553,23 +549,20 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         for hit in hits {
             // Draw hit point
             #[cfg(feature = "2d")]
-            self.circle_2d(hit.point1.f32(), 3.0, point_color);
+            self.circle_2d(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(hit.point1.f32(), default(), 0.025, point_color);
+            self.sphere(
+                hit.point1.f32(),
+                default(),
+                0.1 * length_unit as f32,
+                point_color,
+            );
 
             // Draw hit normal as arrow
-            #[cfg(feature = "2d")]
             self.draw_arrow(
                 hit.point1,
-                hit.point1 + hit.normal1 * 30.0,
-                8.0,
-                normal_color,
-            );
-            #[cfg(feature = "3d")]
-            self.draw_arrow(
-                hit.point1,
-                hit.point1 + hit.normal1 * 0.5,
-                0.1,
+                hit.point1 + hit.normal1 * 0.5 * length_unit,
+                0.1 * length_unit,
                 normal_color,
             );
 

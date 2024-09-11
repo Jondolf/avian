@@ -21,17 +21,17 @@
 //!
 //! ## Plugins
 //!
-//! | Plugin               | Description                                                                                              |
-//! | -------------------- | -------------------------------------------------------------------------------------------------------- |
-//! | [`IntegratorPlugin`] | Handles motion caused by velocity, and applies external forces and gravity.                              |
-//! | [`SolverPlugin`]     | Solves constraints (contacts and joints).                                                                |
-//! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources. |
+//! | Plugin               | Description                                                                                                                           |
+//! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+//! | [`IntegratorPlugin`] | Handles motion caused by velocity, and applies external forces and gravity.                                                           |
+//! | [`SolverPlugin`]     | Solves constraints (contacts and joints).                                                                                             |
+//! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
+//! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
 //!
 //! ## Accuracy
 //!
 //! The engine uses iterative algorithms to approximate the simulation.
-//! Thus, results may not be perfectly accurate and can sometimes have
-//! noticeable artifacts, like the following:
+//! Thus, results may not be perfectly accurate:
 //!
 //! - Constraints (contacts and joints) are not perfectly rigid.
 //!   - Objects can overlap, especially in extreme stacking scenarios.
@@ -41,7 +41,7 @@
 //!     can be difficult for the engine to deal with.
 //! - [`Friction`] and [`Restitution`] may not be perfectly accurate.
 //! - Objects moving at high speeds can pass through thin and small geometry due to discrete time steps,
-//!   a phenomenon known as *tunneling*. To some extent, this can be mitigated with Continuous Collision Detection.
+//!   a phenomenon known as *tunneling*. This can be mitigated with [Continuous Collision Detection](ccd).
 //!
 //! These caveats are very common for physics engines intended for real-time applications,
 //! not something specific to this engine. Approximations are required for several reasons:
@@ -61,24 +61,23 @@
 //! [Gauss-Seidel]: https://en.wikipedia.org/wiki/Gauss%E2%80%93Seidel_method
 //! [Semi-implicit Euler]: https://en.wikipedia.org/wiki/Semi-implicit_Euler_method
 
-// Core plugins and modules
+pub mod ccd;
 pub mod integrator;
+pub mod rigid_body;
 pub mod sleeping;
 pub mod solver;
 
-// Components
-mod forces;
-mod locked_axes;
-mod mass_properties;
-mod rigid_body;
-mod world_query;
+/// Re-exports common types related to the rigid body dynamics functionality.
+pub mod prelude {
+    pub use super::{
+        ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
+        integrator::{Gravity, IntegratorPlugin},
+        rigid_body::*,
+        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
+        solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
+    };
+}
 
-// Re-exports
-pub use forces::*;
-pub use integrator::{Gravity, IntegratorPlugin};
-pub use locked_axes::*;
-pub use mass_properties::*;
-pub use rigid_body::*;
-pub use sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold};
-pub use solver::SolverPlugin;
-pub use world_query::*;
+// For intra-doc links
+#[allow(unused_imports)]
+use crate::prelude::*;

@@ -3,7 +3,7 @@
 use crate::{prelude::*, utils::get_pos_translation};
 use bevy::{
     ecs::query::QueryData,
-    prelude::{Entity, Ref},
+    prelude::{Entity, Has, Ref},
 };
 use std::ops::{AddAssign, SubAssign};
 
@@ -15,7 +15,6 @@ pub struct RigidBodyQuery {
     pub rb: Ref<'static, RigidBody>,
     pub position: &'static mut Position,
     pub rotation: &'static mut Rotation,
-    pub previous_position: &'static mut PreviousPosition,
     pub previous_rotation: &'static mut PreviousRotation,
     pub accumulated_translation: &'static mut AccumulatedTranslation,
     pub linear_velocity: &'static mut LinearVelocity,
@@ -31,11 +30,30 @@ pub struct RigidBodyQuery {
     pub restitution: &'static Restitution,
     pub locked_axes: Option<&'static LockedAxes>,
     pub dominance: Option<&'static Dominance>,
+    pub time_sleeping: &'static mut TimeSleeping,
+    pub is_sleeping: Has<Sleeping>,
+    pub is_sensor: Has<Sensor>,
 }
 
 impl<'w> RigidBodyQueryItem<'w> {
+    /// Computes the velocity at the given `point` relative to the center of the body.
+    pub fn velocity_at_point(&self, point: Vector) -> Vector {
+        #[cfg(feature = "2d")]
+        {
+            self.linear_velocity.0 + self.angular_velocity.0 * point.perp()
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.linear_velocity.0 + self.angular_velocity.cross(point)
+        }
+    }
+
     /// Computes the effective inverse mass, taking into account any translation locking.
     pub fn effective_inv_mass(&self) -> Vector {
+        if !self.rb.is_dynamic() {
+            return Vector::ZERO;
+        }
+
         let mut inv_mass = Vector::splat(self.inverse_mass.0);
 
         if let Some(locked_axes) = self.locked_axes {
@@ -48,6 +66,10 @@ impl<'w> RigidBodyQueryItem<'w> {
     /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
     #[cfg(feature = "2d")]
     pub fn effective_world_inv_inertia(&self) -> Scalar {
+        if !self.rb.is_dynamic() {
+            return 0.0;
+        }
+
         let mut inv_inertia = self.inverse_inertia.0;
 
         if let Some(locked_axes) = self.locked_axes {
@@ -60,6 +82,10 @@ impl<'w> RigidBodyQueryItem<'w> {
     /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
     pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+        if !self.rb.is_dynamic() {
+            return Matrix3::ZERO;
+        }
+
         let mut inv_inertia = self.inverse_inertia.rotated(&self.rotation).0;
 
         if let Some(locked_axes) = self.locked_axes {
@@ -78,6 +104,120 @@ impl<'w> RigidBodyQueryItem<'w> {
                 &self.previous_rotation,
                 &self.rotation,
                 &self.center_of_mass,
+            )
+    }
+
+    /// Returns the [dominance](Dominance) of the body.
+    ///
+    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX` (`127`) is always returned instead.
+    pub fn dominance(&self) -> i8 {
+        if !self.rb.is_dynamic() {
+            i8::MAX
+        } else {
+            self.dominance.map_or(0, |dominance| dominance.0)
+        }
+    }
+}
+
+impl<'w> RigidBodyQueryReadOnlyItem<'w> {
+    /// Computes the velocity at the given `point` relative to the center of the body.
+    pub fn velocity_at_point(&self, point: Vector) -> Vector {
+        #[cfg(feature = "2d")]
+        {
+            self.linear_velocity.0 + self.angular_velocity.0 * point.perp()
+        }
+        #[cfg(feature = "3d")]
+        {
+            self.linear_velocity.0 + self.angular_velocity.cross(point)
+        }
+    }
+
+    /// Returns the inverse mass. If the rigid body is not dynamic, zero is returned.
+    pub fn inv_mass(&self) -> Scalar {
+        if self.rb.is_dynamic() {
+            self.inverse_mass.0
+        } else {
+            0.0
+        }
+    }
+
+    /// Computes the effective inverse mass, taking into account any translation locking.
+    pub fn effective_inv_mass(&self) -> Vector {
+        if !self.rb.is_dynamic() {
+            return Vector::ZERO;
+        }
+
+        let mut inv_mass = Vector::splat(self.inverse_mass.0);
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_mass = locked_axes.apply_to_vec(inv_mass);
+        }
+
+        inv_mass
+    }
+
+    /// Returns the inverse inertia. If the rigid body is not dynamic, zero is returned.
+    #[cfg(feature = "2d")]
+    pub fn inv_inertia(&self) -> Scalar {
+        if self.rb.is_dynamic() {
+            self.inverse_inertia.0
+        } else {
+            0.0
+        }
+    }
+
+    /// Returns the inverse inertia tensor. If the rigid body is not dynamic, a zero matrix is returned.
+    #[cfg(feature = "3d")]
+    pub fn inv_inertia(&self) -> Matrix3 {
+        if self.rb.is_dynamic() {
+            self.inverse_inertia.0
+        } else {
+            Matrix3::ZERO
+        }
+    }
+
+    /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
+    #[cfg(feature = "2d")]
+    pub fn effective_world_inv_inertia(&self) -> Scalar {
+        if !self.rb.is_dynamic() {
+            return 0.0;
+        }
+
+        let mut inv_inertia = self.inverse_inertia.0;
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+        }
+
+        inv_inertia
+    }
+
+    /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
+    #[cfg(feature = "3d")]
+    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+        if !self.rb.is_dynamic() {
+            return Matrix3::ZERO;
+        }
+
+        let mut inv_inertia = self.inverse_inertia.rotated(self.rotation).0;
+
+        if let Some(locked_axes) = self.locked_axes {
+            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+        }
+
+        inv_inertia
+    }
+
+    /// Returns the current position of the body. This is a sum of the [`Position`] and
+    /// [`AccumulatedTranslation`] components.
+    pub fn current_position(&self) -> Vector {
+        self.position.0
+            + get_pos_translation(
+                self.accumulated_translation,
+                self.previous_rotation,
+                self.rotation,
+                self.center_of_mass,
             )
     }
 
@@ -255,13 +395,13 @@ mod tests {
         app.add_plugins(MinimalPlugins);
 
         let original_mass_props =
-            MassPropertiesBundle::new_computed(&Collider::capsule(2.4, 0.6), 3.9);
+            MassPropertiesBundle::new_computed(&Collider::capsule(0.6, 2.4), 3.9);
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(original_mass_props.clone());
 
         // Create collider mass properties
-        let collider_mass_props = Collider::capsule(7.4, 2.1).mass_properties(14.3);
+        let collider_mass_props = Collider::capsule(2.1, 7.4).mass_properties(14.3);
 
         // Get the mass properties and then add and subtract the collider mass properties
         let mut query = app.world_mut().query::<MassPropertiesQuery>();

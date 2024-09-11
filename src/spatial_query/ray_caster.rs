@@ -1,6 +1,9 @@
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        component::{ComponentHooks, StorageType},
+        entity::{EntityMapper, MapEntities},
+    },
     prelude::*,
 };
 #[cfg(all(
@@ -67,8 +70,10 @@ use parry::query::{
 ///     }
 /// }
 /// ```
-#[derive(Component)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
@@ -230,21 +235,21 @@ impl RayCaster {
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     pub(crate) fn cast(
-        &self,
+        &mut self,
         caster_entity: Entity,
         hits: &mut RayHits,
         query_pipeline: &SpatialQueryPipeline,
     ) {
-        let mut query_filter = self.query_filter.clone();
-
         if self.ignore_self {
-            query_filter.excluded_entities.insert(caster_entity);
+            self.query_filter.excluded_entities.insert(caster_entity);
+        } else {
+            self.query_filter.excluded_entities.remove(&caster_entity);
         }
 
         hits.count = 0;
 
         if self.max_hits == 1 {
-            let pipeline_shape = query_pipeline.as_composite_shape(query_filter);
+            let pipeline_shape = query_pipeline.as_composite_shape(&self.query_filter);
             let ray = parry::query::Ray::new(
                 self.global_origin().into(),
                 self.global_direction().adjust_precision().into(),
@@ -279,7 +284,7 @@ impl RayCaster {
             let mut leaf_callback = &mut |entity_index: &u32| {
                 let entity = query_pipeline.entity_from_index(*entity_index);
                 if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if query_filter.test(entity, *layers) {
+                    if self.query_filter.test(entity, *layers) {
                         if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                             iso,
                             &ray,
@@ -313,6 +318,26 @@ impl RayCaster {
                 RayIntersectionsVisitor::new(&ray, self.max_time_of_impact, &mut leaf_callback);
             query_pipeline.qbvh.traverse_depth_first(&mut visitor);
         }
+    }
+}
+
+impl Component for RayCaster {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            let ray_caster = world.get::<RayCaster>(entity).unwrap();
+            let max_hits = if ray_caster.max_hits == u32::MAX {
+                10
+            } else {
+                ray_caster.max_hits as usize
+            };
+
+            world.commands().entity(entity).try_insert(RayHits {
+                vector: Vec::with_capacity(max_hits),
+                count: 0,
+            });
+        });
     }
 }
 
@@ -352,8 +377,10 @@ impl RayCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Default)]
+#[derive(Debug, Component, Clone, Default, Reflect, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct RayHits {
     pub(crate) vector: Vec<RayHitData>,
     /// The number of hits.
@@ -409,8 +436,10 @@ impl MapEntities for RayHits {
 }
 
 /// Data related to a hit during a [raycast](spatial_query#raycasting).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,

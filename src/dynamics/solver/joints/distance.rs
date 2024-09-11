@@ -1,6 +1,6 @@
 //! [`DistanceJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -8,14 +8,14 @@ use bevy::{
     },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A distance joint keeps the attached bodies at a certain distance from each other while while allowing rotation around all axes.
 ///
 /// Distance joints can be useful for things like springs, muscles, and mass-spring networks.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(MapEntities)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct DistanceJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -153,23 +153,20 @@ impl DistanceJoint {
         let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
         let w = [w1, w2];
 
-        // Constraint gradients, i.e. how the bodies should be moved
-        // relative to each other in order to satisfy the constraint
-        let gradients = [dir, -dir];
-
         // Compute Lagrange multiplier update, essentially the signed magnitude of the correction
-        let delta_lagrange = self.compute_lagrange_update(
-            self.lagrange,
-            distance,
-            &gradients,
-            &w,
-            self.compliance,
-            dt,
-        );
+        let delta_lagrange =
+            self.compute_lagrange_update(self.lagrange, distance, &w, self.compliance, dt);
         self.lagrange += delta_lagrange;
 
         // Apply positional correction (method from PositionConstraint)
-        self.apply_positional_correction(body1, body2, delta_lagrange, dir, world_r1, world_r2);
+        self.apply_positional_lagrange_update(
+            body1,
+            body2,
+            delta_lagrange,
+            dir,
+            world_r1,
+            world_r2,
+        );
 
         // Return constraint force
         self.compute_force(self.lagrange, dir, dt)

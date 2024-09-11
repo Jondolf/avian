@@ -1,10 +1,16 @@
 use avian2d::{math::*, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
-use examples_common_2d::XpbdExamplePlugin;
+use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, XpbdExamplePlugin))
+        .add_plugins((
+            DefaultPlugins,
+            ExampleCommonPlugin,
+            // Add physics plugins and specify a units-per-meter scaling factor, 1 meter = 20 pixels.
+            // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
+            PhysicsPlugins::default().with_length_unit(20.0),
+        ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Gravity(Vector::ZERO))
         .add_event::<MovementAction>()
@@ -48,7 +54,7 @@ fn setup(
         },
         Character,
         RigidBody::Dynamic,
-        Collider::capsule(20.0, 12.5),
+        Collider::capsule(12.5, 20.0),
         Name::new("Character"),
     ));
 

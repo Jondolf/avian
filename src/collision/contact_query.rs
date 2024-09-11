@@ -201,7 +201,6 @@ pub fn contact_manifolds(
                         normal1,
                         normal2,
                         -contact.dist,
-                        0,
                     )],
                     index: 0,
                 }];
@@ -238,16 +237,15 @@ pub fn contact_manifolds(
                 contacts: manifold
                     .contacts()
                     .iter()
-                    .enumerate()
-                    .map(|(contact_index, contact)| {
+                    .map(|contact| {
                         ContactData::new(
                             subpos1.transform_point(&contact.local_p1).into(),
                             subpos2.transform_point(&contact.local_p2).into(),
                             normal1,
                             normal2,
                             -contact.dist,
-                            contact_index,
                         )
+                        .with_feature_ids(contact.fid1.into(), contact.fid2.into())
                     })
                     .collect(),
                 index: manifold_index,
@@ -265,6 +263,8 @@ pub fn contact_manifolds(
 /// The closest points can be computed using [`closest_points`].
 #[derive(Reflect, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub enum ClosestPoints {
     /// The two shapes are intersecting each other.
     Intersecting,

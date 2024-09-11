@@ -1,5 +1,6 @@
 //! **Joints** are a way to connect entities in a way that restricts their movement relative to each other.
-//! They act as [constraints](solver::xpbd#constraints) that restrict different *Degrees Of Freedom* depending on the joint type.
+//! They act as [constraints](dynamics::solver::xpbd#constraints) that restrict different *Degrees Of Freedom*
+//! depending on the joint type.
 //!
 //! ## Degrees Of Freedom (DOF)
 //!
@@ -17,7 +18,10 @@
 //! | [`DistanceJoint`]  | 1 Translation, 1 Rotation | 2 Translations, 3 Rotations |
 //! | [`PrismaticJoint`] | 1 Translation             | 1 Translation               |
 //! | [`RevoluteJoint`]  | 1 Rotation                | 1 Rotation                  |
-//! | [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |
+#![cfg_attr(
+    feature = "3d",
+    doc = "| [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |"
+)]
 //!
 //! ## Using joints
 //!
@@ -67,9 +71,9 @@
 //!
 //! ## Custom joints
 //!
-//! Joints are [constraints](solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
+//! Joints are [constraints](dynamics::solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
 //!
-//! The process of creating a joint is essentially the same as [creating a constraint](solver::xpbd#custom-constraints),
+//! The process of creating a joint is essentially the same as [creating a constraint](dynamics::solver::xpbd#custom-constraints),
 //! except you should also implement the [`Joint`] trait's methods. The trait has some useful helper methods
 //! like `align_position` and `align_orientation` to reduce some common boilerplate.
 //!
@@ -83,17 +87,18 @@ mod distance;
 mod fixed;
 mod prismatic;
 mod revolute;
+#[cfg(feature = "3d")]
 mod spherical;
 
 pub use distance::*;
 pub use fixed::*;
 pub use prismatic::*;
 pub use revolute::*;
+#[cfg(feature = "3d")]
 pub use spherical::*;
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;
-use solver::xpbd::*;
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {
@@ -157,78 +162,31 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
         let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
         let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
 
-        // Constraint gradients and inverse masses
-        let gradients = [dir, -dir];
-        let w = [w1, w2];
-
         // Compute Lagrange multiplier update
         let delta_lagrange =
-            self.compute_lagrange_update(*lagrange, magnitude, &gradients, &w, compliance, dt);
+            self.compute_lagrange_update(*lagrange, magnitude, &[w1, w2], compliance, dt);
         *lagrange += delta_lagrange;
 
         // Apply positional correction to align the positions of the bodies
-        self.apply_positional_correction(body1, body2, delta_lagrange, dir, world_r1, world_r2);
+        self.apply_positional_lagrange_update(
+            body1,
+            body2,
+            delta_lagrange,
+            dir,
+            world_r1,
+            world_r2,
+        );
 
         // Return constraint force
         self.compute_force(*lagrange, dir, dt)
-    }
-
-    /// Applies an angular correction that aligns the orientation of the bodies.
-    ///
-    /// Returns the torque exerted by the alignment.
-    fn align_orientation(
-        &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        delta_q: Vector3,
-        lagrange: &mut Scalar,
-        compliance: Scalar,
-        dt: Scalar,
-    ) -> Torque {
-        let angle = delta_q.length();
-
-        if angle <= Scalar::EPSILON {
-            return Torque::ZERO;
-        }
-
-        let axis = delta_q / angle;
-
-        // Compute generalized inverse masses
-        let w1 = AngularConstraint::compute_generalized_inverse_mass(self, body1, axis);
-        let w2 = AngularConstraint::compute_generalized_inverse_mass(self, body2, axis);
-
-        // Constraint gradients and inverse masses
-        let gradients = {
-            #[cfg(feature = "2d")]
-            {
-                // `axis.z` controls if the body should rotate counterclockwise or clockwise.
-                // The gradient has to be a 2D vector, so we use the y axis instead.
-                // This should work similarly, as `axis.x` and `axis.y` are normally 0 in 2D.
-                [Vector::Y * axis.z, Vector::NEG_Y * axis.z]
-            }
-            #[cfg(feature = "3d")]
-            {
-                [axis, -axis]
-            }
-        };
-        let w = [w1, w2];
-
-        // Compute Lagrange multiplier update
-        let delta_lagrange =
-            self.compute_lagrange_update(*lagrange, angle, &gradients, &w, compliance, dt);
-        *lagrange += delta_lagrange;
-
-        // Apply angular correction to aling the bodies
-        self.apply_angular_correction(body1, body2, delta_lagrange, axis);
-
-        // Return constraint torque
-        self.compute_torque(*lagrange, axis, dt)
     }
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct DistanceLimit {
     /// The minimum distance between two points.
     pub min: Scalar,
@@ -241,7 +199,7 @@ impl DistanceLimit {
     pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
 
     /// Creates a new `DistanceLimit`.
-    pub fn new(min: Scalar, max: Scalar) -> Self {
+    pub const fn new(min: Scalar, max: Scalar) -> Self {
         Self { min, max }
     }
 
@@ -269,7 +227,7 @@ impl DistanceLimit {
 
     /// Returns the positional correction required to limit the distance between `p1` and `p2`
     /// to be within the distance limit along a given `axis`.
-    fn compute_correction_along_axis(&self, p1: Vector, p2: Vector, axis: Vector) -> Vector {
+    pub fn compute_correction_along_axis(&self, p1: Vector, p2: Vector, axis: Vector) -> Vector {
         let pos_offset = p2 - p1;
         let a = pos_offset.dot(axis);
 
@@ -287,63 +245,94 @@ impl DistanceLimit {
 }
 
 /// A limit that indicates that angles should be between `alpha` and `beta`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct AngleLimit {
     /// The minimum angle.
-    pub alpha: Scalar,
+    pub min: Scalar,
     /// The maximum angle.
-    pub beta: Scalar,
+    pub max: Scalar,
 }
 
 impl AngleLimit {
     /// An `AngleLimit` with `alpha` and `beta` set to zero.
-    pub const ZERO: Self = Self {
-        alpha: 0.0,
-        beta: 0.0,
-    };
+    pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
 
     /// Creates a new `AngleLimit`.
-    pub fn new(alpha: Scalar, beta: Scalar) -> Self {
-        Self { alpha, beta }
+    pub const fn new(min: Scalar, max: Scalar) -> Self {
+        Self { min, max }
     }
 
-    /// Returns the angular correction required to limit the angle between the axes `n1` and `n2`
+    /// Returns the angular correction required to limit the angle between two rotations
     /// to be within the angle limits.
-    fn compute_correction(
+    #[cfg(feature = "2d")]
+    pub fn compute_correction(
         &self,
-        n: Vector3,
-        n1: Vector3,
-        n2: Vector3,
+        rotation1: Rotation,
+        rotation2: Rotation,
         max_correction: Scalar,
-    ) -> Option<Vector3> {
-        let mut phi = n1.cross(n2).dot(n).asin();
+    ) -> Option<Scalar> {
+        let angle = rotation1.angle_between(rotation2);
 
-        if n1.dot(n2) < 0.0 {
+        let correction = if angle < self.min {
+            angle - self.min
+        } else if angle > self.max {
+            angle - self.max
+        } else {
+            return None;
+        };
+
+        Some(correction.min(max_correction))
+    }
+
+    /// Returns the angular correction required to limit the angle between `axis1` and `axis2`
+    /// to be within the angle limits with respect to the `limit_axis`.
+    #[cfg(feature = "3d")]
+    pub fn compute_correction(
+        &self,
+        limit_axis: Vector,
+        axis1: Vector,
+        axis2: Vector,
+        max_correction: Scalar,
+    ) -> Option<Vector> {
+        // [limit_axis, axis1, axis2] = [n, n1, n2] in XPBD rigid body paper.
+
+        // Angle between axis1 and axis2 with respect to limit_axis.
+        let mut phi = axis1.cross(axis2).dot(limit_axis).asin();
+
+        // `asin` returns the angle in the [-pi/2, pi/2] range.
+        // This is correct if the angle between n1 and n2 is acute,
+        // but obtuse angles must be accounted for.
+        if axis1.dot(axis2) < 0.0 {
             phi = PI - phi;
         }
 
+        // Map the angle to the [-pi, pi] range.
         if phi > PI {
-            phi -= 2.0 * PI;
+            phi -= TAU;
         }
 
-        if phi < -PI {
-            phi += 2.0 * PI;
-        }
+        // The XPBD rigid body paper has this, but the angle
+        // should already be in the correct range.
+        //
+        // if phi < -PI {
+        //     phi += TAU;
+        // }
 
-        if phi < self.alpha || phi > self.beta {
-            phi = phi.clamp(self.alpha, self.beta);
+        // Only apply a correction if the limit is violated.
+        if phi < self.min || phi > self.max {
+            // phi now represents the angle between axis1 and axis2.
 
-            let rot = Quaternion::from_axis_angle(n, phi);
-            let mut omega = rot.mul_vec3(n1).cross(n2);
+            // Clamp phi to get the target angle.
+            phi = phi.clamp(self.min, self.max);
 
-            phi = omega.length();
+            // Create a quaternion that represents the rotation.
+            let rot = Quaternion::from_axis_angle(limit_axis, phi);
 
-            if phi > max_correction {
-                omega *= max_correction / phi;
-            }
-
-            return Some(omega);
+            // Rotate axis1 by the target angle and compute the correction.
+            return Some((rot * axis1).cross(axis2).clamp_length_max(max_correction));
         }
 
         None

@@ -1,11 +1,18 @@
+//! Components, traits, and plugins related to collider functionality.
+
 use crate::prelude::*;
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-use bevy::utils::HashMap;
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
     utils::HashSet,
 };
+use derive_more::From;
+
+mod backend;
+mod hierarchy;
+
+pub use backend::{ColliderBackendPlugin, ColliderMarker};
+pub use hierarchy::ColliderHierarchyPlugin;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
@@ -18,6 +25,16 @@ mod parry;
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 pub use parry::*;
+
+mod world_query;
+pub use world_query::*;
+
+#[cfg(feature = "default-collider")]
+mod constructor;
+#[cfg(feature = "default-collider")]
+pub use constructor::{
+    ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
+};
 
 /// A trait for creating colliders from other types.
 pub trait IntoCollider<C: AnyCollider> {
@@ -92,211 +109,6 @@ pub trait ScalableCollider: AnyCollider {
     }
 }
 
-/// A component that will automatically generate a [`Collider`] based on the entity's `Mesh`.
-/// The type of the generated collider can be specified using [`ComputedCollider`].
-///
-/// ## Example
-///
-/// ```
-/// use avian3d::prelude::*;
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>, mut meshes: Assets<Mesh>) {
-///     // Spawn a cube with a convex hull collider generated from the mesh
-///     commands.spawn((
-///         AsyncCollider(ComputedCollider::ConvexHull),
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
-///     ));
-/// }
-/// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, Deref, DerefMut)]
-pub struct AsyncCollider(pub ComputedCollider);
-
-/// A component that will automatically generate colliders for the meshes in a scene
-/// once the scene has been loaded. The type of the generated collider can be specified
-/// using [`ComputedCollider`].
-///
-/// ## Example
-///
-/// ```
-/// use avian3d::prelude::*;
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands, mut assets: ResMut<AssetServer>) {
-///     let scene = assets.load("my_model.gltf#Scene0");
-///
-///     // Spawn the scene and automatically generate triangle mesh colliders
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh)),
-///     ));
-///
-///     // Specify configuration for specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMesh))
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull)
-///             .with_layers_for_name("Tree", CollisionLayers::from_bits(0b0010, 0b1111))
-///             .with_density_for_name("Tree", 2.5),
-///     ));
-///
-///     // Only generate colliders for specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
-///         AsyncSceneCollider::new(None)
-///             .with_shape_for_name("Tree", ComputedCollider::ConvexHull),
-///     ));
-///
-///     // Generate colliders for everything except specific meshes by name
-///     commands.spawn((
-///         SceneBundle { scene, ..default() },
-///         AsyncSceneCollider::new(Some(ComputedCollider::TriMeshWithFlags(
-///             TriMeshFlags::MERGE_DUPLICATE_VERTICES
-///         )))
-///         .without_shape_with_name("Tree"),
-///     ));
-/// }
-/// ```
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
-pub struct AsyncSceneCollider {
-    /// The default collider type used for each mesh that isn't included in [`meshes_by_name`](#structfield.meshes_by_name).
-    /// If `None`, all meshes except the ones in [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    pub default_shape: Option<ComputedCollider>,
-    /// Specifies data like the collider type and [`CollisionLayers`] for meshes by name.
-    /// Entries with a `None` value will be skipped.
-    /// For the meshes not found in this `HashMap`, [`default_shape`](#structfield.default_shape)
-    /// and all collision layers will be used instead.
-    pub meshes_by_name: HashMap<String, Option<AsyncSceneColliderData>>,
-}
-
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-impl AsyncSceneCollider {
-    /// Creates a new [`AsyncSceneCollider`] with the default collider type used for
-    /// meshes set to the given `default_shape`.
-    ///
-    /// If the given collider type is `None`, all meshes except the ones in
-    /// [`meshes_by_name`](#structfield.meshes_by_name) will be skipped.
-    /// You can add named shapes using [`with_shape_for_name`](Self::with_shape_for_name).
-    pub fn new(default_shape: Option<ComputedCollider>) -> Self {
-        Self {
-            default_shape,
-            meshes_by_name: default(),
-        }
-    }
-
-    /// Specifies the collider type used for a mesh with the given `name`.
-    pub fn with_shape_for_name(mut self, name: &str, shape: ComputedCollider) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.shape = shape;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData { shape, ..default() }),
-            );
-        }
-        self
-    }
-
-    /// Specifies the [`CollisionLayers`] used for a mesh with the given `name`.
-    pub fn with_layers_for_name(mut self, name: &str, layers: CollisionLayers) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.layers = layers;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData {
-                    layers,
-                    ..default()
-                }),
-            );
-        }
-        self
-    }
-
-    /// Specifies the [`ColliderDensity`] used for a mesh with the given `name`.
-    pub fn with_density_for_name(mut self, name: &str, density: Scalar) -> Self {
-        if let Some(Some(data)) = self.meshes_by_name.get_mut(name) {
-            data.density = density;
-        } else {
-            self.meshes_by_name.insert(
-                name.to_string(),
-                Some(AsyncSceneColliderData {
-                    density,
-                    ..default()
-                }),
-            );
-        }
-        self
-    }
-
-    /// Sets collider for the mesh associated with the given `name` to `None`, skipping
-    /// collider generation for it.
-    pub fn without_shape_with_name(mut self, name: &str) -> Self {
-        self.meshes_by_name.insert(name.to_string(), None);
-        self
-    }
-}
-
-/// Configuration for a specific collider generated from a scene using [`AsyncSceneCollider`].
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-#[derive(Clone, Debug, PartialEq)]
-pub struct AsyncSceneColliderData {
-    /// The type of collider generated for the mesh.
-    pub shape: ComputedCollider,
-    /// The [`CollisionLayers`] used for this collider.
-    pub layers: CollisionLayers,
-    /// The [`ColliderDensity`] used for this collider.
-    pub density: Scalar,
-}
-
-#[cfg(all(feature = "3d", feature = "async-collider"))]
-impl Default for AsyncSceneColliderData {
-    fn default() -> Self {
-        Self {
-            shape: ComputedCollider::TriMesh,
-            layers: CollisionLayers::default(),
-            density: 1.0,
-        }
-    }
-}
-
-/// Determines how a [`Collider`] is generated from a `Mesh`.
-///
-/// Colliders can be created from meshes with the following components and methods:
-///
-/// - [`AsyncCollider`] (requires `async-collider` features)
-/// - [`AsyncSceneCollider`] (requires `async-collider` features)
-/// - [`Collider::trimesh_from_mesh`]
-/// - [`Collider::convex_hull_from_mesh`]
-/// - [`Collider::convex_decomposition_from_mesh`]
-#[cfg(all(feature = "3d", feature = "collider-from-mesh"))]
-#[derive(Component, Clone, Debug, Default, PartialEq)]
-pub enum ComputedCollider {
-    /// A triangle mesh.
-    #[default]
-    TriMesh,
-    /// A triangle mesh with a custom configuration.
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
-    TriMeshWithFlags(TriMeshFlags),
-    /// A convex hull.
-    ConvexHull,
-    /// A compound shape obtained from a decomposition into convex parts using the specified
-    /// [`VHACDParameters`].
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
-    ConvexDecomposition(VHACDParameters),
-}
-
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
 ///
 /// If the collider is a child of a rigid body, this points to the body's `Entity` ID.
@@ -317,15 +129,28 @@ pub enum ComputedCollider {
 ///     // Spawn a rigid body with one collider on the same entity and two as children.
 ///     // Each entity will have a ColliderParent component that has the same rigid body entity.
 ///     commands
-///         .spawn((RigidBody::Dynamic, Collider::ball(0.5)))
-///         .with_children(|children| {
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-///             children.spawn((Collider::ball(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
-///         });
+#[cfg_attr(
+    feature = "2d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))
+        .with_children(|children| {
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+        });"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))
+        .with_children(|children| {
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
+        });"
+)]
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderParent(pub(crate) Entity);
 
 impl ColliderParent {
@@ -349,6 +174,8 @@ impl MapEntities for ColliderParent {
 /// so you shouldn't modify it manually.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderTransform {
     /// The translation of a collider in a rigid body's frame of reference.
     pub translation: Vector,
@@ -401,6 +228,8 @@ impl From<Transform> for ColliderTransform {
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///
+/// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
+///
 /// ## Example
 ///
 /// ```
@@ -411,18 +240,28 @@ impl From<Transform> for ColliderTransform {
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a static body with a sensor collider.
 ///     // Other bodies will pass through, but it will still send collision events.
-///     commands.spawn((RigidBody::Static, Collider::ball(0.5), Sensor));
+#[cfg_attr(
+    feature = "2d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::circle(0.5), Sensor));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    commands.spawn((RigidBody::Static, Collider::sphere(0.5), Sensor));"
+)]
 /// }
 /// ```
 #[doc(alias = "Trigger")]
 #[derive(Reflect, Clone, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a [collider](Collider).
-#[derive(Clone, Copy, Component, Debug, PartialEq)]
+#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
 pub struct ColliderAabb {
     /// The minimum point of the AABB.
     pub min: Vector,
@@ -458,21 +297,46 @@ impl ColliderAabb {
     }
 
     /// Computes the center of the AABB,
+    #[inline(always)]
     pub fn center(self) -> Vector {
-        (self.min + self.max) / 2.0
+        self.min.midpoint(self.max)
     }
 
     /// Computes the size of the AABB.
+    #[inline(always)]
     pub fn size(self) -> Vector {
         self.max - self.min
     }
 
     /// Merges this AABB with another one.
+    #[inline(always)]
     pub fn merged(self, other: Self) -> Self {
         ColliderAabb {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
         }
+    }
+
+    /// Increases the size of the bounding volume in each direction by the given amount.
+    #[inline(always)]
+    pub fn grow(&self, amount: Vector) -> Self {
+        let b = Self {
+            min: self.min - amount,
+            max: self.max + amount,
+        };
+        debug_assert!(b.min.cmple(b.max).all());
+        b
+    }
+
+    /// Decreases the size of the bounding volume in each direction by the given amount.
+    #[inline(always)]
+    pub fn shrink(&self, amount: Vector) -> Self {
+        let b = Self {
+            min: self.min + amount,
+            max: self.max - amount,
+        };
+        debug_assert!(b.min.cmple(b.max).all());
+        b
     }
 
     /// Checks if `self` intersects with `other`.
@@ -504,6 +368,67 @@ impl Default for ColliderAabb {
     }
 }
 
+/// A component that adds an extra margin or "skin" around [`Collider`] shapes to help maintain
+/// additional separation to other objects. This added thickness can help improve
+/// stability and performance in some cases, especially for thin shapes such as trimeshes.
+///
+/// There are three primary reasons for collision margins:
+///
+/// 1. Collision detection is often more efficient when shapes are not overlapping
+/// further than their collision margins. Deeply overlapping shapes require
+/// more expensive collision algorithms.
+///
+/// 2. Some shapes such as triangles and planes are infinitely thin,
+/// which can cause precision errors. A collision margin adds artificial
+/// thickness to shapes, improving stability.
+///
+/// 3. Overall, collision margins give the physics engine more
+/// room for error when resolving contacts. This can also help
+/// prevent visible artifacts such as objects poking through the ground.
+///
+/// If a rigid body with a [`CollisionMargin`] has colliders as child entities,
+/// and those colliders don't have their own [`CollisionMargin`] components,
+/// the colliders will use the rigid body's [`CollisionMargin`].
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// fn setup(mut commands: Commands) {
+#[cfg_attr(
+    feature = "2d",
+    doc = "    // Spawn a rigid body with a collider.
+    // A margin of `0.1` is added around the shape.
+    commands.spawn((
+        RigidBody::Dynamic,
+        Collider::capsule(2.0, 0.5),
+        CollisionMargin(0.1),
+    ));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "    let mesh = Mesh::from(Torus::default());
+
+    // Spawn a rigid body with a triangle mesh collider.
+    // A margin of `0.1` is added around the shape.
+    commands.spawn((
+        RigidBody::Dynamic,
+        Collider::trimesh_from_mesh(&mesh).unwrap(),
+        CollisionMargin(0.1),
+    ));"
+)]
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component)]
+#[doc(alias = "ContactSkin")]
+pub struct CollisionMargin(pub Scalar);
+
 /// A component that stores the entities that are colliding with an entity.
 ///
 /// This component is automatically added for all entities with a [`Collider`],
@@ -528,7 +453,8 @@ impl Default for ColliderAabb {
 /// ```
 #[derive(Reflect, Clone, Component, Debug, Default, Deref, DerefMut, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
 pub struct CollidingEntities(pub HashSet<Entity>);
 
 impl MapEntities for CollidingEntities {
@@ -541,3 +467,7 @@ impl MapEntities for CollidingEntities {
             .collect()
     }
 }
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
+#[reflect(Component)]
+pub(crate) struct PreviousColliderTransform(pub ColliderTransform);

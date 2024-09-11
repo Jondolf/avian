@@ -48,6 +48,7 @@ use bevy::{color::palettes::css::*, prelude::*};
 /// ```
 #[derive(Reflect, GizmoConfigGroup)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 pub struct PhysicsGizmos {
     /// The lengths of the axes drawn for an entity at the center of mass.
     pub axis_lengths: Option<Vector>,
@@ -90,10 +91,7 @@ pub struct PhysicsGizmos {
 impl Default for PhysicsGizmos {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "2d")]
-            axis_lengths: Some(Vector::new(5.0, 5.0)),
-            #[cfg(feature = "3d")]
-            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
+            axis_lengths: Some(Vector::splat(0.5)),
             aabb_color: None,
             collider_color: Some(ORANGE.into()),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
@@ -117,6 +115,8 @@ impl Default for PhysicsGizmos {
 /// The scale used for contact normals rendered using gizmos.
 #[derive(Reflect, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(PartialEq)]
 pub enum ContactGizmoScale {
     /// The length of the rendered contact normal is constant.
     Constant(Scalar),
@@ -134,10 +134,7 @@ impl PhysicsGizmos {
     /// Creates a [`PhysicsGizmos`] configuration with all rendering options enabled.
     pub fn all() -> Self {
         Self {
-            #[cfg(feature = "2d")]
-            axis_lengths: Some(Vector::new(5.0, 5.0)),
-            #[cfg(feature = "3d")]
-            axis_lengths: Some(Vector::new(0.5, 0.5, 0.5)),
+            axis_lengths: Some(Vector::splat(0.5)),
             aabb_color: Some(Color::srgb(0.8, 0.8, 0.8)),
             collider_color: Some(ORANGE.into()),
             sleeping_color_multiplier: Some([1.0, 1.0, 0.4, 1.0]),
@@ -412,7 +409,8 @@ impl PhysicsGizmos {
 /// ```
 #[derive(Component, Reflect, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Component)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, PartialEq)]
 pub struct DebugRender {
     /// The lengths of the axes drawn for the entity at the center of mass.
     pub axis_lengths: Option<Vector>,

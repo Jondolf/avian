@@ -1,17 +1,21 @@
 //! [`PrismaticJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A prismatic joint prevents relative movement of the attached bodies, except for translation along one `free_axis`.
 ///
 /// Prismatic joints can be useful for things like elevators, pistons, sliding doors and moving platforms.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct PrismaticJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -56,9 +60,10 @@ impl XpbdConstraint<2> for PrismaticJoint {
         let compliance = self.compliance;
 
         // Align orientations
-        let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
+        let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
         let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_torque =
+            self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
         self.align_lagrange = lagrange;
 
         // Constrain the relative positions of the bodies, only allowing translation along one free axis
@@ -201,23 +206,25 @@ impl PrismaticJoint {
         let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
         let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
 
-        // Constraint gradients and inverse masses
-        let gradients = [dir, -dir];
-        let w = [w1, w2];
-
         // Compute Lagrange multiplier update
         let delta_lagrange = self.compute_lagrange_update(
             self.position_lagrange,
             magnitude,
-            &gradients,
-            &w,
+            &[w1, w2],
             self.compliance,
             dt,
         );
         self.position_lagrange += delta_lagrange;
 
         // Apply positional correction to align the positions of the bodies
-        self.apply_positional_correction(body1, body2, delta_lagrange, dir, world_r1, world_r2);
+        self.apply_positional_lagrange_update(
+            body1,
+            body2,
+            delta_lagrange,
+            dir,
+            world_r1,
+            world_r2,
+        );
 
         // Return constraint force
         self.compute_force(self.position_lagrange, dir, dt)
@@ -240,13 +247,15 @@ impl PrismaticJoint {
     }
 
     #[cfg(feature = "2d")]
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
-        rot1.angle_between(*rot2) * Vector3::Z
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Scalar {
+        rot1.angle_between(*rot2)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
-        2.0 * (rot1.0 * rot2.inverse().0).xyz()
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
+        // TODO: The XPBD paper doesn't have this minus sign, but it seems to be needed for stability.
+        //       The angular correction code might have a wrong sign elsewhere.
+        -2.0 * (rot1.0 * rot2.inverse().0).xyz()
     }
 }
 

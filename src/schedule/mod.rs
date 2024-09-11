@@ -25,12 +25,12 @@ use bevy::{
 /// This plugin initializes and configures the following schedules and system sets:
 ///
 /// - [`PhysicsSet`]: High-level system sets for the main phases of the physics engine.
-/// You can use these to schedule your own systems before or after physics is run without
-/// having to worry about implementation details.
+///   You can use these to schedule your own systems before or after physics is run without
+///   having to worry about implementation details.
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-/// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
+///   the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -38,7 +38,7 @@ pub struct PhysicsSchedulePlugin {
 impl PhysicsSchedulePlugin {
     /// Creates a [`PhysicsSchedulePlugin`] using the given schedule for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -48,7 +48,7 @@ impl PhysicsSchedulePlugin {
 
 impl Default for PhysicsSchedulePlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
@@ -72,19 +72,6 @@ impl Plugin for PhysicsSchedulePlugin {
                 .before(TransformSystem::TransformPropagate),
         );
 
-        // Configure higher level system sets for the given schedule
-        let schedule = self.schedule;
-        app.configure_sets(
-            schedule,
-            (
-                PhysicsSet::Prepare,
-                PhysicsSet::StepSimulation,
-                PhysicsSet::Sync,
-            )
-                .chain()
-                .before(TransformSystem::TransformPropagate),
-        );
-
         // Set up the physics schedule, the schedule that advances the physics simulation
         app.edit_schedule(PhysicsSchedule, |schedule| {
             schedule
@@ -96,11 +83,14 @@ impl Plugin for PhysicsSchedulePlugin {
 
             schedule.configure_sets(
                 (
+                    PhysicsStepSet::First,
                     PhysicsStepSet::BroadPhase,
-                    PhysicsStepSet::Substeps,
+                    PhysicsStepSet::NarrowPhase,
+                    PhysicsStepSet::Solver,
                     PhysicsStepSet::ReportContacts,
                     PhysicsStepSet::Sleeping,
                     PhysicsStepSet::SpatialQuery,
+                    PhysicsStepSet::Last,
                 )
                     .chain(),
             );
@@ -119,26 +109,12 @@ impl Plugin for PhysicsSchedulePlugin {
                     ambiguity_detection: LogLevel::Error,
                     ..default()
                 });
-
-            schedule.configure_sets(
-                (
-                    SubstepSet::Integrate,
-                    SubstepSet::NarrowPhase,
-                    SubstepSet::PostProcessCollisions,
-                    SubstepSet::SolveConstraints,
-                    SubstepSet::SolveUserConstraints,
-                    SubstepSet::UpdateVelocities,
-                    SubstepSet::SolveVelocities,
-                    SubstepSet::StoreImpulses,
-                    SubstepSet::ApplyTranslation,
-                )
-                    .chain(),
-            );
         });
 
+        // TODO: This should probably just be in the SolverPlugin.
         app.add_systems(
             PhysicsSchedule,
-            run_substep_schedule.in_set(PhysicsStepSet::Substeps),
+            run_substep_schedule.in_set(SolverSet::Substep),
         );
     }
 }
@@ -158,7 +134,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-/// The substepping schedule that runs in [`PhysicsStepSet::Substeps`].
+/// The substepping schedule that runs in [`SolverSet::Substep`].
 /// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct SubstepSchedule;
@@ -166,7 +142,8 @@ pub struct SubstepSchedule;
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
-/// The schedule is empty by default and runs in [`SubstepSet::PostProcessCollisions`].
+/// The schedule is empty by default and runs in
+/// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
 ///
 /// ## Example
 ///
@@ -203,21 +180,20 @@ pub struct PostProcessCollisions;
 /// having to worry about implementation details.
 ///
 /// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
-/// updating several components.
+///    updating several components.
 /// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
 /// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
-/// and [`Rotation`] in sync with `Transform`.
+///    and [`Rotation`] in sync with `Transform`.
 ///
 /// ## See also
 ///
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-/// the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Substeps`].
-/// - [`SubstepSet`]: System sets for the steps of the substepping loop, like position integration and
-/// the constraint solver.
+///   the broad phase and the substepping loop.
+/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
 /// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
-/// [`SubstepSet::PostProcessCollisions`]. Empty by default.
+///   [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
+///   Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
@@ -237,27 +213,31 @@ pub enum PhysicsSet {
 
 /// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
 ///
-/// 1. Broad phase
-/// 2. Substeps
-///     1. Integrate
-///     2. Narrow phase
-///     3. Solve positional and angular constraints
-///     4. Update velocities
-///     5. Solve velocity constraints (dynamic friction and restitution)
-/// 3. Report contacts (send collision events)
-/// 4. Sleeping
-/// 5. Spatial queries
+/// 1. First (empty by default)
+/// 2. Broad phase
+/// 3. Narrow phase
+/// 4. Solver
+/// 5. Report contacts (send collision events)
+/// 6. Sleeping
+/// 7. Spatial queries
+/// 8. Last (empty by default)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
+    /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
+    First,
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
     /// [AABB](ColliderAabb) intersection tests.
     ///
     /// See [`BroadPhasePlugin`].
     BroadPhase,
-    /// Responsible for substepping, which is an inner loop inside a physics step.
+    /// Responsible for computing contacts between entities and sending collision events.
     ///
-    /// See [`SubstepSet`] and [`SubstepSchedule`].
-    Substeps,
+    /// See [`NarrowPhasePlugin`].
+    NarrowPhase,
+    /// Responsible for running the solver and its substepping loop.
+    ///
+    /// See [`SolverPlugin`] and [`SubstepSchedule`].
+    Solver,
     /// Responsible for sending collision events and updating [`CollidingEntities`].
     ///
     /// See [`ContactReportingPlugin`].
@@ -270,69 +250,8 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
-}
-
-/// System sets for the the steps in the inner substepping loop. These are typically run in the [`SubstepSchedule`].
-///
-/// 1. Integrate
-/// 2. Narrow phase
-/// 3. Post-process collisions
-/// 4. Solve positional and angular constraints
-/// 5. Update velocities
-/// 6. Solve velocity constraints (dynamic friction and restitution)
-/// 7. Store contact impulses in [`Collisions`].
-/// 8. Apply [`AccumulatedTranslation`] to positions.
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SubstepSet {
-    /// Responsible for integrating Newton's 2nd law of motion,
-    /// applying forces and moving entities according to their velocities.
-    ///
-    /// See [`IntegratorPlugin`].
-    Integrate,
-    /// Responsible for computing contacts between entities and sending collision events.
-    ///
-    /// See [`NarrowPhasePlugin`].
-    NarrowPhase,
-    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
-    /// to filter and modify collisions.
-    ///
-    /// If you want to modify or remove collisions after [`SubstepSet::NarrowPhase`], you can
-    /// add custom systems to this set, or to [`PostProcessCollisions`].
-    ///
-    /// See [`NarrowPhasePlugin`].
-    PostProcessCollisions,
-    /// The [solver] iterates through [constraints](solver::xpbd#constraints) and solves them.
-    ///
-    /// **Note**: If you want to [create your own constraints](solver::xpbd#custom-constraints),
-    /// you should add them in [`SubstepSet::SolveUserConstraints`]
-    /// to avoid system order ambiguities.
-    ///
-    /// See [`SolverPlugin`].
-    SolveConstraints,
-    /// The [solver] iterates through custom [constraints](solver::xpbd#constraints) created by the user and solves them.
-    ///
-    /// You can [create new constraints](solver::xpbd#custom-constraints) by implementing [`solver::xpbd::XpbdConstraint`]
-    /// for a component and adding the [constraint system](solver::solve_constraint) to this set.
-    ///
-    /// See [`SolverPlugin`].
-    SolveUserConstraints,
-    /// Responsible for updating velocities after [constraint](solver::xpbd#constraints) solving.
-    ///
-    /// See [`SolverPlugin`].
-    UpdateVelocities,
-    /// Responsible for applying dynamic friction, restitution and joint damping at the end of the
-    /// substepping loop.
-    ///
-    /// See [`SolverPlugin`].
-    SolveVelocities,
-    /// Contact impulses computed by the solver are stored in contacts in [`Collisions`].
-    ///
-    /// See [`SolverPlugin`].
-    StoreImpulses,
-    /// Responsible for applying translation accumulated during the substep.
-    ///
-    /// See [`SolverPlugin`].
-    ApplyTranslation,
+    /// Runs at the end of the [`PhysicsSchedule`]. Empty by default.
+    Last,
 }
 
 /// The number of substeps used in the simulation.
@@ -357,79 +276,45 @@ pub enum SubstepSet {
 /// fn main() {
 ///     App::new()
 ///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(SubstepCount(30))
+///         .insert_resource(SubstepCount(12))
 ///         .run();
 /// }
 /// ```
-#[derive(Reflect, Resource, Clone, Copy)]
+#[derive(Debug, Reflect, Resource, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[reflect(Resource)]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Resource, PartialEq)]
 pub struct SubstepCount(pub u32);
 
 impl Default for SubstepCount {
     fn default() -> Self {
-        Self(12)
+        Self(6)
     }
 }
 
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
-        let real_delta = world.resource::<Time<Real>>().delta();
-        let old_delta = world.resource::<Time<Physics>>().delta();
         let is_paused = world.resource::<Time<Physics>>().is_paused();
         let old_clock = world.resource::<Time>().as_generic();
         let physics_clock = world.resource_mut::<Time<Physics>>();
 
         // Get the scaled timestep delta time based on the timestep mode.
-        let timestep = match physics_clock.timestep_mode() {
-            TimestepMode::Fixed { delta, .. } => delta.mul_f64(physics_clock.relative_speed_f64()),
-            TimestepMode::FixedOnce { delta } => delta.mul_f64(physics_clock.relative_speed_f64()),
-            TimestepMode::Variable { max_delta } => {
-                let scaled_delta = real_delta.mul_f64(physics_clock.relative_speed_f64());
-                scaled_delta.min(max_delta)
-            }
-        };
-
-        // How many steps should be run during this frame.
-        // For `TimestepMode::Fixed`, this is computed using the accumulated overstep.
-        let mut queued_steps = 1;
-
-        if !is_first_run.0 {
-            if let TimestepMode::Fixed {
-                delta,
-                overstep,
-                max_delta_overstep,
-            } = world.resource_mut::<Time<Physics>>().timestep_mode_mut()
-            {
-                // If paused, add the `Physics` delta time, otherwise add real time.
-                if is_paused {
-                    *overstep += old_delta;
-                } else {
-                    *overstep += real_delta.min(*max_delta_overstep);
-                }
-
-                // Consume as many steps as possible with the fixed `delta`.
-                queued_steps = (overstep.as_secs_f64() / delta.as_secs_f64()) as usize;
-                *overstep -= delta.mul_f64(queued_steps as f64);
-            }
-        }
+        let timestep = old_clock
+            .delta()
+            .mul_f64(physics_clock.relative_speed_f64());
 
         // Advance physics clock by timestep if not paused.
         if !is_paused {
             world.resource_mut::<Time<Physics>>().advance_by(timestep);
         }
 
-        if world.resource::<Time<Physics>>().delta() >= timestep {
-            // Set generic `Time` resource to `Time<Physics>`.
-            *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
+        // Set generic `Time` resource to `Time<Physics>`.
+        *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 
-            // Advance simulation by the number of queued steps.
-            for _ in 0..queued_steps {
-                trace!("running PhysicsSchedule");
-                schedule.run(world);
-            }
-        }
+        // Advance simulation.
+        trace!("running PhysicsSchedule");
+        schedule.run(world);
 
         // If physics is paused, reset delta time to stop simulation
         // unless users manually advance `Time<Physics>`.

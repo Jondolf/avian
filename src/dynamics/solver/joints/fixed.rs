@@ -1,18 +1,22 @@
 //! [`FixedJoint`] component.
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        reflect::ReflectMapEntities,
+    },
     prelude::*,
 };
-use solver::xpbd::*;
 
 /// A fixed joint prevents any relative movement of the attached bodies.
 ///
 /// You should generally prefer using a single body instead of multiple bodies fixed together,
 /// but fixed joints can be useful for things like rigid structures where a force can dynamically break the joints connecting individual bodies.
-#[derive(Component, Clone, Copy, Debug, PartialEq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct FixedJoint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -53,9 +57,10 @@ impl XpbdConstraint<2> for FixedJoint {
         let compliance = self.compliance;
 
         // Align orientation
-        let dq = self.get_delta_q(&body1.rotation, &body2.rotation);
+        let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
         let mut lagrange = self.align_lagrange;
-        self.align_torque = self.align_orientation(body1, body2, dq, &mut lagrange, compliance, dt);
+        self.align_torque =
+            self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
         self.align_lagrange = lagrange;
 
         // Align position of local attachment points
@@ -144,13 +149,15 @@ impl Joint for FixedJoint {
 
 impl FixedJoint {
     #[cfg(feature = "2d")]
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
-        rot1.angle_between(*rot2) * Vector3::Z
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Scalar {
+        rot1.angle_between(*rot2)
     }
 
     #[cfg(feature = "3d")]
-    fn get_delta_q(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
-        2.0 * (rot1.0 * rot2.inverse().0).xyz()
+    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
+        // TODO: The XPBD paper doesn't have this minus sign, but it seems to be needed for stability.
+        //       The angular correction code might have a wrong sign elsewhere.
+        -2.0 * (rot1.0 * rot2.inverse().0).xyz()
     }
 }
 
