@@ -276,7 +276,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
                 (
-                    update_collider_scale::<C>,
+                    update_collider_scale::<C>.run_if(|sync_config: Res<SyncConfig>| {
+                        sync_config.transform_to_collider_scale
+                    }),
                     update_collider_mass_properties::<C>,
                 )
                     .chain()
@@ -656,12 +658,7 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
-    sync_config: Res<SyncConfig>,
 ) {
-    if !sync_config.transform_to_collider_scale {
-        return;
-    }
-
     // Update collider scale for root bodies
     for (transform, mut collider) in &mut colliders.p0() {
         #[cfg(feature = "2d")]
