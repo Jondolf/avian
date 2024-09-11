@@ -4,7 +4,7 @@
 
 #![allow(clippy::type_complexity)]
 
-use crate::prelude::*;
+use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
     ecs::{
         intern::Interned,
@@ -77,6 +77,8 @@ pub enum PrepareSet {
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<SyncConfig>()
+            .register_type::<SyncConfig>();
         app.configure_sets(
             self.schedule,
             (
