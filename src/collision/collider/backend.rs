@@ -276,9 +276,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     .in_set(PrepareSet::InitTransforms)
                     .after(init_transforms::<RigidBody>),
                 (
-                    update_collider_scale::<C>.run_if(|sync_config: Res<SyncConfig>| {
-                        sync_config.transform_to_collider_scale
-                    }),
+                    update_collider_scale::<C>,
                     update_collider_mass_properties::<C>,
                 )
                     .chain()
@@ -658,20 +656,22 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
+    sync_config: Res<SyncConfig>,
 ) {
-    // Update collider scale for root bodies
-    for (transform, mut collider) in &mut colliders.p0() {
-        #[cfg(feature = "2d")]
-        let scale = transform.scale.truncate().adjust_precision();
-        #[cfg(feature = "3d")]
-        let scale = transform.scale.adjust_precision();
-        if scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(scale, 10);
+    if sync_config.transform_to_collider_scale {
+        // Update collider scale for root bodies
+        for (transform, mut collider) in &mut colliders.p0() {
+            #[cfg(feature = "2d")]
+            let scale = transform.scale.truncate().adjust_precision();
+            #[cfg(feature = "3d")]
+            let scale = transform.scale.adjust_precision();
+            if scale != collider.scale() {
+                // TODO: Support configurable subdivision count for shapes that
+                //       can't be represented without approximations after scaling.
+                collider.set_scale(scale, 10);
+            }
         }
     }
-
     // Update collider scale for child colliders
     for (collider_transform, mut collider) in &mut colliders.p1() {
         if collider_transform.scale != collider.scale() {

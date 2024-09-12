@@ -188,10 +188,10 @@ impl Plugin for PreparePlugin {
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct PrepareConfig {
-    /// Initializes [`Transform`] based on [`Position`] and [`Rotation`].
+    /// Initializes [`Transform`] based on [`Position`], [`Rotation`], and [`RigidBodyScale`].
     /// Defaults to true.
     pub position_to_transform: bool,
-    /// Initializes [`Position`] and [`Rotation`] based on [`Transform`].
+    /// Initializes [`Position`], [`Rotation`], and [`RigidBodyScale`] based on [`Transform`].
     /// Defaults to true.
     pub transform_to_position: bool,
 }
@@ -222,6 +222,7 @@ pub fn init_transforms<C: Component>(
             Option<&GlobalTransform>,
             Option<&Position>,
             Option<&Rotation>,
+            Option<&RigidBodyScale>,
             Option<&PreviousRotation>,
             Option<&Parent>,
             Has<RigidBody>,
@@ -232,6 +233,7 @@ pub fn init_transforms<C: Component>(
         (
             Option<&Position>,
             Option<&Rotation>,
+            Option<&RigidBodyScale>,
             Option<&GlobalTransform>,
         ),
         With<Children>,
@@ -242,13 +244,23 @@ pub fn init_transforms<C: Component>(
         return;
     }
 
-    for (entity, transform, global_transform, pos, rot, previous_rot, parent, has_rigid_body) in
-        &query
+    for (
+        entity,
+        transform,
+        global_transform,
+        pos,
+        rot,
+        scale,
+        previous_rot,
+        parent,
+        has_rigid_body,
+    ) in &query
     {
         let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
-        let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
-        let parent_rot = parent_transforms.and_then(|(_, rot, _)| rot);
-        let parent_global_trans = parent_transforms.and_then(|(_, _, trans)| trans);
+        let parent_pos = parent_transforms.and_then(|(pos, _, _, _)| pos);
+        let parent_rot = parent_transforms.and_then(|(_, rot, _, _)| rot);
+        let parent_scale = parent_transforms.and_then(|(_, _, scale, _)| scale);
+        let parent_global_trans = parent_transforms.and_then(|(_, _, _, trans)| trans);
 
         let mut new_transform = if config.position_to_transform {
             Some(transform.copied().unwrap_or_default())
@@ -379,6 +391,84 @@ pub fn init_transforms<C: Component>(
             default()
         };
 
+        let new_scale = if let Some(scale) = scale {
+            if let Some(transform) = &mut new_transform {
+                // Initialize new scale as global scale
+                #[cfg(feature = "2d")]
+                let mut new_scale = scale.f32().extend(transform.scale.z);
+                #[cfg(feature = "3d")]
+                let mut new_scale = scale.f32();
+
+                // If the body is a child, divide by the parent's global scale
+                // to get the local scale
+                if parent.is_some() {
+                    if let Some(parent_scale) = parent_scale {
+                        #[cfg(feature = "2d")]
+                        {
+                            new_scale /= parent_scale.f32().extend(new_scale.z);
+                        }
+                        #[cfg(feature = "3d")]
+                        {
+                            new_scale /= parent_scale.f32();
+                        }
+                    } else if let Some(parent_transform) = parent_global_trans {
+                        new_scale /= parent_transform.compute_transform().scale;
+                    }
+                }
+                transform.scale = new_scale;
+            }
+            scale.0
+        } else if config.transform_to_position {
+            let mut new_scale = Vector::ONE;
+
+            if parent.is_some() {
+                let scale = transform.as_ref().map_or(Vec3::ONE, |t| t.scale);
+                if let Some(parent_scale) = parent_scale {
+                    #[cfg(feature = "2d")]
+                    {
+                        new_scale = parent_scale.0 * scale.adjust_precision().truncate();
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        new_scale = parent_scale.0 * scale.adjust_precision();
+                    }
+                } else if let Some(parent_transform) = parent_global_trans {
+                    let new_scale_unadjusted = parent_transform
+                        .transform_point(transform.as_ref().map_or(Vec3::ONE, |t| t.scale));
+                    #[cfg(feature = "2d")]
+                    {
+                        new_scale = new_scale_unadjusted.truncate().adjust_precision();
+                    }
+                    #[cfg(feature = "3d")]
+                    {
+                        new_scale = new_scale_unadjusted.adjust_precision();
+                    }
+                }
+            } else {
+                #[cfg(feature = "2d")]
+                {
+                    new_scale = transform
+                        .map(|t| t.scale.truncate().adjust_precision())
+                        .unwrap_or(global_transform.as_ref().map_or(Vector::ONE, |t| {
+                            let t = t.compute_transform();
+                            Vector::new(t.scale.x as Scalar, t.scale.y as Scalar)
+                        }));
+                }
+                #[cfg(feature = "3d")]
+                {
+                    new_scale = transform.map(|t| t.scale.adjust_precision()).unwrap_or(
+                        global_transform.as_ref().map_or(Vec3::ONE, |t| {
+                            t.compute_transform().scale.adjust_precision()
+                        }),
+                    )
+                }
+            };
+
+            new_scale
+        } else {
+            Vector::ONE
+        };
+
         let mut cmds = commands.entity(entity);
 
         // Insert the position and rotation.
@@ -391,6 +481,7 @@ pub fn init_transforms<C: Component>(
                 cmds.try_insert((
                     Position(new_position),
                     new_rotation,
+                    RigidBodyScale(new_scale),
                     PreSolveAccumulatedTranslation::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
                     PreSolveRotation::default(),
@@ -401,16 +492,26 @@ pub fn init_transforms<C: Component>(
                     transform,
                     Position(new_position),
                     new_rotation,
+                    RigidBodyScale(new_scale),
                     PreSolveAccumulatedTranslation::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
                     PreSolveRotation::default(),
                 ));
             }
             (false, None) => {
-                cmds.try_insert((Position(new_position), new_rotation));
+                cmds.try_insert((
+                    Position(new_position),
+                    new_rotation,
+                    RigidBodyScale(new_scale),
+                ));
             }
             (false, Some(transform)) => {
-                cmds.try_insert((transform, Position(new_position), new_rotation));
+                cmds.try_insert((
+                    transform,
+                    Position(new_position),
+                    new_rotation,
+                    RigidBodyScale(new_scale),
+                ));
             }
         }
     }

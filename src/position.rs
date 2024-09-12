@@ -98,6 +98,15 @@ impl From<&GlobalTransform> for Position {
     }
 }
 
+impl From<Position> for Vec3 {
+    fn from(value: Position) -> Self {
+        let inner = value.0;
+        #[cfg(feature = "2d")]
+        let inner = inner.extend(0.0);
+        inner
+    }
+}
+
 /// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -944,3 +953,24 @@ impl From<DQuat> for Rotation {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct PreviousRotation(pub Rotation);
+
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct RigidBodyScale(pub Vector);
+
+impl Default for RigidBodyScale {
+    fn default() -> Self {
+        Self(Vector::ONE)
+    }
+}
+
+impl From<RigidBodyScale> for Vec3 {
+    fn from(value: RigidBodyScale) -> Self {
+        let inner = value.0;
+        #[cfg(feature = "2d")]
+        let inner = inner.extend(1.0);
+        inner
+    }
+}

@@ -478,7 +478,7 @@ pub mod prelude {
             *,
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
-        position::{Position, Rotation},
+        position::{Position, RigidBodyScale, Rotation},
         prepare::{init_transforms, update_mass_properties, PrepareConfig, PreparePlugin},
         schedule::*,
         spatial_query::{self, *},
