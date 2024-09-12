@@ -216,44 +216,6 @@ pub(crate) fn update_child_collider_position(
 // is a collider or is a `AncestorMarker<ColliderMarker>`.
 type ShouldPropagate = Or<(With<AncestorMarker<ColliderMarker>>, With<ColliderMarker>)>;
 
-pub(crate) fn propagate_collider_transforms_new(
-    mut collider_query: Query<(
-        Entity,
-        &mut ColliderTransform,
-        &ColliderParent,
-        &GlobalTransform,
-    )>,
-    transform_query: Query<(&Position, &Rotation)>,
-) {
-    for (entity, mut collider_transform, parent, global_transform) in &mut collider_query {
-        let parent = parent.get();
-        let Ok((&collider_pos, &collider_rot)) = transform_query.get(entity) else {
-            error!("Entity {entity}'s collider has no position or rotation.",);
-            continue;
-        };
-        let Ok((&parent_pos, &parent_rot)) = transform_query.get(parent) else {
-            error!("Entity {entity}'s collider parent {parent} has no position or rotation.",);
-            continue;
-        };
-        let global_scale = global_transform.compute_transform().scale;
-        let parent_global_transform = GlobalTransform::from(Transform {
-            translation: parent_pos.into(),
-            rotation: parent_rot.into(),
-            scale: Vec3::ONE,
-        });
-        let collider_global_transform = GlobalTransform::from(Transform {
-            translation: collider_pos.into(),
-            rotation: collider_rot.into(),
-            scale: global_scale,
-        });
-        let relative_transform = collider_global_transform.reparented_to(&parent_global_transform);
-        let new_collider_transform = ColliderTransform::from(relative_transform);
-        if collider_transform.as_ref() != &new_collider_transform {
-            *collider_transform = new_collider_transform;
-        }
-    }
-}
-
 /// Updates [`ColliderTransform`]s based on entity hierarchies. Each transform is computed by recursively
 /// traversing the children of each rigid body and adding their transforms together to form
 /// the total transform relative to the body.
