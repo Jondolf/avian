@@ -137,7 +137,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .entity_mut(entity)
                 .get_mut::<C>()
                 .unwrap()
-                .set_scale(scale, 10);
+                .set_scale(scale.into(), 10);
 
             let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
