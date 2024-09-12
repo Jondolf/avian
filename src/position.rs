@@ -98,15 +98,6 @@ impl From<&GlobalTransform> for Position {
     }
 }
 
-impl From<Position> for Vec3 {
-    fn from(value: Position) -> Self {
-        let inner = value.0;
-        #[cfg(feature = "2d")]
-        let inner = inner.extend(0.0);
-        inner
-    }
-}
-
 /// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
