@@ -72,6 +72,7 @@ bevy_math = { version = "0.14", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
+bevy_mod_debugdump = "0.11"
 
 [[example]]
 name = "dynamic_character_2d"
@@ -116,6 +117,10 @@ required-features = ["2d", "default-collider"]
 [[example]]
 name = "revolute_joint_2d"
 required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "debugdump_2d"
+required-features = ["2d"]
 
 [[bench]]
 name = "pyramid"
