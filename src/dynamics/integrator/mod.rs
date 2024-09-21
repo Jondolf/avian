@@ -292,7 +292,7 @@ type TorqueValue = Vector;
 #[cfg(feature = "2d")]
 type InertiaValue = Scalar;
 #[cfg(feature = "3d")]
-type InertiaValue = Matrix3;
+type InertiaValue = SymmetricMatrix3;
 
 type ImpulseQueryComponents = (
     &'static RigidBody,
@@ -326,7 +326,8 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
         let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
         let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass.0));
-        let effective_inv_inertia = locked_axes.apply_to_rotation(inv_inertia.rotated(rotation).0);
+        let effective_inv_inertia =
+            locked_axes.apply_to_angular_inertia(inv_inertia.rotated(rotation).0);
 
         // Avoid triggering bevy's change detection unnecessarily.
         let delta_lin_vel = impulse.impulse() * effective_inv_mass;

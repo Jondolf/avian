@@ -12,6 +12,9 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
+pub mod matrix;
+pub use matrix::*;
+
 use bevy_math::{prelude::*, *};
 
 /// The active dimension.

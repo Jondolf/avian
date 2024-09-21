@@ -101,12 +101,16 @@ impl Plugin for SolverPlugin {
 
         // Update previous rotations before the substepping loop.
         physics.add_systems(
-            (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
-                for (rot, mut prev_rot) in &mut query {
-                    prev_rot.0 = *rot;
-                }
-            })
-            .in_set(SolverSet::PreSubstep),
+            (
+                |mut query: Query<(&Rotation, &mut PreviousRotation)>| {
+                    for (rot, mut prev_rot) in &mut query {
+                        prev_rot.0 = *rot;
+                    }
+                },
+                prepare_joints::<HingeJoint>.ambiguous_with_all(),
+            )
+                .chain()
+                .in_set(SolverSet::PreSubstep),
         );
 
         // Finalize the positions of bodies by applying the `AccumulatedTranslation`.
@@ -146,7 +150,11 @@ impl Plugin for SolverPlugin {
         // Warm start the impulses.
         // This applies the impulses stored from the previous substep,
         // which improves convergence.
-        substeps.add_systems(warm_start.in_set(SubstepSolverSet::WarmStart));
+        substeps.add_systems(
+            (warm_start, warm_start_joints::<HingeJoint>)
+                .chain()
+                .in_set(SubstepSolverSet::WarmStart),
+        );
 
         // Solve velocities using a position bias.
         substeps.add_systems(
@@ -165,7 +173,9 @@ impl Plugin for SolverPlugin {
                         solver_config.max_overlap_solve_speed * length_unit.0,
                     );
                 },
+                solve_joints::<HingeJoint, true>,
             )
+                .chain()
                 .in_set(SubstepSolverSet::SolveConstraints),
         );
 
@@ -187,7 +197,9 @@ impl Plugin for SolverPlugin {
                         solver_config.max_overlap_solve_speed * length_unit.0,
                     );
                 },
+                solve_joints::<HingeJoint, false>,
             )
+                .chain()
                 .in_set(SubstepSolverSet::Relax),
         );
 
@@ -565,6 +577,117 @@ fn solve_contacts(
                 delta_secs,
                 use_bias,
                 max_overlap_solve_speed,
+            );
+        }
+    }
+}
+
+/// Warm starts the solver by applying the impulses from the previous frame or substep.
+///
+/// See [`SubstepSolverSet::WarmStart`] for more information.
+fn prepare_joints<Joint: ImpulseJoint + Component>(
+    bodies: Query<RigidBodyQueryReadOnly>,
+    mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
+    time: Res<Time>,
+) where
+    Joint::SolverData: Component,
+{
+    let delta_secs = time.delta_seconds_adjusted();
+    for (joint, mut solver_data) in joints.iter_mut() {
+        if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
+            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
+            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
+                && (body2.is_sleeping || body2.rb.is_static());
+
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
+
+            joint.prepare(&body1, &body2, &mut solver_data, delta_secs);
+        }
+    }
+}
+
+/// Warm starts the solver by applying the impulses from the previous frame or substep.
+///
+/// See [`SubstepSolverSet::WarmStart`] for more information.
+fn warm_start_joints<Joint: ImpulseJoint + Component>(
+    mut commands: Commands,
+    mut bodies: Query<RigidBodyQuery>,
+    mut joints: Query<(&Joint, &Joint::SolverData), Without<RigidBody>>,
+) where
+    Joint::SolverData: Component,
+{
+    for (joint, solver_data) in joints.iter_mut() {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
+            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
+            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
+                && (body2.is_sleeping || body2.rb.is_static());
+
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
+
+            // At least one of the participating bodies is active, so wake up any sleeping bodies
+            body1.time_sleeping.0 = 0.0;
+            body2.time_sleeping.0 = 0.0;
+
+            if body1.is_sleeping {
+                commands.entity(body1.entity).remove::<Sleeping>();
+            }
+            if body2.is_sleeping {
+                commands.entity(body1.entity).remove::<Sleeping>();
+            }
+
+            joint.warm_start(&mut body1, &mut body2, solver_data);
+        }
+    }
+}
+
+/// Solves impulse-based joint constraints.
+pub fn solve_joints<Joint: ImpulseJoint + Component, const USE_BIAS: bool>(
+    mut commands: Commands,
+    mut bodies: Query<RigidBodyQuery>,
+    mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
+    time: Res<Time>,
+) where
+    Joint::SolverData: Component,
+{
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for (joint, mut solver_data) in &mut joints {
+        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
+            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
+            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
+                && (body2.is_sleeping || body2.rb.is_static());
+
+            // No constraint solving if none of the bodies is dynamic,
+            // or if all of the bodies are either static or sleeping
+            if none_dynamic || all_inactive {
+                continue;
+            }
+
+            // At least one of the participating bodies is active, so wake up any sleeping bodies
+            body1.time_sleeping.0 = 0.0;
+            body2.time_sleeping.0 = 0.0;
+
+            if body1.is_sleeping {
+                commands.entity(body1.entity).remove::<Sleeping>();
+            }
+            if body2.is_sleeping {
+                commands.entity(body1.entity).remove::<Sleeping>();
+            }
+
+            joint.solve(
+                &mut body1,
+                &mut body2,
+                &mut solver_data,
+                delta_secs,
+                USE_BIAS,
             );
         }
     }

@@ -85,6 +85,7 @@
 
 mod distance;
 mod fixed;
+mod hinge;
 mod prismatic;
 mod revolute;
 #[cfg(feature = "3d")]
@@ -92,6 +93,7 @@ mod spherical;
 
 pub use distance::*;
 pub use fixed::*;
+pub use hinge::*;
 pub use prismatic::*;
 pub use revolute::*;
 #[cfg(feature = "3d")]
@@ -99,6 +101,48 @@ pub use spherical::*;
 
 use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;
+
+/// A trait for impulse-based [joints].
+pub trait ImpulseJoint {
+    /// Cached data used by the joint solver.
+    type SolverData: Default;
+
+    /// Gets the entities connected by the joint.
+    fn entities(&self) -> [Entity; 2];
+
+    /// Prepares the joint for the solver by caching necessary data.
+    fn prepare(
+        &self,
+        body1: &RigidBodyQueryReadOnlyItem,
+        body2: &RigidBodyQueryReadOnlyItem,
+        solver_data: &mut Self::SolverData,
+        delta_secs: Scalar,
+    );
+
+    /// Warm starts the joint impulses.
+    fn warm_start(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        solver_data: &Self::SolverData,
+    );
+
+    /// Solves the joint constraint.
+    fn solve(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        solver_data: &mut Self::SolverData,
+        delta_secs: Scalar,
+        use_bias: bool,
+    );
+
+    /// Returns the local attachment point on the first body.
+    fn local_anchor_1(&self) -> Vector;
+
+    /// Returns the local attachment point on the second body.
+    fn local_anchor_2(&self) -> Vector;
+}
 
 /// A trait for [joints](self).
 pub trait Joint: Component + PositionConstraint + AngularConstraint {

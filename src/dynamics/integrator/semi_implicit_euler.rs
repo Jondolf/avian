@@ -171,7 +171,7 @@ pub fn angular_acceleration(
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
-    let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
+    let effective_inv_inertia = locked_axes.apply_to_angular_inertia(world_inv_inertia);
 
     if effective_inv_inertia != InverseInertia::ZERO.0 && effective_inv_inertia.is_finite() {
         // Newton's 2nd law for rotational movement:
@@ -209,8 +209,10 @@ pub fn solve_gyroscopic_torque(
     // Compute Jacobian
     let jacobian = local_inertia.0
         + delta_seconds
-            * (skew_symmetric_mat3(local_ang_vel) * local_inertia.0
-                - skew_symmetric_mat3(angular_momentum));
+            * SymmetricMatrix3::from(
+                skew_symmetric_mat3(local_ang_vel) * local_inertia.0
+                    - skew_symmetric_mat3(angular_momentum),
+            );
 
     // Residual vector
     let f = delta_seconds * local_ang_vel.cross(angular_momentum);
@@ -243,7 +245,7 @@ mod tests {
         #[cfg(feature = "2d")]
         let inv_inertia = 1.0;
         #[cfg(feature = "3d")]
-        let inv_inertia = Matrix3::IDENTITY;
+        let inv_inertia = SymmetricMatrix3::IDENTITY;
 
         let gravity = Vector::NEG_Y * 9.81;
 

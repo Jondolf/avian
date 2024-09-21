@@ -49,12 +49,12 @@ pub struct Inertia(pub Scalar);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct Inertia(pub Matrix3);
+pub struct Inertia(pub SymmetricMatrix3);
 
 #[cfg(feature = "3d")]
 impl Default for Inertia {
     fn default() -> Self {
-        Self(Matrix3::ZERO)
+        Self(SymmetricMatrix3::ZERO)
     }
 }
 
@@ -64,7 +64,7 @@ impl Inertia {
     pub const ZERO: Self = Self(0.0);
     /// Zero angular inertia.
     #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Matrix3::ZERO);
+    pub const ZERO: Self = Self(SymmetricMatrix3::ZERO);
 
     /// In 2D this does nothing, but it is there for convenience so that
     /// you don't have to handle 2D and 3D separately.
@@ -105,12 +105,18 @@ impl Inertia {
 
     /// Computes the inertia of a body with the given mass, shifted by the given offset.
     #[cfg(feature = "3d")]
-    pub fn shifted(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+    pub fn shifted(&self, mass: Scalar, offset: Vector) -> SymmetricMatrix3 {
         if mass > 0.0 && mass.is_finite() {
             let diag = offset.length_squared();
-            let diagm = Matrix3::from_diagonal(Vector::splat(diag));
-            let offset_outer_product =
-                Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
+            let diagm = SymmetricMatrix3::from_diagonal(Vector::splat(diag));
+            let offset_outer_product = SymmetricMatrix3::new(
+                offset.x * offset.x,
+                offset.x * offset.y,
+                offset.y * offset.y,
+                offset.x * offset.z,
+                offset.y * offset.z,
+                offset.z * offset.z,
+            );
             self.0 + (diagm + offset_outer_product) * mass
         } else {
             self.0
@@ -139,12 +145,12 @@ pub struct InverseInertia(pub Scalar);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct InverseInertia(pub Matrix3);
+pub struct InverseInertia(pub SymmetricMatrix3);
 
 #[cfg(feature = "3d")]
 impl Default for InverseInertia {
     fn default() -> Self {
-        InverseInertia(Matrix3::ZERO)
+        InverseInertia(SymmetricMatrix3::ZERO)
     }
 }
 
@@ -154,7 +160,7 @@ impl InverseInertia {
     pub const ZERO: Self = Self(0.0);
     /// Zero inverse angular inertia.
     #[cfg(feature = "3d")]
-    pub const ZERO: Self = Self(Matrix3::ZERO);
+    pub const ZERO: Self = Self(SymmetricMatrix3::ZERO);
 
     /// In 2D this does nothing, but it is there for convenience so that
     /// you don't have to handle 2D and 3D separately.

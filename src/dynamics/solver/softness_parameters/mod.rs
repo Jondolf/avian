@@ -78,7 +78,7 @@ impl SoftnessParameters {
 }
 
 /// Coefficients used by soft constraints.
-#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 pub struct SoftnessCoefficients {
     /// The bias coefficient used for scaling how strongly impulses
     /// are biased based on the separation distance.

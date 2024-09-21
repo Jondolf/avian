@@ -73,7 +73,7 @@ impl<'w> RigidBodyQueryItem<'w> {
         let mut inv_inertia = self.inverse_inertia.0;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            inv_inertia = locked_axes.apply_to_angular_inertia(inv_inertia);
         }
 
         inv_inertia
@@ -81,15 +81,15 @@ impl<'w> RigidBodyQueryItem<'w> {
 
     /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+    pub fn effective_world_inv_inertia(&self) -> SymmetricMatrix3 {
         if !self.rb.is_dynamic() {
-            return Matrix3::ZERO;
+            return SymmetricMatrix3::ZERO;
         }
 
         let mut inv_inertia = self.inverse_inertia.rotated(&self.rotation).0;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            inv_inertia = locked_axes.apply_to_angular_inertia(inv_inertia);
         }
 
         inv_inertia
@@ -169,11 +169,11 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
 
     /// Returns the inverse inertia tensor. If the rigid body is not dynamic, a zero matrix is returned.
     #[cfg(feature = "3d")]
-    pub fn inv_inertia(&self) -> Matrix3 {
+    pub fn inv_inertia(&self) -> SymmetricMatrix3 {
         if self.rb.is_dynamic() {
             self.inverse_inertia.0
         } else {
-            Matrix3::ZERO
+            SymmetricMatrix3::ZERO
         }
     }
 
@@ -187,7 +187,7 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         let mut inv_inertia = self.inverse_inertia.0;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            inv_inertia = locked_axes.apply_to_angular_inertia(inv_inertia);
         }
 
         inv_inertia
@@ -195,15 +195,15 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
 
     /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+    pub fn effective_world_inv_inertia(&self) -> SymmetricMatrix3 {
         if !self.rb.is_dynamic() {
-            return Matrix3::ZERO;
+            return SymmetricMatrix3::ZERO;
         }
 
         let mut inv_inertia = self.inverse_inertia.rotated(self.rotation).0;
 
         if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
+            inv_inertia = locked_axes.apply_to_angular_inertia(inv_inertia);
         }
 
         inv_inertia
