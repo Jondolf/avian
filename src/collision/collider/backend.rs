@@ -511,7 +511,7 @@ fn update_aabb<C: AnyCollider>(
     parent_velocity: Query<
         (
             &Position,
-            &CenterOfMass,
+            &RigidBodyCenterOfMass,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -661,9 +661,8 @@ fn collider_removed(
     if let Ok((mut mass_properties, mut time_sleeping)) = mass_prop_query.get_mut(parent) {
         // Subtract the mass properties of the collider from the mass properties of the rigid body.
         mass_properties -= ColliderMassProperties {
-            center_of_mass: CenterOfMass(
-                collider_transform.transform_point(collider_mass_props.center_of_mass.0),
-            ),
+            center_of_mass: collider_transform.transform_point(collider_mass_props.center_of_mass),
+
             ..collider_mass_props
         };
 
@@ -771,7 +770,7 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<RigidBodyMass>()
                 .expect("rigid body should have mass")
                 .value(),
             2.0 * mass_properties.mass.value(),
@@ -779,7 +778,7 @@ mod tests {
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<RigidBodyCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 > 0.0,
@@ -793,7 +792,7 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<RigidBodyMass>()
                 .expect("rigid body should have mass")
                 .value(),
             mass_properties.mass.value(),
@@ -801,7 +800,7 @@ mod tests {
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<RigidBodyCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 == 0.0,
@@ -815,7 +814,7 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<RigidBodyMass>()
                 .expect("rigid body should have mass")
                 .value(),
             2.0 * mass_properties.mass.value(),
@@ -823,7 +822,7 @@ mod tests {
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<RigidBodyCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 > 0.0,

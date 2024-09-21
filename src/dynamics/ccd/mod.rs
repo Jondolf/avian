@@ -513,7 +513,7 @@ struct SweptCcdBodyQuery {
     ang_vel: Option<&'static AngularVelocity>,
     ccd: Option<&'static SweptCcd>,
     collider: &'static Collider,
-    com: &'static CenterOfMass,
+    com: &'static RigidBodyCenterOfMass,
 }
 
 /// Performs [sweep-based mContinuous Collision Detection](self#swept-ccd)

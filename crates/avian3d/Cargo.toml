@@ -82,7 +82,6 @@ approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
 
-
 [[example]]
 name = "dynamic_character_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]

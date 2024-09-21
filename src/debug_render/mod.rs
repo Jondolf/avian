@@ -152,7 +152,7 @@ fn debug_render_axes(
     bodies: Query<(
         &Position,
         &Rotation,
-        &CenterOfMass,
+        &RigidBodyCenterOfMass,
         Has<Sleeping>,
         Option<&DebugRender>,
     )>,

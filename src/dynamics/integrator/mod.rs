@@ -153,8 +153,8 @@ struct VelocityIntegrationQuery {
     ang_vel: &'static mut AngularVelocity,
     force: &'static ExternalForce,
     torque: &'static ExternalTorque,
-    mass: &'static Mass,
-    angular_inertia: &'static AngularInertia,
+    mass: &'static RigidBodyMass,
+    angular_inertia: &'static RigidBodyAngularInertia,
     #[cfg(feature = "3d")]
     global_angular_inertia: &'static GlobalAngularInertia,
     lin_damping: Option<&'static LinearDamping>,
@@ -296,7 +296,7 @@ type ImpulseQueryComponents = (
     &'static mut LinearVelocity,
     &'static mut AngularVelocity,
     &'static Rotation,
-    &'static Mass,
+    &'static RigidBodyMass,
     &'static GlobalAngularInertia,
     Option<&'static LockedAxes>,
 );
@@ -321,12 +321,13 @@ fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) 
         let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
         let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
-        let effective_inv_inertia = locked_axes.apply_to_rotation(global_angular_inertia.inverse());
+        let effective_angular_inertia =
+            locked_axes.apply_to_angular_inertia(*global_angular_inertia);
 
         // Avoid triggering bevy's change detection unnecessarily.
         let delta_lin_vel = impulse.impulse() * effective_inv_mass;
-        let delta_ang_vel =
-            effective_inv_inertia * (ang_impulse.impulse() + impulse.angular_impulse());
+        let delta_ang_vel = effective_angular_inertia.inverse()
+            * (ang_impulse.impulse() + impulse.angular_impulse());
 
         if delta_lin_vel != Vector::ZERO {
             lin_vel.0 += delta_lin_vel;

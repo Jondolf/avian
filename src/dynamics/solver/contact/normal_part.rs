@@ -25,16 +25,16 @@ impl ContactNormalPart {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         inv_mass_sum: Scalar,
-        angular_inertia1: impl Into<AngularInertia>,
-        angular_inertia2: impl Into<AngularInertia>,
+        angular_inertia1: impl Into<RigidBodyAngularInertia>,
+        angular_inertia2: impl Into<RigidBodyAngularInertia>,
         r1: Vector,
         r2: Vector,
         normal: Vector,
         warm_start_impulse: Option<NormalImpulse>,
         softness: SoftnessCoefficients,
     ) -> Self {
-        let angular_inertia1: AngularInertia = angular_inertia1.into();
-        let angular_inertia2: AngularInertia = angular_inertia2.into();
+        let angular_inertia1: RigidBodyAngularInertia = angular_inertia1.into();
+        let angular_inertia2: RigidBodyAngularInertia = angular_inertia2.into();
         let i1 = angular_inertia1.inverse();
         let i2 = angular_inertia2.inverse();
 

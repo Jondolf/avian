@@ -62,9 +62,9 @@ impl AnyCollider for CircleCollider {
         let angular_inertia = mass * self.radius.powi(2) / 2.0;
 
         ColliderMassProperties {
-            mass: Mass::new(mass),
-            angular_inertia: AngularInertia::new(angular_inertia),
-            center_of_mass: CenterOfMass::default(),
+            mass,
+            angular_inertia,
+            center_of_mass: default(),
         }
     }
 
