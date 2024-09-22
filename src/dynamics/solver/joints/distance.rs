@@ -167,22 +167,32 @@ impl DistanceJoint {
         self.compute_force(self.lagrange, dir, dt)
     }
 
-    /// Sets the minimum and maximum distances between the attached bodies.
-    pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
+    /// Returns self with the minimum and maximum distances between the attached
+    /// bodies.
+    ///
+    /// ``
+    /// # #[cfg(feature = "2d")]
+    /// # use avian2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// # use avian3d::prelude::*;
+    /// # use bevy::perlude::*;`
+    /// # fn new_joint() -> DistanceJoint { DistanceJoint::new(Entity::PLACEHOLDER, Entity::PLACEHOLDER) }
+    /// let j: DistanceJoint = new_joint();
+    /// let a = j.with_length_limits(DistanceLimit { min: 0.0, max: 1.0 });
+    /// let b = j.with_length_limits((0.0, 1.0));
+    /// assert_eq!(a, b);
+    ///
+    /// let c = j.with_length_limits(DistanceLimit { min: 0.5, max: 0.5 });
+    /// let d = j.with_length_limits(0.5);
+    /// assert_eq!(c, d);
+    /// ```
+    pub fn with_length_limits(self, limit: impl Into<DistanceLimit>) -> Self {
         Self {
-            length_limits: DistanceLimit::new(min, max),
+            length_limits: limit.into(),
             ..self
         }
     }
 
-    /// Sets the joint's minimum and maximum length limit to `rest_length`, or
-    /// distance the bodies will be kept at.
-    pub fn with_rest_length(self, rest_length: Scalar) -> Self {
-        Self {
-            length_limits: DistanceLimit::new(rest_length, rest_length),
-            ..self
-        }
-    }
 }
 
 impl PositionConstraint for DistanceJoint {}

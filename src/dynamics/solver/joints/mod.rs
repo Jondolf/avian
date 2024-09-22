@@ -194,6 +194,26 @@ pub struct DistanceLimit {
     pub max: Scalar,
 }
 
+/// Convert the `limit` into a distance limit where _min = max = limit_.
+impl From<Scalar> for DistanceLimit {
+    fn from(limit: Scalar) -> DistanceLimit {
+        DistanceLimit {
+            min: limit,
+            max: limit
+        }
+    }
+}
+
+/// Convert the `(min, max)` pair into a distance limit.
+impl From<(Scalar, Scalar)> for DistanceLimit {
+    fn from((min, max): (Scalar, Scalar)) -> DistanceLimit {
+        DistanceLimit {
+            min,
+            max
+        }
+    }
+}
+
 impl DistanceLimit {
     /// A `DistanceLimit` with `min` and `max` set to zero.
     pub const ZERO: Self = Self { min: 0.0, max: 0.0 };
