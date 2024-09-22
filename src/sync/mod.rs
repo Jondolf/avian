@@ -263,10 +263,9 @@ pub fn transform_to_position(
         #[cfg(feature = "3d")]
         {
             rotation.0 = (previous_transform.rotation
-                + (transform.rotation - previous_transform.rotation)
-                + (rotation.f32() - previous_transform.rotation))
-                .normalize()
-                .adjust_precision();
+                * (transform.rotation * previous_transform.rotation.inverse())
+                * (rotation.f32() * previous_transform.rotation.inverse()))
+            .adjust_precision();
         }
     }
 }
