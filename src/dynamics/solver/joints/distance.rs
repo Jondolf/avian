@@ -170,12 +170,12 @@ impl DistanceJoint {
     /// Returns self with the minimum and maximum distances between the attached
     /// bodies.
     ///
-    /// ``
+    /// ```
     /// # #[cfg(feature = "2d")]
     /// # use avian2d::prelude::*;
     /// # #[cfg(feature = "3d")]
     /// # use avian3d::prelude::*;
-    /// # use bevy::perlude::*;`
+    /// # use bevy::prelude::*;
     /// # fn new_joint() -> DistanceJoint { DistanceJoint::new(Entity::PLACEHOLDER, Entity::PLACEHOLDER) }
     /// let j: DistanceJoint = new_joint();
     /// let a = j.with_length_limits(DistanceLimit { min: 0.0, max: 1.0 });
@@ -192,7 +192,6 @@ impl DistanceJoint {
             ..self
         }
     }
-
 }
 
 impl PositionConstraint for DistanceJoint {}

@@ -199,7 +199,7 @@ impl From<Scalar> for DistanceLimit {
     fn from(limit: Scalar) -> DistanceLimit {
         DistanceLimit {
             min: limit,
-            max: limit
+            max: limit,
         }
     }
 }
@@ -207,10 +207,7 @@ impl From<Scalar> for DistanceLimit {
 /// Convert the `(min, max)` pair into a distance limit.
 impl From<(Scalar, Scalar)> for DistanceLimit {
     fn from((min, max): (Scalar, Scalar)) -> DistanceLimit {
-        DistanceLimit {
-            min,
-            max
-        }
+        DistanceLimit { min, max }
     }
 }
 
