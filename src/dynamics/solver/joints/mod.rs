@@ -338,3 +338,7 @@ impl AngleLimit {
         None
     }
 }
+
+/// Disables the joint of the entity it is placed on.
+#[derive(Component, Debug)]
+pub struct DisableJoint;
