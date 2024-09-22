@@ -25,10 +25,8 @@ pub struct DistanceJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
-    /// The distance the attached bodies will be kept relative to each other.
-    pub rest_length: Scalar,
     /// The extents of the allowed relative translation between the attached bodies.
-    pub length_limits: Option<DistanceLimit>,
+    pub length_limits: DistanceLimit,
     /// Linear damping applied by the joint.
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
@@ -62,8 +60,7 @@ impl Joint for DistanceJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
-            rest_length: 0.0,
-            length_limits: None,
+            length_limits: DistanceLimit::ZERO,
             damping_linear: 0.0,
             damping_angular: 0.0,
             lagrange: 0.0,
@@ -132,9 +129,7 @@ impl DistanceJoint {
 
         // If min and max limits aren't specified, use rest length
         // TODO: Remove rest length, just use min/max limits.
-        let limits = self
-            .length_limits
-            .unwrap_or(DistanceLimit::new(self.rest_length, self.rest_length));
+        let limits = self.length_limits;
 
         // Compute the direction and magnitude of the positional correction required
         // to keep the bodies within a certain distance from each other.
@@ -175,15 +170,16 @@ impl DistanceJoint {
     /// Sets the minimum and maximum distances between the attached bodies.
     pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
-            length_limits: Some(DistanceLimit::new(min, max)),
+            length_limits: DistanceLimit::new(min, max),
             ..self
         }
     }
 
-    /// Sets the joint's rest length, or distance the bodies will be kept at.
+    /// Sets the joint's minimum and maximum length limit to `rest_length`, or
+    /// distance the bodies will be kept at.
     pub fn with_rest_length(self, rest_length: Scalar) -> Self {
         Self {
-            rest_length,
+            length_limits: DistanceLimit::new(rest_length, rest_length),
             ..self
         }
     }
