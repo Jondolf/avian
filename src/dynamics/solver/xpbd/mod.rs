@@ -351,7 +351,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
     mut bodies: Query<RigidBodyQuery>,
-    mut constraints: Query<&mut C, (Without<RigidBody>, Without<DisableJoint>)>,
+    mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();

@@ -344,4 +344,4 @@ impl AngleLimit {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component)]
-pub struct DisableJoint;
+pub struct JointDisabled;
