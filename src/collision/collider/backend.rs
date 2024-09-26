@@ -4,7 +4,7 @@
 
 use std::marker::PhantomData;
 
-use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet};
+use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
@@ -95,9 +95,53 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Initialize missing components for colliders.
         hooks.on_add(|mut world, entity, _| {
-            let entity_ref = world.entity(entity);
+            let existing_global_transform = world
+                .entity(entity)
+                .get::<GlobalTransform>()
+                .copied()
+                .unwrap_or_default();
+            let global_transform = if existing_global_transform != GlobalTransform::IDENTITY {
+                // This collider was built deferred, probably via `ColliderConstructor`.
+                existing_global_transform
+            } else {
+                // This collider *may* have been `spawn`ed directly on a new entity.
+                // As such, its global transform is not yet available.
+                // You may notice that this will fail if the hierarchy's scale was updated in this
+                // frame. Remember that `GlobalTransform` is not updated in between fixed updates.
+                // But this is fine, as `update_collider_scale` will be updated in the next fixed update anyway.
+                // The reason why we care about initializing this scale here is for those users that opted out of
+                // `update_collider_scale` in order to do their own interpolation, which implies that they won't touch
+                // the `Transform` component before the collider is initialized, which in turn means that it will
+                // always be initialized with the correct `GlobalTransform`.
+                let parent_global_transform = world
+                    .entity(entity)
+                    .get::<Parent>()
+                    .and_then(|parent| world.entity(parent.get()).get::<GlobalTransform>().copied())
+                    .unwrap_or_default();
+                let transform = world
+                    .entity(entity)
+                    .get::<Transform>()
+                    .copied()
+                    .unwrap_or_default();
+                parent_global_transform * transform
+            };
 
+            let scale = global_transform.compute_transform().scale;
+            #[cfg(feature = "2d")]
+            let scale = scale.xy();
+
+            // Make sure the collider is initialized with the correct scale.
+            // This overwrites the scale set by the constructor, but that one is
+            // meant to be only changed after initialization.
+            world
+                .entity_mut(entity)
+                .get_mut::<C>()
+                .unwrap()
+                .set_scale(scale.adjust_precision(), 10);
+
+            let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
+
             let aabb = entity_ref
                 .get::<ColliderAabb>()
                 .copied()
@@ -612,20 +656,22 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
     )>,
+    sync_config: Res<SyncConfig>,
 ) {
-    // Update collider scale for root bodies
-    for (transform, mut collider) in &mut colliders.p0() {
-        #[cfg(feature = "2d")]
-        let scale = transform.scale.truncate().adjust_precision();
-        #[cfg(feature = "3d")]
-        let scale = transform.scale.adjust_precision();
-        if scale != collider.scale() {
-            // TODO: Support configurable subdivision count for shapes that
-            //       can't be represented without approximations after scaling.
-            collider.set_scale(scale, 10);
+    if sync_config.transform_to_collider_scale {
+        // Update collider scale for root bodies
+        for (transform, mut collider) in &mut colliders.p0() {
+            #[cfg(feature = "2d")]
+            let scale = transform.scale.truncate().adjust_precision();
+            #[cfg(feature = "3d")]
+            let scale = transform.scale.adjust_precision();
+            if scale != collider.scale() {
+                // TODO: Support configurable subdivision count for shapes that
+                //       can't be represented without approximations after scaling.
+                collider.set_scale(scale, 10);
+            }
         }
     }
-
     // Update collider scale for child colliders
     for (collider_transform, mut collider) in &mut colliders.p1() {
         if collider_transform.scale != collider.scale() {
