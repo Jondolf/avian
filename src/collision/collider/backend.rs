@@ -107,8 +107,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 // This collider *may* have been `spawn`ed directly on a new entity.
                 // As such, its global transform is not yet available.
                 // You may notice that this will fail if the hierarchy's scale was updated in this
-                // frame. Remember that `GlobalTransform` is not updated inbetween fixed updates.
-                // But this is fine, as `update_collider_scale` will be updated in the next fixed update anyways.
+                // frame. Remember that `GlobalTransform` is not updated in between fixed updates.
+                // But this is fine, as `update_collider_scale` will be updated in the next fixed update anyway.
                 // The reason why we care about initializing this scale here is for those users that opted out of
                 // `update_collider_scale` in order to do their own interpolation, which implies that they won't touch
                 // the `Transform` component before the collider is initialized, which in turn means that it will
@@ -130,7 +130,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             #[cfg(feature = "2d")]
             let scale = scale.xy();
 
-            // Make sure the is initialized with the correct scale.
+            // Make sure the collider is initialized with the correct scale.
             // This overwrites the scale set by the constructor, but that one is
             // meant to be only changed after initialization.
             world
