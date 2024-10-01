@@ -182,6 +182,7 @@ fn collect_collision_pairs(
     intervals: ResMut<AabbIntervals>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
+    ignored_collisions: Query<&IgnoredCollisions>,
 ) {
     for mut intersections in &mut aabb_intersection_query {
         intersections.clear();
@@ -191,6 +192,7 @@ fn collect_collision_pairs(
         intervals,
         &mut broad_collision_pairs.0,
         &mut aabb_intersection_query,
+        ignored_collisions,
     );
 }
 
@@ -201,6 +203,7 @@ fn sweep_and_prune(
     mut intervals: ResMut<AabbIntervals>,
     broad_collision_pairs: &mut Vec<(Entity, Entity)>,
     aabb_intersection_query: &mut Query<&mut AabbIntersections>,
+    ignored_collisions: Query<&IgnoredCollisions>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
     insertion_sort(&mut intervals.0, |a, b| a.2.min.x > b.2.min.x);
@@ -212,9 +215,29 @@ fn sweep_and_prune(
     for (i, (ent1, parent1, aabb1, layers1, store_intersections1, inactive1)) in
         intervals.0.iter().enumerate()
     {
+        let ent1_ignored_collisions = ignored_collisions.get(*ent1).ok();
         for (ent2, parent2, aabb2, layers2, store_intersections2, inactive2) in
             intervals.0.iter().skip(i + 1)
         {
+            // Check ignored collisions of `ent1`
+            if ent1_ignored_collisions
+                .as_ref()
+                .map(|i| i.contains(ent2))
+                .unwrap_or_default()
+            {
+                continue;
+            }
+
+            // Check ignored collisions of `ent2`
+            let ent2_ignored_collisions = ignored_collisions.get(*ent2).ok();
+            if ent2_ignored_collisions
+                .as_ref()
+                .map(|i| i.contains(ent1))
+                .unwrap_or_default()
+            {
+                continue;
+            }
+
             // x doesn't intersect; check this first so we can discard as soon as possible
             if aabb2.min.x > aabb1.max.x {
                 break;
