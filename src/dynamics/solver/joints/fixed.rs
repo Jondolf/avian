@@ -40,6 +40,14 @@ pub struct FixedJoint {
     pub force: Vector,
     /// The torque exerted by the joint when aligning the bodies.
     pub align_torque: Torque,
+    /// The rotational offset to maintain for entity2, relative to entity1.
+    /// This defaults to `0.0`, meaning the `Rotation` of the two entities will be identical.
+    #[cfg(feature = "2d")]
+    pub rotation_offset: Scalar,
+    /// The rotational offset to maintain for entity2, relative to entity1.
+    /// This defaults to `Vector::ZERO`, meaning the `Rotation` of the two entities will be identical.
+    #[cfg(feature = "3d")]
+    pub rotation_offset: Vector,
 }
 
 impl XpbdConstraint<2> for FixedJoint {
@@ -91,6 +99,10 @@ impl Joint for FixedJoint {
             align_lagrange: 0.0,
             compliance: 0.0,
             force: Vector::ZERO,
+            #[cfg(feature = "2d")]
+            rotation_offset: 0.0,
+            #[cfg(feature = "3d")]
+            rotation_offset: Vector::ZERO,
             #[cfg(feature = "2d")]
             align_torque: 0.0,
             #[cfg(feature = "3d")]
@@ -148,16 +160,36 @@ impl Joint for FixedJoint {
 }
 
 impl FixedJoint {
+    /// Sets the offset to be maintained between entity2's Rotation relative to entity1's Rotation.
+    /// ie. entity2.rot = entity1.rot + offset
+    #[cfg(feature = "2d")]
+    pub fn with_rotation_offset(self, rotation_offset: Scalar) -> Self {
+        Self {
+            rotation_offset,
+            ..self
+        }
+    }
+
+    /// Sets the offset to be maintained between entity2's Rotation relative to entity1's Rotation.
+    /// ie. entity2.rot = entity1.rot + offset
+    #[cfg(feature = "3d")]
+    pub fn with_rotation_offset(self, rotation_offset: Vector) -> Self {
+        Self {
+            rotation_offset,
+            ..self
+        }
+    }
+
     #[cfg(feature = "2d")]
     fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Scalar {
-        rot1.angle_between(*rot2)
+        rot1.angle_between(*rot2) - self.rotation_offset
     }
 
     #[cfg(feature = "3d")]
     fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
         // TODO: The XPBD paper doesn't have this minus sign, but it seems to be needed for stability.
         //       The angular correction code might have a wrong sign elsewhere.
-        -2.0 * (rot1.0 * rot2.inverse().0).xyz()
+        -2.0 * (rot1.0 * rot2.inverse().0).xyz() - self.rotation_offset
     }
 }
 
