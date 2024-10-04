@@ -267,7 +267,6 @@ impl PhysicsTime for Time<Physics> {
 #[derive(Reflect, Clone, Copy, Debug, Default, PartialEq)]
 pub struct Substeps;
 
-/// Extension trait for [`Time`].
 pub(crate) trait TimePrecisionAdjusted {
     /// Returns how much time has advanced since the last update
     /// as [`Scalar`] seconds.
