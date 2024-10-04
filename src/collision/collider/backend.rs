@@ -145,7 +145,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let aabb = entity_ref
                 .get::<ColliderAabb>()
                 .copied()
-                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default()));
+                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), None));
             let density = entity_ref
                 .get::<ColliderDensity>()
                 .copied()
@@ -154,7 +154,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let mass_properties = if entity_ref.get::<Sensor>().is_some() {
                 ColliderMassProperties::ZERO
             } else {
-                collider.mass_properties(density.0)
+                collider.mass_properties(density.0, None)
             };
 
             world.commands().entity(entity).try_insert((
@@ -254,7 +254,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
                         // Update collider mass props.
                         *collider_mass_properties =
-                            collider.mass_properties(density.max(Scalar::EPSILON));
+                            collider.mass_properties(density.max(Scalar::EPSILON), None);
 
                         // If the collider mass properties are zero, there is nothing to add.
                         if *collider_mass_properties == ColliderMassProperties::ZERO {
@@ -534,6 +534,7 @@ fn update_aabb<C: AnyCollider>(
     mut colliders: Query<
         (
             &C,
+            Option<&C::Context>,
             &mut ColliderAabb,
             &Position,
             &Rotation,
@@ -566,6 +567,7 @@ fn update_aabb<C: AnyCollider>(
 
     for (
         collider,
+        context,
         mut aabb,
         pos,
         rot,
@@ -586,7 +588,7 @@ fn update_aabb<C: AnyCollider>(
 
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .aabb(pos.0, *rot)
+                .aabb(pos.0, *rot, context)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -642,7 +644,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot)
+            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, context)
             .grow(Vector::splat(collision_margin));
     }
 }
@@ -724,6 +726,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             &mut PreviousColliderTransform,
             &ColliderParent,
             Ref<C>,
+            Option<&C::Context>,
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
@@ -743,6 +746,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
         mut previous_collider_transform,
         collider_parent,
         collider,
+        context,
         density,
         mut collider_mass_properties,
     ) in &mut colliders
@@ -758,7 +762,8 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             previous_collider_transform.0 = *collider_transform;
 
             // Update collider mass props.
-            *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
+            *collider_mass_properties =
+                collider.mass_properties(density.max(Scalar::EPSILON), context);
 
             // Add new collider mass props to the body's mass props.
             mass_properties += collider_mass_properties.transformed_by(collider_transform);

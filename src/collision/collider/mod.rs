@@ -45,13 +45,36 @@ pub trait IntoCollider<C: AnyCollider> {
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
 pub trait AnyCollider: Component {
+    /// A type providing additional context for collider operations.
+    ///
+    /// `Context` allows colliders to access another [`Component`] on the same entity,
+    /// for context-sensitive behavior in collider operations.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// pub struct MyColliderContext {
+    ///     // Contextual data, e.g., voxel data.
+    /// }
+    ///
+    /// impl Component for MyColliderContext {}
+    /// ```
+    ///
+    /// This allows access to `MyColliderContext` in collider computations.
+    type Context: Component;
+
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb;
+    fn aabb(
+        &self,
+        position: Vector,
+        rotation: impl Into<Rotation>,
+        context: Option<&Self::Context>,
+    ) -> ColliderAabb;
 
     /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
     /// This corresponds to the space the shape would occupy if it moved from the given
@@ -66,13 +89,18 @@ pub trait AnyCollider: Component {
         start_rotation: impl Into<Rotation>,
         end_position: Vector,
         end_rotation: impl Into<Rotation>,
+        context: Option<&Self::Context>,
     ) -> ColliderAabb {
-        self.aabb(start_position, start_rotation)
-            .merged(self.aabb(end_position, end_rotation))
+        self.aabb(start_position, start_rotation, context)
+            .merged(self.aabb(end_position, end_rotation, context))
     }
 
     /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
+    fn mass_properties(
+        &self,
+        density: Scalar,
+        context: Option<&Self::Context>,
+    ) -> ColliderMassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -85,6 +113,8 @@ pub trait AnyCollider: Component {
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
+        context1: Option<&Self::Context>,
+        context2: Option<&Self::Context>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold>;
 }
@@ -151,7 +181,7 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct ColliderParent(pub(crate) Entity);
+pub struct ColliderParent(pub Entity);
 
 impl ColliderParent {
     /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
@@ -468,6 +498,7 @@ impl MapEntities for CollidingEntities {
     }
 }
 
+/// Component that holds the previous transform of the [`Collider`]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);
+pub struct PreviousColliderTransform(pub ColliderTransform);

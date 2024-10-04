@@ -439,7 +439,14 @@ impl std::fmt::Debug for Collider {
 }
 
 impl AnyCollider for Collider {
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
+    type Context = Collider;
+
+    fn aabb(
+        &self,
+        position: Vector,
+        rotation: impl Into<Rotation>,
+        _context: Option<&Self::Context>,
+    ) -> ColliderAabb {
         let aabb = self
             .shape_scaled()
             .compute_aabb(&make_isometry(position, rotation));
@@ -449,7 +456,11 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
+    fn mass_properties(
+        &self,
+        density: Scalar,
+        _context: Option<&Self::Context>,
+    ) -> ColliderMassProperties {
         let props = self.shape_scaled().mass_properties(density);
 
         ColliderMassProperties {
@@ -477,6 +488,8 @@ impl AnyCollider for Collider {
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
+        _context1: Option<&Self::Context>,
+        _context2: Option<&Self::Context>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
         contact_query::contact_manifolds(
