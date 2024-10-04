@@ -17,7 +17,7 @@
 //! ### Add the dependency
 //!
 //! First, add `avian2d` or `avian3d` to the dependencies in your `Cargo.toml`:
-//!
+//!  
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
@@ -469,7 +469,7 @@ pub mod prelude {
     pub use crate::{
         collision::{
             self,
-            broad_phase::{BroadCollisionPairs, BroadPhasePlugin, BroadPhaseSet},
+            broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
             collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,

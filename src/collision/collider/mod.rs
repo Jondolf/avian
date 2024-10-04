@@ -181,7 +181,7 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct ColliderParent(pub Entity);
+pub struct ColliderParent(pub(crate) Entity);
 
 impl ColliderParent {
     /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
@@ -498,7 +498,6 @@ impl MapEntities for CollidingEntities {
     }
 }
 
-/// Component that holds the previous transform of the [`Collider`]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
 #[reflect(Component)]
-pub struct PreviousColliderTransform(pub ColliderTransform);
+pub(crate) struct PreviousColliderTransform(pub ColliderTransform);

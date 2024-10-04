@@ -268,7 +268,7 @@ impl PhysicsTime for Time<Physics> {
 pub struct Substeps;
 
 /// Extension trait for [`Time`].
-pub trait TimePrecisionAdjusted {
+pub(crate) trait TimePrecisionAdjusted {
     /// Returns how much time has advanced since the last update
     /// as [`Scalar`] seconds.
     fn delta_seconds_adjusted(&self) -> Scalar;
