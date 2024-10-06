@@ -330,6 +330,16 @@ impl Contacts {
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
         self.total_tangent_impulse / delta_time
     }
+
+    /// Returns `true` if a collision started during the current frame.
+    pub fn collision_started(&self) -> bool {
+        !self.during_previous_frame && self.during_current_frame
+    }
+
+    /// Returns `true` if a collision stopped during the current frame.
+    pub fn collision_stopped(&self) -> bool {
+        self.during_previous_frame && !self.during_current_frame
+    }
 }
 
 /// A contact manifold between two colliders, containing a set of contact points.
