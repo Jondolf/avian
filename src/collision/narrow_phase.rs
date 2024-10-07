@@ -542,6 +542,8 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             *collider1.rotation,
             position2,
             *collider2.rotation,
+            collider1.context,
+            collider2.context,
             max_distance,
         );
 

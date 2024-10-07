@@ -23,6 +23,7 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,
+    pub context: Option<&'static C::Context>,
 }
 
 impl<'w, C: AnyCollider> ColliderQueryItem<'w, C> {
