@@ -166,19 +166,14 @@ fn raycast(
 
     let mut ray_indicator_transform = indicator_transform.single_mut();
 
-    if let Some(ray_hit_data) = query.cast_ray_predicate(
-        origin,
-        direction,
-        Scalar::MAX,
-        true,
-        &SpatialQueryFilter::default(),
-        &|entity| {
+    if let Some(ray_hit_data) =
+        query.cast_ray_predicate(origin, direction, &RayCastConfig::default(), &|entity| {
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
                 return !out_of_glass.0; // only look at cubes not out of glass
             }
             true // if the collider has no OutOfGlass component, then check it nevertheless
-        },
-    ) {
+        })
+    {
         // set color of hit object to red
         if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
             if let Some(material) = materials.get_mut(material_handle) {
@@ -187,7 +182,7 @@ fn raycast(
         }
 
         // set length of ray indicator to look more like a laser
-        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.time_of_impact).x;
+        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.distance).x;
         let target_scale = 1000.0 + contact_point * 2.0;
         ray_indicator_transform.scale.x = target_scale as f32;
     } else {

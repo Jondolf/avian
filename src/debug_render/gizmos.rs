@@ -55,7 +55,7 @@ pub trait PhysicsGizmoExt {
         &mut self,
         origin: Vector,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[RayHitData],
         ray_color: Color,
         point_color: Color,
@@ -75,7 +75,7 @@ pub trait PhysicsGizmoExt {
         origin: Vector,
         shape_rotation: impl Into<Rotation>,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[ShapeHitData],
         ray_color: Color,
         shape_color: Color,
@@ -459,29 +459,29 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         &mut self,
         origin: Vector,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[RayHitData],
         ray_color: Color,
         point_color: Color,
         normal_color: Color,
         length_unit: Scalar,
     ) {
-        let max_toi = hits
+        let max_distance = hits
             .iter()
-            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
-            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+            .max_by(|a, b| a.distance.total_cmp(&b.distance))
+            .map_or(max_distance, |hit| hit.distance);
 
         // Draw ray as arrow
         self.draw_arrow(
             origin,
-            origin + direction.adjust_precision() * max_toi,
+            origin + direction.adjust_precision() * max_distance,
             0.1 * length_unit,
             ray_color,
         );
 
         // Draw all hit points and normals
         for hit in hits {
-            let point = origin + direction.adjust_precision() * hit.time_of_impact;
+            let point = origin + direction.adjust_precision() * hit.distance;
 
             // Draw hit point
             #[cfg(feature = "2d")]
@@ -516,7 +516,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         origin: Vector,
         shape_rotation: impl Into<Rotation>,
         direction: Dir,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         hits: &[ShapeHitData],
         ray_color: Color,
         shape_color: Color,
@@ -528,10 +528,10 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         #[cfg(feature = "3d")]
         let shape_rotation = Rotation(shape_rotation.normalize());
 
-        let max_toi = hits
+        let max_distance = hits
             .iter()
-            .max_by(|a, b| a.time_of_impact.total_cmp(&b.time_of_impact))
-            .map_or(max_time_of_impact, |hit| hit.time_of_impact);
+            .max_by(|a, b| a.distance.total_cmp(&b.distance))
+            .map_or(max_distance, |hit| hit.distance);
 
         // Draw collider at origin
         self.draw_collider(shape, origin, shape_rotation, shape_color);
@@ -540,7 +540,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         // TODO: We could render the swept collider outline instead
         self.draw_arrow(
             origin,
-            origin + max_toi * direction.adjust_precision(),
+            origin + max_distance * direction.adjust_precision(),
             0.1 * length_unit,
             ray_color,
         );
@@ -569,7 +569,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             // Draw collider at hit point
             self.draw_collider(
                 shape,
-                origin + hit.time_of_impact * direction.adjust_precision(),
+                origin + hit.distance * direction.adjust_precision(),
                 shape_rotation,
                 shape_color.with_alpha(0.3),
             );

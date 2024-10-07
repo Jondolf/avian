@@ -1,4 +1,7 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{
+    prelude::*,
+    utils::{EntityHash, EntityHashSet},
+};
 
 use crate::prelude::*;
 
@@ -36,19 +39,22 @@ pub struct SpatialQueryFilter {
     /// Specifies which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub mask: LayerMask,
     /// Entities that will not be included in [spatial queries](crate::spatial_query).
-    pub excluded_entities: HashSet<Entity>,
+    pub excluded_entities: EntityHashSet<Entity>,
 }
 
 impl Default for SpatialQueryFilter {
     fn default() -> Self {
-        Self {
-            mask: LayerMask::ALL,
-            excluded_entities: default(),
-        }
+        Self::DEFAULT
     }
 }
 
 impl SpatialQueryFilter {
+    /// The default [`SpatialQueryFilter`] configuration that includes all collision layers and has no excluded entities.
+    pub const DEFAULT: Self = Self {
+        mask: LayerMask::ALL,
+        excluded_entities: EntityHashSet::with_hasher(EntityHash),
+    };
+
     /// Creates a new [`SpatialQueryFilter`] with the given [`LayerMask`] determining
     /// which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub fn from_mask(mask: impl Into<LayerMask>) -> Self {
@@ -61,7 +67,7 @@ impl SpatialQueryFilter {
     /// Creates a new [`SpatialQueryFilter`] with the given entities excluded from the [spatial query](crate::spatial_query).
     pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
         Self {
-            excluded_entities: HashSet::from_iter(entities),
+            excluded_entities: EntityHashSet::from_iter(entities),
             ..default()
         }
     }
@@ -75,7 +81,7 @@ impl SpatialQueryFilter {
 
     /// Excludes the given entities from the [spatial query](crate::spatial_query).
     pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
-        self.excluded_entities = HashSet::from_iter(entities);
+        self.excluded_entities = EntityHashSet::from_iter(entities);
         self
     }
 

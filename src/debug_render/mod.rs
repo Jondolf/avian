@@ -426,7 +426,7 @@ fn debug_render_raycasts(
             ray.global_origin(),
             ray.global_direction(),
             // f32::MAX renders nothing, but this number seems to be fine :P
-            ray.max_time_of_impact.min(1_000_000_000_000_000_000.0),
+            ray.max_distance.min(1_000_000_000_000_000_000.0),
             hits.as_slice(),
             ray_color,
             point_color,
@@ -459,7 +459,7 @@ fn debug_render_shapecasts(
             shape_caster.global_shape_rotation(),
             shape_caster.global_direction(),
             // f32::MAX renders nothing, but this number seems to be fine :P
-            shape_caster.max_time_of_impact.min(1_000_000_000_000_000.0),
+            shape_caster.max_distance.min(1_000_000_000_000_000.0),
             hits.as_slice(),
             ray_color,
             shape_color,
