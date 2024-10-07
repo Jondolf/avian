@@ -22,9 +22,9 @@ pub struct RigidBodyQuery {
     pub angular_velocity: &'static mut AngularVelocity,
     pub(crate) pre_solve_angular_velocity: &'static mut PreSolveAngularVelocity,
     pub mass: &'static mut Mass,
-    pub inverse_mass: &'static mut InverseMass,
-    pub inertia: &'static mut Inertia,
-    pub inverse_inertia: &'static mut InverseInertia,
+    pub angular_inertia: &'static mut AngularInertia,
+    #[cfg(feature = "3d")]
+    pub global_angular_inertia: &'static mut GlobalAngularInertia,
     pub center_of_mass: &'static mut CenterOfMass,
     pub friction: &'static Friction,
     pub restitution: &'static Restitution,
@@ -49,12 +49,12 @@ impl<'w> RigidBodyQueryItem<'w> {
     }
 
     /// Computes the effective inverse mass, taking into account any translation locking.
-    pub fn effective_inv_mass(&self) -> Vector {
+    pub fn effective_inverse_mass(&self) -> Vector {
         if !self.rb.is_dynamic() {
             return Vector::ZERO;
         }
 
-        let mut inv_mass = Vector::splat(self.inverse_mass.0);
+        let mut inv_mass = Vector::splat(self.mass.inverse());
 
         if let Some(locked_axes) = self.locked_axes {
             inv_mass = locked_axes.apply_to_vec(inv_mass);
@@ -65,12 +65,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
     /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
     #[cfg(feature = "2d")]
-    pub fn effective_world_inv_inertia(&self) -> Scalar {
+    pub fn effective_global_inverse_inertia(&self) -> Scalar {
         if !self.rb.is_dynamic() {
             return 0.0;
         }
 
-        let mut inv_inertia = self.inverse_inertia.0;
+        let mut inv_inertia = self.angular_inertia.inverse();
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
@@ -81,12 +81,12 @@ impl<'w> RigidBodyQueryItem<'w> {
 
     /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
     #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
+    pub fn effective_global_inverse_inertia(&self) -> Matrix3 {
         if !self.rb.is_dynamic() {
             return Matrix3::ZERO;
         }
 
-        let mut inv_inertia = self.inverse_inertia.rotated(&self.rotation).0;
+        let mut inv_inertia = self.global_angular_inertia.inverse();
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
@@ -121,7 +121,7 @@ impl<'w> RigidBodyQueryItem<'w> {
 }
 
 impl<'w> RigidBodyQueryReadOnlyItem<'w> {
-    /// Computes the velocity at the given `point` relative to the center of the body.
+    /// Computes the velocity at the given `point` relative to the center of mass.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]
         {
@@ -133,22 +133,22 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         }
     }
 
-    /// Returns the inverse mass. If the rigid body is not dynamic, zero is returned.
-    pub fn inv_mass(&self) -> Scalar {
+    /// Returns the mass. If the rigid body is not dynamic, the returned mass is infinite.
+    pub fn mass(&self) -> Mass {
         if self.rb.is_dynamic() {
-            self.inverse_mass.0
+            *self.mass
         } else {
-            0.0
+            Mass::INFINITY
         }
     }
 
     /// Computes the effective inverse mass, taking into account any translation locking.
-    pub fn effective_inv_mass(&self) -> Vector {
+    pub fn effective_inverse_mass(&self) -> Vector {
         if !self.rb.is_dynamic() {
             return Vector::ZERO;
         }
 
-        let mut inv_mass = Vector::splat(self.inverse_mass.0);
+        let mut inv_mass = Vector::splat(self.mass.inverse());
 
         if let Some(locked_axes) = self.locked_axes {
             inv_mass = locked_axes.apply_to_vec(inv_mass);
@@ -157,56 +157,31 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
         inv_mass
     }
 
-    /// Returns the inverse inertia. If the rigid body is not dynamic, zero is returned.
-    #[cfg(feature = "2d")]
-    pub fn inv_inertia(&self) -> Scalar {
+    /// Returns the local angular inertia. If the rigid body is not dynamic, the returned angular inertia is infinite.
+    pub fn angular_inertia(&self) -> AngularInertia {
         if self.rb.is_dynamic() {
-            self.inverse_inertia.0
+            *self.angular_inertia
         } else {
-            0.0
+            AngularInertia::INFINITY
         }
     }
 
-    /// Returns the inverse inertia tensor. If the rigid body is not dynamic, a zero matrix is returned.
-    #[cfg(feature = "3d")]
-    pub fn inv_inertia(&self) -> Matrix3 {
-        if self.rb.is_dynamic() {
-            self.inverse_inertia.0
-        } else {
-            Matrix3::ZERO
-        }
-    }
-
-    /// Computes the effective world-space inverse inertia, taking into account any rotation locking.
-    #[cfg(feature = "2d")]
-    pub fn effective_world_inv_inertia(&self) -> Scalar {
+    /// Computes the effective world-space angular inertia, taking into account any rotation locking.
+    pub fn effective_global_angular_inertia(&self) -> AngularInertia {
         if !self.rb.is_dynamic() {
-            return 0.0;
+            return AngularInertia::INFINITY;
         }
 
-        let mut inv_inertia = self.inverse_inertia.0;
+        #[cfg(feature = "2d")]
+        let mut inv_inertia = self.angular_inertia.inverse();
+        #[cfg(feature = "3d")]
+        let mut inv_inertia = self.angular_inertia.rotated_inverse(self.rotation.0);
 
         if let Some(locked_axes) = self.locked_axes {
             inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
         }
 
-        inv_inertia
-    }
-
-    /// Computes the effective world-space inverse inertia tensor, taking into account any rotation locking.
-    #[cfg(feature = "3d")]
-    pub fn effective_world_inv_inertia(&self) -> Matrix3 {
-        if !self.rb.is_dynamic() {
-            return Matrix3::ZERO;
-        }
-
-        let mut inv_inertia = self.inverse_inertia.rotated(self.rotation).0;
-
-        if let Some(locked_axes) = self.locked_axes {
-            inv_inertia = locked_axes.apply_to_rotation(inv_inertia);
-        }
-
-        inv_inertia
+        AngularInertia::from_inverse(inv_inertia)
     }
 
     /// Returns the current position of the body. This is a sum of the [`Position`] and
@@ -238,15 +213,15 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
 #[query_data(mutable)]
 pub struct MassPropertiesQuery {
     pub mass: &'static mut Mass,
-    pub inverse_mass: &'static mut InverseMass,
-    pub inertia: &'static mut Inertia,
-    pub inverse_inertia: &'static mut InverseInertia,
+    pub angular_inertia: &'static mut AngularInertia,
     pub center_of_mass: &'static mut CenterOfMass,
 }
 
 impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
-        let new_mass = self.mass.0 + rhs.mass.0;
+        let mass1 = self.mass.value();
+        let mass2 = rhs.mass.value();
+        let new_mass = mass1 + mass2;
 
         if new_mass <= 0.0 {
             return;
@@ -256,45 +231,44 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         let com2 = rhs.center_of_mass.0;
 
         // Compute the combined center of mass and combined inertia tensor
-        let new_com = (com1 * self.mass.0 + com2 * rhs.mass.0) / new_mass;
-        let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
-        let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
+        let new_com = (com1 * mass1 + com2 * mass2) / new_mass;
+        let i1 = self.angular_inertia.shifted(mass1, new_com - com1);
+        let i2 = rhs.angular_inertia.shifted(mass2, new_com - com2);
         let new_inertia = i1 + i2;
 
         // Update mass properties
-        self.mass.0 = new_mass;
-        self.inverse_mass.0 = 1.0 / self.mass.0;
-        self.inertia.0 = new_inertia;
-        self.inverse_inertia.0 = self.inertia.inverse().0;
+        self.mass.set(new_mass);
+        self.angular_inertia.set(new_inertia);
         self.center_of_mass.0 = new_com;
     }
 }
 
 impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
-        if self.mass.0 + rhs.mass.0 <= 0.0 {
+        if self.mass.inverse() + rhs.mass.inverse() <= 0.0 {
             return;
         }
 
-        let new_mass = (self.mass.0 - rhs.mass.0).max(0.0);
+        let mass1 = self.mass.value();
+        let mass2 = rhs.mass.value();
+
+        let new_mass = (mass1 - mass2).max(0.0);
         let com1 = self.center_of_mass.0;
         let com2 = rhs.center_of_mass.0;
 
         // Compute the combined center of mass and combined inertia tensor
         let new_com = if new_mass > Scalar::EPSILON {
-            (com1 * self.mass.0 - com2 * rhs.mass.0) / new_mass
+            (com1 * mass1 - com2 * mass2) / new_mass
         } else {
             com1
         };
-        let i1 = self.inertia.shifted(self.mass.0, new_com - com1);
-        let i2 = rhs.inertia.shifted(rhs.mass.0, new_com - com2);
+        let i1 = self.angular_inertia.shifted(mass1, new_com - com1);
+        let i2 = rhs.angular_inertia.shifted(mass2, new_com - com2);
         let new_inertia = i1 - i2;
 
         // Update mass properties
-        self.mass.0 = new_mass;
-        self.inverse_mass.0 = 1.0 / self.mass.0;
-        self.inertia.0 = new_inertia;
-        self.inverse_inertia.0 = self.inertia.inverse().0;
+        self.mass.set(new_mass);
+        self.angular_inertia.set(new_inertia);
         self.center_of_mass.0 = new_com;
     }
 }
@@ -314,18 +288,24 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: Mass(1.6),
-            inverse_mass: InverseMass(1.0 / 1.6),
+            mass: Mass::new(1.6),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(1.6),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
-            ..default()
         });
 
         // Create collider mass properties that will be added to the existing mass properties
         let collider_mass_props = ColliderMassProperties {
-            mass: Mass(8.1),
-            inverse_mass: InverseMass(1.0 / 8.1),
+            mass: Mass::new(8.1),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(56.2),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
+                56.2, 62.7, 71.4,
+            ))),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
         };
 
         // Get the mass properties and add the collider mass properties
@@ -335,8 +315,8 @@ mod tests {
 
         // Test if values are correct
         // (reference values were calculated by hand)
-        assert_relative_eq!(mass_props.mass.0, 9.7);
-        assert_relative_eq!(mass_props.inverse_mass.0, 1.0 / 9.7);
+        assert_relative_eq!(mass_props.mass.value(), 9.7);
+        assert_relative_eq!(mass_props.mass.inverse(), 1.0 / 9.7);
         assert_relative_eq!(
             mass_props.center_of_mass.0,
             Vector::X * 0.375_257 + Vector::Y * 0.835_051,
@@ -353,18 +333,24 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: Mass(8.1),
-            inverse_mass: InverseMass(1.0 / 8.1),
+            mass: Mass::new(8.1),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(56.2),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(
+                56.2, 62.7, 71.4,
+            ))),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
-            ..default()
         });
 
         // Create collider mass properties that will be subtracted from the existing mass properties
         let collider_mass_props = ColliderMassProperties {
-            mass: Mass(1.6),
-            inverse_mass: InverseMass(1.0 / 1.6),
+            mass: Mass::new(1.6),
+            #[cfg(feature = "2d")]
+            angular_inertia: AngularInertia::new(1.6),
+            #[cfg(feature = "3d")]
+            angular_inertia: AngularInertia::new(Matrix::from_diagonal(Vector::new(1.6, 2.4, 3.2))),
             center_of_mass: CenterOfMass(Vector::X * 1.2 + Vector::Y),
-            ..default()
         };
 
         // Get the mass properties and subtract the collider mass properties
@@ -375,8 +361,8 @@ mod tests {
         // Test if values are correct.
         // The reference values were calculated by hand.
         // The center of mass is computed as: (com1 * mass1 - com2 * mass2) / (mass1 - mass2).max(0.0)
-        assert_relative_eq!(mass_props.mass.0, 6.5);
-        assert_relative_eq!(mass_props.inverse_mass.0, 1.0 / 6.5);
+        assert_relative_eq!(mass_props.mass.value(), 6.5);
+        assert_relative_eq!(mass_props.mass.inverse(), 1.0 / 6.5);
         assert_relative_eq!(
             mass_props.center_of_mass.0,
             Vector::NEG_X * 5.030_769 + Vector::NEG_Y * 0.246_153,
@@ -413,23 +399,23 @@ mod tests {
         // Some epsilons reduced to make test pass on apple-m1
         // see: https://github.com/Jondolf/avian/issues/137
         assert_relative_eq!(
-            mass_props.mass.0,
-            original_mass_props.mass.0,
+            mass_props.mass.value(),
+            original_mass_props.mass.value(),
             epsilon = 0.001
         );
         assert_relative_eq!(
-            mass_props.inverse_mass.0,
-            original_mass_props.inverse_mass.0,
+            mass_props.mass.inverse(),
+            original_mass_props.mass.inverse(),
             epsilon = 0.000_001
         );
         assert_relative_eq!(
-            mass_props.inertia.0,
-            original_mass_props.inertia.0,
-            epsilon = 0.001
+            mass_props.angular_inertia.value(),
+            original_mass_props.angular_inertia.value(),
+            epsilon = 0.01
         );
         assert_relative_eq!(
-            mass_props.inverse_inertia.0,
-            original_mass_props.inverse_inertia.0,
+            mass_props.angular_inertia.inverse(),
+            original_mass_props.angular_inertia.inverse(),
             epsilon = 0.001
         );
         assert_relative_eq!(

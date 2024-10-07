@@ -453,19 +453,15 @@ impl AnyCollider for Collider {
         let props = self.shape_scaled().mass_properties(density);
 
         ColliderMassProperties {
-            mass: Mass(props.mass()),
-            inverse_mass: InverseMass(props.inv_mass),
-
+            mass: Mass::from_inverse(props.inv_mass),
             #[cfg(feature = "2d")]
-            inertia: Inertia(props.principal_inertia()),
+            angular_inertia: AngularInertia::from_inverse(
+                props.inv_principal_inertia_sqrt * props.inv_principal_inertia_sqrt,
+            ),
             #[cfg(feature = "3d")]
-            inertia: Inertia(props.reconstruct_inertia_matrix().into()),
-
-            #[cfg(feature = "2d")]
-            inverse_inertia: InverseInertia(1.0 / props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
-
+            angular_inertia: AngularInertia::from_inverse(
+                props.reconstruct_inverse_inertia_matrix().into(),
+            ),
             center_of_mass: CenterOfMass(props.local_com.into()),
         }
     }

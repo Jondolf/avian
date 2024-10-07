@@ -59,13 +59,11 @@ impl AnyCollider for CircleCollider {
         // In 2D, the Z length is assumed to be 1.0, so volume = area
         let volume = PI * self.radius.powi(2);
         let mass = density * volume;
-        let inertia = mass * self.radius.powi(2) / 2.0;
+        let angular_inertia = mass * self.radius.powi(2) / 2.0;
 
         ColliderMassProperties {
-            mass: Mass(mass),
-            inverse_mass: InverseMass(mass.recip()),
-            inertia: Inertia(inertia),
-            inverse_inertia: InverseInertia(inertia.recip()),
+            mass: Mass::new(mass),
+            angular_inertia: AngularInertia::new(angular_inertia),
             center_of_mass: CenterOfMass::default(),
         }
     }

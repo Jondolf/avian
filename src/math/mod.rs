@@ -120,7 +120,7 @@ pub trait RecipOrZero {
 
 impl RecipOrZero for f32 {
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -130,7 +130,7 @@ impl RecipOrZero for f32 {
 
 impl RecipOrZero for f64 {
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -167,6 +167,53 @@ impl RecipOrZero for DVec3 {
             self.y.recip_or_zero(),
             self.z.recip_or_zero(),
         )
+    }
+}
+
+/// An extension trait for computing inverses without division by zero.
+pub trait InverseOrZero {
+    /// Computes the inverse of `self` if `self` is not zero,
+    /// and returns zero otherwise to avoid division by zero.
+    fn inverse_or_zero(self) -> Self;
+}
+
+impl InverseOrZero for Mat2 {
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for DMat2 {
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for Mat3 {
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl InverseOrZero for DMat3 {
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
     }
 }
 

@@ -479,7 +479,7 @@ pub mod prelude {
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         position::{Position, Rotation},
-        prepare::{init_transforms, update_mass_properties, PrepareConfig, PreparePlugin},
+        prepare::{init_transforms, warn_missing_mass, PrepareConfig, PreparePlugin},
         schedule::*,
         spatial_query::{self, *},
         sync::SyncPlugin,
