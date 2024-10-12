@@ -165,7 +165,8 @@ impl Plugin for PreparePlugin {
             (
                 warn_missing_mass,
                 #[cfg(feature = "3d")]
-                update_global_angular_inertia::<Added<RigidBody>>,
+                update_global_angular_inertia::<Added<RigidBody>>
+                    .run_if(match_any::<Added<RigidBody>>),
                 clamp_collider_density,
                 clamp_restitution,
                 // All the components we added above must exist before we can simulate the bodies.

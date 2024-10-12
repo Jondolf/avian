@@ -216,9 +216,9 @@ fn integrate_velocities(
             external_force,
             external_torque,
             *body.mass,
-            *body.angular_inertia,
+            body.angular_inertia,
             #[cfg(feature = "3d")]
-            *body.global_angular_inertia,
+            body.global_angular_inertia,
             #[cfg(feature = "3d")]
             *body.rot,
             locked_axes,

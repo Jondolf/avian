@@ -38,8 +38,8 @@ pub fn integrate_velocity(
     force: Vector,
     torque: TorqueValue,
     mass: Mass,
-    angular_inertia: AngularInertia,
-    #[cfg(feature = "3d")] global_angular_inertia: GlobalAngularInertia,
+    angular_inertia: &AngularInertia,
+    #[cfg(feature = "3d")] global_angular_inertia: &GlobalAngularInertia,
     #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
     gravity: Vector,
@@ -59,7 +59,7 @@ pub fn integrate_velocity(
     #[cfg(feature = "2d")]
     let ang_acc = angular_acceleration(torque, angular_inertia, locked_axes);
     #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(torque, *global_angular_inertia, locked_axes);
+    let ang_acc = angular_acceleration(torque, global_angular_inertia, locked_axes);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -173,11 +173,11 @@ correction, use `solve_gyroscopic_torque`."
 )]
 pub fn angular_acceleration(
     torque: TorqueValue,
-    global_angular_inertia: AngularInertia,
+    global_angular_inertia: &AngularInertia,
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
-    let effective_angular_inertia = locked_axes.apply_to_angular_inertia(global_angular_inertia);
+    let effective_angular_inertia = locked_axes.apply_to_angular_inertia(*global_angular_inertia);
 
     if effective_angular_inertia != AngularInertia::INFINITY
         && effective_angular_inertia.is_finite()
@@ -263,9 +263,9 @@ mod tests {
                 default(),
                 default(),
                 mass,
-                angular_inertia,
+                &angular_inertia,
                 #[cfg(feature = "3d")]
-                GlobalAngularInertia::new(angular_inertia, rotation),
+                &GlobalAngularInertia::new(angular_inertia, rotation),
                 #[cfg(feature = "3d")]
                 rotation,
                 default(),
