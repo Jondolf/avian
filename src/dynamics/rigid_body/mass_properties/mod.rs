@@ -15,7 +15,7 @@ pub use world_query::MassPropertiesQuery;
 /// This is because most physics calculations operate on the inverse mass, and storing it directly
 /// allows for fewer divisions and guards against division by zero.
 ///
-/// When using [`RigidBodyMass`], you shouldn't need to worry about this internal representation.
+/// When using [`Mass`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
@@ -25,7 +25,7 @@ pub use world_query::MassPropertiesQuery;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct RigidBodyMass {
+pub struct Mass {
     /// The inverse mass.
     ///
     /// This is stored as an inverse because most physics calculations
@@ -34,7 +34,7 @@ pub struct RigidBodyMass {
     inverse: Scalar,
 }
 
-impl RigidBodyMass {
+impl Mass {
     /// Zero mass.
     pub const ZERO: Self = Self {
         inverse: Scalar::INFINITY,
@@ -43,13 +43,13 @@ impl RigidBodyMass {
     /// Infinite mass.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
-    /// Creates a new [`RigidBodyMass`] from the given mass.
+    /// Creates a new [`Mass`] from the given mass.
     #[inline]
     pub fn new(mass: Scalar) -> Self {
         Self::from_inverse(mass.recip_or_zero())
     }
 
-    /// Creates a new [`RigidBodyMass`] from the given inverse mass.
+    /// Creates a new [`Mass`] from the given inverse mass.
     #[inline]
     pub fn from_inverse(inverse_mass: Scalar) -> Self {
         Self {
@@ -59,7 +59,7 @@ impl RigidBodyMass {
 
     /// Returns the mass.
     ///
-    /// Note that this involves a division because [`RigidBodyMass`] internally stores the inverse mass.
+    /// Note that this involves a division because [`Mass`] internally stores the inverse mass.
     /// If dividing by the mass, consider using `foo * mass.inverse()` instead of `foo / mass.value()`.
     #[inline]
     pub fn value(self) -> Scalar {
@@ -68,7 +68,7 @@ impl RigidBodyMass {
 
     /// Returns the inverse mass.
     ///
-    /// This is a no-op because [`RigidBodyMass`] internally stores the inverse mass.
+    /// This is a no-op because [`Mass`] internally stores the inverse mass.
     #[inline]
     pub fn inverse(self) -> Scalar {
         self.inverse
@@ -76,7 +76,7 @@ impl RigidBodyMass {
 
     /// Sets the mass.
     #[inline]
-    pub fn set(&mut self, mass: impl Into<RigidBodyMass>) {
+    pub fn set(&mut self, mass: impl Into<Mass>) {
         *self = mass.into();
     }
 
@@ -99,7 +99,7 @@ impl RigidBodyMass {
     }
 }
 
-impl From<Scalar> for RigidBodyMass {
+impl From<Scalar> for Mass {
     fn from(mass: Scalar) -> Self {
         Self::new(mass)
     }
@@ -115,7 +115,7 @@ impl From<Scalar> for RigidBodyMass {
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
 /// allows for fewer divisions and guards against division by zero.
 ///
-/// When using [`RigidBodyAngularInertia`], you shouldn't need to worry about this internal representation.
+/// When using [`AngularInertia`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
@@ -126,7 +126,7 @@ impl From<Scalar> for RigidBodyMass {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct RigidBodyAngularInertia {
+pub struct AngularInertia {
     /// The inverse angular inertia.
     ///
     /// This is stored as an inverse to minimize the number of divisions
@@ -136,7 +136,7 @@ pub struct RigidBodyAngularInertia {
 }
 
 #[cfg(feature = "2d")]
-impl RigidBodyAngularInertia {
+impl AngularInertia {
     /// Zero mass.
     pub const ZERO: Self = Self {
         inverse: Scalar::INFINITY,
@@ -145,13 +145,13 @@ impl RigidBodyAngularInertia {
     /// Infinite mass.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given angular inertia.
+    /// Creates a new [`AngularInertia`] from the given angular inertia.
     #[inline]
     pub fn new(angular_inertia: Scalar) -> Self {
         Self::from_inverse(angular_inertia.recip_or_zero())
     }
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given inverse angular inertia.
+    /// Creates a new [`AngularInertia`] from the given inverse angular inertia.
     #[inline]
     pub fn from_inverse(inverse_angular_inertia: Scalar) -> Self {
         Self {
@@ -161,7 +161,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the angular inertia.
     ///
-    /// Note that this involves a division because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves a division because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If dividing by the angular inertia, consider using `foo * angular_inertia.inverse()` instead of `foo / angular_inertia.value()`.
     #[inline]
     pub fn value(self) -> Scalar {
@@ -170,7 +170,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the inverse angular inertia.
     ///
-    /// This is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// This is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub fn inverse(self) -> Scalar {
         self.inverse
@@ -178,7 +178,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia.
     ///
-    /// Note that this is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub fn inverse_mut(&mut self) -> &mut Scalar {
         &mut self.inverse
@@ -186,7 +186,7 @@ impl RigidBodyAngularInertia {
 
     /// Sets the angular inertia.
     #[inline]
-    pub fn set(&mut self, angular_inertia: impl Into<RigidBodyAngularInertia>) {
+    pub fn set(&mut self, angular_inertia: impl Into<AngularInertia>) {
         *self = angular_inertia.into();
     }
 
@@ -222,7 +222,7 @@ impl RigidBodyAngularInertia {
 }
 
 #[cfg(feature = "2d")]
-impl From<Scalar> for RigidBodyAngularInertia {
+impl From<Scalar> for AngularInertia {
     fn from(angular_inertia: Scalar) -> Self {
         Self::new(angular_inertia)
     }
@@ -259,7 +259,7 @@ pub enum AngularInertiaTensorError {
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
 /// allows for fewer inversions and guards against division by zero.
 ///
-/// When using [`RigidBodyAngularInertia`], you shouldn't need to worry about this internal representation.
+/// When using [`AngularInertia`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
@@ -270,13 +270,13 @@ pub enum AngularInertiaTensorError {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct RigidBodyAngularInertia {
+pub struct AngularInertia {
     // TODO: The matrix should be symmetric and positive definite.
     //       We could add a custom `SymmetricMat3` type to enforce symmetricity and reduce memory usage.
     inverse: Matrix,
 }
 
-impl Default for RigidBodyAngularInertia {
+impl Default for AngularInertia {
     fn default() -> Self {
         Self::INFINITY
     }
@@ -285,7 +285,7 @@ impl Default for RigidBodyAngularInertia {
 // TODO: Add helpers for getting the principal angular inertia and local inertial frame. This requires an eigensolver.
 //       `bevy_heavy` has this functionality.
 #[cfg(feature = "3d")]
-impl RigidBodyAngularInertia {
+impl AngularInertia {
     /// Zero angular inertia.
     pub const ZERO: Self = Self {
         inverse: Matrix::from_diagonal(Vector::INFINITY),
@@ -296,14 +296,14 @@ impl RigidBodyAngularInertia {
         inverse: Matrix::ZERO,
     };
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given principal angular inertia.
+    /// Creates a new [`AngularInertia`] from the given principal angular inertia.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     ///
-    /// To specify the orientation of the local inertial frame, consider using [`RigidBodyAngularInertia::new_with_local_frame`].
+    /// To specify the orientation of the local inertial frame, consider using [`AngularInertia::new_with_local_frame`].
     ///
     /// # Panics
     ///
@@ -321,13 +321,13 @@ impl RigidBodyAngularInertia {
         ))
     }
 
-    /// Tries to create a new [`RigidBodyAngularInertia`] from the given principal angular inertia.
+    /// Tries to create a new [`AngularInertia`] from the given principal angular inertia.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes. To specify the orientation of the local inertial frame,
-    /// consider using [`RigidBodyAngularInertia::try_new_with_local_frame`].
+    /// consider using [`AngularInertia::try_new_with_local_frame`].
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Errors
     ///
@@ -345,13 +345,13 @@ impl RigidBodyAngularInertia {
         }
     }
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given principal angular inertia
+    /// Creates a new [`AngularInertia`] from the given principal angular inertia
     /// and the orientation of the local inertial frame.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes defined by the given `orientation`.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Panics
     ///
@@ -374,13 +374,13 @@ impl RigidBodyAngularInertia {
         )
     }
 
-    /// Tries to create a new [`RigidBodyAngularInertia`] from the given principal angular inertia
+    /// Tries to create a new [`AngularInertia`] from the given principal angular inertia
     /// and the orientation of the local inertial frame.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes defined by the given `orientation`.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Errors
     ///
@@ -403,18 +403,18 @@ impl RigidBodyAngularInertia {
         }
     }
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given angular inertia tensor.
+    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "from_mat3")]
     pub fn from_tensor(tensor: Matrix) -> Self {
         Self::from_inverse_tensor(tensor.inverse_or_zero())
     }
 
-    /// Creates a new [`RigidBodyAngularInertia`] from the given angular inertia tensor.
+    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
     #[inline]
@@ -427,7 +427,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the angular inertia tensor.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
     /// instead of `angular_inertia.value().inverse() * foo`.
     ///
@@ -439,7 +439,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     ///
     /// Equivalent to [`AngularInertia::inverse_tensor`].
     #[inline]
@@ -449,7 +449,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub(crate) fn inverse_mut(&mut self) -> &mut Matrix {
         self.inverse_tensor_mut()
@@ -457,7 +457,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the angular inertia tensor.
     ///
-    /// Note that this involves an invertion because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
     /// instead of `angular_inertia.value().inverse() * foo`.
     #[inline]
@@ -468,7 +468,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3")]
     pub fn inverse_tensor(self) -> Matrix {
@@ -477,7 +477,7 @@ impl RigidBodyAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`RigidBodyAngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3_mut")]
     pub fn inverse_tensor_mut(&mut self) -> &mut Matrix {
@@ -486,7 +486,7 @@ impl RigidBodyAngularInertia {
 
     /// Sets the angular inertia tensor.
     #[inline]
-    pub fn set(&mut self, angular_inertia: impl Into<RigidBodyAngularInertia>) {
+    pub fn set(&mut self, angular_inertia: impl Into<AngularInertia>) {
         *self = angular_inertia.into();
     }
 
@@ -531,14 +531,14 @@ impl RigidBodyAngularInertia {
 }
 
 #[cfg(feature = "3d")]
-impl From<Matrix> for RigidBodyAngularInertia {
+impl From<Matrix> for AngularInertia {
     fn from(tensor: Matrix) -> Self {
         Self::from_tensor(tensor)
     }
 }
 
 #[cfg(feature = "2d")]
-impl core::ops::Mul<Scalar> for RigidBodyAngularInertia {
+impl core::ops::Mul<Scalar> for AngularInertia {
     type Output = Scalar;
 
     #[inline]
@@ -547,7 +547,7 @@ impl core::ops::Mul<Scalar> for RigidBodyAngularInertia {
     }
 }
 
-impl core::ops::Mul<Vector> for RigidBodyAngularInertia {
+impl core::ops::Mul<Vector> for AngularInertia {
     type Output = Vector;
 
     #[inline]
@@ -558,12 +558,12 @@ impl core::ops::Mul<Vector> for RigidBodyAngularInertia {
 
 // In 2D, the global angular inertia is the same as the local angular inertia.
 #[cfg(feature = "2d")]
-pub(crate) type GlobalAngularInertia = RigidBodyAngularInertia;
+pub(crate) type GlobalAngularInertia = AngularInertia;
 
 /// The world-space moment of inertia of a dynamic [rigid body] as a 3x3 tensor matrix.
 /// This represents the torque needed for a desired angular acceleration about the XYZ axes.
 ///
-/// This component is automatically updated whenever the local [`RigidBodyAngularInertia`] or rotation is changed.
+/// This component is automatically updated whenever the local [`AngularInertia`] or rotation is changed.
 /// To manually update it, use the associated [`update`](Self::update) method.
 ///
 /// [rigid body]: RigidBody
@@ -572,23 +572,23 @@ pub(crate) type GlobalAngularInertia = RigidBodyAngularInertia;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct GlobalAngularInertia(RigidBodyAngularInertia);
+pub struct GlobalAngularInertia(AngularInertia);
 
 #[cfg(feature = "3d")]
 impl GlobalAngularInertia {
     /// Creates a new [`GlobalAngularInertia`] from the given local angular inertia and rotation.
     pub fn new(
-        local_angular_inertia: impl Into<RigidBodyAngularInertia>,
+        local_angular_inertia: impl Into<AngularInertia>,
         rotation: impl Into<Quaternion>,
     ) -> Self {
-        let local_angular_inertia: RigidBodyAngularInertia = local_angular_inertia.into();
+        let local_angular_inertia: AngularInertia = local_angular_inertia.into();
         Self(local_angular_inertia.rotated(rotation.into()))
     }
 
     /// Updates the global angular inertia with the given local angular inertia and rotation.
     pub fn update(
         &mut self,
-        local_angular_inertia: impl Into<RigidBodyAngularInertia>,
+        local_angular_inertia: impl Into<AngularInertia>,
         rotation: impl Into<Quaternion>,
     ) {
         *self = Self::new(local_angular_inertia, rotation);
@@ -596,7 +596,7 @@ impl GlobalAngularInertia {
 }
 
 #[cfg(feature = "3d")]
-impl From<GlobalAngularInertia> for RigidBodyAngularInertia {
+impl From<GlobalAngularInertia> for AngularInertia {
     fn from(inertia: GlobalAngularInertia) -> Self {
         inertia.0
     }
@@ -605,7 +605,7 @@ impl From<GlobalAngularInertia> for RigidBodyAngularInertia {
 #[cfg(feature = "3d")]
 impl From<Matrix> for GlobalAngularInertia {
     fn from(tensor: Matrix) -> Self {
-        Self(RigidBodyAngularInertia::from_tensor(tensor))
+        Self(AngularInertia::from_tensor(tensor))
     }
 }
 
@@ -616,9 +616,9 @@ impl From<Matrix> for GlobalAngularInertia {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct RigidBodyCenterOfMass(pub Vector);
+pub struct CenterOfMass(pub Vector);
 
-impl RigidBodyCenterOfMass {
+impl CenterOfMass {
     /// A center of mass set at the local origin.
     pub const ZERO: Self = Self(Vector::ZERO);
 }
@@ -653,9 +653,9 @@ impl RigidBodyCenterOfMass {
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct MassPropertiesBundle {
-    pub mass: RigidBodyMass,
-    pub angular_inertia: RigidBodyAngularInertia,
-    pub center_of_mass: RigidBodyCenterOfMass,
+    pub mass: Mass,
+    pub angular_inertia: AngularInertia,
+    pub center_of_mass: CenterOfMass,
 }
 
 impl MassPropertiesBundle {
@@ -673,12 +673,12 @@ impl MassPropertiesBundle {
         } = collider.mass_properties(density);
 
         Self {
-            mass: RigidBodyMass::new(mass),
+            mass: Mass::new(mass),
             #[cfg(feature = "2d")]
-            angular_inertia: RigidBodyAngularInertia::new(angular_inertia),
+            angular_inertia: AngularInertia::new(angular_inertia),
             #[cfg(feature = "3d")]
-            angular_inertia: RigidBodyAngularInertia::from_tensor(angular_inertia),
-            center_of_mass: RigidBodyCenterOfMass(center_of_mass),
+            angular_inertia: AngularInertia::from_tensor(angular_inertia),
+            center_of_mass: CenterOfMass(center_of_mass),
         }
     }
 }
@@ -730,8 +730,8 @@ impl From<Scalar> for ColliderDensity {
 /// The density used for computing the mass properties can be configured using the [`ColliderDensity`]
 /// component.
 ///
-/// These mass properties will be added to the [rigid body's](RigidBody) actual [`RigidBodyMass`],
-/// [`RigidBodyAngularInertia`] and [`RigidBodyCenterOfMass`] components.
+/// These mass properties will be added to the [rigid body's](RigidBody) actual [`Mass`],
+/// [`AngularInertia`] and [`CenterOfMass`] components.
 ///
 /// ## Example
 ///

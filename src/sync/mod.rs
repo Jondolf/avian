@@ -209,7 +209,7 @@ pub fn transform_to_position(
         Option<&AccumulatedTranslation>,
         &mut Rotation,
         Option<&PreviousRotation>,
-        Option<&RigidBodyCenterOfMass>,
+        Option<&CenterOfMass>,
     )>,
 ) {
     for (

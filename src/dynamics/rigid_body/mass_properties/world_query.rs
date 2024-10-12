@@ -10,11 +10,11 @@ use bevy::ecs::query::QueryData;
 #[query_data(mutable)]
 pub struct MassPropertiesQuery {
     /// The mass of the rigid body.
-    pub mass: &'static mut RigidBodyMass,
+    pub mass: &'static mut Mass,
     /// The angular inertia of the rigid body.
-    pub angular_inertia: &'static mut RigidBodyAngularInertia,
+    pub angular_inertia: &'static mut AngularInertia,
     /// The local center of mass of the rigid body.
-    pub center_of_mass: &'static mut RigidBodyCenterOfMass,
+    pub center_of_mass: &'static mut CenterOfMass,
 }
 
 impl<'w> MassPropertiesQueryItem<'w> {
@@ -66,7 +66,7 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         let new_com = (com1 * mass1 + com2 * mass2) / new_mass;
         let i1 = self.shifted_angular_inertia(new_com - com1);
         let i2 = rhs.shifted_angular_inertia(new_com - com2);
-        let new_inertia = RigidBodyAngularInertia::from(i1 + i2);
+        let new_inertia = AngularInertia::from(i1 + i2);
 
         // Update mass properties
         self.mass.set(new_mass);
@@ -96,7 +96,7 @@ impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         };
         let i1 = self.shifted_angular_inertia(new_com - com1);
         let i2 = rhs.shifted_angular_inertia(new_com - com2);
-        let new_inertia = RigidBodyAngularInertia::from(i1 - i2);
+        let new_inertia = AngularInertia::from(i1 - i2);
 
         // Update mass properties
         self.mass.set(new_mass);
@@ -120,12 +120,12 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: RigidBodyMass::new(1.6),
+            mass: Mass::new(1.6),
             #[cfg(feature = "2d")]
-            angular_inertia: RigidBodyAngularInertia::new(1.6),
+            angular_inertia: AngularInertia::new(1.6),
             #[cfg(feature = "3d")]
-            angular_inertia: RigidBodyAngularInertia::new(Vector::new(1.6, 2.4, 3.2)),
-            center_of_mass: RigidBodyCenterOfMass(Vector::NEG_X * 3.8),
+            angular_inertia: AngularInertia::new(Vector::new(1.6, 2.4, 3.2)),
+            center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
         });
 
         // Create collider mass properties that will be added to the existing mass properties
@@ -163,12 +163,12 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: RigidBodyMass::new(8.1),
+            mass: Mass::new(8.1),
             #[cfg(feature = "2d")]
-            angular_inertia: RigidBodyAngularInertia::new(56.2),
+            angular_inertia: AngularInertia::new(56.2),
             #[cfg(feature = "3d")]
-            angular_inertia: RigidBodyAngularInertia::new(Vector::new(56.2, 62.7, 71.4)),
-            center_of_mass: RigidBodyCenterOfMass(Vector::NEG_X * 3.8),
+            angular_inertia: AngularInertia::new(Vector::new(56.2, 62.7, 71.4)),
+            center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
         });
 
         // Create collider mass properties that will be subtracted from the existing mass properties

@@ -153,8 +153,8 @@ struct VelocityIntegrationQuery {
     ang_vel: &'static mut AngularVelocity,
     force: &'static ExternalForce,
     torque: &'static ExternalTorque,
-    mass: &'static RigidBodyMass,
-    angular_inertia: &'static RigidBodyAngularInertia,
+    mass: &'static Mass,
+    angular_inertia: &'static AngularInertia,
     #[cfg(feature = "3d")]
     global_angular_inertia: &'static GlobalAngularInertia,
     lin_damping: Option<&'static LinearDamping>,
@@ -296,7 +296,7 @@ type ImpulseQueryComponents = (
     &'static mut LinearVelocity,
     &'static mut AngularVelocity,
     &'static Rotation,
-    &'static RigidBodyMass,
+    &'static Mass,
     &'static GlobalAngularInertia,
     Option<&'static LockedAxes>,
 );

@@ -111,13 +111,9 @@ impl Plugin for PreparePlugin {
                 let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
                 let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
 
-                let mass = *entity_ref.get::<RigidBodyMass>().unwrap_or(&default());
-                let angular_inertia = *entity_ref
-                    .get::<RigidBodyAngularInertia>()
-                    .unwrap_or(&default());
-                let center_of_mass = *entity_ref
-                    .get::<RigidBodyCenterOfMass>()
-                    .unwrap_or(&default());
+                let mass = *entity_ref.get::<Mass>().unwrap_or(&default());
+                let angular_inertia = *entity_ref.get::<AngularInertia>().unwrap_or(&default());
+                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
 
                 let mut commands = world.commands();
                 let mut entity_commands = commands.entity(entity);
@@ -415,12 +411,8 @@ pub fn init_transforms<C: Component>(
 #[cfg(feature = "3d")]
 pub fn update_global_angular_inertia<F: QueryFilter>(
     mut query: Query<
-        (
-            &Rotation,
-            &RigidBodyAngularInertia,
-            &mut GlobalAngularInertia,
-        ),
-        (Or<(Changed<RigidBodyAngularInertia>, Changed<Rotation>)>, F),
+        (&Rotation, &AngularInertia, &mut GlobalAngularInertia),
+        (Or<(Changed<AngularInertia>, Changed<Rotation>)>, F),
     >,
 ) {
     query
@@ -441,21 +433,16 @@ struct RigidBodyInitializationQuery {
     restitution: Option<&'static Restitution>,
     friction: Option<&'static Friction>,
     time_sleeping: Option<&'static TimeSleeping>,
-    mass: Option<&'static RigidBodyMass>,
-    angular_inertia: Option<&'static RigidBodyAngularInertia>,
-    center_of_mass: Option<&'static RigidBodyCenterOfMass>,
+    mass: Option<&'static Mass>,
+    angular_inertia: Option<&'static AngularInertia>,
+    center_of_mass: Option<&'static CenterOfMass>,
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
 pub fn warn_missing_mass(
     mut bodies: Query<
-        (
-            Entity,
-            &RigidBody,
-            Ref<RigidBodyMass>,
-            Ref<RigidBodyAngularInertia>,
-        ),
-        Or<(Changed<RigidBodyMass>, Changed<RigidBodyAngularInertia>)>,
+        (Entity, &RigidBody, Ref<Mass>, Ref<AngularInertia>),
+        Or<(Changed<Mass>, Changed<AngularInertia>)>,
     >,
 ) {
     for (entity, rb, mass, inertia) in &mut bodies {
@@ -463,8 +450,7 @@ pub fn warn_missing_mass(
         #[cfg(feature = "2d")]
         let is_inertia_valid = inertia.value().is_finite() && inertia.value() >= Scalar::EPSILON;
         #[cfg(feature = "3d")]
-        let is_inertia_valid =
-            inertia.value().is_finite() && *inertia != RigidBodyAngularInertia::ZERO;
+        let is_inertia_valid = inertia.value().is_finite() && *inertia != AngularInertia::ZERO;
 
         // Warn about dynamic bodies with no mass or inertia
         if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
