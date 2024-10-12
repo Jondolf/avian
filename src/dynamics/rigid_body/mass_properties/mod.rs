@@ -5,6 +5,15 @@ use derive_more::From;
 mod world_query;
 pub use world_query::MassPropertiesQuery;
 
+/// An error returned for an invalid mass.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MassError {
+    /// The mass is negative.
+    Negative,
+    /// The mass is NaN.
+    Nan,
+}
+
 /// The mass of a dynamic [rigid body].
 ///
 /// [rigid body]: RigidBody
@@ -44,16 +53,59 @@ impl Mass {
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
     /// Creates a new [`Mass`] from the given mass.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the mass is negative when `debug_assertions` are enabled.
     #[inline]
     pub fn new(mass: Scalar) -> Self {
         Self::from_inverse(mass.recip_or_zero())
     }
 
+    /// Tries to create a new [`Mass`] from the given mass.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Err(MassError)`](MassError) if the mass is negative or NaN.
+    #[inline]
+    pub fn try_new(mass: Scalar) -> Result<Self, MassError> {
+        if mass < 0.0 {
+            Err(MassError::Negative)
+        } else if mass.is_nan() {
+            Err(MassError::Nan)
+        } else {
+            Ok(Self::from_inverse(mass.recip_or_zero()))
+        }
+    }
+
     /// Creates a new [`Mass`] from the given inverse mass.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inverse mass is negative when `debug_assertions` are enabled.
     #[inline]
     pub fn from_inverse(inverse_mass: Scalar) -> Self {
+        debug_assert!(inverse_mass >= 0.0, "mass must be positive or zero");
+
         Self {
             inverse: inverse_mass,
+        }
+    }
+
+    /// Tries to create a new [`Mass`] from the given inverse mass.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Err(MassError)`](MassError) if the inverse mass is negative or NaN.
+    pub fn try_from_inverse(inverse_mass: Scalar) -> Result<Self, MassError> {
+        if inverse_mass < 0.0 {
+            Err(MassError::Negative)
+        } else if inverse_mass.is_nan() {
+            Err(MassError::Nan)
+        } else {
+            Ok(Self {
+                inverse: inverse_mass,
+            })
         }
     }
 
@@ -105,6 +157,16 @@ impl From<Scalar> for Mass {
     }
 }
 
+// TODO: Add errors for asymmetric and non-positive definite matrices in 3D.
+/// An error returned for an invalid angular inertia.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AngularInertiaError {
+    /// The angular inertia is negative.
+    Negative,
+    /// The angular inertia is NaN.
+    Nan,
+}
+
 /// The moment of inertia of a dynamic [rigid body]. This represents the torque needed for a desired angular acceleration.
 ///
 /// [rigid body]: RigidBody
@@ -146,16 +208,63 @@ impl AngularInertia {
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
     /// Creates a new [`AngularInertia`] from the given angular inertia.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the angular inertia is negative when `debug_assertions` are enabled.
     #[inline]
     pub fn new(angular_inertia: Scalar) -> Self {
         Self::from_inverse(angular_inertia.recip_or_zero())
     }
 
+    /// Tries to create a new [`AngularInertia`] from the given angular inertia.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if the mass is negative or NaN.
+    #[inline]
+    pub fn try_new(mass: Scalar) -> Result<Self, MassError> {
+        if mass < 0.0 {
+            Err(MassError::Negative)
+        } else if mass.is_nan() {
+            Err(MassError::Nan)
+        } else {
+            Ok(Self::from_inverse(mass.recip_or_zero()))
+        }
+    }
+
     /// Creates a new [`AngularInertia`] from the given inverse angular inertia.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the inverse angular inertia is negative when `debug_assertions` are enabled.
     #[inline]
     pub fn from_inverse(inverse_angular_inertia: Scalar) -> Self {
+        debug_assert!(
+            inverse_angular_inertia >= 0.0,
+            "angular inertia must be positive or zero"
+        );
+
         Self {
             inverse: inverse_angular_inertia,
+        }
+    }
+
+    /// Tries to create a new [`AngularInertia`] from the given inverse angular inertia.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if the inverse angular inertia is negative or NaN.
+    #[inline]
+    pub fn try_from_inverse(inverse_angular_inertia: Scalar) -> Result<Self, AngularInertiaError> {
+        if inverse_angular_inertia < 0.0 {
+            Err(AngularInertiaError::Negative)
+        } else if inverse_angular_inertia.is_nan() {
+            Err(AngularInertiaError::Nan)
+        } else {
+            Ok(Self {
+                inverse: inverse_angular_inertia,
+            })
         }
     }
 
@@ -226,17 +335,6 @@ impl From<Scalar> for AngularInertia {
     fn from(angular_inertia: Scalar) -> Self {
         Self::new(angular_inertia)
     }
-}
-
-// TODO: Add errors for asymmetric and non-positive definite matrices.
-/// An error returned for an invalid angular inertia tensor.
-#[cfg(feature = "3d")]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum AngularInertiaTensorError {
-    /// Some element of the angular inertia tensor is negative.
-    Negative,
-    /// The angular inertia is NaN.
-    Nan,
 }
 
 /// The local moment of inertia of a dynamic [rigid body] as a 3x3 tensor matrix.
@@ -331,13 +429,13 @@ impl AngularInertia {
     ///
     /// # Errors
     ///
-    /// Returns [`Err(AngularInertiaTensorError)`](AngularInertiaTensorError) if any component of the principal angular inertia is negative.
+    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if any component of the principal angular inertia is negative or NaN.
     #[inline]
-    pub fn try_new(principal_angular_inertia: Vector) -> Result<Self, AngularInertiaTensorError> {
+    pub fn try_new(principal_angular_inertia: Vector) -> Result<Self, AngularInertiaError> {
         if !principal_angular_inertia.cmpge(Vec3::ZERO).all() {
-            Err(AngularInertiaTensorError::Negative)
+            Err(AngularInertiaError::Negative)
         } else if principal_angular_inertia.is_nan() {
-            Err(AngularInertiaTensorError::Nan)
+            Err(AngularInertiaError::Nan)
         } else {
             Ok(Self::from_inverse_tensor(Matrix::from_diagonal(
                 principal_angular_inertia.recip_or_zero(),
@@ -384,16 +482,16 @@ impl AngularInertia {
     ///
     /// # Errors
     ///
-    /// Returns [`Err(AngularInertiaTensorError)`](AngularInertiaTensorError) if any component of the principal angular inertia is negative.
+    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if any component of the principal angular inertia is negative or NaN.
     #[inline]
     pub fn try_new_with_local_frame(
         principal_angular_inertia: Vector,
         orientation: Quaternion,
-    ) -> Result<Self, AngularInertiaTensorError> {
+    ) -> Result<Self, AngularInertiaError> {
         if !principal_angular_inertia.cmpge(Vec3::ZERO).all() {
-            Err(AngularInertiaTensorError::Negative)
+            Err(AngularInertiaError::Negative)
         } else if principal_angular_inertia.is_nan() {
-            Err(AngularInertiaTensorError::Nan)
+            Err(AngularInertiaError::Nan)
         } else {
             Ok(Self::from_inverse_tensor(
                 Mat3::from_quat(orientation)
