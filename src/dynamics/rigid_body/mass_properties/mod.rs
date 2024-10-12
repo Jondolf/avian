@@ -432,7 +432,7 @@ impl AngularInertia {
     /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if any component of the principal angular inertia is negative or NaN.
     #[inline]
     pub fn try_new(principal_angular_inertia: Vector) -> Result<Self, AngularInertiaError> {
-        if !principal_angular_inertia.cmpge(Vec3::ZERO).all() {
+        if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
             Err(AngularInertiaError::Negative)
         } else if principal_angular_inertia.is_nan() {
             Err(AngularInertiaError::Nan)
@@ -461,14 +461,14 @@ impl AngularInertia {
         orientation: Quaternion,
     ) -> Self {
         debug_assert!(
-            principal_angular_inertia.cmpge(Vec3::ZERO).all(),
+            principal_angular_inertia.cmpge(Vector::ZERO).all(),
             "principal angular inertia must be positive or zero for all axes"
         );
 
         Self::from_inverse_tensor(
-            Mat3::from_quat(orientation)
-                * Mat3::from_diagonal(principal_angular_inertia.recip_or_zero())
-                * Mat3::from_quat(orientation.inverse()),
+            Matrix::from_quat(orientation)
+                * Matrix::from_diagonal(principal_angular_inertia.recip_or_zero())
+                * Matrix::from_quat(orientation.inverse()),
         )
     }
 
@@ -488,15 +488,15 @@ impl AngularInertia {
         principal_angular_inertia: Vector,
         orientation: Quaternion,
     ) -> Result<Self, AngularInertiaError> {
-        if !principal_angular_inertia.cmpge(Vec3::ZERO).all() {
+        if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
             Err(AngularInertiaError::Negative)
         } else if principal_angular_inertia.is_nan() {
             Err(AngularInertiaError::Nan)
         } else {
             Ok(Self::from_inverse_tensor(
-                Mat3::from_quat(orientation)
-                    * Mat3::from_diagonal(principal_angular_inertia.recip_or_zero())
-                    * Mat3::from_quat(orientation.inverse()),
+                Matrix::from_quat(orientation)
+                    * Matrix::from_diagonal(principal_angular_inertia.recip_or_zero())
+                    * Matrix::from_quat(orientation.inverse()),
             ))
         }
     }
@@ -593,7 +593,7 @@ impl AngularInertia {
     /// This can be used to transform local angular inertia to world space.
     #[inline]
     pub fn rotated(self, rotation: Quaternion) -> Self {
-        let rot_mat3 = Mat3::from_quat(rotation);
+        let rot_mat3 = Matrix::from_quat(rotation);
         Self::from_inverse_tensor((rot_mat3 * self.inverse) * rot_mat3.transpose())
     }
 
@@ -974,4 +974,11 @@ pub(crate) fn shifted_angular_inertia(tensor: Matrix, mass: Scalar, offset: Vect
     } else {
         tensor
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // Constructors, panicking and non-panicking.
+    // Inverse mass properties.
+    // Rotations and shifts for angular inertia.
 }
