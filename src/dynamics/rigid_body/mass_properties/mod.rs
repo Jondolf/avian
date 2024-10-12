@@ -853,7 +853,7 @@ impl From<Scalar> for ColliderDensity {
 ///
 /// fn print_collider_masses(query: Query<&ColliderMassProperties>) {
 ///     for mass_props in &query {
-///         println!("{}", mass_props.mass.value());
+///         println!("{}", mass_props.mass);
 ///     }
 /// }
 /// ```
