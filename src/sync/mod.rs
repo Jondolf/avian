@@ -143,15 +143,24 @@ impl Plugin for SyncPlugin {
     }
 }
 
-/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+/// Configures what physics data is synchronized by the [`SyncPlugin`] and [`PreparePlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::PositionToTransform`].
     pub position_to_transform: bool,
     /// Updates [`Position`] and [`Rotation`] based on transform changes,
-    /// allowing you to move bodies using `Transform`. Defaults to true.
+    /// allowing you to move bodies using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::TransformToPosition`].
     pub transform_to_position: bool,
+    /// Updates [`Collider::scale()`] based on transform changes,
+    /// allowing you to scale colliders using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`PrepareSet::Finalize`]
+    pub transform_to_collider_scale: bool,
 }
 
 impl Default for SyncConfig {
@@ -159,6 +168,7 @@ impl Default for SyncConfig {
         SyncConfig {
             position_to_transform: true,
             transform_to_position: true,
+            transform_to_collider_scale: true,
         }
     }
 }
@@ -263,10 +273,9 @@ pub fn transform_to_position(
         #[cfg(feature = "3d")]
         {
             rotation.0 = (previous_transform.rotation
-                + (transform.rotation - previous_transform.rotation)
-                + (rotation.f32() - previous_transform.rotation))
-                .normalize()
-                .adjust_precision();
+                * (transform.rotation * previous_transform.rotation.inverse())
+                * (rotation.f32() * previous_transform.rotation.inverse()))
+            .adjust_precision();
         }
     }
 }

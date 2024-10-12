@@ -48,6 +48,7 @@ serialize = [
     "bevy/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
+    "bitflags/serde",
 ]
 
 [lib]
@@ -81,6 +82,7 @@ bevy_math = { version = "0.14", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
+bevy_mod_debugdump = "0.11"
 
 [[example]]
 name = "dynamic_character_3d"
@@ -133,6 +135,10 @@ required-features = ["3d", "default-collider", "bevy_scene"]
 [[example]]
 name = "collider_constructors"
 required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
+name = "debugdump_3d"
+required-features = ["3d"]
 
 [[bench]]
 name = "cubes"
