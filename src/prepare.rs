@@ -452,7 +452,7 @@ pub fn warn_missing_mass(
         #[cfg(feature = "2d")]
         let is_inertia_valid = inertia.value().is_finite() && inertia.value() >= Scalar::EPSILON;
         #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.value().is_finite() && *inertia != AngularInertia::ZERO;
+        let is_inertia_valid = inertia.value().is_finite();
 
         // Warn about dynamic bodies with no mass or inertia
         if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {

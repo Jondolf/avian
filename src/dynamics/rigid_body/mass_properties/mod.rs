@@ -11,10 +11,12 @@ pub enum MassError {
     /// The mass is negative.
     Negative,
     /// The mass is NaN.
-    Nan,
+    NaN,
 }
 
 /// The mass of a dynamic [rigid body].
+///
+/// Note that zero mass is treated as a special case, and is used to represent infinite mass.
 ///
 /// [rigid body]: RigidBody
 ///
@@ -44,11 +46,6 @@ pub struct Mass {
 }
 
 impl Mass {
-    /// Zero mass.
-    pub const ZERO: Self = Self {
-        inverse: Scalar::INFINITY,
-    };
-
     /// Infinite mass.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
@@ -69,10 +66,10 @@ impl Mass {
     /// Returns [`Err(MassError)`](MassError) if the mass is negative or NaN.
     #[inline]
     pub fn try_new(mass: Scalar) -> Result<Self, MassError> {
-        if mass < 0.0 {
+        if mass.is_nan() {
+            Err(MassError::NaN)
+        } else if mass < 0.0 {
             Err(MassError::Negative)
-        } else if mass.is_nan() {
-            Err(MassError::Nan)
         } else {
             Ok(Self::from_inverse(mass.recip_or_zero()))
         }
@@ -85,7 +82,10 @@ impl Mass {
     /// Panics if the inverse mass is negative when `debug_assertions` are enabled.
     #[inline]
     pub fn from_inverse(inverse_mass: Scalar) -> Self {
-        debug_assert!(inverse_mass >= 0.0, "mass must be positive or zero");
+        debug_assert!(
+            inverse_mass >= 0.0 && !inverse_mass.is_nan(),
+            "mass must be positive or zero"
+        );
 
         Self {
             inverse: inverse_mass,
@@ -98,10 +98,10 @@ impl Mass {
     ///
     /// Returns [`Err(MassError)`](MassError) if the inverse mass is negative or NaN.
     pub fn try_from_inverse(inverse_mass: Scalar) -> Result<Self, MassError> {
-        if inverse_mass < 0.0 {
+        if inverse_mass.is_nan() {
+            Err(MassError::NaN)
+        } else if inverse_mass < 0.0 {
             Err(MassError::Negative)
-        } else if inverse_mass.is_nan() {
-            Err(MassError::Nan)
         } else {
             Ok(Self {
                 inverse: inverse_mass,
@@ -109,7 +109,7 @@ impl Mass {
         }
     }
 
-    /// Returns the mass.
+    /// Returns the mass. If it is infinite, returns zero.
     ///
     /// Note that this involves a division because [`Mass`] internally stores the inverse mass.
     /// If dividing by the mass, consider using `foo * mass.inverse()` instead of `foo / mass.value()`.
@@ -164,10 +164,12 @@ pub enum AngularInertiaError {
     /// The angular inertia is negative.
     Negative,
     /// The angular inertia is NaN.
-    Nan,
+    NaN,
 }
 
 /// The moment of inertia of a dynamic [rigid body]. This represents the torque needed for a desired angular acceleration.
+///
+/// Note that zero angular inertia is treated as a special case, and is used to represent infinite angular inertia.
 ///
 /// [rigid body]: RigidBody
 ///
@@ -199,12 +201,7 @@ pub struct AngularInertia {
 
 #[cfg(feature = "2d")]
 impl AngularInertia {
-    /// Zero mass.
-    pub const ZERO: Self = Self {
-        inverse: Scalar::INFINITY,
-    };
-
-    /// Infinite mass.
+    /// Infinite angular inertia.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
     /// Creates a new [`AngularInertia`] from the given angular inertia.
@@ -221,15 +218,15 @@ impl AngularInertia {
     ///
     /// # Errors
     ///
-    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if the mass is negative or NaN.
+    /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if the angular inertia is negative or NaN.
     #[inline]
-    pub fn try_new(mass: Scalar) -> Result<Self, MassError> {
-        if mass < 0.0 {
-            Err(MassError::Negative)
-        } else if mass.is_nan() {
-            Err(MassError::Nan)
+    pub fn try_new(angular_inertia: Scalar) -> Result<Self, AngularInertiaError> {
+        if angular_inertia.is_nan() {
+            Err(AngularInertiaError::NaN)
+        } else if angular_inertia < 0.0 {
+            Err(AngularInertiaError::Negative)
         } else {
-            Ok(Self::from_inverse(mass.recip_or_zero()))
+            Ok(Self::from_inverse(angular_inertia.recip_or_zero()))
         }
     }
 
@@ -241,7 +238,7 @@ impl AngularInertia {
     #[inline]
     pub fn from_inverse(inverse_angular_inertia: Scalar) -> Self {
         debug_assert!(
-            inverse_angular_inertia >= 0.0,
+            inverse_angular_inertia >= 0.0 && !inverse_angular_inertia.is_nan(),
             "angular inertia must be positive or zero"
         );
 
@@ -257,10 +254,10 @@ impl AngularInertia {
     /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if the inverse angular inertia is negative or NaN.
     #[inline]
     pub fn try_from_inverse(inverse_angular_inertia: Scalar) -> Result<Self, AngularInertiaError> {
-        if inverse_angular_inertia < 0.0 {
+        if inverse_angular_inertia.is_nan() {
+            Err(AngularInertiaError::NaN)
+        } else if inverse_angular_inertia < 0.0 {
             Err(AngularInertiaError::Negative)
-        } else if inverse_angular_inertia.is_nan() {
-            Err(AngularInertiaError::Nan)
         } else {
             Ok(Self {
                 inverse: inverse_angular_inertia,
@@ -268,7 +265,7 @@ impl AngularInertia {
         }
     }
 
-    /// Returns the angular inertia.
+    /// Returns the angular inertia. If it is infinite, returns zero.
     ///
     /// Note that this involves a division because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If dividing by the angular inertia, consider using `foo * angular_inertia.inverse()` instead of `foo / angular_inertia.value()`.
@@ -349,6 +346,8 @@ impl From<Scalar> for AngularInertia {
 ///
 /// The angular inertia tensor should be symmetric and positive definite.
 ///
+/// Note that zero angular inertia is treated as a special case, and is used to represent infinite angular inertia.
+///
 /// [rigid body]: RigidBody
 ///
 /// ## Representation
@@ -384,11 +383,6 @@ impl Default for AngularInertia {
 //       `bevy_heavy` has this functionality.
 #[cfg(feature = "3d")]
 impl AngularInertia {
-    /// Zero angular inertia.
-    pub const ZERO: Self = Self {
-        inverse: Matrix::from_diagonal(Vector::INFINITY),
-    };
-
     /// Infinite angular inertia.
     pub const INFINITY: Self = Self {
         inverse: Matrix::ZERO,
@@ -410,7 +404,8 @@ impl AngularInertia {
     #[doc(alias = "from_principal_angular_inertia")]
     pub fn new(principal_angular_inertia: Vector) -> Self {
         debug_assert!(
-            principal_angular_inertia.cmpge(Vector::ZERO).all(),
+            principal_angular_inertia.cmpge(Vector::ZERO).all()
+                && !principal_angular_inertia.is_nan(),
             "principal angular inertia must be positive or zero for all axes"
         );
 
@@ -432,10 +427,10 @@ impl AngularInertia {
     /// Returns [`Err(AngularInertiaError)`](AngularInertiaError) if any component of the principal angular inertia is negative or NaN.
     #[inline]
     pub fn try_new(principal_angular_inertia: Vector) -> Result<Self, AngularInertiaError> {
-        if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
+        if principal_angular_inertia.is_nan() {
+            Err(AngularInertiaError::NaN)
+        } else if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
             Err(AngularInertiaError::Negative)
-        } else if principal_angular_inertia.is_nan() {
-            Err(AngularInertiaError::Nan)
         } else {
             Ok(Self::from_inverse_tensor(Matrix::from_diagonal(
                 principal_angular_inertia.recip_or_zero(),
@@ -461,7 +456,8 @@ impl AngularInertia {
         orientation: Quaternion,
     ) -> Self {
         debug_assert!(
-            principal_angular_inertia.cmpge(Vector::ZERO).all(),
+            principal_angular_inertia.cmpge(Vector::ZERO).all()
+                && !principal_angular_inertia.is_nan(),
             "principal angular inertia must be positive or zero for all axes"
         );
 
@@ -488,10 +484,10 @@ impl AngularInertia {
         principal_angular_inertia: Vector,
         orientation: Quaternion,
     ) -> Result<Self, AngularInertiaError> {
-        if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
+        if principal_angular_inertia.is_nan() {
+            Err(AngularInertiaError::NaN)
+        } else if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
             Err(AngularInertiaError::Negative)
-        } else if principal_angular_inertia.is_nan() {
-            Err(AngularInertiaError::Nan)
         } else {
             Ok(Self::from_inverse_tensor(
                 Matrix::from_quat(orientation)
@@ -523,7 +519,7 @@ impl AngularInertia {
         }
     }
 
-    /// Returns the angular inertia tensor.
+    /// Returns the angular inertia tensor. If it is infinite, returns zero.
     ///
     /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
@@ -978,7 +974,209 @@ pub(crate) fn shifted_angular_inertia(tensor: Matrix, mass: Scalar, offset: Vect
 
 #[cfg(test)]
 mod tests {
-    // Constructors, panicking and non-panicking.
-    // Inverse mass properties.
-    // Rotations and shifts for angular inertia.
+    use super::*;
+    #[cfg(feature = "3d")]
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn mass_creation() {
+        let mass = Mass::new(10.0);
+        assert_eq!(mass, Mass::from_inverse(0.1));
+        assert_eq!(mass.value(), 10.0);
+        assert_eq!(mass.inverse(), 0.1);
+    }
+
+    #[test]
+    fn zero_mass() {
+        // Zero mass should be equivalent to infinite mass.
+        let mass = Mass::new(0.0);
+        assert_eq!(mass, Mass::new(Scalar::INFINITY));
+        assert_eq!(mass, Mass::from_inverse(0.0));
+        assert_eq!(mass.value(), 0.0);
+        assert_eq!(mass.inverse(), 0.0);
+        assert!(mass.is_infinite());
+        assert!(!mass.is_finite());
+        assert!(!mass.is_nan());
+    }
+
+    #[test]
+    fn infinite_mass() {
+        let mass = Mass::INFINITY;
+        assert_eq!(mass, Mass::new(Scalar::INFINITY));
+        assert_eq!(mass, Mass::from_inverse(0.0));
+        assert_eq!(mass.value(), 0.0);
+        assert_eq!(mass.inverse(), 0.0);
+        assert!(mass.is_infinite());
+        assert!(!mass.is_finite());
+        assert!(!mass.is_nan());
+    }
+
+    #[test]
+    #[should_panic]
+    fn negative_mass_panics() {
+        Mass::new(-1.0);
+    }
+
+    #[test]
+    fn negative_mass_error() {
+        assert_eq!(
+            Mass::try_new(-1.0),
+            Err(MassError::Negative),
+            "negative mass should return an error"
+        );
+    }
+
+    #[test]
+    fn nan_mass_error() {
+        assert_eq!(
+            Mass::try_new(Scalar::NAN),
+            Err(MassError::NaN),
+            "NaN mass should return an error"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn angular_inertia_creation() {
+        let angular_inertia = AngularInertia::new(10.0);
+        assert_eq!(angular_inertia, AngularInertia::from_inverse(0.1));
+        assert_eq!(angular_inertia.value(), 10.0);
+        assert_eq!(angular_inertia.inverse(), 0.1);
+    }
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn zero_angular_inertia() {
+        // Zero angular inertia should be equivalent to infinite angular inertia.
+        let angular_inertia = AngularInertia::new(0.0);
+        assert_eq!(angular_inertia, AngularInertia::new(Scalar::INFINITY));
+        assert_eq!(angular_inertia, AngularInertia::from_inverse(0.0));
+        assert_eq!(angular_inertia.value(), 0.0);
+        assert_eq!(angular_inertia.inverse(), 0.0);
+        assert!(angular_inertia.is_infinite());
+        assert!(!angular_inertia.is_finite());
+        assert!(!angular_inertia.is_nan());
+    }
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn infinite_angular_inertia() {
+        let angular_inertia = AngularInertia::INFINITY;
+        assert_eq!(angular_inertia, AngularInertia::new(Scalar::INFINITY));
+        assert_eq!(angular_inertia, AngularInertia::from_inverse(0.0));
+        assert_eq!(angular_inertia.value(), 0.0);
+        assert_eq!(angular_inertia.inverse(), 0.0);
+        assert!(angular_inertia.is_infinite());
+        assert!(!angular_inertia.is_finite());
+        assert!(!angular_inertia.is_nan());
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg(feature = "2d")]
+    fn negative_angular_inertia_panics() {
+        AngularInertia::new(-1.0);
+    }
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn negative_angular_inertia_error() {
+        assert_eq!(
+            AngularInertia::try_new(-1.0),
+            Err(AngularInertiaError::Negative),
+            "negative angular inertia should return an error"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn nan_angular_inertia_error() {
+        assert_eq!(
+            AngularInertia::try_new(Scalar::NAN),
+            Err(AngularInertiaError::NaN),
+            "NaN angular inertia should return an error"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "3d")]
+    fn angular_inertia_creation() {
+        let angular_inertia = AngularInertia::new(Vector::new(10.0, 20.0, 30.0));
+        assert_relative_eq!(
+            angular_inertia.inverse_tensor(),
+            AngularInertia::from_inverse_tensor(Matrix::from_diagonal(Vector::new(
+                0.1,
+                0.05,
+                1.0 / 30.0
+            )))
+            .inverse_tensor()
+        );
+        assert_relative_eq!(
+            angular_inertia.tensor(),
+            Matrix::from_diagonal(Vector::new(10.0, 20.0, 30.0))
+        );
+        assert_relative_eq!(
+            angular_inertia.inverse_tensor(),
+            Matrix::from_diagonal(Vector::new(0.1, 0.05, 1.0 / 30.0))
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "3d")]
+    fn zero_angular_inertia() {
+        let angular_inertia = AngularInertia::new(Vector::ZERO);
+        assert_eq!(angular_inertia, AngularInertia::new(Vector::INFINITY));
+        assert_eq!(
+            angular_inertia,
+            AngularInertia::from_inverse_tensor(Matrix::from_diagonal(Vector::ZERO))
+        );
+        assert_relative_eq!(angular_inertia.tensor(), Matrix::ZERO);
+        assert_relative_eq!(angular_inertia.inverse_tensor(), Matrix::ZERO);
+        assert!(angular_inertia.is_infinite());
+        assert!(!angular_inertia.is_finite());
+        assert!(!angular_inertia.is_nan());
+    }
+
+    #[test]
+    #[cfg(feature = "3d")]
+    fn infinite_angular_inertia() {
+        let angular_inertia = AngularInertia::INFINITY;
+        assert_eq!(angular_inertia, AngularInertia::new(Vector::INFINITY));
+        assert_eq!(
+            angular_inertia,
+            AngularInertia::from_inverse_tensor(Matrix::ZERO)
+        );
+        assert_relative_eq!(angular_inertia.tensor(), Matrix::ZERO);
+        assert_relative_eq!(angular_inertia.inverse_tensor(), Matrix::ZERO);
+        assert!(angular_inertia.is_infinite());
+        assert!(!angular_inertia.is_finite());
+        assert!(!angular_inertia.is_nan());
+    }
+
+    #[test]
+    #[should_panic]
+    #[cfg(feature = "3d")]
+    fn negative_angular_inertia_panics() {
+        AngularInertia::new(Vector::new(-1.0, 2.0, 3.0));
+    }
+
+    #[test]
+    #[cfg(feature = "3d")]
+    fn negative_angular_inertia_error() {
+        assert_eq!(
+            AngularInertia::try_new(Vector::new(-1.0, 2.0, 3.0)),
+            Err(AngularInertiaError::Negative),
+            "negative angular inertia should return an error"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "3d")]
+    fn nan_angular_inertia_error() {
+        assert_eq!(
+            AngularInertia::try_new(Vector::new(Scalar::NAN, 2.0, 3.0)),
+            Err(AngularInertiaError::NaN),
+            "NaN angular inertia should return an error"
+        );
+    }
 }
