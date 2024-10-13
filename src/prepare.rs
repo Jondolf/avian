@@ -14,8 +14,6 @@ use bevy::{
 /// and updates components.
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
-/// - Adds missing mass properties for entities with a [`RigidBody`] component
-/// - Updates mass properties
 /// - Clamps restitution coefficients between 0 and 1
 ///
 /// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]

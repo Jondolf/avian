@@ -17,6 +17,9 @@ mod world_query;
 pub use world_query::MassPropertiesQuery;
 
 /// A plugin for managing mass properties of rigid bodies.
+///
+/// - Updates mass properties of rigid bodies when colliders are added or removed, or when their [`ColliderMassProperties`] are changed.
+/// - Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
 pub struct MassPropertyPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -72,16 +75,18 @@ impl Plugin for MassPropertyPlugin {
             },
         );
 
-        app.add_systems(
-            self.schedule,
-            (warn_missing_mass, clamp_collider_density).in_set(PrepareSet::Finalize),
-        );
+        // Update `GlobalAngularInertia` for new rigid bodies.
         #[cfg(feature = "3d")]
         app.add_systems(
             self.schedule,
             update_global_angular_inertia::<Added<RigidBody>>
                 .run_if(match_any::<Added<RigidBody>>)
                 .in_set(PrepareSet::Finalize),
+        );
+
+        app.add_systems(
+            self.schedule,
+            (warn_missing_mass, clamp_collider_density).in_set(PrepareSet::Finalize),
         );
     }
 }
