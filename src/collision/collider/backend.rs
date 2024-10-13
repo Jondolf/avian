@@ -271,7 +271,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 )
                     .chain()
                     .in_set(PrepareSet::Finalize)
-                    .before(crate::dynamics::rigid_body::mass_properties::warn_missing_mass),
+                    .before(dynamics::rigid_body::mass_properties::warn_missing_mass),
             ),
         );
 
@@ -770,6 +770,7 @@ mod tests {
 
         app.add_plugins((
             PreparePlugin::new(FixedPostUpdate),
+            MassPropertyPlugin::new(FixedPostUpdate),
             ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
             ColliderHierarchyPlugin::new(FixedPostUpdate),
             HierarchyPlugin,

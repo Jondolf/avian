@@ -86,7 +86,9 @@ impl Plugin for MassPropertyPlugin {
 
         app.add_systems(
             self.schedule,
-            (warn_missing_mass, clamp_collider_density).in_set(PrepareSet::Finalize),
+            (warn_missing_mass, clamp_collider_density)
+                .chain()
+                .in_set(PrepareSet::Finalize),
         );
     }
 }
