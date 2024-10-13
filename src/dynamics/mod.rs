@@ -72,10 +72,18 @@ pub mod prelude {
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
-        rigid_body::*,
+        rigid_body::{
+            mass_properties::{
+                AngularInertia, AngularInertiaError, CenterOfMass, ColliderDensity,
+                ColliderMassProperties, Mass, MassError, MassPropertiesBundle, MassPropertiesQuery,
+                MassPropertyPlugin,
+            },
+            *,
+        },
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
         solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
     };
+    pub(crate) use crate::dynamics::rigid_body::mass_properties::GlobalAngularInertia;
 }
 
 // For intra-doc links

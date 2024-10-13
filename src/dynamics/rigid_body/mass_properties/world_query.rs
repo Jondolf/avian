@@ -22,21 +22,21 @@ impl<'w> MassPropertiesQueryItem<'w> {
     #[cfg(feature = "2d")]
     #[inline]
     pub fn shifted_angular_inertia(&self, offset: Vector) -> Scalar {
-        shifted_angular_inertia(self.angular_inertia.value(), self.mass.value(), offset)
+        super::shifted_angular_inertia(self.angular_inertia.value(), self.mass.value(), offset)
     }
 
     /// Computes the angular inertia shifted by the given offset, taking into account mass.
     #[cfg(feature = "3d")]
     #[inline]
     pub fn shifted_angular_inertia(&self, offset: Vector) -> Matrix {
-        shifted_angular_inertia(self.angular_inertia.tensor(), self.mass.value(), offset)
+        super::shifted_angular_inertia(self.angular_inertia.tensor(), self.mass.value(), offset)
     }
 
     /// Computes the inverse angular inertia shifted by the given offset, taking into account mass.
     #[cfg(feature = "2d")]
     #[inline]
     pub fn shifted_inverse_angular_inertia(&self, offset: Vector) -> Scalar {
-        shifted_angular_inertia(self.angular_inertia.value(), self.mass.value(), offset)
+        super::shifted_angular_inertia(self.angular_inertia.value(), self.mass.value(), offset)
             .recip_or_zero()
     }
 
@@ -44,7 +44,7 @@ impl<'w> MassPropertiesQueryItem<'w> {
     #[cfg(feature = "3d")]
     #[inline]
     pub fn shifted_inverse_angular_inertia(&self, offset: Vector) -> Matrix {
-        shifted_angular_inertia(self.angular_inertia.tensor(), self.mass.value(), offset)
+        super::shifted_angular_inertia(self.angular_inertia.tensor(), self.mass.value(), offset)
             .inverse_or_zero()
     }
 }

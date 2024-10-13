@@ -479,7 +479,7 @@ pub mod prelude {
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         position::{Position, Rotation},
-        prepare::{init_transforms, warn_missing_mass, PrepareConfig, PreparePlugin},
+        prepare::{init_transforms, PrepareConfig, PreparePlugin},
         schedule::*,
         spatial_query::{self, *},
         sync::SyncPlugin,
@@ -709,6 +709,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsSchedulePlugin::new(self.schedule))
             .add(PhysicsTypeRegistrationPlugin)
             .add(PreparePlugin::new(self.schedule))
+            .add(MassPropertyPlugin::new(self.schedule))
             .add(ColliderHierarchyPlugin::new(self.schedule));
 
         #[cfg(all(

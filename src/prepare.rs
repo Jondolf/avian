@@ -6,11 +6,7 @@
 
 use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
-    ecs::{
-        intern::Interned,
-        query::{QueryData, QueryFilter},
-        schedule::ScheduleLabel,
-    },
+    ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
 };
 
@@ -162,18 +158,7 @@ impl Plugin for PreparePlugin {
         )
         .add_systems(
             self.schedule,
-            (
-                warn_missing_mass,
-                #[cfg(feature = "3d")]
-                update_global_angular_inertia::<Added<RigidBody>>
-                    .run_if(match_any::<Added<RigidBody>>),
-                clamp_collider_density,
-                clamp_restitution,
-                // All the components we added above must exist before we can simulate the bodies.
-                apply_deferred,
-            )
-                .chain()
-                .in_set(PrepareSet::Finalize),
+            clamp_restitution.in_set(PrepareSet::Finalize),
         );
     }
 }
@@ -410,72 +395,10 @@ pub fn init_transforms<C: Component>(
     }
 }
 
-/// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
-#[cfg(feature = "3d")]
-pub fn update_global_angular_inertia<F: QueryFilter>(
-    mut query: Query<
-        (&Rotation, &AngularInertia, &mut GlobalAngularInertia),
-        (Or<(Changed<AngularInertia>, Changed<Rotation>)>, F),
-    >,
-) {
-    query
-        .par_iter_mut()
-        .for_each(|(rotation, angular_inertia, mut global_angular_inertia)| {
-            global_angular_inertia.update(*angular_inertia, rotation.0);
-        });
-}
-
-#[derive(QueryData)]
-struct RigidBodyInitializationQuery {
-    lin_vel: Option<&'static LinearVelocity>,
-    ang_vel: Option<&'static AngularVelocity>,
-    force: Option<&'static ExternalForce>,
-    torque: Option<&'static ExternalTorque>,
-    impulse: Option<&'static ExternalImpulse>,
-    angular_impulse: Option<&'static ExternalAngularImpulse>,
-    restitution: Option<&'static Restitution>,
-    friction: Option<&'static Friction>,
-    time_sleeping: Option<&'static TimeSleeping>,
-    mass: Option<&'static Mass>,
-    angular_inertia: Option<&'static AngularInertia>,
-    center_of_mass: Option<&'static CenterOfMass>,
-}
-
-/// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
-pub fn warn_missing_mass(
-    mut bodies: Query<
-        (Entity, &RigidBody, Ref<Mass>, Ref<AngularInertia>),
-        Or<(Changed<Mass>, Changed<AngularInertia>)>,
-    >,
-) {
-    for (entity, rb, mass, inertia) in &mut bodies {
-        let is_mass_valid = mass.value().is_finite() && mass.value() >= Scalar::EPSILON;
-        #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.value().is_finite() && inertia.value() >= Scalar::EPSILON;
-        #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.value().is_finite();
-
-        // Warn about dynamic bodies with no mass or inertia
-        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
-            warn!(
-                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
-                entity
-            );
-        }
-    }
-}
-
 /// Clamps coefficients of [restitution](Restitution) to be between 0.0 and 1.0.
 fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
     for mut restitution in &mut query {
         restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
-    }
-}
-
-/// Clamps [`ColliderDensity`] to be above 0.0.
-fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
-    for mut density in &mut query {
-        density.0 = density.max(Scalar::EPSILON);
     }
 }
 

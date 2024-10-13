@@ -11,6 +11,7 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
     prelude::*,
 };
+use mass_properties::OnChangeColliderMassProperties;
 
 /// A plugin for handling generic collider backend logic.
 ///
@@ -278,10 +279,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 (
                     update_collider_scale::<C>,
                     update_collider_mass_properties::<C>,
+                    update_previous_collider_transforms,
                 )
                     .chain()
                     .in_set(PrepareSet::Finalize)
-                    .before(crate::prepare::warn_missing_mass),
+                    .before(crate::dynamics::rigid_body::mass_properties::warn_missing_mass),
             ),
         );
 
@@ -721,12 +723,10 @@ fn collider_removed(
 /// Updates the mass properties of [`Collider`]s and [collider parents](ColliderParent).
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
-    mut mass_props: Query<(Entity, MassPropertiesQuery)>,
-    mut colliders: Query<
+    mut commands: Commands,
+    mut query: Query<
         (
-            &ColliderTransform,
-            &mut PreviousColliderTransform,
-            &ColliderParent,
+            Entity,
             Ref<C>,
             &ColliderDensity,
             &mut ColliderMassProperties,
@@ -742,31 +742,29 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
         ),
     >,
 ) {
-    for (
-        collider_transform,
-        mut previous_collider_transform,
-        collider_parent,
-        collider,
-        density,
-        mut collider_mass_properties,
-    ) in &mut colliders
-    {
-        if let Ok((_, mut mass_properties)) = mass_props.get_mut(collider_parent.0) {
-            // Subtract previous collider mass props from the body's own mass props.
-            // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
-            if !collider.is_added() {
-                mass_properties -=
-                    collider_mass_properties.transformed_by(&previous_collider_transform);
-            }
+    for (entity, collider, density, mut collider_mass_properties) in &mut query {
+        // Subtract previous collider mass props from the body's own mass props.
+        // If the collider is new, it doesn't have previous mass props, so we shouldn't subtract anything.
+        let previous = if !collider.is_added() {
+            *collider_mass_properties
+        } else {
+            ColliderMassProperties::ZERO
+        };
 
-            previous_collider_transform.0 = *collider_transform;
+        // Update collider mass props.
+        *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
-            // Update collider mass props.
-            *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
+        let current = *collider_mass_properties;
+        commands.trigger_targets(OnChangeColliderMassProperties { previous, current }, entity);
+    }
+}
 
-            // Add new collider mass props to the body's mass props.
-            mass_properties += collider_mass_properties.transformed_by(collider_transform);
-        }
+/// Updates the [`PreviousColliderTransform`] component for colliders.
+pub(crate) fn update_previous_collider_transforms(
+    mut query: Query<(&ColliderTransform, &mut PreviousColliderTransform)>,
+) {
+    for (collider_transform, mut previous_collider_transform) in &mut query {
+        previous_collider_transform.0 = *collider_transform;
     }
 }
 
