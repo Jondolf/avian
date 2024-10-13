@@ -479,7 +479,7 @@ pub mod prelude {
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         position::{Position, Rotation},
-        prepare::{init_transforms, warn_missing_mass, PrepareConfig, PreparePlugin},
+        prepare::{init_transforms, PrepareConfig, PreparePlugin},
         schedule::*,
         spatial_query::{self, *},
         sync::SyncPlugin,
@@ -513,6 +513,7 @@ use prelude::*;
 /// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
 /// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
 /// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
+/// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
 /// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
@@ -709,6 +710,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsSchedulePlugin::new(self.schedule))
             .add(PhysicsTypeRegistrationPlugin)
             .add(PreparePlugin::new(self.schedule))
+            .add(MassPropertyPlugin::new(self.schedule))
             .add(ColliderHierarchyPlugin::new(self.schedule));
 
         #[cfg(all(

@@ -62,7 +62,7 @@ impl Plugin for IntegratorPlugin {
         #[cfg(feature = "3d")]
         app.add_systems(
             self.schedule.intern(),
-            crate::prepare::update_global_angular_inertia::<()>
+            dynamics::rigid_body::mass_properties::update_global_angular_inertia::<()>
                 .in_set(IntegrationSet::Position)
                 .after(integrate_positions),
         );

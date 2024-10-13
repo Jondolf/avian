@@ -1,14 +1,14 @@
 //! Common components and bundles for rigid bodies.
 
+pub mod mass_properties;
+
 // Components
 mod forces;
 mod locked_axes;
-mod mass_properties;
 mod world_query;
 
 pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
-pub use mass_properties::*;
 pub use world_query::*;
 
 #[cfg(feature = "2d")]
