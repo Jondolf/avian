@@ -154,7 +154,8 @@ impl ExternalForce {
         self
     }
 
-    /// Applies the given world-space `force` at a local `point`, which will also cause torque to be applied.
+    /// Applies the given `force` at the specified `point`, which will also cause torque to be applied.
+    /// The force, the point, and the center of mass must be given in world-space.
     pub fn apply_force_at_point(
         &mut self,
         force: Vector,
