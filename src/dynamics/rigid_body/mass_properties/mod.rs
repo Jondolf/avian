@@ -58,8 +58,16 @@ impl Plugin for MassPropertyPlugin {
 
                 if let Ok(mut mass_props) = mass_properties.get_mut(collider_parent.get()) {
                     let event = trigger.event();
-                    mass_props -= event.previous.transformed_by(previous_collider_transform);
-                    mass_props += event.current.transformed_by(collider_transform);
+
+                    // Subtract the collider's previous mass properties, if any.
+                    if let Some(previous) = event.previous {
+                        mass_props -= previous.transformed_by(previous_collider_transform);
+                    }
+
+                    // Add the collider's current mass properties, if any.
+                    if let Some(current) = event.current {
+                        mass_props += current.transformed_by(collider_transform);
+                    }
                 }
             },
         );
@@ -84,9 +92,9 @@ impl Plugin for MassPropertyPlugin {
 #[derive(Event)]
 pub struct OnChangeColliderMassProperties {
     /// The previous mass properties of the collider.
-    pub previous: ColliderMassProperties,
+    pub previous: Option<ColliderMassProperties>,
     /// The current mass properties of the collider.
-    pub current: ColliderMassProperties,
+    pub current: Option<ColliderMassProperties>,
 }
 
 /// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
