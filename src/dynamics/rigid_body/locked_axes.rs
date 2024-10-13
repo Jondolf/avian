@@ -223,28 +223,40 @@ impl LockedAxes {
         vector
     }
 
-    /// Sets the given rotation to zero if rotational axes are locked.
+    /// Sets the given angular inertia to zero if rotational axes are locked.
     #[cfg(feature = "2d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Scalar) -> Scalar {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<AngularInertia>,
+    ) -> AngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+
         if self.is_rotation_locked() {
-            rotation = 0.0;
+            *angular_inertia.inverse_mut() = 0.0;
         }
-        rotation
+
+        angular_inertia
     }
 
-    /// Sets rotational axes of the given 3x3 matrix to zero based on the [`LockedAxes`] configuration.
+    /// Sets axes of the given angular inertia to zero based on the [`LockedAxes`] configuration.
     #[cfg(feature = "3d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Matrix3) -> Matrix3 {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<AngularInertia>,
+    ) -> AngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+
         if self.is_rotation_x_locked() {
-            rotation.x_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().x_axis = Vector::ZERO;
         }
         if self.is_rotation_y_locked() {
-            rotation.y_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().y_axis = Vector::ZERO;
         }
         if self.is_rotation_z_locked() {
-            rotation.z_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().z_axis = Vector::ZERO;
         }
-        rotation
+
+        angular_inertia
     }
 
     /// Sets the given angular velocity to zero if rotational axes are locked.

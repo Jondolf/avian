@@ -281,7 +281,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 )
                     .chain()
                     .in_set(PrepareSet::Finalize)
-                    .before(crate::prepare::update_mass_properties),
+                    .before(crate::prepare::warn_missing_mass),
             ),
         );
 
@@ -553,7 +553,12 @@ fn update_aabb<C: AnyCollider>(
         )>,
     >,
     parent_velocity: Query<
-        (&Position, Option<&LinearVelocity>, Option<&AngularVelocity>),
+        (
+            &Position,
+            &CenterOfMass,
+            Option<&LinearVelocity>,
+            Option<&AngularVelocity>,
+        ),
         With<Children>,
     >,
     narrow_phase_config: Res<NarrowPhaseConfig>,
@@ -594,7 +599,7 @@ fn update_aabb<C: AnyCollider>(
         // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Some(Ok((parent_pos, Some(lin_vel), Some(ang_vel)))) =
+        } else if let Some(Ok((parent_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
             collider_parent.map(|p| parent_velocity.get(p.get()))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
@@ -603,7 +608,7 @@ fn update_aabb<C: AnyCollider>(
             // TODO: This assumes that the colliders would continue moving in the same direction,
             //       but because they are orbiting, the direction will change. We should take
             //       into account the uniform circular motion.
-            let offset = pos.0 - parent_pos.0;
+            let offset = pos.0 - parent_pos.0 - center_of_mass.0;
             #[cfg(feature = "2d")]
             let vel_at_offset =
                 lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
@@ -702,9 +707,8 @@ fn collider_removed(
     if let Ok((mut mass_properties, mut time_sleeping)) = mass_prop_query.get_mut(parent) {
         // Subtract the mass properties of the collider from the mass properties of the rigid body.
         mass_properties -= ColliderMassProperties {
-            center_of_mass: CenterOfMass(
-                collider_transform.transform_point(collider_mass_props.center_of_mass.0),
-            ),
+            center_of_mass: collider_transform.transform_point(collider_mass_props.center_of_mass),
+
             ..collider_mass_props
         };
 
@@ -814,8 +818,8 @@ mod tests {
                 .entity(parent)
                 .get::<Mass>()
                 .expect("rigid body should have mass")
-                .0,
-            2.0 * mass_properties.mass.0,
+                .value(),
+            2.0 * mass_properties.mass.value(),
         );
         assert!(
             app.world()
@@ -836,8 +840,8 @@ mod tests {
                 .entity(parent)
                 .get::<Mass>()
                 .expect("rigid body should have mass")
-                .0,
-            mass_properties.mass.0,
+                .value(),
+            mass_properties.mass.value(),
         );
         assert!(
             app.world()
@@ -858,8 +862,8 @@ mod tests {
                 .entity(parent)
                 .get::<Mass>()
                 .expect("rigid body should have mass")
-                .0,
-            2.0 * mass_properties.mass.0,
+                .value(),
+            2.0 * mass_properties.mass.value(),
         );
         assert!(
             app.world()

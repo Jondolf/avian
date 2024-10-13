@@ -117,7 +117,7 @@
 //!
 //! **Note**: In the following theory, primarily the word "particle" is used, but the same logic applies to normal
 //! [rigid bodies](RigidBody) as well. However, unlike particles, rigid bodies can also have angular quantities such as
-//! [rotation](Rotation) and [angular inertia](Inertia), so constraints can also affect their orientation. This is explained
+//! [rotation](Rotation) and [angular inertia](AngularInertia), so constraints can also affect their orientation. This is explained
 //! in more detail [at the end](#rigid-body-constraints).
 //!
 //! ### Constraint functions
@@ -182,7 +182,7 @@
 //! ### Rigid body constraints
 //!
 //! Unlike particles, [rigid bodies](RigidBody) also have angular quantities like [rotation](Rotation),
-//! [angular velocity](AngularVelocity) and [angular inertia](Inertia). In addition, constraints can be applied at specific
+//! [angular velocity](AngularVelocity) and [angular inertia](AngularInertia). In addition, constraints can be applied at specific
 //! points in the body, like contact positions or joint attachment positions, which also affects the orientation.
 //!
 //! When the constraint is not applied at the center of mass, the inverse mass in the computation of `Δλ` must
@@ -195,7 +195,7 @@
 //! w_i = 1 / m_i + (r_i x ▽C_i)^T * I_i^-1 * (r_i x ▽C_i)
 //! ```
 //!
-//! where `m_i` is the [mass](Mass) of body `i`, `I_i^-1` is the [inverse inertia tensor](InverseInertia), and `^T` refers to the
+//! where `m_i` is the [mass](Mass) of body `i`, `I_i^-1` is the inverse [angular inertia tensor](AngularInertia), and `^T` refers to the
 //! transpose of a vector. Note that the value of the inertia tensor depends on the orientation of the body, so it should be
 //! recomputed each time the constraint is solved.
 //!

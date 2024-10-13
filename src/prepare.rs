@@ -113,10 +113,8 @@ impl Plugin for PreparePlugin {
                 let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
                 let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
 
-                let mass = entity_ref.get::<Mass>().copied();
-                let inverse_mass = entity_ref.get::<InverseMass>().copied();
-                let inertia = entity_ref.get::<Inertia>().copied();
-                let inverse_inertia = entity_ref.get::<InverseInertia>().copied();
+                let mass = *entity_ref.get::<Mass>().unwrap_or(&default());
+                let angular_inertia = *entity_ref.get::<AngularInertia>().unwrap_or(&default());
                 let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
 
                 let mut commands = world.commands();
@@ -138,17 +136,10 @@ impl Plugin for PreparePlugin {
                 ));
 
                 entity_commands.try_insert((
-                    mass.unwrap_or(Mass(
-                        inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-                    )),
-                    inverse_mass.unwrap_or(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
-                    inertia.unwrap_or(
-                        inverse_inertia
-                            .map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-                    ),
-                    inverse_inertia.unwrap_or(
-                        inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()),
-                    ),
+                    mass,
+                    angular_inertia,
+                    #[cfg(feature = "3d")]
+                    GlobalAngularInertia::default(),
                     center_of_mass,
                 ));
             });
@@ -172,7 +163,10 @@ impl Plugin for PreparePlugin {
         .add_systems(
             self.schedule,
             (
-                update_mass_properties,
+                warn_missing_mass,
+                #[cfg(feature = "3d")]
+                update_global_angular_inertia::<Added<RigidBody>>
+                    .run_if(match_any::<Added<RigidBody>>),
                 clamp_collider_density,
                 clamp_restitution,
                 // All the components we added above must exist before we can simulate the bodies.
@@ -416,6 +410,21 @@ pub fn init_transforms<C: Component>(
     }
 }
 
+/// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
+#[cfg(feature = "3d")]
+pub fn update_global_angular_inertia<F: QueryFilter>(
+    mut query: Query<
+        (&Rotation, &AngularInertia, &mut GlobalAngularInertia),
+        (Or<(Changed<AngularInertia>, Changed<Rotation>)>, F),
+    >,
+) {
+    query
+        .par_iter_mut()
+        .for_each(|(rotation, angular_inertia, mut global_angular_inertia)| {
+            global_angular_inertia.update(*angular_inertia, rotation.0);
+        });
+}
+
 #[derive(QueryData)]
 struct RigidBodyInitializationQuery {
     lin_vel: Option<&'static LinearVelocity>,
@@ -428,39 +437,23 @@ struct RigidBodyInitializationQuery {
     friction: Option<&'static Friction>,
     time_sleeping: Option<&'static TimeSleeping>,
     mass: Option<&'static Mass>,
-    inverse_mass: Option<&'static InverseMass>,
-    inertia: Option<&'static Inertia>,
-    inverse_inertia: Option<&'static InverseInertia>,
+    angular_inertia: Option<&'static AngularInertia>,
     center_of_mass: Option<&'static CenterOfMass>,
 }
 
-/// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.
-pub fn update_mass_properties(
+/// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
+pub fn warn_missing_mass(
     mut bodies: Query<
-        (
-            Entity,
-            &RigidBody,
-            Ref<Mass>,
-            &mut InverseMass,
-            Ref<Inertia>,
-            &mut InverseInertia,
-        ),
-        Or<(Changed<Mass>, Changed<Inertia>)>,
+        (Entity, &RigidBody, Ref<Mass>, Ref<AngularInertia>),
+        Or<(Changed<Mass>, Changed<AngularInertia>)>,
     >,
 ) {
-    for (entity, rb, mass, mut inv_mass, inertia, mut inv_inertia) in &mut bodies {
-        let is_mass_valid = mass.is_finite() && mass.0 >= Scalar::EPSILON;
+    for (entity, rb, mass, inertia) in &mut bodies {
+        let is_mass_valid = mass.value().is_finite() && mass.value() >= Scalar::EPSILON;
         #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.is_finite() && inertia.0 >= Scalar::EPSILON;
+        let is_inertia_valid = inertia.value().is_finite() && inertia.value() >= Scalar::EPSILON;
         #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.is_finite() && *inertia != Inertia::ZERO;
-
-        if mass.is_changed() && is_mass_valid {
-            inv_mass.0 = 1.0 / mass.0;
-        }
-        if inertia.is_changed() && is_inertia_valid {
-            inv_inertia.0 = inertia.inverse().0;
-        }
+        let is_inertia_valid = inertia.value().is_finite();
 
         // Warn about dynamic bodies with no mass or inertia
         if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {

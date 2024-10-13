@@ -2,12 +2,6 @@
 
 use crate::prelude::*;
 
-#[cfg(feature = "3d")]
-pub(crate) fn get_rotated_inertia_tensor(inertia_tensor: Matrix3, rot: Quaternion) -> Matrix3 {
-    let rot_mat3 = Matrix3::from_quat(rot);
-    (rot_mat3 * inertia_tensor) * rot_mat3.transpose()
-}
-
 /// Computes translation of `Position` based on center of mass rotation and translation
 pub(crate) fn get_pos_translation(
     com_translation: &AccumulatedTranslation,

@@ -60,7 +60,7 @@ use derive_more::From;
 /// - [`Friction`]
 /// - [`Restitution`]
 /// - [`Mass`]
-/// - [`Inertia`]
+/// - [`AngularInertia`]
 /// - [`CenterOfMass`]
 ///
 /// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
@@ -121,7 +121,7 @@ use derive_more::From;
 ///
 /// ## Mass properties
 ///
-/// The mass properties of a rigid body consist of its [`Mass`], [`Inertia`]
+/// The mass properties of a rigid body consist of its [`Mass`], [`AngularInertia`]
 /// and local [`CenterOfMass`]. They control how forces and torques impact a rigid body
 /// and how it affects other bodies.
 ///
@@ -207,7 +207,7 @@ use derive_more::From;
 #[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
 ///     ColliderDensity(0.0),
-///     Mass(5.0),
+///     Mass::new(5.0),
 ///     // ...the rest of the mass properties
 /// ));
 /// # }
