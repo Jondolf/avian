@@ -89,7 +89,7 @@ impl PhysicsDebugPlugin {
 
 impl Default for PhysicsDebugPlugin {
     fn default() -> Self {
-        Self::new(FixedPostUpdate)
+        Self::new(PostUpdate)
     }
 }
 
