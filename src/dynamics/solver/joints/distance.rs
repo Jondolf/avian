@@ -25,10 +25,8 @@ pub struct DistanceJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
-    /// The distance the attached bodies will be kept relative to each other.
-    pub rest_length: Scalar,
     /// The extents of the allowed relative translation between the attached bodies.
-    pub length_limits: Option<DistanceLimit>,
+    pub length_limits: DistanceLimit,
     /// Linear damping applied by the joint.
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
@@ -62,8 +60,7 @@ impl Joint for DistanceJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
-            rest_length: 0.0,
-            length_limits: None,
+            length_limits: DistanceLimit::ZERO,
             damping_linear: 0.0,
             damping_angular: 0.0,
             lagrange: 0.0,
@@ -132,9 +129,7 @@ impl DistanceJoint {
 
         // If min and max limits aren't specified, use rest length
         // TODO: Remove rest length, just use min/max limits.
-        let limits = self
-            .length_limits
-            .unwrap_or(DistanceLimit::new(self.rest_length, self.rest_length));
+        let limits = self.length_limits;
 
         // Compute the direction and magnitude of the positional correction required
         // to keep the bodies within a certain distance from each other.
@@ -172,18 +167,28 @@ impl DistanceJoint {
         self.compute_force(self.lagrange, dir, dt)
     }
 
-    /// Sets the minimum and maximum distances between the attached bodies.
-    pub fn with_limits(self, min: Scalar, max: Scalar) -> Self {
+    /// Returns self with the minimum and maximum distances between the attached
+    /// bodies.
+    ///
+    /// ```
+    /// # #[cfg(feature = "2d")]
+    /// # use avian2d::prelude::*;
+    /// # #[cfg(feature = "3d")]
+    /// # use avian3d::prelude::*;
+    /// # use bevy::prelude::*;
+    /// # fn new_joint() -> DistanceJoint { DistanceJoint::new(Entity::PLACEHOLDER, Entity::PLACEHOLDER) }
+    /// let j: DistanceJoint = new_joint();
+    /// let a = j.with_length_limits(DistanceLimit { min: 0.0, max: 1.0 });
+    /// let b = j.with_length_limits((0.0, 1.0));
+    /// assert_eq!(a, b);
+    ///
+    /// let c = j.with_length_limits(DistanceLimit { min: 0.5, max: 0.5 });
+    /// let d = j.with_length_limits(0.5);
+    /// assert_eq!(c, d);
+    /// ```
+    pub fn with_length_limits(self, limit: impl Into<DistanceLimit>) -> Self {
         Self {
-            length_limits: Some(DistanceLimit::new(min, max)),
-            ..self
-        }
-    }
-
-    /// Sets the joint's rest length, or distance the bodies will be kept at.
-    pub fn with_rest_length(self, rest_length: Scalar) -> Self {
-        Self {
-            rest_length,
+            length_limits: limit.into(),
             ..self
         }
     }
