@@ -222,6 +222,7 @@ use derive_more::From;
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
 /// - [Continuous Collision Detection](dynamics::ccd)
+/// - [Temporarily disabling a rigid body](RigidBodyDisabled)
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -278,6 +279,37 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 ///
 /// Note that this component does *not* disable collision detection or spatial queries for colliders
 /// attached to the rigid body.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// #[derive(Component)]
+/// pub struct Character;
+///
+/// /// Disables physics for all rigid body characters, for example during cutscenes.
+/// fn disable_character_physics(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).insert(RigidBodyDisabled);
+///     }
+/// }
+///
+/// /// Enables physics for all rigid body characters.
+/// fn enable_character_physics(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).remove::<RigidBodyDisabled>();
+///     }
+/// }
+/// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
