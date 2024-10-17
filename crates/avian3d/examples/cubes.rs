@@ -10,12 +10,11 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
-        .add_systems(Update, (movement, disable))
+        .add_systems(Update, movement)
         .run();
 }
 
@@ -108,24 +107,6 @@ fn movement(
         if direction != Vector::ZERO {
             linear_velocity.x += direction.x * movement_acceleration.0 * delta_time;
             linear_velocity.z += direction.z * movement_acceleration.0 * delta_time;
-        }
-    }
-}
-
-fn disable(
-    mut commands: Commands,
-    query: Query<(Entity, &RigidBody, Has<RigidBodyDisabled>)>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        for (entity, rigid_body, is_disabled) in &query {
-            if rigid_body.is_static() {
-                if is_disabled {
-                    commands.entity(entity).remove::<RigidBodyDisabled>();
-                } else {
-                    commands.entity(entity).insert(RigidBodyDisabled);
-                }
-            }
         }
     }
 }
