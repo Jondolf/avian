@@ -151,7 +151,7 @@ impl Plugin for SolverPlugin {
         // Solve velocities using a position bias.
         substeps.add_systems(
             (
-                |mut bodies: Query<RigidBodyQuery>,
+                |mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
                  mut constraints: ResMut<ContactConstraints>,
                  solver_config: Res<SolverConfig>,
                  length_unit: Res<PhysicsLengthUnit>,
@@ -173,7 +173,7 @@ impl Plugin for SolverPlugin {
         // This reduces overshooting caused by warm starting.
         substeps.add_systems(
             (
-                |mut bodies: Query<RigidBodyQuery>,
+                |mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
                  mut constraints: ResMut<ContactConstraints>,
                  solver_config: Res<SolverConfig>,
                  length_unit: Res<PhysicsLengthUnit>,
@@ -194,12 +194,15 @@ impl Plugin for SolverPlugin {
         // Solve joints with XPBD.
         substeps.add_systems(
             (
-                |mut query: Query<(
-                    &AccumulatedTranslation,
-                    &mut PreSolveAccumulatedTranslation,
-                    &Rotation,
-                    &mut PreSolveRotation,
-                )>| {
+                |mut query: Query<
+                    (
+                        &AccumulatedTranslation,
+                        &mut PreSolveAccumulatedTranslation,
+                        &Rotation,
+                        &mut PreSolveRotation,
+                    ),
+                    Without<RigidBodyDisabled>,
+                >| {
                     for (translation, mut pre_solve_translation, rotation, mut previous_rotation) in
                         &mut query
                     {
@@ -502,7 +505,7 @@ pub struct ContactConstraints(pub Vec<ContactConstraint>);
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start(
-    mut bodies: Query<RigidBodyQuery>,
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
 ) {
@@ -544,7 +547,7 @@ fn warm_start(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_contacts(
-    bodies: &mut Query<RigidBodyQuery>,
+    bodies: &mut Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     constraints: &mut [ContactConstraint],
     delta_secs: Scalar,
     iterations: usize,
@@ -580,7 +583,7 @@ fn solve_contacts(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_restitution(
-    mut bodies: Query<RigidBodyQuery>,
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -681,7 +684,7 @@ pub fn joint_damping<T: Joint>(
             &Mass,
             Option<&Dominance>,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     joints: Query<&T, Without<RigidBody>>,
     time: Res<Time>,

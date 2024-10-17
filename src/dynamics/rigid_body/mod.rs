@@ -266,6 +266,24 @@ impl RigidBody {
     }
 }
 
+/// A query filter that selects rigid bodies that are neither disabled nor sleeping.
+pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sleeping>);
+
+/// A marker component that indicates that a [rigid body](RigidBody) is disabled
+/// and should not participate in the simulation. Disables velocity, forces, contact response,
+/// and attached joints.
+///
+/// This is useful for temporarily disabling a body without removing it from the world.
+/// To re-enable the body, simply remove the component.
+///
+/// Note that this component does *not* disable collision detection or spatial queries for colliders
+/// attached to the rigid body.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct RigidBodyDisabled;
+
 /// Indicates that a [rigid body](RigidBody) is not simulated by the physics engine until woken up again.
 /// This is done to improve performance and to help prevent small jitter that is typically present in collisions.
 ///
