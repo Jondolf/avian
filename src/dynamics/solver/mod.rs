@@ -149,47 +149,11 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(warm_start.in_set(SubstepSolverSet::WarmStart));
 
         // Solve velocities using a position bias.
-        substeps.add_systems(
-            (
-                |mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-                 mut constraints: ResMut<ContactConstraints>,
-                 solver_config: Res<SolverConfig>,
-                 length_unit: Res<PhysicsLengthUnit>,
-                 time: Res<Time>| {
-                    solve_contacts(
-                        &mut bodies,
-                        &mut constraints.0,
-                        time.delta_seconds_adjusted(),
-                        1,
-                        true,
-                        solver_config.max_overlap_solve_speed * length_unit.0,
-                    );
-                },
-            )
-                .in_set(SubstepSolverSet::SolveConstraints),
-        );
+        substeps.add_systems(solve_contacts::<true>.in_set(SubstepSolverSet::SolveConstraints));
 
         // Relax biased velocities and impulses.
         // This reduces overshooting caused by warm starting.
-        substeps.add_systems(
-            (
-                |mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-                 mut constraints: ResMut<ContactConstraints>,
-                 solver_config: Res<SolverConfig>,
-                 length_unit: Res<PhysicsLengthUnit>,
-                 time: Res<Time>| {
-                    solve_contacts(
-                        &mut bodies,
-                        &mut constraints.0,
-                        time.delta_seconds_adjusted(),
-                        1,
-                        false,
-                        solver_config.max_overlap_solve_speed * length_unit.0,
-                    );
-                },
-            )
-                .in_set(SubstepSolverSet::Relax),
-        );
+        substeps.add_systems(solve_contacts::<false>.in_set(SubstepSolverSet::Relax));
 
         // Solve joints with XPBD.
         substeps.add_systems(
@@ -546,30 +510,30 @@ fn warm_start(
 /// See [`SubstepSolverSet::SolveConstraints`] and [`SubstepSolverSet::Relax`] for more information.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn solve_contacts(
-    bodies: &mut Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-    constraints: &mut [ContactConstraint],
-    delta_secs: Scalar,
-    iterations: usize,
-    use_bias: bool,
-    max_overlap_solve_speed: Scalar,
+fn solve_contacts<const USE_BIAS: bool>(
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    mut constraints: ResMut<ContactConstraints>,
+    solver_config: Res<SolverConfig>,
+    length_unit: Res<PhysicsLengthUnit>,
+    time: Res<Time>,
 ) {
-    for _ in 0..iterations {
-        for constraint in &mut *constraints {
-            let Ok([mut body1, mut body2]) =
-                bodies.get_many_mut([constraint.entity1, constraint.entity2])
-            else {
-                continue;
-            };
+    let delta_secs = time.delta_seconds_adjusted();
+    let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
-            constraint.solve(
-                &mut body1,
-                &mut body2,
-                delta_secs,
-                use_bias,
-                max_overlap_solve_speed,
-            );
-        }
+    for constraint in &mut constraints.0 {
+        let Ok([mut body1, mut body2]) =
+            bodies.get_many_mut([constraint.entity1, constraint.entity2])
+        else {
+            continue;
+        };
+
+        constraint.solve(
+            &mut body1,
+            &mut body2,
+            delta_secs,
+            USE_BIAS,
+            max_overlap_solve_speed,
+        );
     }
 }
 
