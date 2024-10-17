@@ -350,7 +350,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery>,
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
@@ -405,7 +405,7 @@ pub(super) fn project_linear_velocity(
             &AccumulatedTranslation,
             &mut LinearVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -438,7 +438,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -470,7 +470,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {

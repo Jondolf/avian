@@ -348,6 +348,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
             Option<&'static CollisionMargin>,
             Option<&'static SpeculativeMargin>,
         ),
+        Without<RigidBodyDisabled>,
     >,
     /// Contacts found by the narrow phase.
     pub collisions: ResMut<'w, Collisions>,

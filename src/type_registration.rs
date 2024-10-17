@@ -20,6 +20,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<DeactivationTime>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
+            .register_type::<RigidBodyDisabled>()
             .register_type::<Sleeping>()
             .register_type::<SleepingDisabled>()
             .register_type::<TimeSleeping>()

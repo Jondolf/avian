@@ -165,7 +165,7 @@ struct VelocityIntegrationQuery {
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
-    mut bodies: Query<VelocityIntegrationQuery, Without<Sleeping>>,
+    mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
     gravity: Res<Gravity>,
     time: Res<Time>,
 ) {
@@ -241,7 +241,7 @@ fn integrate_positions(
             &AngularVelocity,
             Option<&LockedAxes>,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -301,7 +301,7 @@ type ImpulseQueryComponents = (
     Option<&'static LockedAxes>,
 );
 
-fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) {
+fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, RigidBodyActiveFilter>) {
     for (
         rb,
         impulse,
