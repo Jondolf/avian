@@ -283,10 +283,16 @@ pub struct ColliderConstructorHierarchyConfig {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[cfg_attr(feature = "collider-from-mesh", derive(Default))]
 #[cfg_attr(feature = "collider-from-mesh", reflect(Default))]
+#[cfg_attr(feature = "2d", derive(Default))]
+#[cfg_attr(feature = "2d", reflect(Default))]
 #[reflect(Debug, Component, PartialEq)]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum ColliderConstructor {
+    /// Constructs a collider with [`Collider::circle`] with radius 1.0 to satisfy the default constructor.
+    #[cfg(feature = "2d")]
+    #[default]
+    UnitCircle,
     /// Constructs a collider with [`Collider::circle`].
     #[cfg(feature = "2d")]
     Circle { radius: Scalar },

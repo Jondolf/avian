@@ -1092,6 +1092,8 @@ impl Collider {
     ) -> Option<Self> {
         match collider_constructor {
             #[cfg(feature = "2d")]
+            ColliderConstructor::UnitCircle => Some(Self::circle(1.0)),
+            #[cfg(feature = "2d")]
             ColliderConstructor::Circle { radius } => Some(Self::circle(radius)),
             #[cfg(feature = "3d")]
             ColliderConstructor::Sphere { radius } => Some(Self::sphere(radius)),
