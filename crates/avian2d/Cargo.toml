@@ -50,8 +50,8 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.15.0-rc.1", default-features = false }
-bevy_math = { version = "0.15.0-rc.1" }
+bevy = { version = "0.15.0-rc", default-features = false }
+bevy_math = { version = "0.15.0-rc" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
@@ -66,7 +66,7 @@ bitflags = "2.5.0"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.15.0-rc.1", features = ["approx"] }
+bevy_math = { version = "0.15.0-rc", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
