@@ -160,7 +160,6 @@ impl From<FillMode> for parry::transformation::voxelization::FillMode {
 /// Flags used for the preprocessing of a triangle mesh collider.
 #[repr(transparent)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
 #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
 #[reflect(opaque, Hash, PartialEq, Debug)]
 pub struct TrimeshFlags(u8);

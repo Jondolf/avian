@@ -50,7 +50,7 @@ impl Shape for EllipseWrapper {
         &self,
         scale: &parry::math::Vector<Scalar>,
         _num_subdivisions: u32,
-    ) -> Option<Box<dyn parry2d::shape::Shape>> {
+    ) -> Option<Box<dyn parry::shape::Shape>> {
         let half_size = Vector::from(*scale) * self.half_size;
         Some(Box::new(EllipseWrapper(Ellipse::new(
             half_size.x,
@@ -324,7 +324,7 @@ impl Shape for RegularPolygonWrapper {
         &self,
         scale: &parry::math::Vector<Scalar>,
         _num_subdivisions: u32,
-    ) -> Option<Box<dyn parry2d::shape::Shape>> {
+    ) -> Option<Box<dyn parry::shape::Shape>> {
         let circumradius = Vector::from(*scale) * self.circumradius();
         Some(Box::new(RegularPolygonWrapper(RegularPolygon::new(
             circumradius.length(),
