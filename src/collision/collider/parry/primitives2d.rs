@@ -1,6 +1,6 @@
 use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
-use super::{Collider, IntoCollider};
+use super::{AsF32, Collider, IntoCollider};
 use bevy::prelude::Deref;
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
@@ -51,7 +51,7 @@ impl Shape for EllipseWrapper {
         scale: &parry::math::Vector<Scalar>,
         _num_subdivisions: u32,
     ) -> Option<Box<dyn parry::shape::Shape>> {
-        let half_size = Vector::from(*scale) * self.half_size;
+        let half_size = Vector::from(*scale).f32() * self.half_size;
         Some(Box::new(EllipseWrapper(Ellipse::new(
             half_size.x,
             half_size.y,
@@ -325,7 +325,7 @@ impl Shape for RegularPolygonWrapper {
         scale: &parry::math::Vector<Scalar>,
         _num_subdivisions: u32,
     ) -> Option<Box<dyn parry::shape::Shape>> {
-        let circumradius = Vector::from(*scale) * self.circumradius();
+        let circumradius = Vector::from(*scale).f32() * self.circumradius();
         Some(Box::new(RegularPolygonWrapper(RegularPolygon::new(
             circumradius.length(),
             self.sides,
