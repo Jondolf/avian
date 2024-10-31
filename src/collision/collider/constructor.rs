@@ -346,7 +346,7 @@ pub enum ColliderConstructor {
     Triangle { a: Vector, b: Vector, c: Vector },
     /// Constructs a collider with [`Collider::regular_polygon`].
     #[cfg(feature = "2d")]
-    RegularPolygon { circumradius: f32, sides: usize },
+    RegularPolygon { circumradius: f32, sides: u32 },
     /// Constructs a collider with [`Collider::polyline`].
     Polyline {
         vertices: Vec<Vector>,
@@ -480,16 +480,16 @@ mod tests {
     fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
-            .spawn((COMPUTED_COLLIDER.clone(), mesh_handle))
+            .spawn((COMPUTED_COLLIDER.clone(), Mesh3d(mesh)))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
@@ -515,18 +515,18 @@ mod tests {
     fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
             .spawn((
                 ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()),
-                mesh_handle,
+                Mesh3d(mesh),
             ))
             .id();
 
         app.update();
 
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
@@ -569,8 +569,8 @@ mod tests {
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
+            .add_children(&[child1, child2]);
+        app.world_mut().entity_mut(child2).add_children(&[child3]);
 
         app.update();
 
@@ -590,7 +590,7 @@ mod tests {
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
-        let mesh_handle = app.add_mesh();
+        let mesh = Mesh3d(app.add_mesh());
 
         // Hierarchy:
         // - parent
@@ -609,19 +609,19 @@ mod tests {
             .id();
         let child1 = app.world_mut().spawn(()).id();
         let child2 = app.world_mut().spawn(()).id();
-        let child3 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child4 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child3 = app.world_mut().spawn(mesh.clone()).id();
+        let child4 = app.world_mut().spawn(mesh.clone()).id();
         let child5 = app.world_mut().spawn(()).id();
-        let child6 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child7 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child8 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child6 = app.world_mut().spawn(mesh.clone()).id();
+        let child7 = app.world_mut().spawn(mesh.clone()).id();
+        let child8 = app.world_mut().spawn(mesh.clone()).id();
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2, child4, child6, child7]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
-        app.world_mut().entity_mut(child4).push_children(&[child5]);
-        app.world_mut().entity_mut(child7).push_children(&[child8]);
+            .add_children(&[child1, child2, child4, child6, child7]);
+        app.world_mut().entity_mut(child2).add_child(child3);
+        app.world_mut().entity_mut(child4).add_child(child5);
+        app.world_mut().entity_mut(child7).add_child(child8);
 
         app.update();
 
@@ -662,10 +662,7 @@ mod tests {
         let hierarchy = app
             .world_mut()
             .spawn((
-                SceneBundle {
-                    scene: scene_handle,
-                    ..default()
-                },
+                SceneRoot(scene_handle),
                 ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
                     .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)

@@ -23,7 +23,7 @@ impl IntoCollider<Collider> for Plane3d {
             rotation * Vector::new(half_size, 0.0, half_size),
         ];
 
-        Collider::trimesh(vertices, vec![[0, 1, 2], [1, 2, 0]])
+        Collider::trimesh(vertices, vec![[0, 1, 2], [1, 2, 0]]).unwrap()
     }
 }
 

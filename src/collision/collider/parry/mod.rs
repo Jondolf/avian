@@ -16,6 +16,8 @@ mod primitives3d;
 #[cfg(feature = "2d")]
 pub(crate) use primitives2d::{EllipseWrapper, RegularPolygonWrapper};
 
+pub use parry::shape::TriMeshBuilderError;
+
 impl<T: IntoCollider<Collider>> From<T> for Collider {
     fn from(value: T) -> Self {
         value.collider()
@@ -157,14 +159,16 @@ impl From<FillMode> for parry::transformation::voxelization::FillMode {
     }
 }
 
+/// Flags used for the preprocessing of a triangle mesh collider.
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct TrimeshFlags(u8);
+
 bitflags::bitflags! {
-    /// Flags used for the preprocessing of a triangle mesh collider.
-    #[repr(transparent)]
-    #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
-    #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
-    #[reflect_value(Hash, PartialEq, Debug)]
-    pub struct  TrimeshFlags: u8 {
+    impl TrimeshFlags: u8 {
         /// If set, the half-edge topology of the trimesh will be computed if possible.
         const HALF_EDGE_TOPOLOGY = 0b0000_0001;
         /// If set, the half-edge topology and connected components of the trimesh will be computed if possible.
@@ -365,7 +369,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// or [`Collider::shape_scaled()`] methods.
 ///
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collider {
     /// The raw unscaled collider shape.
@@ -398,42 +402,6 @@ impl Default for Collider {
         #[cfg(feature = "3d")]
         {
             Self::cuboid(0.5, 0.5, 0.5)
-        }
-    }
-}
-
-impl std::fmt::Debug for Collider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.shape_scaled().as_typed_shape() {
-            TypedShape::Ball(shape) => write!(f, "{:?}", shape),
-            TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::Capsule(shape) => write!(f, "{:?}", shape),
-            TypedShape::Segment(shape) => write!(f, "{:?}", shape),
-            TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
-            TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
-            TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
-            TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
-            TypedShape::Compound(_) => write!(f, "Compound (not representable)"),
-            TypedShape::Custom(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::ConvexPolygon(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
         }
     }
 }
@@ -781,7 +749,7 @@ impl Collider {
 
     /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
     #[cfg(feature = "2d")]
-    pub fn regular_polygon(circumradius: f32, sides: usize) -> Self {
+    pub fn regular_polygon(circumradius: f32, sides: u32) -> Self {
         RegularPolygon::new(circumradius, sides).collider()
     }
 
@@ -797,9 +765,12 @@ impl Collider {
     ///
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
-    pub fn trimesh(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
+    pub fn trimesh(
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+    ) -> Result<Self, TriMeshBuilderError> {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        SharedShape::trimesh(vertices, indices).into()
+        SharedShape::trimesh(vertices, indices).map(Into::into)
     }
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
@@ -813,9 +784,9 @@ impl Collider {
         vertices: Vec<Vector>,
         indices: Vec<[u32; 3]>,
         flags: TrimeshFlags,
-    ) -> Self {
+    ) -> Result<Self, TriMeshBuilderError> {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
+        SharedShape::trimesh_with_flags(vertices, indices, flags.into()).map(Into::into)
     }
 
     /// Creates a collider shape with a compound shape obtained from the decomposition of a given polyline
@@ -940,13 +911,14 @@ impl Collider {
     /// ```
     #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh(mesh: &Mesh) -> Option<Self> {
-        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
+        extract_mesh_vertices_indices(mesh).and_then(|(vertices, indices)| {
             SharedShape::trimesh_with_flags(
                 vertices,
                 indices,
                 TrimeshFlags::MERGE_DUPLICATE_VERTICES.into(),
             )
-            .into()
+            .ok()
+            .map(Into::into)
         })
     }
 
@@ -977,8 +949,10 @@ impl Collider {
     /// ```
     #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh_with_config(mesh: &Mesh, flags: TrimeshFlags) -> Option<Self> {
-        extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
-            SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
+        extract_mesh_vertices_indices(mesh).and_then(|(vertices, indices)| {
+            SharedShape::trimesh_with_flags(vertices, indices, flags.into())
+                .ok()
+                .map(Into::into)
         })
     }
 
@@ -1152,13 +1126,13 @@ impl Collider {
                 Some(Self::polyline(vertices, indices))
             }
             ColliderConstructor::Trimesh { vertices, indices } => {
-                Some(Self::trimesh(vertices, indices))
+                Self::trimesh(vertices, indices).ok()
             }
             ColliderConstructor::TrimeshWithConfig {
                 vertices,
                 indices,
                 flags,
-            } => Some(Self::trimesh_with_config(vertices, indices, flags)),
+            } => Self::trimesh_with_config(vertices, indices, flags).ok(),
             #[cfg(feature = "2d")]
             ColliderConstructor::ConvexDecomposition { vertices, indices } => {
                 Some(Self::convex_decomposition(vertices, indices))
@@ -1422,16 +1396,15 @@ fn scale_shape(
             }
             Ok(SharedShape::compound(scaled))
         }
-        TypedShape::Custom(_id) => {
+        TypedShape::Custom(_shape) => {
             #[cfg(feature = "2d")]
-            if _id == 1 {
-                if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
+            {
+                if let Some(ellipse) = _shape.as_shape::<EllipseWrapper>() {
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
                         half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
-            } else if _id == 2 {
-                if let Some(polygon) = shape.as_shape::<RegularPolygonWrapper>() {
+                if let Some(polygon) = _shape.as_shape::<RegularPolygonWrapper>() {
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonWrapper(
                             RegularPolygon::new(

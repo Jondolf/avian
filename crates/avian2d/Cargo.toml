@@ -50,13 +50,13 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.14", default-features = false }
-bevy_math = { version = "0.14" }
+bevy = { version = "0.15.0-rc.1", default-features = false }
+bevy_math = { version = "0.15.0-rc.1" }
 libm = { version = "0.2", optional = true }
-parry2d = { version = "0.15", optional = true }
-parry2d-f64 = { version = "0.15", optional = true }
-nalgebra = { version = "0.32.6", features = [
-    "convert-glam027",
+parry2d = { git = "https://github.com/Jondolf/parry.git", branch = "update_nalgebra", optional = true }
+parry2d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update_nalgebra", optional = true }
+nalgebra = { git = "https://github.com/waywardmonkeys/nalgebra", branch = "support-glam-0.29", features = [
+    "convert-glam029",
 ], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
@@ -68,7 +68,7 @@ bitflags = "2.5.0"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.14", features = ["approx"] }
+bevy_math = { version = "0.15.0-rc.1", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
