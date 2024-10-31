@@ -62,11 +62,9 @@ avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15.0-rc.1", default-features = false }
 bevy_math = { version = "0.15.0-rc.1" }
 libm = { version = "0.2", optional = true }
-parry3d = { git = "https://github.com/Jondolf/parry.git", branch = "update_nalgebra", optional = true }
-parry3d-f64 = { git = "https://github.com/Jondolf/parry.git", branch = "update_nalgebra", optional = true }
-nalgebra = { git = "https://github.com/waywardmonkeys/nalgebra", branch = "support-glam-0.29", features = [
-    "convert-glam029",
-], optional = true }
+parry3d = { version = "0.17", optional = true }
+parry3d-f64 = { version = "0.17", optional = true }
+nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "0.99"
 indexmap = "2.0.0"
@@ -84,7 +82,7 @@ bevy_math = { version = "0.15.0-rc.1", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 insta = "1.0"
-bevy_mod_debugdump = "0.11"
+bevy_mod_debugdump = { git = "https://github.com/andriyDev/bevy_mod_debugdump", branch = "bevy-0.15" }
 
 [[example]]
 name = "dynamic_character_3d"

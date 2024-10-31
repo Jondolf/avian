@@ -10,7 +10,6 @@ fn main() {
             PhysicsPlugins::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
         .insert_resource(SubstepCount(50))
         .add_systems(Startup, setup)
         .run();
@@ -27,11 +26,8 @@ fn setup(
     // Kinematic rotating "anchor" object
     let anchor = commands
         .spawn((
-            PbrBundle {
-                mesh: cube_mesh.clone(),
-                material: cube_material.clone(),
-                ..default()
-            },
+            Mesh3d(cube_mesh.clone()),
+            MeshMaterial3d(cube_material.clone()),
             RigidBody::Kinematic,
             AngularVelocity(Vector::Z * 1.5),
         ))
@@ -40,12 +36,9 @@ fn setup(
     // Dynamic object rotating around anchor
     let object = commands
         .spawn((
-            PbrBundle {
-                mesh: cube_mesh,
-                material: cube_material,
-                transform: Transform::from_xyz(1.5, 0.0, 0.0),
-                ..default()
-            },
+            Mesh3d(cube_mesh),
+            MeshMaterial3d(cube_material),
+            Transform::from_xyz(1.5, 0.0, 0.0),
             RigidBody::Dynamic,
             MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
@@ -60,19 +53,18 @@ fn setup(
     );
 
     // Directional light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
+    commands.spawn((
+        DirectionalLight {
             illuminance: 2000.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
-        ..default()
-    });
+        Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::Z * 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::Z * 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }
