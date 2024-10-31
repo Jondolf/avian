@@ -652,7 +652,16 @@ mod tests {
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
+        #[derive(Resource)]
+        struct SceneReady;
+
         let mut app = create_gltf_test_app();
+
+        app.add_observer(
+            |_trigger: Trigger<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
+                commands.insert_resource(SceneReady);
+            },
+        );
 
         let scene_handle = app
             .world_mut()
@@ -673,11 +682,10 @@ mod tests {
             ))
             .id();
 
-        while app
-            .world()
-            .resource::<Events<bevy::scene::SceneInstanceReady>>()
-            .is_empty()
-        {
+        for _ in 0..1000 {
+            if app.world().contains_resource::<SceneReady>() {
+                break;
+            }
             app.update();
         }
         app.update();
