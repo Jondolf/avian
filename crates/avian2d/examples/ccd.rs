@@ -147,8 +147,20 @@ fn spawn_balls(
 }
 
 fn update_config(
-    speculative_collision_text: Single<&mut Text, With<SpeculativeCollisionEnabledText>>,
-    swept_ccd_mode_text: Single<&mut Text, With<SweptCcdModeText>>,
+    speculative_collision_text: Single<
+        &mut TextSpan,
+        (
+            With<SpeculativeCollisionEnabledText>,
+            Without<SweptCcdModeText>,
+        ),
+    >,
+    swept_ccd_mode_text: Single<
+        &mut TextSpan,
+        (
+            With<SweptCcdModeText>,
+            Without<SpeculativeCollisionEnabledText>,
+        ),
+    >,
     keys: Res<ButtonInput<KeyCode>>,
     mut narrow_phase_config: ResMut<NarrowPhaseConfig>,
     mut ccd_bodies: Query<&mut SweptCcd>,
