@@ -25,8 +25,8 @@ pub struct RigidBodyQuery {
     #[cfg(feature = "3d")]
     pub global_angular_inertia: &'static mut GlobalAngularInertia,
     pub center_of_mass: &'static mut CenterOfMass,
-    pub friction: &'static Friction,
-    pub restitution: &'static Restitution,
+    pub friction: Option<&'static Friction>,
+    pub restitution: Option<&'static Restitution>,
     pub locked_axes: Option<&'static LockedAxes>,
     pub dominance: Option<&'static Dominance>,
     pub time_sleeping: &'static mut TimeSleeping,

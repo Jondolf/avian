@@ -227,6 +227,32 @@ use derive_more::From;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[require(
+    Position,
+    Rotation,
+    LinearVelocity,
+    AngularVelocity,
+    ExternalForce,
+    ExternalTorque,
+    ExternalImpulse,
+    ExternalAngularImpulse,
+    Mass,
+    AngularInertia,
+    CenterOfMass,
+    // TODO: These shouldn't be required. Instead, have configurable global material defaults,
+    //       and only use these as extra configuration.
+    Friction,
+    Restitution,
+    // Currently required for solver internals.
+    // Some of these might be removed in the future.
+    AccumulatedTranslation,
+    PreSolveAccumulatedTranslation,
+    PreSolveLinearVelocity,
+    PreSolveAngularVelocity,
+    PreSolveRotation,
+    PreviousRotation,
+)]
+#[cfg_attr(feature = "3d", require(GlobalAngularInertia))]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]

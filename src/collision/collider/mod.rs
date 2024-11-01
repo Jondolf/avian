@@ -429,10 +429,11 @@ impl Default for ColliderAabb {
 #[doc(alias = "ContactSkin")]
 pub struct CollisionMargin(pub Scalar);
 
-/// A component that stores the entities that are colliding with an entity.
+/// A component for reading which entities are colliding with a collider entity.
+/// Must be added manually for desired colliders.
 ///
-/// This component is automatically added for all entities with a [`Collider`],
-/// but it will only be filled if the [`ContactReportingPlugin`] is enabled (by default, it is).
+/// Requires the [`ContactReportingPlugin`] (included in [`PhysicsPlugins`])
+/// to be enabled for this component to be updated.
 ///
 /// ## Example
 ///
@@ -441,12 +442,21 @@ pub struct CollisionMargin(pub Scalar);
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///         // Add the `CollidingEntities` component to read entities colliding with this entity.
+///         CollidingEntities::default(),
+///     ));
+/// }
+///
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {
 ///         println!(
 ///             "{:?} is colliding with the following entities: {:?}",
 ///             entity,
-///             colliding_entities
+///             colliding_entities,
 ///         );
 ///     }
 /// }

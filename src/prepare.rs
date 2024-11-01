@@ -88,56 +88,6 @@ impl Plugin for PreparePlugin {
         app.init_resource::<PrepareConfig>()
             .register_type::<PrepareConfig>();
 
-        // NOTE: This will be redundant once we have required components.
-        // Initialize missing components for rigid bodies.
-        app.world_mut()
-            .register_component_hooks::<RigidBody>()
-            .on_add(|mut world, entity, _| {
-                let entity_ref = world.entity(entity);
-
-                let lin_vel = *entity_ref.get::<LinearVelocity>().unwrap_or(&default());
-                let ang_vel = *entity_ref.get::<AngularVelocity>().unwrap_or(&default());
-                let force = *entity_ref.get::<ExternalForce>().unwrap_or(&default());
-                let torque = *entity_ref.get::<ExternalTorque>().unwrap_or(&default());
-                let impulse = *entity_ref.get::<ExternalImpulse>().unwrap_or(&default());
-                let angular_impulse = *entity_ref
-                    .get::<ExternalAngularImpulse>()
-                    .unwrap_or(&default());
-                let restitution = *entity_ref.get::<Restitution>().unwrap_or(&default());
-                let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
-                let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
-
-                let mass = *entity_ref.get::<Mass>().unwrap_or(&default());
-                let angular_inertia = *entity_ref.get::<AngularInertia>().unwrap_or(&default());
-                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
-
-                let mut commands = world.commands();
-                let mut entity_commands = commands.entity(entity);
-
-                entity_commands.try_insert((
-                    AccumulatedTranslation::default(),
-                    lin_vel,
-                    ang_vel,
-                    PreSolveLinearVelocity::default(),
-                    PreSolveAngularVelocity::default(),
-                    force,
-                    torque,
-                    impulse,
-                    angular_impulse,
-                    restitution,
-                    friction,
-                    time_sleeping,
-                ));
-
-                entity_commands.try_insert((
-                    mass,
-                    angular_inertia,
-                    #[cfg(feature = "3d")]
-                    GlobalAngularInertia::default(),
-                    center_of_mass,
-                ));
-            });
-
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
             self.schedule,
@@ -190,205 +140,80 @@ pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
 /// Initializes [`Transform`] based on [`Position`] and [`Rotation`] or vice versa
 /// when a component of the given type is inserted.
 pub fn init_transforms<C: Component>(
-    mut commands: Commands,
     config: Res<PrepareConfig>,
-    query: Query<
+    mut query: Query<
         (
-            Entity,
-            Option<&Transform>,
-            Option<&GlobalTransform>,
-            Option<&Position>,
-            Option<&Rotation>,
-            Option<&PreviousRotation>,
+            &mut Transform,
+            &GlobalTransform,
+            &mut Position,
+            &mut Rotation,
+            Option<&mut PreviousRotation>,
             Option<&Parent>,
-            Has<RigidBody>,
         ),
         Added<C>,
     >,
-    parents: Query<
-        (
-            Option<&Position>,
-            Option<&Rotation>,
-            Option<&GlobalTransform>,
-        ),
-        With<Children>,
-    >,
+    parents: Query<&GlobalTransform, With<Children>>,
 ) {
     if !config.position_to_transform && !config.transform_to_position {
         // Nothing to do
         return;
     }
 
-    for (entity, transform, global_transform, pos, rot, previous_rot, parent, has_rigid_body) in
-        &query
-    {
-        let parent_transforms = parent.and_then(|parent| parents.get(parent.get()).ok());
-        let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
-        let parent_rot = parent_transforms.and_then(|(_, rot, _)| rot);
-        let parent_global_trans = parent_transforms.and_then(|(_, _, trans)| trans);
+    for (mut transform, global_transform, mut pos, mut rot, previous_rot, parent) in &mut query {
+        let parent_transform = parent.and_then(|parent| parents.get(parent.get()).ok());
 
-        let mut new_transform = if config.position_to_transform {
-            Some(transform.copied().unwrap_or_default())
-        } else {
-            None
-        };
-
-        // Compute Transform based on Position or vice versa
-        let new_position = if let Some(pos) = pos {
-            if let Some(transform) = &mut new_transform {
-                // Initialize new translation as global position
-                #[cfg(feature = "2d")]
-                let mut new_translation = pos.f32().extend(transform.translation.z);
-                #[cfg(feature = "3d")]
-                let mut new_translation = pos.f32();
-
-                // If the body is a child, subtract the parent's global translation
-                // to get the local translation
-                if parent.is_some() {
-                    if let Some(parent_pos) = parent_pos {
-                        #[cfg(feature = "2d")]
-                        {
-                            new_translation -= parent_pos.f32().extend(new_translation.z);
-                        }
-                        #[cfg(feature = "3d")]
-                        {
-                            new_translation -= parent_pos.f32();
-                        }
-                    } else if let Some(parent_transform) = parent_global_trans {
-                        new_translation -= parent_transform.translation();
-                    }
-                }
-                transform.translation = new_translation;
-            }
-            pos.0
-        } else if config.transform_to_position {
-            let mut new_position = Vector::ZERO;
-
+        // If transform_to_position is enabled, we need to initialize the Position and Rotation
+        if config.transform_to_position {
             if parent.is_some() {
-                let translation = transform.as_ref().map_or(default(), |t| t.translation);
-                if let Some(parent_pos) = parent_pos {
+                if let Some(parent_transform) = parent_transform {
+                    let new_pos = parent_transform.transform_point(transform.translation);
                     #[cfg(feature = "2d")]
                     {
-                        new_position = parent_pos.0 + translation.adjust_precision().truncate();
+                        pos.0 = new_pos.truncate().adjust_precision();
                     }
                     #[cfg(feature = "3d")]
                     {
-                        new_position = parent_pos.0 + translation.adjust_precision();
-                    }
-                } else if let Some(parent_transform) = parent_global_trans {
-                    let new_pos = parent_transform
-                        .transform_point(transform.as_ref().map_or(default(), |t| t.translation));
-                    #[cfg(feature = "2d")]
-                    {
-                        new_position = new_pos.truncate().adjust_precision();
-                    }
-                    #[cfg(feature = "3d")]
-                    {
-                        new_position = new_pos.adjust_precision();
+                        pos.0 = new_pos.adjust_precision();
                     }
                 }
+
+                let parent_rot =
+                    parent_transform.map_or(default(), |t| t.compute_transform().rotation);
+                *rot = Rotation::from(parent_rot * transform.rotation)
             } else {
                 #[cfg(feature = "2d")]
                 {
-                    new_position = transform
-                        .map(|t| t.translation.truncate().adjust_precision())
-                        .unwrap_or(global_transform.as_ref().map_or(Vector::ZERO, |t| {
-                            Vector::new(t.translation().x as Scalar, t.translation().y as Scalar)
-                        }));
+                    pos.0 = global_transform.translation().truncate().adjust_precision();
                 }
                 #[cfg(feature = "3d")]
                 {
-                    new_position = transform
-                        .map(|t| t.translation.adjust_precision())
-                        .unwrap_or(
-                            global_transform
-                                .as_ref()
-                                .map_or(Vector::ZERO, |t| t.translation().adjust_precision()),
-                        )
+                    pos.0 = global_transform.translation().adjust_precision();
                 }
-            };
+                *rot = global_transform.compute_transform().rotation.into();
+            }
+        } else if config.position_to_transform {
+            // Initialize new translation as global position
+            #[cfg(feature = "2d")]
+            let mut new_translation = pos.f32().extend(transform.translation.z);
+            #[cfg(feature = "3d")]
+            let mut new_translation = pos.f32();
 
-            new_position
-        } else {
-            default()
-        };
+            // Initialize new rotation as global rotation
+            let mut new_rotation = Quaternion::from(*rot).f32();
 
-        // Compute Transform based on Rotation or vice versa
-        let new_rotation = if let Some(rot) = rot {
-            if let Some(transform) = &mut new_transform {
-                // Initialize new rotation as global rotation
-                let mut new_rotation = Quaternion::from(*rot).f32();
+            // If the body is a child, subtract the parent's global translation
+            // to get the local translation
+            if let Some(parent_transform) = parent_transform {
+                new_translation -= parent_transform.translation();
+                new_rotation *= parent_transform.compute_transform().rotation.inverse();
+            }
 
-                // If the body is a child, subtract the parent's global rotation
-                // to get the local rotation
-                if parent.is_some() {
-                    if let Some(parent_rot) = parent_rot {
-                        new_rotation *= Quaternion::from(*parent_rot).f32().inverse();
-                    } else if let Some(parent_transform) = parent_global_trans {
-                        new_rotation *= parent_transform.compute_transform().rotation.inverse();
-                    }
-                }
-                transform.rotation = new_rotation;
-            }
-            *rot
-        } else if config.transform_to_position {
-            if parent.is_some() {
-                let parent_rot = parent_rot.copied().unwrap_or(Rotation::from(
-                    parent_global_trans.map_or(default(), |t| t.compute_transform().rotation),
-                ));
-                let rot = Rotation::from(transform.as_ref().map_or(default(), |t| t.rotation));
-                #[cfg(feature = "2d")]
-                {
-                    parent_rot * rot
-                }
-                #[cfg(feature = "3d")]
-                {
-                    Rotation(parent_rot.0 * rot.0)
-                }
-            } else {
-                transform.map(|t| Rotation::from(t.rotation)).unwrap_or(
-                    global_transform.map_or(Rotation::default(), |t| {
-                        t.compute_transform().rotation.into()
-                    }),
-                )
-            }
-        } else {
-            default()
-        };
+            transform.translation = new_translation;
+            transform.rotation = new_rotation;
+        }
 
-        let mut cmds = commands.entity(entity);
-
-        // Insert the position and rotation.
-        // The values are either unchanged (Position and Rotation already exist)
-        // or computed based on the GlobalTransform.
-        // If the entity isn't a rigid body, adding PreSolveAccumulatedTranslation and PreviousRotation
-        // is unnecessary.
-        match (has_rigid_body, new_transform) {
-            (true, None) => {
-                cmds.try_insert((
-                    Position(new_position),
-                    new_rotation,
-                    PreSolveAccumulatedTranslation::default(),
-                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveRotation::default(),
-                ));
-            }
-            (true, Some(transform)) => {
-                cmds.try_insert((
-                    transform,
-                    Position(new_position),
-                    new_rotation,
-                    PreSolveAccumulatedTranslation::default(),
-                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveRotation::default(),
-                ));
-            }
-            (false, None) => {
-                cmds.try_insert((Position(new_position), new_rotation));
-            }
-            (false, Some(transform)) => {
-                cmds.try_insert((transform, Position(new_position), new_rotation));
-            }
+        if let Some(mut previous_rotation) = previous_rot {
+            *previous_rotation = PreviousRotation(*rot);
         }
     }
 }

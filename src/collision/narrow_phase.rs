@@ -646,12 +646,28 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         // or the bodies they are attached to.
         let friction = collider1
             .friction
-            .unwrap_or(body1.friction)
-            .combine(*collider2.friction.unwrap_or(body2.friction));
+            .or(body1.friction)
+            .copied()
+            .unwrap_or_default()
+            .combine(
+                collider2
+                    .friction
+                    .or(body2.friction)
+                    .copied()
+                    .unwrap_or_default(),
+            );
         let restitution = collider1
             .restitution
-            .unwrap_or(body1.restitution)
-            .combine(*collider2.restitution.unwrap_or(body2.restitution));
+            .or(body1.restitution)
+            .copied()
+            .unwrap_or_default()
+            .combine(
+                collider2
+                    .restitution
+                    .or(body2.restitution)
+                    .copied()
+                    .unwrap_or_default(),
+            );
 
         let contact_softness = if !body1.rb.is_dynamic() || !body2.rb.is_dynamic() {
             contact_softness.non_dynamic

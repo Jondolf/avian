@@ -23,6 +23,10 @@ pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
+        // TODO: This is only relevant for dynamic bodies. Different bodies should be distinguished with marker components.
+        // Add sleep timer for all rigid bodies.
+        let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
+
         app.init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
             .init_resource::<LastPhysicsTick>();
@@ -117,10 +121,10 @@ pub fn mark_sleeping_bodies(
             &mut LinearVelocity,
             &mut AngularVelocity,
             &mut TimeSleeping,
-            &CollidingEntities,
         ),
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
+    collisions: Res<Collisions>,
     rb_query: Query<&RigidBody>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
@@ -130,8 +134,15 @@ pub fn mark_sleeping_bodies(
     let length_unit_sq = length_unit.powi(2);
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping, colliding_entities) in &mut query
-    {
+    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
+        let colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
+            if entity == c.entity1 {
+                c.entity2
+            } else {
+                c.entity1
+            }
+        });
+
         // Only dynamic bodies can sleep, and only if they are not
         // in contact with other dynamic bodies.
         //
@@ -139,7 +150,7 @@ pub fn mark_sleeping_bodies(
         // sleeping/waking is implemented with simulation islands.
         if !rb.is_dynamic()
             || rb_query
-                .iter_many(colliding_entities.iter())
+                .iter_many(colliding_entities)
                 .any(|rb| rb.is_dynamic())
         {
             continue;

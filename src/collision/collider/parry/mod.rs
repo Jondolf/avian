@@ -263,15 +263,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
-/// [`Sensor`], [`CollisionLayers`], and [`CollisionMargin`].
-///
-/// In addition, Avian automatically adds some other components for colliders, like the following:
-///
-/// - [`ColliderParent`]
-/// - [`ColliderAabb`]
-/// - [`CollidingEntities`]
-/// - [`ColliderDensity`]
-/// - [`ColliderMassProperties`]
+/// [`Sensor`], [`CollisionLayers`], [`CollisionMargin`], and [`ColliderDensity`].
 ///
 /// If you need to specify the shape of the collider statically, use [`ColliderConstructor`] and build your collider
 /// with the [`Collider::try_from_constructor`] method.
@@ -368,6 +360,14 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
 #[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[require(
+    ColliderMarker,
+    Position,
+    Rotation,
+    ColliderAabb,
+    ColliderDensity,
+    ColliderMassProperties
+)]
 pub struct Collider {
     /// The raw unscaled collider shape.
     shape: SharedShape,
