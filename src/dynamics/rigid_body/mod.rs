@@ -232,6 +232,7 @@ use derive_more::From;
     Rotation,
     LinearVelocity,
     AngularVelocity,
+    // TODO: Make these force components optional.
     ExternalForce,
     ExternalTorque,
     ExternalImpulse,
