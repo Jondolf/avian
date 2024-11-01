@@ -896,10 +896,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -933,10 +930,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh_with_config(&mesh, TrimeshFlags::all()).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -959,10 +953,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_hull_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -984,10 +975,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1015,10 +1003,7 @@ impl Collider {
     ///     };
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh_with_config(&mesh, &config).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```

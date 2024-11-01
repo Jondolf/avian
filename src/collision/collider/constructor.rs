@@ -45,7 +45,7 @@ use bevy::utils::HashMap;
     doc = "    // Spawn the scene and automatically generate triangle mesh colliders"
 )]
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
@@ -58,7 +58,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -75,7 +75,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 ///         ColliderConstructorHierarchy::new(None)
 #[cfg_attr(
     feature = "2d",
@@ -89,7 +89,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene, ..default() },
+///         SceneRoot(scene),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -271,10 +271,7 @@ pub struct ColliderConstructorHierarchyConfig {
     feature = "3d",
     doc = "        ColliderConstructor::ConvexHullFromMesh,"
 )]
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
+///         Mesh3d(meshes.add(Cuboid::default())),
 ///     ));
 /// }
 /// ```
