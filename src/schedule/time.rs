@@ -279,11 +279,11 @@ impl TimePrecisionAdjusted for Time {
     fn delta_seconds_adjusted(&self) -> Scalar {
         #[cfg(feature = "f32")]
         {
-            self.delta_seconds()
+            self.delta_secs()
         }
         #[cfg(feature = "f64")]
         {
-            self.delta_seconds_f64()
+            self.delta_secs_f64()
         }
     }
 }

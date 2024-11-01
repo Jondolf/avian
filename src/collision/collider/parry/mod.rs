@@ -157,14 +157,15 @@ impl From<FillMode> for parry::transformation::voxelization::FillMode {
     }
 }
 
+/// Flags used for the preprocessing of a triangle mesh collider.
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct TrimeshFlags(u8);
+
 bitflags::bitflags! {
-    /// Flags used for the preprocessing of a triangle mesh collider.
-    #[repr(transparent)]
-    #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
-    #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
-    #[reflect_value(Hash, PartialEq, Debug)]
-    pub struct  TrimeshFlags: u8 {
+    impl TrimeshFlags: u8 {
         /// If set, the half-edge topology of the trimesh will be computed if possible.
         const HALF_EDGE_TOPOLOGY = 0b0000_0001;
         /// If set, the half-edge topology and connected components of the trimesh will be computed if possible.
@@ -365,7 +366,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// or [`Collider::shape_scaled()`] methods.
 ///
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Collider {
     /// The raw unscaled collider shape.
@@ -398,42 +399,6 @@ impl Default for Collider {
         #[cfg(feature = "3d")]
         {
             Self::cuboid(0.5, 0.5, 0.5)
-        }
-    }
-}
-
-impl std::fmt::Debug for Collider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.shape_scaled().as_typed_shape() {
-            TypedShape::Ball(shape) => write!(f, "{:?}", shape),
-            TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::Capsule(shape) => write!(f, "{:?}", shape),
-            TypedShape::Segment(shape) => write!(f, "{:?}", shape),
-            TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
-            TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
-            TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
-            TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
-            TypedShape::Compound(_) => write!(f, "Compound (not representable)"),
-            TypedShape::Custom(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::ConvexPolygon(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
         }
     }
 }
@@ -781,7 +746,7 @@ impl Collider {
 
     /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
     #[cfg(feature = "2d")]
-    pub fn regular_polygon(circumradius: f32, sides: usize) -> Self {
+    pub fn regular_polygon(circumradius: f32, sides: u32) -> Self {
         RegularPolygon::new(circumradius, sides).collider()
     }
 
@@ -931,10 +896,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -968,10 +930,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh_with_config(&mesh, TrimeshFlags::all()).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -994,10 +953,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_hull_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1019,10 +975,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1050,10 +1003,7 @@ impl Collider {
     ///     };
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh_with_config(&mesh, &config).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1422,16 +1372,15 @@ fn scale_shape(
             }
             Ok(SharedShape::compound(scaled))
         }
-        TypedShape::Custom(_id) => {
+        TypedShape::Custom(_shape) => {
             #[cfg(feature = "2d")]
-            if _id == 1 {
-                if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
+            {
+                if let Some(ellipse) = _shape.as_shape::<EllipseWrapper>() {
                     return Ok(SharedShape::new(EllipseWrapper(Ellipse {
                         half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
-            } else if _id == 2 {
-                if let Some(polygon) = shape.as_shape::<RegularPolygonWrapper>() {
+                if let Some(polygon) = _shape.as_shape::<RegularPolygonWrapper>() {
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonWrapper(
                             RegularPolygon::new(

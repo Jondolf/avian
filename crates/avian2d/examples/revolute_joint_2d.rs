@@ -17,7 +17,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     let square_sprite = Sprite {
         color: Color::srgb(0.2, 0.7, 0.9),
@@ -27,10 +27,7 @@ fn setup(mut commands: Commands) {
 
     let anchor = commands
         .spawn((
-            SpriteBundle {
-                sprite: square_sprite.clone(),
-                ..default()
-            },
+            square_sprite.clone(),
             RigidBody::Kinematic,
             AngularVelocity(1.5),
         ))
@@ -38,11 +35,8 @@ fn setup(mut commands: Commands) {
 
     let object = commands
         .spawn((
-            SpriteBundle {
-                sprite: square_sprite,
-                transform: Transform::from_xyz(0.0, -100.0, 0.0),
-                ..default()
-            },
+            square_sprite,
+            Transform::from_xyz(0.0, -100.0, 0.0),
             RigidBody::Dynamic,
             MassPropertiesBundle::new_computed(&Collider::rectangle(50.0, 50.0), 1.0),
         ))

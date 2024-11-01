@@ -45,7 +45,7 @@ impl Plugin for MassPropertyPlugin {
     fn build(&self, app: &mut App) {
         // Update mass properties of rigid bodies when the mass properties of attached colliders are changed.
         // This includes adding, removing, or modifying colliders.
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnChangeColliderMassProperties>,
              collider_parents: Query<(
                 &ColliderParent,

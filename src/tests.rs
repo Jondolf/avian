@@ -86,7 +86,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                     (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands.spawn((
-                    SpatialBundle::default(),
+                    Transform::default(),
                     RigidBody::Dynamic,
                     Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
@@ -122,7 +122,7 @@ fn body_with_velocity_moves() {
     app.add_systems(Startup, |mut commands: Commands| {
         // move right at 1 unit per second
         commands.spawn((
-            SpatialBundle::default(),
+            Transform::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
             #[cfg(feature = "2d")]

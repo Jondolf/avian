@@ -1,7 +1,7 @@
 //! An example demonstrating how to make a custom collider and use it for collision detection.
 
 use avian2d::{math::*, prelude::*};
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
@@ -144,7 +144,7 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     let center_radius = 200.0;
     let particle_radius = 5.0;
@@ -156,11 +156,8 @@ fn setup(
     // Spawn rotating body at the center.
     commands
         .spawn((
-            MaterialMesh2dBundle {
-                mesh: meshes.add(Circle::new(center_radius)).into(),
-                material: materials.add(Color::srgb(0.7, 0.7, 0.8)).clone(),
-                ..default()
-            },
+            Mesh2d(meshes.add(Circle::new(center_radius))),
+            MeshMaterial2d(materials.add(Color::srgb(0.7, 0.7, 0.8)).clone()),
             RigidBody::Kinematic,
             CircleCollider::new(center_radius.adjust_precision()),
             CenterBody,
@@ -172,12 +169,9 @@ fn setup(
             for i in 0..count {
                 let pos = Quat::from_rotation_z(i as f32 * angle_step) * Vec3::Y * center_radius;
                 c.spawn((
-                    MaterialMesh2dBundle {
-                        mesh: particle_mesh.clone().into(),
-                        material: red.clone(),
-                        transform: Transform::from_translation(pos).with_scale(Vec3::ONE * 5.0),
-                        ..default()
-                    },
+                    Mesh2d(particle_mesh.clone()),
+                    MeshMaterial2d(red.clone()),
+                    Transform::from_translation(pos).with_scale(Vec3::ONE * 5.0),
                     CircleCollider::new(particle_radius.adjust_precision()),
                 ));
             }
@@ -190,16 +184,13 @@ fn setup(
     for x in -x_count / 2..x_count / 2 {
         for y in -y_count / 2..y_count / 2 {
             commands.spawn((
-                MaterialMesh2dBundle {
-                    mesh: particle_mesh.clone().into(),
-                    material: blue.clone(),
-                    transform: Transform::from_xyz(
-                        x as f32 * 3.0 * particle_radius - 350.0,
-                        y as f32 * 3.0 * particle_radius,
-                        0.0,
-                    ),
-                    ..default()
-                },
+                Mesh2d(particle_mesh.clone()),
+                MeshMaterial2d(blue.clone()),
+                Transform::from_xyz(
+                    x as f32 * 3.0 * particle_radius - 350.0,
+                    y as f32 * 3.0 * particle_radius,
+                    0.0,
+                ),
                 RigidBody::Dynamic,
                 CircleCollider::new(particle_radius.adjust_precision()),
                 LinearDamping(0.4),
@@ -213,7 +204,7 @@ fn center_gravity(
     mut particles: Query<(&Transform, &mut LinearVelocity), Without<CenterBody>>,
     time: Res<Time>,
 ) {
-    let delta_seconds = time.delta_seconds_f64().adjust_precision();
+    let delta_seconds = time.delta_secs_f64().adjust_precision();
     for (transform, mut lin_vel) in &mut particles {
         let pos_delta = transform.translation.truncate().adjust_precision();
         let dir = -pos_delta.normalize_or_zero();
@@ -223,7 +214,7 @@ fn center_gravity(
 
 /// Rotates the center body periodically clockwise and counterclockwise.
 fn rotate(mut query: Query<&mut AngularVelocity, With<CenterBody>>, time: Res<Time>) {
-    let sin = 3.0 * time.elapsed_seconds_f64().adjust_precision().sin();
+    let sin = 3.0 * time.elapsed_secs_f64().adjust_precision().sin();
     for mut ang_vel in &mut query {
         ang_vel.0 = sin;
     }

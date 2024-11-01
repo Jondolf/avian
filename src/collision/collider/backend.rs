@@ -202,7 +202,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // When the `Sensor` component is added to a collider, trigger an event.
         // The `MassPropertyPlugin` responds to the event and updates the body's mass properties accordingly.
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnAdd, Sensor>,
              mut commands: Commands,
              query: Query<&ColliderMassProperties>| {
@@ -226,7 +226,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // When the `Sensor` component is removed from a collider, update its mass properties and trigger an event.
         // The `MassPropertyPlugin` responds to the event and updates the body's mass properties accordingly.
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnRemove, Sensor>,
              mut commands: Commands,
              mut collider_query: Query<(
@@ -348,7 +348,7 @@ fn update_root_collider_parents<C: AnyCollider>(
 fn init_collider_constructors(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
-    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Handle<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
     constructors: Query<(
         Entity,
         Option<&Collider>,
@@ -405,9 +405,9 @@ fn init_collider_constructors(
 fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
-    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Handle<Mesh>>,
+    #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
-    #[cfg(feature = "bevy_scene")] scenes: Query<&Handle<Scene>>,
+    #[cfg(feature = "bevy_scene")] scenes: Query<&SceneRoot>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
     collider_constructors: Query<(Entity, &ColliderConstructorHierarchy)>,
     children: Query<&Children>,
@@ -679,7 +679,7 @@ pub fn update_collider_scale<C: ScalableCollider>(
 
 /// A resource that stores the system ID for the system that reacts to collider removals.
 #[derive(Resource)]
-struct ColliderRemovalSystem(SystemId<(Entity, ColliderParent, ColliderMassProperties)>);
+struct ColliderRemovalSystem(SystemId<In<(Entity, ColliderParent, ColliderMassProperties)>>);
 
 /// Updates the mass properties of bodies and wakes bodies up when an attached collider is removed.
 ///
@@ -784,16 +784,13 @@ mod tests {
             .spawn((
                 RigidBody::Dynamic,
                 mass_properties.clone(),
-                TransformBundle::default(),
+                Transform::default(),
             ))
             .id();
 
         let child = app
             .world_mut()
-            .spawn((
-                collider,
-                TransformBundle::from_transform(Transform::from_xyz(1.0, 0.0, 0.0)),
-            ))
+            .spawn((collider, Transform::from_xyz(1.0, 0.0, 0.0)))
             .set_parent(parent)
             .id();
 

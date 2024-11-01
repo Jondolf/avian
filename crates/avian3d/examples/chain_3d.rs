@@ -12,7 +12,6 @@ fn main() {
             PhysicsPlugins::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
         .insert_resource(AmbientLight {
             brightness: 2.0,
             ..default()
@@ -47,11 +46,8 @@ fn setup(
         .spawn((
             RigidBody::Kinematic,
             MovementAcceleration(25.0),
-            PbrBundle {
-                mesh: particle_mesh.clone(),
-                material: particle_material.clone(),
-                ..default()
-            },
+            Mesh3d(particle_mesh.clone()),
+            MeshMaterial3d(particle_material.clone()),
         ))
         .id();
 
@@ -61,16 +57,9 @@ fn setup(
             .spawn((
                 RigidBody::Dynamic,
                 MassPropertiesBundle::new_computed(&Collider::sphere(particle_radius), 1.0),
-                PbrBundle {
-                    mesh: particle_mesh.clone(),
-                    material: particle_material.clone(),
-                    transform: Transform::from_xyz(
-                        0.0,
-                        -i as f32 * particle_radius as f32 * 2.2,
-                        0.0,
-                    ),
-                    ..default()
-                },
+                Mesh3d(particle_mesh.clone()),
+                MeshMaterial3d(particle_material.clone()),
+                Transform::from_xyz(0.0, -i as f32 * particle_radius as f32 * 2.2, 0.0),
             ))
             .id();
 
@@ -84,11 +73,11 @@ fn setup(
         previous_particle = current_particle;
     }
 
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 5.0, 20.0))
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::new(0.0, 5.0, 20.0))
             .looking_at(Vec3::NEG_Y * 5.0, Vec3::Y),
-        ..default()
-    });
+    ));
 }
 
 fn movement(
@@ -98,7 +87,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
         let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
@@ -121,45 +110,39 @@ fn movement(
 }
 
 fn ui(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        camera: Camera {
+    commands.spawn((
+        Camera2d,
+        Camera {
             order: -1,
             ..default()
         },
-        ..default()
-    });
+    ));
     commands
-        .spawn(NodeBundle {
-            style: Style {
+        .spawn((
+            Node {
                 width: Val::Percent(100.),
                 ..default()
             },
-            background_color: Color::srgba(0.15, 0.15, 0.15, 0.0).into(),
-            ..default()
-        })
-        .with_children(|parent| {
-            // text
-            parent.spawn((
-                TextBundle::from_section(
-                    "Use Arrow Keys or WASD to Move The Chain",
-                    TextStyle {
-                        font_size: 20.0,
-                        color: Color::WHITE,
-                        ..default()
-                    },
-                )
-                .with_style(Style {
-                    margin: UiRect {
-                        left: Val::Px(5.0),
-                        top: Val::Px(30.0),
-                        ..default()
-                    },
+            BackgroundColor::from(Color::srgba(0.15, 0.15, 0.15, 0.0)),
+        ))
+        .with_child((
+            Text::new("Use Arrow Keys or WASD to Move The Chain"),
+            TextFont {
+                font_size: 20.0,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Node {
+                margin: UiRect {
+                    left: Val::Px(5.0),
+                    top: Val::Px(30.0),
                     ..default()
-                }),
-                // Because this is a distinct label widget and
-                // not button/list item text, this is necessary
-                // for accessibility to treat the text accordingly.
-                Label,
-            ));
-        });
+                },
+                ..default()
+            },
+            // Because this is a distinct label widget and
+            // not button/list item text, this is necessary
+            // for accessibility to treat the text accordingly.
+            Label,
+        ));
 }

@@ -44,7 +44,7 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
     fn build(&self, app: &mut App) {
         // Add `AncestorMarker<C>` for the ancestors of added colliders,
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnAdd, C>,
              mut commands: Commands,
              parent_query: Query<&Parent>,
@@ -65,7 +65,7 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
         // Remove `AncestorMarker<C>` from removed colliders and their ancestors,
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
         #[allow(clippy::type_complexity)]
-        app.observe(
+        app.add_observer(
             |trigger: Trigger<OnRemove, C>,
             mut commands: Commands,
             child_query: Query<&Children>,
@@ -517,7 +517,7 @@ mod tests {
         // Move all children from BN to CY. The `AncestorMarker<C>` marker should
         // now be removed from BN, and CY should get it back.
         let mut entity_mut = app.world_mut().entity_mut(cy);
-        entity_mut.push_children(&[fy, gy]);
+        entity_mut.add_children(&[fy, gy]);
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -527,7 +527,7 @@ mod tests {
 
         // Move all children from CY to BN and remove CY. This must not crash.
         let mut entity_mut = app.world_mut().entity_mut(bn);
-        entity_mut.push_children(&[dn, en, fy, gy]);
+        entity_mut.add_children(&[dn, en, fy, gy]);
 
         app.world_mut().run_schedule(FixedPostUpdate);
     }

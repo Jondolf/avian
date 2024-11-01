@@ -165,9 +165,10 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Supported Bevy versions
 
-| Bevy | Avian |
-| ---- | ----- |
-| 0.14 | 0.1   |
+| Bevy    | Avian |
+| ------- | ----- |
+| 0.15 RC | main  |
+| 0.14    | 0.1   |
 
 <details>
   <summary>Bevy XPBD versions (the predecessor of Avian)</summary>
@@ -179,6 +180,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
   | 0.12 | 0.3       |
   | 0.11 | 0.2       |
   | 0.10 | 0.1       |
+
 </details>
 
 ## Future features

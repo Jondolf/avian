@@ -227,6 +227,15 @@ impl MatExt for DMat3 {
     }
 }
 
+#[expect(clippy::unnecessary_cast)]
+#[cfg(all(feature = "2d", any(feature = "parry-f32", feature = "parry-f64")))]
+pub(crate) fn na_iso_to_iso(isometry: &parry::math::Isometry<Scalar>) -> Isometry2d {
+    Isometry2d::new(
+        Vector::from(isometry.translation).f32(),
+        Rot2::from_sin_cos(isometry.rotation.im as f32, isometry.rotation.re as f32),
+    )
+}
+
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")

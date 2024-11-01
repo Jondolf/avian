@@ -475,8 +475,8 @@ fn update_contact_softness(
     substep_time: Res<Time<Substeps>>,
 ) {
     if solver_config.is_changed() || physics_time.is_changed() || substep_time.is_changed() {
-        let dt = physics_time.delta_seconds_f64() as Scalar;
-        let h = substep_time.delta_seconds_f64() as Scalar;
+        let dt = physics_time.delta_secs_f64() as Scalar;
+        let h = substep_time.delta_secs_f64() as Scalar;
 
         // The contact frequency should at most be half of the time step due to Nyquist's theorem.
         // https://en.wikipedia.org/wiki/Nyquist%E2%80%93Shannon_sampling_theorem
