@@ -86,6 +86,12 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
 
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
+        // Register required components for the collider type.
+        let _ = app.try_register_required_components::<C, ColliderMarker>();
+        let _ = app.try_register_required_components::<C, ColliderAabb>();
+        let _ = app.try_register_required_components::<C, ColliderDensity>();
+        let _ = app.try_register_required_components::<C, ColliderMassProperties>();
+
         // Register the one-shot system that is run for all removed colliders.
         if !app.world().contains_resource::<ColliderRemovalSystem>() {
             let collider_removed_id = app.world_mut().register_system(collider_removed);
@@ -140,7 +146,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .unwrap()
                 .set_scale(scale.adjust_precision(), 10);
 
-            let entity_ref = world.entity(entity);
+            let mut entity_ref = world.entity_mut(entity);
             let collider = entity_ref.get::<C>().unwrap();
 
             let aabb = entity_ref
@@ -158,13 +164,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 collider.mass_properties(density.0)
             };
 
-            world.commands().entity(entity).try_insert((
-                aabb,
-                density,
-                mass_properties,
-                CollidingEntities::default(),
-                ColliderMarker,
-            ));
+            if let Some(mut collider_aabb) = entity_ref.get_mut::<ColliderAabb>() {
+                *collider_aabb = aabb;
+            }
+
+            if let Some(mut collider_mass_properties) =
+                entity_ref.get_mut::<ColliderMassProperties>()
+            {
+                *collider_mass_properties = mass_properties;
+            }
         });
 
         // Register a component hook that updates mass properties of rigid bodies
@@ -309,7 +317,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 /// A marker component for colliders. Inserted and removed automatically.
 ///
 /// This is useful for filtering collider entities regardless of the [collider backend](ColliderBackendPlugin).
-#[derive(Reflect, Component, Clone, Copy, Debug)]
+#[derive(Reflect, Component, Clone, Copy, Debug, Default)]
+#[reflect(Component, Debug, Default)]
 pub struct ColliderMarker;
 
 /// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].

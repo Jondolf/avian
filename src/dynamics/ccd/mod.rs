@@ -229,10 +229,7 @@
 use crate::{collision::broad_phase::AabbIntersections, prelude::*};
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use bevy::ecs::query::QueryData;
-use bevy::{
-    ecs::component::{ComponentHooks, StorageType},
-    prelude::*,
-};
+use bevy::prelude::*;
 use derive_more::From;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use parry::query::{
@@ -373,8 +370,9 @@ impl SpeculativeMargin {
 ///     ));
 /// }
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
+#[require(AabbIntersections)]
 pub struct SweptCcd {
     /// The type of sweep used for swept CCD.
     ///
@@ -454,19 +452,6 @@ impl SweptCcd {
     pub const fn include_dynamic(mut self, should_include: bool) -> Self {
         self.include_dynamic = should_include;
         self
-    }
-}
-
-impl Component for SweptCcd {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            world
-                .commands()
-                .entity(entity)
-                .insert(AabbIntersections::default());
-        });
     }
 }
 

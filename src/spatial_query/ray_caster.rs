@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
+        component::ComponentId,
         entity::{EntityMapper, MapEntities},
+        world::DeferredWorld,
     },
     prelude::*,
 };
@@ -70,10 +71,12 @@ use parry::query::{
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[component(on_add = on_add_ray_caster)]
+#[require(RayHits)]
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
@@ -321,24 +324,16 @@ impl RayCaster {
     }
 }
 
-impl Component for RayCaster {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
+fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
+    let ray_caster = world.get::<RayCaster>(entity).unwrap();
+    let max_hits = if ray_caster.max_hits == u32::MAX {
+        10
+    } else {
+        ray_caster.max_hits as usize
+    };
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            let ray_caster = world.get::<RayCaster>(entity).unwrap();
-            let max_hits = if ray_caster.max_hits == u32::MAX {
-                10
-            } else {
-                ray_caster.max_hits as usize
-            };
-
-            world.commands().entity(entity).try_insert(RayHits {
-                vector: Vec::with_capacity(max_hits),
-                count: 0,
-            });
-        });
-    }
+    // Initialize capacity for hits
+    world.get_mut::<RayHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Contains the hits of a ray cast by a [`RayCaster`].

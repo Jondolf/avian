@@ -46,16 +46,17 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn((
+        Name::new("Character"),
         Mesh2d(meshes.add(Capsule2d::new(12.5, 20.0))),
         MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
         Transform::from_xyz(0.0, -100.0, 1.0),
         Character,
         RigidBody::Dynamic,
         Collider::capsule(12.5, 20.0),
-        Name::new("Character"),
     ));
 
     commands.spawn((
+        Name::new("Pressure Plate"),
         Sprite {
             color: Color::WHITE,
             custom_size: Some(Vec2::new(100.0, 100.0)),
@@ -66,10 +67,12 @@ fn setup(
         Sensor,
         RigidBody::Static,
         Collider::rectangle(100.0, 100.0),
-        Name::new("Pressure Plate"),
+        // Read entities colliding with this entity.
+        CollidingEntities::default(),
     ));
 
     commands.spawn((
+        Name::new("Character Velocity Text"),
         Text::new("Velocity: "),
         TextFont {
             font_size: 16.0,
@@ -82,7 +85,6 @@ fn setup(
             ..default()
         },
         CharacterVelocityText,
-        Name::new("Character Velocity Text"),
     ));
 
     commands.spawn(Camera2d);

@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
+        component::ComponentId,
         entity::{EntityMapper, MapEntities},
+        world::DeferredWorld,
     },
     prelude::*,
 };
@@ -53,10 +54,12 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, Reflect)]
+#[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component)]
+#[component(on_add = on_add_shape_caster)]
+#[require(ShapeHits)]
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
@@ -348,24 +351,16 @@ impl ShapeCaster {
     }
 }
 
-impl Component for ShapeCaster {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
+fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
+    let shape_caster = world.get::<ShapeCaster>(entity).unwrap();
+    let max_hits = if shape_caster.max_hits == u32::MAX {
+        10
+    } else {
+        shape_caster.max_hits as usize
+    };
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            let shape_caster = world.get::<ShapeCaster>(entity).unwrap();
-            let max_hits = if shape_caster.max_hits == u32::MAX {
-                10
-            } else {
-                shape_caster.max_hits as usize
-            };
-
-            world.commands().entity(entity).try_insert(ShapeHits {
-                vector: Vec::with_capacity(max_hits),
-                count: 0,
-            });
-        });
-    }
+    // Initialize capacity for hits
+    world.get_mut::<ShapeHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of time of impact.
@@ -394,7 +389,7 @@ impl Component for ShapeCaster {
 ///     }
 /// }
 /// ```
-#[derive(Component, Clone, Debug, Reflect, PartialEq)]
+#[derive(Component, Clone, Debug, Default, Reflect, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]

@@ -88,56 +88,6 @@ impl Plugin for PreparePlugin {
         app.init_resource::<PrepareConfig>()
             .register_type::<PrepareConfig>();
 
-        // NOTE: This will be redundant once we have required components.
-        // Initialize missing components for rigid bodies.
-        app.world_mut()
-            .register_component_hooks::<RigidBody>()
-            .on_add(|mut world, entity, _| {
-                let entity_ref = world.entity(entity);
-
-                let lin_vel = *entity_ref.get::<LinearVelocity>().unwrap_or(&default());
-                let ang_vel = *entity_ref.get::<AngularVelocity>().unwrap_or(&default());
-                let force = *entity_ref.get::<ExternalForce>().unwrap_or(&default());
-                let torque = *entity_ref.get::<ExternalTorque>().unwrap_or(&default());
-                let impulse = *entity_ref.get::<ExternalImpulse>().unwrap_or(&default());
-                let angular_impulse = *entity_ref
-                    .get::<ExternalAngularImpulse>()
-                    .unwrap_or(&default());
-                let restitution = *entity_ref.get::<Restitution>().unwrap_or(&default());
-                let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
-                let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
-
-                let mass = *entity_ref.get::<Mass>().unwrap_or(&default());
-                let angular_inertia = *entity_ref.get::<AngularInertia>().unwrap_or(&default());
-                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
-
-                let mut commands = world.commands();
-                let mut entity_commands = commands.entity(entity);
-
-                entity_commands.try_insert((
-                    AccumulatedTranslation::default(),
-                    lin_vel,
-                    ang_vel,
-                    PreSolveLinearVelocity::default(),
-                    PreSolveAngularVelocity::default(),
-                    force,
-                    torque,
-                    impulse,
-                    angular_impulse,
-                    restitution,
-                    friction,
-                    time_sleeping,
-                ));
-
-                entity_commands.try_insert((
-                    mass,
-                    angular_inertia,
-                    #[cfg(feature = "3d")]
-                    GlobalAngularInertia::default(),
-                    center_of_mass,
-                ));
-            });
-
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
             self.schedule,
