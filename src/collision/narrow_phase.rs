@@ -113,14 +113,14 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
                 (
                     // Reset collision states.
                     reset_collision_states
+                        .in_set(PhysicsStepSet::NarrowPhase)
                         .after(NarrowPhaseSet::First)
                         .before(NarrowPhaseSet::CollectCollisions),
                     // Remove ended collisions after contact reporting
                     remove_ended_collisions
                         .after(PhysicsStepSet::ReportContacts)
                         .before(PhysicsStepSet::Sleeping),
-                )
-                    .chain(),
+                ),
             );
         }
 
