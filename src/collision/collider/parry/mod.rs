@@ -360,14 +360,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
 #[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[require(
-    ColliderMarker,
-    Position,
-    Rotation,
-    ColliderAabb,
-    ColliderDensity,
-    ColliderMassProperties
-)]
+#[require(ColliderMarker, ColliderAabb, ColliderDensity, ColliderMassProperties)]
 pub struct Collider {
     /// The raw unscaled collider shape.
     shape: SharedShape,
