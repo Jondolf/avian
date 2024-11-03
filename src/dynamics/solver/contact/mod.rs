@@ -413,7 +413,7 @@ impl ContactConstraint {
             let force_direction = -self.normal;
             let relative_velocity = velocity1 - velocity2;
             let tangent_velocity =
-                relative_velocity + force_direction * force_direction.dot(relative_velocity);
+                relative_velocity - force_direction * force_direction.dot(relative_velocity);
 
             let tangent = tangent_velocity
                 .try_normalize()
