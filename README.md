@@ -146,7 +146,7 @@ fn setup(
 }
 ```
 
-![A spinning cube falling onto a circular platform](https://github.com/Jondolf/avian/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
+![A spinning cube falling onto a circular platform](https://github.com/user-attachments/assets/14d25e7e-9d46-467c-9fe6-dc408cd23398)
 
 ## More examples
 
