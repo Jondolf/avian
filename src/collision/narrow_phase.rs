@@ -707,6 +707,7 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 fn log_overlap_at_spawn(
     collisions: Res<Collisions>,
     added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position)>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
     for contacts in collisions.get_internal().values() {
         let Ok([(rb1, name1, position1), (rb2, name2, position2)]) = added_bodies.get_many([
@@ -722,6 +723,14 @@ fn log_overlap_at_spawn(
         }
 
         if rb1.is_added() || rb2.is_added() {
+            if !contacts.manifolds.iter().any(|m| {
+                m.contacts
+                    .iter()
+                    .any(|c| c.penetration >= 0.05 * **length_unit)
+            }) {
+                continue;
+            }
+
             // If the RigidBody entity has a name, use that for debug.
             let debug_id1 = match name1 {
                 Some(n) => format!("{:?} ({n})", contacts.entity1),
