@@ -724,12 +724,12 @@ fn log_overlap_at_spawn(
         if rb1.is_added() || rb2.is_added() {
             // If the RigidBody entity has a name, use that for debug.
             let debug_id1 = match name1 {
-                Some(n) => format!("{:?} ({n})", contacts.entity1),
-                None => format!("{:?}", contacts.entity1),
+                Some(n) => format!("{} ({n})", contacts.entity1),
+                None => format!("{}", contacts.entity1),
             };
             let debug_id2 = match name2 {
-                Some(n) => format!("{:?} ({n})", contacts.entity2),
-                None => format!("{:?}", contacts.entity2),
+                Some(n) => format!("{} ({n})", contacts.entity2),
+                None => format!("{}", contacts.entity2),
             };
             warn!(
                 "{debug_id1} and {debug_id2} are overlapping at spawn, which can result in explosive behavior.",

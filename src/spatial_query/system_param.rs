@@ -596,7 +596,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         spatial_query.point_intersections(Vec3::ZERO, SpatialQueryFilter::default());
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -673,7 +673,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -707,7 +707,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -749,7 +749,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -801,7 +801,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
