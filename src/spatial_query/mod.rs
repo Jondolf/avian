@@ -57,7 +57,7 @@
 //!         // For the faster iterator that isn't sorted, use `.iter()`
 //!         for hit in hits.iter_sorted() {
 //!             println!(
-//!                 "Hit entity {:?} at {} with normal {}",
+//!                 "Hit entity {} at {} with normal {}",
 //!                 hit.entity,
 //!                 ray.origin + *ray.direction * hit.time_of_impact,
 //!                 hit.normal,
@@ -115,7 +115,7 @@
 //! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
 //!     for (shape_caster, hits) in &query {
 //!         for hit in hits.iter() {
-//!             println!("Hit entity {:?}", hit.entity);
+//!             println!("Hit entity {}", hit.entity);
 //!         }
 //!     }
 //! }

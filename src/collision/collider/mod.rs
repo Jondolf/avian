@@ -454,7 +454,7 @@ pub struct CollisionMargin(pub Scalar);
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {
 ///         println!(
-///             "{:?} is colliding with the following entities: {:?}",
+///             "{} is colliding with the following entities: {:?}",
 ///             entity,
 ///             colliding_entities,
 ///         );
