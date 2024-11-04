@@ -641,7 +641,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
