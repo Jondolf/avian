@@ -62,7 +62,7 @@ use parry::query::{
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
 ///             println!(
-///                 "Hit entity {:?} at {} with normal {}",
+///                 "Hit entity {} at {} with normal {}",
 ///                 hit.entity,
 ///                 ray.origin + *ray.direction * hit.time_of_impact,
 ///                 hit.normal,
@@ -364,7 +364,7 @@ fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: Co
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
 ///             println!(
-///                 "Hit entity {:?} with time of impact {}",
+///                 "Hit entity {} with time of impact {}",
 ///                 hit.entity,
 ///                 hit.time_of_impact,
 ///             );

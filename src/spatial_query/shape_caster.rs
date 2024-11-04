@@ -49,7 +49,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 /// fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
 ///     for (shape_caster, hits) in &query {
 ///         for hit in hits.iter() {
-///             println!("Hit entity {:?}", hit.entity);
+///             println!("Hit entity {}", hit.entity);
 ///         }
 ///     }
 /// }
@@ -381,7 +381,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
 ///     for hits in &query {
 ///         for hit in hits.iter() {
 ///             println!(
-///                 "Hit entity {:?} with time of impact {}",
+///                 "Hit entity {} with time of impact {}",
 ///                 hit.entity,
 ///                 hit.time_of_impact,
 ///             );
