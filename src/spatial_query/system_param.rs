@@ -38,7 +38,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///         Dir3::X,                       // Direction
 ///         100.0,                         // Maximum time of impact (travel distance)
 ///         true,                          // Does the ray treat colliders as "solid"
-///         SpatialQueryFilter::default(), // Query filter
+///         &SpatialQueryFilter::default(),// Query filter
 ///     ) {
 ///         println!("First hit: {:?}", first_hit);
 ///     }
@@ -50,7 +50,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 ///         100.0,                         // Maximum time of impact (travel distance)
 ///         20,                            // Maximum number of hits
 ///         true,                          // Does the ray treat colliders as "solid"
-///         SpatialQueryFilter::default(), // Query filter
+///         &SpatialQueryFilter::default(),// Query filter
 ///     );
 ///
 ///     // Print hits
@@ -115,7 +115,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///     ) {
     ///         println!("First hit: {:?}", first_hit);
     ///     }
@@ -167,7 +167,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///         &|entity| {                    // Predicate
     ///             // Skip entities with the `Invisible` component.
     ///             !query.contains(entity)
@@ -229,7 +229,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         20,                            // Maximum number of hits
     ///         true,                          // Does the ray treat colliders as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///     );
     ///
     ///     // Print hits
@@ -291,7 +291,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         Dir3::X,                       // Direction
     ///         100.0,                         // Maximum time of impact (travel distance)
     ///         true,                          // Does the ray treat colliders as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///         |hit| {                        // Callback function
     ///             hits.push(hit);
     ///             true
@@ -359,7 +359,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         Dir3::X,                         // Direction
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         true,                            // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///     ) {
     ///         println!("First hit: {:?}", first_hit);
     ///     }
@@ -424,7 +424,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         20,                              // Max hits
     ///         true,                            // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///     );
     ///
     ///     // Print hits
@@ -495,7 +495,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         Dir3::X,                         // Direction
     ///         100.0,                           // Maximum time of impact (travel distance)
     ///         true,                            // Should initial penetration at the origin be ignored
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///         |hit| {                          // Callback function
     ///             hits.push(hit);
     ///             true
@@ -557,7 +557,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     if let Some(projection) = spatial_query.project_point(
     ///         Vec3::ZERO,                    // Point
     ///         true,                          // Are colliders treated as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///     ) {
     ///         println!("Projection: {:?}", projection);
     ///     }
@@ -593,7 +593,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_point_intersections(spatial_query: SpatialQuery) {
     ///     let intersections =
-    ///         spatial_query.point_intersections(Vec3::ZERO, SpatialQueryFilter::default());
+    ///         spatial_query.point_intersections(Vec3::ZERO, &SpatialQueryFilter::default());
     ///
     ///     for entity in intersections.iter() {
     ///         println!("Entity: {}", entity);
@@ -633,7 +633,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     
     ///     spatial_query.point_intersections_callback(
     ///         Vec3::ZERO,                     // Point
-    ///         SpatialQueryFilter::default(),  // Query filter
+    ///         &SpatialQueryFilter::default(), // Query filter
     ///         |entity| {                      // Callback function
     ///             intersections.push(entity);
     ///             true
@@ -745,7 +745,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Shape position
     ///         Quat::default(),                 // Shape rotation
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///     );
     ///
     ///     for entity in intersections.iter() {
@@ -793,7 +793,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Shape position
     ///         Quat::default(),                 // Shape rotation
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///         |entity| {                       // Callback function
     ///             intersections.push(entity);
     ///             true
