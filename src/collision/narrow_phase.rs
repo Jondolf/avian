@@ -159,13 +159,6 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         }
 
         if is_first_instance {
-            #[cfg(debug_assertions)]
-            app.add_systems(
-                self.schedule,
-                log_overlap_at_spawn
-                    .in_set(NarrowPhaseSet::PostProcess)
-                    .before(run_post_process_collisions_schedule),
-            );
             app.add_systems(
                 self.schedule,
                 run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
@@ -699,43 +692,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             if !constraint.points.is_empty() {
                 constraints.push(constraint);
             }
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-fn log_overlap_at_spawn(
-    collisions: Res<Collisions>,
-    added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position)>,
-) {
-    for contacts in collisions.get_internal().values() {
-        let Ok([(rb1, name1, position1), (rb2, name2, position2)]) = added_bodies.get_many([
-            contacts.body_entity1.unwrap_or(contacts.entity1),
-            contacts.body_entity2.unwrap_or(contacts.entity2),
-        ]) else {
-            continue;
-        };
-
-        // only warn if at least one of the bodies is dynamic
-        if !rb1.is_dynamic() && !rb2.is_dynamic() {
-            continue;
-        }
-
-        if rb1.is_added() || rb2.is_added() {
-            // If the RigidBody entity has a name, use that for debug.
-            let debug_id1 = match name1 {
-                Some(n) => format!("{} ({n})", contacts.entity1),
-                None => format!("{}", contacts.entity1),
-            };
-            let debug_id2 = match name2 {
-                Some(n) => format!("{} ({n})", contacts.entity2),
-                None => format!("{}", contacts.entity2),
-            };
-            warn!(
-                "{debug_id1} and {debug_id2} are overlapping at spawn, which can result in explosive behavior.",
-            );
-            debug!("{debug_id1} is at {}", position1.0);
-            debug!("{debug_id2} is at {}", position2.0);
         }
     }
 }
