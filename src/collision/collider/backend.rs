@@ -153,7 +153,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
 
-            let context = {
+            let aabb = {
                 let mut context_state = {
                     let cell = world.as_unsafe_world_cell_readonly();
                     // SAFETY: No other code takes a ref to this resource,
@@ -170,14 +170,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         type_name::<C::Context>()
                     )
                 });
+                let context = context_state.0.get(&world);
 
-                context_state.0.get(&world)
+                entity_ref
+                    .get::<ColliderAabb>()
+                    .copied()
+                    .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context))
             };
 
-            let aabb = entity_ref
-                .get::<ColliderAabb>()
-                .copied()
-                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context));
             let density = entity_ref
                 .get::<ColliderDensity>()
                 .copied()
