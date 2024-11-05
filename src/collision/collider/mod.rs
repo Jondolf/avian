@@ -107,7 +107,7 @@ pub trait AnyCollider: Component {
     ///     }
     /// }
     /// ```
-    type Context: ReadOnlySystemParam;
+    type Context: for<'w, 's> ReadOnlySystemParam<Item<'w, 's>: Send + Sync>;
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
