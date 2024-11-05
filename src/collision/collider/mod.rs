@@ -48,23 +48,65 @@ pub trait IntoCollider<C: AnyCollider> {
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
 pub trait AnyCollider: Component {
-    // TODO(boris): update docs
-    // /// A type providing additional context for collider operations.
-    // ///
-    // /// `Context` allows colliders to access another [`Component`] on the same entity,
-    // /// for context-sensitive behavior in collider operations.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```rust
-    // /// pub struct MyColliderContext {
-    // ///     // Contextual data, e.g., voxel data.
-    // /// }
-    // ///
-    // /// impl Component for MyColliderContext {}
-    // /// ```
-    // ///
-    // /// This allows access to `MyColliderContext` in collider computations.
+    /// A type providing additional context for collider operations.
+    ///
+    /// `Context` allows you to access an arbitrary [`ReadOnlySystemParam`] on
+    /// the world, for context-sensitive behavior in collider operations. You
+    /// can use this to query components on the collider entity, or get any
+    /// other necessary context from the world.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use avian3d::prelude::*;
+    /// use avian3d::math::{Vector, Scalar};
+    /// use bevy::prelude::*;
+    /// use bevy::ecs::system::SystemParam;
+    ///
+    /// #[derive(Component)]
+    /// pub struct VoxelData {
+    ///     // collider voxel data...
+    /// }
+    ///
+    /// #[derive(Component)]
+    /// pub struct VoxelCollider;
+    ///
+    /// impl AnyCollider for VoxelCollider {
+    ///     type Context = (
+    ///         // use `'static` in place of lifetimes
+    ///         Query<'static, 'static, &'static VoxelData>,
+    ///         // you can put any read-only system param here
+    ///         Res<'static, Time>,
+    ///     );
+    ///
+    /// #   fn aabb(
+    /// #       &self,
+    /// #       _: Vector,
+    /// #       _: impl Into<Rotation>,
+    /// #       _: Entity,
+    /// #       _: &<Self::Context as SystemParam>::Item<'_, '_>,
+    /// #   ) -> ColliderAabb { unimplemented!() }
+    /// #   fn mass_properties(&self, _: Scalar) -> ColliderMassProperties { unimplemented!() }
+    ///     fn contact_manifolds(
+    ///         &self,
+    ///         other: &Self,
+    ///         position1: Vector,
+    ///         rotation1: impl Into<Rotation>,
+    ///         position2: Vector,
+    ///         rotation2: impl Into<Rotation>,
+    ///         entity1: Entity,
+    ///         entity2: Entity,
+    ///         (voxel_data, time): &<Self::Context as SystemParam>::Item<'_, '_>,
+    ///         prediction_distance: Scalar,
+    ///     ) -> Vec<ContactManifold> {
+    ///         let [voxels1, voxels2] = voxel_data.get_many([entity1, entity2])
+    ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
+    ///         let elapsed = time.elapsed();
+    ///         // do some computation...
+    /// #       unimplemented!()
+    ///     }
+    /// }
+    /// ```
     type Context: ReadOnlySystemParam;
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
