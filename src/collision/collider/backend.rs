@@ -153,13 +153,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
 
-            let aabb = {
+            let context = {
                 let mut context_state = {
-                    // SAFETY: I don't think this is safe, since we're getting a readonly cell
                     let cell = world.as_unsafe_world_cell_readonly();
-                    // SAFETY: no other code references this resource
-                    // and `ContextState` is not publicly visible,
-                    // so `context` is unable to fetch access to this resource
+                    // SAFETY: No other code takes a ref to this resource,
+                    //         and `ContextState` is not publicly visible,
+                    //         so `C::Context` is unable to borrow this resource.
+                    //         This does not perform any structural world changes,
+                    //         so reading mutably through a read-only cell is OK.
+                    //         (We can't get a non-readonly cell from a DeferredWorld)
                     unsafe { cell.get_resource_mut::<ContextState<C>>() }
                 }
                 .unwrap_or_else(|| {
@@ -168,13 +170,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         type_name::<C::Context>()
                     )
                 });
-                let context = context_state.0.get(&world);
 
-                entity_ref
-                    .get::<ColliderAabb>()
-                    .copied()
-                    .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context))
+                context_state.0.get(&world)
             };
+
+            let aabb = entity_ref
+                .get::<ColliderAabb>()
+                .copied()
+                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context));
             let density = entity_ref
                 .get::<ColliderDensity>()
                 .copied()
