@@ -2,7 +2,10 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        system::{ReadOnlySystemParam, SystemParam},
+    },
     prelude::*,
     utils::HashSet,
 };
@@ -45,23 +48,26 @@ pub trait IntoCollider<C: AnyCollider> {
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
 pub trait AnyCollider: Component {
-    /// A type providing additional context for collider operations.
-    ///
-    /// `Context` allows colliders to access another [`Component`] on the same entity,
-    /// for context-sensitive behavior in collider operations.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// pub struct MyColliderContext {
-    ///     // Contextual data, e.g., voxel data.
-    /// }
-    ///
-    /// impl Component for MyColliderContext {}
-    /// ```
-    ///
-    /// This allows access to `MyColliderContext` in collider computations.
-    type Context: Component;
+    // TODO(boris): update docs
+    // /// A type providing additional context for collider operations.
+    // ///
+    // /// `Context` allows colliders to access another [`Component`] on the same entity,
+    // /// for context-sensitive behavior in collider operations.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust
+    // /// pub struct MyColliderContext {
+    // ///     // Contextual data, e.g., voxel data.
+    // /// }
+    // ///
+    // /// impl Component for MyColliderContext {}
+    // /// ```
+    // ///
+    // /// This allows access to `MyColliderContext` in collider computations.
+    type Context: ReadOnlySystemParam
+    where
+        for<'w, 's> <Self::Context as SystemParam>::Item<'w, 's>: Send + Sync;
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
@@ -73,7 +79,8 @@ pub trait AnyCollider: Component {
         &self,
         position: Vector,
         rotation: impl Into<Rotation>,
-        context: Option<&Self::Context>,
+        entity: Entity,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
     ) -> ColliderAabb;
 
     /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
@@ -89,18 +96,15 @@ pub trait AnyCollider: Component {
         start_rotation: impl Into<Rotation>,
         end_position: Vector,
         end_rotation: impl Into<Rotation>,
-        context: Option<&Self::Context>,
+        entity: Entity,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
     ) -> ColliderAabb {
-        self.aabb(start_position, start_rotation, context)
-            .merged(self.aabb(end_position, end_rotation, context))
+        self.aabb(start_position, start_rotation, entity, context)
+            .merged(self.aabb(end_position, end_rotation, entity, context))
     }
 
     /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(
-        &self,
-        density: Scalar,
-        context: Option<&Self::Context>,
-    ) -> ColliderMassProperties;
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -113,8 +117,9 @@ pub trait AnyCollider: Component {
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
-        context1: Option<&Self::Context>,
-        context2: Option<&Self::Context>,
+        entity1: Entity,
+        entity2: Entity,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold>;
 }

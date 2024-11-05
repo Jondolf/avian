@@ -2,13 +2,18 @@
 //!
 //! See [`ColliderBackendPlugin`].
 
+use std::any::type_name;
 use std::marker::PhantomData;
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
+    ecs::{
+        intern::Interned,
+        schedule::ScheduleLabel,
+        system::{StaticSystemParam, SystemId, SystemState},
+    },
     prelude::*,
 };
 
@@ -85,6 +90,9 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
 
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
+        #[derive(Resource)]
+        struct ContextState<C: ScalableCollider>(SystemState<C::Context>);
+
         // Register the one-shot system that is run for all removed colliders.
         if !app.world().contains_resource::<ColliderRemovalSystem>() {
             let collider_removed_id = app.world_mut().register_system(collider_removed);
@@ -142,10 +150,28 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
 
-            let aabb = entity_ref
-                .get::<ColliderAabb>()
-                .copied()
-                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), None));
+            let aabb = {
+                let mut context_state = {
+                    // SAFETY: I don't think this is safe, since we're getting a readonly cell
+                    let cell = world.as_unsafe_world_cell_readonly();
+                    // SAFETY: no other code references this resource
+                    // and `ContextState` is not publicly visible,
+                    // so `context` is unable to fetch access to this resource
+                    unsafe { cell.get_resource_mut::<ContextState<C>>() }
+                }
+                .unwrap_or_else(|| {
+                    panic!(
+                        "context state for `{}` was removed",
+                        type_name::<C::Context>()
+                    )
+                });
+                let context = context_state.0.get(&world);
+
+                entity_ref
+                    .get::<ColliderAabb>()
+                    .copied()
+                    .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context))
+            };
             let density = entity_ref
                 .get::<ColliderDensity>()
                 .copied()
@@ -154,7 +180,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let mass_properties = if entity_ref.get::<Sensor>().is_some() {
                 ColliderMassProperties::ZERO
             } else {
-                collider.mass_properties(density.0, None)
+                collider.mass_properties(density.0)
             };
 
             world.commands().entity(entity).try_insert((
@@ -254,7 +280,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     if let Ok(mut mass_properties) = body_query.get_mut(collider_parent.0) {
                         // Update collider mass props.
                         *collider_mass_properties =
-                            collider.mass_properties(density.max(Scalar::EPSILON), None);
+                            collider.mass_properties(density.max(Scalar::EPSILON));
 
                         // If the collider mass properties are zero, there is nothing to add.
                         if *collider_mass_properties == ColliderMassProperties::ZERO {
@@ -533,8 +559,8 @@ fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
 fn update_aabb<C: AnyCollider>(
     mut colliders: Query<
         (
+            Entity,
             &C,
-            Option<&C::Context>,
             &mut ColliderAabb,
             &Position,
             &Rotation,
@@ -560,14 +586,15 @@ fn update_aabb<C: AnyCollider>(
     narrow_phase_config: Res<NarrowPhaseConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
+    context: StaticSystemParam<'_, '_, C::Context>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
     let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
     let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
 
     for (
+        entity,
         collider,
-        context,
         mut aabb,
         pos,
         rot,
@@ -588,7 +615,7 @@ fn update_aabb<C: AnyCollider>(
 
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .aabb(pos.0, *rot, context)
+                .aabb(pos.0, *rot, entity, &context)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -644,7 +671,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, context)
+            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, entity, &context)
             .grow(Vector::splat(collision_margin));
     }
 }
@@ -726,7 +753,6 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             &mut PreviousColliderTransform,
             &ColliderParent,
             Ref<C>,
-            Option<&C::Context>,
             &ColliderDensity,
             &mut ColliderMassProperties,
         ),
@@ -746,7 +772,6 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
         mut previous_collider_transform,
         collider_parent,
         collider,
-        context,
         density,
         mut collider_mass_properties,
     ) in &mut colliders
@@ -762,8 +787,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
             previous_collider_transform.0 = *collider_transform;
 
             // Update collider mass props.
-            *collider_mass_properties =
-                collider.mass_properties(density.max(Scalar::EPSILON), context);
+            *collider_mass_properties = collider.mass_properties(density.max(Scalar::EPSILON));
 
             // Add new collider mass props to the body's mass props.
             mass_properties += collider_mass_properties.transformed_by(collider_transform);

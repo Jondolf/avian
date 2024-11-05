@@ -3,7 +3,7 @@
 use crate::{make_isometry, prelude::*};
 #[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-use bevy::{log, prelude::*};
+use bevy::{ecs::system::SystemParam, log, prelude::*};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::shape::{RoundShape, SharedShape, TypedShape};
@@ -439,13 +439,14 @@ impl std::fmt::Debug for Collider {
 }
 
 impl AnyCollider for Collider {
-    type Context = Collider;
+    type Context = ();
 
     fn aabb(
         &self,
         position: Vector,
         rotation: impl Into<Rotation>,
-        _context: Option<&Self::Context>,
+        _entity: Entity,
+        _context: &<Self::Context as SystemParam>::Item<'_, '_>,
     ) -> ColliderAabb {
         let aabb = self
             .shape_scaled()
@@ -456,11 +457,7 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn mass_properties(
-        &self,
-        density: Scalar,
-        _context: Option<&Self::Context>,
-    ) -> ColliderMassProperties {
+    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
         let props = self.shape_scaled().mass_properties(density);
 
         ColliderMassProperties {
@@ -488,8 +485,9 @@ impl AnyCollider for Collider {
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
-        _context1: Option<&Self::Context>,
-        _context2: Option<&Self::Context>,
+        _entity1: Entity,
+        _entity2: Entity,
+        _context: &<Self::Context as SystemParam>::Item<'_, '_>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
         contact_query::contact_manifolds(

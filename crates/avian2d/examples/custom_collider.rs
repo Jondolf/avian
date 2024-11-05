@@ -51,7 +51,15 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
+    type Context = ();
+
+    fn aabb(
+        &self,
+        position: Vector,
+        _rotation: impl Into<Rotation>,
+        _entity: Entity,
+        _context: &Self::Context,
+    ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 

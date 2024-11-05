@@ -251,7 +251,7 @@ impl MassPropertiesBundle {
             inverse_inertia,
             center_of_mass,
             ..
-        } = collider.mass_properties(density, None);
+        } = collider.mass_properties(density);
 
         Self {
             mass,
@@ -370,7 +370,7 @@ impl ColliderMassProperties {
     /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
     pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
-        collider.mass_properties(density, None)
+        collider.mass_properties(density)
     }
 
     /// Transforms the center of mass by the given [`ColliderTransform`].
