@@ -65,9 +65,7 @@ pub trait AnyCollider: Component {
     // /// ```
     // ///
     // /// This allows access to `MyColliderContext` in collider computations.
-    type Context: ReadOnlySystemParam
-    where
-        for<'w, 's> <Self::Context as SystemParam>::Item<'w, 's>: Send + Sync;
+    type Context: ReadOnlySystemParam;
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.

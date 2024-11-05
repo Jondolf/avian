@@ -99,6 +99,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
+        let context_state = SystemState::new(app.world_mut());
+        app.insert_resource(ContextState::<C>(context_state));
+
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.

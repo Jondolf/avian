@@ -373,42 +373,42 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             *self.contact_tolerance = self.length_unit.0 * self.config.contact_tolerance;
         }
 
-        #[cfg(feature = "parallel")]
-        {
-            // TODO: Verify if `par_splat_map` is deterministic. If not, sort the constraints (and collisions).
-            broad_collision_pairs
-                .iter()
-                .par_splat_map(ComputeTaskPool::get(), None, |_i, chunks| {
-                    let mut new_collisions = Vec::<Contacts>::with_capacity(chunks.len());
+        // #[cfg(feature = "parallel")]
+        // {
+        //     // TODO: Verify if `par_splat_map` is deterministic. If not, sort the constraints (and collisions).
+        //     broad_collision_pairs
+        //         .iter()
+        //         .par_splat_map(ComputeTaskPool::get(), None, |_i, chunks| {
+        //             let mut new_collisions = Vec::<Contacts>::with_capacity(chunks.len());
 
-                    // Compute contacts for this intersection pair and generate
-                    // contact constraints for them.
-                    for &(entity1, entity2) in chunks {
-                        if let Some(contacts) =
-                            self.handle_entity_pair(entity1, entity2, delta_secs)
-                        {
-                            new_collisions.push(contacts);
-                        }
-                    }
+        //             // Compute contacts for this intersection pair and generate
+        //             // contact constraints for them.
+        //             for &(entity1, entity2) in chunks {
+        //                 if let Some(contacts) =
+        //                     self.handle_entity_pair(entity1, entity2, delta_secs)
+        //                 {
+        //                     new_collisions.push(contacts);
+        //                 }
+        //             }
 
-                    new_collisions
-                })
-                .into_iter()
-                .for_each(|new_collisions| {
-                    // Add the collisions and constraints from each chunk.
-                    self.collisions.extend(new_collisions);
-                });
-        }
-        #[cfg(not(feature = "parallel"))]
-        {
-            // Compute contacts for this intersection pair and generate
-            // contact constraints for them.
-            for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) = self.handle_entity_pair(entity1, entity2, delta_secs) {
-                    self.collisions.insert_collision_pair(contacts);
-                }
+        //             new_collisions
+        //         })
+        //         .into_iter()
+        //         .for_each(|new_collisions| {
+        //             // Add the collisions and constraints from each chunk.
+        //             self.collisions.extend(new_collisions);
+        //         });
+        // }
+        // #[cfg(not(feature = "parallel"))]
+        // {
+        // Compute contacts for this intersection pair and generate
+        // contact constraints for them.
+        for &(entity1, entity2) in broad_collision_pairs {
+            if let Some(contacts) = self.handle_entity_pair(entity1, entity2, delta_secs) {
+                self.collisions.insert_collision_pair(contacts);
             }
         }
+        // }
     }
 
     /// Returns the [`Contacts`] between `entity1` and `entity2` if they are intersecting
