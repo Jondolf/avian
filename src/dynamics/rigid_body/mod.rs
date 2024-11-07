@@ -5,10 +5,14 @@ pub mod mass_properties;
 // Components
 mod forces;
 mod locked_axes;
+mod physics_material;
 mod world_query;
 
 pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
+pub use physics_material::{
+    CoefficientCombine, DefaultFriction, DefaultRestitution, Friction, Restitution,
+};
 pub use world_query::*;
 
 #[cfg(feature = "2d")]
@@ -42,7 +46,7 @@ use derive_more::From;
 ///     // Spawn a dynamic rigid body and specify its position (optional)
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         TransformBundle::from_transform(Transform::from_xyz(0.0, 3.0, 0.0)),
+///         Transform::from_xyz(0.0, 3.0, 0.0),
 ///     ));
 /// }
 /// ```
@@ -57,8 +61,6 @@ use derive_more::From;
 /// - [`ExternalTorque`]
 /// - [`ExternalImpulse`]
 /// - [`ExternalAngularImpulse`]
-/// - [`Friction`]
-/// - [`Restitution`]
 /// - [`Mass`]
 /// - [`AngularInertia`]
 /// - [`CenterOfMass`]
@@ -238,10 +240,6 @@ use derive_more::From;
     Mass,
     AngularInertia,
     CenterOfMass,
-    // TODO: These shouldn't be required. Instead, have configurable global material defaults,
-    //       and only use these as extra configuration.
-    Friction,
-    Restitution,
     // Currently required for solver internals.
     // Some of these might be removed in the future.
     AccumulatedTranslation,
@@ -467,303 +465,6 @@ impl Default for GravityScale {
     }
 }
 
-/// Determines how coefficients are combined for [`Restitution`] and [`Friction`].
-/// The default is `Average`.
-///
-/// When combine rules clash with each other, the following priority order is used:
-/// `Max > Multiply > Min > Average`.
-#[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Default, PartialEq)]
-pub enum CoefficientCombine {
-    // The discriminants allow priority ordering to work automatically via comparison methods
-    /// Coefficients are combined by computing their average.
-    #[default]
-    Average = 1,
-    /// Coefficients are combined by choosing the smaller coefficient.
-    Min = 2,
-    /// Coefficients are combined by computing their product.
-    Multiply = 3,
-    /// Coefficients are combined by choosing the larger coefficient.
-    Max = 4,
-}
-
-/// A component for the [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
-/// This controls how bouncy a [rigid body](RigidBody) is.
-///
-/// The coefficient is between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
-/// to a **perfectly elastic collision** that preserves all kinetic energy. The default coefficient is 0.3, and it currently
-/// can not be configured at a global level.
-///
-/// When two bodies collide, their restitution coefficients are combined using the specified [`CoefficientCombine`] rule.
-///
-/// ## Example
-///
-/// Create a new [`Restitution`] component with a restitution coefficient of 0.4:
-///
-/// ```ignore
-/// Restitution::new(0.4)
-/// ```
-///
-/// Configure how two restitution coefficients are combined with [`CoefficientCombine`]:
-///
-/// ```ignore
-/// Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// ```
-///
-/// Combine the properties of two [`Restitution`] components:
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-///
-/// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
-/// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
-///
-/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
-/// assert_eq!(
-///     first.combine(second),
-///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// );
-/// ```
-#[doc(alias = "Bounciness")]
-#[doc(alias = "Elasticity")]
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct Restitution {
-    /// The [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
-    ///
-    /// This should be between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
-    /// to a **perfectly elastic collision** that preserves all kinetic energy. The default value is 0.3.
-    pub coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies collide.
-    pub combine_rule: CoefficientCombine,
-}
-
-impl Restitution {
-    /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
-    ///
-    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`].
-    pub const ZERO: Self = Self {
-        coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// A restitution coefficient of 0.0, which corresponds to a perfectly inelastic collision.
-    ///
-    /// Uses [`CoefficientCombine::Average`].
-    pub const PERFECTLY_INELASTIC: Self = Self {
-        coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// A restitution coefficient of 1.0, which corresponds to a perfectly elastic collision.
-    ///
-    /// Uses [`CoefficientCombine::Average`].
-    pub const PERFECTLY_ELASTIC: Self = Self {
-        coefficient: 1.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// Creates a new [`Restitution`] component with the given restitution coefficient.
-    pub fn new(coefficient: Scalar) -> Self {
-        Self {
-            coefficient: coefficient.clamp(0.0, 1.0),
-            combine_rule: CoefficientCombine::Average,
-        }
-    }
-
-    /// Sets the [`CoefficientCombine`] rule used.
-    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
-        Self {
-            combine_rule,
-            ..*self
-        }
-    }
-
-    /// Combines the properties of two [`Restitution`] components.
-    pub fn combine(&self, other: Self) -> Self {
-        // Choose rule with higher priority
-        let rule = self.combine_rule.max(other.combine_rule);
-
-        Self {
-            coefficient: match rule {
-                CoefficientCombine::Average => (self.coefficient + other.coefficient) * 0.5,
-                CoefficientCombine::Min => self.coefficient.min(other.coefficient),
-                CoefficientCombine::Multiply => self.coefficient * other.coefficient,
-                CoefficientCombine::Max => self.coefficient.max(other.coefficient),
-            },
-            combine_rule: rule,
-        }
-    }
-}
-
-impl Default for Restitution {
-    fn default() -> Self {
-        Self {
-            coefficient: 0.3,
-            combine_rule: CoefficientCombine::default(),
-        }
-    }
-}
-
-impl From<Scalar> for Restitution {
-    fn from(coefficient: Scalar) -> Self {
-        Self {
-            coefficient,
-            ..default()
-        }
-    }
-}
-
-/// Controls how strongly the material of an entity prevents relative tangential movement at contact points.
-///
-/// For surfaces that are at rest relative to each other, static friction is used.
-/// Once the static friction is overcome, the bodies will start sliding relative to each other, and dynamic friction is applied instead.
-///
-/// 0.0: No friction at all, the body slides indefinitely\
-/// 1.0: High friction\
-///
-/// ## Example
-///
-/// Create a new [`Friction`] component with dynamic and static friction coefficients of 0.4:
-///
-/// ```ignore
-/// Friction::new(0.4)
-/// ```
-///
-/// Set the other friction coefficient:
-///
-/// ```ignore
-/// // 0.4 static and 0.6 dynamic
-/// Friction::new(0.4).with_dynamic_coefficient(0.6)
-/// // 0.4 dynamic and 0.6 static
-/// Friction::new(0.4).with_static_coefficient(0.6)
-/// ```
-///
-/// Configure how the friction coefficients of two [`Friction`] components are combined with [`CoefficientCombine`]:
-///
-/// ```ignore
-/// Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// ```
-///
-/// Combine the properties of two [`Friction`] components:
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-///
-/// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
-/// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
-///
-/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
-/// assert_eq!(
-///     first.combine(second),
-///     Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// );
-/// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct Friction {
-    /// Coefficient of dynamic friction.
-    pub dynamic_coefficient: Scalar,
-    /// Coefficient of static friction.
-    pub static_coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies collide.
-    pub combine_rule: CoefficientCombine,
-}
-
-impl Friction {
-    /// Zero dynamic and static friction and [`CoefficientCombine::Average`].
-    pub const ZERO: Self = Self {
-        dynamic_coefficient: 0.0,
-        static_coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// Creates a new `Friction` component with the same dynamic and static friction coefficients.
-    pub fn new(friction_coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: friction_coefficient,
-            static_coefficient: friction_coefficient,
-            ..default()
-        }
-    }
-
-    /// Sets the [`CoefficientCombine`] rule used.
-    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
-        Self {
-            combine_rule,
-            ..*self
-        }
-    }
-
-    /// Sets the coefficient of dynamic friction.
-    pub fn with_dynamic_coefficient(&self, coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: coefficient,
-            ..*self
-        }
-    }
-
-    /// Sets the coefficient of static friction.
-    pub fn with_static_coefficient(&self, coefficient: Scalar) -> Self {
-        Self {
-            static_coefficient: coefficient,
-            ..*self
-        }
-    }
-
-    /// Combines the properties of two `Friction` components.
-    pub fn combine(&self, other: Self) -> Self {
-        // Choose rule with higher priority
-        let rule = self.combine_rule.max(other.combine_rule);
-        let (dynamic1, dynamic2) = (self.dynamic_coefficient, other.dynamic_coefficient);
-        let (static1, static2) = (self.static_coefficient, other.static_coefficient);
-
-        Self {
-            dynamic_coefficient: match rule {
-                CoefficientCombine::Average => (dynamic1 + dynamic2) * 0.5,
-                CoefficientCombine::Min => dynamic1.min(dynamic2),
-                CoefficientCombine::Multiply => dynamic1 * dynamic2,
-                CoefficientCombine::Max => dynamic1.max(dynamic2),
-            },
-            static_coefficient: match rule {
-                CoefficientCombine::Average => (static1 + static2) * 0.5,
-                CoefficientCombine::Min => static1.min(static2),
-                CoefficientCombine::Multiply => static1 * static2,
-                CoefficientCombine::Max => static1.max(static2),
-            },
-            combine_rule: rule,
-        }
-    }
-}
-
-impl Default for Friction {
-    fn default() -> Self {
-        Self {
-            dynamic_coefficient: 0.3,
-            static_coefficient: 0.3,
-            combine_rule: CoefficientCombine::default(),
-        }
-    }
-}
-
-impl From<Scalar> for Friction {
-    fn from(coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: coefficient,
-            static_coefficient: coefficient,
-            ..default()
-        }
-    }
-}
-
 /// Automatically slows down a dynamic [rigid body](RigidBody), decreasing its
 /// [linear velocity](LinearVelocity) each frame. This can be used to simulate air resistance.
 ///
@@ -850,56 +551,3 @@ pub struct AngularDamping(pub Scalar);
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct Dominance(pub i8);
-
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
-    use approx::assert_relative_eq;
-
-    #[test]
-    fn restitution_clamping_works() {
-        assert_eq!(Restitution::new(-2.0).coefficient, 0.0);
-        assert_eq!(Restitution::new(0.6).coefficient, 0.6);
-        assert_eq!(Restitution::new(3.0).coefficient, 1.0);
-    }
-
-    #[test]
-    fn coefficient_combine_works() {
-        let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
-
-        // (0.3 + 0.7) / 2.0 == 0.5
-        let average_result =
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average));
-        let average_expected = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average);
-        assert_relative_eq!(
-            average_result.coefficient,
-            average_expected.coefficient,
-            epsilon = 0.0001
-        );
-        assert_eq!(average_result.combine_rule, average_expected.combine_rule);
-
-        // 0.3.min(0.7) == 0.3
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Min)),
-            Restitution::new(0.3).with_combine_rule(CoefficientCombine::Min)
-        );
-
-        // 0.3 * 0.7 == 0.21
-        let multiply_result =
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply));
-        let multiply_expected =
-            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply);
-        assert_relative_eq!(
-            multiply_result.coefficient,
-            multiply_expected.coefficient,
-            epsilon = 0.0001
-        );
-        assert_eq!(multiply_result.combine_rule, multiply_expected.combine_rule);
-
-        // 0.3.max(0.7) == 0.7
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)),
-            Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)
-        );
-    }
-}
