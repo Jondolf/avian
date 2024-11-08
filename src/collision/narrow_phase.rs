@@ -76,7 +76,7 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
             .init_resource::<Collisions>()
             .init_resource::<DefaultFriction>()
             .init_resource::<DefaultRestitution>()
-            .register_type::<NarrowPhaseConfig>();
+            .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
