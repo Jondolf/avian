@@ -40,8 +40,8 @@ impl CoefficientCombine {
 ///
 /// Friction can be set for individual colliders and rigid bodies using the [`Friction`] component.
 ///
-/// Defaults to dynamic and static friction coefficients of `0.6` with a mixing rule of [`CoefficientCombine::Average`].
-/// `0.6` is close to common real-world friction for most projects, resembling a material similar to concrete or brick.
+/// Defaults to dynamic and static friction coefficients of `0.5` with a mixing rule of [`CoefficientCombine::Average`].
+/// `0.5` is close to common real-world friction for most projects, resembling a material similar to concrete or brick.
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -59,18 +59,33 @@ pub struct DefaultFriction(pub Friction);
 #[reflect(Debug, Default, PartialEq)]
 pub struct DefaultRestitution(pub Restitution);
 
-/// A component for the [coefficient of restitution], controlling how bouncy a [rigid body](RigidBody) or [collider](Collider) is.
+/// A component for [restitution], controlling how bouncy a [rigid body](RigidBody) or [collider](Collider) is.
 ///
 /// The coefficient should be between 0 and 1, where 0 corresponds to a **perfectly inelastic** collision with zero bounce,
-/// and 1 corresponds to a **perfectly elastic** collision that tries to preserve all kinetic energy. Note that some kinetic energy
-/// can still be lost over long periods of time due to simulation inaccuracies or friction, even with a coefficient of 1.
+/// and 1 corresponds to a **perfectly elastic** collision that tries to preserve all kinetic energy.
+/// The default restitution is set to zero, meaning that objects are not bouncy by default.
 ///
 /// When two bodies collide, their restitution coefficients are combined using the specified [`CoefficientCombine`] rule.
+/// In the case of clashing rules, the following priority order is used: `Max > Multiply > Min > GeometricMean > Average`.
+/// By default, [`CoefficientCombine::Average`] is used, computing the average `(a + b) / 2.0`.
 ///
-/// Entities without a [`Restitution`] component use the [`DefaultRestitution`] resource for collisions.
-/// By default, restitution is set to zero, and coefficients are averaged according to [`CoefficientCombine::Average`].
+/// If a collider does not have [`Restitution`] specified, the [`Restitution`] of its rigid body entity will be used instead.
+/// If no [`Restitution`] is specified for the rigid body either, collisions use the [`DefaultRestitution`] resource.
 ///
-/// [coefficient of restitution]: https://en.wikipedia.org/wiki/Coefficient_of_restitution
+/// [restitution]: https://en.wikipedia.org/wiki/Coefficient_of_restitution
+///
+/// # Accuracy
+///
+/// Even with a coefficient of 1, some kinetic energy can be lost over long periods of time for bouncing objects.
+/// This can be caused by friction, damping, or simulation inaccuracies. Restitution is not guaranteed to be entirely accurate,
+/// especially for fast-moving bodies.
+///
+/// Coefficients larger than 1 are also allowed for restitution, but not recommended, as they can cause unstable behavior
+/// due to the object gaining kinetic energy on every bounce.
+///
+/// It is also worth noting that in real life, restitution coefficients can vary greatly based on material combinations
+/// and numerous other factors, and they are not uniform across surfaces. For game purposes however, it is impractical to consider
+/// all of these factors, so instead, material interactions are controlled using simple [`CoefficientCombine`] rules.
 ///
 /// # Example
 ///
@@ -111,8 +126,9 @@ pub struct Restitution {
     /// The [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
     ///
     /// This should be between 0 and 1, where 0 corresponds to a **perfectly inelastic** collision with zero bounce,
-    /// and 1 corresponds to a **perfectly elastic** collision that tries to preserve all kinetic energy. Note that some kinetic energy
-    /// can still be lost over long periods of time due to simulation inaccuracies or friction, even with a coefficient of 1.
+    /// and 1 corresponds to a **perfectly elastic** collision that tries to preserve all kinetic energy.
+    /// A coefficient larger than 1 is also allowed, but not recommended, as it can cause unstable behavior
+    /// due to the object gaining kinetic energy on every bounce.
     ///
     /// Defaults to `0.0`.
     pub coefficient: Scalar,
@@ -194,17 +210,35 @@ impl From<Scalar> for Restitution {
     }
 }
 
-/// Controls how strongly the material of an entity prevents sliding along surfaces.
+/// A component for [dry friction], controlling how strongly a [rigid body](RigidBody) or [collider](Collider)
+/// opposes sliding along other surfaces while in contact.
 ///
 /// For surfaces that are at rest relative to each other, **static friction** is used.
 /// Once the static friction is overcome, the bodies will start sliding relative to each other, and **dynamic friction** is applied instead.
+/// The friction force is proportional to the normal force of the contact, following the [Coulomb friction model].
 ///
-/// `0.0`: No friction at all, the body slides indefinitely\
-/// `1.0`: High friction
+/// The friction coefficients should typically be between 0 and 1, where 0 corresponds to no friction at all, and 1 corresponds to high friction.
+/// However, any non-negative value is allowed. The default dynamic and static friction coefficients are set to `0.5`.
 ///
-/// Entities without a [`Friction`] component use the [`DefaultFriction`] resource for collisions.
-/// By default, dynamic and static friction coefficients are set to `0.6`, and coefficients are averaged according to [`CoefficientCombine::Average`].
-/// `0.6` is close to common real-world friction for most projects, resembling a material similar to concrete or brick.
+/// When two bodies collide, their friction coefficients are combined using the specified [`CoefficientCombine`] rule.
+/// In the case of clashing rules, the following priority order is used: `Max > Multiply > Min > GeometricMean > Average`.
+/// By default, [`CoefficientCombine::Average`] is used, computing the average `(a + b) / 2.0`.
+///
+/// If a collider does not have [`Friction`] specified, the [`Friction`] of its rigid body entity will be used instead.
+/// If no [`Friction`] is specified for the rigid body either, collisions use the [`DefaultFriction`] resource.
+///
+/// [dry friction]: https://en.wikipedia.org/wiki/Friction#Dry_friction
+/// [Coulomb friction model]: https://en.wikipedia.org/wiki/Friction#Dry_friction
+///
+/// # Accuracy
+///
+/// Avian attempts to simulate friction accurately, but Coulomb friction is still a simplification of real-world friction.
+/// Each collision typically has only a small number of contact points, so friction cannot consider the entire surface perfectly.
+/// Still, friction should be reasonably accurate for most use cases, particularly for game purposes.
+///
+/// It is also worth noting that in real life, friction coefficients can vary greatly based on material combinations, surface roughness,
+/// and numerous other factors, and they are not uniform across surfaces. For game purposes however, it is impractical to consider
+/// all of these factors, so instead, material interactions are controlled using simple [`CoefficientCombine`] rules.
 ///
 /// # Example
 ///
@@ -249,13 +283,13 @@ impl From<Scalar> for Restitution {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 pub struct Friction {
-    /// Coefficient of dynamic friction.
+    /// Coefficient of dynamic friction. Applied when bodies are sliding relative to each other.
     ///
-    /// Defaults to `0.6`.
+    /// Defaults to `0.5`.
     pub dynamic_coefficient: Scalar,
-    /// Coefficient of static friction.
+    /// Coefficient of static friction. Applied when bodies are at rest relative to each other.
     ///
-    /// Defaults to `0.6`.
+    /// Defaults to `0.5`.
     pub static_coefficient: Scalar,
     /// The coefficient combine rule used when two bodies collide.
     ///
@@ -265,11 +299,11 @@ pub struct Friction {
 
 // TODO: Use geometric mean for default combine rule
 impl Default for Friction {
-    /// The default [`Friction`] with dynamic and static friction coefficients of `0.6` and a combine rule of [`CoefficientCombine::Average`].
+    /// The default [`Friction`] with dynamic and static friction coefficients of `0.5` and a combine rule of [`CoefficientCombine::Average`].
     fn default() -> Self {
         Self {
-            dynamic_coefficient: 0.6,
-            static_coefficient: 0.6,
+            dynamic_coefficient: 0.5,
+            static_coefficient: 0.5,
             combine_rule: CoefficientCombine::Average,
         }
     }
@@ -283,7 +317,7 @@ impl Friction {
         combine_rule: CoefficientCombine::Average,
     };
 
-    /// Creates a new `Friction` component with the same dynamic and static friction coefficients.
+    /// Creates a new [`Friction`] component with the same dynamic and static friction coefficients.
     pub fn new(friction_coefficient: Scalar) -> Self {
         Self {
             dynamic_coefficient: friction_coefficient,
@@ -316,7 +350,7 @@ impl Friction {
         }
     }
 
-    /// Combines the properties of two `Friction` components.
+    /// Combines the properties of two [`Friction`] components.
     pub fn combine(&self, other: Self) -> Self {
         // Choose rule with higher priority
         let rule = self.combine_rule.max(other.combine_rule);
@@ -352,7 +386,6 @@ mod tests {
     }
 
     // TODO: Test `CoefficientCombine` directly
-    // TODO: Test geometric mean
     #[test]
     fn coefficient_combine_works() {
         let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
@@ -367,6 +400,21 @@ mod tests {
             epsilon = 0.0001
         );
         assert_eq!(average_result.combine_rule, average_expected.combine_rule);
+
+        // (0.3 * 0.7).sqrt() == 0.4582575694
+        let geometric_mean_result =
+            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::GeometricMean));
+        let geometric_mean_expected =
+            Restitution::new(0.458_257_56).with_combine_rule(CoefficientCombine::GeometricMean);
+        assert_relative_eq!(
+            geometric_mean_result.coefficient,
+            geometric_mean_expected.coefficient,
+            epsilon = 0.0001
+        );
+        assert_eq!(
+            geometric_mean_result.combine_rule,
+            geometric_mean_expected.combine_rule
+        );
 
         // 0.3.min(0.7) == 0.3
         assert_eq!(
