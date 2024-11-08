@@ -40,8 +40,7 @@ impl CoefficientCombine {
 ///
 /// Friction can be set for individual colliders and rigid bodies using the [`Friction`] component.
 ///
-/// Defaults to dynamic and static friction coefficients of `0.5` with a mixing rule of [`CoefficientCombine::Average`].
-/// `0.5` is close to common real-world friction for most projects, resembling a material similar to concrete or brick.
+/// Defaults to dynamic and static friction coefficients of `0.5` with a combine rule of [`CoefficientCombine::Average`].
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -52,7 +51,7 @@ pub struct DefaultFriction(pub Friction);
 ///
 /// Restitution can be set for individual colliders and rigid bodies using the [`Restitution`] component.
 ///
-/// Defaults to a coefficient of `0.0` with a mixing rule of [`CoefficientCombine::Average`].
+/// Defaults to a coefficient of `0.0` with a combine rule of [`CoefficientCombine::Average`].
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
