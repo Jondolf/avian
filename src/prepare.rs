@@ -103,10 +103,6 @@ impl Plugin for PreparePlugin {
         .add_systems(
             self.schedule,
             init_transforms::<RigidBody>.in_set(PrepareSet::InitTransforms),
-        )
-        .add_systems(
-            self.schedule,
-            clamp_restitution.in_set(PrepareSet::Finalize),
         );
     }
 }
@@ -340,13 +336,6 @@ pub fn init_transforms<C: Component>(
                 cmds.try_insert((transform, Position(new_position), new_rotation));
             }
         }
-    }
-}
-
-/// Clamps coefficients of [restitution](Restitution) to be between 0.0 and 1.0.
-fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
-    for mut restitution in &mut query {
-        restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
     }
 }
 
