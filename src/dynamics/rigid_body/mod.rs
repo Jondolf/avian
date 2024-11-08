@@ -221,6 +221,7 @@ use derive_more::From;
 /// - [Colliders](Collider)
 /// - [Gravity] and [gravity scale](GravityScale)
 /// - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
+/// - [Friction] and [restitution](Restitution)
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
 /// - [Continuous Collision Detection](dynamics::ccd)
