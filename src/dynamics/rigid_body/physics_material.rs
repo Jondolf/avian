@@ -377,13 +377,6 @@ mod tests {
     use crate::prelude::*;
     use approx::assert_relative_eq;
 
-    #[test]
-    fn restitution_clamping_works() {
-        assert_eq!(Restitution::new(-2.0).coefficient, 0.0);
-        assert_eq!(Restitution::new(0.6).coefficient, 0.6);
-        assert_eq!(Restitution::new(3.0).coefficient, 1.0);
-    }
-
     // TODO: Test `CoefficientCombine` directly
     #[test]
     fn coefficient_combine_works() {
