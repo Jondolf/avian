@@ -86,7 +86,7 @@ pub struct DefaultRestitution(pub Restitution);
 ///
 /// Create a new [`Friction`] component with dynamic and static friction coefficients of 0.4:
 ///
-/// ```
+/// ```ignore
 /// Friction::new(0.4)
 /// ```
 ///
