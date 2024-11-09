@@ -74,7 +74,9 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
-            .register_type::<NarrowPhaseConfig>();
+            .init_resource::<DefaultFriction>()
+            .init_resource::<DefaultRestitution>()
+            .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
@@ -263,6 +265,8 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
+    default_friction: Res<DefaultFriction>,
+    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
@@ -307,6 +311,33 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
+            // Get combined friction and restitution coefficients of the colliders
+            // or the bodies they are attached to. Fall back to the global defaults.
+            let friction = collider1
+                .friction
+                .or(body1.friction)
+                .copied()
+                .unwrap_or(default_friction.0)
+                .combine(
+                    collider2
+                        .friction
+                        .or(body2.friction)
+                        .copied()
+                        .unwrap_or(default_friction.0),
+                );
+            let restitution = collider1
+                .restitution
+                .or(body1.restitution)
+                .copied()
+                .unwrap_or(default_restitution.0)
+                .combine(
+                    collider2
+                        .restitution
+                        .or(body2.restitution)
+                        .copied()
+                        .unwrap_or(default_restitution.0),
+                );
+
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -316,6 +347,8 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
+                friction,
+                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,
@@ -610,6 +643,8 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Friction,
+        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -634,33 +669,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                 commands.entity(body2.entity).remove::<Sleeping>();
             }
         });
-
-        // Get combined friction and restitution coefficients of the colliders
-        // or the bodies they are attached to.
-        let friction = collider1
-            .friction
-            .or(body1.friction)
-            .copied()
-            .unwrap_or_default()
-            .combine(
-                collider2
-                    .friction
-                    .or(body2.friction)
-                    .copied()
-                    .unwrap_or_default(),
-            );
-        let restitution = collider1
-            .restitution
-            .or(body1.restitution)
-            .copied()
-            .unwrap_or_default()
-            .combine(
-                collider2
-                    .restitution
-                    .or(body2.restitution)
-                    .copied()
-                    .unwrap_or_default(),
-            );
 
         let contact_softness = if !body1.rb.is_dynamic() || !body2.rb.is_dynamic() {
             contact_softness.non_dynamic

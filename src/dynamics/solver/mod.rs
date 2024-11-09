@@ -585,7 +585,6 @@ fn solve_restitution(
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
 ) {
-    // TODO: This could be configurable.
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
