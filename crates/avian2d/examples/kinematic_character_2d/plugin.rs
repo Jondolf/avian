@@ -164,11 +164,11 @@ fn gamepad_input(
     gamepads: Query<&Gamepad>,
 ) {
     for gamepad in gamepads.iter() {
-        if let Some(x) = gamepad.get(GamepadAxis::LeftStickX) {
+        if let Some(x) = gamepad.analog.get(GamepadAxis::LeftStickX) {
             movement_event_writer.send(MovementAction::Move(x as Scalar));
         }
 
-        if gamepad.just_pressed(GamepadButton::South) {
+        if gamepad.digital.just_pressed(GamepadButton::South) {
             movement_event_writer.send(MovementAction::Jump);
         }
     }
