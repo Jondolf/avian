@@ -175,7 +175,7 @@ impl Restitution {
     /// Creates a new [`Restitution`] component with the given restitution coefficient.
     pub fn new(coefficient: Scalar) -> Self {
         Self {
-            coefficient: coefficient.clamp(0.0, 1.0),
+            coefficient,
             combine_rule: CoefficientCombine::Average,
         }
     }
