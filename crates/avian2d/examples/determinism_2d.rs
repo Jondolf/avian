@@ -18,7 +18,10 @@ use avian2d::{
     math::{AdjustPrecision, Scalar, Vector, PI},
     prelude::*,
 };
-use bevy::{color::palettes::tailwind::CYAN_400, prelude::*, render::camera::ScalingMode};
+use bevy::{
+    color::palettes::tailwind::CYAN_400, input::common_conditions::input_just_pressed, prelude::*,
+    render::camera::ScalingMode,
+};
 use bytemuck::{Pod, Zeroable};
 
 // How many steps to record the hash for.
@@ -34,11 +37,22 @@ fn main() {
             PhysicsPlugins::default().with_length_unit(0.5),
             PhysicsDebugPlugin::default(),
         ))
+        .init_resource::<Step>()
         .add_systems(Startup, (setup_scene, setup_ui))
         .add_systems(PostProcessCollisions, ignore_joint_collisions)
         .add_systems(FixedUpdate, update_hash)
+        .add_systems(
+            PreUpdate,
+            // Reset the scene when the R key is pressed.
+            (clear_scene, setup_scene)
+                .chain()
+                .run_if(input_just_pressed(KeyCode::KeyR)),
+        )
         .run();
 }
+
+#[derive(Resource, Default, Deref, DerefMut)]
+struct Step(usize);
 
 fn setup_scene(
     mut commands: Commands,
@@ -155,13 +169,43 @@ fn setup_ui(mut commands: Commands) {
                 ..default()
             },
         ))
-        .with_child((TextSpan::new("5381"), font, HashText));
+        .with_child((TextSpan::default(), font.clone(), HashText));
+
+    commands.spawn((
+        Text::new("Press R to reset scene"),
+        font.clone(),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(5.0),
+            right: Val::Px(5.0),
+            ..default()
+        },
+    ));
 }
 
 // TODO: This should be an optimized built-in feature for joints.
 fn ignore_joint_collisions(joints: Query<&RevoluteJoint>, mut collisions: ResMut<Collisions>) {
     for joint in &joints {
         collisions.remove_collision_pair(joint.entity1, joint.entity2);
+    }
+}
+
+fn clear_scene(
+    mut commands: Commands,
+    query: Query<
+        Entity,
+        Or<(
+            With<RigidBody>,
+            With<Collider>,
+            With<RevoluteJoint>,
+            With<Camera>,
+        )>,
+    >,
+    mut step: ResMut<Step>,
+) {
+    step.0 = 0;
+    for entity in &query {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
@@ -176,12 +220,12 @@ fn update_hash(
     transforms: Query<(&Position, &Rotation), With<RigidBody>>,
     mut step_text: Single<&mut TextSpan, With<StepText>>,
     mut hash_text: Single<&mut TextSpan, (With<HashText>, Without<StepText>)>,
-    mut step: Local<usize>,
+    mut step: ResMut<Step>,
 ) {
-    step_text.0 = (*step).to_string();
-    *step += 1;
+    step_text.0 = step.to_string();
+    step.0 += 1;
 
-    if *step > STEP_COUNT {
+    if step.0 > STEP_COUNT {
         return;
     }
 
@@ -194,8 +238,8 @@ fn update_hash(
         hash = djb2_hash(hash, bytemuck::bytes_of(&isometry));
     }
 
-    if *step == STEP_COUNT {
-        hash_text.0 = format!("0x{:x} (step {})", hash, *step);
+    if step.0 == STEP_COUNT {
+        hash_text.0 = format!("0x{:x} (step {})", hash, step.0);
     } else {
         hash_text.0 = format!("0x{:x}", hash);
     }
