@@ -58,11 +58,11 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0xa38b5132;
+    let expected = 0xa1c6b39;
 
-    assert_eq!(
-        hash, expected,
-        "\nExpected hash 0x{:x}, found hash 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 66.\n", expected, hash,
+    assert!(
+        hash == expected,
+        "\nExpected transform hash 0x{:x}, found 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 66.\n", expected, hash,
     );
 }
 
