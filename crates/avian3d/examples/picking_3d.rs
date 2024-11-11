@@ -1,6 +1,6 @@
 //! A simple 3D scene to demonstrate physics picking for colliders.
 //!
-//! By default, the [`PhysicsPickingPlugin`] will test intersections with the pointer against all colliders
+//! By default, the [`PhysicsPickingPlugin`] will test intersections with the pointer against all colliders.
 //! If you want physics picking to be opt-in, you can set [`PhysicsPickingSettings::require_markers`] to `true`
 //! and add a [`PhysicsPickable`] component to the desired camera and target entities.
 
@@ -18,7 +18,7 @@ fn main() {
             PhysicsPickingPlugin,
         ))
         .add_systems(Startup, setup_scene)
-        .add_systems(Update, draw_mesh_intersections)
+        .add_systems(Update, draw_pointer_intersections)
         .run();
 }
 
@@ -153,7 +153,7 @@ fn update_material_on<E>(
 }
 
 /// A system that draws hit indicators for every pointer.
-fn draw_mesh_intersections(pointers: Query<&PointerInteraction>, mut gizmos: Gizmos) {
+fn draw_pointer_intersections(pointers: Query<&PointerInteraction>, mut gizmos: Gizmos) {
     for (point, normal) in pointers
         .iter()
         .filter_map(|interaction| interaction.get_nearest_hit())
