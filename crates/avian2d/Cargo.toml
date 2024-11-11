@@ -12,7 +12,15 @@ keywords = ["gamedev", "physics", "simulation", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel", "bevy_scene"]
+default = [
+    "2d",
+    "f32",
+    "parry-f32",
+    "debug-plugin",
+    "parallel",
+    "bevy_scene",
+    "bevy_picking",
+]
 2d = []
 f32 = []
 f64 = []
@@ -52,6 +60,7 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15.0-rc", default-features = false }
 bevy_math = { version = "0.15.0-rc" }
+bevy_picking = { version = "0.15.0-rc", optional = true }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }

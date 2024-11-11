@@ -44,25 +44,26 @@
 //!
 //! ### Feature flags
 //!
-//! | Feature                | Description                                                                                                                                  | Default feature         |
-//! | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                                  | Yes (`avian2d`)    |
-//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                                  | Yes (`avian3d`)    |
-//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                                | Yes                     |
-//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                                | No                      |
-//! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature.     | Yes                     |
-//! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                             | Yes                     |
-//! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                             | No                      |
+//! | Feature                | Description                                                                                                                              | Default feature         |
+//! | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                              | Yes (`avian2d`)    |
+//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                              | Yes (`avian3d`)    |
+//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                            | Yes                     |
+//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                            | No                      |
+//! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature. | Yes                     |
+//! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                         | Yes                     |
+//! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                         | No                      |
 #![cfg_attr(
     feature = "3d",
-    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                | Yes                     |"
+    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                        | Yes                     |"
 )]
-//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                              | Yes                     |
-//! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                           | Yes                     |
-//! | `enhanced-determinism` | Enables increased determinism.                                                                                                   | No                      |
-//! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones. | Yes                     |
-//! | `simd`                 | Enables [SIMD] optimizations.                                                                                                    | No                      |
-//! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                               | No                      |
+//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                                       | Yes                     |
+//! | `bevy_picking`         | Enables physics picking support for `bevy_picking` using the [`PhysicsPickingPlugin`].  The plugin must be added separately.              | Yes                     |
+//! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                                    | Yes                     |
+//! | `enhanced-determinism` | Enables increased determinism.                                                                                                            | No                      |
+//! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.          | Yes                     |
+//! | `simd`                 | Enables [SIMD] optimizations.                                                                                                             | No                      |
+//! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                                        | No                      |
 //!
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
@@ -451,6 +452,8 @@ pub mod collision;
 pub mod debug_render;
 pub mod dynamics;
 pub mod math;
+#[cfg(feature = "bevy_picking")]
+pub mod picking;
 pub mod position;
 pub mod prepare;
 pub mod schedule;
@@ -464,6 +467,8 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
+    #[cfg(feature = "bevy_picking")]
+    pub use crate::picking::{PhysicsPickable, PhysicsPickingPlugin, PhysicsPickingSettings};
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
     pub use crate::{

@@ -18,6 +18,7 @@ default = [
     "parry-f32",
     "collider-from-mesh",
     "bevy_scene",
+    "bevy_picking",
     "debug-plugin",
     "parallel",
 ]
@@ -61,6 +62,7 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15.0-rc", default-features = false }
 bevy_math = { version = "0.15.0-rc" }
+bevy_picking = { version = "0.15.0-rc", optional = true }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.17", optional = true }
 parry3d-f64 = { version = "0.17", optional = true }
@@ -127,6 +129,10 @@ required-features = ["3d", "default-collider"]
 [[example]]
 name = "revolute_joint_3d"
 required-features = ["3d", "default-collider"]
+
+[[example]]
+name = "picking_3d"
+required-features = ["3d", "default-collider", "bevy_picking"]
 
 [[example]]
 name = "trimesh_shapes_3d"
