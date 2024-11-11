@@ -11,7 +11,7 @@
 //! The determinism test compares this to the expected value for every PR on multiple platforms using GitHub Actions.
 //! Every time simulation behavior changes, the expected hash must be updated.
 //!
-//! This test is based on the same test in the Box2D physics engine:
+//! This test is based on the `FallingHinges` test in the Box2D physics engine:
 //! <https://github.com/erincatto/box2d/blob/90c2781f64775085035655661d5fe6542bf0fbd5/samples/sample_determinism.cpp>
 
 use avian2d::{

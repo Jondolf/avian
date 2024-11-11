@@ -10,7 +10,7 @@
 //! This is compared against the expected hash for every PR on multiple platforms using GitHub Actions.
 //! Every time simulation behavior changes, the expected hash must be updated.
 //!
-//! This test is based on the same test in the Box2D physics engine:
+//! This test is based on the `FallingHinges` test in the Box2D physics engine
 //! <https://github.com/erincatto/box2d/blob/90c2781f64775085035655661d5fe6542bf0fbd5/samples/sample_determinism.cpp>
 
 #![allow(clippy::doc_markdown)]
@@ -58,7 +58,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0xa1c6b39;
+    let expected = 0x10af0e71;
 
     assert!(
         hash == expected,
