@@ -44,6 +44,7 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
 collider-from-mesh = ["bevy/bevy_render", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
@@ -62,7 +63,6 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15.0-rc", default-features = false }
 bevy_math = { version = "0.15.0-rc" }
-bevy_picking = { version = "0.15.0-rc", optional = true }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.17", optional = true }
 parry3d-f64 = { version = "0.17", optional = true }

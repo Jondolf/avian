@@ -13,10 +13,13 @@
 )]
 
 use crate::prelude::*;
-use bevy::{prelude::*, render::view::RenderLayers};
-use bevy_picking::{
-    backend::{ray::RayMap, HitData, PointerHits},
-    PickSet,
+use bevy::{
+    picking::{
+        backend::{ray::RayMap, HitData, PointerHits},
+        PickSet,
+    },
+    prelude::*,
+    render::view::RenderLayers,
 };
 
 /// Adds the physics picking backend to your app, enabling picking for [colliders](Collider).
