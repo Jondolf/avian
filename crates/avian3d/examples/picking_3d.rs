@@ -8,15 +8,12 @@ use std::f32::consts::PI;
 
 use avian3d::{math::Vector, prelude::*};
 use bevy::{color::palettes::tailwind::*, picking::pointer::PointerInteraction, prelude::*};
-use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
             // `PhysicsPickingPlugin` is not a default plugin
             PhysicsPickingPlugin,
         ))
