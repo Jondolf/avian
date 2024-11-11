@@ -62,7 +62,7 @@ fn cross_platform_determinism_2d() {
 
     assert!(
         hash == expected,
-        "\nExpected transform hash 0x{:x}, found 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 66.\n", expected, hash,
+        "\nExpected transform hash 0x{:x}, found 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 61.\n", expected, hash,
     );
 }
 
