@@ -83,7 +83,6 @@ benches_common_3d = { path = "../benches_common_3d" }
 bevy_math = { version = "0.15.0-rc", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
-insta = "1.0"
 bevy_mod_debugdump = { git = "https://github.com/andriyDev/bevy_mod_debugdump", branch = "bevy-0.15" }
 
 [[example]]
