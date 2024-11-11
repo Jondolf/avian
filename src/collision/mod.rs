@@ -480,6 +480,23 @@ impl SingleContact {
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal2
     }
+
+    /// Flips the contact data, swapping the points and normals.
+    pub fn flip(&mut self) {
+        std::mem::swap(&mut self.point1, &mut self.point2);
+        std::mem::swap(&mut self.normal1, &mut self.normal2);
+    }
+
+    /// Returns a flipped copy of the contact data, swapping the points and normals.
+    pub fn flipped(&self) -> Self {
+        Self {
+            point1: self.point2,
+            point2: self.point1,
+            normal1: self.normal2,
+            normal2: self.normal1,
+            penetration: self.penetration,
+        }
+    }
 }
 
 /// Data related to a contact between two bodies.
@@ -515,7 +532,7 @@ pub struct ContactData {
     /// The contact feature ID on the first shape. This indicates the ID of
     /// the vertex, edge, or face of the contact, if one can be determined.
     pub feature_id1: PackedFeatureId,
-    /// The contact feature ID on the first shape. This indicates the ID of
+    /// The contact feature ID on the second shape. This indicates the ID of
     /// the vertex, edge, or face of the contact, if one can be determined.
     pub feature_id2: PackedFeatureId,
 }
@@ -600,5 +617,31 @@ impl ContactData {
     /// Returns the world-space contact normal pointing towards the exterior of the second entity.
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal2
+    }
+
+    /// Flips the contact data, swapping the points, normals, and feature IDs,
+    /// and negating the impulses.
+    pub fn flip(&mut self) {
+        std::mem::swap(&mut self.point1, &mut self.point2);
+        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
+        self.normal_impulse = -self.normal_impulse;
+        self.tangent_impulse = -self.tangent_impulse;
+    }
+
+    /// Returns a flipped copy of the contact data, swapping the points, normals, and feature IDs,
+    /// and negating the impulses.
+    pub fn flipped(&self) -> Self {
+        Self {
+            point1: self.point2,
+            point2: self.point1,
+            normal1: self.normal2,
+            normal2: self.normal1,
+            penetration: self.penetration,
+            normal_impulse: -self.normal_impulse,
+            tangent_impulse: -self.tangent_impulse,
+            feature_id1: self.feature_id2,
+            feature_id2: self.feature_id1,
+        }
     }
 }
