@@ -130,14 +130,11 @@ pub fn update_hits(
                 )
                 .map(|ray_hit_data| {
                     #[allow(clippy::unnecessary_cast)]
+                    let toi = ray_hit_data.time_of_impact as f32;
                     let hit_data = HitData::new(
                         ray_id.camera,
-                        ray_hit_data.time_of_impact as f32,
-                        Some(
-                            (ray.origin
-                                + (ray.direction.adjust_precision() * ray_hit_data.time_of_impact))
-                                .f32(),
-                        ),
+                        toi,
+                        Some(ray.origin + *ray.direction * toi),
                         Some(ray_hit_data.normal.f32()),
                     );
                     (ray_hit_data.entity, hit_data)
