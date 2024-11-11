@@ -131,7 +131,7 @@ name = "revolute_joint_3d"
 required-features = ["3d", "default-collider"]
 
 [[example]]
-name = "picking_3d"
+name = "picking"
 required-features = ["3d", "default-collider", "bevy_picking"]
 
 [[example]]
