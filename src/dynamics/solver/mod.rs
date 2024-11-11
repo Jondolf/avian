@@ -494,7 +494,7 @@ fn update_contact_softness(
     }
 }
 
-/// A resource that stores >the contact constraints.
+/// A resource that stores the contact constraints.
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct ContactConstraints(pub Vec<ContactConstraint>);
 
