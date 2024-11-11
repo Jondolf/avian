@@ -12,7 +12,15 @@ keywords = ["gamedev", "physics", "simulation", "bevy"]
 categories = ["game-development", "science", "simulation"]
 
 [features]
-default = ["2d", "f32", "parry-f32", "debug-plugin", "parallel", "bevy_scene"]
+default = [
+    "2d",
+    "f32",
+    "parry-f32",
+    "debug-plugin",
+    "parallel",
+    "bevy_scene",
+    "bevy_picking",
+]
 2d = []
 f32 = []
 f64 = []
@@ -34,6 +42,7 @@ parry-f32 = ["f32", "dep:parry2d", "default-collider"]
 parry-f64 = ["f64", "dep:parry2d-f64", "default-collider"]
 
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",

@@ -18,6 +18,7 @@ default = [
     "parry-f32",
     "collider-from-mesh",
     "bevy_scene",
+    "bevy_picking",
     "debug-plugin",
     "parallel",
 ]
@@ -43,6 +44,7 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
 collider-from-mesh = ["bevy/bevy_render", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
@@ -127,6 +129,10 @@ required-features = ["3d", "default-collider"]
 [[example]]
 name = "revolute_joint_3d"
 required-features = ["3d", "default-collider"]
+
+[[example]]
+name = "picking"
+required-features = ["3d", "default-collider", "bevy_picking"]
 
 [[example]]
 name = "trimesh_shapes_3d"
