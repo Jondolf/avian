@@ -16,7 +16,6 @@ fn main() {
             DefaultPlugins,
             ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDebugPlugin::default(),
             // `PhysicsPickingPlugin` is not a default plugin
             PhysicsPickingPlugin,
         ))
