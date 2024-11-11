@@ -133,7 +133,11 @@ pub fn update_hits(
                     let hit_data = HitData::new(
                         ray_id.camera,
                         ray_hit_data.time_of_impact as f32,
-                        Some((ray.origin + (*ray.direction * ray_hit_data.time_of_impact)).f32()),
+                        Some(
+                            (ray.origin
+                                + (ray.direction.adjust_precision() * ray_hit_data.time_of_impact))
+                                .f32(),
+                        ),
                         Some(ray_hit_data.normal.f32()),
                     );
                     (ray_hit_data.entity, hit_data)
