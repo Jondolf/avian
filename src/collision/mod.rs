@@ -340,6 +340,23 @@ impl Contacts {
     pub fn collision_stopped(&self) -> bool {
         self.during_previous_frame && !self.during_current_frame
     }
+
+    /// Returns the contact with the largest penetration depth.
+    ///
+    /// If the objects are separated but there is still a speculative contact,
+    /// the penetration depth will be negative.
+    ///
+    /// If there are no contacts, `None` is returned.
+    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+        self.manifolds
+            .iter()
+            .filter_map(|manifold| manifold.find_deepest_contact())
+            .max_by(|a, b| {
+                a.penetration
+                    .partial_cmp(&b.penetration)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
 }
 
 /// A contact manifold between two colliders, containing a set of contact points.
@@ -419,6 +436,20 @@ impl ContactManifold {
                 }
             }
         }
+    }
+
+    /// Returns the contact with the largest penetration depth.
+    ///
+    /// If the objects are separated but there is still a speculative contact,
+    /// the penetration depth will be negative.
+    ///
+    /// If there are no contacts, `None` is returned.
+    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+        self.contacts.iter().max_by(|a, b| {
+            a.penetration
+                .partial_cmp(&b.penetration)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 }
 
