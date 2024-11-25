@@ -18,12 +18,12 @@ use crate::prelude::*;
 ///
 /// # Overview
 ///
-/// To make behavior deterministic and independent of frame rate, physics simulations are typically
-/// run at a fixed timestep. However, when this timestep doesn't match the display frame rate,
+/// To make behavior deterministic and independent of frame rate, Avian runs physics at a fixed timestep
+/// in [`FixedPostUpdate`] by default. However, when this timestep doesn't match the display frame rate,
 /// movement can appear choppy, especially on displays with high refresh rates.
 ///
-/// The conventional solution to this issue is to ease transforms in between physics ticks
-/// to smooth out the visual result. This can be done using either interpolation or extrapolation.
+/// The conventional solution is to ease transforms in between physics ticks to smooth out the visual result.
+/// This can be done using either interpolation or extrapolation.
 ///
 /// ## Interpolation
 ///
@@ -49,7 +49,7 @@ use crate::prelude::*;
 ///
 /// # Usage
 ///
-/// Once the plugin is added to the app, [`Transform`] interpolation and extrapolation
+/// Once the plugin has been added to the app, [`Transform`] interpolation and extrapolation
 /// can be enabled for individual entities using the [`TransformInterpolation`] and [`TransformExtrapolation`]
 /// components respectively:
 ///

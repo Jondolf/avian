@@ -21,37 +21,49 @@ use bevy::{
         css::WHITE,
         tailwind::{CYAN_400, LIME_400, RED_400},
     },
+    input::common_conditions::input_pressed,
     prelude::*,
 };
-
-const MOVEMENT_SPEED: f32 = 250.0;
-const ROTATION_SPEED: f32 = 2.0;
 
 fn main() {
     let mut app = App::new();
 
     // Add the `PhysicsInterpolationPlugin` to enable interpolation and extrapolation functionality.
+    //
+    // By default, interpolation and extrapolation must be enabled for each entity manually.
+    // Use `PhysicsInterpolationPlugin::interpolate_all()` to enable interpolation for all rigid bodies.
     app.add_plugins((
         DefaultPlugins,
-        PhysicsPlugins::default(),
+        PhysicsPlugins::default().with_length_unit(50.0),
         PhysicsInterpolationPlugin::default(),
     ));
 
-    // Set the fixed timestep to just 5 Hz for demonstration purposes.
-    app.insert_resource(Time::from_hz(5.0));
+    // Set gravity.
+    app.insert_resource(Gravity(Vector::NEG_Y * 900.0));
 
-    // Flip the movement direction of objects when they reach the left or right side of the screen.
-    app.add_systems(FixedUpdate, flip_movement_direction);
+    // Set the fixed timestep to just 10 Hz for demonstration purposes.
+    app.insert_resource(Time::from_hz(10.0));
 
     // Setup the scene and UI, and update text in `Update`.
-    app.add_systems(Startup, (setup, setup_text))
-        .add_systems(Update, (change_timestep, update_timestep_text));
+    app.add_systems(Startup, (setup_scene, setup_balls, setup_text))
+        .add_systems(
+            Update,
+            (
+                change_timestep,
+                update_timestep_text,
+                // Reset the scene when the 'R' key is pressed.
+                reset_balls.run_if(input_pressed(KeyCode::KeyR)),
+            ),
+        );
 
     // Run the app.
     app.run();
 }
 
-fn setup(
+#[derive(Component)]
+struct Ball;
+
+fn setup_scene(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -59,16 +71,34 @@ fn setup(
     // Spawn a camera.
     commands.spawn(Camera2d);
 
-    let mesh = meshes.add(Rectangle::from_length(60.0));
+    // Spawn the ground.
+    commands.spawn((
+        Name::new("Ground"),
+        RigidBody::Static,
+        Collider::rectangle(500.0, 20.0),
+        Restitution::new(0.99).with_combine_rule(CoefficientCombine::Max),
+        Transform::from_xyz(0.0, -300.0, 0.0),
+        Mesh2d(meshes.add(Rectangle::new(500.0, 20.0))),
+        MeshMaterial2d(materials.add(Color::from(WHITE))),
+    ));
+}
+
+fn setup_balls(
+    mut commands: Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    let circle = Circle::new(30.0);
+    let mesh = meshes.add(circle);
 
     // This entity uses transform interpolation.
     commands.spawn((
         Name::new("Interpolation"),
-        RigidBody::Kinematic,
-        LinearVelocity(Vector::new(MOVEMENT_SPEED, 0.0)),
-        AngularVelocity(ROTATION_SPEED),
+        Ball,
+        RigidBody::Dynamic,
+        Collider::from(circle),
         TransformInterpolation,
-        Transform::from_xyz(-500.0, 120.0, 0.0),
+        Transform::from_xyz(-100.0, 300.0, 0.0),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(CYAN_400)).clone()),
     ));
@@ -76,11 +106,11 @@ fn setup(
     // This entity uses transform extrapolation.
     commands.spawn((
         Name::new("Extrapolation"),
-        RigidBody::Kinematic,
-        LinearVelocity(Vector::new(MOVEMENT_SPEED, 0.0)),
-        AngularVelocity(ROTATION_SPEED),
+        Ball,
+        RigidBody::Dynamic,
+        Collider::from(circle),
         TransformExtrapolation,
-        Transform::from_xyz(-500.0, 0.0, 0.0),
+        Transform::from_xyz(0.0, 300.0, 0.0),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(LIME_400)).clone()),
     ));
@@ -88,36 +118,22 @@ fn setup(
     // This entity is simulated in `FixedUpdate` without any smoothing.
     commands.spawn((
         Name::new("No Interpolation"),
-        RigidBody::Kinematic,
-        LinearVelocity(Vector::new(MOVEMENT_SPEED, 0.0)),
-        AngularVelocity(ROTATION_SPEED),
-        Transform::from_xyz(-500.0, -120.0, 0.0),
+        Ball,
+        RigidBody::Dynamic,
+        Collider::from(circle),
+        Transform::from_xyz(100.0, 300.0, 0.0),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(materials.add(Color::from(RED_400)).clone()),
     ));
 }
 
-/// Flips the movement directions of objects when they reach the left or right side of the screen.
-fn flip_movement_direction(mut query: Query<(&Transform, &mut LinearVelocity)>) {
-    for (transform, mut lin_vel) in &mut query {
-        if transform.translation.x > 500.0 && lin_vel.0.x > 0.0 {
-            lin_vel.x = -MOVEMENT_SPEED;
-        } else if transform.translation.x < -500.0 && lin_vel.0.x < 0.0 {
-            lin_vel.x = MOVEMENT_SPEED;
-        }
+/// Despawns all balls and respawns them.
+fn reset_balls(mut commands: Commands, query: Query<Entity, With<Ball>>) {
+    for entity in &query {
+        commands.entity(entity).despawn();
     }
-}
 
-/// Changes the timestep of the simulation when the up or down arrow keys are pressed.
-fn change_timestep(mut time: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
-    if keyboard_input.pressed(KeyCode::ArrowUp) {
-        let new_timestep = (time.delta_secs_f64() * 0.9).max(1.0 / 255.0);
-        time.set_timestep_seconds(new_timestep);
-    }
-    if keyboard_input.pressed(KeyCode::ArrowDown) {
-        let new_timestep = (time.delta_secs_f64() * 1.1).min(1.0);
-        time.set_timestep_seconds(new_timestep);
-    }
+    commands.run_system_cached(setup_balls);
 }
 
 #[derive(Component)]
@@ -144,8 +160,9 @@ fn setup_text(mut commands: Commands) {
         .with_child((TimestepText, TextSpan::default()));
 
     commands.spawn((
-        Text::new("Change Timestep With Up/Down Arrow"),
+        Text::new("Change Timestep With Up/Down Arrow\nPress R to reset"),
         TextColor::from(WHITE),
+        TextLayout::new_with_justify(JustifyText::Right),
         font.clone(),
         Node {
             position_type: PositionType::Absolute,
@@ -192,6 +209,19 @@ fn setup_text(mut commands: Commands) {
     ));
 }
 
+/// Changes the timestep of the simulation when the up or down arrow keys are pressed.
+fn change_timestep(mut time: ResMut<Time<Fixed>>, keyboard_input: Res<ButtonInput<KeyCode>>) {
+    if keyboard_input.pressed(KeyCode::ArrowUp) {
+        let new_timestep = (time.delta_secs_f64() * 0.975).max(1.0 / 255.0);
+        time.set_timestep_seconds(new_timestep);
+    }
+    if keyboard_input.pressed(KeyCode::ArrowDown) {
+        let new_timestep = (time.delta_secs_f64() * 1.025).min(1.0 / 5.0);
+        time.set_timestep_seconds(new_timestep);
+    }
+}
+
+/// Updates the text with the current timestep.
 fn update_timestep_text(
     mut text: Single<&mut TextSpan, With<TimestepText>>,
     time: Res<Time<Fixed>>,
