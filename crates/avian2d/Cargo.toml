@@ -118,6 +118,10 @@ name = "fixed_joint_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
+name = "interpolation"
+required-features = ["2d"]
+
+[[example]]
 name = "move_marbles"
 required-features = ["2d", "default-collider"]
 
@@ -136,8 +140,3 @@ required-features = ["2d", "default-collider"]
 [[example]]
 name = "debugdump_2d"
 required-features = ["2d"]
-
-[[bench]]
-name = "pyramid"
-required-features = ["2d", "default-collider"]
-harness = false
