@@ -54,8 +54,9 @@ use crate::prelude::*;
 /// components respectively:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
-/// use bevy_transform_interpolation::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Enable interpolation for this rigid body.
@@ -81,8 +82,9 @@ use crate::prelude::*;
 /// [`RotationInterpolation`], and [`ScaleInterpolation`] components, and similarly for extrapolation.
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-/// # use bevy_transform_interpolation::prelude::*;
 /// #
 /// fn setup(mut commands: Commands) {
 ///     // Only interpolate translation.
@@ -108,8 +110,9 @@ use crate::prelude::*;
 /// [`PhysicsInterpolationPlugin::interpolate_all()`] or [`PhysicsInterpolationPlugin::extrapolate_all()`]:
 ///
 /// ```no_run
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-/// # use bevy_transform_interpolation::prelude::*;
 /// #
 /// fn main() {
 ///    App::build()
@@ -143,8 +146,9 @@ use crate::prelude::*;
 /// and [`RotationHermiteEasing`] components:
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// # use bevy::prelude::*;
-/// # use bevy_transform_interpolation::prelude::*;
 /// #
 /// fn setup(mut commands: Commands) {
 ///     // Enable Hermite interpolation for this rigid body.
