@@ -451,6 +451,7 @@ pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
 pub mod dynamics;
+pub mod interpolation;
 pub mod math;
 #[cfg(feature = "bevy_picking")]
 pub mod picking;
@@ -483,6 +484,7 @@ pub mod prelude {
             *,
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
+        interpolation::*,
         position::{Position, Rotation},
         prepare::{init_transforms, PrepareConfig, PreparePlugin},
         schedule::*,
@@ -529,8 +531,9 @@ use prelude::*;
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
 /// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
-/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
 /// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
+/// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
+/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///

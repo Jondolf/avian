@@ -61,8 +61,9 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.15.0-rc", default-features = false }
-bevy_math = { version = "0.15.0-rc" }
+bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
+bevy_math = { git = "https://github.com/bevyengine/bevy" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", branch = "extrapolation-and-hermite-interpolation" }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.17", optional = true }
 parry3d-f64 = { version = "0.17", optional = true }
@@ -75,12 +76,14 @@ itertools = "0.13"
 bitflags = "2.5.0"
 
 [dev-dependencies]
-bevy = { version = "0.15.0-rc", default-features = false, features = [
+bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = [
     "bevy_gltf",
 ] }
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.15.0-rc", features = ["approx"] }
+bevy_math = { git = "https://github.com/bevyengine/bevy", features = [
+    "approx",
+] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { git = "https://github.com/andriyDev/bevy_mod_debugdump", branch = "bevy-0.15" }

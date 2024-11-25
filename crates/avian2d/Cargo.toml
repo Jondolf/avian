@@ -59,8 +59,9 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.15.0-rc", default-features = false }
-bevy_math = { version = "0.15.0-rc" }
+bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
+bevy_math = { git = "https://github.com/bevyengine/bevy" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", branch = "extrapolation-and-hermite-interpolation" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
@@ -75,7 +76,9 @@ bitflags = "2.5.0"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.15.0-rc", features = ["approx"] }
+bevy_math = { git = "https://github.com/bevyengine/bevy", features = [
+    "approx",
+] }
 glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
