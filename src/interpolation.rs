@@ -308,25 +308,25 @@ impl VelocitySource for LinVelSource {
     type Previous = PreviousLinearVelocity;
     type Current = LinearVelocity;
 
-    fn previous(start: &Self::Previous) -> Vec3 {
+    fn previous(previous: &Self::Previous) -> Vec3 {
         #[cfg(feature = "2d")]
         {
-            start.f32().extend(0.0)
+            previous.f32().extend(0.0)
         }
         #[cfg(feature = "3d")]
         {
-            start.f32()
+            previous.f32()
         }
     }
 
-    fn current(end: &Self::Current) -> Vec3 {
+    fn current(current: &Self::Current) -> Vec3 {
         #[cfg(feature = "2d")]
         {
-            end.0.f32().extend(0.0)
+            current.0.f32().extend(0.0)
         }
         #[cfg(feature = "3d")]
         {
-            end.0.f32()
+            current.0.f32()
         }
     }
 }
@@ -334,29 +334,30 @@ impl VelocitySource for LinVelSource {
 #[derive(QueryData)]
 struct AngVelSource;
 
+#[allow(clippy::unnecessary_cast)]
 impl VelocitySource for AngVelSource {
     type Previous = PreviousAngularVelocity;
     type Current = AngularVelocity;
 
-    fn previous(start: &Self::Previous) -> Vec3 {
+    fn previous(previous: &Self::Previous) -> Vec3 {
         #[cfg(feature = "2d")]
         {
-            Vec3::Z * start.0 .0
+            Vec3::Z * previous.0 .0 as f32
         }
         #[cfg(feature = "3d")]
         {
-            start.0 .0
+            previous.0.f32()
         }
     }
 
-    fn current(end: &Self::Current) -> Vec3 {
+    fn current(current: &Self::Current) -> Vec3 {
         #[cfg(feature = "2d")]
         {
-            Vec3::Z * end.0
+            Vec3::Z * current.0 as f32
         }
         #[cfg(feature = "3d")]
         {
-            end.0
+            current.0.f32()
         }
     }
 }
