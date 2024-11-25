@@ -1,4 +1,59 @@
-//! Mass property functionality for rigid bodies.
+//! Mass property functionality for [rigid bodies](RigidBody) and colliders.
+//!
+//! A dynamic rigid body has [`Mass`], [`AngularInertia`], and a [`CenterOfMass`].
+//! These components determine how the rigid body responds to forces and torques.
+//! Static and kinematic rigid bodies do not have mass or angular inertia.
+//!
+//! By default, the mass properties of a body are computed automatically from attached colliders
+//! based on their [`ColliderDensity`] and shape. The mass properties of colliders are stored
+//! in the [`ColliderMassProperties`] component. If [`Mass`], [`AngularInertia`], or [`CenterOfMass`]
+//! are present for a collider, they override the computed values.
+//!
+//! # Initialization
+//!
+//! Given an entity hierarchy like this:
+//!
+//! - `RigidBody`, `Collider`
+//!     - `Collider`
+//!     - `Collider`
+//!
+//! The total mass properties will be the sum of the mass properties of all three colliders.
+//!
+//! Mass properties can be specified at spawn for individual entities:
+//!
+//! - `RigidBody`, `Collider`, `Mass`
+//!     - `Collider`, `AngularInertia`
+//!     - `Collider`
+//!
+//! Here, the mass of the rigid body entity and the angular inertia of the first collider are overridden.
+//! However, the mass properties of the two child colliders still contribute to the total mass properties of the body.
+//!
+//! For full control over mass properties, automatic computation can be disabled
+//! with the `NoAutoMass`, `NoAutoAngularInertia`, and `NoAutoCenterOfMass` marker components.
+//!
+//! # Changing Mass Properties at Runtime
+//!
+//! The mass properties of a rigid body can be modified at runtime in two primary ways:
+//!
+//! 1. Adjust [`Mass`], [`AngularInertia`], and [`CenterOfMass`] manually.
+//! 2. Add, remove, transform, or modify colliders.
+//!
+//! If adjusting mass properties manually, care must be taken to ensure that mass doesn't become non-positive
+//! if colliders are later modified or removed. For example, if the mass of a body is overridden to be `5.0`,
+//! and a collider with mass `10.0` is removed, you would end up with a mass of `-5.0`.
+//! With `debug_assertions` enabled, this will result in a panic.
+//!
+//! For full control over mass properties, automatic computation can be disabled
+//! with the `NoAutoMass`, `NoAutoAngularInertia`, and `NoAutoCenterOfMass` marker components.
+//!
+//! # Mass Helper
+//!
+//! The [`MassHelper`] [system parameter](bevy::ecs::system::SystemParam) provides convenient helper methods
+//! that can be used to modify or compute mass properties for individual entities and hierarchies at runtime.
+//!
+//! For example, [`MassHelper::mass_properties_from_colliders`] can be used to compute the mass properties
+//! computed from colliders attached to the given entity. This can be useful when you want to revert to
+//! automatically computed mass properties after manually adjusting mass properties.
 
 #[cfg(feature = "3d")]
 use crate::prepare::match_any;
@@ -51,20 +106,86 @@ impl Plugin for MassPropertyPlugin {
                 &ColliderParent,
                 &PreviousColliderTransform,
                 &ColliderTransform,
+                Option<&Mass>,
+                Option<&AngularInertia>,
+                Option<&CenterOfMass>,
             )>,
-             mut mass_properties: Query<MassPropertiesQuery>| {
-                let Ok((collider_parent, previous_collider_transform, collider_transform)) =
-                    collider_parents.get(trigger.entity())
+             mut mass_properties: Query<(
+                Entity,
+                Ref<RigidBody>,
+                MassPropertiesQuery,
+                Has<NoAutoMass>,
+                Has<NoAutoAngularInertia>,
+                Has<NoAutoCenterOfMass>,
+            )>| {
+                let Ok((
+                    collider_parent,
+                    previous_collider_transform,
+                    collider_transform,
+                    collider_mass,
+                    collider_angular_inertia,
+                    collider_center_of_mass,
+                )) = collider_parents.get(trigger.entity())
                 else {
                     return;
                 };
 
-                if let Ok(mut mass_props) = mass_properties.get_mut(collider_parent.get()) {
+                /*
+                Body with 10 kg
+                Add a collider with 20 kg
+
+                */
+
+                if let Ok((
+                    entity,
+                    rb,
+                    mut mass_props,
+                    override_mass,
+                    override_angular_inertia,
+                    override_center_of_mass,
+                )) = mass_properties.get_mut(collider_parent.get())
+                {
                     let event = trigger.event();
 
                     // Subtract the collider's previous mass properties, if any.
                     if let Some(previous) = event.previous {
-                        mass_props -= previous.transformed_by(previous_collider_transform);
+                        let (mut mass, mut angular_inertia, mut com) =
+                            &mass_props - previous.transformed_by(previous_collider_transform);
+
+                        if entity == trigger.entity() && rb.is_added() {
+                            if let Some(collider_mass) = collider_mass {
+                                mass = *collider_mass
+                            };
+                            if let Some(collider_angular_inertia) = collider_angular_inertia {
+                                angular_inertia = *collider_angular_inertia
+                            };
+                            if let Some(collider_center_of_mass) = collider_center_of_mass {
+                                com = *collider_center_of_mass
+                            };
+                        }
+
+                        if !override_mass && !override_angular_inertia {
+                            // Update mass and angular inertia to the computed values.
+                            mass_props.mass.set(mass);
+                            mass_props.angular_inertia.set(angular_inertia);
+                        } else if override_mass && !override_angular_inertia {
+                            // The mass is overridden, so the computed angular inertia might not be correct.
+                            // We need to scale the angular inertia by the ratio of the new mass to the old mass
+                            // to get the angular inertia corresponding to the overridden mass.
+                            let mass_ratio = mass_props.mass.inverse() * mass.inverse();
+                            let inverse_angular_inertia =
+                                mass_ratio.recip_or_zero() * angular_inertia.inverse();
+                            mass_props
+                                .angular_inertia
+                                .set(AngularInertia::from_inverse(inverse_angular_inertia));
+                        } else if !override_mass {
+                            // Angular inertia is overridden, but mass is not.
+                            mass_props.mass.set(mass);
+                        }
+
+                        if !override_center_of_mass {
+                            mass_props.center_of_mass.0 = com.0;
+                        }
                     }
 
                     // Add the collider's current mass properties, if any.
@@ -147,5 +268,45 @@ pub fn warn_missing_mass(
 fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
     for mut density in &mut query {
         density.0 = density.max(Scalar::EPSILON);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(feature = "2d")]
+    fn mass_properties_simple() {
+        let mut app = App::new();
+
+        app.add_plugins((
+            PreparePlugin::default(),
+            MassPropertyPlugin::default(),
+            ColliderBackendPlugin::<Collider>::default(),
+        ));
+
+        let collider = Collider::circle(1.0);
+        let collider_mass_properties = collider.mass_properties(1.0);
+
+        let body_entity = app
+            .world_mut()
+            .spawn((RigidBody::Dynamic, Mass::new(5.0)))
+            .id();
+
+        app.world_mut().spawn(collider).set_parent(body_entity);
+
+        app.update();
+        app.update();
+
+        let mut query = app.world_mut().query::<MassPropertiesQuery>();
+        let mass_props = query.get(app.world_mut(), body_entity).unwrap();
+
+        assert_eq!(mass_props.mass.value(), 5.0 + collider_mass_properties.mass);
+        assert_eq!(
+            mass_props.angular_inertia.value(),
+            collider_mass_properties.angular_inertia
+        );
+        assert_eq!(*mass_props.center_of_mass, CenterOfMass::default());
     }
 }

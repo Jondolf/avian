@@ -1,4 +1,4 @@
-use std::ops::{AddAssign, SubAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::prelude::*;
 use bevy::ecs::query::QueryData;
@@ -49,14 +49,16 @@ impl<'w> MassPropertiesQueryItem<'w> {
     }
 }
 
-impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
-    fn add_assign(&mut self, rhs: ColliderMassProperties) {
+impl<'w> Add<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
+    type Output = (Mass, AngularInertia, CenterOfMass);
+
+    fn add(self, rhs: ColliderMassProperties) -> Self::Output {
         let mass1 = self.mass.value();
         let mass2 = rhs.mass;
         let new_mass = mass1 + mass2;
 
         if new_mass <= 0.0 {
-            return;
+            return (*self.mass, *self.angular_inertia, *self.center_of_mass);
         }
 
         let com1 = self.center_of_mass.0;
@@ -66,19 +68,37 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         let new_com = (com1 * mass1 + com2 * mass2) / new_mass;
         let i1 = self.shifted_angular_inertia(new_com - com1);
         let i2 = rhs.shifted_angular_inertia(new_com - com2);
-        let new_inertia = AngularInertia::from(i1 + i2);
+        let new_inertia = i1 + i2;
+
+        (
+            Mass::new(new_mass),
+            AngularInertia::from(new_inertia),
+            CenterOfMass(new_com),
+        )
+    }
+}
+
+impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+    fn add_assign(&mut self, rhs: ColliderMassProperties) {
+        let (new_mass, new_inertia, new_com) = &*self + rhs;
+
+        if *self.mass == new_mass {
+            return;
+        }
 
         // Update mass properties
         self.mass.set(new_mass);
         self.angular_inertia.set(new_inertia);
-        self.center_of_mass.0 = new_com;
+        self.center_of_mass.0 = new_com.0;
     }
 }
 
-impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
-    fn sub_assign(&mut self, rhs: ColliderMassProperties) {
+impl<'w> Sub<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
+    type Output = (Mass, AngularInertia, CenterOfMass);
+
+    fn sub(self, rhs: ColliderMassProperties) -> Self::Output {
         if self.mass.inverse() + rhs.mass.recip_or_zero() <= 0.0 {
-            return;
+            return (*self.mass, *self.angular_inertia, *self.center_of_mass);
         }
 
         let mass1 = self.mass.value();
@@ -96,12 +116,28 @@ impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
         };
         let i1 = self.shifted_angular_inertia(new_com - com1);
         let i2 = rhs.shifted_angular_inertia(new_com - com2);
-        let new_inertia = AngularInertia::from(i1 - i2);
+        let new_inertia = i1 - i2;
+
+        (
+            Mass::new(new_mass),
+            AngularInertia::from(new_inertia),
+            CenterOfMass(new_com),
+        )
+    }
+}
+
+impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+    fn sub_assign(&mut self, rhs: ColliderMassProperties) {
+        let (new_mass, new_inertia, new_com) = &*self - rhs;
+
+        if *self.mass == new_mass {
+            return;
+        }
 
         // Update mass properties
         self.mass.set(new_mass);
         self.angular_inertia.set(new_inertia);
-        self.center_of_mass.0 = new_com;
+        self.center_of_mass.0 = new_com.0;
     }
 }
 
