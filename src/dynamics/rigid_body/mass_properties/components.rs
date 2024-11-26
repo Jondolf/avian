@@ -11,13 +11,110 @@ pub enum MassError {
     NaN,
 }
 
-/// The mass of a dynamic [rigid body].
+/// The mass of a dynamic [rigid body] or collider.
+///
+/// # Initialization
+///
+/// By default, the [`Mass`] of a body is computed automatically from the attached colliders
+/// based on their shape and [`ColliderDensity`]. Mass can be specified manually at spawn,
+/// but masses of child entities still contribute to the total mass.
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // The total mass of this body will be 5.0 plus the mass of the child collider.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///         // Optional: Specify initial mass for this entity.
+///         //           This overrides the mass of the capsule collider.
+///         Mass::new(5.0),
+///     ))
+///     .with_child((
+///         // The mass computed for this collider will be added to the total mass of the body.
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
+///         ColliderDensity(2.0),
+///     ));
+/// ```
+///
+/// Automatic mass computation can be disabled by adding the [`NoAutoMass`] marker component:
+///
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // The total mass of this body will be 5.0 plus the mass of the child collider.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///         // Optional: Specify initial mass for this entity.
+///         //           This overrides the mass of the capsule collider.
+///         Mass::new(5.0),
+///     ))
+///     .with_child((
+///         // The mass computed for this collider will be added to the total mass of the body.
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
+///         ColliderDensity(2.0),
+///     ));
+/// ```
+///
+/// ```
+///     // The mass is set to 5.0.
+///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+///
+///     // The mass is set to 5.0 + 10.0 = 15.0.
+///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+/// }
+/// ```
+///
+/// Automatic mass computation can be disabled by adding the [`NoAutoMass`] marker component
+/// to the rigid body entity.
+///
+/// Adding or removing colliders
+/// or changing their transform or density also affects the rigid body.
+///
+/// For rigid bodies, masses of child colliders still contribute to the final value. On a [`Collider`], [`Mass`] overrides the computed mass value in [`ColliderMassProperties`].
 ///
 /// Note that zero mass is treated as a special case, and is used to represent infinite mass.
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// fn setup(mut commands: Commands) {
+///     // The mass is computed automatically from the attached colliders.
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///     ))
+///     .with_child((
+#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
+///         ColliderDensity(2.0),
+///     ));
+///
+///     // The mass is set to 5.0.
+///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+///
+///     // The mass is set to 5.0 + 10.0 = 15.0.
+///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+/// }
+/// ```
+///
+/// # Representation
 ///
 /// Internally, the mass is actually stored as the inverse mass `1.0 / mass`.
 /// This is because most physics calculations operate on the inverse mass, and storing it directly
@@ -494,6 +591,16 @@ impl AngularInertia {
         }
     }
 
+    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
+    ///
+    /// The tensor should be symmetric and positive definite.
+    ///
+    /// Equivalent to [`AngularInertia::from_inverse_tensor`].
+    #[inline]
+    pub(crate) fn from_inverse(inverse_tensor: Matrix) -> Self {
+        Self::from_inverse_tensor(inverse_tensor)
+    }
+
     /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
@@ -505,7 +612,7 @@ impl AngularInertia {
         Self::from_inverse_tensor(tensor.inverse_or_zero())
     }
 
-    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
+    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
     #[inline]
@@ -713,6 +820,42 @@ impl CenterOfMass {
     /// A center of mass set at the local origin.
     pub const ZERO: Self = Self(Vector::ZERO);
 }
+
+/// A marker component that disables automatic [`Mass`] computation
+/// from attached colliders for a [rigid body].
+///
+/// This is useful when you want full control over mass.
+///
+/// [rigid body]: RigidBody
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct NoAutoMass;
+
+/// A marker component that disables automatic [`AngularInertia`] computation
+/// from attached colliders for a [rigid body].
+///
+/// This is useful when you want full control over angular inertia.
+///
+/// [rigid body]: RigidBody
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct NoAutoAngularInertia;
+
+/// A marker component that disables automatic [`CenterOfMass`] computation
+/// from attached colliders for a [rigid body].
+///
+/// This is useful when you want full control over the center of mass.
+///
+/// [rigid body]: RigidBody
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct NoAutoCenterOfMass;
 
 /// A bundle containing mass properties.
 ///
