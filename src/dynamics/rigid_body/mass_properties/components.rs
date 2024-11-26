@@ -39,47 +39,13 @@ pub enum MassError {
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
 ///         ColliderDensity(2.0),
 ///     ));
-/// ```
-///
-/// Automatic mass computation can be disabled by adding the [`NoAutoMass`] marker component:
-///
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// fn setup(mut commands: Commands) {
-///     // The total mass of this body will be 5.0 plus the mass of the child collider.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         Collider::capsule(0.5, 1.5),
-///         // Optional: Specify initial mass for this entity.
-///         //           This overrides the mass of the capsule collider.
-///         Mass::new(5.0),
-///     ))
-///     .with_child((
-///         // The mass computed for this collider will be added to the total mass of the body.
-#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
-#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
-///         ColliderDensity(2.0),
-///     ));
-/// ```
-///
-/// ```
-///     // The mass is set to 5.0.
-///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
-///
-///     // The mass is set to 5.0 + 10.0 = 15.0.
-///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
 /// }
 /// ```
 ///
 /// Automatic mass computation can be disabled by adding the [`NoAutoMass`] marker component
 /// to the rigid body entity.
 ///
-/// Adding or removing colliders
-/// or changing their transform or density also affects the rigid body.
+/// Adding or removing colliders or changing their transform or density also affects the rigid body.
 ///
 /// For rigid bodies, masses of child colliders still contribute to the final value. On a [`Collider`], [`Mass`] overrides the computed mass value in [`ColliderMassProperties`].
 ///

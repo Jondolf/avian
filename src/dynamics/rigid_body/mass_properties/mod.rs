@@ -100,7 +100,7 @@ impl Plugin for MassPropertyPlugin {
     fn build(&self, app: &mut App) {
         // Update mass properties of rigid bodies when the mass properties of attached colliders are changed.
         // This includes adding, removing, or modifying colliders.
-        app.observe(on_change_collider_mass_properties);
+        app.add_observer(on_change_collider_mass_properties);
 
         // Update `GlobalAngularInertia` for new rigid bodies.
         #[cfg(feature = "3d")]
