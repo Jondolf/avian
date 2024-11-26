@@ -92,6 +92,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
+        // Make sure necessary resources are available.
+        app.init_resource::<NarrowPhaseConfig>()
+            .init_resource::<PhysicsLengthUnit>();
+
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.

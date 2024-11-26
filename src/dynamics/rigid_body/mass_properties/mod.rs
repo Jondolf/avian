@@ -292,10 +292,8 @@ mod tests {
 
         app.add_plugins((
             MinimalPlugins,
-            PhysicsSchedulePlugin::default(),
-            PreparePlugin::default(),
-            MassPropertyPlugin::default(),
-            ColliderBackendPlugin::<Collider>::default(),
+            PhysicsPlugins::default(),
+            HierarchyPlugin,
             bevy::asset::AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
@@ -312,8 +310,7 @@ mod tests {
 
         app.world_mut().spawn(collider).set_parent(body_entity);
 
-        app.update();
-        app.update();
+        app.world_mut().run_schedule(FixedPostUpdate);
 
         let mut query = app.world_mut().query::<MassPropertiesQuery>();
         let mass_props = query.get(app.world_mut(), body_entity).unwrap();
