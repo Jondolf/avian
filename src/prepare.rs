@@ -107,9 +107,13 @@ impl Plugin for PreparePlugin {
                 let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
                 let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
 
-                let mass = *entity_ref.get::<Mass>().unwrap_or(&default());
-                let angular_inertia = *entity_ref.get::<AngularInertia>().unwrap_or(&default());
-                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
+                let mass = *entity_ref.get::<ComputedMass>().unwrap_or(&default());
+                let angular_inertia = *entity_ref
+                    .get::<ComputedAngularInertia>()
+                    .unwrap_or(&default());
+                let center_of_mass = *entity_ref
+                    .get::<ComputedCenterOfMass>()
+                    .unwrap_or(&default());
 
                 let mut commands = world.commands();
                 let mut entity_commands = commands.entity(entity);

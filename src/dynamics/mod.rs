@@ -74,9 +74,9 @@ pub mod prelude {
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
             mass_properties::{
-                AngularInertia, AngularInertiaError, CenterOfMass, ColliderDensity,
-                ColliderMassProperties, Mass, MassError, MassPropertiesBundle, MassPropertiesQuery,
-                MassPropertyPlugin,
+                ComputedAngularInertia, AngularInertiaError, ComputedCenterOfMass, ColliderDensity,
+                ColliderMassProperties, ComputedMass, MassError, MassPropertiesBundle,
+                MassPropertiesQuery, MassPropertyPlugin,
             },
             *,
         },
