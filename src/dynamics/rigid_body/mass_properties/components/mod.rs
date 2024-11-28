@@ -212,7 +212,29 @@ impl AngularInertia {
     #[inline]
     #[doc(alias = "from_mat3")]
     pub fn from_tensor(tensor: Matrix) -> Self {
-        todo!()
+        let mut eigen = crate::math::eigen3::SymmetricEigen3::new(tensor).reverse();
+
+        if eigen.eigenvectors.determinant() < 0.0 {
+            std::mem::swap(
+                &mut eigen.eigenvectors.y_axis,
+                &mut eigen.eigenvectors.z_axis,
+            );
+            std::mem::swap(&mut eigen.eigenvalues.y, &mut eigen.eigenvalues.z);
+        }
+
+        let mut local_inertial_frame = Quaternion::from_mat3(&eigen.eigenvectors).normalize();
+
+        if !local_inertial_frame.is_finite() {
+            local_inertial_frame = Quaternion::IDENTITY;
+        }
+
+        // Clamp eigenvalues to be non-negative.
+        let principal_angular_inertia = eigen.eigenvalues.max(Vector::ZERO);
+
+        Self {
+            principal: principal_angular_inertia,
+            local_frame: local_inertial_frame,
+        }
     }
 
     /// Returns the angular inertia tensor.

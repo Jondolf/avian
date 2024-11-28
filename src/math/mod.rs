@@ -12,6 +12,9 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
+#[cfg(feature = "3d")]
+pub mod eigen3;
+
 use bevy_math::{prelude::*, *};
 
 /// The active dimension.

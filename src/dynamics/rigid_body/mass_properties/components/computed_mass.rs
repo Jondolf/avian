@@ -448,8 +448,6 @@ impl Default for ComputedAngularInertia {
     }
 }
 
-// TODO: Add helpers for getting the principal angular inertia and local inertial frame. This requires an eigensolver.
-//       `bevy_heavy` has this functionality.
 #[cfg(feature = "3d")]
 impl ComputedAngularInertia {
     /// Infinite angular inertia.
@@ -661,6 +659,17 @@ impl ComputedAngularInertia {
     #[inline]
     pub fn set(&mut self, angular_inertia: impl Into<ComputedAngularInertia>) {
         *self = angular_inertia.into();
+    }
+
+    /// Computes the principal angular inertia and local inertial frame
+    /// by diagonalizing the 3x3 tensor matrix.
+    ///
+    /// The principal angular inertia represents the torque needed for a desired angular acceleration
+    /// about the local coordinate axes defined by the local inertial frame.
+    #[doc(alias = "diagonalize")]
+    pub fn principal_angular_inertia_with_local_frame(&self) -> (Vector, Quaternion) {
+        let angular_inertia = AngularInertia::from_tensor(self.tensor());
+        (angular_inertia.principal, angular_inertia.local_frame)
     }
 
     /// Computes the angular inertia tensor with the given rotation.
