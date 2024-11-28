@@ -558,7 +558,7 @@ fn update_aabb<C: AnyCollider>(
     parent_velocity: Query<
         (
             &Position,
-            &CenterOfMass,
+            &ComputedCenterOfMass,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -812,15 +812,15 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<ComputedMass>()
                 .expect("rigid body should have mass")
                 .value(),
-            2.0 * mass_properties.mass.value(),
+            2.0 * mass_properties.mass.0,
         );
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<ComputedCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 > 0.0,
@@ -834,15 +834,15 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<ComputedMass>()
                 .expect("rigid body should have mass")
                 .value(),
-            mass_properties.mass.value(),
+            mass_properties.mass.0,
         );
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<ComputedCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 == 0.0,
@@ -856,15 +856,15 @@ mod tests {
         assert_eq!(
             app.world()
                 .entity(parent)
-                .get::<Mass>()
+                .get::<ComputedMass>()
                 .expect("rigid body should have mass")
                 .value(),
-            2.0 * mass_properties.mass.value(),
+            2.0 * mass_properties.mass.0,
         );
         assert!(
             app.world()
                 .entity(parent)
-                .get::<CenterOfMass>()
+                .get::<ComputedCenterOfMass>()
                 .expect("rigid body should have a center of mass")
                 .x
                 > 0.0,

@@ -238,9 +238,9 @@ use derive_more::From;
     ExternalTorque,
     ExternalImpulse,
     ExternalAngularImpulse,
-    Mass,
-    AngularInertia,
-    CenterOfMass,
+    ComputedMass,
+    ComputedAngularInertia,
+    ComputedCenterOfMass,
     // Currently required for solver internals.
     // Some of these might be removed in the future.
     AccumulatedTranslation,

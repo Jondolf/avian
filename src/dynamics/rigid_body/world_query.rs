@@ -20,11 +20,11 @@ pub struct RigidBodyQuery {
     pub(crate) pre_solve_linear_velocity: &'static mut PreSolveLinearVelocity,
     pub angular_velocity: &'static mut AngularVelocity,
     pub(crate) pre_solve_angular_velocity: &'static mut PreSolveAngularVelocity,
-    pub mass: &'static mut Mass,
-    pub angular_inertia: &'static mut AngularInertia,
+    pub mass: &'static mut ComputedMass,
+    pub angular_inertia: &'static mut ComputedAngularInertia,
     #[cfg(feature = "3d")]
     pub global_angular_inertia: &'static mut GlobalAngularInertia,
-    pub center_of_mass: &'static mut CenterOfMass,
+    pub center_of_mass: &'static mut ComputedCenterOfMass,
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub locked_axes: Option<&'static LockedAxes>,
@@ -63,18 +63,18 @@ impl<'w> RigidBodyQueryItem<'w> {
     }
 
     /// Returns the local angular inertia. If the rigid body is not dynamic, the returned angular inertia is infinite.
-    pub fn angular_inertia(&self) -> AngularInertia {
+    pub fn angular_inertia(&self) -> ComputedAngularInertia {
         if self.rb.is_dynamic() {
             *self.angular_inertia
         } else {
-            AngularInertia::INFINITY
+            ComputedAngularInertia::INFINITY
         }
     }
 
     /// Computes the effective world-space angular inertia, taking into account any rotation locking.
-    pub fn effective_global_angular_inertia(&self) -> AngularInertia {
+    pub fn effective_global_angular_inertia(&self) -> ComputedAngularInertia {
         if !self.rb.is_dynamic() {
-            return AngularInertia::INFINITY;
+            return ComputedAngularInertia::INFINITY;
         }
 
         #[cfg(feature = "2d")]
@@ -128,11 +128,11 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
     }
 
     /// Returns the mass. If the rigid body is not dynamic, the returned mass is infinite.
-    pub fn mass(&self) -> Mass {
+    pub fn mass(&self) -> ComputedMass {
         if self.rb.is_dynamic() {
             *self.mass
         } else {
-            Mass::INFINITY
+            ComputedMass::INFINITY
         }
     }
 
@@ -152,18 +152,18 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
     }
 
     /// Returns the local angular inertia. If the rigid body is not dynamic, the returned angular inertia is infinite.
-    pub fn angular_inertia(&self) -> AngularInertia {
+    pub fn angular_inertia(&self) -> ComputedAngularInertia {
         if self.rb.is_dynamic() {
             *self.angular_inertia
         } else {
-            AngularInertia::INFINITY
+            ComputedAngularInertia::INFINITY
         }
     }
 
     /// Computes the effective world-space angular inertia, taking into account any rotation locking.
-    pub fn effective_global_angular_inertia(&self) -> AngularInertia {
+    pub fn effective_global_angular_inertia(&self) -> ComputedAngularInertia {
         if !self.rb.is_dynamic() {
-            return AngularInertia::INFINITY;
+            return ComputedAngularInertia::INFINITY;
         }
 
         #[cfg(feature = "2d")]

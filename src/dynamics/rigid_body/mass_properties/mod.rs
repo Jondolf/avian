@@ -98,6 +98,20 @@ impl Default for MassPropertyPlugin {
 
 impl Plugin for MassPropertyPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<(
+            Mass,
+            AngularInertia,
+            CenterOfMass,
+            ComputedMass,
+            ComputedAngularInertia,
+            ComputedCenterOfMass,
+            ColliderDensity,
+            ColliderMassProperties,
+            NoAutoMass,
+            NoAutoAngularInertia,
+            NoAutoCenterOfMass,
+        )>();
+
         // Update mass properties of rigid bodies when the mass properties of attached colliders are changed.
         // This includes adding, removing, or modifying colliders.
         app.add_observer(on_change_collider_mass_properties);
@@ -147,9 +161,9 @@ fn on_change_collider_mass_properties(
     mut mass_properties: ParamSet<(
         Query<MassPropertiesQuery>,
         Query<(
-            Option<&Mass>,
-            Option<&AngularInertia>,
-            Option<&CenterOfMass>,
+            Option<&ComputedMass>,
+            Option<&ComputedAngularInertia>,
+            Option<&ComputedCenterOfMass>,
         )>,
     )>,
 ) {
@@ -216,7 +230,9 @@ fn on_change_collider_mass_properties(
                     mass_ratio.recip_or_zero() * angular_inertia.inverse();
                 mass_props
                     .angular_inertia
-                    .set(AngularInertia::from_inverse(inverse_angular_inertia));
+                    .set(ComputedAngularInertia::from_inverse(
+                        inverse_angular_inertia,
+                    ));
             } else if !override_mass {
                 // Angular inertia is overridden, but mass is not.
                 mass_props.mass.set(mass);
@@ -238,8 +254,12 @@ fn on_change_collider_mass_properties(
 #[cfg(feature = "3d")]
 pub fn update_global_angular_inertia<F: QueryFilter>(
     mut query: Query<
-        (&Rotation, &AngularInertia, &mut GlobalAngularInertia),
-        (Or<(Changed<AngularInertia>, Changed<Rotation>)>, F),
+        (
+            &Rotation,
+            &ComputedAngularInertia,
+            &mut GlobalAngularInertia,
+        ),
+        (Or<(Changed<ComputedAngularInertia>, Changed<Rotation>)>, F),
     >,
 ) {
     query
@@ -252,8 +272,13 @@ pub fn update_global_angular_inertia<F: QueryFilter>(
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
 pub fn warn_missing_mass(
     mut bodies: Query<
-        (Entity, &RigidBody, Ref<Mass>, Ref<AngularInertia>),
-        Or<(Changed<Mass>, Changed<AngularInertia>)>,
+        (
+            Entity,
+            &RigidBody,
+            Ref<ComputedMass>,
+            Ref<ComputedAngularInertia>,
+        ),
+        Or<(Changed<ComputedMass>, Changed<ComputedAngularInertia>)>,
     >,
 ) {
     for (entity, rb, mass, inertia) in &mut bodies {
@@ -305,7 +330,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, Mass::new(5.0)))
+            .spawn((RigidBody::Dynamic, ComputedMass::new(5.0)))
             .id();
 
         app.world_mut().spawn(collider).set_parent(body_entity);
@@ -320,6 +345,6 @@ mod tests {
             mass_props.angular_inertia.value(),
             collider_mass_properties.angular_inertia
         );
-        assert_eq!(*mass_props.center_of_mass, CenterOfMass::default());
+        assert_eq!(*mass_props.center_of_mass, ComputedCenterOfMass::default());
     }
 }

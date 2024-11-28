@@ -10,11 +10,11 @@ use bevy::ecs::query::QueryData;
 #[query_data(mutable)]
 pub struct MassPropertiesQuery {
     /// The mass of the rigid body.
-    pub mass: &'static mut Mass,
+    pub mass: &'static mut ComputedMass,
     /// The angular inertia of the rigid body.
-    pub angular_inertia: &'static mut AngularInertia,
+    pub angular_inertia: &'static mut ComputedAngularInertia,
     /// The local center of mass of the rigid body.
-    pub center_of_mass: &'static mut CenterOfMass,
+    pub center_of_mass: &'static mut ComputedCenterOfMass,
 }
 
 impl<'w> MassPropertiesQueryItem<'w> {
@@ -50,7 +50,7 @@ impl<'w> MassPropertiesQueryItem<'w> {
 }
 
 impl<'w> Add<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
-    type Output = (Mass, AngularInertia, CenterOfMass);
+    type Output = (ComputedMass, ComputedAngularInertia, ComputedCenterOfMass);
 
     fn add(self, rhs: ColliderMassProperties) -> Self::Output {
         let mass1 = self.mass.value();
@@ -71,9 +71,9 @@ impl<'w> Add<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
         let new_inertia = i1 + i2;
 
         (
-            Mass::new(new_mass),
-            AngularInertia::from(new_inertia),
-            CenterOfMass(new_com),
+            ComputedMass::new(new_mass),
+            ComputedAngularInertia::from(new_inertia),
+            ComputedCenterOfMass(new_com),
         )
     }
 }
@@ -94,7 +94,7 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
 }
 
 impl<'w> Sub<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
-    type Output = (Mass, AngularInertia, CenterOfMass);
+    type Output = (ComputedMass, ComputedAngularInertia, ComputedCenterOfMass);
 
     fn sub(self, rhs: ColliderMassProperties) -> Self::Output {
         if self.mass.inverse() + rhs.mass.recip_or_zero() <= 0.0 {
@@ -119,9 +119,9 @@ impl<'w> Sub<ColliderMassProperties> for &MassPropertiesQueryItem<'w> {
         let new_inertia = i1 - i2;
 
         (
-            Mass::new(new_mass),
-            AngularInertia::from(new_inertia),
-            CenterOfMass(new_com),
+            ComputedMass::new(new_mass),
+            ComputedAngularInertia::from(new_inertia),
+            ComputedCenterOfMass(new_com),
         )
     }
 }
@@ -146,6 +146,7 @@ mod tests {
     use crate::prelude::*;
     use approx::assert_relative_eq;
     use bevy::prelude::*;
+    use mass_properties::{AngularInertia, CenterOfMass, Mass};
 
     // TODO: Test if inertia values are correct
     #[test]
@@ -156,9 +157,9 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: Mass::new(1.6),
+            mass: Mass(1.6),
             #[cfg(feature = "2d")]
-            angular_inertia: AngularInertia::new(1.6),
+            angular_inertia: AngularInertia(1.6),
             #[cfg(feature = "3d")]
             angular_inertia: AngularInertia::new(Vector::new(1.6, 2.4, 3.2)),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
@@ -199,9 +200,9 @@ mod tests {
 
         // Spawn an entity with mass properties
         app.world_mut().spawn(MassPropertiesBundle {
-            mass: Mass::new(8.1),
+            mass: Mass(8.1),
             #[cfg(feature = "2d")]
-            angular_inertia: AngularInertia::new(56.2),
+            angular_inertia: AngularInertia(56.2),
             #[cfg(feature = "3d")]
             angular_inertia: AngularInertia::new(Vector::new(56.2, 62.7, 71.4)),
             center_of_mass: CenterOfMass(Vector::NEG_X * 3.8),
@@ -264,23 +265,20 @@ mod tests {
         // see: https://github.com/Jondolf/avian/issues/137
         assert_relative_eq!(
             mass_props.mass.value(),
-            original_mass_props.mass.value(),
+            original_mass_props.mass.0,
             epsilon = 0.001
         );
-        assert_relative_eq!(
-            mass_props.mass.inverse(),
-            original_mass_props.mass.inverse(),
-            epsilon = 0.000_001
-        );
+        #[cfg(feature = "2d")]
         assert_relative_eq!(
             mass_props.angular_inertia.value(),
-            original_mass_props.angular_inertia.value(),
+            original_mass_props.angular_inertia.0,
             epsilon = 0.01
         );
+        #[cfg(feature = "3d")]
         assert_relative_eq!(
-            mass_props.angular_inertia.inverse(),
-            original_mass_props.angular_inertia.inverse(),
-            epsilon = 0.001
+            mass_props.angular_inertia.value(),
+            original_mass_props.angular_inertia.tensor(),
+            epsilon = 0.01
         );
         assert_relative_eq!(
             mass_props.center_of_mass.0,
