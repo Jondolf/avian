@@ -17,7 +17,7 @@ pub struct MassPropertiesQuery {
     pub center_of_mass: &'static mut CenterOfMass,
 }
 
-impl<'w> MassPropertiesQueryItem<'w> {
+impl MassPropertiesQueryItem<'_> {
     /// Computes the angular inertia shifted by the given offset, taking into account mass.
     #[cfg(feature = "2d")]
     #[inline]
@@ -49,7 +49,7 @@ impl<'w> MassPropertiesQueryItem<'w> {
     }
 }
 
-impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+impl AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'_> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         let mass1 = self.mass.value();
         let mass2 = rhs.mass;
@@ -75,7 +75,7 @@ impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
     }
 }
 
-impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+impl SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'_> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         if self.mass.inverse() + rhs.mass.recip_or_zero() <= 0.0 {
             return;

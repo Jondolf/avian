@@ -85,7 +85,7 @@ pub trait PhysicsGizmoExt {
     );
 }
 
-impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
+impl PhysicsGizmoExt for Gizmos<'_, '_, PhysicsGizmos> {
     /// Draws a line from `a` to `b`.
     fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
         #[cfg(feature = "2d")]
