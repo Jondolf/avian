@@ -78,7 +78,7 @@ impl Add<ColliderMassProperties> for &MassPropertiesQueryItem<'_> {
     }
 }
 
-impl<'w> AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+impl AddAssign<ColliderMassProperties> for MassPropertiesQueryItem<'_> {
     fn add_assign(&mut self, rhs: ColliderMassProperties) {
         let (new_mass, new_inertia, new_com) = &*self + rhs;
 
@@ -126,7 +126,7 @@ impl Sub<ColliderMassProperties> for &MassPropertiesQueryItem<'_> {
     }
 }
 
-impl<'w> SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'w> {
+impl SubAssign<ColliderMassProperties> for MassPropertiesQueryItem<'_> {
     fn sub_assign(&mut self, rhs: ColliderMassProperties) {
         let (new_mass, new_inertia, new_com) = &*self - rhs;
 
