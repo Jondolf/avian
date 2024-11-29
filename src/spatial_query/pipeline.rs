@@ -52,7 +52,7 @@ impl SpatialQueryPipeline {
     pub(crate) fn as_composite_shape<'a>(
         &'a self,
         query_filter: &'a SpatialQueryFilter,
-    ) -> QueryPipelineAsCompositeShape {
+    ) -> QueryPipelineAsCompositeShape<'a> {
         QueryPipelineAsCompositeShape {
             pipeline: self,
             colliders: &self.colliders,
@@ -60,11 +60,11 @@ impl SpatialQueryPipeline {
         }
     }
 
-    pub(crate) fn as_composite_shape_with_predicate<'a>(
+    pub(crate) fn as_composite_shape_with_predicate<'a: 'b, 'b>(
         &'a self,
         query_filter: &'a SpatialQueryFilter,
         predicate: &'a dyn Fn(Entity) -> bool,
-    ) -> QueryPipelineAsCompositeShapeWithPredicate {
+    ) -> QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
         QueryPipelineAsCompositeShapeWithPredicate {
             pipeline: self,
             colliders: &self.colliders,
@@ -124,7 +124,7 @@ impl SpatialQueryPipeline {
             &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
         );
 
-        impl<'a> parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'a> {
+        impl parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'_> {
             fn size_hint(&self) -> usize {
                 self.0.len()
             }
@@ -812,7 +812,7 @@ pub(crate) struct QueryPipelineAsCompositeShape<'a> {
     query_filter: &'a SpatialQueryFilter,
 }
 
-impl<'a> TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'a> {
+impl TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'_> {
     type PartShape = dyn Shape;
     type PartNormalConstraints = dyn NormalConstraints;
     type PartId = u32;
@@ -858,7 +858,7 @@ pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
     predicate: &'b dyn Fn(Entity) -> bool,
 }
 
-impl<'a, 'b> TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
+impl TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'_, '_> {
     type PartShape = dyn Shape;
     type PartNormalConstraints = dyn NormalConstraints;
     type PartId = u32;

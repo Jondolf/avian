@@ -57,7 +57,6 @@ use mass_properties::OnChangeColliderMassProperties;
 /// it should now work with the rest of the engine just like normal [`Collider`]s!
 ///
 /// **Note**: [Spatial queries](spatial_query) are not supported for custom colliders yet.
-
 pub struct ColliderBackendPlugin<C: ScalableCollider> {
     schedule: Interned<dyn ScheduleLabel>,
     _phantom: PhantomData<C>,
