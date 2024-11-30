@@ -4,11 +4,11 @@ use bevy::prelude::*;
 use bevy_heavy::AngularInertiaTensor;
 use derive_more::From;
 
-mod collider_mass;
-pub use collider_mass::*;
+mod collider;
+pub use collider::*;
 
-mod computed_mass;
-pub use computed_mass::*;
+mod computed;
+pub use computed::*;
 
 /// An error returned for an invalid mass.
 #[derive(Clone, Copy, Debug, PartialEq)]

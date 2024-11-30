@@ -686,7 +686,7 @@ fn collider_removed(
     }
 }
 
-/// Updates the mass properties of [`Collider`]s and [collider parents](ColliderParent).
+/// Updates the mass properties of [`Collider`].
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
     mut query: Query<
