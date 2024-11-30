@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.15.0-rc", default-features = false }
+bevy = { version = "0.15", default-features = false }
 avian2d = { path = "../avian2d", default-features = false }
 criterion = "0.5"
