@@ -407,21 +407,6 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn mass_properties(&self, density: Scalar) -> MassProperties {
-        let props = self.shape_scaled().mass_properties(density);
-
-        MassProperties {
-            mass: props.mass() as f32,
-            #[cfg(feature = "2d")]
-            angular_inertia: props.principal_inertia() as f32,
-            #[cfg(feature = "3d")]
-            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
-            #[cfg(feature = "3d")]
-            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
-            center_of_mass: Vector::from(props.local_com).f32(),
-        }
-    }
-
     fn contact_manifolds(
         &self,
         other: &Self,
@@ -440,6 +425,87 @@ impl AnyCollider for Collider {
             rotation2,
             prediction_distance,
         )
+    }
+}
+
+// TODO: `bevy_heavy` supports computing the individual mass properties efficiently for Bevy's primitive shapes,
+//       but Parry doesn't support it for its own shapes, so we have to compute all mass properties in each method :(
+#[cfg(feature = "2d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_angular_inertia(&self) -> f32 {
+        self.angular_inertia(1.0)
+    }
+
+    fn angular_inertia(&self, mass: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        props.principal_inertia() as f32
+    }
+
+    fn center_of_mass(&self) -> Vec2 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
+    }
+}
+
+#[cfg(feature = "3d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_principal_angular_inertia(&self) -> Vec3 {
+        self.principal_angular_inertia(1.0)
+    }
+
+    fn principal_angular_inertia(&self, mass: f32) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        Vector::from(props.principal_inertia()).f32()
+    }
+
+    fn local_inertial_frame(&self) -> Quat {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Quaternion::from(props.principal_inertia_local_frame).f32()
+    }
+
+    fn center_of_mass(&self) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
     }
 }
 

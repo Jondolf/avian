@@ -36,6 +36,11 @@ pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
 };
 
+#[cfg(feature = "2d")]
+pub use bevy_heavy::ComputeMassProperties2d as ComputeMassProperties;
+#[cfg(feature = "3d")]
+pub use bevy_heavy::ComputeMassProperties3d as ComputeMassProperties;
+
 /// A trait for creating colliders from other types.
 pub trait IntoCollider<C: AnyCollider> {
     /// Creates a collider from `self`.
@@ -44,7 +49,7 @@ pub trait IntoCollider<C: AnyCollider> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component {
+pub trait AnyCollider: Component + ComputeMassProperties {
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
@@ -70,9 +75,6 @@ pub trait AnyCollider: Component {
         self.aabb(start_position, start_rotation)
             .merged(self.aabb(end_position, end_rotation))
     }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> MassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
