@@ -12,9 +12,6 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
-#[cfg(feature = "3d")]
-pub mod eigen3;
-
 use bevy_math::{prelude::*, *};
 
 /// The active dimension.
@@ -98,6 +95,34 @@ impl AsF32 for DQuat {
 }
 
 impl AsF32 for Quat {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat2 {
+    type F32 = Mat2;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat2()
+    }
+}
+
+impl AsF32 for Mat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat3 {
+    type F32 = Mat3;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat3()
+    }
+}
+
+impl AsF32 for Mat3 {
     type F32 = Self;
     fn f32(&self) -> Self::F32 {
         *self

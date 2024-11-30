@@ -1,8 +1,10 @@
+#![expect(clippy::unnecessary_cast)]
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
 
-use super::{AngularInertia, CenterOfMass, Mass};
+use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 
 /// The mass of a dynamic [rigid body] or collider.
 ///
@@ -212,13 +214,13 @@ impl From<Scalar> for ComputedMass {
 
 impl From<Mass> for ComputedMass {
     fn from(mass: Mass) -> Self {
-        ComputedMass::new(mass.0)
+        ComputedMass::new(mass.0 as Scalar)
     }
 }
 
 impl From<ComputedMass> for Mass {
     fn from(mass: ComputedMass) -> Self {
-        Self(mass.value())
+        Self(mass.value() as f32)
     }
 }
 
@@ -354,13 +356,13 @@ impl ComputedAngularInertia {
     /// Computes the angular inertia shifted by the given offset, taking into account the given mass.
     #[inline]
     pub fn shifted(&self, mass: Scalar, offset: Vector) -> Scalar {
-        super::shifted_angular_inertia(self.value(), mass, offset)
+        AngularInertia::from(*self).shifted(mass as f32, offset.f32()) as Scalar
     }
 
     /// Computes the angular inertia shifted by the given offset, taking into account the given mass.
     #[inline]
     pub fn shifted_inverse(&self, mass: Scalar, offset: Vector) -> Scalar {
-        super::shifted_angular_inertia(self.value(), mass, offset).recip_or_zero()
+        self.shifted(mass, offset).recip_or_zero()
     }
 
     /// Returns `true` if the angular inertia is neither infinite nor NaN.
@@ -392,14 +394,14 @@ impl From<Scalar> for ComputedAngularInertia {
 #[cfg(feature = "2d")]
 impl From<AngularInertia> for ComputedAngularInertia {
     fn from(inertia: AngularInertia) -> Self {
-        ComputedAngularInertia::new(inertia.0)
+        ComputedAngularInertia::new(inertia.0 as Scalar)
     }
 }
 
 #[cfg(feature = "2d")]
 impl From<ComputedAngularInertia> for AngularInertia {
     fn from(inertia: ComputedAngularInertia) -> Self {
-        Self(inertia.value())
+        Self(inertia.value() as f32)
     }
 }
 
@@ -564,16 +566,6 @@ impl ComputedAngularInertia {
         }
     }
 
-    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
-    ///
-    /// The tensor should be symmetric and positive definite.
-    ///
-    /// Equivalent to [`AngularInertia::from_inverse_tensor`].
-    #[inline]
-    pub(crate) fn from_inverse(inverse_tensor: Matrix) -> Self {
-        Self::from_inverse_tensor(inverse_tensor)
-    }
-
     /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
@@ -668,8 +660,11 @@ impl ComputedAngularInertia {
     /// about the local coordinate axes defined by the local inertial frame.
     #[doc(alias = "diagonalize")]
     pub fn principal_angular_inertia_with_local_frame(&self) -> (Vector, Quaternion) {
-        let angular_inertia = AngularInertia::from_tensor(self.tensor());
-        (angular_inertia.principal, angular_inertia.local_frame)
+        let angular_inertia = AngularInertia::from_tensor(self.tensor().f32());
+        (
+            angular_inertia.principal.adjust_precision(),
+            angular_inertia.local_frame.adjust_precision(),
+        )
     }
 
     /// Computes the angular inertia tensor with the given rotation.
@@ -684,13 +679,21 @@ impl ComputedAngularInertia {
     /// Computes the angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
     pub fn shifted_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
-        super::shifted_angular_inertia(self.tensor(), mass, offset)
+        if mass > 0.0 && mass.is_finite() && offset != Vector::ZERO {
+            let diagonal_element = offset.length_squared();
+            let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
+            let offset_outer_product =
+                Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
+            self.tensor() + (diagonal_mat + offset_outer_product) * mass
+        } else {
+            self.tensor()
+        }
     }
 
     /// Computes the inverse angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
     pub fn shifted_inverse_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
-        super::shifted_angular_inertia(self.tensor(), mass, offset).inverse_or_zero()
+        self.shifted_tensor(mass, offset).inverse_or_zero()
     }
 
     /// Returns `true` if the angular inertia is neither infinite nor NaN.
@@ -722,14 +725,17 @@ impl From<Matrix> for ComputedAngularInertia {
 #[cfg(feature = "3d")]
 impl From<AngularInertia> for ComputedAngularInertia {
     fn from(inertia: AngularInertia) -> Self {
-        ComputedAngularInertia::new_with_local_frame(inertia.principal, inertia.local_frame)
+        ComputedAngularInertia::new_with_local_frame(
+            inertia.principal.adjust_precision(),
+            inertia.local_frame.adjust_precision(),
+        )
     }
 }
 
 #[cfg(feature = "3d")]
 impl From<ComputedAngularInertia> for AngularInertia {
     fn from(inertia: ComputedAngularInertia) -> Self {
-        Self::from_tensor(inertia.tensor())
+        Self::from_tensor(inertia.tensor().f32())
     }
 }
 
@@ -821,13 +827,13 @@ impl ComputedCenterOfMass {
 
 impl From<CenterOfMass> for ComputedCenterOfMass {
     fn from(center_of_mass: CenterOfMass) -> Self {
-        Self(center_of_mass.0)
+        Self(center_of_mass.adjust_precision())
     }
 }
 
 impl From<ComputedCenterOfMass> for CenterOfMass {
     fn from(center_of_mass: ComputedCenterOfMass) -> Self {
-        Self(center_of_mass.0)
+        Self(center_of_mass.f32())
     }
 }
 

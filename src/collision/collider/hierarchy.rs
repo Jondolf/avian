@@ -147,7 +147,6 @@ fn update_collider_parents(
                         ColliderParent(entity),
                         // TODO: This probably causes a one frame delay. Compute real value?
                         ColliderTransform::default(),
-                        PreviousColliderTransform::default(),
                     ));
                 }
             }
@@ -171,11 +170,9 @@ fn handle_rigid_body_removals(
         // If the body associated with the collider parent entity doesn't exist,
         // remove ColliderParent and ColliderTransform.
         if !bodies.contains(collider_parent.get()) {
-            commands.entity(collider_entity).remove::<(
-                ColliderParent,
-                ColliderTransform,
-                PreviousColliderTransform,
-            )>();
+            commands
+                .entity(collider_entity)
+                .remove::<(ColliderParent, ColliderTransform)>();
         }
     }
 }

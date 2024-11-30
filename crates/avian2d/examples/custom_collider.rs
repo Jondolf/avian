@@ -1,5 +1,7 @@
 //! An example demonstrating how to make a custom collider and use it for collision detection.
 
+#![allow(clippy::unnecessary_cast)]
+
 use avian2d::{math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
@@ -55,15 +57,15 @@ impl AnyCollider for CircleCollider {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
+    fn mass_properties(&self, density: Scalar) -> MassProperties {
         // In 2D, the Z length is assumed to be 1.0, so volume = area
         let volume = PI * self.radius.powi(2);
         let mass = density * volume;
         let angular_inertia = mass * self.radius.powi(2) / 2.0;
 
-        ColliderMassProperties {
-            mass,
-            angular_inertia,
+        MassProperties {
+            mass: mass as f32,
+            angular_inertia: angular_inertia as f32,
             center_of_mass: default(),
         }
     }

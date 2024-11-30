@@ -407,16 +407,18 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
+    fn mass_properties(&self, density: Scalar) -> MassProperties {
         let props = self.shape_scaled().mass_properties(density);
 
-        ColliderMassProperties {
-            mass: props.mass(),
+        MassProperties {
+            mass: props.mass() as f32,
             #[cfg(feature = "2d")]
-            angular_inertia: props.principal_inertia(),
+            angular_inertia: props.principal_inertia() as f32,
             #[cfg(feature = "3d")]
-            angular_inertia: props.reconstruct_inertia_matrix().into(),
-            center_of_mass: props.local_com.into(),
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
         }
     }
 

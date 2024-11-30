@@ -72,7 +72,7 @@ pub trait AnyCollider: Component {
     }
 
     /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
+    fn mass_properties(&self, density: Scalar) -> MassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -477,7 +477,3 @@ impl MapEntities for CollidingEntities {
             .collect()
     }
 }
-
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);

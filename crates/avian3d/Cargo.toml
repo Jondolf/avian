@@ -34,6 +34,7 @@ enhanced-determinism = [
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
     "bevy_math/libm",
+    "bevy_heavy/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -48,6 +49,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "bevy_heavy/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
     "bitflags/serde",
@@ -61,8 +63,9 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.15.0-rc", default-features = false }
-bevy_math = { version = "0.15.0-rc" }
+bevy = { version = "0.15", default-features = false }
+bevy_math = { version = "0.15" }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.17", optional = true }
 parry3d-f64 = { version = "0.17", optional = true }
@@ -75,12 +78,16 @@ itertools = "0.13"
 bitflags = "2.5.0"
 
 [dev-dependencies]
-bevy = { version = "0.15.0-rc", default-features = false, features = [
-    "bevy_gltf",
-] }
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.15.0-rc", features = ["approx"] }
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_gltf",
+    "animation",
+] }
+bevy_math = { version = "0.15", features = ["approx"] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
+    "approx",
+] }
 rand = "0.8"
 rand_chacha = "0.3"
 approx = "0.5"
