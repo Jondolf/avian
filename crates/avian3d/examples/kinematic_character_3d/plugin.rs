@@ -174,15 +174,15 @@ fn gamepad_input(
 ) {
     for gamepad in gamepads.iter() {
         if let (Some(x), Some(y)) = (
-            gamepad.analog.get(GamepadAxis::LeftStickX),
-            gamepad.analog.get(GamepadAxis::LeftStickY),
+            gamepad.get(GamepadAxis::LeftStickX),
+            gamepad.get(GamepadAxis::LeftStickY),
         ) {
             movement_event_writer.send(MovementAction::Move(
                 Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
             ));
         }
 
-        if gamepad.digital.just_pressed(GamepadButton::South) {
+        if gamepad.just_pressed(GamepadButton::South) {
             movement_event_writer.send(MovementAction::Jump);
         }
     }
