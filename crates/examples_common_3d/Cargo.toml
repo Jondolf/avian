@@ -18,7 +18,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "bevy_pbr",
     "bevy_gizmos",
     "bevy_gltf",
-    "bevy_animation",
+    "animation",
     "default_font",
     "tonemapping_luts",
     "ktx2",
