@@ -21,6 +21,14 @@ pub const DIM: usize = 2;
 #[cfg(feature = "3d")]
 pub const DIM: usize = 3;
 
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::Vec2 as VectorF32;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::Vec3 as VectorF32;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Ray = Ray2d;

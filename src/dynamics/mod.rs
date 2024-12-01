@@ -75,9 +75,9 @@ pub mod prelude {
         rigid_body::{
             mass_properties::{
                 AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
-                ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass, MassHelper,
-                MassProperties, MassPropertiesBundle, MassPropertyPlugin, NoAutoAngularInertia,
-                NoAutoCenterOfMass, NoAutoMass,
+                ComputeMassProperties, ComputedAngularInertia, ComputedCenterOfMass, ComputedMass,
+                Mass, MassProperties, MassPropertiesBundle, MassPropertyHelper, MassPropertyPlugin,
+                NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
             },
             *,
         },

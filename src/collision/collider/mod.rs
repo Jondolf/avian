@@ -36,11 +36,6 @@ pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
 };
 
-#[cfg(feature = "2d")]
-pub use bevy_heavy::ComputeMassProperties2d as ComputeMassProperties;
-#[cfg(feature = "3d")]
-pub use bevy_heavy::ComputeMassProperties3d as ComputeMassProperties;
-
 /// A trait for creating colliders from other types.
 pub trait IntoCollider<C: AnyCollider> {
     /// Creates a collider from `self`.

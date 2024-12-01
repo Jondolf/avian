@@ -48,10 +48,10 @@
 //!
 //! # Mass Helper
 //!
-//! The [`MassHelper`] [system parameter](bevy::ecs::system::SystemParam) provides convenient helper methods
+//! The [`MassPropertyHelper`] [system parameter](bevy::ecs::system::SystemParam) provides convenient helper methods
 //! that can be used to modify or compute mass properties for individual entities and hierarchies at runtime.
 //!
-//! For example, [`MassHelper::mass_properties_from_colliders`] can be used to compute the mass properties
+//! For example, [`MassPropertyHelper::mass_properties_from_colliders`] can be used to compute the mass properties
 //! computed from colliders attached to the given entity. This can be useful when you want to revert to
 //! automatically computed mass properties after manually adjusting mass properties.
 
@@ -67,12 +67,16 @@ mod components;
 pub use components::*;
 
 mod system_param;
-pub use system_param::MassHelper;
+pub use system_param::MassPropertyHelper;
 
 #[cfg(feature = "2d")]
-pub use bevy_heavy::MassProperties2d as MassProperties;
+pub use bevy_heavy::{
+    ComputeMassProperties2d as ComputeMassProperties, MassProperties2d as MassProperties,
+};
 #[cfg(feature = "3d")]
-pub use bevy_heavy::MassProperties3d as MassProperties;
+pub use bevy_heavy::{
+    ComputeMassProperties3d as ComputeMassProperties, MassProperties3d as MassProperties,
+};
 
 /// A plugin for managing mass properties of rigid bodies.
 ///
@@ -206,7 +210,11 @@ fn queue_mass_recomputation_on_child_collider_mass_change(
         &ColliderParent,
         (
             Without<RigidBody>,
-            Or<(Changed<ColliderMassProperties>, MassPropertyChanged)>,
+            Or<(
+                Changed<ColliderMassProperties>,
+                Changed<ColliderTransform>,
+                MassPropertyChanged,
+            )>,
         ),
     >,
 ) {
@@ -220,7 +228,7 @@ fn queue_mass_recomputation_on_child_collider_mass_change(
 fn update_mass_properties(
     mut commands: Commands,
     query: Query<Entity, With<RecomputeMassProperties>>,
-    mut mass_helper: MassHelper,
+    mut mass_helper: MassPropertyHelper,
 ) {
     // TODO: Parallelize mass property updates.
     for entity in query.iter() {

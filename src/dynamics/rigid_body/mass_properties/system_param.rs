@@ -9,7 +9,7 @@ use bevy::{
 
 /// A [`SystemParam`] that provides helper methods for computing and updating mass properties.
 #[derive(SystemParam)]
-pub struct MassHelper<'w, 's> {
+pub struct MassPropertyHelper<'w, 's> {
     query: Query<
         'w,
         's,
@@ -59,7 +59,7 @@ pub struct MassHelper<'w, 's> {
 }
 
 // TODO: Override mass properties for specific entities.
-impl MassHelper<'_, '_> {
+impl MassPropertyHelper<'_, '_> {
     /// Updates the [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`] of the given entity.
     ///
     /// This takes into account the mass properties of descendants, unless the given entity has the [`NoAutoMass`],
