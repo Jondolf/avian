@@ -6,87 +6,38 @@ use derive_more::From;
 
 use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 
-/// The mass of a dynamic [rigid body] or collider.
+/// The total mass computed for a dynamic [rigid body], taking into account
+/// colliders and descendants.
 ///
-/// # Initialization
+/// The total mass is computed as the sum of the masses of all attached colliders
+/// and the mass of the rigid body entity itself. The mass of an entity is determined
+/// by its [`Mass`] component, or if it is not present, from an attached [`Collider`]
+/// based on its shape and [`ColliderDensity`].
 ///
-/// By default, the [`Mass`] of a body is computed automatically from the attached colliders
-/// based on their shape and [`ColliderDensity`]. Mass can be specified manually at spawn,
-/// but masses of child entities still contribute to the total mass.
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// fn setup(mut commands: Commands) {
-///     // The total mass of this body will be 5.0 plus the mass of the child collider.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         Collider::capsule(0.5, 1.5),
-///         // Optional: Specify initial mass for this entity.
-///         //           This overrides the mass of the capsule collider.
-///         Mass(5.0),
-///     ))
-///     .with_child((
-///         // The mass computed for this collider will be added to the total mass of the body.
-#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
-#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
-///         ColliderDensity(2.0),
-///     ));
-/// }
-/// ```
-///
-/// Automatic mass computation can be disabled by adding the [`NoAutoMass`] marker component
-/// to the rigid body entity.
-///
-/// Adding or removing colliders or changing their transform or density also affects the rigid body.
-///
-/// For rigid bodies, masses of child colliders still contribute to the final value. On a [`Collider`], [`Mass`] overrides the computed mass value in [`ColliderMassProperties`].
-///
-/// Note that zero mass is treated as a special case, and is used to represent infinite mass.
+/// A total mass of zero is a special case, and is interpreted as infinite mass, meaning the rigid body
+/// will not be affected by any forces.
 ///
 /// [rigid body]: RigidBody
 ///
-/// # Example
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// fn setup(mut commands: Commands) {
-///     // The mass is computed automatically from the attached colliders.
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         Collider::capsule(0.5, 1.5),
-///     ))
-///     .with_child((
-#[cfg_attr(feature = "2d", doc = "        Collider::circle(1.0),")]
-#[cfg_attr(feature = "3d", doc = "        Collider::sphere(1.0),")]
-///         ColliderDensity(2.0),
-///     ));
-///
-///     // The mass is set to 5.0.
-///     commands.spawn((RigidBody::Dynamic, Mass(5.0)));
-///
-///     // The mass is set to 5.0 + 10.0 = 15.0.
-///     commands.spawn((RigidBody::Dynamic, Mass(5.0)));
-/// }
-/// ```
-///
 /// # Representation
 ///
-/// Internally, the mass is actually stored as the inverse mass `1.0 / mass`.
+/// Internally, the total mass is actually stored as the inverse mass `1.0 / mass`.
 /// This is because most physics calculations operate on the inverse mass, and storing it directly
 /// allows for fewer divisions and guards against division by zero.
 ///
-/// When using [`Mass`], you shouldn't need to worry about this internal representation.
+/// When using [`ComputedMass`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
 /// and [`value`](Self::value) contains a division. When dividing by the mass, it's better to use
 /// `foo * mass.inverse()` than `foo / mass.value()`.
+///
+/// # Related Types
+///
+/// - [`Mass`] can be used to set the mass associated with an individual entity.
+/// - [`ComputedAngularInertia`] stores the total angular inertia of a rigid body, taking into account colliders and descendants.
+/// - [`ComputedCenterOfMass`] stores the total center of mass of a rigid body, taking into account colliders and descendants.
+/// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -104,7 +55,7 @@ impl ComputedMass {
     /// Infinite mass.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
-    /// Creates a new [`Mass`] from the given mass.
+    /// Creates a new [`ComputedMass`] from the given mass.
     ///
     /// # Panics
     ///
@@ -114,7 +65,7 @@ impl ComputedMass {
         Self::from_inverse(mass.recip_or_zero())
     }
 
-    /// Tries to create a new [`Mass`] from the given mass.
+    /// Tries to create a new [`ComputedMass`] from the given mass.
     ///
     /// # Errors
     ///
@@ -130,7 +81,7 @@ impl ComputedMass {
         }
     }
 
-    /// Creates a new [`Mass`] from the given inverse mass.
+    /// Creates a new [`ComputedMass`] from the given inverse mass.
     ///
     /// # Panics
     ///
@@ -147,7 +98,7 @@ impl ComputedMass {
         }
     }
 
-    /// Tries to create a new [`Mass`] from the given inverse mass.
+    /// Tries to create a new [`ComputedMass`] from the given inverse mass.
     ///
     /// # Errors
     ///
@@ -166,7 +117,7 @@ impl ComputedMass {
 
     /// Returns the mass. If it is infinite, returns zero.
     ///
-    /// Note that this involves a division because [`Mass`] internally stores the inverse mass.
+    /// Note that this involves a division because [`ComputedMass`] internally stores the inverse mass.
     /// If dividing by the mass, consider using `foo * mass.inverse()` instead of `foo / mass.value()`.
     #[inline]
     pub fn value(self) -> Scalar {
@@ -175,7 +126,7 @@ impl ComputedMass {
 
     /// Returns the inverse mass.
     ///
-    /// This is a no-op because [`Mass`] internally stores the inverse mass.
+    /// This is a no-op because [`ComputedMass`] internally stores the inverse mass.
     #[inline]
     pub fn inverse(self) -> Scalar {
         self.inverse
@@ -224,24 +175,38 @@ impl From<ComputedMass> for Mass {
     }
 }
 
-/// The moment of inertia of a dynamic [rigid body]. This represents the torque needed for a desired angular acceleration.
+/// The total angular inertia computed for a dynamic [rigid body], taking into account
+/// colliders and descendants.
 ///
-/// Note that zero angular inertia is treated as a special case, and is used to represent infinite angular inertia.
+/// The total angular inertia is computed as the sum of the inertias of all attached colliders
+/// and the angular inertia of the rigid body entity itself. The angular inertia of an entity is determined
+/// by its [`AngularInertia`] component, or if it is not present, from an attached [`Collider`]
+/// based on its shape and mass.
+///
+/// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
+/// meaning the rigid body will not be affected by any torque.
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Representation
 ///
 /// Internally, the angular inertia is actually stored as the inverse angular inertia `1.0 / angular_inertia`.
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
 /// allows for fewer divisions and guards against division by zero.
 ///
-/// When using [`AngularInertia`], you shouldn't need to worry about this internal representation.
+/// When using [`ComputedAngularInertia`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
 /// and [`value`](Self::value) contains a division. When dividing by the angular inertia, it's better to use
 /// `foo * angular_inertia.inverse()` than `foo / angular_inertia.value()`.
+///
+/// # Related Types
+///
+/// - [`AngularInertia`] can be used to set the angular inertia associated with an individual entity.
+/// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
+/// - [`ComputedCenterOfMass`] stores the total center of mass of a rigid body, taking into account colliders and descendants.
+/// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -261,7 +226,7 @@ impl ComputedAngularInertia {
     /// Infinite angular inertia.
     pub const INFINITY: Self = Self { inverse: 0.0 };
 
-    /// Creates a new [`AngularInertia`] from the given angular inertia.
+    /// Creates a new [`ComputedAngularInertia`] from the given angular inertia.
     ///
     /// # Panics
     ///
@@ -271,7 +236,7 @@ impl ComputedAngularInertia {
         Self::from_inverse(angular_inertia.recip_or_zero())
     }
 
-    /// Tries to create a new [`AngularInertia`] from the given angular inertia.
+    /// Tries to create a new [`ComputedAngularInertia`] from the given angular inertia.
     ///
     /// # Errors
     ///
@@ -287,7 +252,7 @@ impl ComputedAngularInertia {
         }
     }
 
-    /// Creates a new [`AngularInertia`] from the given inverse angular inertia.
+    /// Creates a new [`ComputedAngularInertia`] from the given inverse angular inertia.
     ///
     /// # Panics
     ///
@@ -304,7 +269,7 @@ impl ComputedAngularInertia {
         }
     }
 
-    /// Tries to create a new [`AngularInertia`] from the given inverse angular inertia.
+    /// Tries to create a new [`ComputedAngularInertia`] from the given inverse angular inertia.
     ///
     /// # Errors
     ///
@@ -324,7 +289,7 @@ impl ComputedAngularInertia {
 
     /// Returns the angular inertia. If it is infinite, returns zero.
     ///
-    /// Note that this involves a division because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves a division because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     /// If dividing by the angular inertia, consider using `foo * angular_inertia.inverse()` instead of `foo / angular_inertia.value()`.
     #[inline]
     pub fn value(self) -> Scalar {
@@ -333,7 +298,7 @@ impl ComputedAngularInertia {
 
     /// Returns the inverse angular inertia.
     ///
-    /// This is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// This is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub fn inverse(self) -> Scalar {
         self.inverse
@@ -341,7 +306,7 @@ impl ComputedAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia.
     ///
-    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub fn inverse_mut(&mut self) -> &mut Scalar {
         &mut self.inverse
@@ -405,34 +370,47 @@ impl From<ComputedAngularInertia> for AngularInertia {
     }
 }
 
-/// The local moment of inertia of a dynamic [rigid body] as a 3x3 tensor matrix.
-/// This represents the torque needed for a desired angular acceleration about the XYZ axes.
+/// The total local angular inertia computed for a dynamic [rigid body] as a 3x3 tensor matrix,
+/// taking into account colliders and descendants. Represents resistance to angular acceleration.
+///
+/// The total angular inertia is computed as the sum of the inertias of all attached colliders
+/// and the angular inertia of the rigid body entity itself, taking into account offsets from the center of mass.
+/// The angular inertia of an entity is determined by its [`AngularInertia`] component, or if it is not present,
+/// from an attached [`Collider`] based on its shape and mass.
 ///
 /// This is computed in local space, so the object's orientation is not taken into account.
 /// The world-space version is stored in [`GlobalAngularInertia`], which is automatically recomputed
 /// whenever the local angular inertia or rotation is changed.
 ///
 /// To manually compute the world-space version that takes the body's rotation into account,
-/// use the associated `rotated` method. Note that this operation is quite expensive, so use it sparingly.
+/// use the associated [`rotated`](Self::rotated) method.
 ///
-/// The angular inertia tensor should be symmetric and positive definite.
-///
-/// Note that zero angular inertia is treated as a special case, and is used to represent infinite angular inertia.
+/// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
+/// meaning the rigid body will not be affected by any torque.
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Representation
 ///
 /// Internally, the angular inertia is actually stored as the inverse angular inertia tensor `angular_inertia_matrix.inverse()`.
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
 /// allows for fewer inversions and guards against division by zero.
 ///
-/// When using [`AngularInertia`], you shouldn't need to worry about this internal representation.
+/// When using [`ComputedAngularInertia`], you shouldn't need to worry about this internal representation.
 /// The provided constructors and getters abstract away the implementation details.
 ///
 /// In terms of performance, the main thing to keep in mind is that [`inverse`](Self::inverse) is a no-op
 /// and [`value`](Self::value) contains an inversion. When multiplying by the inverse angular inertia, it's better to use
 /// `angular_inertia.inverse() * foo` than `angular_inertia.value().inverse() * foo`.
+///
+/// # Related Types
+///
+/// - [`AngularInertia`] can be used to set the local angular inertia associated with an individual entity.
+/// - [`GlobalAngularInertia`] stores the world-space angular inertia tensor, which is automatically recomputed
+///   whenever the local angular inertia or rotation is changed.
+/// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
+/// - [`ComputedCenterOfMass`] stores the total center of mass of a rigid body, taking into account colliders and descendants.
+/// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -457,14 +435,14 @@ impl ComputedAngularInertia {
         inverse: Matrix::ZERO,
     };
 
-    /// Creates a new [`AngularInertia`] from the given principal angular inertia.
+    /// Creates a new [`ComputedAngularInertia`] from the given principal angular inertia.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     ///
-    /// To specify the orientation of the local inertial frame, consider using [`AngularInertia::new_with_local_frame`].
+    /// To specify the orientation of the local inertial frame, consider using [`ComputedAngularInertia::new_with_local_frame`].
     ///
     /// # Panics
     ///
@@ -483,13 +461,13 @@ impl ComputedAngularInertia {
         ))
     }
 
-    /// Tries to create a new [`AngularInertia`] from the given principal angular inertia.
+    /// Tries to create a new [`ComputedAngularInertia`] from the given principal angular inertia.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes. To specify the orientation of the local inertial frame,
-    /// consider using [`AngularInertia::try_new_with_local_frame`].
+    /// consider using [`ComputedAngularInertia::try_new_with_local_frame`].
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Errors
     ///
@@ -507,13 +485,13 @@ impl ComputedAngularInertia {
         }
     }
 
-    /// Creates a new [`AngularInertia`] from the given principal angular inertia
+    /// Creates a new [`ComputedAngularInertia`] from the given principal angular inertia
     /// and the orientation of the local inertial frame.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes defined by the given `orientation`.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Panics
     ///
@@ -537,13 +515,13 @@ impl ComputedAngularInertia {
         )
     }
 
-    /// Tries to create a new [`AngularInertia`] from the given principal angular inertia
+    /// Tries to create a new [`ComputedAngularInertia`] from the given principal angular inertia
     /// and the orientation of the local inertial frame.
     ///
     /// The principal angular inertia represents the torque needed for a desired angular acceleration
     /// about the local coordinate axes defined by the given `orientation`.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     ///
     /// # Errors
     ///
@@ -566,18 +544,18 @@ impl ComputedAngularInertia {
         }
     }
 
-    /// Creates a new [`AngularInertia`] from the given angular inertia tensor.
+    /// Creates a new [`ComputedAngularInertia`] from the given angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "from_mat3")]
     pub fn from_tensor(tensor: Matrix) -> Self {
         Self::from_inverse_tensor(tensor.inverse_or_zero())
     }
 
-    /// Creates a new [`AngularInertia`] from the given inverse angular inertia tensor.
+    /// Creates a new [`ComputedAngularInertia`] from the given inverse angular inertia tensor.
     ///
     /// The tensor should be symmetric and positive definite.
     #[inline]
@@ -590,11 +568,11 @@ impl ComputedAngularInertia {
 
     /// Returns the angular inertia tensor. If it is infinite, returns zero.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
     /// instead of `angular_inertia.value().inverse() * foo`.
     ///
-    /// Equivalent to [`AngularInertia::tensor`].
+    /// Equivalent to [`ComputedAngularInertia::tensor`].
     #[inline]
     pub(crate) fn value(self) -> Matrix {
         self.tensor()
@@ -602,9 +580,9 @@ impl ComputedAngularInertia {
 
     /// Returns the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     ///
-    /// Equivalent to [`AngularInertia::inverse_tensor`].
+    /// Equivalent to [`ComputedAngularInertia::inverse_tensor`].
     #[inline]
     pub(crate) fn inverse(self) -> Matrix {
         self.inverse_tensor()
@@ -612,7 +590,7 @@ impl ComputedAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     pub(crate) fn inverse_mut(&mut self) -> &mut Matrix {
         self.inverse_tensor_mut()
@@ -620,7 +598,7 @@ impl ComputedAngularInertia {
 
     /// Returns the angular inertia tensor.
     ///
-    /// Note that this involves an invertion because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     /// If multiplying by the inverse angular inertia, consider using `angular_inertia.inverse() * foo`
     /// instead of `angular_inertia.value().inverse() * foo`.
     #[inline]
@@ -631,7 +609,7 @@ impl ComputedAngularInertia {
 
     /// Returns the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3")]
     pub fn inverse_tensor(self) -> Matrix {
@@ -640,7 +618,7 @@ impl ComputedAngularInertia {
 
     /// Returns a mutable reference to the inverse of the angular inertia tensor.
     ///
-    /// Note that this is a no-op because [`AngularInertia`] internally stores the inverse angular inertia.
+    /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3_mut")]
     pub fn inverse_tensor_mut(&mut self) -> &mut Matrix {
@@ -762,10 +740,13 @@ impl core::ops::Mul<Vector> for ComputedAngularInertia {
 #[cfg(feature = "2d")]
 pub(crate) type GlobalAngularInertia = ComputedAngularInertia;
 
-/// The world-space moment of inertia of a dynamic [rigid body] as a 3x3 tensor matrix.
-/// This represents the torque needed for a desired angular acceleration about the XYZ axes.
+/// The total world-space angular inertia computed for a dynamic [rigid body], taking into account
+/// colliders and descendants.
 ///
-/// This component is automatically updated whenever the local [`AngularInertia`] or rotation is changed.
+/// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
+/// meaning the rigid body will not be affected by any torque.
+///
+/// This component is updated automatically whenever the local [`ComputedAngularInertia`] or rotation is changed.
 /// To manually update it, use the associated [`update`](Self::update) method.
 ///
 /// [rigid body]: RigidBody
@@ -811,9 +792,22 @@ impl From<Matrix> for GlobalAngularInertia {
     }
 }
 
-/// The local center of mass of a dynamic [rigid body].
+/// The local center of mass computed for a dynamic [rigid body], taking into account
+/// colliders and descendants.
+///
+/// The total center of mass is computed as the weighted average of the centers of mass
+/// of all attached colliders and the center of mass of the rigid body entity itself.
+/// The center of mass of an entity is determined by its [`CenterOfMass`] component,
+/// or if it is not present, from an attached [`Collider`] based on its shape.
 ///
 /// [rigid body]: RigidBody
+///
+/// # Related Types
+///
+/// - [`CenterOfMass`] can be used to set the local center of mass associated with an individual entity.
+/// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
+/// - [`ComputedAngularInertia`] stores the total angular inertia of a rigid body, taking into account colliders and descendants.
+/// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

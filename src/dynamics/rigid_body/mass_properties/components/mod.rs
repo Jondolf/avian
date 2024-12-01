@@ -319,7 +319,7 @@ impl AngularInertia {
     }
 }
 
-/// The angular inertia of an entity, representing resistance to angular acceleration.
+/// The local angular inertia of an entity, representing resistance to angular acceleration.
 /// A higher angular inertia requires more torque for the same acceleration.
 ///
 /// If [`AngularInertia`] is not present, but the entity has a [`Collider`], its [`ColliderMassProperties`]
