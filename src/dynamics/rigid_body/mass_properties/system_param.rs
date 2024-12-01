@@ -153,7 +153,7 @@ impl MassPropertyHelper<'_, '_> {
         // Initialize the mass properties with the collider's mass properties or zero.
         let mut mass_props = collider_mass
             .filter(|_| !is_sensor)
-            .map_or(MassProperties::ZERO, |m| m.0);
+            .map_or(MassProperties::ZERO, |m| **m);
 
         // Set the mass if the `Mass` component is present.
         if let Some(mass) = mass {

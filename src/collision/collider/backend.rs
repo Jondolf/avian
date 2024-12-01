@@ -170,7 +170,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             if let Some(mut collider_mass_properties) =
                 entity_ref.get_mut::<ColliderMassProperties>()
             {
-                collider_mass_properties.0 = mass_properties;
+                *collider_mass_properties = ColliderMassProperties::from(mass_properties);
             }
         });
 
@@ -231,8 +231,8 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     collider_query.get_mut(trigger.entity())
                 {
                     // Update collider mass props.
-                    collider_mass_properties.0 =
-                        collider.mass_properties(density.max(f32::EPSILON));
+                    *collider_mass_properties =
+                        ColliderMassProperties::from(collider.mass_properties(density.max(f32::EPSILON)));
                 }
             },
         );
@@ -690,7 +690,8 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 ) {
     for (collider, density, mut collider_mass_properties) in &mut query {
         // Update the collider's mass properties.
-        collider_mass_properties.0 = collider.mass_properties(density.max(f32::EPSILON));
+        *collider_mass_properties =
+            ColliderMassProperties::from(collider.mass_properties(density.max(f32::EPSILON)));
     }
 }
 
