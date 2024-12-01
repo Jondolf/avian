@@ -205,7 +205,7 @@ fn queue_mass_recomputation_on_child_collider_mass_change(
     mut query: Query<
         &ColliderParent,
         (
-            With<RigidBody>,
+            Without<RigidBody>,
             Or<(Changed<ColliderMassProperties>, MassPropertyChanged)>,
         ),
     >,
@@ -286,9 +286,9 @@ pub fn warn_missing_mass(
     >,
 ) {
     for (entity, rb, mass, inertia) in &mut bodies {
-        let is_mass_valid = mass.value().is_finite() && mass.value() >= Scalar::EPSILON;
+        let is_mass_valid = mass.value().is_finite();
         #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.value().is_finite() && inertia.value() >= Scalar::EPSILON;
+        let is_inertia_valid = inertia.value().is_finite();
         #[cfg(feature = "3d")]
         let is_inertia_valid = inertia.value().is_finite();
 
@@ -317,18 +317,7 @@ mod tests {
 
     fn create_app() -> App {
         let mut app = App::new();
-
-        // TODO: Use minimal number of plugins
-        app.add_plugins((
-            MinimalPlugins,
-            PhysicsPlugins::default(),
-            HierarchyPlugin,
-            bevy::asset::AssetPlugin::default(),
-            #[cfg(feature = "bevy_scene")]
-            bevy::scene::ScenePlugin,
-        ))
-        .init_resource::<Assets<Mesh>>();
-
+        app.add_plugins((MinimalPlugins, PhysicsPlugins::default(), HierarchyPlugin));
         app
     }
 
@@ -571,7 +560,9 @@ mod tests {
         assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
 
         // Remove the child collider
-        app.world_mut().entity_mut(body_entity).clear_children();
+        app.world_mut()
+            .entity_mut(body_entity)
+            .despawn_descendants();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 

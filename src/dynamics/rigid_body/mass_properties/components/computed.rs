@@ -26,7 +26,7 @@ use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 ///         Collider::capsule(0.5, 1.5),
 ///         // Optional: Specify initial mass for this entity.
 ///         //           This overrides the mass of the capsule collider.
-///         Mass::new(5.0),
+///         Mass(5.0),
 ///     ))
 ///     .with_child((
 ///         // The mass computed for this collider will be added to the total mass of the body.
@@ -68,10 +68,10 @@ use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 ///     ));
 ///
 ///     // The mass is set to 5.0.
-///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+///     commands.spawn((RigidBody::Dynamic, Mass(5.0)));
 ///
 ///     // The mass is set to 5.0 + 10.0 = 15.0.
-///     commands.spawn((RigidBody::Dynamic, Mass::new(5.0)));
+///     commands.spawn((RigidBody::Dynamic, Mass(5.0)));
 /// }
 /// ```
 ///
