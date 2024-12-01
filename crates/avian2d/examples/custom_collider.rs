@@ -115,18 +115,18 @@ impl AnyCollider for CircleCollider {
 // This is needed for physics to behave correctly.
 impl ComputeMassProperties for CircleCollider {
     fn mass(&self, density: f32) -> f32 {
-        // In 2D, the Z length is assumed to be 1.0, so volume = area
-        let volume = std::f32::consts::PI * self.radius.powi(2);
+        // In 2D, the Z length is assumed to be `1.0`, so volume == area.
+        let volume = std::f32::consts::PI * self.radius.powi(2) as f32;
         density * volume
     }
 
     fn unit_angular_inertia(&self) -> f32 {
         // Angular inertia for a circle, assuming a mass of `1.0`.
-        self.radius.powi(2) / 2.0
+        self.radius.powi(2) as f32 / 2.0
     }
 
-    fn center_of_mass(&self) -> Vector {
-        Vector::ZERO
+    fn center_of_mass(&self) -> Vec2 {
+        Vec2::ZERO
     }
 }
 

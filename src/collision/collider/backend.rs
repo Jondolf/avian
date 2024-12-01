@@ -97,10 +97,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
-        // Make sure necessary resources are available.
-        app.init_resource::<NarrowPhaseConfig>()
-            .init_resource::<PhysicsLengthUnit>();
-
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
@@ -236,7 +232,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 {
                     // Update collider mass props.
                     collider_mass_properties.0 =
-                        collider.mass_properties(density.max(Scalar::EPSILON));
+                        collider.mass_properties(density.max(f32::EPSILON));
                 }
             },
         );
@@ -673,9 +669,7 @@ fn collider_removed(
     let parent = parent.get();
 
     if let Ok(mut time_sleeping) = mass_prop_query.get_mut(parent) {
-        let Some(mut entity_commands) = commands.get_entity(parent) else {
-            return;
-        };
+        let mut entity_commands = commands.entity(parent);
 
         // Queue the parent entity for mass property recomputation.
         entity_commands.insert(RecomputeMassProperties);
@@ -696,7 +690,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
 ) {
     for (collider, density, mut collider_mass_properties) in &mut query {
         // Update the collider's mass properties.
-        collider_mass_properties.0 = collider.mass_properties(density.max(Scalar::EPSILON));
+        collider_mass_properties.0 = collider.mass_properties(density.max(f32::EPSILON));
     }
 }
 

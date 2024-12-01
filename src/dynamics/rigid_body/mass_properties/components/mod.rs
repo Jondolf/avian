@@ -410,7 +410,7 @@ impl MassPropertiesBundle {
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
-    pub fn new_computed(collider: &Collider, density: Scalar) -> Self {
+    pub fn new_computed(collider: &Collider, density: f32) -> Self {
         use mass_properties::MassPropertiesExt;
         collider.mass_properties(density).to_bundle()
     }

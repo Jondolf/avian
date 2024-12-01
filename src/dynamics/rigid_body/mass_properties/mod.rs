@@ -140,7 +140,7 @@ impl Plugin for MassPropertyPlugin {
         app.add_systems(
             self.schedule,
             (
-                queue_mass_recomputation_on_change,
+                queue_mass_recomputation_on_mass_change,
                 queue_mass_recomputation_on_child_collider_mass_change,
             )
                 .in_set(MassPropertySystems::QueueRecomputation),
@@ -189,7 +189,7 @@ pub type MassPropertyChanged = Or<(
 
 /// Queues mass property recomputation for rigid bodies when their [`Mass`], [`AngularInertia`],
 /// or [`CenterOfMass`] components are changed.
-pub fn queue_mass_recomputation_on_change(
+pub fn queue_mass_recomputation_on_mass_change(
     mut commands: Commands,
     mut query: Query<Entity, (WithComputedMassProperty, MassPropertyChanged)>,
 ) {
@@ -305,7 +305,7 @@ pub fn warn_missing_mass(
 /// Clamps [`ColliderDensity`] to be above `0.0`.
 fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
     for mut density in &mut query {
-        density.0 = density.max(Scalar::EPSILON);
+        density.0 = density.max(f32::EPSILON);
     }
 }
 
@@ -586,7 +586,6 @@ mod tests {
         assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
     }
 
-    // Test change `Mass` at runtime
     #[test]
     fn mass_properties_change_mass() {
         // `RigidBody`, `Collider`, `Mass(5.0)`

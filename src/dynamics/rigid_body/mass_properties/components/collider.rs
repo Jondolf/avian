@@ -26,7 +26,7 @@ use bevy::prelude::*;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct ColliderDensity(pub Scalar);
+pub struct ColliderDensity(pub f32);
 
 impl ColliderDensity {
     /// The density of the [`Collider`] is zero. It has no mass.
@@ -39,8 +39,8 @@ impl Default for ColliderDensity {
     }
 }
 
-impl From<Scalar> for ColliderDensity {
-    fn from(density: Scalar) -> Self {
+impl From<f32> for ColliderDensity {
+    fn from(density: f32) -> Self {
         Self(density)
     }
 }
@@ -92,7 +92,7 @@ impl ColliderMassProperties {
     ///
     /// Because [`ColliderMassProperties`] is read-only, adding this as a component manually
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
-    pub fn new<C: AnyCollider>(collider: &C, density: Scalar) -> Self {
+    pub fn new<C: AnyCollider>(collider: &C, density: f32) -> Self {
         Self(collider.mass_properties(density))
     }
 }
