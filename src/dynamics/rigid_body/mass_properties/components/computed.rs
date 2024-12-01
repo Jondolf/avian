@@ -6,8 +6,8 @@ use derive_more::From;
 
 use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 
-/// The total mass computed for a dynamic [rigid body], taking into account
-/// colliders and descendants.
+/// The total [mass] computed for a dynamic [rigid body], taking into account
+/// colliders and descendants. Represents resistance to linear acceleration.
 ///
 /// The total mass is computed as the sum of the masses of all attached colliders
 /// and the mass of the rigid body entity itself. The mass of an entity is determined
@@ -17,6 +17,7 @@ use super::{AngularInertia, AngularInertiaError, CenterOfMass, Mass, MassError};
 /// A total mass of zero is a special case, and is interpreted as infinite mass, meaning the rigid body
 /// will not be affected by any forces.
 ///
+/// [mass]: https://en.wikipedia.org/wiki/Mass
 /// [rigid body]: RigidBody
 ///
 /// # Representation
@@ -175,8 +176,8 @@ impl From<ComputedMass> for Mass {
     }
 }
 
-/// The total angular inertia computed for a dynamic [rigid body], taking into account
-/// colliders and descendants.
+/// The total [angular inertia] computed for a dynamic [rigid body], taking into account
+/// colliders and descendants. Represents resistance to angular acceleration.
 ///
 /// The total angular inertia is computed as the sum of the inertias of all attached colliders
 /// and the angular inertia of the rigid body entity itself. The angular inertia of an entity is determined
@@ -186,6 +187,7 @@ impl From<ComputedMass> for Mass {
 /// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
 /// meaning the rigid body will not be affected by any torque.
 ///
+/// [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
 /// [rigid body]: RigidBody
 ///
 /// # Representation
@@ -212,6 +214,7 @@ impl From<ComputedMass> for Mass {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "ComputedMomentOfInertia")]
 pub struct ComputedAngularInertia {
     /// The inverse angular inertia.
     ///
@@ -370,7 +373,7 @@ impl From<ComputedAngularInertia> for AngularInertia {
     }
 }
 
-/// The total local angular inertia computed for a dynamic [rigid body] as a 3x3 tensor matrix,
+/// The total local [angular inertia] computed for a dynamic [rigid body] as a 3x3 [tensor] matrix,
 /// taking into account colliders and descendants. Represents resistance to angular acceleration.
 ///
 /// The total angular inertia is computed as the sum of the inertias of all attached colliders
@@ -388,6 +391,8 @@ impl From<ComputedAngularInertia> for AngularInertia {
 /// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
 /// meaning the rigid body will not be affected by any torque.
 ///
+/// [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
+/// [tensor]: https://en.wikipedia.org/wiki/Moment_of_inertia#Inertia_tensor
 /// [rigid body]: RigidBody
 ///
 /// # Representation
@@ -416,6 +421,7 @@ impl From<ComputedAngularInertia> for AngularInertia {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[doc(alias = "ComputedMomentOfInertia")]
 pub struct ComputedAngularInertia {
     // TODO: The matrix should be symmetric and positive definite.
     //       We could add a custom `SymmetricMat3` type to enforce symmetricity and reduce memory usage.
@@ -792,14 +798,15 @@ impl From<Matrix> for GlobalAngularInertia {
     }
 }
 
-/// The local center of mass computed for a dynamic [rigid body], taking into account
-/// colliders and descendants.
+/// The local [center of mass] computed for a dynamic [rigid body], taking into account
+/// colliders and descendants. Represents the average position of mass in the body.
 ///
 /// The total center of mass is computed as the weighted average of the centers of mass
 /// of all attached colliders and the center of mass of the rigid body entity itself.
 /// The center of mass of an entity is determined by its [`CenterOfMass`] component,
 /// or if it is not present, from an attached [`Collider`] based on its shape.
 ///
+/// [center of mass]: https://en.wikipedia.org/wiki/Center_of_mass
 /// [rigid body]: RigidBody
 ///
 /// # Related Types

@@ -19,7 +19,7 @@ pub enum MassError {
     NaN,
 }
 
-/// The mass of an entity, representing resistance to linear acceleration.
+/// The [mass] of an entity, representing resistance to linear acceleration.
 /// A higher mass requires more force for the same acceleration.
 ///
 /// If [`Mass`] is not present, but the entity has a [`Collider`], its [`ColliderMassProperties`]
@@ -33,6 +33,7 @@ pub enum MassError {
 /// A total mass of zero is a special case, and is interpreted as infinite mass, meaning the rigid body
 /// will not be affected by any forces.
 ///
+/// [mass]: https://en.wikipedia.org/wiki/Mass
 /// [rigid body]: RigidBody
 ///
 /// # Usage
@@ -176,7 +177,7 @@ pub enum AngularInertiaError {
     NaN,
 }
 
-/// The angular inertia of an entity, representing resistance to angular acceleration.
+/// The [angular inertia] of an entity, representing resistance to angular acceleration.
 /// A higher angular inertia requires more torque for the same acceleration.
 ///
 /// If [`AngularInertia`] is not present, but the entity has a [`Collider`], its [`ColliderMassProperties`]
@@ -191,6 +192,7 @@ pub enum AngularInertiaError {
 /// A total angular inertia of zero is a special case, and is interpreted as infinite inertia, meaning the rigid body
 /// will not be affected by any torque.
 ///
+/// [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
 /// [rigid body]: RigidBody
 ///
 /// # Usage
@@ -291,6 +293,7 @@ pub enum AngularInertiaError {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MomentOfInertia")]
 pub struct AngularInertia(pub f32);
 
 #[cfg(feature = "2d")]
@@ -319,7 +322,7 @@ impl AngularInertia {
     }
 }
 
-/// The local angular inertia of an entity, representing resistance to angular acceleration.
+/// The local [angular inertia] of an entity, representing resistance to angular acceleration.
 /// A higher angular inertia requires more torque for the same acceleration.
 ///
 /// If [`AngularInertia`] is not present, but the entity has a [`Collider`], its [`ColliderMassProperties`]
@@ -336,6 +339,7 @@ impl AngularInertia {
 ///
 /// See the [module-level documentation] for more general information on angular inertia.
 ///
+/// [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
 /// [rigid body]: RigidBody
 /// [mass]: super#mass
 /// [module-level documentation]: super#angular-inertia
@@ -492,6 +496,7 @@ impl AngularInertia {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[doc(alias = "MomentOfInertia")]
 pub struct AngularInertia {
     /// The principal angular inertia, representing resistance to angular acceleration
     /// about the local coordinate axes defined by the `local_frame`.
@@ -676,7 +681,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     }
 }
 
-/// The local center of mass of an entity, representing the average position of mass
+/// The local [center of mass] of an entity, representing the average position of mass
 /// in the object. Applying forces at this point produces no torque.
 ///
 /// If [`CenterOfMass`] is not present, but the entity has a [`Collider`], its [`ColliderMassProperties`]
@@ -687,6 +692,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// is stored in the [`ComputedCenterOfMass`] component. It is updated automatically when mass properties are changed,
 /// or when colliders are added or removed.
 ///
+/// [center of mass]: https://en.wikipedia.org/wiki/Center_of_mass
 /// [rigid body]: RigidBody
 ///
 /// # Usage
