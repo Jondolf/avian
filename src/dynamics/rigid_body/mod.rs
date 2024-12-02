@@ -35,7 +35,8 @@ use derive_more::From;
 ///
 /// ## Creation
 ///
-/// Creating a rigid body is as simple as adding the [`RigidBody`] component:
+/// Creating a rigid body is as simple as adding the [`RigidBody`] component,
+/// and an optional [`Collider`]:
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -43,32 +44,17 @@ use derive_more::From;
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     // Spawn a dynamic rigid body and specify its position (optional)
+///     // Spawn a dynamic rigid body and specify its position.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
 ///         Transform::from_xyz(0.0, 3.0, 0.0),
 ///     ));
 /// }
 /// ```
 ///
-/// Avian will automatically add any missing components, like the following:
-///
-/// - [`Position`]
-/// - [`Rotation`]
-/// - [`LinearVelocity`]
-/// - [`AngularVelocity`]
-/// - [`ExternalForce`]
-/// - [`ExternalTorque`]
-/// - [`ExternalImpulse`]
-/// - [`ExternalAngularImpulse`]
-/// - [`Mass`]
-/// - [`AngularInertia`]
-/// - [`CenterOfMass`]
-///
-/// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
-///
-/// By default, rigid bodies will get a mass based on the attached colliders and their densities.
-/// See [mass properties](#mass-properties).
+/// By default, dynamic rigid bodies will have mass properties computed based on the attached colliders
+/// and their [`ColliderDensity`]. See the [Mass properties](#mass-properties) section for more information.
 ///
 /// ## Movement
 ///
@@ -123,35 +109,19 @@ use derive_more::From;
 ///
 /// ## Mass properties
 ///
-/// The mass properties of a rigid body consist of its [`Mass`], [`AngularInertia`]
-/// and local [`CenterOfMass`]. They control how forces and torques impact a rigid body
-/// and how it affects other bodies.
+/// Every dynamic rigid body has [mass], [angular inertia], and a [center of mass].
+/// These mass properties determine how the rigid body responds to forces and torques.
 ///
-/// You should always give dynamic rigid bodies mass properties so that forces
-/// are applied to them correctly. The easiest way to do that is to simply [add a collider](Collider):
+/// - **Mass**: Represents resistance to linear acceleration. A higher mass requires more force for the same acceleration.
+/// - **Angular Inertia**: Represents resistance to angular acceleration. A higher angular inertia requires more torque for the same angular acceleration.
+/// - **Center of Mass**: The average position of mass in the body. Applying forces at this point produces no torque.
 ///
-/// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-#[cfg_attr(
-    feature = "2d",
-    doc = "commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
-)]
-/// # }
-/// ```
+/// Static and kinematic rigid bodies have infinite mass and angular inertia,
+/// and do not respond to forces or torques. Zero mass for a dynamic body is also
+/// treated as a special case, and corresponds to infinite mass.
 ///
-/// This will automatically compute the [collider's mass properties](ColliderMassProperties)
-/// and add them to the body's own mass properties.
-///
-/// By default, each collider has a density of `1.0`. This can be configured with
-/// the [`ColliderDensity`] component:
+/// If no mass properties are set, they are computed automatically from attached colliders
+/// based on their shape and density.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -159,18 +129,17 @@ use derive_more::From;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
+/// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
-#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
-///     ColliderDensity(2.5),
+///     Collider::capsule(0.5, 1.5),
+///     ColliderDensity(2.0),
 /// ));
 /// # }
 /// ```
 ///
-/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`]
-/// with the mass properties computed from a collider shape using the
-/// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle::new_computed) method.
+/// If mass properties are set with the [`Mass`], [`AngularInertia`], and [`CenterOfMass`] components,
+/// they override the values computed from colliders.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -178,43 +147,107 @@ use derive_more::From;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // This is equivalent to the earlier approach, but no collider will be added
+/// // Override mass and the center of mass, but use the collider's angular inertia.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-#[cfg_attr(
-    feature = "2d",
-    doc = "    MassPropertiesBundle::new_computed(&Collider::circle(0.5), 2.5),"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "    MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 2.5),"
-)]
-/// ));
-/// # }
-/// ```
-///
-/// You can also specify the exact values of the mass properties by adding the components manually.
-/// To avoid the collider mass properties from being added to the body's own mass properties,
-/// you can simply set the collider's density to zero.
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-/// // Create a rigid body with a mass of 5.0 and a collider with no mass
-/// commands.spawn((
-///     RigidBody::Dynamic,
-#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
-#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
-///     ColliderDensity(0.0),
+///     Collider::capsule(0.5, 1.5),
 ///     Mass(5.0),
-///     // ...the rest of the mass properties
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
 /// ));
 /// # }
+/// ```
+///
+/// If the rigid body has child colliders, their mass properties will be combined for
+/// the total [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`].
 ///
 /// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Total mass: 10.0 + 5.0 = 15.0
+#[cfg_attr(
+    feature = "2d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5] + 5.0 * [0.0, 4.0]) / (10.0 + 5.0) = [0.0, 1.0]"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
+)]
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::capsule(0.5, 1.5),
+///     Mass(10.0),
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+/// ))
+#[cfg_attr(
+    feature = "2d",
+    doc = ".with_child((
+    Collider::circle(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = ".with_child((
+    Collider::sphere(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+/// # }
+/// ```
+///
+/// To prevent child entities from contributing to the total mass properties, use the [`NoAutoMass`],
+/// [`NoAutoAngularInertia`], and [`NoAutoCenterOfMass`] marker components.
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Total mass: 10.0
+#[cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
+#[cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::capsule(0.5, 1.5),
+///     Mass(10.0),
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+///     NoAutoMass,
+///     NoAutoCenterOfMass,
+/// ))
+#[cfg_attr(
+    feature = "2d",
+    doc = ".with_child((
+    Collider::circle(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = ".with_child((
+    Collider::sphere(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+/// # }
+/// ```
+///
+/// See the [`mass_properties`] module for more information.
+///
+/// [mass]: mass_properties::components::Mass
+/// [angular inertia]: mass_properties::components::AngularInertia
+/// [center of mass]: mass_properties::components::CenterOfMass
+/// [mass properties]: mass_properties
 ///
 /// ## See more
 ///

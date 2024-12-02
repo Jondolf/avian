@@ -8,7 +8,8 @@
 //! - **Center of Mass**: The average position of mass in the body. Applying forces at this point produces no torque.
 //!
 //! Static and kinematic rigid bodies have infinite mass and angular inertia,
-//! and do not respond to forces or torques.
+//! and do not respond to forces or torques. Zero mass for a dynamic body is also
+//! treated as a special case, and corresponds to infinite mass.
 //!
 //! Mass properties can be set for individual entities using the [`Mass`], [`AngularInertia`],
 //! and [`CenterOfMass`] components. If they are not present, mass properties are instead computed
@@ -25,9 +26,9 @@
 //!
 //! [rigid bodies]: crate::dynamics::rigid_body::RigidBody
 //! [colliders]: crate::dynamics::collider::Collider
-//! [mass]: https://en.wikipedia.org/wiki/Mass
-//! [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
-//! [center of mass]: https://en.wikipedia.org/wiki/Center_of_mass
+//! [mass]: components::Mass
+//! [angular inertia]: components::AngularInertia
+//! [center of mass]: components::CenterOfMass
 //!
 //! # Example
 //!
@@ -49,7 +50,8 @@
 //! # }
 //! ```
 //!
-//! If mass properties are set, they override the values computed from colliders.
+//! If mass properties are set with the [`Mass`], [`AngularInertia`], and [`CenterOfMass`] components,
+//! they override the values computed from colliders.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
