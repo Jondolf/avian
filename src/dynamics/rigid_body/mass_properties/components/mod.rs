@@ -1,7 +1,10 @@
 //! Mass property components.
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::{component::ComponentId, world::DeferredWorld},
+    prelude::*,
+};
 #[cfg(feature = "3d")]
 use bevy_heavy::AngularInertiaTensor;
 use derive_more::From;
@@ -954,27 +957,47 @@ impl CenterOfMass {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[require(RecomputeMassProperties)]
+#[component(on_remove = on_remove_no_auto_mass_property)]
 pub struct NoAutoMass;
 
 /// A marker component that prevents descendants or attached colliders
 /// from contributing to the total [`ComputedAngularInertia`] of a [rigid body].
 ///
-/// [rigid body]: RigidBody
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct NoAutoAngularInertia;
-
-/// A marker component that prevents descendants or attached colliders
-/// from contributing to the total [`ComputedCenterOfMass`] of a [rigid body].
+/// Only the [`AngularInertia`] component of the rigid body entity itself will be considered.
+/// This is useful when full control over inertia is desired.
 ///
 /// [rigid body]: RigidBody
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[require(RecomputeMassProperties)]
+#[component(on_remove = on_remove_no_auto_mass_property)]
+pub struct NoAutoAngularInertia;
+
+/// A marker component that prevents descendants or attached colliders
+/// from contributing to the total [`ComputedCenterOfMass`] of a [rigid body].
+///
+/// Only the [`CenterOfMass`] component of the rigid body entity itself will be considered.
+/// This is useful when full control over the center of mass is desired.
+///
+/// [rigid body]: RigidBody
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[require(RecomputeMassProperties)]
+#[component(on_remove = on_remove_no_auto_mass_property)]
 pub struct NoAutoCenterOfMass;
+
+/// Triggers the recomputation of mass properties for rigid bodies when automatic computation is re-enabled.
+fn on_remove_no_auto_mass_property(mut world: DeferredWorld, entity: Entity, _id: ComponentId) {
+    world
+        .commands()
+        .entity(entity)
+        .insert(RecomputeMassProperties);
+}
 
 /// A marker component that forces the recomputation of [`ComputedMass`], [`ComputedAngularInertia`]
 /// and [`ComputedCenterOfMass`] for a [rigid body].

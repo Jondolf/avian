@@ -901,4 +901,75 @@ mod tests {
         assert_eq!(mass.value(), 10.0 + 5.0);
         assert_relative_eq!(center_of_mass.0, Vector::new(0.0, 1.0));
     }
+
+    #[test]
+    fn mass_properties_no_auto_mass_add_remove() {
+        // `RigidBody`, `Collider`, `Mass(5.0)`
+        // - `Collider`, `Mass(10.0)`
+        //
+        // - Check mass properties
+        // - Add `NoAutoMass`
+        // - Check mass properties
+        // - Remove `NoAutoMass`
+        // - Check mass properties
+
+        let mut app = create_app();
+
+        let collider = Collider::circle(1.0);
+        let collider_mass_props = collider.mass_properties(1.0);
+
+        let body_entity = app
+            .world_mut()
+            .spawn((RigidBody::Dynamic, collider.clone(), Mass(5.0)))
+            .with_child((collider, Mass(10.0)))
+            .id();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, angular_inertia, center_of_mass) =
+            get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(mass.value() as f32, 5.0 + 10.0);
+        assert_eq!(
+            angular_inertia.value() as f32,
+            5.0 * collider_mass_props.unit_angular_inertia()
+                + 10.0 * collider_mass_props.unit_angular_inertia()
+        );
+        assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
+
+        // Add `NoAutoMass`
+        app.world_mut().entity_mut(body_entity).insert(NoAutoMass);
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, angular_inertia, center_of_mass) =
+            get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(mass.value() as f32, 5.0);
+        assert_eq!(
+            angular_inertia.value() as f32,
+            5.0 * (5.0 * collider_mass_props.unit_angular_inertia()
+                + 10.0 * collider_mass_props.unit_angular_inertia())
+                / 15.0
+        );
+        assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
+
+        // Remove `NoAutoMass`
+        app.world_mut()
+            .entity_mut(body_entity)
+            .remove::<NoAutoMass>();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, angular_inertia, center_of_mass) =
+            get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(mass.value() as f32, 5.0 + 10.0);
+        assert_eq!(
+            angular_inertia.value() as f32,
+            5.0 * collider_mass_props.unit_angular_inertia()
+                + 10.0 * collider_mass_props.unit_angular_inertia()
+        );
+        assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
+    }
 }
