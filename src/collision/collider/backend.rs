@@ -246,7 +246,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 (
                     update_collider_scale::<C>.in_set(PrepareSet::Finalize),
                     update_collider_mass_properties::<C>
-                        .in_set(MassPropertySystems::ColliderMassProperties),
+                        .in_set(MassPropertySystems::UpdateColliderMassProperties),
                 )
                     .chain(),
             ),

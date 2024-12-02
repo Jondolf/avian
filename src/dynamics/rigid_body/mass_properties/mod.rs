@@ -158,7 +158,8 @@
 //! provided by the [`ComputeMassProperties2d`] and [`ComputeMassProperties3d`] traits.
 //!
 //! ```
-//! # use avian3d::prelude::*;
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 //! # use bevy::prelude::*;
 //! #
 //! #
@@ -187,7 +188,7 @@
 #![cfg_attr(feature = "3d", doc = "let shape = Collider::sphere(0.5);")]
 //! commands.spawn((
 //!     RigidBody::Dynamic,
-//!     Mass::from_shape(&shape, 2.0)
+//!     Mass::from_shape(&shape, 2.0),
 //!     AngularInertia::from_shape(&shape, 1.5),
 //!     CenterOfMass::from_shape(&shape),
 //! ));
@@ -311,9 +312,9 @@ impl Plugin for MassPropertyPlugin {
         app.configure_sets(
             self.schedule,
             (
-                MassPropertySystems::ColliderMassProperties,
+                MassPropertySystems::UpdateColliderMassProperties,
                 MassPropertySystems::QueueRecomputation,
-                MassPropertySystems::ComputedMassProperties,
+                MassPropertySystems::UpdateComputedMassProperties,
             )
                 .chain()
                 .in_set(PrepareSet::Finalize),
@@ -322,7 +323,7 @@ impl Plugin for MassPropertyPlugin {
         // Clamp collider density to be above `0.0`.
         app.add_systems(
             self.schedule,
-            clamp_collider_density.before(MassPropertySystems::ColliderMassProperties),
+            clamp_collider_density.before(MassPropertySystems::UpdateColliderMassProperties),
         );
 
         // Queue mass property recomputation when mass properties are changed.
@@ -330,7 +331,7 @@ impl Plugin for MassPropertyPlugin {
             self.schedule,
             (
                 queue_mass_recomputation_on_mass_change,
-                queue_mass_recomputation_on_child_collider_mass_change,
+                queue_mass_recomputation_on_collider_mass_change,
             )
                 .in_set(MassPropertySystems::QueueRecomputation),
         );
@@ -345,7 +346,7 @@ impl Plugin for MassPropertyPlugin {
                 warn_missing_mass,
             )
                 .chain()
-                .in_set(MassPropertySystems::ComputedMassProperties),
+                .in_set(MassPropertySystems::UpdateComputedMassProperties),
         );
     }
 }
@@ -354,12 +355,12 @@ impl Plugin for MassPropertyPlugin {
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MassPropertySystems {
     /// Update [`ColliderMassProperties`] for colliders.
-    ColliderMassProperties,
+    UpdateColliderMassProperties,
     /// Adds the [`RecomputeMassProperties`] component to entities with changed mass properties.
     QueueRecomputation,
     /// Update [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`]
     /// for entities with the [`RecomputeMassProperties`] component. The component is removed after updating.
-    ComputedMassProperties,
+    UpdateComputedMassProperties,
 }
 
 /// A query filter for entities with [`ComputedMass`], [`ComputedAngularInertia`], or [`ComputedCenterOfMass`].
@@ -378,9 +379,19 @@ pub type MassPropertyChanged = Or<(
 
 /// Queues mass property recomputation for rigid bodies when their [`Mass`], [`AngularInertia`],
 /// or [`CenterOfMass`] components are changed.
+///
+/// Entities with a [`ColliderParent`] are excluded, as they are handled by
+/// [`queue_mass_recomputation_on_collider_mass_change`].
 fn queue_mass_recomputation_on_mass_change(
     mut commands: Commands,
-    mut query: Query<Entity, (WithComputedMassProperty, MassPropertyChanged)>,
+    mut query: Query<
+        Entity,
+        (
+            WithComputedMassProperty,
+            Without<ColliderParent>,
+            MassPropertyChanged,
+        ),
+    >,
 ) {
     for entity in &mut query {
         commands.entity(entity).insert(RecomputeMassProperties);
@@ -388,19 +399,16 @@ fn queue_mass_recomputation_on_mass_change(
 }
 
 /// Queues mass property recomputation for rigid bodies when the [`ColliderMassProperties`],
-/// [`Mass`], [`AngularInertia`], or [`CenterOfMass`] components of their child colliders are changed.
-fn queue_mass_recomputation_on_child_collider_mass_change(
+/// [`Mass`], [`AngularInertia`], or [`CenterOfMass`] components of their colliders are changed.
+fn queue_mass_recomputation_on_collider_mass_change(
     mut commands: Commands,
     mut query: Query<
         &ColliderParent,
-        (
-            Without<RigidBody>,
-            Or<(
-                Changed<ColliderMassProperties>,
-                Changed<ColliderTransform>,
-                MassPropertyChanged,
-            )>,
-        ),
+        Or<(
+            Changed<ColliderMassProperties>,
+            Changed<ColliderTransform>,
+            MassPropertyChanged,
+        )>,
     >,
 ) {
     for collider_parent in &mut query {

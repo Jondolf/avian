@@ -66,30 +66,31 @@ impl MassPropertyHelper<'_, '_> {
     /// This takes into account the mass properties of descendants, unless the given entity has the [`NoAutoMass`],
     /// [`NoAutoAngularInertia`], or [`NoAutoCenterOfMass`] marker components.
     pub fn update_mass_properties(&mut self, entity: Entity) {
+        // Compute the total mass properties of the entity and its descendants.
         let mut mass_props = self.total_mass_properties(entity);
 
+        // If automatic computation of mass properties is disabled, set them to the local `Mass`, `AngularInertia`, and `CenterOfMass`.
         if let Ok((no_auto_mass, no_auto_inertia, no_auto_com)) = self.no_auto_query.get(entity) {
-            let local_mass_props = self.local_mass_properties(entity).unwrap_or_default();
+            let (mass, angular_inertia, center_of_mass, ..) = self.query.get(entity).unwrap();
 
-            if no_auto_mass {
-                mass_props.set_mass(local_mass_props.mass, !no_auto_inertia);
+            if let Some(mass) = no_auto_mass.then_some(mass).flatten() {
+                mass_props.set_mass(mass.0, !no_auto_inertia);
             }
 
-            if no_auto_inertia {
+            if let Some(angular_inertia) = no_auto_inertia.then_some(angular_inertia).flatten() {
                 #[cfg(feature = "2d")]
                 {
-                    mass_props.angular_inertia = local_mass_props.angular_inertia;
+                    mass_props.angular_inertia = angular_inertia.0;
                 }
                 #[cfg(feature = "3d")]
                 {
-                    mass_props.principal_angular_inertia =
-                        local_mass_props.principal_angular_inertia;
-                    mass_props.local_inertial_frame = local_mass_props.local_inertial_frame;
+                    mass_props.principal_angular_inertia = angular_inertia.principal;
+                    mass_props.local_inertial_frame = angular_inertia.local_frame;
                 }
             }
 
-            if no_auto_com {
-                mass_props.center_of_mass = local_mass_props.center_of_mass;
+            if let Some(center_of_mass) = no_auto_com.then_some(center_of_mass).flatten() {
+                mass_props.center_of_mass = center_of_mass.0;
             }
         }
 
@@ -99,6 +100,7 @@ impl MassPropertyHelper<'_, '_> {
             return;
         };
 
+        // Update the computed mass properties.
         computed_mass.set(mass_props.mass as Scalar);
         #[cfg(feature = "2d")]
         {

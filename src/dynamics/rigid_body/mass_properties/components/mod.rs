@@ -133,7 +133,7 @@ pub enum MassError {
 /// The total [`ComputedMass`] is updated automatically whenever the mass properties of a [rigid body]
 /// or its descendants change, or when colliders are added or removed. This update is triggered by adding
 /// the [`RecomputeMassProperties`] component, which is removed after the update is performed
-/// in [`MassPropertySystems::ComputedMassProperties`](super::MassPropertySystems::ComputedMassProperties).
+/// in [`MassPropertySystems::UpdateComputedMassProperties`](super::MassPropertySystems::UpdateComputedMassProperties).
 ///
 /// To immediately perform a manual update of the total mass properties for a specific rigid body entity,
 /// you can call [`MassPropertyHelper::update_mass_properties`] in a system.
@@ -178,11 +178,11 @@ impl Mass {
     /// // Bevy's primitive shapes can also be used.
     #[cfg_attr(
         feature = "2d",
-        doc = "let mass = Mass::from_shape(&Circle::new(1.0), 2.0)"
+        doc = "let mass = Mass::from_shape(&Circle::new(1.0), 2.0);"
     )]
     #[cfg_attr(
         feature = "3d",
-        doc = "let mass = Mass::from_shape(&Sphere::new(1.0), 2.0)"
+        doc = "let mass = Mass::from_shape(&Sphere::new(1.0), 2.0);"
     )]
     /// ```
     #[cfg(all(
@@ -301,7 +301,7 @@ pub enum AngularInertiaError {
 /// The total [`ComputedAngularInertia`] is updated automatically whenever the mass properties of a [rigid body]
 /// or its descendants change, or when colliders are added or removed. This update is triggered by adding
 /// the [`RecomputeMassProperties`] component, which is removed after the update is performed
-/// in [`MassPropertySystems::ComputedMassProperties`](super::MassPropertySystems::ComputedMassProperties).
+/// in [`MassPropertySystems::UpdateComputedMassProperties`](super::MassPropertySystems::UpdateComputedMassProperties).
 ///
 /// To immediately perform a manual update of the total mass properties for a specific rigid body entity,
 /// you can call [`MassPropertyHelper::update_mass_properties`] in a system.
@@ -514,7 +514,7 @@ impl AngularInertia {
 /// The total [`ComputedAngularInertia`] is updated automatically whenever the mass properties of a [rigid body]
 /// or its descendants change, or when colliders are added or removed. This update is triggered by adding
 /// the [`RecomputeMassProperties`] component, which is removed after the update is performed
-/// in [`MassPropertySystems::ComputedMassProperties`](super::MassPropertySystems::ComputedMassProperties).
+/// in [`MassPropertySystems::UpdateComputedMassProperties`](super::MassPropertySystems::UpdateComputedMassProperties).
 ///
 /// To immediately perform a manual update of the total mass properties for a specific rigid body entity,
 /// you can call [`MassPropertyHelper::update_mass_properties`] in a system.
@@ -864,7 +864,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// The total [`ComputedCenterOfMass`] is updated automatically whenever the mass properties of a [rigid body]
 /// or its descendants change, or when colliders are added, removed, or transformed. This update is triggered by adding
 /// the [`RecomputeMassProperties`] component, which is removed after the update is performed
-/// in [`MassPropertySystems::ComputedMassProperties`](super::MassPropertySystems::ComputedMassProperties).
+/// in [`MassPropertySystems::UpdateComputedMassProperties`](super::MassPropertySystems::UpdateComputedMassProperties).
 ///
 /// To immediately perform a manual update of the total mass properties for a specific rigid body entity,
 /// you can call [`MassPropertyHelper::update_mass_properties`] in a system.
@@ -913,21 +913,21 @@ impl CenterOfMass {
     /// // Compute the center of mass from a collider.
     #[cfg_attr(
         feature = "2d",
-        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::circle(1.0), 2.0);"
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::circle(1.0));"
     )]
     #[cfg_attr(
         feature = "3d",
-        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::sphere(1.0), 2.0);"
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::sphere(1.0));"
     )]
     ///
     /// // Bevy's primitive shapes can also be used.
     #[cfg_attr(
         feature = "2d",
-        doc = "let center_of_mass = CenterOfMass::from_shape(&Circle::new(1.0))"
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Circle::new(1.0));"
     )]
     #[cfg_attr(
         feature = "3d",
-        doc = "let center_of_mass = CenterOfMass::from_shape(&Sphere::new(1.0))"
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Sphere::new(1.0));"
     )]
     /// ```
     #[cfg(all(
@@ -940,10 +940,11 @@ impl CenterOfMass {
     }
 }
 
-/// A marker component that disables automatic [`Mass`] computation
-/// from attached colliders for a [rigid body].
+/// A marker component that prevents descendants or attached colliders
+/// from contributing to the total [`ComputedMass`] of a [rigid body].
 ///
-/// This is useful when you want full control over mass.
+/// Only the [`Mass`] component of the rigid body entity itself will be considered.
+/// This is useful when full control over mass is desired.
 ///
 /// [rigid body]: RigidBody
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
@@ -952,10 +953,8 @@ impl CenterOfMass {
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct NoAutoMass;
 
-/// A marker component that disables automatic [`AngularInertia`] computation
-/// from attached colliders for a [rigid body].
-///
-/// This is useful when you want full control over angular inertia.
+/// A marker component that prevents descendants or attached colliders
+/// from contributing to the total [`ComputedAngularInertia`] of a [rigid body].
 ///
 /// [rigid body]: RigidBody
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
@@ -964,10 +963,8 @@ pub struct NoAutoMass;
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct NoAutoAngularInertia;
 
-/// A marker component that disables automatic [`CenterOfMass`] computation
-/// from attached colliders for a [rigid body].
-///
-/// This is useful when you want full control over the center of mass.
+/// A marker component that prevents descendants or attached colliders
+/// from contributing to the total [`ComputedCenterOfMass`] of a [rigid body].
 ///
 /// [rigid body]: RigidBody
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
@@ -979,10 +976,11 @@ pub struct NoAutoCenterOfMass;
 /// A marker component that forces the recomputation of [`ComputedMass`], [`ComputedAngularInertia`]
 /// and [`ComputedCenterOfMass`] for a [rigid body].
 ///
-/// This is added automatically when the mass properties of a [rigid body] change,
-/// and is removed after the recomputation.
+/// This is added automatically when the mass properties of a [rigid body] change, or when colliders are added or removed,
+/// and is removed after the recomputation in [`MassPropertySystems::UpdateComputedMassProperties`].
 ///
 /// [rigid body]: RigidBody
+/// [`MassPropertySystems::UpdateComputedMassProperties`]: super::MassPropertySystems::UpdateComputedMassProperties
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq)]
 #[component(storage = "SparseSet")]
 pub struct RecomputeMassProperties;
