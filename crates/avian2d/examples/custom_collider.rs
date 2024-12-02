@@ -113,7 +113,7 @@ impl AnyCollider for CircleCollider {
 
 // Implement mass computation for the collider shape.
 // This is needed for physics to behave correctly.
-impl ComputeMassProperties for CircleCollider {
+impl ComputeMassProperties2d for CircleCollider {
     fn mass(&self, density: f32) -> f32 {
         // In 2D, the Z length is assumed to be `1.0`, so volume == area.
         let volume = std::f32::consts::PI * self.radius.powi(2) as f32;

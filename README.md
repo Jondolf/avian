@@ -121,7 +121,7 @@ fn setup(
         Collider::cuboid(1.0, 1.0, 1.0),
         AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
         PbrBundle {
-            mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+            mesh: meshes.add(Cuboid::from_length(1.0)),
             material: materials.add(Color::srgb_u8(124, 144, 255)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()

@@ -1,59 +1,213 @@
-//! Mass property functionality for [rigid bodies](RigidBody) and colliders.
+//! Mass property functionality for [rigid bodies] and [colliders].
 //!
-//! A dynamic rigid body has [`Mass`], [`AngularInertia`], and a [`CenterOfMass`].
-//! These components determine how the rigid body responds to forces and torques.
-//! Static and kinematic rigid bodies do not have mass or angular inertia.
+//! Every dynamic rigid body has [mass], [angular inertia], and a [center of mass].
+//! These mass properties determine how the rigid body responds to forces and torques.
 //!
-//! By default, the mass properties of a body are computed automatically from attached colliders
-//! based on their [`ColliderDensity`] and shape. The mass properties of colliders are stored
-//! in the [`ColliderMassProperties`] component. If [`Mass`], [`AngularInertia`], or [`CenterOfMass`]
-//! are present for a collider, they override the computed values.
+//! - **Mass**: Represents resistance to linear acceleration. A higher mass requires more force for the same acceleration.
+//! - **Angular Inertia**: Represents resistance to angular acceleration. A higher angular inertia requires more torque for the same angular acceleration.
+//! - **Center of Mass**: The average position of mass in the body. Applying forces at this point produces no torque.
 //!
-//! # Initialization
+//! Static and kinematic rigid bodies have infinite mass and angular inertia,
+//! and do not respond to forces or torques.
 //!
-//! Given an entity hierarchy like this:
+//! Mass properties can be set for individual entities using the [`Mass`], [`AngularInertia`],
+//! and [`CenterOfMass`] components. If they are not present, mass properties are instead computed
+//! automatically from attached colliders based on their shape and [`ColliderDensity`].
 //!
-//! - `RigidBody`, `Collider`
-//!     - `Collider`
-//!     - `Collider`
+//! If a rigid body has child entities, their mass properties are combined to compute
+//! the total mass properties of the rigid body. These are stored in the [`ComputedMass`],
+//! [`ComputedAngularInertia`], and [`ComputedCenterOfMass`] components, which are updated
+//! automatically when mass properties are changed, or when colliders are added or removed.
 //!
-//! The total mass properties will be the sum of the mass properties of all three colliders.
+//! To prevent mass properties of child entities from contributing to the total mass properties,
+//! you can use the [`NoAutoMass`], [`NoAutoAngularInertia`], and [`NoAutoCenterOfMass`] marker components.
+//! This can be useful when full control over mass properties is desired.
 //!
-//! Mass properties can be specified at spawn for individual entities:
+//! [rigid bodies]: crate::dynamics::rigid_body::RigidBody
+//! [colliders]: crate::dynamics::collider::Collider
+//! [mass]: https://en.wikipedia.org/wiki/Mass
+//! [angular inertia]: https://en.wikipedia.org/wiki/Moment_of_inertia
+//! [center of mass]: https://en.wikipedia.org/wiki/Center_of_mass
 //!
-//! - `RigidBody`, `Collider`, `Mass`
-//!     - `Collider`, `AngularInertia`
-//!     - `Collider`
+//! # Example
 //!
-//! Here, the mass of the rigid body entity and the angular inertia of the first collider are overridden.
-//! However, the mass properties of the two child colliders still contribute to the total mass properties of the body.
+//! If no mass properties are set, they are computed automatically from attached colliders
+//! based on their shape and density.
 //!
-//! For full control over mass properties, automatic computation can be disabled
-//! with the `NoAutoMass`, `NoAutoAngularInertia`, and `NoAutoCenterOfMass` marker components.
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
+//! commands.spawn((
+//!     RigidBody::Dynamic,
+//!     Collider::capsule(0.5, 1.5),
+//!     ColliderDensity(2.0),
+//! ));
+//! # }
+//! ```
 //!
-//! # Changing Mass Properties at Runtime
+//! If mass properties are set, they override the values computed from colliders.
 //!
-//! The mass properties of a rigid body can be modified at runtime in two primary ways:
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! // Override mass and the center of mass, but use the collider's angular inertia.
+//! commands.spawn((
+//!     RigidBody::Dynamic,
+//!     Collider::capsule(0.5, 1.5),
+//!     Mass(5.0),
+#![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#![cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+//! ));
+//! # }
+//! ```
 //!
-//! 1. Adjust [`Mass`], [`AngularInertia`], and [`CenterOfMass`] manually.
-//! 2. Add, remove, transform, or modify colliders.
+//! If the rigid body has child colliders, their mass properties will be combined for
+//! the total [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`].
 //!
-//! If adjusting mass properties manually, care must be taken to ensure that mass doesn't become non-positive
-//! if colliders are later modified or removed. For example, if the mass of a body is overridden to be `5.0`,
-//! and a collider with mass `10.0` is removed, you would end up with a mass of `-5.0`.
-//! With `debug_assertions` enabled, this will result in a panic.
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! // Total mass: 10.0 + 5.0 = 15.0
+#![cfg_attr(
+    feature = "2d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5] + 5.0 * [0.0, 4.0]) / (10.0 + 5.0) = [0.0, 1.0]"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
+)]
+//! commands.spawn((
+//!     RigidBody::Dynamic,
+//!     Collider::capsule(0.5, 1.5),
+//!     Mass(10.0),
+#![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#![cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+//! ))
+#![cfg_attr(
+    feature = "2d",
+    doc = ".with_child((
+    Collider::circle(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = ".with_child((
+    Collider::sphere(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+//! # }
+//! ```
 //!
-//! For full control over mass properties, automatic computation can be disabled
-//! with the `NoAutoMass`, `NoAutoAngularInertia`, and `NoAutoCenterOfMass` marker components.
+//! To prevent child entities from contributing to the total mass properties, use the [`NoAutoMass`],
+//! [`NoAutoAngularInertia`], and [`NoAutoCenterOfMass`] marker components.
 //!
-//! # Mass Helper
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! // Total mass: 10.0
+#![cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
+#![cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
+//! commands.spawn((
+//!     RigidBody::Dynamic,
+//!     Collider::capsule(0.5, 1.5),
+//!     Mass(10.0),
+#![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#![cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+//!     NoAutoMass,
+//!     NoAutoCenterOfMass,
+//! ))
+#![cfg_attr(
+    feature = "2d",
+    doc = ".with_child((
+    Collider::circle(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+#![cfg_attr(
+    feature = "3d",
+    doc = ".with_child((
+    Collider::sphere(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
+)]
+//! # }
+//! ```
 //!
-//! The [`MassPropertyHelper`] [system parameter](bevy::ecs::system::SystemParam) provides convenient helper methods
+//! # Computing Mass Properties for Shapes
+//!
+//! Mass properties of colliders and Bevy's primitive shapes can be computed using methods
+//! provided by the [`ComputeMassProperties2d`] and [`ComputeMassProperties3d`] traits.
+//!
+//! ```
+//! # use avian3d::prelude::*;
+//! # use bevy::prelude::*;
+//! #
+//! #
+//! // Compute mass properties for a capsule collider with a density of `2.0`.
+//! let capsule = Collider::capsule(0.5, 1.5);
+//! let mass_properties = capsule.mass_properties(2.0);
+//!
+//! // Compute individual mass properties for a `Circle`.
+//! let circle = Circle::new(1.0);
+//! let mass = circle.mass(2.0);
+//! let angular_inertia = circle.angular_inertia(mass);
+//! let center_of_mass = circle.center_of_mass();
+//! ```
+//!
+//! Similarly, shapes can be used to construct the [`Mass`], [`AngularInertia`],
+//! and [`CenterOfMass`] components, or the [`MassPropertiesBundle`].
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn setup(mut commands: Commands) {
+//! // Construct individual mass properties from a collider.
+#![cfg_attr(feature = "2d", doc = "let shape = Collider::circle(0.5);")]
+#![cfg_attr(feature = "3d", doc = "let shape = Collider::sphere(0.5);")]
+//! commands.spawn((
+//!     RigidBody::Dynamic,
+//!     Mass::from_shape(&shape, 2.0)
+//!     AngularInertia::from_shape(&shape, 1.5),
+//!     CenterOfMass::from_shape(&shape),
+//! ));
+//!
+//! // Construct a `MassPropertiesBundle` from a primitive shape.
+#![cfg_attr(feature = "2d", doc = "let shape = Circle::new(0.5);")]
+#![cfg_attr(feature = "3d", doc = "let shape = Sphere::new(0.5);")]
+//! commands.spawn((RigidBody::Dynamic, MassPropertiesBundle::from_shape(&shape, 2.0)));
+//! # }
+//! ```
+//!
+//! This mass property computation functionality is provided by the [`bevy_heavy`] crate.
+//!
+//! # Mass Property Helper
+//!
+//! [`MassPropertyHelper`] is a [`SystemParam`](bevy::ecs::system::SystemParam) that provides convenient helper methods
 //! that can be used to modify or compute mass properties for individual entities and hierarchies at runtime.
 //!
-//! For example, [`MassPropertyHelper::mass_properties_from_colliders`] can be used to compute the mass properties
-//! computed from colliders attached to the given entity. This can be useful when you want to revert to
-//! automatically computed mass properties after manually adjusting mass properties.
+//! For example, [`MassPropertyHelper::total_mass_properties`] computes the total mass properties of an entity,
+//! taking into account the mass properties of descendants and colliders.
 
 use crate::{prelude::*, prepare::PrepareSet};
 #[cfg(feature = "3d")]
@@ -63,25 +217,56 @@ use bevy::{
     prelude::*,
 };
 
-mod components;
-pub use components::*;
+pub mod components;
+use components::RecomputeMassProperties;
 
 mod system_param;
 pub use system_param::MassPropertyHelper;
 
+/// Mass property computation with `bevy_heavy`, re-exported for your convenience.
+pub use bevy_heavy;
+
 #[cfg(feature = "2d")]
-pub use bevy_heavy::{
+pub(crate) use bevy_heavy::{
     ComputeMassProperties2d as ComputeMassProperties, MassProperties2d as MassProperties,
 };
 #[cfg(feature = "3d")]
-pub use bevy_heavy::{
+pub(crate) use bevy_heavy::{
     ComputeMassProperties3d as ComputeMassProperties, MassProperties3d as MassProperties,
 };
 
-/// A plugin for managing mass properties of rigid bodies.
+/// An extension trait for [`MassProperties`].
+pub trait MassPropertiesExt {
+    /// Converts the [`MassProperties`] to a [`MassPropertiesBundle`]
+    /// containing the [`Mass`], [`AngularInertia`], and [`CenterOfMass`] components.
+    fn to_bundle(&self) -> MassPropertiesBundle;
+}
+
+impl MassPropertiesExt for MassProperties {
+    fn to_bundle(&self) -> MassPropertiesBundle {
+        #[cfg(feature = "2d")]
+        let angular_inertia = AngularInertia(self.angular_inertia);
+        #[cfg(feature = "3d")]
+        let angular_inertia = AngularInertia::new_with_local_frame(
+            self.principal_angular_inertia.f32(),
+            self.local_inertial_frame.f32(),
+        );
+
+        MassPropertiesBundle {
+            mass: Mass(self.mass),
+            angular_inertia,
+            center_of_mass: CenterOfMass(self.center_of_mass),
+        }
+    }
+}
+
+/// A plugin for managing [mass properties] of rigid bodies.
 ///
-/// - Updates mass properties of rigid bodies when colliders are added or removed, or when their [`ColliderMassProperties`] are changed.
+/// - Updates the [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`] components
+///   for rigid bodies when their mass properties are changed, or when colliders are added or removed.
 /// - Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
+///
+/// [mass properties]: crate::dynamics::rigid_body::mass_properties
 pub struct MassPropertyPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -193,7 +378,7 @@ pub type MassPropertyChanged = Or<(
 
 /// Queues mass property recomputation for rigid bodies when their [`Mass`], [`AngularInertia`],
 /// or [`CenterOfMass`] components are changed.
-pub fn queue_mass_recomputation_on_mass_change(
+fn queue_mass_recomputation_on_mass_change(
     mut commands: Commands,
     mut query: Query<Entity, (WithComputedMassProperty, MassPropertyChanged)>,
 ) {
@@ -237,34 +422,9 @@ fn update_mass_properties(
     }
 }
 
-/// An extension trait for [`MassProperties`].
-pub trait MassPropertiesExt {
-    /// Converts the [`MassProperties`] to a [`MassPropertiesBundle`]
-    /// containing the [`Mass`], [`AngularInertia`], and [`CenterOfMass`] components.
-    fn to_bundle(&self) -> MassPropertiesBundle;
-}
-
-impl MassPropertiesExt for MassProperties {
-    fn to_bundle(&self) -> MassPropertiesBundle {
-        #[cfg(feature = "2d")]
-        let angular_inertia = AngularInertia(self.angular_inertia);
-        #[cfg(feature = "3d")]
-        let angular_inertia = AngularInertia::new_with_local_frame(
-            self.principal_angular_inertia.f32(),
-            self.local_inertial_frame.f32(),
-        );
-
-        MassPropertiesBundle {
-            mass: Mass(self.mass),
-            angular_inertia,
-            center_of_mass: CenterOfMass(self.center_of_mass),
-        }
-    }
-}
-
 /// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
 #[cfg(feature = "3d")]
-pub fn update_global_angular_inertia<F: QueryFilter>(
+pub(crate) fn update_global_angular_inertia<F: QueryFilter>(
     mut query: Populated<
         (
             &Rotation,
@@ -282,7 +442,7 @@ pub fn update_global_angular_inertia<F: QueryFilter>(
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
-pub fn warn_missing_mass(
+fn warn_missing_mass(
     mut bodies: Query<
         (
             Entity,

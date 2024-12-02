@@ -11,7 +11,7 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
     prelude::*,
 };
-use mass_properties::{MassPropertySystems, RecomputeMassProperties};
+use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
 
 /// A plugin for handling generic collider backend logic.
 ///
@@ -719,7 +719,7 @@ mod tests {
         ));
 
         let collider = Collider::capsule(0.5, 2.0);
-        let mass_properties = MassPropertiesBundle::new_computed(&collider, 1.0);
+        let mass_properties = MassPropertiesBundle::from_shape(&collider, 1.0);
 
         let parent = app
             .world_mut()

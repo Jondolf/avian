@@ -7,7 +7,9 @@ use bevy::{
     prelude::*,
 };
 
-/// A [`SystemParam`] that provides helper methods for computing and updating mass properties.
+/// A [`SystemParam`] that provides helper methods for computing and updating [mass properties].
+///
+/// [mass properties]: crate::dynamics::rigid_body::mass_properties
 #[derive(SystemParam)]
 pub struct MassPropertyHelper<'w, 's> {
     query: Query<
@@ -58,7 +60,6 @@ pub struct MassPropertyHelper<'w, 's> {
     children: Query<'w, 's, Read<Children>>,
 }
 
-// TODO: Override mass properties for specific entities.
 impl MassPropertyHelper<'_, '_> {
     /// Updates the [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`] of the given entity.
     ///

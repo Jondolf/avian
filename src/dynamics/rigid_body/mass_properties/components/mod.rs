@@ -1,3 +1,5 @@
+//! Mass property components.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 #[cfg(feature = "3d")]
@@ -63,7 +65,7 @@ pub enum MassError {
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // `ColliderDensity` is optional, and defaults to `1.0` if not present.
+/// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.5),
@@ -97,8 +99,8 @@ pub enum MassError {
 /// # }
 /// ```
 ///
-/// To disable masses of child entities being taken into account for the [`ComputedMass`],
-/// add the [`NoAutoMass`] component. This can be useful when you want full control over mass.
+/// To prevent masses of child entities from contributing to the total [`ComputedMass`],
+/// add the [`NoAutoMass`] component. This can be useful when full control over mass is desired.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -156,14 +158,40 @@ impl Mass {
     /// A mass of `0.0`.
     pub const ZERO: Self = Self(0.0);
 
-    /// Computes the [`Mass`] of the given collider using the given density.
+    /// Computes the [`Mass`] of the given shape using the given density.
+    ///
+    /// ```
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+    /// # use bevy::prelude::*;
+    /// #
+    /// // Compute the mass from a collider with a density of `2.0`.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "let mass = Mass::from_shape(&Collider::circle(1.0), 2.0);"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "let mass = Mass::from_shape(&Collider::sphere(1.0), 2.0);"
+    )]
+    ///
+    /// // Bevy's primitive shapes can also be used.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "let mass = Mass::from_shape(&Circle::new(1.0), 2.0)"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "let mass = Mass::from_shape(&Sphere::new(1.0), 2.0)"
+    )]
+    /// ```
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     #[inline]
-    pub fn from_collider(collider: &Collider, density: f32) -> Self {
-        Self(collider.mass(density))
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
+        Self(shape.mass(density))
     }
 }
 
@@ -221,7 +249,7 @@ pub enum AngularInertiaError {
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // `ColliderDensity` is optional, and defaults to `1.0` if not present.
+/// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.5),
@@ -247,22 +275,22 @@ pub enum AngularInertiaError {
 /// # }
 /// ```
 ///
-/// To disable the angular inertia of child entities being taken into account for the [`ComputedAngularInertia`],
-/// add the [`NoAutoAngularInertia`] component. This can be useful when you want full control over inertia.
+/// To prevent angular inertia of child entities from contributing to the total [`ComputedAngularInertia`],
+/// add the [`NoAutoAngularInertia`] component. This can be useful when full control over inertia is desired.
 ///
 /// ```
 /// # use avian2d::prelude::*;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // Total angular inertia: 10.0
+/// // Total angular inertia: 3.0
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.5),
-///     AngularInertia(10.0),
+///     AngularInertia(3.0),
 ///     NoAutoAngularInertia,
 /// ))
-/// .with_child((Collider::circle(1.0), AngularInertia(5.0)));
+/// .with_child((Collider::circle(1.0), AngularInertia(2.0)));
 /// # }
 /// ```
 ///
@@ -301,14 +329,25 @@ impl AngularInertia {
     /// An angular inertia of `0.0`.
     pub const ZERO: Self = Self(0.0);
 
-    /// Computes the [`AngularInertia`] of the given collider using the given mass.
+    /// Computes the [`AngularInertia`] of the given shape using the given mass.
+    ///
+    /// ```
+    /// # use avian2d::prelude::*;
+    /// # use bevy::prelude::*;
+    /// #
+    /// // Compute the angular inertia from a collider with a mass of `2.0`.
+    /// let inertia = AngularInertia::from_shape(&Collider::circle(1.0), 2.0);
+    ///
+    /// // Bevy's primitive shapes can also be used.
+    /// let inertia = AngularInertia::from_shape(&Circle::new(1.0), 2.0);
+    /// ```
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     #[inline]
-    pub fn from_collider(collider: &Collider, mass: f32) -> Self {
-        Self(collider.angular_inertia(mass))
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T, mass: f32) -> Self {
+        Self(shape.angular_inertia(mass))
     }
 
     /// Computes the angular inertia shifted by the given offset, taking into account the given mass.
@@ -335,7 +374,7 @@ impl AngularInertia {
 /// or when colliders are added or removed.
 ///
 /// A total angular inertia of zero is a special case, and is interpreted as infinite inertia, meaning the rigid body
-/// will not be affected by any torque.
+/// will not be affected by any torques.
 ///
 /// See the [module-level documentation] for more general information on angular inertia.
 ///
@@ -357,10 +396,10 @@ impl AngularInertia {
 /// # #[cfg(feature = "f32")]
 /// # fn setup(mut commands: Commands) {
 /// // Principal angular inertia: `2.0` for the local X and Z axes, and `5.0` for the Y axis.
-/// let i1 = AngularInertia::new(Vec3::new(2.0, 5.0, 2.0));
+/// let inertia1 = AngularInertia::new(Vec3::new(2.0, 5.0, 2.0));
 ///
 /// // A local inertial frame rotated by 90 degrees about the X axis.
-/// let i2 = AngularInertia::new_with_local_frame(Vec3::new(2.0, 5.0, 2.0), Quat::from_rotation_x(PI / 2.0));
+/// let inertia2 = AngularInertia::new_with_local_frame(Vec3::new(2.0, 5.0, 2.0), Quat::from_rotation_x(PI / 2.0));
 /// # }
 /// # #[cfg(not(feature = "f32"))]
 /// # fn main() {}
@@ -380,10 +419,10 @@ impl AngularInertia {
 /// # #[cfg(feature = "f32")]
 /// # fn setup(mut commands: Commands) {
 /// // For simplicity, we use the same principal angular inertia as before, with an identity local frame.
-/// let i1 = AngularInertia::from_tensor(Mat3::from_diagonal(Vec3::new(2.0, 5.0, 2.0)));
+/// let inertia1 = AngularInertia::from_tensor(Mat3::from_diagonal(Vec3::new(2.0, 5.0, 2.0)));
 ///
 /// // The angular inertia tensor can be retrieved back from the principal angular inertia.
-/// let tensor = i1.tensor();
+/// let tensor = inertia1.tensor();
 /// # }
 /// # #[cfg(not(feature = "f32"))]
 /// # fn main() {}
@@ -416,7 +455,7 @@ impl AngularInertia {
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // `ColliderDensity` is optional, and defaults to `1.0` if not present.
+/// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.5),
@@ -446,8 +485,8 @@ impl AngularInertia {
 /// # fn main() {}
 /// ```
 ///
-/// To disable the angular inertia of child entities being taken into account for the [`ComputedAngularInertia`],
-/// add the [`NoAutoAngularInertia`] component. This can be useful when you want full control over inertia.
+/// To prevent angular inertia of child entities from contributing to the total [`ComputedAngularInertia`],
+/// add the [`NoAutoAngularInertia`] component. This can be useful when full control over inertia is desired.
 ///
 /// ```
 /// # use avian3d::prelude::*;
@@ -628,15 +667,26 @@ impl AngularInertia {
         }
     }
 
-    /// Computes the [`AngularInertia`] of the given collider using the given mass.
+    /// Computes the [`AngularInertia`] of the given shape using the given mass.
+    ///
+    /// ```
+    /// # use avian3d::prelude::*;
+    /// # use bevy::prelude::*;
+    /// #
+    /// // Compute the angular inertia from collider with a mass of `2.0`.
+    /// let inertia = AngularInertia::from_shape(&Collider::sphere(1.0), 2.0);
+    ///
+    /// // Bevy's primitive shapes can also be used.
+    /// let inertia = AngularInertia::from_shape(&Sphere::new(1.0), 2.0);
+    /// ```
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     #[inline]
-    pub fn from_collider(collider: &Collider, mass: f32) -> Self {
-        let principal = collider.principal_angular_inertia(mass);
-        let local_frame = collider.local_inertial_frame();
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T, mass: f32) -> Self {
+        let principal = shape.principal_angular_inertia(mass);
+        let local_frame = shape.local_inertial_frame();
         Self::new_with_local_frame(principal, local_frame)
     }
 
@@ -772,8 +822,8 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// # }
 /// ```
 ///
-/// To disable child entities being taken into account for the [`ComputedCenterOfMass`],
-/// add the [`NoAutoCenterOfMass`], component. This can be useful when you want full control over the center of mass.
+/// To prevent the centers of mass of child entities from contributing to the total [`ComputedCenterOfMass`],
+/// add the [`NoAutoCenterOfMass`], component. This can be useful when full control over the center of mass is desired.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -790,11 +840,19 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// ))
 #[cfg_attr(
     feature = "2d",
-    doc = ".with_child((Collider::circle(1.0), Transform::from_xyz(0.0, 4.0, 0.0)));"
+    doc = ".with_child((
+    Collider::circle(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = ".with_child((Collider::sphere(1.0), Transform::from_xyz(0.0, 4.0, 0.0)));"
+    doc = ".with_child((
+    Collider::sphere(1.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Mass(5.0),
+));"
 )]
 /// # }
 /// ```
@@ -845,14 +903,40 @@ impl CenterOfMass {
         Self(Vec3::new(x, y, z))
     }
 
-    /// Computes the [`CenterOfMass`] of the given collider.
+    /// Computes the [`CenterOfMass`] of the given shape.
+    ///
+    /// ```
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+    /// # use bevy::prelude::*;
+    /// #
+    /// // Compute the center of mass from a collider.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::circle(1.0), 2.0);"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Collider::sphere(1.0), 2.0);"
+    )]
+    ///
+    /// // Bevy's primitive shapes can also be used.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Circle::new(1.0))"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "let center_of_mass = CenterOfMass::from_shape(&Sphere::new(1.0))"
+    )]
+    /// ```
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
     #[inline]
-    pub fn from_collider(collider: &Collider) -> Self {
-        Self(collider.center_of_mass())
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T) -> Self {
+        Self(shape.center_of_mass())
     }
 }
 
@@ -903,32 +987,9 @@ pub struct NoAutoCenterOfMass;
 #[component(storage = "SparseSet")]
 pub struct RecomputeMassProperties;
 
-/// A bundle containing mass properties.
+/// A bundle containing [mass properties].
 ///
-/// # Example
-///
-/// The easiest way to create a new bundle is to use the [`new_computed`](Self::new_computed) method
-/// that computes the mass properties based on a given [`Collider`] and density.
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-#[cfg_attr(
-    feature = "2d",
-    doc = "        MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "        MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),"
-)]
-///     ));
-/// }
-/// ```
+/// [mass properties]: super
 #[allow(missing_docs)]
 #[derive(Bundle, Debug, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -940,13 +1001,58 @@ pub struct MassPropertiesBundle {
 
 impl MassPropertiesBundle {
     /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
+    ///
+    /// ```
+    #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+    #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+    /// # use bevy::prelude::*;
+    /// #
+    /// # fn setup(mut commands: Commands) {
+    /// // Compute mass properties from a collider with a density of `2.0`.
+    /// commands.spawn((
+    ///     RigidBody::Dynamic,
+    #[cfg_attr(
+        feature = "2d",
+        doc = "    MassPropertiesBundle::from_shape(&Collider::circle(0.5), 2.0),"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "    MassPropertiesBundle::from_shape(&Collider::sphere(0.5), 2.0),"
+    )]
+    /// ));
+    ///
+    /// // Bevy's primitive shapes can also be used.
+    /// commands.spawn((
+    ///     RigidBody::Dynamic,
+    #[cfg_attr(
+        feature = "2d",
+        doc = "    MassPropertiesBundle::from_shape(&Circle::new(0.5), 2.0),"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "    MassPropertiesBundle::from_shape(&Sphere::new(0.5), 2.0),"
+    )]
+    /// ));
+    /// # }
+    /// ```
     #[cfg(all(
         feature = "default-collider",
         any(feature = "parry-f32", feature = "parry-f64")
     ))]
+    #[inline]
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
+        shape.mass_properties(density).to_bundle()
+    }
+
+    /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
+    #[cfg(all(
+        feature = "default-collider",
+        any(feature = "parry-f32", feature = "parry-f64")
+    ))]
+    #[inline]
+    #[deprecated(since = "0.2.0", note = "Use `from_shape` instead")]
     pub fn new_computed(collider: &Collider, density: f32) -> Self {
-        use mass_properties::MassPropertiesExt;
-        collider.mass_properties(density).to_bundle()
+        Self::from_shape(collider, density)
     }
 }
 
