@@ -89,10 +89,9 @@ impl Plugin for ColliderHierarchyPlugin {
             self.schedule,
             (
                 propagate_collider_transforms,
-                update_child_collider_position,
+                update_child_collider_position.run_if(match_any::<Added<ColliderMarker>>),
             )
                 .chain()
-                .run_if(match_any::<Added<ColliderMarker>>)
                 .after(PrepareSet::InitTransforms)
                 .before(PrepareSet::Finalize),
         );
@@ -104,16 +103,9 @@ impl Plugin for ColliderHierarchyPlugin {
         physics_schedule
             .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
 
-        // Propagate `ColliderTransform`s before narrow phase collision detection.
+        // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
-        physics_schedule.add_systems(
-            (
-                propagate_collider_transforms,
-                update_child_collider_position,
-            )
-                .chain()
-                .in_set(NarrowPhaseSet::First),
-        );
+        physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
     }
 
     fn finish(&self, app: &mut App) {

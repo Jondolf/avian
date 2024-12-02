@@ -832,6 +832,20 @@ pub struct ComputedCenterOfMass(pub Vector);
 impl ComputedCenterOfMass {
     /// A center of mass set at the local origin.
     pub const ZERO: Self = Self(Vector::ZERO);
+
+    /// Creates a new [`ComputedCenterOfMass`] at the given local position.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub const fn new(x: Scalar, y: Scalar) -> Self {
+        Self(Vector::new(x, y))
+    }
+
+    /// Creates a new [`ComputedCenterOfMass`] at the given local position.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub const fn new(x: Scalar, y: Scalar, z: Scalar) -> Self {
+        Self(Vector::new(x, y, z))
+    }
 }
 
 impl From<CenterOfMass> for ComputedCenterOfMass {

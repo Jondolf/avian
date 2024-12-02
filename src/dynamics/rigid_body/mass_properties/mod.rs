@@ -94,21 +94,22 @@
 //!     Mass(10.0),
 #![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
 #![cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+//!     Transform::default(),
 //! ))
 #![cfg_attr(
     feature = "2d",
     doc = ".with_child((
     Collider::circle(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 #![cfg_attr(
     feature = "3d",
     doc = ".with_child((
     Collider::sphere(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 //! # }
@@ -134,21 +135,22 @@
 #![cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
 //!     NoAutoMass,
 //!     NoAutoCenterOfMass,
+//!     Transform::default(),
 //! ))
 #![cfg_attr(
     feature = "2d",
     doc = ".with_child((
     Collider::circle(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 #![cfg_attr(
     feature = "3d",
     doc = ".with_child((
     Collider::sphere(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 //! # }
@@ -397,6 +399,7 @@ fn queue_mass_recomputation_on_mass_change(
 ) {
     for entity in &mut query {
         commands.entity(entity).insert(RecomputeMassProperties);
+        println!("RecomputeMassProperties");
     }
 }
 
@@ -416,6 +419,7 @@ fn queue_mass_recomputation_on_collider_mass_change(
     for collider_parent in &mut query {
         if let Some(mut entity_commands) = commands.get_entity(collider_parent.get()) {
             entity_commands.insert(RecomputeMassProperties);
+            println!("RecomputeMassProperties");
         }
     }
 }
@@ -491,11 +495,18 @@ fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<Collide
 #[cfg(feature = "2d")]
 #[expect(clippy::unnecessary_cast)]
 mod tests {
+    use approx::assert_relative_eq;
+
     use super::*;
 
     fn create_app() -> App {
         let mut app = App::new();
-        app.add_plugins((MinimalPlugins, PhysicsPlugins::default(), HierarchyPlugin));
+        app.add_plugins((
+            MinimalPlugins,
+            PhysicsPlugins::default(),
+            TransformPlugin,
+            HierarchyPlugin,
+        ));
         app
     }
 
@@ -513,6 +524,24 @@ mod tests {
             &ComputedCenterOfMass,
         )>();
         query.get(world, entity).unwrap()
+    }
+
+    #[test]
+    fn mass_properties_zero_by_default() {
+        // `RigidBody`
+
+        let mut app = create_app();
+
+        let body_entity = app.world_mut().spawn(RigidBody::Dynamic).id();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, angular_inertia, center_of_mass) =
+            get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(*mass, ComputedMass::default());
+        assert_eq!(*angular_inertia, ComputedAngularInertia::default());
+        assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
     }
 
     #[test]
@@ -654,7 +683,30 @@ mod tests {
     }
 
     #[test]
-    fn mass_properties_no_auto_mass() {
+    fn mass_properties_no_auto_mass_collider_no_set_mass() {
+        // `RigidBody`, `Collider`, `NoAutoMass`
+        //
+        // Mass properties should be zero.
+
+        let mut app = create_app();
+
+        let body_entity = app
+            .world_mut()
+            .spawn((RigidBody::Dynamic, Collider::circle(1.0), NoAutoMass))
+            .id();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, angular_inertia, center_of_mass) =
+            get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(*mass, ComputedMass::default());
+        assert_eq!(*angular_inertia, ComputedAngularInertia::default());
+        assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
+    }
+
+    #[test]
+    fn mass_properties_no_auto_mass_hierarchy() {
         // `RigidBody`, `Collider`, `Mass(5.0)`, `NoAutoMass`
         // - `Collider`, `ColliderDensity(2.0)`, `Mass(10.0)`
 
@@ -799,5 +851,56 @@ mod tests {
             mass.value() as f32 * collider_mass_props.unit_angular_inertia()
         );
         assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
+    }
+
+    #[test]
+    fn mass_properties_move_child_collider() {
+        // `RigidBody`, `Mass(10.0)`, `CenterOfMass(0.0, -0.5)`, `Transform`
+        // - `Collider`, `Mass(5.0)`, `Transform`
+        //
+        // - Check mass properties
+        // - Move child collider
+        // - Check mass properties
+
+        let mut app = create_app();
+
+        let body_entity = app
+            .world_mut()
+            .spawn((
+                RigidBody::Dynamic,
+                Mass(10.0),
+                CenterOfMass::new(0.0, -0.5),
+                Transform::default(),
+            ))
+            .id();
+
+        let child_entity = app
+            .world_mut()
+            .spawn((Collider::circle(1.0), Mass(5.0), Transform::default()))
+            .set_parent(body_entity)
+            .id();
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, _, center_of_mass) = get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(mass.value() as f32, 10.0 + 5.0);
+        assert_relative_eq!(
+            center_of_mass.0,
+            Vector::new(0.0, -1.0 / 3.0),
+            epsilon = 1.0e-6
+        );
+
+        // Move child collider
+        app.world_mut()
+            .entity_mut(child_entity)
+            .insert(Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)));
+
+        app.world_mut().run_schedule(FixedPostUpdate);
+
+        let (mass, _, center_of_mass) = get_computed_mass_properties(app.world_mut(), body_entity);
+
+        assert_eq!(mass.value(), 10.0 + 5.0);
+        assert_relative_eq!(center_of_mass.0, Vector::new(0.0, 1.0));
     }
 }

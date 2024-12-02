@@ -34,28 +34,20 @@ pub struct MassPropertyHelper<'w, 's> {
             ),
         )>,
     >,
-    computed_mass_properties: Query<
+    computed_mass_properties_query: Query<
         'w,
         's,
         (
             Write<ComputedMass>,
             Write<ComputedAngularInertia>,
             Write<ComputedCenterOfMass>,
-        ),
-    >,
-    no_auto_query: Query<
-        'w,
-        's,
-        (
+            Option<Read<Mass>>,
+            Option<Read<AngularInertia>>,
+            Option<Read<CenterOfMass>>,
             Has<NoAutoMass>,
             Has<NoAutoAngularInertia>,
             Has<NoAutoCenterOfMass>,
         ),
-        Or<(
-            With<NoAutoMass>,
-            With<NoAutoAngularInertia>,
-            With<NoAutoCenterOfMass>,
-        )>,
     >,
     children: Query<'w, 's, Read<Children>>,
 }
@@ -69,53 +61,80 @@ impl MassPropertyHelper<'_, '_> {
         // Compute the total mass properties of the entity and its descendants.
         let mut mass_props = self.total_mass_properties(entity);
 
+        let Ok((
+            mut computed_mass,
+            mut computed_inertia,
+            mut computed_com,
+            mass,
+            angular_inertia,
+            center_of_mass,
+            no_auto_mass,
+            no_auto_inertia,
+            no_auto_com,
+        )) = self.computed_mass_properties_query.get_mut(entity)
+        else {
+            return;
+        };
+
         // If automatic computation of mass properties is disabled, set them to the local `Mass`, `AngularInertia`, and `CenterOfMass`.
-        if let Ok((no_auto_mass, no_auto_inertia, no_auto_com)) = self.no_auto_query.get(entity) {
-            let (mass, angular_inertia, center_of_mass, ..) = self.query.get(entity).unwrap();
+        // Otherwise, use the computed total mass properties.
 
-            if let Some(mass) = no_auto_mass.then_some(mass).flatten() {
+        if no_auto_mass {
+            if let Some(mass) = mass {
                 mass_props.set_mass(mass.0, !no_auto_inertia);
+                computed_mass.set(mass_props.mass as Scalar);
+            } else if !no_auto_inertia {
+                // Make sure the angular inertia is scaled to match the existing computed mass.
+                #[allow(clippy::unnecessary_cast)]
+                mass_props.set_mass(computed_mass.value() as f32, true);
             }
+        } else {
+            computed_mass.set(mass_props.mass as Scalar);
+        }
 
-            if let Some(angular_inertia) = no_auto_inertia.then_some(angular_inertia).flatten() {
+        if no_auto_inertia {
+            if let Some(angular_inertia) = angular_inertia {
                 #[cfg(feature = "2d")]
                 {
                     mass_props.angular_inertia = angular_inertia.0;
+                    computed_inertia.set(mass_props.angular_inertia as Scalar);
                 }
                 #[cfg(feature = "3d")]
                 {
                     mass_props.principal_angular_inertia = angular_inertia.principal;
                     mass_props.local_inertial_frame = angular_inertia.local_frame;
+                    computed_inertia.set(
+                        mass_props
+                            .angular_inertia_tensor()
+                            .as_mat3()
+                            .adjust_precision(),
+                    );
                 }
             }
-
-            if let Some(center_of_mass) = no_auto_com.then_some(center_of_mass).flatten() {
-                mass_props.center_of_mass = center_of_mass.0;
+        } else {
+            #[cfg(feature = "2d")]
+            {
+                computed_inertia.set(mass_props.angular_inertia as Scalar);
+            }
+            #[cfg(feature = "3d")]
+            {
+                computed_inertia.set(
+                    mass_props
+                        .angular_inertia_tensor()
+                        .as_mat3()
+                        .adjust_precision(),
+                );
             }
         }
 
-        let Ok((mut computed_mass, mut computed_inertia, mut computed_com)) =
-            self.computed_mass_properties.get_mut(entity)
-        else {
-            return;
-        };
-
-        // Update the computed mass properties.
-        computed_mass.set(mass_props.mass as Scalar);
-        #[cfg(feature = "2d")]
-        {
-            computed_inertia.set(mass_props.angular_inertia as Scalar);
+        if no_auto_com {
+            if let Some(center_of_mass) = center_of_mass {
+                mass_props.center_of_mass = center_of_mass.0;
+                computed_com.0 = mass_props.center_of_mass.adjust_precision();
+            }
+        } else {
+            computed_com.0 = mass_props.center_of_mass.adjust_precision();
         }
-        #[cfg(feature = "3d")]
-        {
-            computed_inertia.set(
-                mass_props
-                    .angular_inertia_tensor()
-                    .as_mat3()
-                    .adjust_precision(),
-            );
-        }
-        computed_com.0 = mass_props.center_of_mass.adjust_precision();
     }
 
     /// Computes the total mass properties of the given entity,

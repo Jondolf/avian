@@ -802,21 +802,22 @@ impl From<AngularInertia> for AngularInertiaTensor {
 ///     Mass(10.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+///     Transform::default(),2
 /// ))
 #[cfg_attr(
     feature = "2d",
     doc = ".with_child((
     Collider::circle(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 #[cfg_attr(
     feature = "3d",
     doc = ".with_child((
     Collider::sphere(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 /// # }
@@ -837,21 +838,23 @@ impl From<AngularInertia> for AngularInertiaTensor {
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.5),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+///     Transform::default(),
 /// ))
 #[cfg_attr(
     feature = "2d",
     doc = ".with_child((
     Collider::circle(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 #[cfg_attr(
     feature = "3d",
     doc = ".with_child((
     Collider::sphere(1.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
     Mass(5.0),
+    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
 ));"
 )]
 /// # }
