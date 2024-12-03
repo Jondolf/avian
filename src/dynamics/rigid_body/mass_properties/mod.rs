@@ -101,7 +101,7 @@
     doc = ".with_child((
     Collider::circle(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 #![cfg_attr(
@@ -109,7 +109,7 @@
     doc = ".with_child((
     Collider::sphere(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 //! # }
@@ -142,7 +142,7 @@
     doc = ".with_child((
     Collider::circle(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 #![cfg_attr(
@@ -150,7 +150,7 @@
     doc = ".with_child((
     Collider::sphere(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 //! # }
@@ -892,7 +892,7 @@ mod tests {
         // Move child collider
         app.world_mut()
             .entity_mut(child_entity)
-            .insert(Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)));
+            .insert(Transform::from_xyz(0.0, 4.0, 0.0));
 
         app.world_mut().run_schedule(FixedPostUpdate);
 

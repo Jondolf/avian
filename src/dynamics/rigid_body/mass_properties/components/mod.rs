@@ -812,7 +812,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     doc = ".with_child((
     Collider::circle(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 #[cfg_attr(
@@ -820,7 +820,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     doc = ".with_child((
     Collider::sphere(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 /// # }
@@ -849,7 +849,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     doc = ".with_child((
     Collider::circle(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 #[cfg_attr(
@@ -857,7 +857,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     doc = ".with_child((
     Collider::sphere(1.0),
     Mass(5.0),
-    Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
+    Transform::from_xyz(0.0, 4.0, 0.0),
 ));"
 )]
 /// # }
