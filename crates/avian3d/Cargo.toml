@@ -65,7 +65,7 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15", default-features = false }
 bevy_math = { version = "0.15" }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
+bevy_heavy = { version = "0.1" }
 libm = { version = "0.2", optional = true }
 parry3d = { version = "0.17", optional = true }
 parry3d-f64 = { version = "0.17", optional = true }
@@ -85,9 +85,7 @@ bevy = { version = "0.15", default-features = false, features = [
     "animation",
 ] }
 bevy_math = { version = "0.15", features = ["approx"] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
-    "approx",
-] }
+bevy_heavy = { version = "0.1", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump" }

@@ -62,7 +62,7 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15", default-features = false }
 bevy_math = { version = "0.15" }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
+bevy_heavy = { version = "0.1" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
@@ -78,9 +78,7 @@ bitflags = "2.5.0"
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
 bevy_math = { version = "0.15", features = ["approx"] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
-    "approx",
-] }
+bevy_heavy = { version = "0.1", features = ["approx"] }
 glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
