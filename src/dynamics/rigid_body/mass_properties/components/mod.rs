@@ -807,22 +807,12 @@ impl From<AngularInertia> for AngularInertiaTensor {
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
 ///     Transform::default(),
 /// ))
-#[cfg_attr(
-    feature = "2d",
-    doc = ".with_child((
-    Collider::circle(1.0),
-    Mass(5.0),
-    Transform::from_xyz(0.0, 4.0, 0.0),
-));"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = ".with_child((
-    Collider::sphere(1.0),
-    Mass(5.0),
-    Transform::from_xyz(0.0, 4.0, 0.0),
-));"
-)]
+/// .with_child((
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(1.0),")]
+///     Mass(5.0),
+///     Transform::from_xyz(0.0, 4.0, 0.0),
+/// ));
 /// # }
 /// ```
 ///
@@ -844,22 +834,12 @@ impl From<AngularInertia> for AngularInertiaTensor {
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
 ///     Transform::default(),
 /// ))
-#[cfg_attr(
-    feature = "2d",
-    doc = ".with_child((
-    Collider::circle(1.0),
-    Mass(5.0),
-    Transform::from_xyz(0.0, 4.0, 0.0),
-));"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = ".with_child((
-    Collider::sphere(1.0),
-    Mass(5.0),
-    Transform::from_xyz(0.0, 4.0, 0.0),
-));"
-)]
+/// .with_child((
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(1.0),")]
+///     Mass(5.0),
+///     Transform::from_xyz(0.0, 4.0, 0.0),
+/// ));
 /// # }
 /// ```
 ///
