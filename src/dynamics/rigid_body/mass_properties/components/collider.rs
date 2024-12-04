@@ -83,11 +83,22 @@ impl ColliderMassProperties {
     /// The collider has no mass.
     pub const ZERO: Self = Self(MassProperties::ZERO);
 
+    /// Computes mass properties from a given shape and density.
+    ///
+    /// Because [`ColliderMassProperties`] is intended to be read-only, adding this as a component manually
+    /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
+    #[inline]
+    pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
+        Self(shape.mass_properties(density))
+    }
+
     /// Computes mass properties from a given collider and density.
     ///
     /// Because [`ColliderMassProperties`] is intended to be read-only, adding this as a component manually
     /// has no effect. The mass properties will be recomputed using the [`ColliderDensity`].
+    #[inline]
+    #[deprecated(since = "0.2.0", note = "Use `from_shape` instead")]
     pub fn from_collider<C: AnyCollider>(collider: &C, density: f32) -> Self {
-        Self(collider.mass_properties(density))
+        Self::from_shape(collider, density)
     }
 }
