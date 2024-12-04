@@ -324,12 +324,6 @@ impl Plugin for MassPropertyPlugin {
                 .in_set(PrepareSet::Finalize),
         );
 
-        // Clamp collider density to be above `0.0`.
-        app.add_systems(
-            self.schedule,
-            clamp_collider_density.before(MassPropertySystems::UpdateColliderMassProperties),
-        );
-
         // Queue mass property recomputation when mass properties are changed.
         app.add_systems(
             self.schedule,
@@ -479,13 +473,6 @@ fn warn_missing_mass(
                 entity
             );
         }
-    }
-}
-
-/// Clamps [`ColliderDensity`] to be above `0.0`.
-fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
-    for mut density in &mut query {
-        density.0 = density.max(f32::EPSILON);
     }
 }
 

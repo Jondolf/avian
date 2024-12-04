@@ -232,7 +232,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 {
                     // Update collider mass props.
                     *collider_mass_properties =
-                        ColliderMassProperties::from(collider.mass_properties(density.max(f32::EPSILON)));
+                        ColliderMassProperties::from(collider.mass_properties(density.0));
                 }
             },
         );
@@ -691,7 +691,7 @@ pub(crate) fn update_collider_mass_properties<C: AnyCollider>(
     for (collider, density, mut collider_mass_properties) in &mut query {
         // Update the collider's mass properties.
         *collider_mass_properties =
-            ColliderMassProperties::from(collider.mass_properties(density.max(f32::EPSILON)));
+            ColliderMassProperties::from(collider.mass_properties(density.0));
     }
 }
 
