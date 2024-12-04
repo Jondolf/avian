@@ -805,7 +805,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 ///     Mass(10.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
-///     Transform::default(),2
+///     Transform::default(),
 /// ))
 #[cfg_attr(
     feature = "2d",
