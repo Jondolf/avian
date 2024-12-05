@@ -450,6 +450,7 @@ pub extern crate parry3d_f64 as parry;
 pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
+pub mod diagnostics;
 pub mod dynamics;
 pub mod math;
 #[cfg(feature = "bevy_picking")]

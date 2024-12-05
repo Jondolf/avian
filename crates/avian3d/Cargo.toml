@@ -143,6 +143,10 @@ name = "collider_constructors"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
+name = "diagnostics"
+required-features = ["3d", "default-collider"]
+
+[[example]]
 name = "debugdump_3d"
 required-features = ["3d"]
 

@@ -83,14 +83,26 @@ impl Plugin for PhysicsSchedulePlugin {
 
             schedule.configure_sets(
                 (
+                    PhysicsStepSet::DiagnosticsInitialise,
                     PhysicsStepSet::First,
+                    PhysicsStepSet::PreBroadPhase,
                     PhysicsStepSet::BroadPhase,
+                    PhysicsStepSet::PostBroadPhase,
+                    PhysicsStepSet::PreNarrowPhase,
                     PhysicsStepSet::NarrowPhase,
+                    PhysicsStepSet::PostNarrowPhase,
+                    PhysicsStepSet::PreSolver,
                     PhysicsStepSet::Solver,
+                    PhysicsStepSet::PostSolver,
+                    PhysicsStepSet::PreReportContacts,
                     PhysicsStepSet::ReportContacts,
+                    PhysicsStepSet::PostReportContacts,
                     PhysicsStepSet::Sleeping,
+                    PhysicsStepSet::PreSpatialQuery,
                     PhysicsStepSet::SpatialQuery,
+                    PhysicsStepSet::PostSpatialQuery,
                     PhysicsStepSet::Last,
+                    PhysicsStepSet::DiagnosticsFinalise,
                 )
                     .chain(),
             );
@@ -223,35 +235,59 @@ pub enum PhysicsSet {
 /// 8. Last (empty by default)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
+    /// Diagnostic hook
+    DiagnosticsInitialise,
     /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
     First,
+    /// Diagnostic hook
+    PreBroadPhase,
     /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
     /// [AABB](ColliderAabb) intersection tests.
     ///
     /// See [`BroadPhasePlugin`].
     BroadPhase,
+    /// Diagnostic hook
+    PostBroadPhase,
+    /// Diagnostic hook
+    PreNarrowPhase,
     /// Responsible for computing contacts between entities and sending collision events.
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,
+    /// Diagnostic hook
+    PostNarrowPhase,
+    /// Diagnostic hook
+    PreSolver,
     /// Responsible for running the solver and its substepping loop.
     ///
     /// See [`SolverPlugin`] and [`SubstepSchedule`].
     Solver,
+    /// Diagnostic hook
+    PostSolver,
+    /// Diagnostic hook
+    PreReportContacts,
     /// Responsible for sending collision events and updating [`CollidingEntities`].
     ///
     /// See [`ContactReportingPlugin`].
     ReportContacts,
+    /// Diagnostic hook
+    PostReportContacts,
     /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
     ///
     /// See [`SleepingPlugin`].
     Sleeping,
+    /// Diagnostic hook
+    PreSpatialQuery,
     /// Responsible for spatial queries like [raycasting](`RayCaster`) and shapecasting.
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
+    /// Diagnostic hook
+    PostSpatialQuery,
     /// Runs at the end of the [`PhysicsSchedule`]. Empty by default.
     Last,
+    /// Diagnostic hook
+    DiagnosticsFinalise,
 }
 
 /// The number of substeps used in the simulation.
