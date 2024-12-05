@@ -385,7 +385,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     contact_tolerance: Local<'s, Scalar>,
 }
 
-impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
+impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
     fn update(&mut self, broad_collision_pairs: &[(Entity, Entity)], delta_secs: Scalar) {

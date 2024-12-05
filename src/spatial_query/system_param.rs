@@ -77,7 +77,7 @@ pub struct SpatialQuery<'w, 's> {
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
 
-impl<'w, 's> SpatialQuery<'w, 's> {
+impl SpatialQuery<'_, '_> {
     /// Updates the colliders in the pipeline. This is done automatically once per physics frame in
     /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
     /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].

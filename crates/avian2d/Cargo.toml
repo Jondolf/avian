@@ -59,15 +59,14 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false }
-bevy_math = { git = "https://github.com/bevyengine/bevy" }
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", branch = "extrapolation-and-hermite-interpolation" }
+bevy = { version = "0.15", default-features = false }
+bevy_math = { version = "0.15" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
 nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "0.99"
+derive_more = "1"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
 itertools = "0.13"
@@ -76,14 +75,12 @@ bitflags = "2.5.0"
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { git = "https://github.com/bevyengine/bevy", features = [
-    "approx",
-] }
+bevy_math = { version = "0.15", features = ["approx"] }
 glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
-bevy_mod_debugdump = { git = "https://github.com/andriyDev/bevy_mod_debugdump", branch = "bevy-0.15" }
+bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump" }
 
 [[example]]
 name = "dynamic_character_2d"

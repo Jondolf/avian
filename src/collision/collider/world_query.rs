@@ -25,7 +25,7 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub shape: &'static C,
 }
 
-impl<'w, C: AnyCollider> ColliderQueryItem<'w, C> {
+impl<C: AnyCollider> ColliderQueryItem<'_, C> {
     /// Returns the current position of the body. This is a sum of the [`Position`] and
     /// [`AccumulatedTranslation`] components.
     pub fn current_position(&self) -> Vector {
