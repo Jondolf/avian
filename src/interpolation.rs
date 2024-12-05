@@ -115,7 +115,7 @@ use crate::prelude::*;
 /// # use bevy::prelude::*;
 /// #
 /// fn main() {
-///    App::build()
+///    App::new()
 ///       .add_plugins(PhysicsInterpolationPlugin::interpolate_all())
 ///       // ...
 ///       .run();

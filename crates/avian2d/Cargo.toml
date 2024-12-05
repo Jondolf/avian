@@ -46,6 +46,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
     "parry2d-f64?/serde-serialize",
     "bitflags/serde",
@@ -61,6 +62,7 @@ bench = false
 avian_derive = { path = "../avian_derive", version = "0.1" }
 bevy = { version = "0.15", default-features = false }
 bevy_math = { version = "0.15" }
+bevy_transform_interpolation = { version = "0.1" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
