@@ -1,5 +1,7 @@
 //! Components for physics positions and rotations.
 
+#![allow(clippy::unnecessary_cast)]
+
 use crate::prelude::*;
 use bevy::{math::DQuat, prelude::*};
 use derive_more::From;
@@ -514,6 +516,22 @@ impl From<Rotation> for Matrix {
     /// Creates a [`Matrix`] rotation matrix from a [`Rotation`].
     fn from(rot: Rotation) -> Self {
         Matrix::from_cols_array(&[rot.cos, -rot.sin, rot.sin, rot.cos])
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Rot2> for Rotation {
+    /// Creates a [`Rotation`] from a [`Rot2`].
+    fn from(rot: Rot2) -> Self {
+        Self::from_sin_cos(rot.sin as Scalar, rot.cos as Scalar)
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Rotation> for Rot2 {
+    /// Creates a [`Rot2`] from a [`Rotation`].
+    fn from(rot: Rotation) -> Self {
+        Self::from_sin_cos(rot.cos as f32, rot.sin as f32)
     }
 }
 

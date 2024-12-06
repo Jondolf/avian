@@ -227,8 +227,8 @@ impl LockedAxes {
     #[cfg(feature = "2d")]
     pub(crate) fn apply_to_angular_inertia(
         &self,
-        angular_inertia: impl Into<AngularInertia>,
-    ) -> AngularInertia {
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
         let mut angular_inertia = angular_inertia.into();
 
         if self.is_rotation_locked() {
@@ -242,8 +242,8 @@ impl LockedAxes {
     #[cfg(feature = "3d")]
     pub(crate) fn apply_to_angular_inertia(
         &self,
-        angular_inertia: impl Into<AngularInertia>,
-    ) -> AngularInertia {
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
         let mut angular_inertia = angular_inertia.into();
 
         if self.is_rotation_x_locked() {

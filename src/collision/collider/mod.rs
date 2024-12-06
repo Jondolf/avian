@@ -44,7 +44,7 @@ pub trait IntoCollider<C: AnyCollider> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component {
+pub trait AnyCollider: Component + ComputeMassProperties {
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
@@ -70,9 +70,6 @@ pub trait AnyCollider: Component {
         self.aabb(start_position, start_rotation)
             .merged(self.aabb(end_position, end_rotation))
     }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -477,7 +474,3 @@ impl MapEntities for CollidingEntities {
             .collect()
     }
 }
-
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);

@@ -124,7 +124,7 @@
 //!     - [Linear](LinearVelocity) and [angular](AngularVelocity) velocity
 //!     - [Forces](ExternalForce), [torque](ExternalTorque), and [linear](ExternalImpulse) and [angular](ExternalAngularImpulse) impulses
 //! - [Gravity] and [gravity scale](GravityScale)
-//! - [Mass properties](RigidBody#mass-properties)
+//! - [Mass properties](dynamics::rigid_body::mass_properties)
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 //! - [Lock translational and rotational axes](LockedAxes)
 //! - [Dominance]

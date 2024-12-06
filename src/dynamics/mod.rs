@@ -74,16 +74,25 @@ pub mod prelude {
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
             mass_properties::{
-                AngularInertia, AngularInertiaError, CenterOfMass, ColliderDensity,
-                ColliderMassProperties, Mass, MassError, MassPropertiesBundle, MassPropertiesQuery,
-                MassPropertyPlugin,
+                bevy_heavy::{
+                    AngularInertiaTensor, AngularInertiaTensorError, ComputeMassProperties2d,
+                    ComputeMassProperties3d, MassProperties2d, MassProperties3d,
+                },
+                components::{
+                    AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
+                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
+                },
+                MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
             },
             *,
         },
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
         solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
     };
-    pub(crate) use crate::dynamics::rigid_body::mass_properties::GlobalAngularInertia;
+    pub(crate) use crate::dynamics::rigid_body::mass_properties::{
+        components::GlobalAngularInertia, ComputeMassProperties, MassProperties,
+    };
 }
 
 // For intra-doc links
