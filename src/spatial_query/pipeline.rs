@@ -151,7 +151,7 @@ impl SpatialQueryPipeline {
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
@@ -182,7 +182,7 @@ impl SpatialQueryPipeline {
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
@@ -226,7 +226,7 @@ impl SpatialQueryPipeline {
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
@@ -266,7 +266,7 @@ impl SpatialQueryPipeline {
     ///
     /// Note that the order of the results is not guaranteed.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
@@ -323,7 +323,7 @@ impl SpatialQueryPipeline {
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -364,7 +364,7 @@ impl SpatialQueryPipeline {
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -432,7 +432,7 @@ impl SpatialQueryPipeline {
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of the time of impact until `max_hits` is reached.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -480,7 +480,7 @@ impl SpatialQueryPipeline {
     /// in the order of the time of impact, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -565,7 +565,7 @@ impl SpatialQueryPipeline {
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
     /// If one isn't found, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
@@ -585,7 +585,7 @@ impl SpatialQueryPipeline {
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
     /// If one isn't found, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
@@ -619,7 +619,7 @@ impl SpatialQueryPipeline {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
     /// that contains the given point.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
@@ -642,7 +642,7 @@ impl SpatialQueryPipeline {
     /// that contains the given point, calling the given `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
@@ -714,7 +714,7 @@ impl SpatialQueryPipeline {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
     /// that is intersecting the given `shape` with a given position and rotation.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
@@ -747,7 +747,7 @@ impl SpatialQueryPipeline {
     /// that is intersecting the given `shape` with a given position and rotation, calling `callback` for each
     /// intersection. The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.

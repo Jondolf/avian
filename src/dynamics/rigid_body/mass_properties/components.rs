@@ -17,7 +17,7 @@ pub enum MassError {
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Representation
 ///
 /// Internally, the mass is actually stored as the inverse mass `1.0 / mass`.
 /// This is because most physics calculations operate on the inverse mass, and storing it directly
@@ -170,7 +170,7 @@ pub enum AngularInertiaError {
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Representation
 ///
 /// Internally, the angular inertia is actually stored as the inverse angular inertia `1.0 / angular_inertia`.
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
@@ -347,7 +347,7 @@ impl From<Scalar> for AngularInertia {
 ///
 /// [rigid body]: RigidBody
 ///
-/// ## Representation
+/// # Representation
 ///
 /// Internally, the angular inertia is actually stored as the inverse angular inertia tensor `angular_inertia_matrix.inverse()`.
 /// This is because most physics calculations operate on the inverse angular inertia, and storing it directly
@@ -716,7 +716,7 @@ impl CenterOfMass {
 
 /// A bundle containing mass properties.
 ///
-/// ## Example
+/// # Example
 ///
 /// The easiest way to create a new bundle is to use the [`new_computed`](Self::new_computed) method
 /// that computes the mass properties based on a given [`Collider`] and density.
@@ -777,7 +777,7 @@ impl MassPropertiesBundle {
 /// The density of a [`Collider`], 1.0 by default. This is used for computing
 /// the [`ColliderMassProperties`] for each collider.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -824,7 +824,7 @@ impl From<Scalar> for ColliderDensity {
 /// These mass properties will be added to the [rigid body's](RigidBody) actual [`Mass`],
 /// [`AngularInertia`] and [`CenterOfMass`] components.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

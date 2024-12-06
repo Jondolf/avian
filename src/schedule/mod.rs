@@ -20,7 +20,7 @@ use bevy::{
 
 /// Sets up the default scheduling, system set configuration, and time resources for physics.
 ///
-/// ## Schedules and sets
+/// # Schedules and Sets
 ///
 /// This plugin initializes and configures the following schedules and system sets:
 ///
@@ -145,7 +145,7 @@ pub struct SubstepSchedule;
 /// The schedule is empty by default and runs in
 /// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
 ///
-/// ## Example
+/// # Example
 ///
 /// Below is an example of how you could add a system that filters collisions.
 ///
@@ -185,7 +185,7 @@ pub struct PostProcessCollisions;
 /// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
 ///    and [`Rotation`] in sync with `Transform`.
 ///
-/// ## See also
+/// # See Also
 ///
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
@@ -264,7 +264,7 @@ pub enum PhysicsStepSet {
 /// feature as shown in the [getting started guide](crate#getting-started) to avoid floating point
 /// precision problems.
 ///
-/// ## Example
+/// # Example
 ///
 /// You can change the number of substeps by inserting the [`SubstepCount`] resource:
 ///
