@@ -733,6 +733,23 @@ impl Collider {
     }
 
     /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    ///
+    /// If the triangle is oriented clockwise, it will be reversed to be counter-clockwise.
+    /// This is needed for collision detection.
+    #[cfg(feature = "2d")]
+    pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
+        let mut triangle = parry::shape::Triangle::new(a.into(), b.into(), c.into());
+
+        // Make sure the triangle is counter-clockwise. This is needed for collision detection.
+        if triangle.orientation(1e-8) == parry::shape::TriangleOrientation::Clockwise {
+            triangle.reverse();
+        }
+
+        SharedShape::new(triangle).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    #[cfg(feature = "3d")]
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
     }
