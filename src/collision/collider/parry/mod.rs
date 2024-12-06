@@ -734,8 +734,8 @@ impl Collider {
 
     /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
     ///
-    /// If the triangle is oriented clockwise, it will be reversed to be counterclockwise.
-    /// This is needed for collision detection.
+    /// If the triangle is oriented clockwise, it will be reversed to be counterclockwise
+    /// by swapping `b` and `c`. This is needed for collision detection.
     ///
     /// If you know that the given points produce a counterclockwise triangle,
     /// consider using [`Collider::triangle_unchecked`] instead.
