@@ -21,6 +21,14 @@ pub const DIM: usize = 2;
 #[cfg(feature = "3d")]
 pub const DIM: usize = 3;
 
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::Vec2 as VectorF32;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::Vec3 as VectorF32;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Ray = Ray2d;
@@ -95,6 +103,34 @@ impl AsF32 for DQuat {
 }
 
 impl AsF32 for Quat {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat2 {
+    type F32 = Mat2;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat2()
+    }
+}
+
+impl AsF32 for Mat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat3 {
+    type F32 = Mat3;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat3()
+    }
+}
+
+impl AsF32 for Mat3 {
     type F32 = Self;
     fn f32(&self) -> Self::F32 {
         *self

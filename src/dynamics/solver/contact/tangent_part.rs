@@ -30,15 +30,15 @@ impl ContactTangentPart {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         inverse_mass_sum: Scalar,
-        angular_inertia1: impl Into<AngularInertia>,
-        angular_inertia2: impl Into<AngularInertia>,
+        angular_inertia1: impl Into<ComputedAngularInertia>,
+        angular_inertia2: impl Into<ComputedAngularInertia>,
         r1: Vector,
         r2: Vector,
         tangents: [Vector; DIM - 1],
         warm_start_impulse: Option<TangentImpulse>,
     ) -> Self {
-        let angular_inertia1: AngularInertia = angular_inertia1.into();
-        let angular_inertia2: AngularInertia = angular_inertia2.into();
+        let angular_inertia1: ComputedAngularInertia = angular_inertia1.into();
+        let angular_inertia2: ComputedAngularInertia = angular_inertia2.into();
         let i1 = angular_inertia1.inverse();
         let i2 = angular_inertia2.inverse();
 

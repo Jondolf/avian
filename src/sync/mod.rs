@@ -16,7 +16,7 @@ pub mod ancestor_marker;
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
 ///
-/// ## Syncing between [`Position`]/[`Rotation`] and [`Transform`]
+/// # Syncing Between [`Position`]/[`Rotation`] and [`Transform`]
 ///
 /// By default, each body's `Transform` will be updated when [`Position`] or [`Rotation`]
 /// change, and vice versa. This means that you can use any of these components to move
@@ -25,7 +25,7 @@ pub mod ancestor_marker;
 /// You can configure what data is synchronized and how it is synchronized
 /// using the [`SyncConfig`] resource.
 ///
-/// ## `Transform` hierarchies
+/// # `Transform` Hierarchies
 ///
 /// When synchronizing changes in [`Position`] or [`Rotation`] to `Transform`,
 /// the engine treats nested [rigid bodies](RigidBody) as a flat structure. This means that
@@ -219,7 +219,7 @@ pub fn transform_to_position(
         Option<&AccumulatedTranslation>,
         &mut Rotation,
         Option<&PreviousRotation>,
-        Option<&CenterOfMass>,
+        Option<&ComputedCenterOfMass>,
     )>,
 ) {
     for (
