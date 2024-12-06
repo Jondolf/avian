@@ -98,7 +98,7 @@ pub enum IntegrationSet {
 /// You can also control how gravity affects a specific [rigid body](RigidBody) using the [`GravityScale`]
 /// component. The magnitude of the gravity will be multiplied by this scaling factor.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

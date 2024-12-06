@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 /// Sends collision events and updates [`CollidingEntities`].
 ///
-/// ## Collision events
+/// # Collision Events
 ///
 /// If the [`ContactReportingPlugin`] is enabled (the default), the following
 /// collision events are sent each frame in [`PhysicsStepSet::ReportContacts`]:
@@ -59,7 +59,7 @@ impl Plugin for ContactReportingPlugin {
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent for each collision.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -90,7 +90,7 @@ pub struct Collision(pub Contacts);
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent when two entities start colliding.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -121,7 +121,7 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent when two entities stop colliding.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

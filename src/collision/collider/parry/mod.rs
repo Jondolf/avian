@@ -215,7 +215,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 
 /// A collider used for detecting collisions and generating contacts.
 ///
-/// ## Creation
+/// # Creation
 ///
 /// `Collider` has tons of methods for creating colliders of various shapes:
 ///
@@ -274,7 +274,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     doc = "Colliders can also be generated automatically for meshes and scenes. See [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]."
 )]
 ///
-/// ### Multiple colliders
+/// ## Multiple Colliders
 ///
 /// It can often be useful to attach multiple colliders to the same rigid body.
 ///
@@ -332,7 +332,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
 /// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
 ///
-/// ## See more
+/// # See More
 ///
 /// - [Rigid bodies](RigidBody)
 /// - [Density](ColliderDensity)
@@ -349,7 +349,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Accessing, filtering and modifying collisions](Collisions)
 /// - [Manual contact queries](contact_query)
 ///
-/// ## Advanced usage
+/// # Advanced Usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
@@ -561,7 +561,7 @@ impl Collider {
     ///
     /// The returned tuple is in the format `(time_of_impact, normal)`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
@@ -588,7 +588,7 @@ impl Collider {
 
     /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
@@ -910,7 +910,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -944,7 +944,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -967,7 +967,7 @@ impl Collider {
 
     /// Creates a collider with a convex polygon shape obtained from the convex hull of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -989,7 +989,7 @@ impl Collider {
 
     /// Creates a compound shape obtained from the decomposition of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -1013,7 +1013,7 @@ impl Collider {
     /// Creates a compound shape obtained from the decomposition of a `Mesh`
     /// with the given [`VhacdParameters`] passed to the decomposition algorithm.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;

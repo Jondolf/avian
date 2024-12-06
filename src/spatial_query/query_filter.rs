@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 /// Rules that determine which colliders are taken into account in [spatial queries](crate::spatial_query).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

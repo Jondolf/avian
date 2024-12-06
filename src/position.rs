@@ -9,7 +9,7 @@ use crate::math::Matrix;
 
 /// The global position of a [rigid body](RigidBody) or a [collider](Collider).
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Position`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -20,7 +20,7 @@ use crate::math::Matrix;
 /// The reasons why the engine uses a separate [`Position`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -124,7 +124,7 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// The rotation angle is wrapped to be within the `(-pi, pi]` range.
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -135,7 +135,7 @@ pub(crate) type RotationValue = Quaternion;
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian2d::prelude::*;
@@ -636,7 +636,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
 /// The global physics rotation of a [rigid body](RigidBody) or a [collider](Collider).
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -647,7 +647,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian3d::prelude::*;
