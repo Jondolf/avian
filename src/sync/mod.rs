@@ -16,7 +16,7 @@ pub mod ancestor_marker;
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
 ///
-/// ## Syncing between [`Position`]/[`Rotation`] and [`Transform`]
+/// # Syncing Between [`Position`]/[`Rotation`] and [`Transform`]
 ///
 /// By default, each body's `Transform` will be updated when [`Position`] or [`Rotation`]
 /// change, and vice versa. This means that you can use any of these components to move
@@ -25,7 +25,7 @@ pub mod ancestor_marker;
 /// You can configure what data is synchronized and how it is synchronized
 /// using the [`SyncConfig`] resource.
 ///
-/// ## `Transform` hierarchies
+/// # `Transform` Hierarchies
 ///
 /// When synchronizing changes in [`Position`] or [`Rotation`] to `Transform`,
 /// the engine treats nested [rigid bodies](RigidBody) as a flat structure. This means that
@@ -268,13 +268,13 @@ pub fn transform_to_position(
         {
             let rot = Rotation::from(transform.rotation.adjust_precision());
             let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot * (rot * prev_rot.inverse()) * (*rotation * prev_rot.inverse());
+            *rotation = prev_rot * (prev_rot.inverse() * rot) * (prev_rot.inverse() * *rotation);
         }
         #[cfg(feature = "3d")]
         {
             rotation.0 = (previous_transform.rotation
-                * (transform.rotation * previous_transform.rotation.inverse())
-                * (rotation.f32() * previous_transform.rotation.inverse()))
+                * (previous_transform.rotation.inverse() * transform.rotation)
+                * (previous_transform.rotation.inverse() * rotation.f32()))
             .adjust_precision();
         }
     }

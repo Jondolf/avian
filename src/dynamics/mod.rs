@@ -19,7 +19,7 @@
 //! - Elasticity (soft bodies)
 //! - Plasticity (permanent deformation)
 //!
-//! ## Plugins
+//! # Plugins
 //!
 //! | Plugin               | Description                                                                                                                           |
 //! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,7 +28,7 @@
 //! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
 //! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
 //!
-//! ## Accuracy
+//! # Accuracy
 //!
 //! The engine uses iterative algorithms to approximate the simulation.
 //! Thus, results may not be perfectly accurate:

@@ -18,15 +18,15 @@ use bevy::utils::HashMap;
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `config`.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on the same entity, use [`ColliderConstructor`].
 ///
-/// ## Caveats
+/// # Caveats
 ///
 /// When a component has multiple ancestors with [`ColliderConstructorHierarchy`], the insertion order is undefined.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -240,16 +240,16 @@ pub struct ColliderConstructorHierarchyConfig {
 ///
 /// This component will never override a pre-existing [`Collider`] component on the same entity.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on an entity's descendants, use [`ColliderConstructorHierarchy`].
 ///
-/// ## Panics
+/// # Panics
 ///
 /// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
 /// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

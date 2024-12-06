@@ -190,6 +190,7 @@ fn pass_through_one_way_platform(
 /// > which means you won't need to filter collisions at all.
 ///
 /// #### When an entity is known to already be passing through the [`OneWayPlatform`]
+///
 /// Any time an entity begins passing through a [`OneWayPlatform`], it is added to the
 /// [`OneWayPlatform`]'s set of currently active penetrations, and will be allowed to
 /// continue to pass through the platform until it is no longer penetrating the platform.
@@ -201,6 +202,7 @@ fn pass_through_one_way_platform(
 /// have stopped, the entity is forgotten about and the logic falls through to the next part.
 ///
 /// #### When an entity is NOT known to be passing through the [`OneWayPlatform`]
+///
 /// Depending on the setting of [`PassThroughOneWayPlatform`], the entity may be allowed to
 /// pass through.
 ///

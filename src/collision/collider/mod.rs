@@ -115,7 +115,7 @@ pub trait ScalableCollider: AnyCollider {
 /// This component is added and updated automatically based on entity hierarchies and should not
 /// be modified directly.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -227,7 +227,7 @@ impl From<Transform> for ColliderTransform {
 ///
 /// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -432,7 +432,7 @@ pub struct CollisionMargin(pub Scalar);
 /// Requires the [`ContactReportingPlugin`] (included in [`PhysicsPlugins`])
 /// to be enabled for this component to be updated.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

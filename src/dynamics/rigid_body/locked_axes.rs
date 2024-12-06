@@ -9,7 +9,7 @@ use crate::prelude::*;
 /// specific axes is to use methods like [`lock_translation_x`](Self::lock_translation_x), but you can also
 /// use bits directly with the [`from_bits`](Self::from_bits) and [`to_bits`](Self::to_bits) methods.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

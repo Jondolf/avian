@@ -25,7 +25,7 @@ use derive_more::From;
 
 /// A non-deformable body used for the simulation of most physics objects.
 ///
-/// ## Rigid body types
+/// # Rigid Body Types
 ///
 /// A rigid body can be either dynamic, kinematic or static.
 ///
@@ -33,7 +33,7 @@ use derive_more::From;
 /// - **Kinematic bodies** can only be moved programmatically, which is useful for things like character controllers and moving platforms.
 /// - **Static bodies** can not move, so they can be good for objects in the environment like the ground and walls.
 ///
-/// ## Creation
+/// # Creation
 ///
 /// Creating a rigid body is as simple as adding the [`RigidBody`] component,
 /// and an optional [`Collider`]:
@@ -56,7 +56,7 @@ use derive_more::From;
 /// By default, dynamic rigid bodies will have mass properties computed based on the attached colliders
 /// and their [`ColliderDensity`]. See the [Mass properties](#mass-properties) section for more information.
 ///
-/// ## Movement
+/// # Movement
 ///
 /// A rigid body can be moved in three ways: by modifying its position directly,
 /// by changing its velocity, or by applying forces or impulses.
@@ -107,7 +107,7 @@ use derive_more::From;
 /// [`basic_dynamic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_dynamic_character.rs
 /// [`basic_kinematic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_kinematic_character.rs
 ///
-/// ## Mass properties
+/// # Mass Properties
 ///
 /// Every dynamic rigid body has [mass], [angular inertia], and a [center of mass].
 /// These mass properties determine how the rigid body responds to forces and torques.
@@ -231,7 +231,7 @@ use derive_more::From;
 /// [center of mass]: mass_properties::components::CenterOfMass
 /// [mass properties]: mass_properties
 ///
-/// ## See more
+/// # See More
 ///
 /// - [Colliders](Collider)
 /// - [Gravity] and [gravity scale](GravityScale)
@@ -353,7 +353,7 @@ pub struct AccumulatedTranslation(pub Vector);
 
 /// The linear velocity of a [rigid body](RigidBody).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -366,6 +366,12 @@ pub struct AccumulatedTranslation(pub Vector);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalForce`]: Applies a force to a dynamic body.
+/// - [`LinearDamping`]: Reduces the linear velocity of a body over time, similar to air resistance.
+/// - [`MaxLinearSpeed`]: Clamps the linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -377,6 +383,64 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
+/// The maximum linear speed of a [rigid body](RigidBody), clamping the [`LinearVelocity`].
+///
+/// This can be useful for limiting how fast bodies can move, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with linear velocity clamped to `100.0` units per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxLinearSpeed(100.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxLinearVelocity")]
+pub struct MaxLinearSpeed(pub Scalar);
+
+impl Default for MaxLinearSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
+/// The maximum angular speed of a [rigid body](RigidBody), clamping the [`AngularVelocity`].
+///
+/// This can be useful for limiting how fast bodies can rotate, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with angular velocity clamped to `20.0` radians per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxAngularSpeed(20.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxAngularVelocity")]
+pub struct MaxAngularSpeed(pub Scalar);
+
+impl Default for MaxAngularSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
 /// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -385,7 +449,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 /// The angular velocity of a [rigid body](RigidBody) in radians per second.
 /// Positive values will result in counterclockwise rotation.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian2d::prelude::*;
@@ -397,6 +461,12 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
+/// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
+/// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "2d")]
 #[derive(Reflect, Clone, Copy, Deref, DerefMut, Component, Debug, Default, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -407,7 +477,7 @@ pub struct AngularVelocity(pub Scalar);
 /// The angular velocity of a [rigid body](RigidBody) as a rotation axis
 /// multiplied by the angular speed in radians per second.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian3d::prelude::*;
@@ -419,6 +489,12 @@ pub struct AngularVelocity(pub Scalar);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
+/// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
+/// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -454,19 +530,16 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 /// A gravity scale of `0.0` will disable gravity, while `2.0` will double the gravity.
 /// Using a negative value will flip the direction of the gravity.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// // Spawn a body with 1.5 times the normal gravity
+/// // Spawn a dynamic body with `1.5` times the normal gravity.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         GravityScale(1.5),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, GravityScale(1.5)));
 /// }
 /// ```
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From)]
@@ -486,7 +559,7 @@ impl Default for GravityScale {
 ///
 /// The default linear damping coefficient is `0.0`, which corresponds to no damping.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -494,10 +567,7 @@ impl Default for GravityScale {
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         LinearDamping(0.8),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, LinearDamping(0.8)));
 /// }
 /// ```
 #[derive(
@@ -513,7 +583,7 @@ pub struct LinearDamping(pub Scalar);
 ///
 /// The default angular damping coefficient is `0.0`, which corresponds to no damping.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -521,10 +591,7 @@ pub struct LinearDamping(pub Scalar);
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         AngularDamping(1.6),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, AngularDamping(1.6)));
 /// }
 /// ```
 #[derive(
@@ -545,14 +612,14 @@ pub struct AngularDamping(pub Scalar);
 /// Note that static and kinematic bodies will always have a higher dominance value
 /// than dynamic bodies regardless of the value of this component.
 /// 
-/// ## Example
+/// # Example
 /// 
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// // Player dominates all dynamic bodies with a dominance lower than 5
+/// // Player dominates all dynamic bodies with a dominance lower than `5`.
 /// fn spawn_player(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,

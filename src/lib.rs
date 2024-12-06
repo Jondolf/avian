@@ -511,6 +511,8 @@ use prelude::*;
 
 /// A plugin group containing all of Avian's plugins.
 ///
+/// # Plugins
+///
 /// By default, the following plugins will be added:
 ///
 /// | Plugin                            | Description                                                                                                                                                |
@@ -540,7 +542,7 @@ use prelude::*;
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
-/// ## World scale
+/// # World Scale
 ///
 /// The [`PhysicsLengthUnit`] resource is a units-per-meter scaling factor
 /// that adjusts the engine's internal properties to the scale of the world.
@@ -573,7 +575,7 @@ use prelude::*;
 /// # fn main() {} // Doc test needs main
 /// ```
 ///
-/// ## Custom schedule
+/// # Custom Schedule
 ///
 /// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
 ///
@@ -590,7 +592,7 @@ use prelude::*;
 /// }
 /// ```
 ///
-/// ## Custom plugins
+/// # Custom Plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
 /// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like

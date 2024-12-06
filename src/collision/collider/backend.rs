@@ -22,7 +22,7 @@ use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
 ///
 /// This plugin should typically be used together with the [`ColliderHierarchyPlugin`].
 ///
-/// ## Custom collision backends
+/// # Custom Collision Backends
 ///
 /// By default, [`PhysicsPlugins`] adds this plugin for the [`Collider`] component.
 /// You can also create custom collider backends by implementing the [`AnyCollider`]
