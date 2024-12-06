@@ -189,41 +189,41 @@ fn integrate_velocities(
         }
 
         if body.rb.is_dynamic() {
-        let locked_axes = body
-            .locked_axes
-            .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+            let locked_axes = body
+                .locked_axes
+                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-        // Apply damping
-        if let Some(lin_damping) = body.lin_damping {
-            if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
-                body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+            // Apply damping
+            if let Some(lin_damping) = body.lin_damping {
+                if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
+                    body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                }
             }
-        }
-        if let Some(ang_damping) = body.ang_damping {
-            if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+            if let Some(ang_damping) = body.ang_damping {
+                if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
+                    body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+                }
             }
-        }
 
-        let external_force = body.force.force();
-        let external_torque = body.torque.torque() + body.force.torque();
-        let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
+            let external_force = body.force.force();
+            let external_torque = body.torque.torque() + body.force.torque();
+            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
 
-        semi_implicit_euler::integrate_velocity(
-            &mut body.lin_vel.0,
-            &mut body.ang_vel.0,
-            external_force,
-            external_torque,
-            *body.mass,
-            body.angular_inertia,
-            #[cfg(feature = "3d")]
-            body.global_angular_inertia,
-            #[cfg(feature = "3d")]
-            *body.rot,
-            locked_axes,
-            gravity,
-            delta_secs,
-        );
+            semi_implicit_euler::integrate_velocity(
+                &mut body.lin_vel.0,
+                &mut body.ang_vel.0,
+                external_force,
+                external_torque,
+                *body.mass,
+                body.angular_inertia,
+                #[cfg(feature = "3d")]
+                body.global_angular_inertia,
+                #[cfg(feature = "3d")]
+                *body.rot,
+                locked_axes,
+                gravity,
+                delta_secs,
+            );
         }
 
         // Clamp velocities
