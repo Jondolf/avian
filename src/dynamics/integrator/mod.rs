@@ -235,7 +235,7 @@ fn integrate_velocities(
         }
         if let Some(max_angular_speed) = body.max_angular_speed {
             #[cfg(feature = "2d")]
-            if body.ang_vel.0 > max_angular_speed.0 {
+            if body.ang_vel.abs() > max_angular_speed.0 {
                 body.ang_vel.0 = max_angular_speed.copysign(body.ang_vel.0);
             }
             #[cfg(feature = "3d")]
