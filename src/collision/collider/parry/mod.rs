@@ -732,15 +732,18 @@ impl Collider {
         SharedShape::segment(a.into(), b.into()).into()
     }
 
-    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
     ///
-    /// If the triangle is oriented clockwise, it will be reversed to be counter-clockwise.
+    /// If the triangle is oriented clockwise, it will be reversed to be counterclockwise.
     /// This is needed for collision detection.
+    ///
+    /// If you know that the given points produce a counterclockwise triangle,
+    /// consider using [`Collider::triangle_unchecked`] instead.
     #[cfg(feature = "2d")]
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         let mut triangle = parry::shape::Triangle::new(a.into(), b.into(), c.into());
 
-        // Make sure the triangle is counter-clockwise. This is needed for collision detection.
+        // Make sure the triangle is counterclockwise. This is needed for collision detection.
         if triangle.orientation(1e-8) == parry::shape::TriangleOrientation::Clockwise {
             triangle.reverse();
         }
@@ -748,7 +751,18 @@ impl Collider {
         SharedShape::new(triangle).into()
     }
 
-    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    ///
+    /// The orientation of the triangle is assumed to be counterclockwise.
+    /// This is needed for collision detection.
+    ///
+    /// If you are unsure about the orientation of the triangle, consider using [`Collider::triangle`] instead.
+    #[cfg(feature = "2d")]
+    pub fn triangle_unchecked(a: Vector, b: Vector, c: Vector) -> Self {
+        SharedShape::triangle(a.into(), b.into(), c.into()).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
     #[cfg(feature = "3d")]
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
