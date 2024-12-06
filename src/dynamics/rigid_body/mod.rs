@@ -382,6 +382,7 @@ impl LinearVelocity {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxLinearVelocity")]
 pub struct MaxLinearSpeed(pub Scalar);
 
 impl Default for MaxLinearSpeed {
@@ -410,6 +411,7 @@ impl Default for MaxLinearSpeed {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxAngularVelocity")]
 pub struct MaxAngularSpeed(pub Scalar);
 
 impl Default for MaxAngularSpeed {
