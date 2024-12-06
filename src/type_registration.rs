@@ -4,7 +4,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use broad_phase::AabbIntersections;
-use dynamics::solver::SolverConfig;
+use dynamics::solver::{schedule::SubstepCount, SolverConfig};
 
 /// Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
 pub struct PhysicsTypeRegistrationPlugin;
