@@ -522,12 +522,9 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// // Spawn a body with 1.5 times the normal gravity
+/// // Spawn a dynamic body with `1.5` times the normal gravity.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         GravityScale(1.5),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, GravityScale(1.5)));
 /// }
 /// ```
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From)]
