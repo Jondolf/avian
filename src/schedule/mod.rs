@@ -31,7 +31,7 @@ use bevy::{
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop.
 pub struct PhysicsSchedulePlugin {
-    pub(crate) schedule: Interned<dyn ScheduleLabel>,
+    schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PhysicsSchedulePlugin {
