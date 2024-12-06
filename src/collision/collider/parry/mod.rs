@@ -215,7 +215,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 
 /// A collider used for detecting collisions and generating contacts.
 ///
-/// ## Creation
+/// # Creation
 ///
 /// `Collider` has tons of methods for creating colliders of various shapes:
 ///
@@ -274,7 +274,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     doc = "Colliders can also be generated automatically for meshes and scenes. See [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]."
 )]
 ///
-/// ### Multiple colliders
+/// ## Multiple Colliders
 ///
 /// It can often be useful to attach multiple colliders to the same rigid body.
 ///
@@ -332,7 +332,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
 /// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
 ///
-/// ## See more
+/// # See More
 ///
 /// - [Rigid bodies](RigidBody)
 /// - [Density](ColliderDensity)
@@ -349,7 +349,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Accessing, filtering and modifying collisions](Collisions)
 /// - [Manual contact queries](contact_query)
 ///
-/// ## Advanced usage
+/// # Advanced Usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
@@ -407,19 +407,6 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
-        let props = self.shape_scaled().mass_properties(density);
-
-        ColliderMassProperties {
-            mass: props.mass(),
-            #[cfg(feature = "2d")]
-            angular_inertia: props.principal_inertia(),
-            #[cfg(feature = "3d")]
-            angular_inertia: props.reconstruct_inertia_matrix().into(),
-            center_of_mass: props.local_com.into(),
-        }
-    }
-
     fn contact_manifolds(
         &self,
         other: &Self,
@@ -438,6 +425,87 @@ impl AnyCollider for Collider {
             rotation2,
             prediction_distance,
         )
+    }
+}
+
+// TODO: `bevy_heavy` supports computing the individual mass properties efficiently for Bevy's primitive shapes,
+//       but Parry doesn't support it for its own shapes, so we have to compute all mass properties in each method :(
+#[cfg(feature = "2d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_angular_inertia(&self) -> f32 {
+        self.angular_inertia(1.0)
+    }
+
+    fn angular_inertia(&self, mass: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        props.principal_inertia() as f32
+    }
+
+    fn center_of_mass(&self) -> Vec2 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
+    }
+}
+
+#[cfg(feature = "3d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_principal_angular_inertia(&self) -> Vec3 {
+        self.principal_angular_inertia(1.0)
+    }
+
+    fn principal_angular_inertia(&self, mass: f32) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        Vector::from(props.principal_inertia()).f32()
+    }
+
+    fn local_inertial_frame(&self) -> Quat {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Quaternion::from(props.principal_inertia_local_frame).f32()
+    }
+
+    fn center_of_mass(&self) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
     }
 }
 
@@ -561,7 +629,7 @@ impl Collider {
     ///
     /// The returned tuple is in the format `(time_of_impact, normal)`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
@@ -588,7 +656,7 @@ impl Collider {
 
     /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
@@ -732,7 +800,38 @@ impl Collider {
         SharedShape::segment(a.into(), b.into()).into()
     }
 
-    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    ///
+    /// If the triangle is oriented clockwise, it will be reversed to be counterclockwise
+    /// by swapping `b` and `c`. This is needed for collision detection.
+    ///
+    /// If you know that the given points produce a counterclockwise triangle,
+    /// consider using [`Collider::triangle_unchecked`] instead.
+    #[cfg(feature = "2d")]
+    pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
+        let mut triangle = parry::shape::Triangle::new(a.into(), b.into(), c.into());
+
+        // Make sure the triangle is counterclockwise. This is needed for collision detection.
+        if triangle.orientation(1e-8) == parry::shape::TriangleOrientation::Clockwise {
+            triangle.reverse();
+        }
+
+        SharedShape::new(triangle).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    ///
+    /// The orientation of the triangle is assumed to be counterclockwise.
+    /// This is needed for collision detection.
+    ///
+    /// If you are unsure about the orientation of the triangle, consider using [`Collider::triangle`] instead.
+    #[cfg(feature = "2d")]
+    pub fn triangle_unchecked(a: Vector, b: Vector, c: Vector) -> Self {
+        SharedShape::triangle(a.into(), b.into(), c.into()).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    #[cfg(feature = "3d")]
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
     }
@@ -879,7 +978,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -913,7 +1012,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -936,7 +1035,7 @@ impl Collider {
 
     /// Creates a collider with a convex polygon shape obtained from the convex hull of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -958,7 +1057,7 @@ impl Collider {
 
     /// Creates a compound shape obtained from the decomposition of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -982,7 +1081,7 @@ impl Collider {
     /// Creates a compound shape obtained from the decomposition of a `Mesh`
     /// with the given [`VhacdParameters`] passed to the decomposition algorithm.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;

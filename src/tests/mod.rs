@@ -111,9 +111,9 @@ fn body_with_velocity_moves() {
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
             #[cfg(feature = "2d")]
-            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Circle::new(0.5), 1.0),
             #[cfg(feature = "3d")]
-            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Sphere::new(0.5), 1.0),
         ));
     });
 

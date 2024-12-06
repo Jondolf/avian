@@ -25,7 +25,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 /// The [`ShapeCaster`] is the easiest way to handle simple shapecasting. If you want more control and don't want
 /// to perform shapecasts on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -368,7 +368,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
 /// The maximum number of hits depends on the value of `max_hits` in [`ShapeCaster`]. By default only
 /// one hit is computed, as shapecasting for many results can be expensive.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]

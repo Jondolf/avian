@@ -1,5 +1,7 @@
 //! An example demonstrating how to make a custom collider and use it for collision detection.
 
+#![allow(clippy::unnecessary_cast)]
+
 use avian2d::{math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
@@ -55,21 +57,8 @@ impl AnyCollider for CircleCollider {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
-        // In 2D, the Z length is assumed to be 1.0, so volume = area
-        let volume = PI * self.radius.powi(2);
-        let mass = density * volume;
-        let angular_inertia = mass * self.radius.powi(2) / 2.0;
-
-        ColliderMassProperties {
-            mass,
-            angular_inertia,
-            center_of_mass: default(),
-        }
-    }
-
     // This is the actual collision detection part.
-    // It compute all contacts between two colliders at the given positions.
+    // It computes all contacts between two colliders at the given positions.
     fn contact_manifolds(
         &self,
         other: &Self,
@@ -119,6 +108,25 @@ impl AnyCollider for CircleCollider {
         } else {
             vec![]
         }
+    }
+}
+
+// Implement mass computation for the collider shape.
+// This is needed for physics to behave correctly.
+impl ComputeMassProperties2d for CircleCollider {
+    fn mass(&self, density: f32) -> f32 {
+        // In 2D, the Z length is assumed to be `1.0`, so volume == area.
+        let volume = std::f32::consts::PI * self.radius.powi(2) as f32;
+        density * volume
+    }
+
+    fn unit_angular_inertia(&self) -> f32 {
+        // Angular inertia for a circle, assuming a mass of `1.0`.
+        self.radius.powi(2) as f32 / 2.0
+    }
+
+    fn center_of_mass(&self) -> Vec2 {
+        Vec2::ZERO
     }
 }
 

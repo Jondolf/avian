@@ -27,7 +27,7 @@ impl FloatZero for Scalar {
 /// By default, the force persists across frames. You can clear the force manually using
 /// [`clear`](Self::clear) or set `persistent` to false.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -60,7 +60,7 @@ impl FloatZero for Scalar {
 /// }
 /// ```
 ///
-/// ## Local forces
+/// # Local Forces
 ///
 /// The force stored in `ExternalForce` is in world space.
 ///
@@ -203,7 +203,7 @@ impl ExternalForce {
 /// By default, the torque persists across frames. You can clear the torque manually using
 /// [`clear`](Self::clear) or set `persistent` to false.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -316,7 +316,7 @@ impl ExternalTorque {
 /// By default, the impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -349,7 +349,7 @@ impl ExternalTorque {
 /// }
 /// ```
 ///
-/// ## Local impulses
+/// # Local Impulses
 ///
 /// The impulse stored in `ExternalImpulse` is in world space.
 ///
@@ -491,7 +491,7 @@ impl ExternalImpulse {
 /// By default, the angular impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]

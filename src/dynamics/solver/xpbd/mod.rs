@@ -330,7 +330,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// Note that this system only works for constraints that are modeled as entities.
 /// If you store constraints in a resource, you must create your own system for solving them.
 ///
-/// ## User constraints
+/// # User Constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
 /// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.

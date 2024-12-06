@@ -19,7 +19,7 @@
 //! - Elasticity (soft bodies)
 //! - Plasticity (permanent deformation)
 //!
-//! ## Plugins
+//! # Plugins
 //!
 //! | Plugin               | Description                                                                                                                           |
 //! | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -28,7 +28,7 @@
 //! | [`CcdPlugin`]        | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component to prevent tunneling. |
 //! | [`SleepingPlugin`]   | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                              |
 //!
-//! ## Accuracy
+//! # Accuracy
 //!
 //! The engine uses iterative algorithms to approximate the simulation.
 //! Thus, results may not be perfectly accurate:
@@ -74,16 +74,29 @@ pub mod prelude {
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
             mass_properties::{
-                AngularInertia, AngularInertiaError, CenterOfMass, ColliderDensity,
-                ColliderMassProperties, Mass, MassError, MassPropertiesBundle, MassPropertiesQuery,
-                MassPropertyPlugin,
+                bevy_heavy::{
+                    AngularInertiaTensor, AngularInertiaTensorError, ComputeMassProperties2d,
+                    ComputeMassProperties3d, MassProperties2d, MassProperties3d,
+                },
+                components::{
+                    AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
+                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
+                },
+                MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
             },
             *,
         },
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
-        solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
+        solver::{
+            joints::*,
+            schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
+            PhysicsLengthUnit, SolverPlugin,
+        },
     };
-    pub(crate) use crate::dynamics::rigid_body::mass_properties::GlobalAngularInertia;
+    pub(crate) use crate::dynamics::rigid_body::mass_properties::{
+        components::GlobalAngularInertia, ComputeMassProperties, MassProperties,
+    };
 }
 
 // For intra-doc links

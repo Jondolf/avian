@@ -38,7 +38,7 @@ fn setup(mut commands: Commands) {
             square_sprite,
             Transform::from_xyz(100.0, 0.0, 0.0),
             RigidBody::Dynamic,
-            MassPropertiesBundle::new_computed(&Collider::rectangle(50.0, 50.0), 1.0),
+            MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
         .id();
 

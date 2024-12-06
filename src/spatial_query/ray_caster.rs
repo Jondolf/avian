@@ -27,7 +27,7 @@ use parry::query::{
 /// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
 /// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Hit count and order
+/// # Hit Count and Order
 ///
 /// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
 /// time of impact with the [`RayHits::iter_sorted`] method.
@@ -40,7 +40,7 @@ use parry::query::{
 /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
 /// is enough to contain all hits.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -340,7 +340,7 @@ fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: Co
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].
 ///
-/// ## Order
+/// # Order
 ///
 /// By default, the order of the hits is not guaranteed.
 ///
@@ -350,7 +350,7 @@ fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: Co
 /// **Note**: When there are more hits than `max_hits`, **some hits
 /// will be missed**. If you want to guarantee that the closest hit is included, set `max_hits` to one.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]

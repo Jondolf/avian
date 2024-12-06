@@ -124,7 +124,7 @@
 //!     - [Linear](LinearVelocity) and [angular](AngularVelocity) velocity
 //!     - [Forces](ExternalForce), [torque](ExternalTorque), and [linear](ExternalImpulse) and [angular](ExternalAngularImpulse) impulses
 //! - [Gravity] and [gravity scale](GravityScale)
-//! - [Mass properties](RigidBody#mass-properties)
+//! - [Mass properties](dynamics::rigid_body::mass_properties)
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
 //! - [Lock translational and rotational axes](LockedAxes)
 //! - [Dominance]
@@ -514,25 +514,28 @@ use prelude::*;
 
 /// A plugin group containing all of Avian's plugins.
 ///
+/// # Plugins
+///
 /// By default, the following plugins will be added:
 ///
-/// | Plugin                            | Description                                                                                                                   |
-/// | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-/// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                       |
-/// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                     |
-/// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                |
-/// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                 |
-/// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                |
-/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                   |
-/// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks. |
-/// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                |
-/// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                     |
-/// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                   |
-/// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                       |
-/// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.              |
-/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                      |
-/// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).           |
-/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                 |
+/// | Plugin                            | Description                                                                                                                                                |
+/// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+/// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
+/// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
+/// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
+/// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
+/// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
+/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
+/// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
+/// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
+/// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
+/// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
+/// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
+/// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
+/// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
+/// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
+/// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
+/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
 ///
 /// Optional additional plugins include:
 ///
@@ -544,7 +547,7 @@ use prelude::*;
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
-/// ## World scale
+/// # World Scale
 ///
 /// The [`PhysicsLengthUnit`] resource is a units-per-meter scaling factor
 /// that adjusts the engine's internal properties to the scale of the world.
@@ -577,7 +580,7 @@ use prelude::*;
 /// # fn main() {} // Doc test needs main
 /// ```
 ///
-/// ## Custom schedule
+/// # Custom Schedule
 ///
 /// You can run the [`PhysicsSchedule`] in any schedule you want by specifying the schedule when adding the plugin group:
 ///
@@ -594,7 +597,7 @@ use prelude::*;
 /// }
 /// ```
 ///
-/// ## Custom plugins
+/// # Custom Plugins
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
 /// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like
@@ -741,6 +744,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
+            .add(SolverSchedulePlugin)
             .add(CcdPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
