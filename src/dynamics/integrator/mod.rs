@@ -188,10 +188,7 @@ fn integrate_velocities(
             return;
         }
 
-        if body.rb.is_kinematic() {
-            return;
-        }
-
+        if body.rb.is_dynamic() {
         let locked_axes = body
             .locked_axes
             .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
@@ -227,6 +224,7 @@ fn integrate_velocities(
             gravity,
             delta_secs,
         );
+        }
 
         // Clamp velocities
         if let Some(max_linear_speed) = body.max_linear_speed {
