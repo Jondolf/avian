@@ -1,5 +1,5 @@
 use avian3d::{
-    dynamics::solver::{xpbd::*, SubstepSolverSet},
+    dynamics::solver::{schedule::SubstepSolverSet, xpbd::*},
     math::*,
     prelude::*,
 };

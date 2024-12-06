@@ -3,6 +3,7 @@
 //! See [`PhysicsSchedulePlugin`].
 
 mod time;
+use dynamics::solver::schedule::SubstepCount;
 pub use time::*;
 
 use std::time::Duration;
@@ -28,11 +29,9 @@ use bevy::{
 ///   You can use these to schedule your own systems before or after physics is run without
 ///   having to worry about implementation details.
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
-/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-///   the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop.
 pub struct PhysicsSchedulePlugin {
-    schedule: Interned<dyn ScheduleLabel>,
+    pub(crate) schedule: Interned<dyn ScheduleLabel>,
 }
 
 impl PhysicsSchedulePlugin {
@@ -57,6 +56,9 @@ impl Plugin for PhysicsSchedulePlugin {
         app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>();
+
+        // TODO: Where should this be initialized?
+        app.init_resource::<PhysicsLengthUnit>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;
@@ -100,22 +102,6 @@ impl Plugin for PhysicsSchedulePlugin {
             schedule,
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
         );
-
-        // Set up the substep schedule, the schedule that runs the inner substepping loop
-        app.edit_schedule(SubstepSchedule, |schedule| {
-            schedule
-                .set_executor_kind(ExecutorKind::SingleThreaded)
-                .set_build_settings(ScheduleBuildSettings {
-                    ambiguity_detection: LogLevel::Error,
-                    ..default()
-                });
-        });
-
-        // TODO: This should probably just be in the SolverPlugin.
-        app.add_systems(
-            PhysicsSchedule,
-            run_substep_schedule.in_set(SolverSet::Substep),
-        );
     }
 }
 
@@ -133,11 +119,6 @@ impl Default for IsFirstRun {
 /// See [`PhysicsStepSet`] for the system sets that are run in this schedule.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
-
-/// The substepping schedule that runs in [`SolverSet::Substep`].
-/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct SubstepSchedule;
 
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
@@ -254,44 +235,6 @@ pub enum PhysicsStepSet {
     Last,
 }
 
-/// The number of substeps used in the simulation.
-///
-/// A higher number of substeps reduces the value of [`Time`],
-/// which results in a more accurate simulation, but also reduces performance. The default
-/// substep count is currently 6.
-///
-/// If you use a very high substep count and encounter stability issues, consider enabling the `f64`
-/// feature as shown in the [getting started guide](crate#getting-started) to avoid floating point
-/// precision problems.
-///
-/// ## Example
-///
-/// You can change the number of substeps by inserting the [`SubstepCount`] resource:
-///
-/// ```no_run
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(SubstepCount(12))
-///         .run();
-/// }
-/// ```
-#[derive(Debug, Reflect, Resource, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Resource, PartialEq)]
-pub struct SubstepCount(pub u32);
-
-impl Default for SubstepCount {
-    fn default() -> Self {
-        Self(6)
-    }
-}
-
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
@@ -334,26 +277,4 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
     });
 
     is_first_run.0 = false;
-}
-
-/// Runs the [`SubstepSchedule`].
-fn run_substep_schedule(world: &mut World) {
-    let delta = world.resource::<Time<Physics>>().delta();
-    let SubstepCount(substeps) = *world.resource::<SubstepCount>();
-    let sub_delta = delta.div_f64(substeps as f64);
-
-    let mut sub_delta_time = world.resource_mut::<Time<Substeps>>();
-    sub_delta_time.advance_by(sub_delta);
-
-    let _ = world.try_schedule_scope(SubstepSchedule, |world, schedule| {
-        for i in 0..substeps {
-            trace!("running SubstepSchedule: {i}");
-            *world.resource_mut::<Time>() = world.resource::<Time<Substeps>>().as_generic();
-            schedule.run(world);
-        }
-    });
-
-    // Set generic `Time` resource back to `Time<Physics>`.
-    // Later, it's set back to the default clock after the `PhysicsSchedule`.
-    *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 }

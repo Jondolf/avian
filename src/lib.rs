@@ -524,6 +524,7 @@ use prelude::*;
 /// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
 /// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
 /// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
+/// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
@@ -737,6 +738,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
+            .add(SolverSchedulePlugin)
             .add(CcdPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)

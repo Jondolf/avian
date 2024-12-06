@@ -81,7 +81,11 @@ pub mod prelude {
             *,
         },
         sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
-        solver::{joints::*, PhysicsLengthUnit, SolverPlugin, SolverSet},
+        solver::{
+            joints::*,
+            schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
+            PhysicsLengthUnit, SolverPlugin,
+        },
     };
     pub(crate) use crate::dynamics::rigid_body::mass_properties::GlobalAngularInertia;
 }

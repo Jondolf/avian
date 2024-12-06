@@ -4,15 +4,16 @@
 
 pub mod contact;
 pub mod joints;
+pub mod schedule;
 pub mod softness_parameters;
 pub mod xpbd;
 
 use crate::prelude::*;
 use bevy::prelude::*;
+use schedule::SubstepSolverSet;
 
 use self::{
     contact::ContactConstraint,
-    dynamics::integrator::IntegrationSet,
     softness_parameters::{SoftnessCoefficients, SoftnessParameters},
 };
 
@@ -74,7 +75,11 @@ impl Plugin for SolverPlugin {
             .init_resource::<ContactSoftnessCoefficients>()
             .init_resource::<ContactConstraints>();
 
-        if !app.world().contains_resource::<PhysicsLengthUnit>() {
+        if app
+            .world()
+            .get_resource::<PhysicsLengthUnit>()
+            .is_none_or(|unit| unit.0 == 1.0)
+        {
             app.insert_resource(PhysicsLengthUnit(self.length_unit));
         }
 
@@ -84,20 +89,6 @@ impl Plugin for SolverPlugin {
             .expect("add PhysicsSchedule first");
 
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
-
-        // See `SolverSet` for what each system set is responsible for.
-        physics.configure_sets(
-            (
-                SolverSet::PreSubstep,
-                SolverSet::Substep,
-                SolverSet::PostSubstep,
-                SolverSet::Restitution,
-                SolverSet::ApplyTranslation,
-                SolverSet::StoreContactImpulses,
-            )
-                .chain()
-                .in_set(PhysicsStepSet::Solver),
-        );
 
         // Update previous rotations before the substepping loop.
         physics.add_systems(
@@ -127,21 +118,6 @@ impl Plugin for SolverPlugin {
         let substeps = app
             .get_schedule_mut(SubstepSchedule)
             .expect("add SubstepSchedule first");
-
-        // See `SolverSet` for what each system set is responsible for.
-        substeps.configure_sets(
-            (
-                IntegrationSet::Velocity,
-                SubstepSolverSet::WarmStart,
-                SubstepSolverSet::SolveConstraints,
-                IntegrationSet::Position,
-                SubstepSolverSet::Relax,
-                SubstepSolverSet::SolveXpbdConstraints,
-                SubstepSolverSet::SolveUserConstraints,
-                SubstepSolverSet::XpbdVelocityProjection,
-            )
-                .chain(),
-        );
 
         // Warm start the impulses.
         // This applies the impulses stored from the previous substep,
@@ -284,71 +260,6 @@ impl Default for PhysicsLengthUnit {
     fn default() -> Self {
         Self(1.0)
     }
-}
-
-/// System sets for the constraint solver.
-///
-/// ## Steps
-///
-/// Below is the core solver loop.
-///
-/// 1. Generate and prepare constraints ([`NarrowPhaseSet::GenerateConstraints`](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints))
-/// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SolverSet::Substep`])
-/// 3. Apply restitution ([`SolverSet::Restitution`])
-/// 4. Finalize positions by applying [`AccumulatedTranslation`] ([`SolverSet::ApplyTranslation`])
-/// 5. Store contact impulses for next frame's warm starting ([`SolverSet::StoreContactImpulses`])
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SolverSet {
-    /// A system set for systems running just before the substepping loop.
-    PreSubstep,
-    /// A system set for the substepping loop.
-    Substep,
-    /// A system set for systems running just after the substepping loop.
-    PostSubstep,
-    /// Applies [restitution](Restitution) for bodies after solving overlap.
-    Restitution,
-    /// Finalizes the positions of bodies by applying the [`AccumulatedTranslation`].
-    ///
-    /// Constraints don't modify the positions of bodies directly and instead adds
-    /// to this translation to improve numerical stability when bodies are far from the world origin.
-    ApplyTranslation,
-    /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
-    /// They will be used for [warm starting](SubstepSolverSet::WarmStart) the next frame or substep.
-    StoreContactImpulses,
-}
-
-/// System sets for the substepped part of the constraint solver.
-///
-/// ## Steps
-///
-/// 1. Integrate velocity ([`IntegrationSet::Velocity`])
-/// 2. Warm start ([`SubstepSolverSet::WarmStart`])
-/// 3. Solve constraints with bias ([`SubstepSolverSet::SolveConstraints`])
-/// 4. Integrate positions ([`IntegrationSet::Position`])
-/// 5. Solve constraints without bias to relax velocities ([`SubstepSolverSet::Relax`])
-/// 6. Solve joints using Extended Position-Based Dynamics (XPBD). ([`SubstepSolverSet::SolveXpbdConstraints`])
-/// 7. Solve user-defined constraints. ([`SubstepSolverSet::SolveUserConstraints`])
-/// 8. Update velocities after XPBD constraint solving. ([`SubstepSolverSet::XpbdVelocityProjection`])
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SubstepSolverSet {
-    /// Warm starts the solver by applying the impulses from the previous frame or substep.
-    ///
-    /// This significantly improves convergence, but by itself can lead to overshooting.
-    /// Overshooting is reduced by [relaxing](SubstepSolverSet::Relax) the biased velocities
-    /// by running the solver a second time *without* bias.
-    WarmStart,
-    /// Solves velocity constraints using a position bias that boosts the response
-    /// to account for the constraint error.
-    SolveConstraints,
-    /// Solves velocity constraints without a position bias to relax the biased velocities
-    /// and impulses. This reduces overshooting caused by [warm starting](SubstepSolverSet::WarmStart).
-    Relax,
-    /// Solves joints using Extended Position-Based Dynamics (XPBD).
-    SolveXpbdConstraints,
-    /// A system set for user constraints.
-    SolveUserConstraints,
-    /// Performs velocity updates after XPBD constraint solving.
-    XpbdVelocityProjection,
 }
 
 /// Configuration parameters for the constraint solver that handles
