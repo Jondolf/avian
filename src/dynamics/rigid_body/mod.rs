@@ -362,6 +362,64 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
+/// The maximum linear speed of a [rigid body](RigidBody), clamping the [`LinearVelocity`].
+///
+/// This can be useful for limiting how fast bodies can move, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with linear velocity clamped to `100.0` units per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxLinearSpeed(100.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxLinearVelocity")]
+pub struct MaxLinearSpeed(pub Scalar);
+
+impl Default for MaxLinearSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
+/// The maximum angular speed of a [rigid body](RigidBody), clamping the [`AngularVelocity`].
+///
+/// This can be useful for limiting how fast bodies can rotate, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with angular velocity clamped to `20.0` radians per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxAngularSpeed(20.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxAngularVelocity")]
+pub struct MaxAngularSpeed(pub Scalar);
+
+impl Default for MaxAngularSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
 /// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
