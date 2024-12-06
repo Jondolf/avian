@@ -268,13 +268,13 @@ pub fn transform_to_position(
         {
             let rot = Rotation::from(transform.rotation.adjust_precision());
             let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot * (rot * prev_rot.inverse()) * (*rotation * prev_rot.inverse());
+            *rotation = prev_rot * (prev_rot.inverse() * rot) * (prev_rot.inverse() * *rotation);
         }
         #[cfg(feature = "3d")]
         {
             rotation.0 = (previous_transform.rotation
-                * (transform.rotation * previous_transform.rotation.inverse())
-                * (rotation.f32() * previous_transform.rotation.inverse()))
+                * (previous_transform.rotation.inverse() * transform.rotation)
+                * (previous_transform.rotation.inverse() * rotation.f32()))
             .adjust_precision();
         }
     }
