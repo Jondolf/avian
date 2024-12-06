@@ -55,7 +55,7 @@ use indexmap::IndexMap;
 /// it is recommended to use the [`PostProcessCollisions`] schedule. See its documentation
 /// for more information.
 ///
-/// ## Querying collisions
+/// ## Querying Collisions
 ///
 /// The following methods can be used for querying existing collisions:
 ///
@@ -68,7 +68,7 @@ use indexmap::IndexMap;
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
 ///
-/// ## Filtering and removing collisions
+/// ## Filtering and Removing Collisions
 ///
 /// The following methods can be used for filtering or removing existing collisions:
 ///
@@ -79,7 +79,7 @@ use indexmap::IndexMap;
 /// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver will use the old contact data.
 ///
-/// ## Adding new collisions
+/// ## Adding New Collisions
 ///
 /// The following methods can be used for adding new collisions:
 ///

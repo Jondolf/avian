@@ -349,7 +349,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Accessing, filtering and modifying collisions](Collisions)
 /// - [Manual contact queries](contact_query)
 ///
-/// # Advanced usage
+/// # Advanced Usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
