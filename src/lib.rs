@@ -179,6 +179,7 @@
 //! ### Configuration
 //!
 //! - [Gravity]
+//! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
@@ -212,7 +213,7 @@
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
 //! - [Why is performance so bad?](#why-is-performance-so-bad)
-//! - [Why does my camera following jitter?](#why-does-my-camera-following-jitter)
+//! - [Why does movement look choppy?](#why-does-movement-look-choppy)
 //! - [Is there a character controller?](#is-there-a-character-controller)
 //! - [Why are there separate `Position` and `Rotation` components?](#why-are-there-separate-position-and-rotation-components)
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
@@ -282,37 +283,51 @@
 //! codegen-units = 1
 //! ```
 //!
-//! ### Why does my camera following jitter?
+//! ### Why does movement look choppy?
 //!
-//! When you write a system that makes the camera follow a physics entity, you might notice some jitter.
+//! To produce consistent, frame rate independent behavior, physics by default runs
+//! in the [`FixedPostUpdate`] schedule with a fixed timestep, meaning that the time between
+//! physics ticks remains constant. On some frames, physics can either not run at all or run
+//! more than once to catch up to real time. This can lead to visible stutter for movement.
 //!
-//! To fix this, the system needs to:
+//! This stutter can be resolved by *interpolating* or *extrapolating* the positions of physics objects
+//! in between physics ticks. Avian has built-in support for this through the [`PhysicsInterpolationPlugin`],
+//! which is included in the [`PhysicsPlugins`] by default.
 //!
-//! - Run after physics so that it has the up-to-date position of the player.
-//! - Run before transform propagation so that your changes to the camera's `Transform` are written
-//! to the camera's `GlobalTransform` before the end of the frame.
-//!
-//! The following ordering constraints should resolve the issue.
+//! Interpolation can be enabled for an individual entity by adding the [`TransformInterpolation`] component:
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 //! # use bevy::prelude::*;
-//! # use bevy::transform::TransformSystem;
 //! #
-//! # fn main() {
-//! #     let mut app = App::new();
-//! #
-//! app.add_systems(
-//!     PostUpdate,
-//!     camera_follow_player
-//!         .after(PhysicsSet::Sync)
-//!         .before(TransformSystem::TransformPropagate),
-//! );
-//! # }
-//! #
-//! # fn camera_follow_player() {}
+//! fn setup(mut commands: Commands) {
+//!     // Enable interpolation for this rigid body.
+//!     commands.spawn((
+//!         RigidBody::Dynamic,
+//!         Transform::default(),
+//!         TransformInterpolation,
+//!     ));
+//! }
 //! ```
+//!
+//! If you want *all* rigid bodies to be interpolated or extrapolated by default, you can use
+//! [`PhysicsInterpolationPlugin::interpolate_all()`]:
+//!
+//! ```no_run
+#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! fn main() {
+//!    App::new()
+//!       .add_plugins(PhysicsPlugins::default().set(PhysicsInterpolationPlugin::interpolate_all()))
+//!       // ...
+//!       .run();
+//! }
+//! ```
+//!
+//! See the [`PhysicsInterpolationPlugin`] for more information.
 //!
 //! ### Is there a character controller?
 //!
@@ -451,6 +466,7 @@ pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
 pub mod dynamics;
+pub mod interpolation;
 pub mod math;
 #[cfg(feature = "bevy_picking")]
 pub mod picking;
@@ -483,6 +499,7 @@ pub mod prelude {
             *,
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
+        interpolation::*,
         position::{Position, Rotation},
         prepare::{init_transforms, PrepareConfig, PreparePlugin},
         schedule::*,
@@ -532,14 +549,15 @@ use prelude::*;
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
 /// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
+/// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
 /// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
 ///
 /// Optional additional plugins include:
 ///
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
 /// | [`PhysicsPickingPlugin`]          | Enables a physics picking backend for [`bevy_picking`](bevy::picking) (only with `bevy_picking` feature enabled).                                          |
+/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
@@ -745,5 +763,6 @@ impl PluginGroup for PhysicsPlugins {
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
+            .add(PhysicsInterpolationPlugin::default())
     }
 }
