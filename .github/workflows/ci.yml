@@ -45,10 +45,12 @@ jobs:
               run: cargo clippy -- -D warnings
 
     docs:
-        name: Documentation
+        name: Check Documentation
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - name: Run cargo doc
-              run: cargo doc
+              run: cargo doc --workspace --no-deps --document-private-items --keep-going
+              env:
+                  RUSTFLAGS: "-D warnings"
