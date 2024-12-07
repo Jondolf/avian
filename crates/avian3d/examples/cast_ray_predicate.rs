@@ -145,33 +145,34 @@ fn raycast(
     query: SpatialQuery,
     mut materials: ResMut<Assets<StandardMaterial>>,
     cubes: Query<(&MeshMaterial3d<StandardMaterial>, &OutOfGlass)>,
-    mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
+    mut indicator_transform: Single<&mut Transform, With<RayIndicator>>,
 ) {
     let origin = Vector::new(-200.0, 2.0, 0.0);
     let direction = Dir3::X;
-
-    let mut ray_indicator_transform = indicator_transform.single_mut();
+    let config = RayCastConfig::default();
+    let filter = SpatialQueryFilter::default();
 
     if let Some(ray_hit_data) =
-        query.cast_ray_predicate(origin, direction, &RayCastConfig::default(), &|entity| {
+        query.cast_ray_predicate(origin, direction, &config, &filter, &|entity| {
+            // Only look at cubes not made out of glass.
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
-                return !out_of_glass.0; // only look at cubes not out of glass
+                return !out_of_glass.0;
             }
-            true // if the collider has no OutOfGlass component, then check it nevertheless
+            true
         })
     {
-        // set color of hit object to red
+        // Set the color of the hit object to red.
         if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
             if let Some(material) = materials.get_mut(material_handle) {
                 material.base_color = RED.into();
             }
         }
 
-        // set length of ray indicator to look more like a laser
+        // Set the length of the ray indicator to look more like a laser,
         let contact_point = (origin + direction.adjust_precision() * ray_hit_data.distance).x;
         let target_scale = 1000.0 + contact_point * 2.0;
-        ray_indicator_transform.scale.x = target_scale as f32;
+        indicator_transform.scale.x = target_scale as f32;
     } else {
-        ray_indicator_transform.scale.x = 2000.0;
+        indicator_transform.scale.x = 2000.0;
     }
 }

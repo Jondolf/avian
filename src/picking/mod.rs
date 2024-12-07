@@ -113,6 +113,7 @@ pub fn update_hits(
                     ray.origin.adjust_precision(),
                     ray.direction,
                     &RayCastConfig::default(),
+                    &SpatialQueryFilter::default(),
                     &|entity| {
                         let marker_requirement =
                             !backend_settings.require_markers || marked_targets.get(entity).is_ok();

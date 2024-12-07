@@ -156,6 +156,7 @@ impl SpatialQueryPipeline {
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -167,8 +168,9 @@ impl SpatialQueryPipeline {
         origin: Vector,
         direction: Dir,
         config: &RayCastConfig,
+        filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
-        self.cast_ray_predicate(origin, direction, config, &|_| true)
+        self.cast_ray_predicate(origin, direction, config, filter, &|_| true)
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -180,6 +182,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `false`.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -191,9 +194,10 @@ impl SpatialQueryPipeline {
         origin: Vector,
         direction: Dir,
         config: &RayCastConfig,
+        filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
-        let pipeline_shape = self.as_composite_shape_with_predicate(&config.filter, predicate);
+        let pipeline_shape = self.as_composite_shape_with_predicate(filter, predicate);
         let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
@@ -222,6 +226,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -234,9 +239,10 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_hits: u32,
         config: &RayCastConfig,
+        filter: &SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         let mut hits = Vec::with_capacity(10);
-        self.ray_hits_callback(origin, direction, config, |hit| {
+        self.ray_hits_callback(origin, direction, config, filter, |hit| {
             hits.push(hit);
             (hits.len() as u32) < max_hits
         });
@@ -253,6 +259,7 @@ impl SpatialQueryPipeline {
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
     /// # Related Methods
@@ -265,6 +272,7 @@ impl SpatialQueryPipeline {
         origin: Vector,
         direction: Dir,
         config: &RayCastConfig,
+        filter: &SpatialQueryFilter,
         mut callback: impl FnMut(RayHitData) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -274,7 +282,7 @@ impl SpatialQueryPipeline {
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
-                if config.filter.test(entity, *layers) {
+                if filter.test(entity, *layers) {
                     if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
                         iso,
                         &ray,
@@ -311,6 +319,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape being cast.
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -325,8 +334,17 @@ impl SpatialQueryPipeline {
         shape_rotation: RotationValue,
         direction: Dir,
         config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
     ) -> Option<ShapeHitData> {
-        self.cast_shape_predicate(shape, origin, shape_rotation, direction, config, &|_| true)
+        self.cast_shape_predicate(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            config,
+            filter,
+            &|_| true,
+        )
     }
 
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes the closest [hit](ShapeHits)
@@ -341,6 +359,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape being cast.
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `false`.
     ///
     /// # Related Methods
@@ -356,6 +375,7 @@ impl SpatialQueryPipeline {
         shape_rotation: RotationValue,
         direction: Dir,
         config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<ShapeHitData> {
         let rotation: Rotation;
@@ -370,7 +390,7 @@ impl SpatialQueryPipeline {
 
         let shape_isometry = make_isometry(origin, rotation);
         let shape_direction = direction.adjust_precision().into();
-        let pipeline_shape = self.as_composite_shape_with_predicate(&config.filter, predicate);
+        let pipeline_shape = self.as_composite_shape_with_predicate(filter, predicate);
         let mut visitor = TOICompositeShapeShapeBestFirstVisitor::new(
             &*self.dispatcher,
             &shape_isometry,
@@ -408,6 +428,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -423,12 +444,21 @@ impl SpatialQueryPipeline {
         direction: Dir,
         max_hits: u32,
         config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
     ) -> Vec<ShapeHitData> {
         let mut hits = Vec::with_capacity(10);
-        self.shape_hits_callback(shape, origin, shape_rotation, direction, config, |hit| {
-            hits.push(hit);
-            (hits.len() as u32) < max_hits
-        });
+        self.shape_hits_callback(
+            shape,
+            origin,
+            shape_rotation,
+            direction,
+            config,
+            filter,
+            |hit| {
+                hits.push(hit);
+                (hits.len() as u32) < max_hits
+            },
+        );
         hits
     }
 
@@ -443,6 +473,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape being cast.
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
     /// # Related Methods
@@ -458,12 +489,13 @@ impl SpatialQueryPipeline {
         shape_rotation: RotationValue,
         direction: Dir,
         config: &ShapeCastConfig,
+        filter: &SpatialQueryFilter,
         mut callback: impl FnMut(ShapeHitData) -> bool,
     ) {
         // TODO: This clone is here so that the excluded entities in the original `query_filter` aren't modified.
         //       We could remove this if shapecasting could compute multiple hits without just doing casts in a loop.
         //       See https://github.com/Jondolf/avian/issues/403.
-        let mut query_filter = config.filter.clone();
+        let mut query_filter = filter.clone();
 
         let shape_cast_options = ShapeCastOptions {
             max_time_of_impact: config.max_distance,

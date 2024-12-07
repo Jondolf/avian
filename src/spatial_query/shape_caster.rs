@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         component::ComponentId,
-        entity::{EntityHashSet, EntityMapper, MapEntities},
+        entity::{EntityMapper, MapEntities},
         world::DeferredWorld,
     },
     prelude::*,
@@ -451,9 +451,6 @@ pub struct ShapeCastConfig {
     ///
     /// The default is `false`.
     pub ignore_origin_penetration: bool,
-
-    /// Rules that determine which colliders are taken into account in the shape cast.
-    pub filter: SpatialQueryFilter,
 }
 
 impl Default for ShapeCastConfig {
@@ -469,7 +466,6 @@ impl ShapeCastConfig {
         target_distance: 0.0,
         compute_contact_on_penetration: true,
         ignore_origin_penetration: false,
-        filter: SpatialQueryFilter::DEFAULT,
     };
 
     /// Creates a new [`ShapeCastConfig`] with a given maximum distance the shape can travel.
@@ -480,7 +476,6 @@ impl ShapeCastConfig {
             target_distance: 0.0,
             compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
-            filter: SpatialQueryFilter::DEFAULT,
         }
     }
 
@@ -493,40 +488,6 @@ impl ShapeCastConfig {
             target_distance,
             compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
-            filter: SpatialQueryFilter::DEFAULT,
-        }
-    }
-
-    /// Creates a new [`ShapeCastConfig`] with a given [`SpatialQueryFilter`].
-    #[inline]
-    pub const fn from_filter(filter: SpatialQueryFilter) -> Self {
-        Self {
-            max_distance: Scalar::MAX,
-            target_distance: 0.0,
-            compute_contact_on_penetration: true,
-            ignore_origin_penetration: false,
-            filter,
-        }
-    }
-
-    /// Creates a new [`ShapeCastConfig`] with the given [`LayerMask`] determining
-    /// which [collision layers] will be included in the shape cast.
-    ///
-    /// [collision layers]: CollisionLayers
-    #[inline]
-    pub fn from_mask(mask: impl Into<LayerMask>) -> Self {
-        Self {
-            filter: SpatialQueryFilter::from_mask(mask),
-            ..default()
-        }
-    }
-
-    /// Creates a new [`ShapeCastConfig`] with the given entities excluded from the shape cast.
-    #[inline]
-    pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
-        Self {
-            filter: SpatialQueryFilter::from_excluded_entities(entities),
-            ..default()
         }
     }
 
@@ -542,31 +503,6 @@ impl ShapeCastConfig {
     pub const fn with_target_distance(mut self, target_distance: Scalar) -> Self {
         self.target_distance = target_distance;
         self
-    }
-
-    /// Sets the [`LayerMask`] of the filter configuration. Only colliders with the corresponding
-    /// [collision layer memberships] will be included in the shape cast.
-    ///
-    /// [collision layer memberships]: CollisionLayers
-    #[inline]
-    pub fn with_mask(mut self, mask: impl Into<LayerMask>) -> Self {
-        self.filter.mask = mask.into();
-        self
-    }
-
-    /// Excludes the given entities from the shape cast.
-    #[inline]
-    pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
-        self.filter.excluded_entities = EntityHashSet::from_iter(entities);
-        self
-    }
-
-    /// Sets the [`SpatialQueryFilter`] for the shape cast.
-    ///
-    /// Note that this will overwrite the previous filter.
-    #[inline]
-    pub const fn with_filter(&self, filter: SpatialQueryFilter) -> Self {
-        Self { filter, ..*self }
     }
 }
 
