@@ -647,7 +647,7 @@ pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
     pub entity: Entity,
 
-    /// How long the shape travelled before the initial hit.
+    /// How far the shape travelled before the initial hit.
     #[doc(alias = "time_of_impact")]
     pub distance: Scalar,
 

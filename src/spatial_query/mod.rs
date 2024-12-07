@@ -76,7 +76,7 @@
 //! before it hits the environment.
 //!
 //! For each hit during shapecasting, the hit entity, a distance, two world-space points of intersection and two world-space
-//! normals will be stored in [`ShapeHitData`]. The distance refers to how long the shape travelled before the initial hit.
+//! normals will be stored in [`ShapeHitData`]. The distance refers to how far the shape travelled before the initial hit.
 //!
 //! There are two ways to perform shapecasts.
 //!

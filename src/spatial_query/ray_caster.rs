@@ -22,7 +22,7 @@ use parry::query::{
 ///
 /// Each ray is defined by a local `origin` and a `direction`. The [`RayCaster`] will find each hit
 /// and add them to the [`RayHits`] component. Each hit has a `distance` property which refers to
-/// how long the ray travelled, along with a `normal` for the point of intersection.
+/// how far the ray travelled, along with a `normal` for the point of intersection.
 ///
 /// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
 /// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
@@ -570,7 +570,7 @@ pub struct RayHitData {
     /// The entity of the collider that was hit by the ray.
     pub entity: Entity,
 
-    /// How long the ray travelled. This is the distance between the ray origin and the point of intersection.
+    /// How far the ray travelled. This is the distance between the ray origin and the point of intersection.
     pub distance: Scalar,
 
     /// The normal at the point of intersection, expressed in world space.
