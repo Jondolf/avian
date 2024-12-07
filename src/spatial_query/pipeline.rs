@@ -157,7 +157,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_ray_predicate`]
     /// - [`SpatialQueryPipeline::ray_hits`]
@@ -181,7 +181,7 @@ impl SpatialQueryPipeline {
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `false`.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_ray`]
     /// - [`SpatialQueryPipeline::ray_hits`]
@@ -223,7 +223,7 @@ impl SpatialQueryPipeline {
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_ray`]
     /// - [`SpatialQueryPipeline::cast_ray_predicate`]
@@ -255,7 +255,7 @@ impl SpatialQueryPipeline {
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_ray`]
     /// - [`SpatialQueryPipeline::cast_ray_predicate`]
@@ -312,7 +312,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_shape_predicate`]
     /// - [`SpatialQueryPipeline::shape_hits`]
@@ -343,7 +343,7 @@ impl SpatialQueryPipeline {
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `false`.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_shape`]
     /// - [`SpatialQueryPipeline::shape_hits`]
@@ -409,7 +409,7 @@ impl SpatialQueryPipeline {
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_shape`]
     /// - [`SpatialQueryPipeline::cast_shape_predicate`]
@@ -445,7 +445,7 @@ impl SpatialQueryPipeline {
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::cast_shape`]
     /// - [`SpatialQueryPipeline::cast_shape_predicate`]
@@ -529,7 +529,7 @@ impl SpatialQueryPipeline {
     ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::project_point_predicate`]
     pub fn project_point(
@@ -552,7 +552,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider that passes the predicate.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::project_point`]
     pub fn project_point_predicate(
@@ -584,7 +584,7 @@ impl SpatialQueryPipeline {
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::point_intersections_callback`]
     pub fn point_intersections(
@@ -610,7 +610,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::point_intersections`]
     pub fn point_intersections_callback(
@@ -640,7 +640,7 @@ impl SpatialQueryPipeline {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
     /// that is intersecting the given `aabb`.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::aabb_intersections_with_aabb_callback`]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
@@ -656,7 +656,7 @@ impl SpatialQueryPipeline {
     /// that is intersecting the given `aabb`, calling `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::aabb_intersections_with_aabb`]
     pub fn aabb_intersections_with_aabb_callback(
@@ -689,7 +689,7 @@ impl SpatialQueryPipeline {
     /// - `shape_rotation`: The rotation of the shape.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::shape_intersections_callback`]
     pub fn shape_intersections(
@@ -725,7 +725,7 @@ impl SpatialQueryPipeline {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::shape_intersections`]
     pub fn shape_intersections_callback(

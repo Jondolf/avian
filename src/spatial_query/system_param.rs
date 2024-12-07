@@ -120,7 +120,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_ray_predicate`]
     /// - [`SpatialQuery::ray_hits`]
@@ -181,7 +181,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_ray`]
     /// - [`SpatialQuery::ray_hits`]
@@ -240,7 +240,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_ray`]
     /// - [`SpatialQuery::cast_ray_predicate`]
@@ -303,7 +303,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_ray`]
     /// - [`SpatialQuery::cast_ray_predicate`]
@@ -363,7 +363,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_shape_predicate`]
     /// - [`SpatialQuery::shape_hits`]
@@ -386,7 +386,7 @@ impl SpatialQuery<'_, '_> {
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -395,7 +395,7 @@ impl SpatialQuery<'_, '_> {
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `false`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -434,7 +434,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_ray`]
     /// - [`SpatialQuery::ray_hits`]
@@ -484,8 +484,8 @@ impl SpatialQuery<'_, '_> {
     /// fn print_hits(spatial_query: SpatialQuery) {
     ///     // Configuration for the shape cast
     ///     let config = ShapeCastConfig {
-    ///        max_distance: 100.0,
-    ///       ..default()
+    ///         max_distance: 100.0,
+    ///         ..default()
     ///     };
     ///
     ///     // Shape properties
@@ -504,7 +504,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_shape`]
     /// - [`SpatialQuery::cast_shape_predicate`]
@@ -573,7 +573,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::cast_shape`]
     /// - [`SpatialQuery::cast_shape_predicate`]
@@ -630,7 +630,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::project_point_predicate`]
     pub fn project_point(
@@ -646,7 +646,7 @@ impl SpatialQuery<'_, '_> {
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
     /// If one isn't found, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
@@ -654,7 +654,7 @@ impl SpatialQuery<'_, '_> {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider that passes the predicate.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -683,7 +683,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::project_point`]
     pub fn project_point_predicate(
@@ -725,7 +725,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::point_intersections_callback`]
     pub fn point_intersections(
@@ -774,7 +774,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::point_intersections`]
     pub fn point_intersections_callback(
@@ -810,7 +810,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::aabb_intersections_with_aabb_callback`]
     pub fn aabb_intersections_with_aabb(&self, aabb: ColliderAabb) -> Vec<Entity> {
@@ -848,7 +848,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::aabb_intersections_with_aabb`]
     pub fn aabb_intersections_with_aabb_callback(
@@ -894,7 +894,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::shape_intersections_callback`]
     pub fn shape_intersections(
@@ -950,7 +950,7 @@ impl SpatialQuery<'_, '_> {
     /// }
     /// ```
     ///
-    /// ## Related Methods
+    /// # Related Methods
     ///
     /// - [`SpatialQuery::shape_intersections`]
     pub fn shape_intersections_callback(
