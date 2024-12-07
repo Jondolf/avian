@@ -103,6 +103,8 @@ pub enum SolverSet {
     ApplyTranslation,
     /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
     /// They will be used for [warm starting](SubstepSolverSet::WarmStart) the next frame or substep.
+    ///
+    /// [`ContactConstraints`]: super::ContactConstraints
     StoreContactImpulses,
 }
 
