@@ -28,15 +28,19 @@ use bevy::{
 fn main() {
     let mut app = App::new();
 
-    // Add the `PhysicsInterpolationPlugin` to enable interpolation and extrapolation functionality.
-    //
-    // By default, interpolation and extrapolation must be enabled for each entity manually.
-    // Use `PhysicsInterpolationPlugin::interpolate_all()` to enable interpolation for all rigid bodies.
+    // Interpolation and extrapolation functionality is enabled by the `PhysicsInterpolationPlugin`.
+    // It is included in the `PhysicsPlugins` by default.
     app.add_plugins((
         DefaultPlugins,
         PhysicsPlugins::default().with_length_unit(50.0),
-        PhysicsInterpolationPlugin::default(),
     ));
+
+    // By default, interpolation must be enabled for each entity manually
+    // by adding the `TransformInterpolation` component.
+    //
+    // It can also be enabled for all rigid bodies with `PhysicsInterpolationPlugin::interpolate_all()`:
+    //
+    // app.add_plugins(PhysicsPlugins::default().set(PhysicsInterpolationPlugin::interpolate_all()));
 
     // Set gravity.
     app.insert_resource(Gravity(Vector::NEG_Y * 900.0));
