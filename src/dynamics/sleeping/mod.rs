@@ -273,12 +273,18 @@ fn wake_all_sleeping_bodies(
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
     mut commands: Commands,
-    moved_bodies: Query<Ref<Position>, (Changed<Position>, Without<Sleeping>)>,
+    bodies: Query<
+        (Ref<Position>, Has<RigidBodyDisabled>),
+        (
+            Or<(Added<RigidBodyDisabled>, Changed<Position>)>,
+            Without<Sleeping>,
+        ),
+    >,
     colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
     collisions: Res<Collisions>,
     mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
 ) {
-    // Wake up bodies when a body they're colliding with moves.
+    // Wake up bodies when a body they're colliding with moves or gets disabled.
     for (entity, mut time_sleeping, is_sleeping) in &mut sleeping {
         // Skip anything that isn't currently sleeping and already has a time_sleeping of zero.
         // We can't gate the sleeping query using With<Sleeping> here because must also reset
@@ -299,7 +305,9 @@ fn wake_on_collision_ended(
         if colliding_entities.any(|other_entity| {
             colliders.get(other_entity).is_ok_and(|(p, transform)| {
                 transform.is_changed()
-                    || moved_bodies.get(p.get()).is_ok_and(|pos| pos.is_changed())
+                    || bodies
+                        .get(p.get())
+                        .is_ok_and(|(pos, is_disabled)| is_disabled || pos.is_changed())
             })
         }) {
             if is_sleeping {

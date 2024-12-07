@@ -131,6 +131,7 @@
 //! - [Continuous Collision Detection (CCD)](dynamics::ccd)
 //!     - [Speculative collision](dynamics::ccd#speculative-collision)
 //!     - [Swept CCD](dynamics::ccd#swept-ccd)
+//! - [Temporarily disabling a rigid body](RigidBodyDisabled)
 //! - [Automatic deactivation with sleeping](Sleeping)
 //!
 //! See the [`dynamics`] module for more details about rigid body dynamics in Avian.
