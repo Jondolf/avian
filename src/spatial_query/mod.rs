@@ -14,7 +14,7 @@
 //! [`ShapeCaster`] components. They enable performing casts every frame in a way that is often more convenient
 //! than the normal [`SpatialQuery`] methods. See their documentation for more information.
 //!
-//! ## Raycasting
+//! # Raycasting
 //!
 //! **Raycasting** is a spatial query that finds intersections between colliders and a half-line. This can be used for
 //! a variety of things like getting information about the environment for character controllers and AI,
@@ -56,7 +56,7 @@
 //!         // For the faster iterator that isn't sorted, use `.iter()`
 //!         for hit in hits.iter_sorted() {
 //!             println!(
-//!                 "Hit entity {:?} at {} with normal {}",
+//!                 "Hit entity {} at {} with normal {}",
 //!                 hit.entity,
 //!                 ray.origin + *ray.direction * hit.distance,
 //!                 hit.normal,
@@ -68,7 +68,7 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Shapecasting
+//! # Shapecasting
 //!
 //! **Shapecasting** or **sweep testing** is a spatial query that finds intersections between colliders and a shape
 //! that is travelling along a half-line. It is very similar to [raycasting](#raycasting), but instead of a "point"
@@ -113,7 +113,7 @@
 //! fn print_hits(query: Query<(&ShapeCaster, &ShapeHits)>) {
 //!     for (shape_caster, hits) in &query {
 //!         for hit in hits.iter() {
-//!             println!("Hit entity {:?}", hit.entity);
+//!             println!("Hit entity {}", hit.entity);
 //!         }
 //!     }
 //! }
@@ -121,7 +121,7 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Point projection
+//! # Point projection
 //!
 //! **Point projection** is a spatial query that projects a point on the closest collider. It returns the collider's
 //! entity, the projected point, and whether the point is inside of the collider.
@@ -131,7 +131,7 @@
 //!
 //! To specify which colliders should be considered in the query, use a [spatial query filter](`SpatialQueryFilter`).
 //!
-//! ## Intersection tests
+//! # Intersection tests
 //!
 //! **Intersection tests** are spatial queries that return the entities of colliders that are intersecting a given
 //! shape or area.

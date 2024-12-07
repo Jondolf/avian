@@ -5,7 +5,7 @@
 //! platforms by pressing Space while holding the down arrow.
 
 use avian2d::{math::*, prelude::*};
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::HashSet};
+use bevy::{prelude::*, utils::HashSet};
 use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
@@ -53,7 +53,7 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     // For borders
     let square_sprite = Sprite {
@@ -64,45 +64,29 @@ fn setup(
 
     // Ceiling
     commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_xyz(0.0, 50.0 * 6.0, 0.0)
-                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
-            ..default()
-        },
+        square_sprite.clone(),
+        Transform::from_xyz(0.0, 50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_xyz(0.0, -50.0 * 6.0, 0.0)
-                .with_scale(Vec3::new(20.0, 1.0, 1.0)),
-            ..default()
-        },
+        square_sprite.clone(),
+        Transform::from_xyz(0.0, -50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0)
-                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
-            ..default()
-        },
+        square_sprite.clone(),
+        Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite,
-            transform: Transform::from_xyz(50.0 * 9.5, 0.0, 0.0)
-                .with_scale(Vec3::new(1.0, 11.0, 1.0)),
-            ..default()
-        },
+        square_sprite,
+        Transform::from_xyz(50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
         RigidBody::Static,
         Collider::rectangle(50.0, 50.0),
     ));
@@ -117,12 +101,9 @@ fn setup(
     // Spawn some one way platforms
     for y in -2..=2 {
         commands.spawn((
-            SpriteBundle {
-                sprite: one_way_sprite.clone(),
-                transform: Transform::from_xyz(0.0, y as f32 * 16.0 * 6.0, 0.0)
-                    .with_scale(Vec3::new(10.0, 0.5, 1.0)),
-                ..default()
-            },
+            one_way_sprite.clone(),
+            Transform::from_xyz(0.0, y as f32 * 16.0 * 6.0, 0.0)
+                .with_scale(Vec3::new(10.0, 0.5, 1.0)),
             RigidBody::Static,
             Collider::rectangle(50.0, 50.0),
             OneWayPlatform::default(),
@@ -131,14 +112,12 @@ fn setup(
 
     // Spawn an actor for the user to control
     let actor_size = Vector::new(20.0, 20.0);
-    let actor_mesh = MaterialMesh2dBundle {
-        mesh: meshes.add(Rectangle::from_size(actor_size.f32())).into(),
-        material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
-        ..default()
-    };
+    let actor_mesh = meshes.add(Rectangle::from_size(actor_size.f32()));
+    let actor_material = materials.add(Color::srgb(0.2, 0.7, 0.9));
 
     commands.spawn((
-        actor_mesh.clone(),
+        Mesh2d(actor_mesh),
+        MeshMaterial2d(actor_material),
         RigidBody::Dynamic,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
@@ -211,6 +190,7 @@ fn pass_through_one_way_platform(
 /// > which means you won't need to filter collisions at all.
 ///
 /// #### When an entity is known to already be passing through the [`OneWayPlatform`]
+///
 /// Any time an entity begins passing through a [`OneWayPlatform`], it is added to the
 /// [`OneWayPlatform`]'s set of currently active penetrations, and will be allowed to
 /// continue to pass through the platform until it is no longer penetrating the platform.
@@ -222,6 +202,7 @@ fn pass_through_one_way_platform(
 /// have stopped, the entity is forgotten about and the logic falls through to the next part.
 ///
 /// #### When an entity is NOT known to be passing through the [`OneWayPlatform`]
+///
 /// Depending on the setting of [`PassThroughOneWayPlatform`], the entity may be allowed to
 /// pass through.
 ///

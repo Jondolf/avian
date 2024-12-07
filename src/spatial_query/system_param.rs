@@ -3,7 +3,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 
 /// A system parameter for performing [spatial queries](spatial_query).
 ///
-/// ## Methods
+/// # Methods
 ///
 /// - [Raycasting](spatial_query#raycasting): [`cast_ray`](SpatialQuery::cast_ray), [`cast_ray_predicate`](SpatialQuery::cast_ray_predicate),
 ///   [`ray_hits`](SpatialQuery::ray_hits), [`ray_hits_callback`](SpatialQuery::ray_hits_callback)
@@ -21,7 +21,7 @@ use bevy::{ecs::system::SystemParam, prelude::*};
 /// For simple raycasts and shapecasts, consider using the [`RayCaster`] and [`ShapeCaster`] components that
 /// provide a more ECS-based approach and perform casts on every frame.
 ///
-/// ## Raycasting example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -74,7 +74,7 @@ pub struct SpatialQuery<'w, 's> {
     pub query_pipeline: ResMut<'w, SpatialQueryPipeline>,
 }
 
-impl<'w, 's> SpatialQuery<'w, 's> {
+impl SpatialQuery<'_, '_> {
     /// Updates the colliders in the pipeline. This is done automatically once per physics frame in
     /// [`PhysicsStepSet::SpatialQuery`], but if you modify colliders or their positions before that, you can
     /// call this to make sure the data is up to date when performing spatial queries using [`SpatialQuery`].
@@ -86,13 +86,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -137,14 +137,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
     /// If there are no hits, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `false`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -202,14 +202,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// Note that the order of the results is not guaranteed, and if there are more hits than `max_hits`,
     /// some hits will be missed.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -261,14 +261,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// Note that the order of the results is not guaranteed.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
     /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -324,7 +324,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///
     /// For a more ECS-based approach, consider using the [`ShapeCaster`] component instead.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -332,7 +332,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -461,7 +461,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// Casts a [shape](spatial_query#shapecasting) with a given rotation and computes computes all [hits](ShapeHitData)
     /// in the order of distance until `max_hits` is reached.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -471,7 +471,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -527,7 +527,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// in the order of distance, calling the given `callback` for each hit. The shapecast stops when
     /// `callback` returns false or all hits have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape being cast represented as a [`Collider`].
     /// - `origin`: Where the shape is cast from.
@@ -536,7 +536,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `callback`: A callback function called for each hit.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -601,14 +601,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
     /// If one isn't found, `None` is returned.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
     ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -623,7 +623,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     if let Some(projection) = spatial_query.project_point(
     ///         Vec3::ZERO,                    // Point
     ///         true,                          // Are colliders treated as "solid"
-    ///         SpatialQueryFilter::default(), // Query filter
+    ///         &SpatialQueryFilter::default(),// Query filter
     ///     ) {
     ///         println!("Projection: {:?}", projection);
     ///     }
@@ -700,12 +700,12 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
     /// that contains the given point.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -717,10 +717,10 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// # #[cfg(all(feature = "3d", feature = "f32"))]
     /// fn print_point_intersections(spatial_query: SpatialQuery) {
     ///     let intersections =
-    ///         spatial_query.point_intersections(Vec3::ZERO, SpatialQueryFilter::default());
+    ///         spatial_query.point_intersections(Vec3::ZERO, &SpatialQueryFilter::default());
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -740,13 +740,13 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// that contains the given point, calling the given `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -761,7 +761,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     
     ///     spatial_query.point_intersections_callback(
     ///         Vec3::ZERO,                     // Point
-    ///         SpatialQueryFilter::default(),  // Query filter
+    ///         &SpatialQueryFilter::default(), // Query filter
     ///         |entity| {                      // Callback function
     ///             intersections.push(entity);
     ///             true
@@ -769,7 +769,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -790,7 +790,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
     /// that is intersecting the given `aabb`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -805,7 +805,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     let intersections = spatial_query.aabb_intersections_with_aabb(aabb);
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -821,7 +821,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// that is intersecting the given `aabb`, calling `callback` for each intersection.
     /// The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -843,7 +843,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -863,14 +863,14 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
     /// that is intersecting the given `shape` with a given position and rotation.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
     /// - `shape_rotation`: The rotation of the shape.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -885,11 +885,11 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Shape position
     ///         Quat::default(),                 // Shape rotation
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```
@@ -912,7 +912,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// that is intersecting the given `shape` with a given position and rotation, calling `callback` for each
     /// intersection. The search stops when `callback` returns `false` or all intersections have been found.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
@@ -920,7 +920,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// # #[cfg(feature = "2d")]
@@ -937,7 +937,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///         &Collider::sphere(0.5),          // Shape
     ///         Vec3::ZERO,                      // Shape position
     ///         Quat::default(),                 // Shape rotation
-    ///         SpatialQueryFilter::default(),   // Query filter
+    ///         &SpatialQueryFilter::default(),  // Query filter
     ///         |entity| {                       // Callback function
     ///             intersections.push(entity);
     ///             true
@@ -945,7 +945,7 @@ impl<'w, 's> SpatialQuery<'w, 's> {
     ///     );
     ///
     ///     for entity in intersections.iter() {
-    ///         println!("Entity: {:?}", entity);
+    ///         println!("Entity: {}", entity);
     ///     }
     /// }
     /// ```

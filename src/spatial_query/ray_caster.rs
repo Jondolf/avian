@@ -1,8 +1,9 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
+        component::ComponentId,
         entity::{EntityMapper, MapEntities},
+        world::DeferredWorld,
     },
     prelude::*,
 };
@@ -26,7 +27,7 @@ use parry::query::{
 /// The [`RayCaster`] is the easiest way to handle simple raycasts. If you want more control and don't want to
 /// perform raycasts every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Hit count and order
+/// # Hit Count and Order
 ///
 /// The results of a raycast are in an arbitrary order by default. You can iterate over them in the order of
 /// distance with the [`RayHits::iter_sorted`] method.
@@ -39,7 +40,7 @@ use parry::query::{
 /// To guarantee that the closest hit is included, you should set `max_hits` to one or a value that
 /// is enough to contain all hits.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -61,7 +62,7 @@ use parry::query::{
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
 ///             println!(
-///                 "Hit entity {:?} at {} with normal {}",
+///                 "Hit entity {} at {} with normal {}",
 ///                 hit.entity,
 ///                 ray.origin + *ray.direction * hit.distance,
 ///                 hit.normal,
@@ -70,10 +71,12 @@ use parry::query::{
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[component(on_add = on_add_ray_caster)]
+#[require(RayHits)]
 pub struct RayCaster {
     /// Controls if the ray caster is enabled.
     pub enabled: bool,
@@ -339,24 +342,16 @@ impl RayCaster {
     }
 }
 
-impl Component for RayCaster {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
+fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
+    let ray_caster = world.get::<RayCaster>(entity).unwrap();
+    let max_hits = if ray_caster.max_hits == u32::MAX {
+        10
+    } else {
+        ray_caster.max_hits as usize
+    };
 
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            let ray_caster = world.get::<RayCaster>(entity).unwrap();
-            let max_hits = if ray_caster.max_hits == u32::MAX {
-                10
-            } else {
-                ray_caster.max_hits as usize
-            };
-
-            world.commands().entity(entity).try_insert(RayHits {
-                vector: Vec::with_capacity(max_hits),
-                count: 0,
-            });
-        });
-    }
+    // Initialize capacity for hits
+    world.get_mut::<RayHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Configuration for a ray cast.
@@ -440,7 +435,7 @@ impl RayCastConfig {
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].
 ///
-/// ## Order
+/// # Order
 ///
 /// By default, the order of the hits is not guaranteed.
 ///
@@ -450,7 +445,7 @@ impl RayCastConfig {
 /// **Note**: When there are more hits than `max_hits`, **some hits
 /// will be missed**. If you want to guarantee that the closest hit is included, set `max_hits` to one.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -463,7 +458,7 @@ impl RayCastConfig {
 ///     for hits in &query {
 ///         // For the faster iterator that isn't sorted, use `.iter()`
 ///         for hit in hits.iter_sorted() {
-///             println!("Hit entity {:?} with distance {}", hit.entity, hit.distance);
+///             println!("Hit entity {} with distance {}", hit.entity, hit.distance);
 ///         }
 ///     }
 /// }

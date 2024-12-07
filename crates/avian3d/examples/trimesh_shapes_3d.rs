@@ -52,17 +52,14 @@ fn setup(
         commands.spawn((
             RigidBody::Dynamic,
             Collider::trimesh_from_mesh(&shape).unwrap(),
-            PbrBundle {
-                mesh: meshes.add(shape),
-                material: debug_material.clone(),
-                transform: Transform::from_xyz(
-                    -10.0 / 2.0 + i as f32 / (num_shapes - 1) as f32 * 10.0,
-                    2.0,
-                    0.0,
-                )
-                .with_rotation(Quat::from_rotation_x(0.4)),
-                ..default()
-            },
+            Mesh3d(meshes.add(shape)),
+            MeshMaterial3d(debug_material.clone()),
+            Transform::from_xyz(
+                -10.0 / 2.0 + i as f32 / (num_shapes - 1) as f32 * 10.0,
+                2.0,
+                0.0,
+            )
+            .with_rotation(Quat::from_rotation_x(0.4)),
         ));
     }
 
@@ -70,31 +67,27 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cuboid(50.0, 0.1, 50.0),
-        PbrBundle {
-            mesh: meshes.add(Plane3d::default().mesh().size(50.0, 50.0)),
-            material: materials.add(Color::from(SILVER)),
-            transform: Transform::from_xyz(0.0, -1.0, 0.0),
-            ..default()
-        },
+        Mesh3d(meshes.add(Plane3d::default().mesh().size(50.0, 50.0))),
+        MeshMaterial3d(materials.add(Color::from(SILVER))),
+        Transform::from_xyz(0.0, -1.0, 0.0),
     ));
 
     // Light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             intensity: 8_000_000.0,
             range: 100.,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(8.0, 16.0, 8.0),
-        ..default()
-    });
+        Transform::from_xyz(8.0, 16.0, 8.0),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 6., 12.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 6., 12.0).looking_at(Vec3::new(0., 1., 0.), Vec3::Y),
+    ));
 }
 
 /// Creates a colorful test pattern

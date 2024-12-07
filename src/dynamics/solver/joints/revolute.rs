@@ -210,7 +210,7 @@ impl RevoluteJoint {
         let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
             #[cfg(feature = "2d")]
             {
-                angle_limit.compute_correction(*body1.rotation, *body2.rotation, dt)
+                angle_limit.compute_correction(*body1.rotation, *body2.rotation, PI)
             }
             #[cfg(feature = "3d")]
             {
@@ -218,7 +218,7 @@ impl RevoluteJoint {
                 let a1 = *body1.rotation * self.aligned_axis;
                 let b1 = *body1.rotation * self.aligned_axis.any_orthonormal_vector();
                 let b2 = *body2.rotation * self.aligned_axis.any_orthonormal_vector();
-                angle_limit.compute_correction(a1, b1, b2, dt)
+                angle_limit.compute_correction(a1, b1, b2, PI)
             }
         }) else {
             return Torque::ZERO;

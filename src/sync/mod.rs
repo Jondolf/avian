@@ -16,7 +16,7 @@ pub mod ancestor_marker;
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
 ///
-/// ## Syncing between [`Position`]/[`Rotation`] and [`Transform`]
+/// # Syncing Between [`Position`]/[`Rotation`] and [`Transform`]
 ///
 /// By default, each body's `Transform` will be updated when [`Position`] or [`Rotation`]
 /// change, and vice versa. This means that you can use any of these components to move
@@ -25,7 +25,7 @@ pub mod ancestor_marker;
 /// You can configure what data is synchronized and how it is synchronized
 /// using the [`SyncConfig`] resource.
 ///
-/// ## `Transform` hierarchies
+/// # `Transform` Hierarchies
 ///
 /// When synchronizing changes in [`Position`] or [`Rotation`] to `Transform`,
 /// the engine treats nested [rigid bodies](RigidBody) as a flat structure. This means that
@@ -143,15 +143,24 @@ impl Plugin for SyncPlugin {
     }
 }
 
-/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+/// Configures what physics data is synchronized by the [`SyncPlugin`] and [`PreparePlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::PositionToTransform`].
     pub position_to_transform: bool,
     /// Updates [`Position`] and [`Rotation`] based on transform changes,
-    /// allowing you to move bodies using `Transform`. Defaults to true.
+    /// allowing you to move bodies using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::TransformToPosition`].
     pub transform_to_position: bool,
+    /// Updates [`Collider::scale()`] based on transform changes,
+    /// allowing you to scale colliders using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`PrepareSet::Finalize`]
+    pub transform_to_collider_scale: bool,
 }
 
 impl Default for SyncConfig {
@@ -159,6 +168,7 @@ impl Default for SyncConfig {
         SyncConfig {
             position_to_transform: true,
             transform_to_position: true,
+            transform_to_collider_scale: true,
         }
     }
 }
@@ -209,7 +219,7 @@ pub fn transform_to_position(
         Option<&AccumulatedTranslation>,
         &mut Rotation,
         Option<&PreviousRotation>,
-        Option<&CenterOfMass>,
+        Option<&ComputedCenterOfMass>,
     )>,
 ) {
     for (
@@ -258,15 +268,14 @@ pub fn transform_to_position(
         {
             let rot = Rotation::from(transform.rotation.adjust_precision());
             let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot * (rot * prev_rot.inverse()) * (*rotation * prev_rot.inverse());
+            *rotation = prev_rot * (prev_rot.inverse() * rot) * (prev_rot.inverse() * *rotation);
         }
         #[cfg(feature = "3d")]
         {
             rotation.0 = (previous_transform.rotation
-                + (transform.rotation - previous_transform.rotation)
-                + (rotation.f32() - previous_transform.rotation))
-                .normalize()
-                .adjust_precision();
+                * (previous_transform.rotation.inverse() * transform.rotation)
+                * (previous_transform.rotation.inverse() * rotation.f32()))
+            .adjust_precision();
         }
     }
 }

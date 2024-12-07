@@ -23,6 +23,10 @@ pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
+        // TODO: This is only relevant for dynamic bodies. Different bodies should be distinguished with marker components.
+        // Add sleep timer for all rigid bodies.
+        let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
+
         app.init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
             .init_resource::<LastPhysicsTick>();
@@ -117,10 +121,10 @@ pub fn mark_sleeping_bodies(
             &mut LinearVelocity,
             &mut AngularVelocity,
             &mut TimeSleeping,
-            &CollidingEntities,
         ),
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
+    collisions: Res<Collisions>,
     rb_query: Query<&RigidBody>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
@@ -130,8 +134,15 @@ pub fn mark_sleeping_bodies(
     let length_unit_sq = length_unit.powi(2);
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping, colliding_entities) in &mut query
-    {
+    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
+        let colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
+            if entity == c.entity1 {
+                c.entity2
+            } else {
+                c.entity1
+            }
+        });
+
         // Only dynamic bodies can sleep, and only if they are not
         // in contact with other dynamic bodies.
         //
@@ -139,7 +150,7 @@ pub fn mark_sleeping_bodies(
         // sleeping/waking is implemented with simulation islands.
         if !rb.is_dynamic()
             || rb_query
-                .iter_many(colliding_entities.iter())
+                .iter_many(colliding_entities)
                 .any(|rb| rb.is_dynamic())
         {
             continue;
@@ -262,12 +273,18 @@ fn wake_all_sleeping_bodies(
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
     mut commands: Commands,
-    moved_bodies: Query<Ref<Position>, (Changed<Position>, Without<Sleeping>)>,
+    bodies: Query<
+        (Ref<Position>, Has<RigidBodyDisabled>),
+        (
+            Or<(Added<RigidBodyDisabled>, Changed<Position>)>,
+            Without<Sleeping>,
+        ),
+    >,
     colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
     collisions: Res<Collisions>,
     mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
 ) {
-    // Wake up bodies when a body they're colliding with moves.
+    // Wake up bodies when a body they're colliding with moves or gets disabled.
     for (entity, mut time_sleeping, is_sleeping) in &mut sleeping {
         // Skip anything that isn't currently sleeping and already has a time_sleeping of zero.
         // We can't gate the sleeping query using With<Sleeping> here because must also reset
@@ -288,7 +305,9 @@ fn wake_on_collision_ended(
         if colliding_entities.any(|other_entity| {
             colliders.get(other_entity).is_ok_and(|(p, transform)| {
                 transform.is_changed()
-                    || moved_bodies.get(p.get()).is_ok_and(|pos| pos.is_changed())
+                    || bodies
+                        .get(p.get())
+                        .is_ok_and(|(pos, is_disabled)| is_disabled || pos.is_changed())
             })
         }) {
             if is_sleeping {

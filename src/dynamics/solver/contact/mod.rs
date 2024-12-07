@@ -113,9 +113,9 @@ impl ContactConstraint {
 
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
-        let inverse_mass_sum = body1.inv_mass() + body2.inv_mass();
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let inverse_mass_sum = body1.mass().inverse() + body2.mass().inverse();
+        let i1 = body1.effective_global_angular_inertia();
+        let i2 = body2.effective_global_angular_inertia();
 
         let mut constraint = Self {
             entity1: body1.entity,
@@ -215,10 +215,10 @@ impl ContactConstraint {
         tangent_directions: [Vector; DIM - 1],
         warm_start_coefficient: Scalar,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         for point in self.points.iter() {
             // Fixed anchors
@@ -259,10 +259,10 @@ impl ContactConstraint {
         use_bias: bool,
         max_overlap_solve_speed: Scalar,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         let delta_translation = body2.accumulated_translation.0 - body1.accumulated_translation.0;
 
@@ -368,10 +368,10 @@ impl ContactConstraint {
             let r1 = point.anchor1;
             let r2 = point.anchor2;
 
-            let inv_mass1 = body1.effective_inv_mass();
-            let inv_mass2 = body2.effective_inv_mass();
-            let inv_inertia1 = body1.effective_world_inv_inertia();
-            let inv_inertia2 = body2.effective_world_inv_inertia();
+            let inv_mass1 = body1.effective_inverse_mass();
+            let inv_mass2 = body2.effective_inverse_mass();
+            let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+            let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
             // Relative velocity at contact point
             let relative_velocity = body2.velocity_at_point(r2) - body1.velocity_at_point(r1);
@@ -413,7 +413,7 @@ impl ContactConstraint {
             let force_direction = -self.normal;
             let relative_velocity = velocity1 - velocity2;
             let tangent_velocity =
-                relative_velocity + force_direction * force_direction.dot(relative_velocity);
+                relative_velocity - force_direction * force_direction.dot(relative_velocity);
 
             let tangent = tangent_velocity
                 .try_normalize()

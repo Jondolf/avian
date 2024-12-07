@@ -49,13 +49,13 @@ use indexmap::IndexMap;
 /// Each colliding entity pair is associated with [`Contacts`] that can be accessed and modified
 /// using the various associated methods.
 ///
-/// ## Usage
+/// # Usage
 ///
 /// [`Collisions`] can be accessed at almost anytime, but for modifying and filtering collisions,
 /// it is recommended to use the [`PostProcessCollisions`] schedule. See its documentation
 /// for more information.
 ///
-/// ### Querying collisions
+/// ## Querying Collisions
 ///
 /// The following methods can be used for querying existing collisions:
 ///
@@ -68,7 +68,7 @@ use indexmap::IndexMap;
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
 ///
-/// ### Filtering and removing collisions
+/// ## Filtering and Removing Collisions
 ///
 /// The following methods can be used for filtering or removing existing collisions:
 ///
@@ -79,7 +79,7 @@ use indexmap::IndexMap;
 /// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver will use the old contact data.
 ///
-/// ### Adding new collisions
+/// ## Adding New Collisions
 ///
 /// The following methods can be used for adding new collisions:
 ///
@@ -89,7 +89,7 @@ use indexmap::IndexMap;
 /// The most convenient place for adding new collisions is in the [`PostProcessCollisions`] schedule.
 /// Otherwise, the physics solver might not have access to them in time.
 ///
-/// ## Implementation details
+/// # Implementation Details
 ///
 /// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
 /// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
@@ -330,6 +330,33 @@ impl Contacts {
     pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
         self.total_tangent_impulse / delta_time
     }
+
+    /// Returns `true` if a collision started during the current frame.
+    pub fn collision_started(&self) -> bool {
+        !self.during_previous_frame && self.during_current_frame
+    }
+
+    /// Returns `true` if a collision stopped during the current frame.
+    pub fn collision_stopped(&self) -> bool {
+        self.during_previous_frame && !self.during_current_frame
+    }
+
+    /// Returns the contact with the largest penetration depth.
+    ///
+    /// If the objects are separated but there is still a speculative contact,
+    /// the penetration depth will be negative.
+    ///
+    /// If there are no contacts, `None` is returned.
+    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+        self.manifolds
+            .iter()
+            .filter_map(|manifold| manifold.find_deepest_contact())
+            .max_by(|a, b| {
+                a.penetration
+                    .partial_cmp(&b.penetration)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+    }
 }
 
 /// A contact manifold between two colliders, containing a set of contact points.
@@ -410,6 +437,20 @@ impl ContactManifold {
             }
         }
     }
+
+    /// Returns the contact with the largest penetration depth.
+    ///
+    /// If the objects are separated but there is still a speculative contact,
+    /// the penetration depth will be negative.
+    ///
+    /// If there are no contacts, `None` is returned.
+    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+        self.contacts.iter().max_by(|a, b| {
+            a.penetration
+                .partial_cmp(&b.penetration)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+    }
 }
 
 /// Data related to a single contact between two bodies.
@@ -470,6 +511,23 @@ impl SingleContact {
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal2
     }
+
+    /// Flips the contact data, swapping the points and normals.
+    pub fn flip(&mut self) {
+        std::mem::swap(&mut self.point1, &mut self.point2);
+        std::mem::swap(&mut self.normal1, &mut self.normal2);
+    }
+
+    /// Returns a flipped copy of the contact data, swapping the points and normals.
+    pub fn flipped(&self) -> Self {
+        Self {
+            point1: self.point2,
+            point2: self.point1,
+            normal1: self.normal2,
+            normal2: self.normal1,
+            penetration: self.penetration,
+        }
+    }
 }
 
 /// Data related to a contact between two bodies.
@@ -505,7 +563,7 @@ pub struct ContactData {
     /// The contact feature ID on the first shape. This indicates the ID of
     /// the vertex, edge, or face of the contact, if one can be determined.
     pub feature_id1: PackedFeatureId,
-    /// The contact feature ID on the first shape. This indicates the ID of
+    /// The contact feature ID on the second shape. This indicates the ID of
     /// the vertex, edge, or face of the contact, if one can be determined.
     pub feature_id2: PackedFeatureId,
 }
@@ -590,5 +648,31 @@ impl ContactData {
     /// Returns the world-space contact normal pointing towards the exterior of the second entity.
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal2
+    }
+
+    /// Flips the contact data, swapping the points, normals, and feature IDs,
+    /// and negating the impulses.
+    pub fn flip(&mut self) {
+        std::mem::swap(&mut self.point1, &mut self.point2);
+        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
+        self.normal_impulse = -self.normal_impulse;
+        self.tangent_impulse = -self.tangent_impulse;
+    }
+
+    /// Returns a flipped copy of the contact data, swapping the points, normals, and feature IDs,
+    /// and negating the impulses.
+    pub fn flipped(&self) -> Self {
+        Self {
+            point1: self.point2,
+            point2: self.point1,
+            normal1: self.normal2,
+            normal2: self.normal1,
+            penetration: self.penetration,
+            normal_impulse: -self.normal_impulse,
+            tangent_impulse: -self.tangent_impulse,
+            feature_id1: self.feature_id2,
+            feature_id2: self.feature_id1,
+        }
     }
 }

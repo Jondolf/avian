@@ -18,6 +18,7 @@ default = [
     "parry-f32",
     "collider-from-mesh",
     "bevy_scene",
+    "bevy_picking",
     "debug-plugin",
     "parallel",
 ]
@@ -33,6 +34,7 @@ enhanced-determinism = [
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
     "bevy_math/libm",
+    "bevy_heavy/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -43,9 +45,12 @@ parry-f64 = ["f64", "dep:parry3d-f64", "default-collider"]
 
 collider-from-mesh = ["bevy/bevy_render", "3d"]
 bevy_scene = ["bevy/bevy_scene"]
+bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "bevy_heavy/serialize",
+    "bevy_transform_interpolation/serialize",
     "parry3d?/serde-serialize",
     "parry3d-f64?/serde-serialize",
     "bitflags/serde",
@@ -59,30 +64,33 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.1" }
-bevy = { version = "0.14", default-features = false }
-bevy_math = { version = "0.14" }
+bevy = { version = "0.15", default-features = false }
+bevy_math = { version = "0.15" }
+bevy_heavy = { version = "0.1" }
+bevy_transform_interpolation = { version = "0.1" }
 libm = { version = "0.2", optional = true }
-parry3d = { version = "0.15", optional = true }
-parry3d-f64 = { version = "0.15", optional = true }
-nalgebra = { version = "0.32.6", features = [
-    "convert-glam027",
-], optional = true }
+parry3d = { version = "0.17", optional = true }
+parry3d-f64 = { version = "0.17", optional = true }
+nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "0.99"
+derive_more = "1"
 indexmap = "2.0.0"
 fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"
 
 [dev-dependencies]
-bevy = { version = "0.14", default-features = false, features = ["bevy_gltf"] }
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy_math = { version = "0.14", features = ["approx"] }
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_gltf",
+    "animation",
+] }
+bevy_math = { version = "0.15", features = ["approx"] }
+bevy_heavy = { version = "0.1", features = ["approx"] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
-insta = "1.0"
-
+bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump" }
 
 [[example]]
 name = "dynamic_character_3d"
@@ -129,12 +137,20 @@ name = "revolute_joint_3d"
 required-features = ["3d", "default-collider"]
 
 [[example]]
+name = "picking"
+required-features = ["3d", "default-collider", "bevy_picking"]
+
+[[example]]
 name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
 name = "collider_constructors"
 required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
+name = "debugdump_3d"
+required-features = ["3d"]
 
 [[bench]]
 name = "cubes"

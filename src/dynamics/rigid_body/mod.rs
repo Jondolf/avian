@@ -1,14 +1,18 @@
 //! Common components and bundles for rigid bodies.
 
+pub mod mass_properties;
+
 // Components
 mod forces;
 mod locked_axes;
-mod mass_properties;
+mod physics_material;
 mod world_query;
 
 pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
-pub use mass_properties::*;
+pub use physics_material::{
+    CoefficientCombine, DefaultFriction, DefaultRestitution, Friction, Restitution,
+};
 pub use world_query::*;
 
 #[cfg(feature = "2d")]
@@ -21,7 +25,7 @@ use derive_more::From;
 
 /// A non-deformable body used for the simulation of most physics objects.
 ///
-/// ## Rigid body types
+/// # Rigid Body Types
 ///
 /// A rigid body can be either dynamic, kinematic or static.
 ///
@@ -29,9 +33,10 @@ use derive_more::From;
 /// - **Kinematic bodies** can only be moved programmatically, which is useful for things like character controllers and moving platforms.
 /// - **Static bodies** can not move, so they can be good for objects in the environment like the ground and walls.
 ///
-/// ## Creation
+/// # Creation
 ///
-/// Creating a rigid body is as simple as adding the [`RigidBody`] component:
+/// Creating a rigid body is as simple as adding the [`RigidBody`] component,
+/// and an optional [`Collider`]:
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -39,36 +44,19 @@ use derive_more::From;
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     // Spawn a dynamic rigid body and specify its position (optional)
+///     // Spawn a dynamic rigid body and specify its position.
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
-///         TransformBundle::from_transform(Transform::from_xyz(0.0, 3.0, 0.0)),
+///         Collider::capsule(0.5, 1.5),
+///         Transform::from_xyz(0.0, 3.0, 0.0),
 ///     ));
 /// }
 /// ```
 ///
-/// Avian will automatically add any missing components, like the following:
+/// By default, dynamic rigid bodies will have mass properties computed based on the attached colliders
+/// and their [`ColliderDensity`]. See the [Mass properties](#mass-properties) section for more information.
 ///
-/// - [`Position`]
-/// - [`Rotation`]
-/// - [`LinearVelocity`]
-/// - [`AngularVelocity`]
-/// - [`ExternalForce`]
-/// - [`ExternalTorque`]
-/// - [`ExternalImpulse`]
-/// - [`ExternalAngularImpulse`]
-/// - [`Friction`]
-/// - [`Restitution`]
-/// - [`Mass`]
-/// - [`Inertia`]
-/// - [`CenterOfMass`]
-///
-/// You can change any of these during initialization and runtime in order to alter the behaviour of the body.
-///
-/// By default, rigid bodies will get a mass based on the attached colliders and their densities.
-/// See [mass properties](#mass-properties).
-///
-/// ## Movement
+/// # Movement
 ///
 /// A rigid body can be moved in three ways: by modifying its position directly,
 /// by changing its velocity, or by applying forces or impulses.
@@ -119,37 +107,21 @@ use derive_more::From;
 /// [`basic_dynamic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_dynamic_character.rs
 /// [`basic_kinematic_character`]: https://github.com/Jondolf/avian/blob/42fb8b21c756a7f4dd91071597dc251245ddaa8f/crates/avian3d/examples/basic_kinematic_character.rs
 ///
-/// ## Mass properties
+/// # Mass Properties
 ///
-/// The mass properties of a rigid body consist of its [`Mass`], [`Inertia`]
-/// and local [`CenterOfMass`]. They control how forces and torques impact a rigid body
-/// and how it affects other bodies.
+/// Every dynamic rigid body has [mass], [angular inertia], and a [center of mass].
+/// These mass properties determine how the rigid body responds to forces and torques.
 ///
-/// You should always give dynamic rigid bodies mass properties so that forces
-/// are applied to them correctly. The easiest way to do that is to simply [add a collider](Collider):
+/// - **Mass**: Represents resistance to linear acceleration. A higher mass requires more force for the same acceleration.
+/// - **Angular Inertia**: Represents resistance to angular acceleration. A higher angular inertia requires more torque for the same angular acceleration.
+/// - **Center of Mass**: The average position of mass in the body. Applying forces at this point produces no torque.
 ///
-/// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-#[cfg_attr(
-    feature = "2d",
-    doc = "commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
-)]
-/// # }
-/// ```
+/// Static and kinematic rigid bodies have infinite mass and angular inertia,
+/// and do not respond to forces or torques. Zero mass for a dynamic body is also
+/// treated as a special case, and corresponds to infinite mass.
 ///
-/// This will automatically compute the [collider's mass properties](ColliderMassProperties)
-/// and add them to the body's own mass properties.
-///
-/// By default, each collider has a density of `1.0`. This can be configured with
-/// the [`ColliderDensity`] component:
+/// If no mass properties are set, they are computed automatically from attached colliders
+/// based on their shape and density.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -157,18 +129,17 @@ use derive_more::From;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
+/// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
-#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
-///     ColliderDensity(2.5),
+///     Collider::capsule(0.5, 1.5),
+///     ColliderDensity(2.0),
 /// ));
 /// # }
 /// ```
 ///
-/// If you don't want to add a collider, you can instead add a [`MassPropertiesBundle`]
-/// with the mass properties computed from a collider shape using the
-/// [`MassPropertiesBundle::new_computed`](MassPropertiesBundle::new_computed) method.
+/// If mass properties are set with the [`Mass`], [`AngularInertia`], and [`CenterOfMass`] components,
+/// they override the values computed from colliders.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -176,57 +147,126 @@ use derive_more::From;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
-/// // This is equivalent to the earlier approach, but no collider will be added
+/// // Override mass and the center of mass, but use the collider's angular inertia.
 /// commands.spawn((
 ///     RigidBody::Dynamic,
-#[cfg_attr(
-    feature = "2d",
-    doc = "    MassPropertiesBundle::new_computed(&Collider::circle(0.5), 2.5),"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "    MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 2.5),"
-)]
-/// ));
-/// # }
-/// ```
-///
-/// You can also specify the exact values of the mass properties by adding the components manually.
-/// To avoid the collider mass properties from being added to the body's own mass properties,
-/// you can simply set the collider's density to zero.
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
-/// # use bevy::prelude::*;
-/// #
-/// # fn setup(mut commands: Commands) {
-/// // Create a rigid body with a mass of 5.0 and a collider with no mass
-/// commands.spawn((
-///     RigidBody::Dynamic,
-#[cfg_attr(feature = "2d", doc = "    Collider::circle(0.5),")]
-#[cfg_attr(feature = "3d", doc = "    Collider::sphere(0.5),")]
-///     ColliderDensity(0.0),
+///     Collider::capsule(0.5, 1.5),
 ///     Mass(5.0),
-///     // ...the rest of the mass properties
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
 /// ));
 /// # }
-///
 /// ```
 ///
-/// ## See more
+/// If the rigid body has child colliders, their mass properties will be combined for
+/// the total [`ComputedMass`], [`ComputedAngularInertia`], and [`ComputedCenterOfMass`].
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Total mass: 10.0 + 5.0 = 15.0
+#[cfg_attr(
+    feature = "2d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5] + 5.0 * [0.0, 4.0]) / (10.0 + 5.0) = [0.0, 1.0]"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
+)]
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::capsule(0.5, 1.5),
+///     Mass(10.0),
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+///     Transform::default(),
+/// ))
+/// .with_child((
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(1.0),")]
+///     Mass(5.0),
+///     Transform::from_xyz(0.0, 4.0, 0.0),
+/// ));
+/// # }
+/// ```
+///
+/// To prevent child entities from contributing to the total mass properties, use the [`NoAutoMass`],
+/// [`NoAutoAngularInertia`], and [`NoAutoCenterOfMass`] marker components.
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// # fn setup(mut commands: Commands) {
+/// // Total mass: 10.0
+#[cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
+#[cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
+/// commands.spawn((
+///     RigidBody::Dynamic,
+///     Collider::capsule(0.5, 1.5),
+///     Mass(10.0),
+#[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
+#[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
+///     NoAutoMass,
+///     NoAutoCenterOfMass,
+///     Transform::default(),
+/// ))
+/// .with_child((
+#[cfg_attr(feature = "2d", doc = "    Collider::circle(1.0),")]
+#[cfg_attr(feature = "3d", doc = "    Collider::sphere(1.0),")]
+///     Mass(5.0),
+///     Transform::from_xyz(0.0, 4.0, 0.0),
+/// ));
+/// # }
+/// ```
+///
+/// See the [`mass_properties`] module for more information.
+///
+/// [mass]: mass_properties::components::Mass
+/// [angular inertia]: mass_properties::components::AngularInertia
+/// [center of mass]: mass_properties::components::CenterOfMass
+/// [mass properties]: mass_properties
+///
+/// # See More
 ///
 /// - [Colliders](Collider)
 /// - [Gravity] and [gravity scale](GravityScale)
 /// - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
+/// - [Friction] and [restitution](Restitution) (bounciness)
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
 /// - [Continuous Collision Detection](dynamics::ccd)
+/// - [Temporarily disabling a rigid body](RigidBodyDisabled)
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
+#[require(
+    LinearVelocity,
+    AngularVelocity,
+    // TODO: Make these force components optional.
+    ExternalForce,
+    ExternalTorque,
+    ExternalImpulse,
+    ExternalAngularImpulse,
+    ComputedMass,
+    ComputedAngularInertia,
+    ComputedCenterOfMass,
+    // Currently required for solver internals.
+    // Some of these might be removed in the future.
+    AccumulatedTranslation,
+    PreSolveAccumulatedTranslation,
+    PreSolveLinearVelocity,
+    PreSolveAngularVelocity,
+    PreSolveRotation,
+    PreviousRotation,
+)]
+#[cfg_attr(feature = "3d", require(GlobalAngularInertia))]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]
@@ -265,6 +305,55 @@ impl RigidBody {
         *self == Self::Kinematic
     }
 }
+
+/// A query filter that selects rigid bodies that are neither disabled nor sleeping.
+pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sleeping>);
+
+/// A marker component that indicates that a [rigid body](RigidBody) is disabled
+/// and should not participate in the simulation. Disables velocity, forces, contact response,
+/// and attached joints.
+///
+/// This is useful for temporarily disabling a body without removing it from the world.
+/// To re-enable the body, simply remove the component.
+///
+/// Note that this component does *not* disable collision detection or spatial queries for colliders
+/// attached to the rigid body.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// #[derive(Component)]
+/// pub struct Character;
+///
+/// /// Disables physics for all rigid body characters, for example during cutscenes.
+/// fn disable_character_physics(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).insert(RigidBodyDisabled);
+///     }
+/// }
+///
+/// /// Enables physics for all rigid body characters.
+/// fn enable_character_physics(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).remove::<RigidBodyDisabled>();
+///     }
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct RigidBodyDisabled;
 
 /// Indicates that a [rigid body](RigidBody) is not simulated by the physics engine until woken up again.
 /// This is done to improve performance and to help prevent small jitter that is typically present in collisions.
@@ -314,7 +403,7 @@ pub struct AccumulatedTranslation(pub Vector);
 
 /// The linear velocity of a [rigid body](RigidBody).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -327,6 +416,12 @@ pub struct AccumulatedTranslation(pub Vector);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalForce`]: Applies a force to a dynamic body.
+/// - [`LinearDamping`]: Reduces the linear velocity of a body over time, similar to air resistance.
+/// - [`MaxLinearSpeed`]: Clamps the linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -338,6 +433,64 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
+/// The maximum linear speed of a [rigid body](RigidBody), clamping the [`LinearVelocity`].
+///
+/// This can be useful for limiting how fast bodies can move, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with linear velocity clamped to `100.0` units per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxLinearSpeed(100.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxLinearVelocity")]
+pub struct MaxLinearSpeed(pub Scalar);
+
+impl Default for MaxLinearSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
+/// The maximum angular speed of a [rigid body](RigidBody), clamping the [`AngularVelocity`].
+///
+/// This can be useful for limiting how fast bodies can rotate, and can help control behavior and prevent instability.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
+///
+/// // Spawn a dynamic body with angular velocity clamped to `20.0` radians per second.
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((RigidBody::Dynamic, MaxAngularSpeed(20.0)));
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[doc(alias = "MaxAngularVelocity")]
+pub struct MaxAngularSpeed(pub Scalar);
+
+impl Default for MaxAngularSpeed {
+    fn default() -> Self {
+        Self(Scalar::INFINITY)
+    }
+}
+
 /// The linear velocity of a [rigid body](RigidBody) before the velocity solve is performed.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[reflect(Component)]
@@ -346,7 +499,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 /// The angular velocity of a [rigid body](RigidBody) in radians per second.
 /// Positive values will result in counterclockwise rotation.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian2d::prelude::*;
@@ -358,8 +511,14 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
+/// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
+/// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "2d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, From)]
+#[derive(Reflect, Clone, Copy, Deref, DerefMut, Component, Debug, Default, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
@@ -368,7 +527,7 @@ pub struct AngularVelocity(pub Scalar);
 /// The angular velocity of a [rigid body](RigidBody) as a rotation axis
 /// multiplied by the angular speed in radians per second.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian3d::prelude::*;
@@ -380,6 +539,12 @@ pub struct AngularVelocity(pub Scalar);
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
+/// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
+/// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "3d")]
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -415,19 +580,16 @@ pub(crate) struct PreSolveAngularVelocity(pub Vector);
 /// A gravity scale of `0.0` will disable gravity, while `2.0` will double the gravity.
 /// Using a negative value will flip the direction of the gravity.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// // Spawn a body with 1.5 times the normal gravity
+/// // Spawn a dynamic body with `1.5` times the normal gravity.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         GravityScale(1.5),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, GravityScale(1.5)));
 /// }
 /// ```
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From)]
@@ -442,309 +604,12 @@ impl Default for GravityScale {
     }
 }
 
-/// Determines how coefficients are combined for [`Restitution`] and [`Friction`].
-/// The default is `Average`.
-///
-/// When combine rules clash with each other, the following priority order is used:
-/// `Max > Multiply > Min > Average`.
-#[derive(Reflect, Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Default, PartialEq)]
-pub enum CoefficientCombine {
-    // The discriminants allow priority ordering to work automatically via comparison methods
-    /// Coefficients are combined by computing their average.
-    #[default]
-    Average = 1,
-    /// Coefficients are combined by choosing the smaller coefficient.
-    Min = 2,
-    /// Coefficients are combined by computing their product.
-    Multiply = 3,
-    /// Coefficients are combined by choosing the larger coefficient.
-    Max = 4,
-}
-
-/// A component for the [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
-/// This controls how bouncy a [rigid body](RigidBody) is.
-///
-/// The coefficient is between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
-/// to a **perfectly elastic collision** that preserves all kinetic energy. The default coefficient is 0.3, and it currently
-/// can not be configured at a global level.
-///
-/// When two bodies collide, their restitution coefficients are combined using the specified [`CoefficientCombine`] rule.
-///
-/// ## Example
-///
-/// Create a new [`Restitution`] component with a restitution coefficient of 0.4:
-///
-/// ```ignore
-/// Restitution::new(0.4)
-/// ```
-///
-/// Configure how two restitution coefficients are combined with [`CoefficientCombine`]:
-///
-/// ```ignore
-/// Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// ```
-///
-/// Combine the properties of two [`Restitution`] components:
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-///
-/// let first = Restitution::new(0.8).with_combine_rule(CoefficientCombine::Average);
-/// let second = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
-///
-/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
-/// assert_eq!(
-///     first.combine(second),
-///     Restitution::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// );
-/// ```
-#[doc(alias = "Bounciness")]
-#[doc(alias = "Elasticity")]
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct Restitution {
-    /// The [coefficient of restitution](https://en.wikipedia.org/wiki/Coefficient_of_restitution).
-    ///
-    /// This should be between 0 and 1, where 0 corresponds to a **perfectly inelastic collision**, and 1 corresponds
-    /// to a **perfectly elastic collision** that preserves all kinetic energy. The default value is 0.3.
-    pub coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies collide.
-    pub combine_rule: CoefficientCombine,
-}
-
-impl Restitution {
-    /// A restitution coefficient of 0.0 and a combine rule of [`CoefficientCombine::Average`].
-    ///
-    /// This is equivalent to [`Restitution::PERFECTLY_INELASTIC`].
-    pub const ZERO: Self = Self {
-        coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// A restitution coefficient of 0.0, which corresponds to a perfectly inelastic collision.
-    ///
-    /// Uses [`CoefficientCombine::Average`].
-    pub const PERFECTLY_INELASTIC: Self = Self {
-        coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// A restitution coefficient of 1.0, which corresponds to a perfectly elastic collision.
-    ///
-    /// Uses [`CoefficientCombine::Average`].
-    pub const PERFECTLY_ELASTIC: Self = Self {
-        coefficient: 1.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// Creates a new [`Restitution`] component with the given restitution coefficient.
-    pub fn new(coefficient: Scalar) -> Self {
-        Self {
-            coefficient: coefficient.clamp(0.0, 1.0),
-            combine_rule: CoefficientCombine::Average,
-        }
-    }
-
-    /// Sets the [`CoefficientCombine`] rule used.
-    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
-        Self {
-            combine_rule,
-            ..*self
-        }
-    }
-
-    /// Combines the properties of two [`Restitution`] components.
-    pub fn combine(&self, other: Self) -> Self {
-        // Choose rule with higher priority
-        let rule = self.combine_rule.max(other.combine_rule);
-
-        Self {
-            coefficient: match rule {
-                CoefficientCombine::Average => (self.coefficient + other.coefficient) * 0.5,
-                CoefficientCombine::Min => self.coefficient.min(other.coefficient),
-                CoefficientCombine::Multiply => self.coefficient * other.coefficient,
-                CoefficientCombine::Max => self.coefficient.max(other.coefficient),
-            },
-            combine_rule: rule,
-        }
-    }
-}
-
-impl Default for Restitution {
-    fn default() -> Self {
-        Self {
-            coefficient: 0.3,
-            combine_rule: CoefficientCombine::default(),
-        }
-    }
-}
-
-impl From<Scalar> for Restitution {
-    fn from(coefficient: Scalar) -> Self {
-        Self {
-            coefficient,
-            ..default()
-        }
-    }
-}
-
-/// Controls how strongly the material of an entity prevents relative tangential movement at contact points.
-///
-/// For surfaces that are at rest relative to each other, static friction is used.
-/// Once the static friction is overcome, the bodies will start sliding relative to each other, and dynamic friction is applied instead.
-///
-/// 0.0: No friction at all, the body slides indefinitely\
-/// 1.0: High friction\
-///
-/// ## Example
-///
-/// Create a new [`Friction`] component with dynamic and static friction coefficients of 0.4:
-///
-/// ```ignore
-/// Friction::new(0.4)
-/// ```
-///
-/// Set the other friction coefficient:
-///
-/// ```ignore
-/// // 0.4 static and 0.6 dynamic
-/// Friction::new(0.4).with_dynamic_coefficient(0.6)
-/// // 0.4 dynamic and 0.6 static
-/// Friction::new(0.4).with_static_coefficient(0.6)
-/// ```
-///
-/// Configure how the friction coefficients of two [`Friction`] components are combined with [`CoefficientCombine`]:
-///
-/// ```ignore
-/// Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// ```
-///
-/// Combine the properties of two [`Friction`] components:
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-///
-/// let first = Friction::new(0.8).with_combine_rule(CoefficientCombine::Average);
-/// let second = Friction::new(0.5).with_combine_rule(CoefficientCombine::Multiply);
-///
-/// // CoefficientCombine::Multiply has higher priority, so the coefficients are multiplied
-/// assert_eq!(
-///     first.combine(second),
-///     Friction::new(0.4).with_combine_rule(CoefficientCombine::Multiply)
-/// );
-/// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct Friction {
-    /// Coefficient of dynamic friction.
-    pub dynamic_coefficient: Scalar,
-    /// Coefficient of static friction.
-    pub static_coefficient: Scalar,
-    /// The coefficient combine rule used when two bodies collide.
-    pub combine_rule: CoefficientCombine,
-}
-
-impl Friction {
-    /// Zero dynamic and static friction and [`CoefficientCombine::Average`].
-    pub const ZERO: Self = Self {
-        dynamic_coefficient: 0.0,
-        static_coefficient: 0.0,
-        combine_rule: CoefficientCombine::Average,
-    };
-
-    /// Creates a new `Friction` component with the same dynamic and static friction coefficients.
-    pub fn new(friction_coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: friction_coefficient,
-            static_coefficient: friction_coefficient,
-            ..default()
-        }
-    }
-
-    /// Sets the [`CoefficientCombine`] rule used.
-    pub fn with_combine_rule(&self, combine_rule: CoefficientCombine) -> Self {
-        Self {
-            combine_rule,
-            ..*self
-        }
-    }
-
-    /// Sets the coefficient of dynamic friction.
-    pub fn with_dynamic_coefficient(&self, coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: coefficient,
-            ..*self
-        }
-    }
-
-    /// Sets the coefficient of static friction.
-    pub fn with_static_coefficient(&self, coefficient: Scalar) -> Self {
-        Self {
-            static_coefficient: coefficient,
-            ..*self
-        }
-    }
-
-    /// Combines the properties of two `Friction` components.
-    pub fn combine(&self, other: Self) -> Self {
-        // Choose rule with higher priority
-        let rule = self.combine_rule.max(other.combine_rule);
-        let (dynamic1, dynamic2) = (self.dynamic_coefficient, other.dynamic_coefficient);
-        let (static1, static2) = (self.static_coefficient, other.static_coefficient);
-
-        Self {
-            dynamic_coefficient: match rule {
-                CoefficientCombine::Average => (dynamic1 + dynamic2) * 0.5,
-                CoefficientCombine::Min => dynamic1.min(dynamic2),
-                CoefficientCombine::Multiply => dynamic1 * dynamic2,
-                CoefficientCombine::Max => dynamic1.max(dynamic2),
-            },
-            static_coefficient: match rule {
-                CoefficientCombine::Average => (static1 + static2) * 0.5,
-                CoefficientCombine::Min => static1.min(static2),
-                CoefficientCombine::Multiply => static1 * static2,
-                CoefficientCombine::Max => static1.max(static2),
-            },
-            combine_rule: rule,
-        }
-    }
-}
-
-impl Default for Friction {
-    fn default() -> Self {
-        Self {
-            dynamic_coefficient: 0.3,
-            static_coefficient: 0.3,
-            combine_rule: CoefficientCombine::default(),
-        }
-    }
-}
-
-impl From<Scalar> for Friction {
-    fn from(coefficient: Scalar) -> Self {
-        Self {
-            dynamic_coefficient: coefficient,
-            static_coefficient: coefficient,
-            ..default()
-        }
-    }
-}
-
 /// Automatically slows down a dynamic [rigid body](RigidBody), decreasing its
 /// [linear velocity](LinearVelocity) each frame. This can be used to simulate air resistance.
 ///
 /// The default linear damping coefficient is `0.0`, which corresponds to no damping.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -752,10 +617,7 @@ impl From<Scalar> for Friction {
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         LinearDamping(0.8),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, LinearDamping(0.8)));
 /// }
 /// ```
 #[derive(
@@ -771,7 +633,7 @@ pub struct LinearDamping(pub Scalar);
 ///
 /// The default angular damping coefficient is `0.0`, which corresponds to no damping.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -779,10 +641,7 @@ pub struct LinearDamping(pub Scalar);
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((
-///         RigidBody::Dynamic,
-///         AngularDamping(1.6),
-///     ));
+///     commands.spawn((RigidBody::Dynamic, AngularDamping(1.6)));
 /// }
 /// ```
 #[derive(
@@ -803,14 +662,14 @@ pub struct AngularDamping(pub Scalar);
 /// Note that static and kinematic bodies will always have a higher dominance value
 /// than dynamic bodies regardless of the value of this component.
 /// 
-/// ## Example
+/// # Example
 /// 
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// // Player dominates all dynamic bodies with a dominance lower than 5
+/// // Player dominates all dynamic bodies with a dominance lower than `5`.
 /// fn spawn_player(mut commands: Commands) {
 ///     commands.spawn((
 ///         RigidBody::Dynamic,
@@ -825,56 +684,3 @@ pub struct AngularDamping(pub Scalar);
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct Dominance(pub i8);
-
-#[cfg(test)]
-mod tests {
-    use crate::prelude::*;
-    use approx::assert_relative_eq;
-
-    #[test]
-    fn restitution_clamping_works() {
-        assert_eq!(Restitution::new(-2.0).coefficient, 0.0);
-        assert_eq!(Restitution::new(0.6).coefficient, 0.6);
-        assert_eq!(Restitution::new(3.0).coefficient, 1.0);
-    }
-
-    #[test]
-    fn coefficient_combine_works() {
-        let r1 = Restitution::new(0.3).with_combine_rule(CoefficientCombine::Average);
-
-        // (0.3 + 0.7) / 2.0 == 0.5
-        let average_result =
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Average));
-        let average_expected = Restitution::new(0.5).with_combine_rule(CoefficientCombine::Average);
-        assert_relative_eq!(
-            average_result.coefficient,
-            average_expected.coefficient,
-            epsilon = 0.0001
-        );
-        assert_eq!(average_result.combine_rule, average_expected.combine_rule);
-
-        // 0.3.min(0.7) == 0.3
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Min)),
-            Restitution::new(0.3).with_combine_rule(CoefficientCombine::Min)
-        );
-
-        // 0.3 * 0.7 == 0.21
-        let multiply_result =
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Multiply));
-        let multiply_expected =
-            Restitution::new(0.21).with_combine_rule(CoefficientCombine::Multiply);
-        assert_relative_eq!(
-            multiply_result.coefficient,
-            multiply_expected.coefficient,
-            epsilon = 0.0001
-        );
-        assert_eq!(multiply_result.combine_rule, multiply_expected.combine_rule);
-
-        // 0.3.max(0.7) == 0.7
-        assert_eq!(
-            r1.combine(Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)),
-            Restitution::new(0.7).with_combine_rule(CoefficientCombine::Max)
-        );
-    }
-}

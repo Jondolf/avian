@@ -85,7 +85,7 @@ pub trait PhysicsGizmoExt {
     );
 }
 
-impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
+impl PhysicsGizmoExt for Gizmos<'_, '_, PhysicsGizmos> {
     /// Draws a line from `a` to `b`.
     fn draw_line(&mut self, a: Vector, b: Vector, color: Color) {
         #[cfg(feature = "2d")]
@@ -174,11 +174,15 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
         match collider.shape_scaled().as_typed_shape() {
             #[cfg(feature = "2d")]
             TypedShape::Ball(s) => {
-                self.circle(position.extend(0.0).f32(), Dir3::Z, s.radius as f32, color);
+                self.circle_2d(position.f32(), s.radius as f32, color);
             }
             #[cfg(feature = "3d")]
             TypedShape::Ball(s) => {
-                self.sphere(position.f32(), rotation.f32(), s.radius as f32, color);
+                self.sphere(
+                    Isometry3d::new(position.f32(), rotation.f32()),
+                    s.radius as f32,
+                    color,
+                );
             }
             #[cfg(feature = "2d")]
             TypedShape::Cuboid(s) => {
@@ -425,28 +429,23 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
                     color,
                 );
             }
-            TypedShape::Custom(_id) =>
-            {
+            TypedShape::Custom(_id) => {
                 #[cfg(feature = "2d")]
-                if _id == 1 {
+                {
                     if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
-                        self.primitive_2d(
-                            &ellipse.0,
+                        let isometry = Isometry2d::new(
                             position.f32(),
-                            rotation.as_radians() as f32,
-                            color,
+                            Rot2::from_sin_cos(rotation.sin as f32, rotation.cos as f32),
                         );
-                    }
-                } else if _id == 2 {
-                    if let Some(polygon) =
+                        self.primitive_2d(&ellipse.0, isometry, color);
+                    } else if let Some(polygon) =
                         collider.shape_scaled().as_shape::<RegularPolygonWrapper>()
                     {
-                        self.primitive_2d(
-                            &polygon.0,
+                        let isometry = Isometry2d::new(
                             position.f32(),
-                            rotation.as_radians() as f32,
-                            color,
+                            Rot2::from_sin_cos(rotation.sin as f32, rotation.cos as f32),
                         );
+                        self.primitive_2d(&polygon.0, isometry, color);
                     }
                 }
             }
@@ -487,12 +486,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             #[cfg(feature = "2d")]
             self.circle_2d(point.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(
-                point.f32(),
-                default(),
-                0.1 * length_unit as f32,
-                point_color,
-            );
+            self.sphere(point.f32(), 0.1 * length_unit as f32, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(
@@ -551,12 +545,7 @@ impl<'w, 's> PhysicsGizmoExt for Gizmos<'w, 's, PhysicsGizmos> {
             #[cfg(feature = "2d")]
             self.circle_2d(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
             #[cfg(feature = "3d")]
-            self.sphere(
-                hit.point1.f32(),
-                default(),
-                0.1 * length_unit as f32,
-                point_color,
-            );
+            self.sphere(hit.point1.f32(), 0.1 * length_unit as f32, point_color);
 
             // Draw hit normal as arrow
             self.draw_arrow(
