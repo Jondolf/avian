@@ -190,7 +190,7 @@
 //!     - [`PhysicsSet`]
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`]
-//!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::SubstepSolverSet)
+//!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet)
 //!     - [`PostProcessCollisions`] schedule
 //!     - [`PrepareSet`](prepare::PrepareSet)
 //!     - Many more internal system sets
@@ -615,7 +615,7 @@ use prelude::*;
 ///
 /// First, create a new plugin. If you want to run your systems in the engine's schedules, get either the [`PhysicsSchedule`]
 /// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like
-/// [`PhysicsStepSet`], [`SolverSet`], or [`SubstepSolverSet`](dynamics::solver::SubstepSolverSet).
+/// [`PhysicsStepSet`], [`SolverSet`], or [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet).
 ///
 /// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
 ///
