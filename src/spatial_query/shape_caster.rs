@@ -128,7 +128,7 @@ pub struct ShapeCaster {
     /// If `true`, contact points and normals will be calculated even when the cast distance is `0.0`.
     ///
     /// The default is `true`.
-    pub compute_impact_on_penetration: bool,
+    pub compute_contact_on_penetration: bool,
 
     /// If `true` *and* the shape is travelling away from the object that was hit,
     /// the cast will ignore any impact that happens at the cast origin.
@@ -166,7 +166,7 @@ impl Default for ShapeCaster {
             max_hits: 1,
             max_distance: Scalar::MAX,
             target_distance: 0.0,
-            compute_impact_on_penetration: true,
+            compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
             ignore_self: true,
             query_filter: SpatialQueryFilter::default(),
@@ -235,8 +235,8 @@ impl ShapeCaster {
     /// Sets if contact points and normals should be calculated even when the cast distance is `0.0`.
     ///
     /// The default is `true`.
-    pub fn with_compute_impact_on_penetration(mut self, compute_contact: bool) -> Self {
-        self.compute_impact_on_penetration = compute_contact;
+    pub fn with_compute_contact_on_penetration(mut self, compute_contact: bool) -> Self {
+        self.compute_contact_on_penetration = compute_contact;
         self
     }
 
@@ -444,7 +444,7 @@ pub struct ShapeCastConfig {
     /// If `true`, contact points and normals will be calculated even when the cast distance is `0.0`.
     ///
     /// The default is `true`.
-    pub compute_impact_on_penetration: bool,
+    pub compute_contact_on_penetration: bool,
 
     /// If `true` *and* the shape is travelling away from the object that was hit,
     /// the cast will ignore any impact that happens at the cast origin.
@@ -467,7 +467,7 @@ impl ShapeCastConfig {
     pub const DEFAULT: Self = Self {
         max_distance: Scalar::MAX,
         target_distance: 0.0,
-        compute_impact_on_penetration: true,
+        compute_contact_on_penetration: true,
         ignore_origin_penetration: false,
         filter: SpatialQueryFilter::DEFAULT,
     };
@@ -478,7 +478,7 @@ impl ShapeCastConfig {
         Self {
             max_distance,
             target_distance: 0.0,
-            compute_impact_on_penetration: true,
+            compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
             filter: SpatialQueryFilter::DEFAULT,
         }
@@ -491,7 +491,7 @@ impl ShapeCastConfig {
         Self {
             max_distance: Scalar::MAX,
             target_distance,
-            compute_impact_on_penetration: true,
+            compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
             filter: SpatialQueryFilter::DEFAULT,
         }
@@ -503,7 +503,7 @@ impl ShapeCastConfig {
         Self {
             max_distance: Scalar::MAX,
             target_distance: 0.0,
-            compute_impact_on_penetration: true,
+            compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
             filter,
         }
@@ -651,13 +651,13 @@ pub struct ShapeHitData {
     #[doc(alias = "time_of_impact")]
     pub distance: Scalar,
 
-    /// The closest point on the hit shape at the time of impact, expressed in world space.
+    /// The closest point on the shape that was hit, expressed in world space.
     ///
     /// If the shapes are penetrating or the target distance is greater than zero,
     /// this will be different from `point2`.
     pub point1: Vector,
 
-    /// The closest point on the cast shape at the time of impact, expressed in world space.
+    /// The closest point on the shape that was cast, expressed in world space.
     ///
     /// If the shapes are penetrating or the target distance is greater than zero,
     /// this will be different from `point1`.

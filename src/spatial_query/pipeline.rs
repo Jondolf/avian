@@ -380,7 +380,7 @@ impl SpatialQueryPipeline {
             ShapeCastOptions {
                 max_time_of_impact: config.max_distance,
                 stop_at_penetration: !config.ignore_origin_penetration,
-                compute_impact_geometry_on_penetration: config.compute_impact_on_penetration,
+                compute_impact_geometry_on_penetration: config.compute_contact_on_penetration,
                 ..default()
             },
         );
@@ -469,7 +469,7 @@ impl SpatialQueryPipeline {
             max_time_of_impact: config.max_distance,
             target_distance: config.target_distance,
             stop_at_penetration: !config.ignore_origin_penetration,
-            compute_impact_geometry_on_penetration: config.compute_impact_on_penetration,
+            compute_impact_geometry_on_penetration: config.compute_contact_on_penetration,
         };
 
         let rotation: Rotation;
