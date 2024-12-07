@@ -43,3 +43,12 @@ jobs:
               run: cargo fmt --all -- --check
             - name: Run cargo clippy
               run: cargo clippy -- -D warnings
+
+    docs:
+        name: Documentation
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Run cargo doc
+              run: cargo doc
