@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         component::ComponentId,
-        entity::{EntityMapper, MapEntities},
+        entity::{EntityHashSet, EntityMapper, MapEntities},
         world::DeferredWorld,
     },
     prelude::*,
@@ -509,6 +509,27 @@ impl ShapeCastConfig {
         }
     }
 
+    /// Creates a new [`ShapeCastConfig`] with the given [`LayerMask`] determining
+    /// which [collision layers] will be included in the shape cast.
+    ///
+    /// [collision layers]: CollisionLayers
+    #[inline]
+    pub fn from_mask(mask: impl Into<LayerMask>) -> Self {
+        Self {
+            filter: SpatialQueryFilter::from_mask(mask),
+            ..default()
+        }
+    }
+
+    /// Creates a new [`ShapeCastConfig`] with the given entities excluded from the shape cast.
+    #[inline]
+    pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
+        Self {
+            filter: SpatialQueryFilter::from_excluded_entities(entities),
+            ..default()
+        }
+    }
+
     /// Sets the maximum distance the shape can travel.
     #[inline]
     pub const fn with_max_distance(mut self, max_distance: Scalar) -> Self {
@@ -523,7 +544,26 @@ impl ShapeCastConfig {
         self
     }
 
+    /// Sets the [`LayerMask`] of the filter configuration. Only colliders with the corresponding
+    /// [collision layer memberships] will be included in the shape cast.
+    ///
+    /// [collision layer memberships]: CollisionLayers
+    #[inline]
+    pub fn with_mask(mut self, mask: impl Into<LayerMask>) -> Self {
+        self.filter.mask = mask.into();
+        self
+    }
+
+    /// Excludes the given entities from the shape cast.
+    #[inline]
+    pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
+        self.filter.excluded_entities = EntityHashSet::from_iter(entities);
+        self
+    }
+
     /// Sets the [`SpatialQueryFilter`] for the shape cast.
+    ///
+    /// Note that this will overwrite the previous filter.
     #[inline]
     pub const fn with_filter(&self, filter: SpatialQueryFilter) -> Self {
         Self { filter, ..*self }

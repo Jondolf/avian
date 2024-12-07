@@ -112,9 +112,7 @@ pub fn update_hits(
                 .cast_ray_predicate(
                     ray.origin.adjust_precision(),
                     ray.direction,
-                    Scalar::MAX,
-                    true,
-                    &SpatialQueryFilter::default(),
+                    &RayCastConfig::default(),
                     &|entity| {
                         let marker_requirement =
                             !backend_settings.require_markers || marked_targets.get(entity).is_ok();
@@ -133,11 +131,11 @@ pub fn update_hits(
                 )
                 .map(|ray_hit_data| {
                     #[allow(clippy::unnecessary_cast)]
-                    let toi = ray_hit_data.time_of_impact as f32;
+                    let distance = ray_hit_data.distance as f32;
                     let hit_data = HitData::new(
                         ray_id.camera,
-                        toi,
-                        Some(ray.origin + *ray.direction * toi),
+                        distance,
+                        Some(ray.get_point(distance)),
                         Some(ray_hit_data.normal.f32()),
                     );
                     (ray_hit_data.entity, hit_data)
