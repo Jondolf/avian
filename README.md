@@ -201,7 +201,7 @@ For larger changes and additions, it's better to open an issue or ask me for inp
 before making a pull request.
 
 You can also ask for help or ask questions on the [Bevy Discord](https://discord.com/invite/gMUk5Ph)
-server's `Avian Physics` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
+server's Avian Physics topic in `#ecosystem-crates`. My username on the Discord is `Jondolf` (`@jondolfdev`).
 
 ## Acknowledgements
 

@@ -38,10 +38,10 @@ use self::{
 ///
 /// 1. [Generate and prepare constraints](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints)
 /// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
-///     1. [Integrate velocities](IntegrationSet::Velocity)
+///     1. [Integrate velocities](super::integrator::IntegrationSet::Velocity)
 ///     2. [Warm start](SubstepSolverSet::WarmStart)
 ///     3. [Solve constraints with bias](SubstepSolverSet::SolveConstraints)
-///     4. [Integrate positions](IntegrationSet::Position)
+///     4. [Integrate positions](super::integrator::IntegrationSet::Position)
 ///     5. [Solve constraints without bias to relax velocities](SubstepSolverSet::Relax)
 ///     6. [Solve XPBD constraints (joints)](SubstepSolverSet::SolveXpbdConstraints)
 ///     7. [Solve user-defined constraints](SubstepSolverSet::SolveUserConstraints)
