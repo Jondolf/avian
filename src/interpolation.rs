@@ -49,9 +49,11 @@ use crate::prelude::*;
 ///
 /// # Usage
 ///
-/// Once the plugin has been added to the app, [`Transform`] interpolation and extrapolation
-/// can be enabled for individual entities using the [`TransformInterpolation`] and [`TransformExtrapolation`]
-/// components respectively:
+/// The [`PhysicsInterpolationPlugin`] is included in the [`PhysicsPlugins`] by default,
+/// so most apps don't need to add it manually.
+///
+/// [`Transform`] interpolation and extrapolation can be enabled for individual entities
+/// using the [`TransformInterpolation`] and [`TransformExtrapolation`] components respectively:
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -116,7 +118,7 @@ use crate::prelude::*;
 /// #
 /// fn main() {
 ///    App::new()
-///       .add_plugins(PhysicsInterpolationPlugin::interpolate_all())
+///       .add_plugins(PhysicsPlugins::default().set(PhysicsInterpolationPlugin::interpolate_all()))
 ///       // ...
 ///       .run();
 /// }

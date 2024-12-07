@@ -179,7 +179,7 @@
 //! ### Configuration
 //!
 //! - [Gravity]
-//! - [`Transform` interpolation](PhysicsInterpolationPlugin)
+//! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
@@ -213,7 +213,7 @@
 //! - [Why is everything moving so slowly?](#why-is-everything-moving-so-slowly)
 //! - [Why did my rigid body suddenly vanish?](#why-did-my-rigid-body-suddenly-vanish)
 //! - [Why is performance so bad?](#why-is-performance-so-bad)
-//! - [Why does my camera following jitter?](#why-does-my-camera-following-jitter)
+//! - [Why does movement look choppy?](#why-does-movement-look-choppy)
 //! - [Is there a character controller?](#is-there-a-character-controller)
 //! - [Why are there separate `Position` and `Rotation` components?](#why-are-there-separate-position-and-rotation-components)
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
@@ -535,13 +535,13 @@ use prelude::*;
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
 /// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
+/// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
 /// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
 ///
 /// Optional additional plugins include:
 ///
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-/// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
 /// | [`PhysicsPickingPlugin`]          | Enables a physics picking backend for [`bevy_picking`](bevy::picking) (only with `bevy_picking` feature enabled).                                          |
 /// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
 ///
@@ -749,5 +749,6 @@ impl PluginGroup for PhysicsPlugins {
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
+            .add(PhysicsInterpolationPlugin::default())
     }
 }
