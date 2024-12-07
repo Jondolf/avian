@@ -10,11 +10,11 @@
 //! You can also check out the [FAQ](#frequently-asked-questions), and if you encounter
 //! any further problems, consider saying hello on the [Bevy Discord](https://discord.gg/bevy)!
 //!
-//! ## Getting started
+//! ## Getting Started
 //!
 //! This short guide should help you get started with Avian.
 //!
-//! ### Add the dependency
+//! ### Add the Dependency
 //!
 //! First, add `avian2d` or `avian3d` to the dependencies in your `Cargo.toml`:
 //!  
@@ -42,7 +42,7 @@
 //! avian3d = { version = "0.1", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
-//! ### Feature flags
+//! ### Feature Flags
 //!
 //! | Feature                | Description                                                                                                                              | Default feature         |
 //! | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
@@ -67,7 +67,7 @@
 //!
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
-//! ### Add the plugins
+//! ### Add the Plugins
 //!
 //! Avian is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
@@ -111,12 +111,12 @@
 //! You can find lots of [usage examples](https://github.com/Jondolf/avian#more-examples)
 //! in the project's [repository](https://github.com/Jondolf/avian).
 //!
-//! ## Table of contents
+//! ## Table of Contents
 //!
 //! Below is a structured overview of the documentation for the various
 //! features of the engine.
 //!
-//! ### Rigid body dynamics
+//! ### Rigid Body Dynamics
 //!
 //! - [Rigid body types](RigidBody#rigid-body-types)
 //! - [Creating rigid bodies](RigidBody#creation)
@@ -135,7 +135,7 @@
 //!
 //! See the [`dynamics`] module for more details about rigid body dynamics in Avian.
 //!
-//! ### Collision detection
+//! ### Collision Detection
 //!
 //! - [Colliders](Collider)
 //!     - [Creation](Collider#creation)
@@ -154,7 +154,7 @@
 //!
 //! See the [`collision`] module for more details about collision detection and colliders in Avian.
 //!
-//! ### Constraints and joints
+//! ### Constraints and Joints
 //!
 //! - [Joints](dynamics::solver::joints)
 //!     - [Fixed joint](FixedJoint)
@@ -166,7 +166,7 @@
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
-//! ### Spatial queries
+//! ### Spatial Queries
 //!
 //! - [Spatial query types](spatial_query)
 //!     - [Raycasting](spatial_query#raycasting) and [`RayCaster`]
@@ -206,7 +206,7 @@
 //!     - [Custom XPBD constraints](dynamics::solver::xpbd#custom-constraints)
 //!     - [Custom joints](dynamics::solver::joints#custom-joints)
 //!
-//! ## Frequently asked questions
+//! ## Frequently Asked Questions
 //!
 //! - [How does Avian compare to Rapier and bevy_rapier?](#how-does-avian-compare-to-rapier-and-bevy_rapier)
 //! - [Why is nothing happening?](#why-is-nothing-happening)
@@ -395,7 +395,7 @@
 //! [open a new issue](https://github.com/Jondolf/avian/issues/new) if there already isn't one regarding your problem.
 //!
 //! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
-//! There you can find a avian thread on the crate-help channel where you can ask questions.
+//! There, you can find an Avian Physics topic on the `#ecosystem-crates` channel where you can ask questions.
 //!
 //! ## License
 //!
