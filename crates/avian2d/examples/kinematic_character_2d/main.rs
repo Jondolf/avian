@@ -11,7 +11,7 @@
 //!
 //! For a dynamic character controller, see the `dynamic_character_2d` example.
 //!
-//! ## Warning
+//! # Warning
 //!
 //! Note that this is *not* intended to be a fully featured character controller,
 //! and the collision logic is quite basic.
@@ -26,7 +26,6 @@ use avian2d::{math::*, prelude::*};
 use bevy::{
     prelude::*,
     render::{render_asset::RenderAssetUsages, render_resource::PrimitiveTopology},
-    sprite::MaterialMesh2dBundle,
 };
 use examples_common_2d::ExampleCommonPlugin;
 use plugin::*;
@@ -54,94 +53,73 @@ fn setup(
 ) {
     // Player
     commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(Capsule2d::new(12.5, 20.0)).into(),
-            material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
-            transform: Transform::from_xyz(0.0, -100.0, 0.0),
-            ..default()
-        },
+        Mesh2d(meshes.add(Capsule2d::new(12.5, 20.0))),
+        MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
+        Transform::from_xyz(0.0, -100.0, 0.0),
         CharacterControllerBundle::new(Collider::capsule(12.5, 20.0), Vector::NEG_Y * 1500.0)
             .with_movement(1250.0, 0.92, 400.0, (30.0 as Scalar).to_radians()),
     ));
 
     // A cube to move around
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.0, 0.4, 0.7),
-                custom_size: Some(Vec2::new(30.0, 30.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(50.0, -100.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.0, 0.4, 0.7),
+            custom_size: Some(Vec2::new(30.0, 30.0)),
             ..default()
         },
+        Transform::from_xyz(50.0, -100.0, 0.0),
         RigidBody::Dynamic,
         Collider::rectangle(30.0, 30.0),
     ));
 
     // Platforms
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(1100.0, 50.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(0.0, -175.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.7, 0.7, 0.8),
+            custom_size: Some(Vec2::new(1100.0, 50.0)),
             ..default()
         },
+        Transform::from_xyz(0.0, -175.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(1100.0, 50.0),
     ));
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(300.0, 25.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(175.0, -35.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.7, 0.7, 0.8),
+            custom_size: Some(Vec2::new(300.0, 25.0)),
             ..default()
         },
+        Transform::from_xyz(175.0, -35.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(300.0, 25.0),
     ));
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(300.0, 25.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(-175.0, 0.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.7, 0.7, 0.8),
+            custom_size: Some(Vec2::new(300.0, 25.0)),
             ..default()
         },
+        Transform::from_xyz(-175.0, 0.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(300.0, 25.0),
     ));
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(150.0, 80.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(475.0, -110.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.7, 0.7, 0.8),
+            custom_size: Some(Vec2::new(150.0, 80.0)),
             ..default()
         },
+        Transform::from_xyz(475.0, -110.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(150.0, 80.0),
     ));
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.7, 0.7, 0.8),
-                custom_size: Some(Vec2::new(150.0, 80.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(-475.0, -110.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.7, 0.7, 0.8),
+            custom_size: Some(Vec2::new(150.0, 80.0)),
             ..default()
         },
+        Transform::from_xyz(-475.0, -110.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(150.0, 80.0),
     ));
@@ -165,12 +143,9 @@ fn setup(
     );
 
     commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(Color::srgb(0.4, 0.4, 0.5)),
-            transform: Transform::from_xyz(-275.0, -150.0, 0.0),
-            ..default()
-        },
+        Mesh2d(meshes.add(ramp_mesh)),
+        MeshMaterial2d(materials.add(Color::srgb(0.4, 0.4, 0.5))),
+        Transform::from_xyz(-275.0, -150.0, 0.0),
         RigidBody::Static,
         ramp_collider,
     ));
@@ -192,16 +167,13 @@ fn setup(
     );
 
     commands.spawn((
-        MaterialMesh2dBundle {
-            mesh: meshes.add(ramp_mesh).into(),
-            material: materials.add(Color::srgb(0.4, 0.4, 0.5)),
-            transform: Transform::from_xyz(380.0, -110.0, 0.0),
-            ..default()
-        },
+        Mesh2d(meshes.add(ramp_mesh)),
+        MeshMaterial2d(materials.add(Color::srgb(0.4, 0.4, 0.5))),
+        Transform::from_xyz(380.0, -110.0, 0.0),
         RigidBody::Static,
         ramp_collider,
     ));
 
     // Camera
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 }

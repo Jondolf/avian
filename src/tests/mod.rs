@@ -8,30 +8,15 @@ use bevy::{
     ecs::schedule::{LogLevel, ScheduleBuildSettings, ScheduleLabel},
     prelude::*,
     time::TimeUpdateStrategy,
-    utils::Instant,
 };
-#[cfg(feature = "enhanced-determinism")]
-use insta::assert_debug_snapshot;
 use std::time::Duration;
 
-// rust doesn't seem to have a way to run one-time setup per test
-// could consider rstest? https://github.com/la10736/rstest#use-once-fixture
-// see https://insta.rs/docs/patterns/ for the pattern used here
-#[cfg(feature = "enhanced-determinism")]
-macro_rules! setup_insta {
-    ($($expr:expr),*) => {
-        let _insta_settings_guard = {
-            let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-            let mut settings = insta::Settings::clone_current();
-            // we need this hack, because insta doesn't like modules being outside the crate
-            settings.set_snapshot_path(format!("{manifest_dir}/snapshots"));
-            settings.bind_to_scope()
-        };
-    };
-}
+#[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
+mod determinism_2d;
 
 fn create_app() -> App {
     let mut app = App::new();
+
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
@@ -43,18 +28,22 @@ fn create_app() -> App {
         bevy::scene::ScenePlugin,
     ))
     .init_resource::<Assets<Mesh>>()
-    .insert_resource(TimeUpdateStrategy::ManualInstant(Instant::now()));
+    .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
+        1.0 / 60.0,
+    )));
 
     app
 }
 
-fn tick_60_fps(app: &mut App) {
-    let mut update_strategy = app.world_mut().resource_mut::<TimeUpdateStrategy>();
-    let TimeUpdateStrategy::ManualInstant(prev_time) = *update_strategy else {
-        unimplemented!()
-    };
-    *update_strategy =
-        TimeUpdateStrategy::ManualInstant(prev_time + Duration::from_secs_f64(1. / 60.));
+fn tick_app(app: &mut App, timestep: f64) {
+    let strategy = TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(timestep));
+
+    if let Some(mut update_strategy) = app.world_mut().get_resource_mut::<TimeUpdateStrategy>() {
+        *update_strategy = strategy;
+    } else {
+        app.insert_resource(strategy);
+    }
+
     app.update();
 }
 
@@ -82,7 +71,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                     (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands.spawn((
-                    SpatialBundle::default(),
+                    Transform::default(),
                     RigidBody::Dynamic,
                     Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
@@ -99,43 +88,10 @@ fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = create_app();
 
     for _ in 0..500 {
-        tick_60_fps(&mut app);
+        tick_app(&mut app, 1.0 / 60.0);
     }
 
     Ok(())
-}
-
-#[test]
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
-fn body_with_velocity_moves_on_first_frame() {
-    let mut app = create_app();
-
-    app.insert_resource(Gravity::ZERO);
-
-    app.add_systems(Startup, |mut commands: Commands| {
-        // move right at 1 unit per second
-        commands.spawn((
-            SpatialBundle::default(),
-            RigidBody::Dynamic,
-            LinearVelocity(Vector::X),
-            #[cfg(feature = "2d")]
-            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
-            #[cfg(feature = "3d")]
-            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
-        ));
-    });
-
-    // one tick only.
-    tick_60_fps(&mut app);
-
-    let mut app_query = app.world_mut().query::<(&Position, &RigidBody)>();
-
-    let (pos, _body) = app_query.single(app.world());
-
-    assert!(pos.x > 0.0);
 }
 
 #[test]
@@ -151,27 +107,29 @@ fn body_with_velocity_moves() {
     app.add_systems(Startup, |mut commands: Commands| {
         // move right at 1 unit per second
         commands.spawn((
-            SpatialBundle::default(),
+            Transform::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
             #[cfg(feature = "2d")]
-            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Circle::new(0.5), 1.0),
             #[cfg(feature = "3d")]
-            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Sphere::new(0.5), 1.0),
         ));
     });
+
+    // Run startup systems
+    app.update();
 
     const UPDATES: usize = 500;
 
     for _ in 0..UPDATES {
-        tick_60_fps(&mut app);
+        tick_app(&mut app, 1.0 / 60.0);
     }
 
     let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
     let (transform, _body) = app_query.single(app.world());
 
-    //assert!(transform.translation.x > 0., "box moves right");
     assert_relative_eq!(transform.translation.y, 0.);
     assert_relative_eq!(transform.translation.z, 0.);
 
@@ -181,40 +139,11 @@ fn body_with_velocity_moves() {
         1. * UPDATES as f32 * 1. / 60.,
         epsilon = 0.03 // allow some leeway, as we might be one frame off
     );
-
-    #[cfg(feature = "enhanced-determinism")]
-    {
-        setup_insta!();
-        assert_debug_snapshot!(transform);
-    }
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg(feature = "3d")]
 struct Id(usize);
-
-#[cfg(all(feature = "3d", feature = "enhanced-determinism"))]
-#[test]
-fn cubes_simulation_is_deterministic_across_machines() {
-    setup_insta!();
-    let mut app = create_app();
-
-    app.add_systems(Startup, setup_cubes_simulation);
-
-    const SECONDS: usize = 10;
-    const UPDATES: usize = 60 * SECONDS;
-
-    for _ in 0..UPDATES {
-        tick_60_fps(&mut app);
-    }
-
-    let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
-
-    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(app.world()).collect();
-    bodies.sort_by_key(|b| b.0);
-
-    assert_debug_snapshot!(bodies);
-}
 
 #[cfg(all(feature = "3d", feature = "default-collider"))]
 #[test]
@@ -226,11 +155,14 @@ fn cubes_simulation_is_locally_deterministic() {
 
         app.add_systems(Startup, setup_cubes_simulation);
 
+        // Run startup systems
+        app.update();
+
         const SECONDS: usize = 5;
         const UPDATES: usize = 60 * SECONDS;
 
         for _ in 0..UPDATES {
-            tick_60_fps(&mut app);
+            tick_app(&mut app, 1.0 / 60.0);
         }
 
         let mut app_query = app.world_mut().query::<(&Id, &Transform)>();

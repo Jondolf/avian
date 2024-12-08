@@ -13,7 +13,6 @@ mod hierarchy;
 
 pub use backend::{ColliderBackendPlugin, ColliderMarker};
 pub use hierarchy::ColliderHierarchyPlugin;
-pub(crate) use hierarchy::PreviousColliderTransform;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
@@ -30,7 +29,9 @@ pub use parry::*;
 mod world_query;
 pub use world_query::*;
 
+#[cfg(feature = "default-collider")]
 mod constructor;
+#[cfg(feature = "default-collider")]
 pub use constructor::{
     ColliderConstructor, ColliderConstructorHierarchy, ColliderConstructorHierarchyConfig,
 };
@@ -43,7 +44,7 @@ pub trait IntoCollider<C: AnyCollider> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component {
+pub trait AnyCollider: Component + ComputeMassProperties {
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
@@ -69,9 +70,6 @@ pub trait AnyCollider: Component {
         self.aabb(start_position, start_rotation)
             .merged(self.aabb(end_position, end_rotation))
     }
-
-    /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
@@ -117,7 +115,7 @@ pub trait ScalableCollider: AnyCollider {
 /// This component is added and updated automatically based on entity hierarchies and should not
 /// be modified directly.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -229,7 +227,7 @@ impl From<Transform> for ColliderTransform {
 ///
 /// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -428,24 +426,34 @@ impl Default for ColliderAabb {
 #[doc(alias = "ContactSkin")]
 pub struct CollisionMargin(pub Scalar);
 
-/// A component that stores the entities that are colliding with an entity.
+/// A component for reading which entities are colliding with a collider entity.
+/// Must be added manually for desired colliders.
 ///
-/// This component is automatically added for all entities with a [`Collider`],
-/// but it will only be filled if the [`ContactReportingPlugin`] is enabled (by default, it is).
+/// Requires the [`ContactReportingPlugin`] (included in [`PhysicsPlugins`])
+/// to be enabled for this component to be updated.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///         // Add the `CollidingEntities` component to read entities colliding with this entity.
+///         CollidingEntities::default(),
+///     ));
+/// }
+///
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {
 ///         println!(
-///             "{:?} is colliding with the following entities: {:?}",
+///             "{} is colliding with the following entities: {:?}",
 ///             entity,
-///             colliding_entities
+///             colliding_entities,
 ///         );
 ///     }
 /// }

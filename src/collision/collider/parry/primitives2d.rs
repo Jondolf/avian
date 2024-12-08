@@ -1,6 +1,6 @@
-use crate::{AdjustPrecision, AsF32, Scalar, Vector, FRAC_PI_2, PI, TAU};
+use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
-use super::{Collider, IntoCollider};
+use super::{AsF32, Collider, IntoCollider};
 use bevy::prelude::Deref;
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
@@ -42,8 +42,24 @@ impl SupportMap for EllipseWrapper {
 }
 
 impl Shape for EllipseWrapper {
+    fn clone_dyn(&self) -> Box<dyn Shape> {
+        Box::new(*self)
+    }
+
+    fn scale_dyn(
+        &self,
+        scale: &parry::math::Vector<Scalar>,
+        _num_subdivisions: u32,
+    ) -> Option<Box<dyn parry::shape::Shape>> {
+        let half_size = Vector::from(*scale).f32() * self.half_size;
+        Some(Box::new(EllipseWrapper(Ellipse::new(
+            half_size.x,
+            half_size.y,
+        ))))
+    }
+
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Isometry2d::IDENTITY);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -51,10 +67,8 @@ impl Shape for EllipseWrapper {
     }
 
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let aabb = self.aabb_2d(isometry);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -62,7 +76,7 @@ impl Shape for EllipseWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Isometry2d::IDENTITY);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -73,10 +87,8 @@ impl Shape for EllipseWrapper {
         &self,
         position: &Isometry<Scalar>,
     ) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let sphere = self.bounding_circle(isometry);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -103,7 +115,7 @@ impl Shape for EllipseWrapper {
     }
 
     fn as_typed_shape(&self) -> parry::shape::TypedShape {
-        parry::shape::TypedShape::Custom(1)
+        parry::shape::TypedShape::Custom(self)
     }
 
     fn ccd_thickness(&self) -> Scalar {
@@ -245,9 +257,9 @@ impl SupportMap for RegularPolygonWrapper {
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vector::Y)
+            -Vector::from(*direction).angle_to(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vector::Y)
+            TAU - Vector::from(*direction).angle_to(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
@@ -273,9 +285,9 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vector::Y)
+            -Vector::from(*direction).angle_to(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vector::Y)
+            TAU - Vector::from(*direction).angle_to(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertices.
@@ -304,8 +316,24 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 }
 
 impl Shape for RegularPolygonWrapper {
+    fn clone_dyn(&self) -> Box<dyn Shape> {
+        Box::new(*self)
+    }
+
+    fn scale_dyn(
+        &self,
+        scale: &parry::math::Vector<Scalar>,
+        _num_subdivisions: u32,
+    ) -> Option<Box<dyn parry::shape::Shape>> {
+        let circumradius = Vector::from(*scale).f32() * self.circumradius();
+        Some(Box::new(RegularPolygonWrapper(RegularPolygon::new(
+            circumradius.length(),
+            self.sides,
+        ))))
+    }
+
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Isometry2d::IDENTITY);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -313,10 +341,8 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let aabb = self.aabb_2d(isometry);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -324,7 +350,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Isometry2d::IDENTITY);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -335,10 +361,8 @@ impl Shape for RegularPolygonWrapper {
         &self,
         position: &Isometry<Scalar>,
     ) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let sphere = self.bounding_circle(isometry);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -369,7 +393,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn as_typed_shape(&self) -> parry::shape::TypedShape {
-        parry::shape::TypedShape::Custom(2)
+        parry::shape::TypedShape::Custom(self)
     }
 
     fn ccd_thickness(&self) -> Scalar {

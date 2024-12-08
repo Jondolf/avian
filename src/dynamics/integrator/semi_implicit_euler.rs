@@ -37,17 +37,16 @@ pub fn integrate_velocity(
     ang_vel: &mut AngularValue,
     force: Vector,
     torque: TorqueValue,
-    inv_mass: Scalar,
-    inv_inertia: impl Into<InverseInertia>,
-    rotation: Rotation,
+    mass: ComputedMass,
+    angular_inertia: &ComputedAngularInertia,
+    #[cfg(feature = "3d")] global_angular_inertia: &GlobalAngularInertia,
+    #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
     gravity: Vector,
     delta_seconds: Scalar,
 ) {
-    let inv_inertia = inv_inertia.into();
-
     // Compute linear acceleration.
-    let lin_acc = linear_acceleration(force, inv_mass, locked_axes, gravity);
+    let lin_acc = linear_acceleration(force, mass, locked_axes, gravity);
 
     // Compute next linear velocity.
     // v = v_0 + a * Δt
@@ -57,7 +56,10 @@ pub fn integrate_velocity(
     }
 
     // Compute angular acceleration.
-    let ang_acc = angular_acceleration(torque, inv_inertia.rotated(&rotation).0, locked_axes);
+    #[cfg(feature = "2d")]
+    let ang_acc = angular_acceleration(torque, angular_inertia, locked_axes);
+    #[cfg(feature = "3d")]
+    let ang_acc = angular_acceleration(torque, global_angular_inertia, locked_axes);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -77,13 +79,13 @@ pub fn integrate_velocity(
         // However, the basic semi-implicit approach can blow up, as semi-implicit Euler
         // extrapolates velocity and the gyroscopic torque is quadratic in the angular velocity.
         // Thus, we use implicit Euler, which is much more accurate and stable, although slightly more expensive.
-        let effective_inertia = locked_axes.apply_to_rotation(inv_inertia.inverse().0);
-        delta_ang_vel += solve_gyroscopic_torque(
+        let delta_ang_vel_gyro = solve_gyroscopic_torque(
             *ang_vel,
             rotation.0,
-            Inertia(effective_inertia),
+            angular_inertia.tensor(),
             delta_seconds,
         );
+        delta_ang_vel += locked_axes.apply_to_angular_velocity(delta_ang_vel_gyro);
     }
 
     if delta_ang_vel != AngularVelocity::ZERO.0 && delta_ang_vel.is_finite() {
@@ -127,11 +129,11 @@ pub fn integrate_position(
     {
         // This is a bit more complicated because quaternions are weird.
         // Maybe there's a simpler and more numerically stable way?
-        let delta_rot = Quaternion::from_vec4(
-            (ang_vel * delta_seconds / 2.0).extend(rot.w * delta_seconds / 2.0),
-        ) * rot.0;
-        if delta_rot.w != 0.0 && delta_rot.is_finite() {
-            rot.0 = (rot.0 + delta_rot).normalize();
+        let scaled_axis = ang_vel * delta_seconds;
+        if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
+            let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
+            rot.0 = delta_rot * rot.0;
+            rot.renormalize();
         }
     }
 }
@@ -139,14 +141,14 @@ pub fn integrate_position(
 /// Computes linear acceleration based on the given forces and mass.
 pub fn linear_acceleration(
     force: Vector,
-    inv_mass: Scalar,
+    mass: ComputedMass,
     locked_axes: LockedAxes,
     gravity: Vector,
 ) -> Vector {
     // Effective inverse mass along each axis
-    let inv_mass = locked_axes.apply_to_vec(Vector::splat(inv_mass));
+    let effective_inverse_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
 
-    if inv_mass != Vector::ZERO && inv_mass.is_finite() {
+    if effective_inverse_mass != Vector::ZERO && effective_inverse_mass.is_finite() {
         // Newton's 2nd law for translational movement:
         //
         // F = m * a
@@ -156,7 +158,7 @@ pub fn linear_acceleration(
         //
         // `gravity` below is the gravitational acceleration,
         // so it doesn't need to be divided by mass.
-        force * inv_mass + locked_axes.apply_to_vec(gravity)
+        force * effective_inverse_mass + locked_axes.apply_to_vec(gravity)
     } else {
         Vector::ZERO
     }
@@ -171,13 +173,15 @@ correction, use `solve_gyroscopic_torque`."
 )]
 pub fn angular_acceleration(
     torque: TorqueValue,
-    world_inv_inertia: InertiaValue,
+    global_angular_inertia: &ComputedAngularInertia,
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
-    let effective_inv_inertia = locked_axes.apply_to_rotation(world_inv_inertia);
+    let effective_angular_inertia = locked_axes.apply_to_angular_inertia(*global_angular_inertia);
 
-    if effective_inv_inertia != InverseInertia::ZERO.0 && effective_inv_inertia.is_finite() {
+    if effective_angular_inertia != ComputedAngularInertia::INFINITY
+        && effective_angular_inertia.is_finite()
+    {
         // Newton's 2nd law for rotational movement:
         //
         // τ = I * α
@@ -185,7 +189,7 @@ pub fn angular_acceleration(
         //
         // where α (alpha) is the angular acceleration,
         // τ (tau) is the torque, and I is the moment of inertia.
-        world_inv_inertia * torque
+        effective_angular_inertia.inverse() * torque
     } else {
         AngularValue::ZERO
     }
@@ -198,7 +202,7 @@ pub fn angular_acceleration(
 pub fn solve_gyroscopic_torque(
     ang_vel: Vector,
     rotation: Quaternion,
-    local_inertia: Inertia,
+    local_inertia: Matrix,
     delta_seconds: Scalar,
 ) -> Vector {
     // Based on the "Gyroscopic Motion" section of Erin Catto's GDC 2015 slides on Numerical Methods.
@@ -208,12 +212,12 @@ pub fn solve_gyroscopic_torque(
     let local_ang_vel = rotation.inverse() * ang_vel;
 
     // Compute body-space angular momentum
-    let angular_momentum = local_inertia.0 * local_ang_vel;
+    let angular_momentum = local_inertia * local_ang_vel;
 
     // Compute Jacobian
-    let jacobian = local_inertia.0
+    let jacobian = local_inertia
         + delta_seconds
-            * (skew_symmetric_mat3(local_ang_vel) * local_inertia.0
+            * (skew_symmetric_mat3(local_ang_vel) * local_inertia
                 - skew_symmetric_mat3(angular_momentum));
 
     // Residual vector
@@ -243,11 +247,11 @@ mod tests {
         #[cfg(feature = "3d")]
         let mut angular_velocity = Vector::Z * 2.0;
 
-        let inv_mass = 1.0;
+        let mass = ComputedMass::new(1.0);
         #[cfg(feature = "2d")]
-        let inv_inertia = 1.0;
+        let angular_inertia = ComputedAngularInertia::new(1.0);
         #[cfg(feature = "3d")]
-        let inv_inertia = Matrix3::IDENTITY;
+        let angular_inertia = ComputedAngularInertia::new(Vector::ONE);
 
         let gravity = Vector::NEG_Y * 9.81;
 
@@ -258,8 +262,11 @@ mod tests {
                 &mut angular_velocity,
                 default(),
                 default(),
-                inv_mass,
-                inv_inertia,
+                mass,
+                &angular_inertia,
+                #[cfg(feature = "3d")]
+                &GlobalAngularInertia::new(angular_inertia, rotation),
+                #[cfg(feature = "3d")]
                 rotation,
                 default(),
                 gravity,

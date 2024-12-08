@@ -4,7 +4,7 @@
 
 #![allow(clippy::type_complexity)]
 
-use crate::prelude::*;
+use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
     ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
@@ -14,8 +14,6 @@ use bevy::{
 /// and updates components.
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
-/// - Adds missing mass properties for entities with a [`RigidBody`] component
-/// - Updates mass properties
 /// - Clamps restitution coefficients between 0 and 1
 ///
 /// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]
@@ -33,7 +31,7 @@ pub struct PreparePlugin {
 impl PreparePlugin {
     /// Creates a [`PreparePlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -43,7 +41,7 @@ impl PreparePlugin {
 
 impl Default for PreparePlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
@@ -51,26 +49,17 @@ impl Default for PreparePlugin {
 /// You can use these to schedule your own initialization systems
 /// without having to worry about implementation details.
 ///
-/// 1. `PreInit`: Used for systems that must run before initialization.
-/// 2. `InitRigidBodies`: Responsible for initializing missing [`RigidBody`] components.
-/// 3. `InitColliders`: Responsible for initializing missing [`Collider`] components.
-/// 4. `PropagateTransforms`: Responsible for propagating transforms.
-/// 5. `InitMassProperties`: Responsible for initializing missing mass properties for [`RigidBody`] components.
-/// 6. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
-/// or vice versa.
-/// 7. `Finalize`: Responsible for performing final updates after everything is initialized.
+/// 1. `First`: Runs at the start of the preparation step.
+/// 2. `PropagateTransforms`: Responsible for propagating transforms.
+/// 3. `InitTransforms`: Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
+///    or vice versa.
+/// 4. `Finalize`: Responsible for performing final updates after everything is initialized and updated.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PrepareSet {
-    /// Used for systems that must run before initialization.
-    PreInit,
-    /// Responsible for initializing missing [`RigidBody`] components.
-    InitRigidBodies,
-    /// Responsible for initializing missing [`Collider`] components.
-    InitColliders,
+    /// Runs at the start of the preparation step.
+    First,
     /// Responsible for propagating transforms.
     PropagateTransforms,
-    /// Responsible for initializing missing mass properties for [`RigidBody`] components.
-    InitMassProperties,
     /// Responsible for initializing [`Transform`] based on [`Position`] and [`Rotation`]
     /// or vice versa. Parts of this system can be disabled with [`PrepareConfig`].
     /// Schedule your system with this to implement custom behavior for initializing transforms.
@@ -82,13 +71,12 @@ pub enum PrepareSet {
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<SyncConfig>()
+            .register_type::<SyncConfig>();
         app.configure_sets(
             self.schedule,
             (
-                PrepareSet::PreInit,
-                PrepareSet::InitRigidBodies,
-                PrepareSet::InitColliders,
-                PrepareSet::InitMassProperties,
+                PrepareSet::First,
                 PrepareSet::PropagateTransforms,
                 PrepareSet::InitTransforms,
                 PrepareSet::Finalize,
@@ -114,27 +102,7 @@ impl Plugin for PreparePlugin {
         )
         .add_systems(
             self.schedule,
-            init_rigid_bodies.in_set(PrepareSet::InitRigidBodies),
-        )
-        .add_systems(
-            self.schedule,
-            init_mass_properties.in_set(PrepareSet::InitMassProperties),
-        )
-        .add_systems(
-            self.schedule,
             init_transforms::<RigidBody>.in_set(PrepareSet::InitTransforms),
-        )
-        .add_systems(
-            self.schedule,
-            (
-                update_mass_properties,
-                clamp_collider_density,
-                clamp_restitution,
-                // All the components we added above must exist before we can simulate the bodies.
-                apply_deferred,
-            )
-                .chain()
-                .in_set(PrepareSet::Finalize),
         );
     }
 }
@@ -368,138 +336,6 @@ pub fn init_transforms<C: Component>(
                 cmds.try_insert((transform, Position(new_position), new_rotation));
             }
         }
-    }
-}
-
-/// Initializes missing components for [rigid bodies](RigidBody).
-fn init_rigid_bodies(
-    mut commands: Commands,
-    mut bodies: Query<
-        (
-            Entity,
-            Option<&LinearVelocity>,
-            Option<&AngularVelocity>,
-            Option<&ExternalForce>,
-            Option<&ExternalTorque>,
-            Option<&ExternalImpulse>,
-            Option<&ExternalAngularImpulse>,
-            Option<&Restitution>,
-            Option<&Friction>,
-            Option<&TimeSleeping>,
-        ),
-        Added<RigidBody>,
-    >,
-) {
-    for (
-        entity,
-        lin_vel,
-        ang_vel,
-        force,
-        torque,
-        impulse,
-        angular_impulse,
-        restitution,
-        friction,
-        time_sleeping,
-    ) in &mut bodies
-    {
-        commands.entity(entity).try_insert((
-            AccumulatedTranslation(Vector::ZERO),
-            *lin_vel.unwrap_or(&LinearVelocity::default()),
-            *ang_vel.unwrap_or(&AngularVelocity::default()),
-            PreSolveLinearVelocity::default(),
-            PreSolveAngularVelocity::default(),
-            *force.unwrap_or(&ExternalForce::default()),
-            *torque.unwrap_or(&ExternalTorque::default()),
-            *impulse.unwrap_or(&ExternalImpulse::default()),
-            *angular_impulse.unwrap_or(&ExternalAngularImpulse::default()),
-            *restitution.unwrap_or(&Restitution::default()),
-            *friction.unwrap_or(&Friction::default()),
-            *time_sleeping.unwrap_or(&TimeSleeping::default()),
-        ));
-    }
-}
-
-/// Initializes missing mass properties for [rigid bodies](RigidBody).
-fn init_mass_properties(
-    mut commands: Commands,
-    mass_properties: Query<
-        (
-            Entity,
-            Option<&Mass>,
-            Option<&InverseMass>,
-            Option<&Inertia>,
-            Option<&InverseInertia>,
-            Option<&CenterOfMass>,
-        ),
-        Added<RigidBody>,
-    >,
-) {
-    for (entity, mass, inverse_mass, inertia, inverse_inertia, center_of_mass) in &mass_properties {
-        commands.entity(entity).try_insert((
-            *mass.unwrap_or(&Mass(
-                inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-            )),
-            *inverse_mass.unwrap_or(&InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
-            *inertia.unwrap_or(
-                &inverse_inertia.map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-            ),
-            *inverse_inertia
-                .unwrap_or(&inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse())),
-            *center_of_mass.unwrap_or(&CenterOfMass::default()),
-        ));
-    }
-}
-
-/// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.
-pub fn update_mass_properties(
-    mut bodies: Query<
-        (
-            Entity,
-            &RigidBody,
-            Ref<Mass>,
-            &mut InverseMass,
-            Ref<Inertia>,
-            &mut InverseInertia,
-        ),
-        Or<(Changed<Mass>, Changed<Inertia>)>,
-    >,
-) {
-    for (entity, rb, mass, mut inv_mass, inertia, mut inv_inertia) in &mut bodies {
-        let is_mass_valid = mass.is_finite() && mass.0 >= Scalar::EPSILON;
-        #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.is_finite() && inertia.0 >= Scalar::EPSILON;
-        #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.is_finite() && *inertia != Inertia::ZERO;
-
-        if mass.is_changed() && is_mass_valid {
-            inv_mass.0 = 1.0 / mass.0;
-        }
-        if inertia.is_changed() && is_inertia_valid {
-            inv_inertia.0 = inertia.inverse().0;
-        }
-
-        // Warn about dynamic bodies with no mass or inertia
-        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
-            warn!(
-                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
-                entity
-            );
-        }
-    }
-}
-
-/// Clamps coefficients of [restitution](Restitution) to be between 0.0 and 1.0.
-fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
-    for mut restitution in &mut query {
-        restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
-    }
-}
-
-/// Clamps [`ColliderDensity`] to be above 0.0.
-fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
-    for mut density in &mut query {
-        density.0 = density.max(Scalar::EPSILON);
     }
 }
 

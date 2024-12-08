@@ -120,6 +120,8 @@
 //!
 //! ## Swept CCD
 //!
+//! *Note: Swept CCD currently only supports the built-in `Collider`.*
+//!
 //! **Swept CCD** is a form of Continuous Collision Detection that sweeps potentially colliding objects
 //! from their previous positions to their current positions, and if a collision is found, moves the bodies
 //! back to the time of impact. This way, the normal collision algorithms will be able to detect and handle
@@ -224,46 +226,22 @@
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 
-use crate::{collision::broad_phase::AabbIntersections, prelude::*, prepare::PrepareSet};
-use bevy::{
-    ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
-    prelude::*,
-};
+use crate::{collision::broad_phase::AabbIntersections, prelude::*};
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
+use bevy::ecs::query::QueryData;
+use bevy::prelude::*;
 use derive_more::From;
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
 
 /// A plugin for [Continuous Collision Detection](self).
-pub struct CcdPlugin {
-    schedule: Interned<dyn ScheduleLabel>,
-}
-
-impl CcdPlugin {
-    /// Creates a [`CcdPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
-    ///
-    /// The default schedule is `PostUpdate`.
-    pub fn new(schedule: impl ScheduleLabel) -> Self {
-        Self {
-            schedule: schedule.intern(),
-        }
-    }
-}
-
-impl Default for CcdPlugin {
-    fn default() -> Self {
-        Self::new(PostUpdate)
-    }
-}
+pub struct CcdPlugin;
 
 impl Plugin for CcdPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<SweptCcd>().register_type::<SweepMode>();
-
-        app.add_systems(
-            self.schedule,
-            init_ccd_aabb_intersections.in_set(PrepareSet::InitColliders),
-        );
 
         // Get the `PhysicsSchedule`, and panic if it doesn't exist.
         let physics = app
@@ -272,6 +250,7 @@ impl Plugin for CcdPlugin {
 
         physics.configure_sets(SweptCcdSet.in_set(SolverSet::PostSubstep));
 
+        #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
         physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));
     }
 }
@@ -393,6 +372,7 @@ impl SpeculativeMargin {
 /// ```
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
+#[require(AabbIntersections)]
 pub struct SweptCcd {
     /// The type of sweep used for swept CCD.
     ///
@@ -504,12 +484,7 @@ pub enum SweepMode {
     NonLinear,
 }
 
-fn init_ccd_aabb_intersections(mut commands: Commands, query: Query<Entity, Added<SweptCcd>>) {
-    for entity in &query {
-        commands.entity(entity).insert(AabbIntersections::default());
-    }
-}
-
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 #[derive(QueryData)]
 #[query_data(mutable)]
 struct SweptCcdBodyQuery {
@@ -523,7 +498,7 @@ struct SweptCcdBodyQuery {
     ang_vel: Option<&'static AngularVelocity>,
     ccd: Option<&'static SweptCcd>,
     collider: &'static Collider,
-    com: &'static CenterOfMass,
+    com: &'static ComputedCenterOfMass,
 }
 
 /// Performs [sweep-based mContinuous Collision Detection](self#swept-ccd)
@@ -534,6 +509,7 @@ struct SweptCcdBodyQuery {
 /// are essentially moved back in time, making them appear to momentarily move slower.
 /// Secondary contacts are also not accounted for.
 #[allow(clippy::useless_conversion)]
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn solve_swept_ccd(
     ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
@@ -668,10 +644,9 @@ fn solve_swept_ccd(
             }
             #[cfg(feature = "3d")]
             {
-                let delta_rot = Quaternion::from_vec4(
-                    (ang_vel1.0 * min_toi / 2.0).extend(prev_rot.w * min_toi / 2.0),
-                ) * prev_rot.0 .0;
-                rot1.0 = (prev_rot.0 .0 + delta_rot).normalize();
+                let delta_rot = Quaternion::from_scaled_axis(ang_vel1.0 * min_toi);
+                rot1.0 = delta_rot * prev_rot.0 .0;
+                rot1.renormalize();
             }
 
             if let Some(mut collider_translation) = body2.translation {
@@ -685,11 +660,10 @@ fn solve_swept_ccd(
                 }
                 #[cfg(feature = "3d")]
                 {
-                    let delta_rot = Quaternion::from_vec4(
-                        (collider_ang_vel * min_toi / 2.0)
-                            .extend(collider_prev_rot.w * min_toi / 2.0),
-                    ) * collider_prev_rot.0 .0;
-                    body2.rot.0 = (collider_prev_rot.0 .0 + delta_rot).normalize();
+                    let delta_rot = Quaternion::from_scaled_axis(collider_ang_vel * min_toi);
+
+                    body2.rot.0 = delta_rot * collider_prev_rot.0 .0;
+                    body2.rot.renormalize();
                 }
             }
         }
@@ -698,6 +672,7 @@ fn solve_swept_ccd(
 
 /// Computes the time of impact for the motion of two objects for Continuous Collision Detection.
 /// If the TOI is larger than `min_toi` or the shapes never touch, `None` is returned.
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn compute_ccd_toi(
     mode: SweepMode,
     motion1: &NonlinearRigidMotion,

@@ -120,7 +120,7 @@ impl CharacterControllerBundle {
             rigid_body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(caster_shape, Vector::ZERO, 0.0, Dir2::NEG_Y)
-                .with_max_time_of_impact(10.0),
+                .with_max_distance(10.0),
             gravity: ControllerGravity(gravity),
             movement: MovementBundle::default(),
         }
@@ -161,26 +161,14 @@ fn keyboard_input(
 /// Sends [`MovementAction`] events based on gamepad input.
 fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
-    gamepads: Res<Gamepads>,
-    axes: Res<Axis<GamepadAxis>>,
-    buttons: Res<ButtonInput<GamepadButton>>,
+    gamepads: Query<&Gamepad>,
 ) {
     for gamepad in gamepads.iter() {
-        let axis_lx = GamepadAxis {
-            gamepad,
-            axis_type: GamepadAxisType::LeftStickX,
-        };
-
-        if let Some(x) = axes.get(axis_lx) {
+        if let Some(x) = gamepad.get(GamepadAxis::LeftStickX) {
             movement_event_writer.send(MovementAction::Move(x as Scalar));
         }
 
-        let jump_button = GamepadButton {
-            gamepad,
-            button_type: GamepadButtonType::South,
-        };
-
-        if buttons.just_pressed(jump_button) {
+        if gamepad.just_pressed(GamepadButton::South) {
             movement_event_writer.send(MovementAction::Jump);
         }
     }
@@ -199,7 +187,7 @@ fn update_grounded(
         // that isn't too steep.
         let is_grounded = hits.iter().any(|hit| {
             if let Some(angle) = max_slope_angle {
-                (rotation * -hit.normal2).angle_between(Vector::Y).abs() <= angle.0
+                (rotation * -hit.normal2).angle_to(Vector::Y).abs() <= angle.0
             } else {
                 true
             }
@@ -226,7 +214,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for event in movement_event_reader.read() {
         for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
@@ -253,7 +241,7 @@ fn apply_gravity(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (gravity, mut linear_velocity) in &mut controllers {
         linear_velocity.0 += gravity.0 * delta_time;
@@ -356,7 +344,7 @@ fn kinematic_controller_collisions(
             }
 
             // Determine if the slope is climbable or if it's too steep to walk on.
-            let slope_angle = normal.angle_between(Vector::Y);
+            let slope_angle = normal.angle_to(Vector::Y);
             let climbable = max_slope_angle.is_some_and(|angle| slope_angle.abs() <= angle.0);
 
             if deepest_penetration > 0.0 {
@@ -416,8 +404,8 @@ fn kinematic_controller_collisions(
                 }
 
                 // Compute the impulse to apply.
-                let impulse_magnitude = normal_speed
-                    - (deepest_penetration / time.delta_seconds_f64().adjust_precision());
+                let impulse_magnitude =
+                    normal_speed - (deepest_penetration / time.delta_secs_f64().adjust_precision());
                 let mut impulse = impulse_magnitude * normal;
 
                 // Apply the impulse differently depending on the slope angle.

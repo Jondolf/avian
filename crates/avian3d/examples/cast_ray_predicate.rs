@@ -12,7 +12,6 @@ fn main() {
             PhysicsPlugins::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
         .add_systems(Update, (movement, reset_colors, raycast).chain())
         .run();
@@ -41,12 +40,9 @@ fn setup(
 
     // Ground
     commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh.clone(),
-            material: materials.add(Color::srgb(0.7, 0.7, 0.8)),
-            transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
-            ..default()
-        },
+        Mesh3d(cube_mesh.clone()),
+        MeshMaterial3d(materials.add(Color::srgb(0.7, 0.7, 0.8))),
+        Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
         RigidBody::Static,
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
@@ -64,13 +60,9 @@ fn setup(
                     CUBE_COLOR.into()
                 };
                 commands.spawn((
-                    PbrBundle {
-                        mesh: cube_mesh.clone(),
-                        material: materials.add(material.clone()),
-                        transform: Transform::from_translation(position)
-                            .with_scale(Vec3::splat(cube_size as f32)),
-                        ..default()
-                    },
+                    Mesh3d(cube_mesh.clone()),
+                    MeshMaterial3d(materials.add(material.clone())),
+                    Transform::from_translation(position).with_scale(Vec3::splat(cube_size as f32)),
                     RigidBody::Dynamic,
                     Collider::cuboid(1.0, 1.0, 1.0),
                     MovementAcceleration(10.0),
@@ -82,34 +74,28 @@ fn setup(
 
     // raycast indicator
     commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh.clone(),
-            material: materials.add(Color::srgb(1.0, 0.0, 0.0)),
-            transform: Transform::from_xyz(-500.0, 2.0, 0.0)
-                .with_scale(Vec3::new(1000.0, 0.1, 0.1)),
-            ..default()
-        },
+        Mesh3d(cube_mesh.clone()),
+        MeshMaterial3d(materials.add(Color::srgb(1.0, 0.0, 0.0))),
+        Transform::from_xyz(-500.0, 2.0, 0.0).with_scale(Vec3::new(1000.0, 0.1, 0.1)),
         RayIndicator,
         NotShadowReceiver,
     ));
 
     // Directional light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
+    commands.spawn((
+        DirectionalLight {
             illuminance: 5000.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
-        ..default()
-    });
+        Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 12.0, 40.0))
-            .looking_at(Vec3::Y * 5.0, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::new(0.0, 12.0, 40.0)).looking_at(Vec3::Y * 5.0, Vec3::Y),
+    ));
 }
 
 fn movement(
@@ -119,7 +105,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
         let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);
@@ -142,7 +128,7 @@ fn movement(
 
 fn reset_colors(
     mut materials: ResMut<Assets<StandardMaterial>>,
-    cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
+    cubes: Query<(&MeshMaterial3d<StandardMaterial>, &OutOfGlass)>,
 ) {
     for (material_handle, out_of_glass) in cubes.iter() {
         if let Some(material) = materials.get_mut(material_handle) {
@@ -158,39 +144,34 @@ fn reset_colors(
 fn raycast(
     query: SpatialQuery,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    cubes: Query<(&Handle<StandardMaterial>, &OutOfGlass)>,
-    mut indicator_transform: Query<&mut Transform, With<RayIndicator>>,
+    cubes: Query<(&MeshMaterial3d<StandardMaterial>, &OutOfGlass)>,
+    mut indicator_transform: Single<&mut Transform, With<RayIndicator>>,
 ) {
     let origin = Vector::new(-200.0, 2.0, 0.0);
     let direction = Dir3::X;
+    let filter = SpatialQueryFilter::default();
 
-    let mut ray_indicator_transform = indicator_transform.single_mut();
-
-    if let Some(ray_hit_data) = query.cast_ray_predicate(
-        origin,
-        direction,
-        Scalar::MAX,
-        true,
-        SpatialQueryFilter::default(),
-        &|entity| {
+    if let Some(ray_hit_data) =
+        query.cast_ray_predicate(origin, direction, Scalar::MAX, true, &filter, &|entity| {
+            // Only look at cubes not made out of glass.
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
-                return !out_of_glass.0; // only look at cubes not out of glass
+                return !out_of_glass.0;
             }
-            true // if the collider has no OutOfGlass component, then check it nevertheless
-        },
-    ) {
-        // set color of hit object to red
+            true
+        })
+    {
+        // Set the color of the hit object to red.
         if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
             if let Some(material) = materials.get_mut(material_handle) {
                 material.base_color = RED.into();
             }
         }
 
-        // set length of ray indicator to look more like a laser
-        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.time_of_impact).x;
+        // Set the length of the ray indicator to look more like a laser,
+        let contact_point = (origin + direction.adjust_precision() * ray_hit_data.distance).x;
         let target_scale = 1000.0 + contact_point * 2.0;
-        ray_indicator_transform.scale.x = target_scale as f32;
+        indicator_transform.scale.x = target_scale as f32;
     } else {
-        ray_indicator_transform.scale.x = 2000.0;
+        indicator_transform.scale.x = 2000.0;
     }
 }

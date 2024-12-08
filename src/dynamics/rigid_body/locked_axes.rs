@@ -9,7 +9,7 @@ use crate::prelude::*;
 /// specific axes is to use methods like [`lock_translation_x`](Self::lock_translation_x), but you can also
 /// use bits directly with the [`from_bits`](Self::from_bits) and [`to_bits`](Self::to_bits) methods.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -62,12 +62,14 @@ impl LockedAxes {
     }
 
     /// Locks translation along the `X` axis.
+    #[must_use]
     pub const fn lock_translation_x(mut self) -> Self {
         self.0 |= 0b100_000;
         self
     }
 
     /// Locks translation along the `Y` axis.
+    #[must_use]
     pub const fn lock_translation_y(mut self) -> Self {
         self.0 |= 0b010_000;
         self
@@ -75,6 +77,7 @@ impl LockedAxes {
 
     /// Locks translation along the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_translation_z(mut self) -> Self {
         self.0 |= 0b001_000;
         self
@@ -89,6 +92,7 @@ impl LockedAxes {
 
     /// Locks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_rotation_y(mut self) -> Self {
         self.0 |= 0b000_010;
         self
@@ -96,6 +100,7 @@ impl LockedAxes {
 
     /// Locks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn lock_rotation_z(mut self) -> Self {
         self.0 |= 0b000_001;
         self
@@ -103,18 +108,21 @@ impl LockedAxes {
 
     /// Locks all rotation.
     #[cfg(feature = "2d")]
+    #[must_use]
     pub const fn lock_rotation(mut self) -> Self {
         self.0 |= 0b000_001;
         self
     }
 
     /// Unlocks translation along the `X` axis.
+    #[must_use]
     pub const fn unlock_translation_x(mut self) -> Self {
         self.0 &= !0b100_000;
         self
     }
 
     /// Unlocks translation along the `Y` axis.
+    #[must_use]
     pub const fn unlock_translation_y(mut self) -> Self {
         self.0 &= !0b010_000;
         self
@@ -122,6 +130,7 @@ impl LockedAxes {
 
     /// Unlocks translation along the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_translation_z(mut self) -> Self {
         self.0 &= !0b001_000;
         self
@@ -129,6 +138,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `X` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_x(mut self) -> Self {
         self.0 &= !0b000_100;
         self
@@ -136,6 +146,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `Y` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_y(mut self) -> Self {
         self.0 &= !0b000_010;
         self
@@ -143,6 +154,7 @@ impl LockedAxes {
 
     /// Unlocks rotation around the `Z` axis.
     #[cfg(feature = "3d")]
+    #[must_use]
     pub const fn unlock_rotation_z(mut self) -> Self {
         self.0 &= !0b000_001;
         self
@@ -150,6 +162,7 @@ impl LockedAxes {
 
     /// Unlocks all rotation.
     #[cfg(feature = "2d")]
+    #[must_use]
     pub const fn unlock_rotation(mut self) -> Self {
         self.0 &= !0b000_001;
         self
@@ -210,28 +223,40 @@ impl LockedAxes {
         vector
     }
 
-    /// Sets the given rotation to zero if rotational axes are locked.
+    /// Sets the given angular inertia to zero if rotational axes are locked.
     #[cfg(feature = "2d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Scalar) -> Scalar {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+
         if self.is_rotation_locked() {
-            rotation = 0.0;
+            *angular_inertia.inverse_mut() = 0.0;
         }
-        rotation
+
+        angular_inertia
     }
 
-    /// Sets rotational axes of the given 3x3 matrix to zero based on the [`LockedAxes`] configuration.
+    /// Sets axes of the given angular inertia to zero based on the [`LockedAxes`] configuration.
     #[cfg(feature = "3d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Matrix3) -> Matrix3 {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+
         if self.is_rotation_x_locked() {
-            rotation.x_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().x_axis = Vector::ZERO;
         }
         if self.is_rotation_y_locked() {
-            rotation.y_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().y_axis = Vector::ZERO;
         }
         if self.is_rotation_z_locked() {
-            rotation.z_axis = Vector::ZERO;
+            angular_inertia.inverse_mut().z_axis = Vector::ZERO;
         }
-        rotation
+
+        angular_inertia
     }
 
     /// Sets the given angular velocity to zero if rotational axes are locked.

@@ -1,10 +1,10 @@
 use crate::{
     prelude::*,
-    sync::{PreviousGlobalTransform, SyncConfig},
+    sync::{ancestor_marker::AncestorMarker, PreviousGlobalTransform, SyncConfig},
 };
 use bevy::prelude::*;
 use broad_phase::AabbIntersections;
-use dynamics::solver::SolverConfig;
+use dynamics::solver::{schedule::SubstepCount, SolverConfig};
 
 /// Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
 pub struct PhysicsTypeRegistrationPlugin;
@@ -20,6 +20,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<DeactivationTime>()
             .register_type::<Gravity>()
             .register_type::<RigidBody>()
+            .register_type::<RigidBodyDisabled>()
             .register_type::<Sleeping>()
             .register_type::<SleepingDisabled>()
             .register_type::<TimeSleeping>()
@@ -42,11 +43,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<ExternalImpulse>()
             .register_type::<ExternalAngularImpulse>()
             .register_type::<GravityScale>()
-            .register_type::<Mass>()
-            .register_type::<InverseMass>()
-            .register_type::<Inertia>()
-            .register_type::<InverseInertia>()
-            .register_type::<CenterOfMass>()
             .register_type::<ColliderDensity>()
             .register_type::<ColliderMassProperties>()
             .register_type::<LockedAxes>()
@@ -58,22 +54,25 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<CoefficientCombine>()
             .register_type::<Sensor>()
             .register_type::<ColliderTransform>()
-            .register_type::<PreviousColliderTransform>()
             .register_type::<SpeculativeMargin>()
             .register_type::<SweptCcd>()
             .register_type::<CollisionMargin>()
             .register_type::<NarrowPhaseConfig>()
             .register_type::<SolverConfig>()
             .register_type::<SyncConfig>()
-            .register_type::<ColliderConstructor>()
-            .register_type::<ColliderConstructorHierarchy>()
-            .register_type::<ColliderConstructorHierarchyConfig>()
+            .register_type::<AncestorMarker<RigidBody>>()
+            .register_type::<AncestorMarker<ColliderMarker>>()
             .register_type::<RayCaster>()
-            .register_type::<ShapeCaster>()
             .register_type::<DistanceJoint>()
             .register_type::<FixedJoint>()
             .register_type::<PrismaticJoint>()
             .register_type::<RevoluteJoint>();
+
+        #[cfg(feature = "default-collider")]
+        app.register_type::<ColliderConstructor>()
+            .register_type::<ColliderConstructorHierarchy>()
+            .register_type::<ColliderConstructorHierarchyConfig>()
+            .register_type::<ShapeCaster>();
 
         #[cfg(feature = "3d")]
         app.register_type::<SphericalJoint>();

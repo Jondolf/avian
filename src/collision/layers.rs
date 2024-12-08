@@ -6,14 +6,17 @@ use bevy::prelude::*;
 /// Physics layers are used heavily by [`CollisionLayers`].
 ///
 /// This trait can be derived for enums with `#[derive(PhysicsLayer)]`.
-pub trait PhysicsLayer: Sized {
+pub trait PhysicsLayer: Sized + Default {
     /// Converts the layer to a bitmask.
     fn to_bits(&self) -> u32;
     /// Creates a layer bitmask with all bits set to 1.
     fn all_bits() -> u32;
 }
 
-impl<L: PhysicsLayer> PhysicsLayer for &L {
+impl<'a, L: PhysicsLayer> PhysicsLayer for &'a L
+where
+    &'a L: Default,
+{
     fn to_bits(&self) -> u32 {
         L::to_bits(self)
     }
@@ -26,20 +29,29 @@ impl<L: PhysicsLayer> PhysicsLayer for &L {
 /// A bitmask for layers.
 ///
 /// A [`LayerMask`] can be constructed from bits directly, or from types implementing [`PhysicsLayer`].
+/// The first bit `0b0001` is reserved for the default layer, which all entities belong to by default.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer, Clone, Copy, Debug)]
+/// #[derive(PhysicsLayer, Clone, Copy, Debug, Default)]
 /// enum GameLayer {
-///     Player, // Layer 0
-///     Enemy,  // Layer 1
-///     Ground, // Layer 2
+///     #[default]
+///     Default, // Layer 0 - the default layer that objects are assigned to
+///     Player,  // Layer 1
+///     Enemy,   // Layer 2
+///     Ground,  // Layer 3
 /// }
 ///
+/// // The first bit is reserved for the default layer.
+/// assert_eq!(GameLayer::default().to_bits(), 1 << 0);
+///
+/// // The `GameLayer::Ground` layer is the fourth layer, so its bit value is `1 << 3`.
+/// assert_eq!(GameLayer::Ground.to_bits(), 1 << 3);
+///
 /// // Here, `GameLayer::Enemy` is automatically converted to a `LayerMask` for the comparison.
-/// assert_eq!(LayerMask(0b0010), GameLayer::Enemy);
+/// assert_eq!(LayerMask(0b00100), GameLayer::Enemy);
 /// ```
 ///
 /// Bitwise operations can be used to modify and combine masks:
@@ -105,6 +117,8 @@ impl LayerMask {
     pub const ALL: Self = Self(0xffff_ffff);
     /// Contains no layers.
     pub const NONE: Self = Self(0);
+    /// Contains the default layer.
+    pub const DEFAULT: Self = Self(1);
 
     /// Adds the given `layers` to `self`.
     ///
@@ -236,10 +250,14 @@ impl Not for LayerMask {
 /// - The memberships of `A` contain a layer that is also in the filters of `B`
 /// - The memberships of `B` contain a layer that is also in the filters of `A`
 ///
-/// Colliders without this component can be considered as having all memberships and filters, and they can
-/// interact with everything that belongs on any layer.
+/// The memberships and filters are stored as [`LayerMask`]s, which represent [bitmasks] for layers.
+/// The first bit `0b0001` is reserved for the default layer, which all entities belong to by default.
 ///
-/// ## Creation
+/// Colliders without this component have all filters and can interact with any layer.
+///
+/// [bitmasks]: https://en.wikipedia.org/wiki/Mask_(computing)
+///
+/// # Creation
 ///
 /// Collision layers store memberships and filters using [`LayerMask`]s. A [`LayerMask`] can be created using
 /// bitmasks, or by creating an enum that implements [`PhysicsLayer`].
@@ -262,15 +280,20 @@ impl Not for LayerMask {
 #[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 /// #
-/// #[derive(PhysicsLayer)]
+/// #[derive(PhysicsLayer, Default)]
 /// enum GameLayer {
-///     Player, // Layer 0
-///     Enemy,  // Layer 1
-///     Ground, // Layer 2
+///     #[default]
+///     Default, // Layer 0 - the default layer that objects are assigned to
+///     Player,  // Layer 1
+///     Enemy,   // Layer 2
+///     Ground,  // Layer 3
 /// }
 ///
 /// // Player collides with enemies and the ground, but not with other players
-/// let layers = CollisionLayers::new(GameLayer::Player, [GameLayer::Enemy, GameLayer::Ground]);
+/// let layers = CollisionLayers::new(
+///     GameLayer::Player,
+///     [GameLayer::Default, GameLayer::Enemy, GameLayer::Ground],
+/// );
 /// ```
 ///
 /// You can also use [`LayerMask`] directly:
@@ -291,7 +314,7 @@ impl Not for LayerMask {
 /// # use bevy::prelude::Commands;
 /// #
 /// // `1 << n` is bitshifting: the first layer shifted by `n` layers.
-/// pub const FIRST_LAYER: u32 = 1 << 0;
+/// pub const FIRST_LAYER: u32 = 1 << 0; // Note: this is the default layer.
 /// pub const SECOND_LAYER: u32 = 1 << 1;
 /// pub const LAST_LAYER: u32 = 1 << 31;
 ///
@@ -305,7 +328,7 @@ impl Not for LayerMask {
 /// }
 /// ```
 ///
-/// ## Modifying layers
+/// # Modifying Layers
 ///
 /// Existing [`CollisionLayers`] can be modified by simply accessing the `memberships` and `filters`
 /// and changing their [`LayerMask`]s.
@@ -345,6 +368,12 @@ pub struct CollisionLayers {
 }
 
 impl CollisionLayers {
+    /// Contains the default layer and all filters.
+    pub const DEFAULT: Self = Self {
+        memberships: LayerMask::DEFAULT,
+        filters: LayerMask::ALL,
+    };
+
     /// Contains all memberships and filters.
     pub const ALL: Self = Self {
         memberships: LayerMask::ALL,
@@ -399,16 +428,13 @@ impl CollisionLayers {
 
 impl Default for CollisionLayers {
     fn default() -> Self {
-        Self {
-            memberships: LayerMask::ALL,
-            filters: LayerMask::ALL,
-        }
+        CollisionLayers::DEFAULT
     }
 }
 
 #[cfg(test)]
 mod tests {
-    // Needed for PhysicsLayer derive macro
+    // Needed for `PhysicsLayer` derive macro
     #[cfg(feature = "2d")]
     use crate as avian2d;
     #[cfg(feature = "3d")]
@@ -416,8 +442,10 @@ mod tests {
 
     use crate::prelude::*;
 
-    #[derive(PhysicsLayer)]
+    #[derive(PhysicsLayer, Default)]
     enum GameLayer {
+        #[default]
+        Default,
         Player,
         Enemy,
         Ground,
@@ -425,11 +453,13 @@ mod tests {
 
     #[test]
     fn creation() {
-        let with_bitmask = CollisionLayers::new(0b0010, 0b0101);
-        let with_enum =
-            CollisionLayers::new(GameLayer::Enemy, [GameLayer::Player, GameLayer::Ground]);
+        let with_bitmask = CollisionLayers::new(0b00100, 0b01011);
+        let with_enum = CollisionLayers::new(
+            GameLayer::Enemy,
+            [GameLayer::Default, GameLayer::Player, GameLayer::Ground],
+        );
         let with_layers =
-            CollisionLayers::new(LayerMask::from(GameLayer::Enemy), LayerMask(0b0101));
+            CollisionLayers::new(LayerMask::from(GameLayer::Enemy), LayerMask(0b01011));
 
         assert_eq!(with_bitmask, with_enum);
         assert_eq!(with_bitmask, with_layers);

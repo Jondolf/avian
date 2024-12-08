@@ -1,7 +1,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use avian2d::{math::*, prelude::*};
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
 
 fn main() {
@@ -20,8 +20,10 @@ fn main() {
 }
 
 // Define the collision layers
-#[derive(PhysicsLayer)]
+#[derive(PhysicsLayer, Default)]
 enum Layer {
+    #[default]
+    Default,
     Blue,
     Red,
 }
@@ -31,19 +33,16 @@ fn setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     // Spawn blue platform that belongs on the blue layer and collides with blue
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.2, 0.7, 0.9),
-                custom_size: Some(Vec2::new(500.0, 25.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(0.0, -50.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.2, 0.7, 0.9),
+            custom_size: Some(Vec2::new(500.0, 25.0)),
             ..default()
         },
+        Transform::from_xyz(0.0, -50.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Blue], [Layer::Blue]),
@@ -51,15 +50,12 @@ fn setup(
 
     // Spawn red platform that belongs on the red layer and collides with red
     commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::srgb(0.9, 0.3, 0.3),
-                custom_size: Some(Vec2::new(500.0, 25.0)),
-                ..default()
-            },
-            transform: Transform::from_xyz(0.0, -200.0, 0.0),
+        Sprite {
+            color: Color::srgb(0.9, 0.3, 0.3),
+            custom_size: Some(Vec2::new(500.0, 25.0)),
             ..default()
         },
+        Transform::from_xyz(0.0, -200.0, 0.0),
         RigidBody::Static,
         Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Red], [Layer::Red]),
@@ -73,16 +69,13 @@ fn setup(
     for x in -6..6 {
         for y in 0..4 {
             commands.spawn((
-                MaterialMesh2dBundle {
-                    mesh: marble_mesh.clone().into(),
-                    material: blue_material.clone(),
-                    transform: Transform::from_xyz(
-                        x as f32 * 2.5 * marble_radius,
-                        y as f32 * 2.5 * marble_radius + 200.0,
-                        0.0,
-                    ),
-                    ..default()
-                },
+                Mesh2d(marble_mesh.clone()),
+                MeshMaterial2d(blue_material.clone()),
+                Transform::from_xyz(
+                    x as f32 * 2.5 * marble_radius,
+                    y as f32 * 2.5 * marble_radius + 200.0,
+                    0.0,
+                ),
                 RigidBody::Dynamic,
                 Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Blue], [Layer::Blue]),
@@ -95,16 +88,13 @@ fn setup(
     for x in -6..6 {
         for y in -4..0 {
             commands.spawn((
-                MaterialMesh2dBundle {
-                    mesh: marble_mesh.clone().into(),
-                    material: red_material.clone(),
-                    transform: Transform::from_xyz(
-                        x as f32 * 2.5 * marble_radius,
-                        y as f32 * 2.5 * marble_radius + 200.0,
-                        0.0,
-                    ),
-                    ..default()
-                },
+                Mesh2d(marble_mesh.clone()),
+                MeshMaterial2d(red_material.clone()),
+                Transform::from_xyz(
+                    x as f32 * 2.5 * marble_radius,
+                    y as f32 * 2.5 * marble_radius + 200.0,
+                    0.0,
+                ),
                 RigidBody::Dynamic,
                 Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Red], [Layer::Red]),
