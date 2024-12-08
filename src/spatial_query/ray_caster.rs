@@ -354,61 +354,6 @@ fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: Co
     world.get_mut::<RayHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
-/// Configuration for a ray cast.
-#[derive(Clone, Debug, PartialEq, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, PartialEq)]
-pub struct RayCastConfig {
-    /// The maximum distance the ray can travel.
-    ///
-    /// By default, this is infinite.
-    #[doc(alias = "max_time_of_impact")]
-    pub max_distance: Scalar,
-
-    /// Controls how the ray behaves when the ray origin is inside of a shape.
-    ///
-    /// If `true`, shapes will be treated as solid, and the ray cast will return with a distance of `0.0`
-    /// if the ray origin is inside of the shape. Otherwise, shapes will be treated as hollow, and the ray
-    /// will always return a hit at the shape's boundary.
-    ///
-    /// By default, this is `true`.
-    pub solid: bool,
-}
-
-impl Default for RayCastConfig {
-    fn default() -> Self {
-        Self {
-            max_distance: Scalar::MAX,
-            solid: true,
-        }
-    }
-}
-
-impl RayCastConfig {
-    /// The default [`RayCastConfig`] configuration.
-    pub const DEFAULT: Self = Self {
-        max_distance: Scalar::MAX,
-        solid: true,
-    };
-
-    /// Creates a new [`RayCastConfig`] with a given maximum distance the ray can travel.
-    #[inline]
-    pub const fn from_max_distance(max_distance: Scalar) -> Self {
-        Self {
-            max_distance,
-            solid: true,
-        }
-    }
-
-    /// Sets the maximum distance the ray can travel.
-    #[inline]
-    pub const fn with_max_distance(mut self, max_distance: Scalar) -> Self {
-        self.max_distance = max_distance;
-        self
-    }
-}
-
 /// Contains the hits of a ray cast by a [`RayCaster`].
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`RayCaster`].

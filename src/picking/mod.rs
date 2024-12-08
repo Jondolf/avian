@@ -112,7 +112,8 @@ pub fn update_hits(
                 .cast_ray_predicate(
                     ray.origin.adjust_precision(),
                     ray.direction,
-                    &RayCastConfig::default(),
+                    Scalar::MAX,
+                    true,
                     &SpatialQueryFilter::default(),
                     &|entity| {
                         let marker_requirement =

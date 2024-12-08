@@ -149,11 +149,10 @@ fn raycast(
 ) {
     let origin = Vector::new(-200.0, 2.0, 0.0);
     let direction = Dir3::X;
-    let config = RayCastConfig::default();
     let filter = SpatialQueryFilter::default();
 
     if let Some(ray_hit_data) =
-        query.cast_ray_predicate(origin, direction, &config, &filter, &|entity| {
+        query.cast_ray_predicate(origin, direction, Scalar::MAX, true, &filter, &|entity| {
             // Only look at cubes not made out of glass.
             if let Ok((_, out_of_glass)) = cubes.get(entity) {
                 return !out_of_glass.0;

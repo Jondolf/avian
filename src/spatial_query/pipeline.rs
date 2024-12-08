@@ -155,7 +155,9 @@ impl SpatialQueryPipeline {
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
-    /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `max_distance`: The maximum distance the ray can travel.
+    /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
@@ -167,10 +169,11 @@ impl SpatialQueryPipeline {
         &self,
         origin: Vector,
         direction: Dir,
-        config: &RayCastConfig,
+        max_distance: Scalar,
+        solid: bool,
         filter: &SpatialQueryFilter,
     ) -> Option<RayHitData> {
-        self.cast_ray_predicate(origin, direction, config, filter, &|_| true)
+        self.cast_ray_predicate(origin, direction, max_distance, solid, filter, &|_| true)
     }
 
     /// Casts a [ray](spatial_query#raycasting) and computes the closest [hit](RayHitData) with a collider.
@@ -180,7 +183,9 @@ impl SpatialQueryPipeline {
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
-    /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `max_distance`: The maximum distance the ray can travel.
+    /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
     /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `false`.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
@@ -193,7 +198,8 @@ impl SpatialQueryPipeline {
         &self,
         origin: Vector,
         direction: Dir,
-        config: &RayCastConfig,
+        max_distance: Scalar,
+        solid: bool,
         filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<RayHitData> {
@@ -202,8 +208,8 @@ impl SpatialQueryPipeline {
         let mut visitor = RayCompositeShapeToiAndNormalBestFirstVisitor::new(
             &pipeline_shape,
             &ray,
-            config.max_distance,
-            config.solid,
+            max_distance,
+            solid,
         );
 
         self.qbvh
@@ -224,8 +230,10 @@ impl SpatialQueryPipeline {
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
+    /// - `max_distance`: The maximum distance the ray can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
-    /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
@@ -237,12 +245,13 @@ impl SpatialQueryPipeline {
         &self,
         origin: Vector,
         direction: Dir,
+        max_distance: Scalar,
         max_hits: u32,
-        config: &RayCastConfig,
+        solid: bool,
         filter: &SpatialQueryFilter,
     ) -> Vec<RayHitData> {
         let mut hits = Vec::with_capacity(10);
-        self.ray_hits_callback(origin, direction, config, filter, |hit| {
+        self.ray_hits_callback(origin, direction, max_distance, solid, filter, |hit| {
             hits.push(hit);
             (hits.len() as u32) < max_hits
         });
@@ -258,7 +267,9 @@ impl SpatialQueryPipeline {
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
-    /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `max_distance`: The maximum distance the ray can travel.
+    /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each hit.
     ///
@@ -271,7 +282,8 @@ impl SpatialQueryPipeline {
         &self,
         origin: Vector,
         direction: Dir,
-        config: &RayCastConfig,
+        max_distance: Scalar,
+        solid: bool,
         filter: &SpatialQueryFilter,
         mut callback: impl FnMut(RayHitData) -> bool,
     ) {
@@ -283,12 +295,11 @@ impl SpatialQueryPipeline {
             let entity = self.entity_from_index(*entity_index);
             if let Some((iso, shape, layers)) = colliders.get(&entity) {
                 if filter.test(entity, *layers) {
-                    if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
-                        iso,
-                        &ray,
-                        config.max_distance,
-                        config.solid,
-                    ) {
+                    if let Some(hit) =
+                        shape
+                            .shape_scaled()
+                            .cast_ray_and_get_normal(iso, &ray, max_distance, solid)
+                    {
                         let hit = RayHitData {
                             entity,
                             distance: hit.time_of_impact,
@@ -302,8 +313,7 @@ impl SpatialQueryPipeline {
             true
         };
 
-        let mut visitor =
-            RayIntersectionsVisitor::new(&ray, config.max_distance, &mut leaf_callback);
+        let mut visitor = RayIntersectionsVisitor::new(&ray, max_distance, &mut leaf_callback);
         self.qbvh.traverse_depth_first(&mut visitor);
     }
 
