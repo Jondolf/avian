@@ -66,11 +66,7 @@ fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizm
         let direction = ray.global_direction().f32();
 
         for hit in hits.iter() {
-            gizmos.line_2d(
-                origin,
-                origin + direction * hit.time_of_impact as f32,
-                GREEN,
-            );
+            gizmos.line_2d(origin, origin + direction * hit.distance as f32, GREEN);
         }
         if hits.is_empty() {
             gizmos.line_2d(origin, origin + direction * 1_000_000.0, ORANGE_RED);

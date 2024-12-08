@@ -624,16 +624,16 @@ impl Collider {
             .contains_point(&make_isometry(translation, rotation), &point.into())
     }
 
-    /// Computes the time of impact and normal between the given ray and `self`
+    /// Computes the distance and normal between the given ray and `self`
     /// transformed by `translation` and `rotation`.
     ///
-    /// The returned tuple is in the format `(time_of_impact, normal)`.
+    /// The returned tuple is in the format `(distance, normal)`.
     ///
     /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
-    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_distance`: The maximum distance the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
     ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     pub fn cast_ray(
@@ -642,13 +642,13 @@ impl Collider {
         rotation: impl Into<Rotation>,
         ray_origin: Vector,
         ray_direction: Vector,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         solid: bool,
     ) -> Option<(Scalar, Vector)> {
         let hit = self.shape_scaled().cast_ray_and_get_normal(
             &make_isometry(translation, rotation),
             &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
-            max_time_of_impact,
+            max_distance,
             solid,
         );
         hit.map(|hit| (hit.time_of_impact, hit.normal.into()))
@@ -660,19 +660,19 @@ impl Collider {
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
-    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_distance`: The maximum distance the ray can travel.
     pub fn intersects_ray(
         &self,
         translation: impl Into<Position>,
         rotation: impl Into<Rotation>,
         ray_origin: Vector,
         ray_direction: Vector,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
     ) -> bool {
         self.shape_scaled().intersects_ray(
             &make_isometry(translation, rotation),
             &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
-            max_time_of_impact,
+            max_distance,
         )
     }
 
