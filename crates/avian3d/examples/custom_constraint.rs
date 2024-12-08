@@ -1,5 +1,5 @@
 use avian3d::{
-    dynamics::solver::{xpbd::*, SubstepSolverSet},
+    dynamics::solver::{schedule::SubstepSolverSet, xpbd::*},
     math::*,
     prelude::*,
 };
@@ -108,24 +108,18 @@ fn setup(
     // Spawn a static cube and a dynamic cube that is outside of the rest length
     let static_cube = commands
         .spawn((
-            PbrBundle {
-                mesh: cube_mesh.clone(),
-                material: cube_material.clone(),
-                ..default()
-            },
+            Mesh3d(cube_mesh.clone()),
+            MeshMaterial3d(cube_material.clone()),
             RigidBody::Static,
         ))
         .id();
     let dynamic_cube = commands
         .spawn((
-            PbrBundle {
-                mesh: cube_mesh,
-                material: cube_material,
-                transform: Transform::from_xyz(3.0, 3.5, 0.0),
-                ..default()
-            },
+            Mesh3d(cube_mesh),
+            MeshMaterial3d(cube_material),
+            Transform::from_xyz(3.0, 3.5, 0.0),
             RigidBody::Dynamic,
-            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
+            MassPropertiesBundle::from_shape(&Cuboid::from_length(1.0), 1.0),
         ))
         .id();
 
@@ -140,19 +134,18 @@ fn setup(
     });
 
     // Light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             intensity: 2_000_000.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }

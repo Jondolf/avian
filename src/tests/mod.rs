@@ -9,25 +9,10 @@ use bevy::{
     prelude::*,
     time::TimeUpdateStrategy,
 };
-#[cfg(feature = "enhanced-determinism")]
-use insta::assert_debug_snapshot;
 use std::time::Duration;
 
-// rust doesn't seem to have a way to run one-time setup per test
-// could consider rstest? https://github.com/la10736/rstest#use-once-fixture
-// see https://insta.rs/docs/patterns/ for the pattern used here
-#[cfg(feature = "enhanced-determinism")]
-macro_rules! setup_insta {
-    ($($expr:expr),*) => {
-        let _insta_settings_guard = {
-            let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-            let mut settings = insta::Settings::clone_current();
-            // we need this hack, because insta doesn't like modules being outside the crate
-            settings.set_snapshot_path(format!("{manifest_dir}/snapshots"));
-            settings.bind_to_scope()
-        };
-    };
-}
+#[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
+mod determinism_2d;
 
 fn create_app() -> App {
     let mut app = App::new();
@@ -86,7 +71,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                     (z as Scalar - count_z as Scalar * 0.5) * 2.1 * radius,
                 );
                 commands.spawn((
-                    SpatialBundle::default(),
+                    Transform::default(),
                     RigidBody::Dynamic,
                     Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
@@ -122,13 +107,13 @@ fn body_with_velocity_moves() {
     app.add_systems(Startup, |mut commands: Commands| {
         // move right at 1 unit per second
         commands.spawn((
-            SpatialBundle::default(),
+            Transform::default(),
             RigidBody::Dynamic,
             LinearVelocity(Vector::X),
             #[cfg(feature = "2d")]
-            MassPropertiesBundle::new_computed(&Collider::circle(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Circle::new(0.5), 1.0),
             #[cfg(feature = "3d")]
-            MassPropertiesBundle::new_computed(&Collider::sphere(0.5), 1.0),
+            MassPropertiesBundle::from_shape(&Sphere::new(0.5), 1.0),
         ));
     });
 
@@ -154,43 +139,11 @@ fn body_with_velocity_moves() {
         1. * UPDATES as f32 * 1. / 60.,
         epsilon = 0.03 // allow some leeway, as we might be one frame off
     );
-
-    #[cfg(feature = "enhanced-determinism")]
-    {
-        setup_insta!();
-        assert_debug_snapshot!(transform);
-    }
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
 #[cfg(feature = "3d")]
 struct Id(usize);
-
-#[cfg(all(feature = "3d", feature = "enhanced-determinism"))]
-#[test]
-fn cubes_simulation_is_deterministic_across_machines() {
-    setup_insta!();
-    let mut app = create_app();
-
-    app.add_systems(Startup, setup_cubes_simulation);
-
-    // Run startup systems
-    app.update();
-
-    const SECONDS: usize = 10;
-    const UPDATES: usize = 60 * SECONDS;
-
-    for _ in 0..UPDATES {
-        tick_app(&mut app, 1.0 / 60.0);
-    }
-
-    let mut app_query = app.world_mut().query::<(&Id, &Transform)>();
-
-    let mut bodies: Vec<(&Id, &Transform)> = app_query.iter(app.world()).collect();
-    bodies.sort_by_key(|b| b.0);
-
-    assert_debug_snapshot!(bodies);
-}
 
 #[cfg(all(feature = "3d", feature = "default-collider"))]
 #[test]

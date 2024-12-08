@@ -152,7 +152,7 @@ fn debug_render_axes(
     bodies: Query<(
         &Position,
         &Rotation,
-        &CenterOfMass,
+        &ComputedCenterOfMass,
         Has<Sleeping>,
         Option<&DebugRender>,
     )>,
@@ -336,8 +336,8 @@ fn debug_render_contacts(
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1.f32(), default(), 0.1 * length_unit.0 as f32, color);
-                        gizmos.sphere(p2.f32(), default(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.sphere(p1.f32(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.sphere(p2.f32(), 0.1 * length_unit.0 as f32, color);
                     }
                 }
 
@@ -352,7 +352,7 @@ fn debug_render_contacts(
                             ContactGizmoScale::Constant(length) => length,
                             ContactGizmoScale::Scaled(scale) => {
                                 scale * contacts.total_normal_impulse
-                                    / time.delta_seconds_f64().adjust_precision()
+                                    / time.delta_secs_f64().adjust_precision()
                             }
                         };
 
@@ -426,7 +426,7 @@ fn debug_render_raycasts(
             ray.global_origin(),
             ray.global_direction(),
             // f32::MAX renders nothing, but this number seems to be fine :P
-            ray.max_time_of_impact.min(1_000_000_000_000_000_000.0),
+            ray.max_distance.min(1_000_000_000_000_000_000.0),
             hits.as_slice(),
             ray_color,
             point_color,
@@ -459,7 +459,7 @@ fn debug_render_shapecasts(
             shape_caster.global_shape_rotation(),
             shape_caster.global_direction(),
             // f32::MAX renders nothing, but this number seems to be fine :P
-            shape_caster.max_time_of_impact.min(1_000_000_000_000_000.0),
+            shape_caster.max_distance.min(1_000_000_000_000_000.0),
             hits.as_slice(),
             ray_color,
             shape_color,

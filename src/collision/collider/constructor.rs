@@ -18,15 +18,15 @@ use bevy::utils::HashMap;
 /// This component will only override a pre-existing [`Collider`] component on a descendant entity
 /// when it has been explicitly mentioned in the `config`.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on the same entity, use [`ColliderConstructor`].
 ///
-/// ## Caveats
+/// # Caveats
 ///
 /// When a component has multiple ancestors with [`ColliderConstructorHierarchy`], the insertion order is undefined.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -45,7 +45,7 @@ use bevy::utils::HashMap;
     doc = "    // Spawn the scene and automatically generate triangle mesh colliders"
 )]
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 }),"
@@ -58,7 +58,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Specify configuration for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -75,7 +75,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Only generate colliders for specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene: scene.clone(), ..default() },
+///         SceneRoot(scene.clone()),
 ///         ColliderConstructorHierarchy::new(None)
 #[cfg_attr(
     feature = "2d",
@@ -89,7 +89,7 @@ use bevy::utils::HashMap;
 ///
 ///     // Generate colliders for everything except specific meshes by name
 ///     commands.spawn((
-///         SceneBundle { scene, ..default() },
+///         SceneRoot(scene),
 #[cfg_attr(
     feature = "2d",
     doc = "        ColliderConstructorHierarchy::new(ColliderConstructor::Circle { radius: 2.0 })
@@ -240,16 +240,16 @@ pub struct ColliderConstructorHierarchyConfig {
 ///
 /// This component will never override a pre-existing [`Collider`] component on the same entity.
 ///
-/// ## See also
+/// # See Also
 ///
 /// For inserting colliders on an entity's descendants, use [`ColliderConstructorHierarchy`].
 ///
-/// ## Panics
+/// # Panics
 ///
 /// The system handling the generation of colliders will panic if the specified [`ColliderConstructor`]
 /// requires a mesh, but the entity does not have a `Handle<Mesh>` component.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -271,10 +271,7 @@ pub struct ColliderConstructorHierarchyConfig {
     feature = "3d",
     doc = "        ColliderConstructor::ConvexHullFromMesh,"
 )]
-///         PbrBundle {
-///             mesh: meshes.add(Mesh::from(Cuboid::default())),
-///             ..default()
-///         },
+///         Mesh3d(meshes.add(Cuboid::default())),
 ///     ));
 /// }
 /// ```
@@ -346,7 +343,7 @@ pub enum ColliderConstructor {
     Triangle { a: Vector, b: Vector, c: Vector },
     /// Constructs a collider with [`Collider::regular_polygon`].
     #[cfg(feature = "2d")]
-    RegularPolygon { circumradius: f32, sides: usize },
+    RegularPolygon { circumradius: f32, sides: u32 },
     /// Constructs a collider with [`Collider::polyline`].
     Polyline {
         vertices: Vec<Vector>,
@@ -480,16 +477,16 @@ mod tests {
     fn collider_constructor_converts_mesh_on_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
-            .spawn((COMPUTED_COLLIDER.clone(), mesh_handle))
+            .spawn((COMPUTED_COLLIDER.clone(), Mesh3d(mesh)))
             .id();
 
         app.update();
 
         assert!(app.query_ok::<&Collider>(entity));
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructor>(entity));
     }
 
@@ -515,18 +512,18 @@ mod tests {
     fn collider_constructor_hierarchy_does_nothing_on_self_with_computed() {
         let mut app = create_test_app();
 
-        let mesh_handle = app.add_mesh();
+        let mesh = app.add_mesh();
         let entity = app
             .world_mut()
             .spawn((
                 ColliderConstructorHierarchy::new(COMPUTED_COLLIDER.clone()),
-                mesh_handle,
+                Mesh3d(mesh),
             ))
             .id();
 
         app.update();
 
-        assert!(app.query_ok::<&Handle<Mesh>>(entity));
+        assert!(app.query_ok::<&Mesh3d>(entity));
         assert!(app.query_err::<&ColliderConstructorHierarchy>(entity));
         assert!(app.query_err::<&Collider>(entity));
     }
@@ -569,8 +566,8 @@ mod tests {
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
+            .add_children(&[child1, child2]);
+        app.world_mut().entity_mut(child2).add_children(&[child3]);
 
         app.update();
 
@@ -590,7 +587,7 @@ mod tests {
     #[test]
     fn collider_constructor_hierarchy_inserts_computed_colliders_only_on_descendants_with_mesh() {
         let mut app = create_test_app();
-        let mesh_handle = app.add_mesh();
+        let mesh = Mesh3d(app.add_mesh());
 
         // Hierarchy:
         // - parent
@@ -609,19 +606,19 @@ mod tests {
             .id();
         let child1 = app.world_mut().spawn(()).id();
         let child2 = app.world_mut().spawn(()).id();
-        let child3 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child4 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child3 = app.world_mut().spawn(mesh.clone()).id();
+        let child4 = app.world_mut().spawn(mesh.clone()).id();
         let child5 = app.world_mut().spawn(()).id();
-        let child6 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child7 = app.world_mut().spawn(mesh_handle.clone()).id();
-        let child8 = app.world_mut().spawn(mesh_handle.clone()).id();
+        let child6 = app.world_mut().spawn(mesh.clone()).id();
+        let child7 = app.world_mut().spawn(mesh.clone()).id();
+        let child8 = app.world_mut().spawn(mesh.clone()).id();
 
         app.world_mut()
             .entity_mut(parent)
-            .push_children(&[child1, child2, child4, child6, child7]);
-        app.world_mut().entity_mut(child2).push_children(&[child3]);
-        app.world_mut().entity_mut(child4).push_children(&[child5]);
-        app.world_mut().entity_mut(child7).push_children(&[child8]);
+            .add_children(&[child1, child2, child4, child6, child7]);
+        app.world_mut().entity_mut(child2).add_child(child3);
+        app.world_mut().entity_mut(child4).add_child(child5);
+        app.world_mut().entity_mut(child7).add_child(child8);
 
         app.update();
 
@@ -652,7 +649,16 @@ mod tests {
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
+        #[derive(Resource)]
+        struct SceneReady;
+
         let mut app = create_gltf_test_app();
+
+        app.add_observer(
+            |_trigger: Trigger<bevy::scene::SceneInstanceReady>, mut commands: Commands| {
+                commands.insert_resource(SceneReady);
+            },
+        );
 
         let scene_handle = app
             .world_mut()
@@ -662,10 +668,7 @@ mod tests {
         let hierarchy = app
             .world_mut()
             .spawn((
-                SceneBundle {
-                    scene: scene_handle,
-                    ..default()
-                },
+                SceneRoot(scene_handle),
                 ColliderConstructorHierarchy::new(ColliderConstructor::ConvexDecompositionFromMesh)
                     // Use a primitive collider for the left arm.
                     .with_constructor_for_name("armL_mesh", PRIMITIVE_COLLIDER)
@@ -676,11 +679,10 @@ mod tests {
             ))
             .id();
 
-        while app
-            .world()
-            .resource::<Events<bevy::scene::SceneInstanceReady>>()
-            .is_empty()
-        {
+        for _ in 0..1000 {
+            if app.world().contains_resource::<SceneReady>() {
+                break;
+            }
             app.update();
         }
         app.update();

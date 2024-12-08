@@ -74,7 +74,9 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
-            .register_type::<NarrowPhaseConfig>();
+            .init_resource::<DefaultFriction>()
+            .init_resource::<DefaultRestitution>()
+            .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
@@ -113,14 +115,14 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
                 (
                     // Reset collision states.
                     reset_collision_states
+                        .in_set(PhysicsStepSet::NarrowPhase)
                         .after(NarrowPhaseSet::First)
                         .before(NarrowPhaseSet::CollectCollisions),
                     // Remove ended collisions after contact reporting
                     remove_ended_collisions
                         .after(PhysicsStepSet::ReportContacts)
                         .before(PhysicsStepSet::Sleeping),
-                )
-                    .chain(),
+                ),
             );
         }
 
@@ -159,13 +161,6 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         }
 
         if is_first_instance {
-            #[cfg(debug_assertions)]
-            app.add_systems(
-                self.schedule,
-                log_overlap_at_spawn
-                    .in_set(NarrowPhaseSet::PostProcess)
-                    .before(run_post_process_collisions_schedule),
-            );
             app.add_systems(
                 self.schedule,
                 run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
@@ -270,6 +265,8 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
+    default_friction: Res<DefaultFriction>,
+    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
@@ -314,6 +311,33 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
+            // Get combined friction and restitution coefficients of the colliders
+            // or the bodies they are attached to. Fall back to the global defaults.
+            let friction = collider1
+                .friction
+                .or(body1.friction)
+                .copied()
+                .unwrap_or(default_friction.0)
+                .combine(
+                    collider2
+                        .friction
+                        .or(body2.friction)
+                        .copied()
+                        .unwrap_or(default_friction.0),
+                );
+            let restitution = collider1
+                .restitution
+                .or(body1.restitution)
+                .copied()
+                .unwrap_or(default_restitution.0)
+                .combine(
+                    collider2
+                        .restitution
+                        .or(body2.restitution)
+                        .copied()
+                        .unwrap_or(default_restitution.0),
+                );
+
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -323,6 +347,8 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
+                friction,
+                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,
@@ -348,6 +374,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
             Option<&'static CollisionMargin>,
             Option<&'static SpeculativeMargin>,
         ),
+        Without<RigidBodyDisabled>,
     >,
     /// Contacts found by the narrow phase.
     pub collisions: ResMut<'w, Collisions>,
@@ -359,7 +386,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     contact_tolerance: Local<'s, Scalar>,
 }
 
-impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
+impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
     fn update(&mut self, broad_collision_pairs: &[(Entity, Entity)], delta_secs: Scalar) {
@@ -546,14 +573,15 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         );
 
         // Get the previous contacts if there are any.
-        let previous_contacts = self
-            .collisions
-            .get_internal()
-            .get(&(collider1.entity, collider2.entity))
-            .or(self
-                .collisions
+        let previous_contacts = if collider1.entity < collider2.entity {
+            self.collisions
                 .get_internal()
-                .get(&(collider2.entity, collider1.entity)));
+                .get(&(collider1.entity, collider2.entity))
+        } else {
+            self.collisions
+                .get_internal()
+                .get(&(collider2.entity, collider1.entity))
+        };
 
         let mut total_normal_impulse = 0.0;
         let mut total_tangent_impulse = default();
@@ -616,6 +644,8 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Friction,
+        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -640,17 +670,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                 commands.entity(body2.entity).remove::<Sleeping>();
             }
         });
-
-        // Get combined friction and restitution coefficients of the colliders
-        // or the bodies they are attached to.
-        let friction = collider1
-            .friction
-            .unwrap_or(body1.friction)
-            .combine(*collider2.friction.unwrap_or(body2.friction));
-        let restitution = collider1
-            .restitution
-            .unwrap_or(body1.restitution)
-            .combine(*collider2.restitution.unwrap_or(body2.restitution));
 
         let contact_softness = if !body1.rb.is_dynamic() || !body2.rb.is_dynamic() {
             contact_softness.non_dynamic
@@ -682,43 +701,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             if !constraint.points.is_empty() {
                 constraints.push(constraint);
             }
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-fn log_overlap_at_spawn(
-    collisions: Res<Collisions>,
-    added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position)>,
-) {
-    for contacts in collisions.get_internal().values() {
-        let Ok([(rb1, name1, position1), (rb2, name2, position2)]) = added_bodies.get_many([
-            contacts.body_entity1.unwrap_or(contacts.entity1),
-            contacts.body_entity2.unwrap_or(contacts.entity2),
-        ]) else {
-            continue;
-        };
-
-        // only warn if at least one of the bodies is dynamic
-        if !rb1.is_dynamic() && !rb2.is_dynamic() {
-            continue;
-        }
-
-        if rb1.is_added() || rb2.is_added() {
-            // If the RigidBody entity has a name, use that for debug.
-            let debug_id1 = match name1 {
-                Some(n) => format!("{:?} ({n})", contacts.entity1),
-                None => format!("{:?}", contacts.entity1),
-            };
-            let debug_id2 = match name2 {
-                Some(n) => format!("{:?} ({n})", contacts.entity2),
-                None => format!("{:?}", contacts.entity2),
-            };
-            warn!(
-                "{debug_id1} and {debug_id2} are overlapping at spawn, which can result in explosive behavior.",
-            );
-            debug!("{debug_id1} is at {}", position1.0);
-            debug!("{debug_id2} is at {}", position2.0);
         }
     }
 }

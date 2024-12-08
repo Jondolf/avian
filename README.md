@@ -121,7 +121,7 @@ fn setup(
         Collider::cuboid(1.0, 1.0, 1.0),
         AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
         PbrBundle {
-            mesh: meshes.add(Cuboid::new(1.0, 1.0, 1.0)),
+            mesh: meshes.add(Cuboid::from_length(1.0)),
             material: materials.add(Color::srgb_u8(124, 144, 255)),
             transform: Transform::from_xyz(0.0, 4.0, 0.0),
             ..default()
@@ -146,7 +146,7 @@ fn setup(
 }
 ```
 
-![A spinning cube falling onto a circular platform](https://github.com/Jondolf/avian/assets/57632562/d53197fc-e142-4eb9-a762-dc16f6cdb1dd)
+![A spinning cube falling onto a circular platform](https://github.com/user-attachments/assets/14d25e7e-9d46-467c-9fe6-dc408cd23398)
 
 ## More examples
 
@@ -165,9 +165,10 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 ## Supported Bevy versions
 
-| Bevy | Avian |
-| ---- | ----- |
-| 0.14 | 0.1   |
+| Bevy    | Avian |
+| ------- | ----- |
+| 0.15 RC | main  |
+| 0.14    | 0.1   |
 
 <details>
   <summary>Bevy XPBD versions (the predecessor of Avian)</summary>
@@ -179,6 +180,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
   | 0.12 | 0.3       |
   | 0.11 | 0.2       |
   | 0.10 | 0.1       |
+
 </details>
 
 ## Future features
@@ -199,7 +201,7 @@ For larger changes and additions, it's better to open an issue or ask me for inp
 before making a pull request.
 
 You can also ask for help or ask questions on the [Bevy Discord](https://discord.com/invite/gMUk5Ph)
-server's `Avian Physics` thread in `#crate-help`. My username on the Discord is `Jondolf` (`@jondolfdev`).
+server's Avian Physics topic in `#ecosystem-crates`. My username on the Discord is `Jondolf` (`@jondolfdev`).
 
 ## Acknowledgements
 

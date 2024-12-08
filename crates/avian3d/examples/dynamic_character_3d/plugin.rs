@@ -111,7 +111,7 @@ impl CharacterControllerBundle {
                 Quaternion::default(),
                 Dir3::NEG_Y,
             )
-            .with_max_time_of_impact(0.2),
+            .with_max_distance(0.2),
             locked_axes: LockedAxes::ROTATION_LOCKED,
             movement: MovementBundle::default(),
         }
@@ -155,32 +155,19 @@ fn keyboard_input(
 /// Sends [`MovementAction`] events based on gamepad input.
 fn gamepad_input(
     mut movement_event_writer: EventWriter<MovementAction>,
-    gamepads: Res<Gamepads>,
-    axes: Res<Axis<GamepadAxis>>,
-    buttons: Res<ButtonInput<GamepadButton>>,
+    gamepads: Query<&Gamepad>,
 ) {
     for gamepad in gamepads.iter() {
-        let axis_lx = GamepadAxis {
-            gamepad,
-            axis_type: GamepadAxisType::LeftStickX,
-        };
-        let axis_ly = GamepadAxis {
-            gamepad,
-            axis_type: GamepadAxisType::LeftStickY,
-        };
-
-        if let (Some(x), Some(y)) = (axes.get(axis_lx), axes.get(axis_ly)) {
+        if let (Some(x), Some(y)) = (
+            gamepad.get(GamepadAxis::LeftStickX),
+            gamepad.get(GamepadAxis::LeftStickY),
+        ) {
             movement_event_writer.send(MovementAction::Move(
                 Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
             ));
         }
 
-        let jump_button = GamepadButton {
-            gamepad,
-            button_type: GamepadButtonType::South,
-        };
-
-        if buttons.just_pressed(jump_button) {
+        if gamepad.just_pressed(GamepadButton::South) {
             movement_event_writer.send(MovementAction::Jump);
         }
     }
@@ -226,7 +213,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for event in movement_event_reader.read() {
         for (movement_acceleration, jump_impulse, mut linear_velocity, is_grounded) in
