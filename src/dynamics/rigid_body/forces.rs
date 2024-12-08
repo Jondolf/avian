@@ -155,7 +155,8 @@ impl ExternalForce {
     }
 
     /// Applies the given `force` at the specified `point`, which will also cause torque to be applied.
-    /// The force, the point, and the center of mass must be given in world-space.
+    ///
+    /// The force, point, and center of mass must be given in world space.
     pub fn apply_force_at_point(
         &mut self,
         force: Vector,
@@ -443,7 +444,9 @@ impl ExternalImpulse {
         self
     }
 
-    /// Applies the given world-space `impulse` at a local `point`, which will also cause an angular impulse to be applied.
+    /// Applies the given `impulse` at the specified `point`, which will also cause an angular impulse to be applied.
+    ///
+    /// The impulse, point, and center of mass must be given in world space.
     pub fn apply_impulse_at_point(
         &mut self,
         impulse: Vector,
