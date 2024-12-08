@@ -220,8 +220,10 @@ impl SpatialQuery<'_, '_> {
     ///
     /// - `origin`: Where the ray is cast from.
     /// - `direction`: What direction the ray is cast in.
+    /// - `max_distance`: The maximum distance the ray can travel.
     /// - `max_hits`: The maximum number of hits. Additional hits will be missed.
-    /// - `config`: A [`RayCastConfig`] that determines the behavior of the cast.
+    /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
+    ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which entities are included in the cast.
     ///
     /// # Example
