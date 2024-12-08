@@ -569,7 +569,7 @@ impl SpatialQueryPipeline {
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
     ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -578,9 +578,9 @@ impl SpatialQueryPipeline {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
-        self.project_point_predicate(point, solid, query_filter, &|_| true)
+        self.project_point_predicate(point, solid, filter, &|_| true)
     }
 
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
@@ -591,7 +591,7 @@ impl SpatialQueryPipeline {
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
     ///     Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider that passes the predicate.
     ///
     /// # Related Methods
@@ -601,11 +601,11 @@ impl SpatialQueryPipeline {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<PointProjection> {
         let point = point.into();
-        let pipeline_shape = self.as_composite_shape_with_predicate(query_filter, predicate);
+        let pipeline_shape = self.as_composite_shape_with_predicate(filter, predicate);
         let mut visitor =
             PointCompositeShapeProjBestFirstVisitor::new(&pipeline_shape, &point, solid);
 
@@ -624,18 +624,14 @@ impl SpatialQueryPipeline {
     /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
     /// - [`SpatialQueryPipeline::point_intersections_callback`]
-    pub fn point_intersections(
-        &self,
-        point: Vector,
-        query_filter: &SpatialQueryFilter,
-    ) -> Vec<Entity> {
+    pub fn point_intersections(&self, point: Vector, filter: &SpatialQueryFilter) -> Vec<Entity> {
         let mut intersections = vec![];
-        self.point_intersections_callback(point, query_filter, |e| {
+        self.point_intersections_callback(point, filter, |e| {
             intersections.push(e);
             true
         });
@@ -649,7 +645,7 @@ impl SpatialQueryPipeline {
     /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
     /// # Related Methods
@@ -658,7 +654,7 @@ impl SpatialQueryPipeline {
     pub fn point_intersections_callback(
         &self,
         point: Vector,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let point = point.into();
@@ -666,7 +662,7 @@ impl SpatialQueryPipeline {
         let mut leaf_callback = &mut |entity_index: &u32| {
             let entity = self.entity_from_index(*entity_index);
             if let Some((isometry, shape, layers)) = self.colliders.get(&entity) {
-                if query_filter.test(entity, *layers)
+                if filter.test(entity, *layers)
                     && shape.shape_scaled().contains_point(isometry, &point)
                 {
                     return callback(entity);
@@ -729,7 +725,7 @@ impl SpatialQueryPipeline {
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
     /// - `shape_rotation`: The rotation of the shape.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
     ///
@@ -739,19 +735,13 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         let mut intersections = vec![];
-        self.shape_intersections_callback(
-            shape,
-            shape_position,
-            shape_rotation,
-            query_filter,
-            |e| {
-                intersections.push(e);
-                true
-            },
-        );
+        self.shape_intersections_callback(shape, shape_position, shape_rotation, filter, |e| {
+            intersections.push(e);
+            true
+        });
         intersections
     }
 
@@ -764,7 +754,7 @@ impl SpatialQueryPipeline {
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
     /// - `shape_rotation`: The rotation of the shape.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
     /// # Related Methods
@@ -775,7 +765,7 @@ impl SpatialQueryPipeline {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         mut callback: impl FnMut(Entity) -> bool,
     ) {
         let colliders = &self.colliders;
@@ -798,7 +788,7 @@ impl SpatialQueryPipeline {
             let entity = self.entity_from_index(*entity_index);
 
             if let Some((collider_isometry, collider, layers)) = colliders.get(&entity) {
-                if query_filter.test(entity, *layers) {
+                if filter.test(entity, *layers) {
                     let isometry = inverse_shape_isometry * collider_isometry;
 
                     if dispatcher.intersection_test(

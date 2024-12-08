@@ -674,10 +674,9 @@ impl SpatialQuery<'_, '_> {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
     ) -> Option<PointProjection> {
-        self.query_pipeline
-            .project_point(point, solid, query_filter)
+        self.query_pipeline.project_point(point, solid, filter)
     }
 
     /// Finds the [projection](spatial_query#point-projection) of a given point on the closest [collider](Collider).
@@ -688,7 +687,7 @@ impl SpatialQuery<'_, '_> {
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
     ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider that passes the predicate.
     ///
     /// # Example
@@ -727,11 +726,11 @@ impl SpatialQuery<'_, '_> {
         &self,
         point: Vector,
         solid: bool,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         predicate: &dyn Fn(Entity) -> bool,
     ) -> Option<PointProjection> {
         self.query_pipeline
-            .project_point_predicate(point, solid, query_filter, predicate)
+            .project_point_predicate(point, solid, filter, predicate)
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
@@ -740,7 +739,7 @@ impl SpatialQuery<'_, '_> {
     /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Example
     ///
@@ -765,12 +764,8 @@ impl SpatialQuery<'_, '_> {
     /// # Related Methods
     ///
     /// - [`SpatialQuery::point_intersections_callback`]
-    pub fn point_intersections(
-        &self,
-        point: Vector,
-        query_filter: &SpatialQueryFilter,
-    ) -> Vec<Entity> {
-        self.query_pipeline.point_intersections(point, query_filter)
+    pub fn point_intersections(&self, point: Vector, filter: &SpatialQueryFilter) -> Vec<Entity> {
+        self.query_pipeline.point_intersections(point, filter)
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [collider](Collider)
@@ -780,7 +775,7 @@ impl SpatialQuery<'_, '_> {
     /// # Arguments
     ///
     /// - `point`: The point that intersections are tested against.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
     /// # Example
@@ -817,11 +812,11 @@ impl SpatialQuery<'_, '_> {
     pub fn point_intersections_callback(
         &self,
         point: Vector,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
     ) {
         self.query_pipeline
-            .point_intersections_callback(point, query_filter, callback)
+            .point_intersections_callback(point, filter, callback)
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`ColliderAabb`]
@@ -905,7 +900,7 @@ impl SpatialQuery<'_, '_> {
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
     /// - `shape_rotation`: The rotation of the shape.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Example
     ///
@@ -939,10 +934,10 @@ impl SpatialQuery<'_, '_> {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
     ) -> Vec<Entity> {
         self.query_pipeline
-            .shape_intersections(shape, shape_position, shape_rotation, query_filter)
+            .shape_intersections(shape, shape_position, shape_rotation, filter)
     }
 
     /// An [intersection test](spatial_query#intersection-tests) that finds all entities with a [`Collider`]
@@ -954,7 +949,7 @@ impl SpatialQuery<'_, '_> {
     /// - `shape`: The shape that intersections are tested against represented as a [`Collider`].
     /// - `shape_position`: The position of the shape.
     /// - `shape_rotation`: The rotation of the shape.
-    /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
+    /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `callback`: A callback function called for each intersection.
     ///
     /// # Example
@@ -995,14 +990,14 @@ impl SpatialQuery<'_, '_> {
         shape: &Collider,
         shape_position: Vector,
         shape_rotation: RotationValue,
-        query_filter: &SpatialQueryFilter,
+        filter: &SpatialQueryFilter,
         callback: impl FnMut(Entity) -> bool,
     ) {
         self.query_pipeline.shape_intersections_callback(
             shape,
             shape_position,
             shape_rotation,
-            query_filter,
+            filter,
             callback,
         )
     }
