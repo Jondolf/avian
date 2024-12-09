@@ -339,9 +339,17 @@ impl AngleLimit {
     }
 }
 
-/// Disables the joint of the entity it is placed on.
-#[derive(Reflect, Clone, Copy, Component, Debug)]
+/// A marker component that indicates that a [joint](self) is disabled
+/// and should not constrain the bodies it is attached to.
+/// Must be on the same entity as the joint.
+///
+/// This is useful for temporarily disabling a joint without removing it from the world.
+/// To re-enable the joint, simply remove this component.
+///
+/// Note that when re-enabling the joint, the bodies may snap back violently
+/// if they have moved significantly from the constrained positions while the joint was disabled.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component)]
+#[reflect(Debug, Component, Default)]
 pub struct JointDisabled;

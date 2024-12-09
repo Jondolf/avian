@@ -314,7 +314,7 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 /// and attached joints.
 ///
 /// This is useful for temporarily disabling a body without removing it from the world.
-/// To re-enable the body, simply remove the component.
+/// To re-enable the body, simply remove this component.
 ///
 /// Note that this component does *not* disable collision detection or spatial queries for colliders
 /// attached to the rigid body.
@@ -349,10 +349,10 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 ///     }
 /// }
 /// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
+#[reflect(Debug, Component, Default)]
 pub struct RigidBodyDisabled;
 
 /// Indicates that a [rigid body](RigidBody) is not simulated by the physics engine until woken up again.
@@ -365,10 +365,10 @@ pub struct RigidBodyDisabled;
 ///
 /// Sleeping can be disabled for specific entities with the [`SleepingDisabled`] component,
 /// or for all entities by setting the [`SleepingThreshold`] to a negative value.
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
+#[reflect(Debug, Component, Default)]
 pub struct Sleeping;
 
 /// How long the velocity of the body has been below the [`SleepingThreshold`],
