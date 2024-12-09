@@ -67,6 +67,7 @@ pub struct SpatialQuery<'w, 's> {
             &'static Collider,
             Option<&'static CollisionLayers>,
         ),
+        Without<ColliderDisabled>,
     >,
     pub(crate) added_colliders: Query<'w, 's, Entity, Added<Collider>>,
     /// The [`SpatialQueryPipeline`].
