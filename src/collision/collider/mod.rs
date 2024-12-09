@@ -110,7 +110,7 @@ pub trait ScalableCollider: AnyCollider {
 /// and should not detect collisions or be included in spatial queries.
 ///
 /// This is useful for temporarily disabling a collider without removing it from the world.
-/// To re-enable the collider, simply remove the component.
+/// To re-enable the collider, simply remove this component.
 ///
 /// Note that a disabled collider will still contribute to the mass properties of the rigid body
 /// it is attached to. Set the [`Mass`] of the collider to zero to prevent this.
@@ -145,10 +145,10 @@ pub trait ScalableCollider: AnyCollider {
 ///     }
 /// }
 /// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
+#[reflect(Debug, Component, Default)]
 pub struct ColliderDisabled;
 
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.

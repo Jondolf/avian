@@ -164,6 +164,7 @@
 //!     - [Prismatic joint](PrismaticJoint)
 //!     - [Revolute joint](RevoluteJoint)
 #![cfg_attr(feature = "3d", doc = "    - [Spherical joint](SphericalJoint)")]
+//! - [Temporarily disabling a joint](JointDisabled)
 //! - [Custom XPBD constraints](dynamics::solver::xpbd#constraints) (advanced)
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
