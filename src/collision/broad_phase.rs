@@ -5,7 +5,10 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        system::lifetimeless::Read,
+    },
     prelude::*,
 };
 
@@ -109,13 +112,16 @@ impl MapEntities for AabbIntervals {
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 #[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
-    aabbs: Query<(
-        &ColliderAabb,
-        Option<&ColliderParent>,
-        Option<&CollisionLayers>,
-        Has<AabbIntersections>,
-        Has<Sleeping>,
-    )>,
+    aabbs: Query<
+        (
+            &ColliderAabb,
+            Option<&ColliderParent>,
+            Option<&CollisionLayers>,
+            Has<AabbIntersections>,
+            Has<Sleeping>,
+        ),
+        Without<ColliderDisabled>,
+    >,
     rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
@@ -145,25 +151,26 @@ fn update_aabb_intervals(
     );
 }
 
+type AabbIntervalQueryData = (
+    Entity,
+    Option<Read<ColliderParent>>,
+    Read<ColliderAabb>,
+    Option<Read<RigidBody>>,
+    Option<Read<CollisionLayers>>,
+    Has<AabbIntersections>,
+);
+
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
-    aabbs: Query<
-        (
-            Entity,
-            Option<&ColliderParent>,
-            &ColliderAabb,
-            Option<&RigidBody>,
-            Option<&CollisionLayers>,
-            Has<AabbIntersections>,
-        ),
-        Added<ColliderAabb>,
-    >,
+    added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
+    aabbs: Query<AabbIntervalQueryData>,
     mut intervals: ResMut<AabbIntervals>,
+    mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
 ) {
-    let aabbs = aabbs
-        .iter()
-        .map(|(ent, parent, aabb, rb, layers, store_intersections)| {
+    let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
+    let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
+        |(ent, parent, aabb, rb, layers, store_intersections)| {
             (
                 ent,
                 parent.map_or(ColliderParent(ent), |p| *p),
@@ -173,7 +180,8 @@ fn add_new_aabb_intervals(
                 rb.map_or(false, |rb| rb.is_static()),
                 store_intersections,
             )
-        });
+        },
+    );
     intervals.0.extend(aabbs);
 }
 

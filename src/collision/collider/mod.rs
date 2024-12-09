@@ -106,6 +106,51 @@ pub trait ScalableCollider: AnyCollider {
     }
 }
 
+/// A marker component that indicates that a [collider](Collider) is disabled
+/// and should not detect collisions or be included in spatial queries.
+///
+/// This is useful for temporarily disabling a collider without removing it from the world.
+/// To re-enable the collider, simply remove the component.
+///
+/// Note that a disabled collider will still contribute to the mass properties of the rigid body
+/// it is attached to. Set the [`Mass`] of the collider to zero to prevent this.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// #[derive(Component)]
+/// pub struct Character;
+///
+/// /// Disables colliders for all rigid body characters, for example during cutscenes.
+/// fn disable_character_colliders(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).insert(ColliderDisabled);
+///     }
+/// }
+///
+/// /// Enables colliders for all rigid body characters.
+/// fn enable_character_colliders(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).remove::<ColliderDisabled>();
+///     }
+/// }
+/// ```
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+pub struct ColliderDisabled;
+
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
 ///
 /// If the collider is a child of a rigid body, this points to the body's `Entity` ID.

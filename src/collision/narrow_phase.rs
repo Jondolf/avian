@@ -365,7 +365,7 @@ fn generate_constraints<C: AnyCollider>(
 #[derive(SystemParam)]
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     parallel_commands: ParallelCommands<'w, 's>,
-    collider_query: Query<'w, 's, ColliderQuery<C>>,
+    collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     body_query: Query<
         'w,
         's,
