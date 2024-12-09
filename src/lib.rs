@@ -152,6 +152,7 @@
 //! - [Collision events](ContactReportingPlugin#collision-events)
 //! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
+//! - [Temporarily disabling a collider](ColliderDisabled)
 //!
 //! See the [`collision`] module for more details about collision detection and colliders in Avian.
 //!
