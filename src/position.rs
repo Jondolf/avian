@@ -332,6 +332,7 @@ impl Rotation {
     /// accumulated floating point error, or if the rotation was constructed
     /// with invalid values.
     #[inline]
+    #[must_use]
     pub fn try_normalize(self) -> Option<Self> {
         let recip = self.length_recip();
         if recip.is_finite() && recip > 0.0 {
@@ -352,9 +353,23 @@ impl Rotation {
     ///
     /// Panics if `self` has a length of zero, NaN, or infinity when debug assertions are enabled.
     #[inline]
+    #[must_use]
     pub fn normalize(self) -> Self {
         let length_recip = self.length_recip();
         Self::from_sin_cos(self.sin * length_recip, self.cos * length_recip)
+    }
+
+    /// Returns `self` after an approximate normalization,
+    /// assuming the value is already nearly normalized.
+    /// Useful for preventing numerical error accumulation.
+    #[inline]
+    #[must_use]
+    pub fn fast_renormalize(self) -> Self {
+        // First-order Tayor approximation
+        // 1/L = (L^2)^(-1/2) ≈ 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+        let length_squared = self.length_squared();
+        let approx_inv_length = 0.5 * (3.0 - length_squared);
+        Self::from_sin_cos(self.sin * approx_inv_length, self.cos * approx_inv_length)
     }
 
     /// Returns `true` if the rotation is neither infinite nor NaN.
@@ -687,6 +702,8 @@ pub struct Rotation(pub Quaternion);
 #[cfg(feature = "3d")]
 impl Rotation {
     /// Inverts the rotation.
+    #[inline]
+    #[must_use]
     pub fn inverse(&self) -> Self {
         Self(self.0.inverse())
     }
@@ -702,6 +719,7 @@ impl Rotation {
     /// the result resembles a kind of ease-in-out effect.
     ///
     /// If you would like the angular velocity to remain constant, consider using [`slerp`](Self::slerp) instead.
+    #[inline]
     pub fn nlerp(self, end: Self, t: Scalar) -> Self {
         Self(self.0.lerp(end.0, t))
     }
@@ -716,17 +734,22 @@ impl Rotation {
     ///
     /// If you would like the rotation to have a kind of ease-in-out effect, consider
     /// using the slightly more efficient [`nlerp`](Self::nlerp) instead.
+    #[inline]
     pub fn slerp(self, end: Self, t: Scalar) -> Self {
         Self(self.0.slerp(end.0, t))
     }
 
-    /// Performs a renormalization of the contained quaternion
+    /// Returns `self` after an approximate normalization,
+    /// assuming the value is already nearly normalized.
+    /// Useful for preventing numerical error accumulation.
     #[inline]
-    pub fn renormalize(&mut self) {
-        let length_squared = self.0.length_squared();
-        // 1/L = (L^2)^-(1/2) = ~= 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+    #[must_use]
+    pub fn fast_renormalize(self) -> Self {
+        // First-order Tayor approximation
+        // 1/L = (L^2)^(-1/2) ≈ 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+        let length_squared = self.length_squared();
         let approx_inv_length = 0.5 * (3.0 - length_squared);
-        self.0 = self.0 * approx_inv_length;
+        Self(self.0 * approx_inv_length)
     }
 }
 

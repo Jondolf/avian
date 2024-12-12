@@ -91,13 +91,13 @@ pub trait AngularConstraint: XpbdConstraint<2> {
             //       Maybe the math above can be done in a way that keeps rotations normalized?
             let delta_quat = Self::get_delta_rot(inv_inertia1, impulse);
             body1.rotation.0 = delta_quat * body1.rotation.0;
-            body1.rotation.renormalize();
+            *body1.rotation = body1.rotation.fast_renormalize();
         }
         if body2.rb.is_dynamic() {
             // See comments for `body1` above.
             let delta_quat = Self::get_delta_rot(inv_inertia2, -impulse);
             body2.rotation.0 = delta_quat * body2.rotation.0;
-            body2.rotation.renormalize();
+            *body2.rotation = body2.rotation.fast_renormalize();
         }
 
         impulse
@@ -238,13 +238,13 @@ pub trait AngularConstraint: XpbdConstraint<2> {
             //       Maybe the math above can be done in a way that keeps rotations normalized?
             let delta_quat = Self::get_delta_rot(inv_inertia1, p);
             body1.rotation.0 = delta_quat * body1.rotation.0;
-            body1.rotation.renormalize();
+            *body1.rotation = body1.rotation.fast_renormalize();
         }
         if body2.rb.is_dynamic() {
             // See comments for `body1` above.
             let delta_quat = Self::get_delta_rot(inv_inertia2, -p);
             body2.rotation.0 = delta_quat * body2.rotation.0;
-            body2.rotation.renormalize();
+            *body2.rotation = body2.rotation.fast_renormalize();
         }
 
         p

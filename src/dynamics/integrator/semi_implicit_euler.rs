@@ -123,6 +123,7 @@ pub fn integrate_position(
         let delta_rot = Rotation::radians(ang_vel * delta_seconds);
         if delta_rot != Rotation::IDENTITY && delta_rot.is_finite() {
             *rot *= delta_rot;
+            *rot = rot.fast_renormalize();
         }
     }
     #[cfg(feature = "3d")]
@@ -133,7 +134,7 @@ pub fn integrate_position(
         if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
             let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
             rot.0 = delta_rot * rot.0;
-            rot.renormalize();
+            *rot = rot.fast_renormalize();
         }
     }
 }
