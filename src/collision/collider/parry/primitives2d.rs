@@ -1,7 +1,7 @@
 use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
 use super::{AsF32, Collider, IntoCollider};
-use bevy::prelude::Deref;
+use bevy::prelude::{Deref, DerefMut};
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
 use parry::{
@@ -25,14 +25,18 @@ impl IntoCollider<Collider> for Circle {
 
 impl IntoCollider<Collider> for Ellipse {
     fn collider(&self) -> Collider {
-        Collider::from(SharedShape::new(EllipseWrapper(*self)))
+        Collider::from(SharedShape::new(EllipseColliderShape(*self)))
     }
 }
 
-#[derive(Clone, Copy, Debug, Deref)]
-pub(crate) struct EllipseWrapper(pub(crate) Ellipse);
+/// An ellipse shape that can be stored in a [`SharedShape`] for an ellipse [`Collider`].
+///
+/// This wrapper is required to allow implementing the necessary traits from [`parry`]
+/// for Bevy's [`Ellipse`] type.
+#[derive(Clone, Copy, Debug, Deref, DerefMut)]
+pub struct EllipseColliderShape(pub Ellipse);
 
-impl SupportMap for EllipseWrapper {
+impl SupportMap for EllipseColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         let [a, b] = self.half_size.adjust_precision().to_array();
@@ -41,7 +45,7 @@ impl SupportMap for EllipseWrapper {
     }
 }
 
-impl Shape for EllipseWrapper {
+impl Shape for EllipseColliderShape {
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
@@ -52,7 +56,7 @@ impl Shape for EllipseWrapper {
         _num_subdivisions: u32,
     ) -> Option<Box<dyn parry::shape::Shape>> {
         let half_size = Vector::from(*scale).f32() * self.half_size;
-        Some(Box::new(EllipseWrapper(Ellipse::new(
+        Some(Box::new(EllipseColliderShape(Ellipse::new(
             half_size.x,
             half_size.y,
         ))))
@@ -131,7 +135,7 @@ impl Shape for EllipseWrapper {
     }
 }
 
-impl RayCast for EllipseWrapper {
+impl RayCast for EllipseColliderShape {
     fn cast_local_ray_and_get_normal(
         &self,
         ray: &parry::query::Ray,
@@ -148,7 +152,7 @@ impl RayCast for EllipseWrapper {
     }
 }
 
-impl PointQuery for EllipseWrapper {
+impl PointQuery for EllipseColliderShape {
     fn project_local_point(
         &self,
         pt: &parry::math::Point<Scalar>,
@@ -239,14 +243,18 @@ impl IntoCollider<Collider> for BoxedPolygon {
 
 impl IntoCollider<Collider> for RegularPolygon {
     fn collider(&self) -> Collider {
-        Collider::from(SharedShape::new(RegularPolygonWrapper(*self)))
+        Collider::from(SharedShape::new(RegularPolygonColliderShape(*self)))
     }
 }
 
-#[derive(Clone, Copy, Debug, Deref)]
-pub(crate) struct RegularPolygonWrapper(pub(crate) RegularPolygon);
+/// A regular polygon shape that can be stored in a [`SharedShape`] for a regular polygon [`Collider`].
+///
+/// This wrapper is required to allow implementing the necessary traits from [`parry`]
+/// for Bevy's [`RegularPolygon`] type.
+#[derive(Clone, Copy, Debug, Deref, DerefMut)]
+pub struct RegularPolygonColliderShape(pub RegularPolygon);
 
-impl SupportMap for RegularPolygonWrapper {
+impl SupportMap for RegularPolygonColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         // TODO: For polygons with a small number of sides, maybe just iterating
@@ -273,7 +281,7 @@ impl SupportMap for RegularPolygonWrapper {
     }
 }
 
-impl PolygonalFeatureMap for RegularPolygonWrapper {
+impl PolygonalFeatureMap for RegularPolygonColliderShape {
     #[inline]
     fn local_support_feature(
         &self,
@@ -315,7 +323,7 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
     }
 }
 
-impl Shape for RegularPolygonWrapper {
+impl Shape for RegularPolygonColliderShape {
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
@@ -326,7 +334,7 @@ impl Shape for RegularPolygonWrapper {
         _num_subdivisions: u32,
     ) -> Option<Box<dyn parry::shape::Shape>> {
         let circumradius = Vector::from(*scale).f32() * self.circumradius();
-        Some(Box::new(RegularPolygonWrapper(RegularPolygon::new(
+        Some(Box::new(RegularPolygonColliderShape(RegularPolygon::new(
             circumradius.length(),
             self.sides,
         ))))
@@ -437,7 +445,7 @@ impl Shape for RegularPolygonWrapper {
     }
 }
 
-impl RayCast for RegularPolygonWrapper {
+impl RayCast for RegularPolygonColliderShape {
     fn cast_local_ray_and_get_normal(
         &self,
         ray: &parry::query::Ray,
@@ -454,7 +462,7 @@ impl RayCast for RegularPolygonWrapper {
     }
 }
 
-impl PointQuery for RegularPolygonWrapper {
+impl PointQuery for RegularPolygonColliderShape {
     fn project_local_point(
         &self,
         pt: &parry::math::Point<Scalar>,

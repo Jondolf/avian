@@ -14,7 +14,7 @@ mod primitives2d;
 mod primitives3d;
 
 #[cfg(feature = "2d")]
-pub(crate) use primitives2d::{EllipseWrapper, RegularPolygonWrapper};
+pub use primitives2d::{EllipseColliderShape, RegularPolygonColliderShape};
 
 impl<T: IntoCollider<Collider>> From<T> for Collider {
     fn from(value: T) -> Self {
@@ -717,7 +717,7 @@ impl Collider {
     /// Creates a collider with an ellipse shape defined by a half-width and half-height.
     #[cfg(feature = "2d")]
     pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
-        SharedShape::new(EllipseWrapper(Ellipse::new(
+        SharedShape::new(EllipseColliderShape(Ellipse::new(
             half_width as f32,
             half_height as f32,
         )))
@@ -1317,7 +1317,7 @@ fn scale_shape(
                     Ok(SharedShape::ball(b.radius * scale.x.abs()))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
-                    Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                    Ok(SharedShape::new(EllipseColliderShape(Ellipse {
                         half_size: Vec2::splat(b.radius as f32) * scale.f32().abs(),
                     })))
                 }
@@ -1467,14 +1467,14 @@ fn scale_shape(
         TypedShape::Custom(_shape) => {
             #[cfg(feature = "2d")]
             {
-                if let Some(ellipse) = _shape.as_shape::<EllipseWrapper>() {
-                    return Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                if let Some(ellipse) = _shape.as_shape::<EllipseColliderShape>() {
+                    return Ok(SharedShape::new(EllipseColliderShape(Ellipse {
                         half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
-                if let Some(polygon) = _shape.as_shape::<RegularPolygonWrapper>() {
+                if let Some(polygon) = _shape.as_shape::<RegularPolygonColliderShape>() {
                     if scale.x == scale.y {
-                        return Ok(SharedShape::new(RegularPolygonWrapper(
+                        return Ok(SharedShape::new(RegularPolygonColliderShape(
                             RegularPolygon::new(
                                 polygon.circumradius() * scale.x.abs() as f32,
                                 polygon.sides,
