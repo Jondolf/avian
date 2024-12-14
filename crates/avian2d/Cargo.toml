@@ -47,6 +47,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "bevy_heavy/serialize",
     "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
     "parry2d-f64?/serde-serialize",
