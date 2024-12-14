@@ -432,14 +432,17 @@ impl PhysicsGizmoExt for Gizmos<'_, '_, PhysicsGizmos> {
             TypedShape::Custom(_id) => {
                 #[cfg(feature = "2d")]
                 {
-                    if let Some(ellipse) = collider.shape_scaled().as_shape::<EllipseWrapper>() {
+                    if let Some(ellipse) =
+                        collider.shape_scaled().as_shape::<EllipseColliderShape>()
+                    {
                         let isometry = Isometry2d::new(
                             position.f32(),
                             Rot2::from_sin_cos(rotation.sin as f32, rotation.cos as f32),
                         );
                         self.primitive_2d(&ellipse.0, isometry, color);
-                    } else if let Some(polygon) =
-                        collider.shape_scaled().as_shape::<RegularPolygonWrapper>()
+                    } else if let Some(polygon) = collider
+                        .shape_scaled()
+                        .as_shape::<RegularPolygonColliderShape>()
                     {
                         let isometry = Isometry2d::new(
                             position.f32(),
