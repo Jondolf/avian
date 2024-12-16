@@ -11,6 +11,7 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
     prelude::*,
 };
+use collider::hierarchy::update_collider_parents;
 use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
 
 /// A plugin for handling generic collider backend logic.
@@ -255,7 +256,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // Update collider parents for colliders that are on the same entity as the rigid body.
         app.add_systems(
             self.schedule,
-            update_root_collider_parents::<C>.before(PrepareSet::Finalize),
+            update_root_collider_parents::<C>
+                .before(PrepareSet::Finalize)
+                .before(update_collider_parents),
         );
 
         let physics_schedule = app

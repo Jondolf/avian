@@ -120,7 +120,7 @@ impl Plugin for ColliderHierarchyPlugin {
 /// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
 /// on the same entity as the rigid body.
 #[allow(clippy::type_complexity)]
-fn update_collider_parents(
+pub fn update_collider_parents(
     mut commands: Commands,
     mut bodies: Query<Entity, (With<RigidBody>, With<AncestorMarker<ColliderMarker>>)>,
     children: Query<&Children>,
