@@ -1,5 +1,7 @@
 //! Mass property functionality for [rigid bodies] and [colliders].
 //!
+//! # Overview
+//!
 //! Every dynamic rigid body has [mass], [angular inertia], and a [center of mass].
 //! These mass properties determine how the rigid body responds to forces and torques.
 //!
@@ -30,7 +32,7 @@
 //! [angular inertia]: components::AngularInertia
 //! [center of mass]: components::CenterOfMass
 //!
-//! # Example
+//! ## Example
 //!
 //! If no mass properties are set, they are computed automatically from attached colliders
 //! based on their shape and density.
