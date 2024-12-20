@@ -25,7 +25,7 @@ fn main() {
         .insert_resource(Gravity::ZERO)
         .add_systems(Startup, setup)
         .add_systems(
-            PhysicsSchedule,
+            FixedUpdate,
             (center_gravity, rotate).in_set(PhysicsStepSet::First),
         )
         .run();
