@@ -21,11 +21,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! avian2d = "0.1"
+//! avian2d = "0.2"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! avian3d = "0.1"
+//! avian3d = "0.2"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,7 +39,7 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.1", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.2", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ### Feature Flags
