@@ -1,4 +1,4 @@
-//! A physics picking backend for `bevy_picking`.
+//! A physics picking backend for [`bevy_picking`](bevy::picking).
 //!
 //! Add the [`PhysicsPickingPlugin`] to enable picking for [colliders](Collider).
 //! By default, all colliders are pickable. Picking can be disabled for individual entities
@@ -6,10 +6,11 @@
 //!
 //! To make physics picking entirely opt-in, set [`PhysicsPickingSettings::require_markers`]
 //! to `true` and add a [`PhysicsPickable`] component to the desired camera and target entities.
-//!
 #![cfg_attr(
     feature = "3d",
-    doc = "Note that in 3D, only the closest intersection will be reported."
+    doc = "
+
+Note that in 3D, only the closest intersection will be reported."
 )]
 
 use crate::prelude::*;
