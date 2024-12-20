@@ -59,7 +59,7 @@ Below are some of the current features of Avian.
 - `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
-[Table of contents](https://docs.rs/avian3d/latest/avian3d/#table-of-contents)
+[Table of Contents](https://docs.rs/avian3d/latest/avian3d/#table-of-contents)
 on docs.rs.
 
 ## Documentation
