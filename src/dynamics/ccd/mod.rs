@@ -115,8 +115,12 @@
 //! especially for thin objects spinning at very high speeds. This is typically quite rare however,
 //! and speculative collision should work fine for the majority of cases.
 //!
-//! For an approach that is more expensive but doesn't suffer from ghost collisions
-//! or missed collisions, consider using swept CCD, which is described in the following section.
+//! Speculative collisions can also absorb some energy in contacts, causing even perfectly elastic
+//! objects to lose kinetic energy over several bounces.
+//!
+//! For an approach that is more expensive but doesn't suffer from ghost collisions,
+//! missed collisions, or inaccurate restitution, consider using swept CCD,
+//! which is described in the following section.
 //!
 //! ## Swept CCD
 //!
