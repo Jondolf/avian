@@ -337,7 +337,7 @@ impl SpeculativeMargin {
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
-///         TransformBundle::from_transform(Transform::from_xyz(-10.0, 3.0, 0.0)),
+///         Transform::from_xyz(-10.0, 3.0, 0.0),
 ///     ));
 ///
 ///     // Spawn another dynamic rigid body with swept CCD, but this time only considering
@@ -349,7 +349,7 @@ impl SpeculativeMargin {
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
-///         TransformBundle::from_transform(Transform::from_xyz(-10.0, -3.0, 0.0)),
+///         Transform::from_xyz(-10.0, -3.0, 0.0),
 ///     ));
 ///
 ///     // Spawn a thin, long object rotating at a high speed.
@@ -370,7 +370,7 @@ impl SpeculativeMargin {
 ///         RigidBody::Static,
 #[cfg_attr(feature = "2d", doc = "        Collider::rectangle(0.2, 10.0),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::cuboid(0.2, 10.0, 10.0),")]
-///         TransformBundle::from_transform(Transform::from_xyz(15.0, 0.0, 0.0)),
+///         Transform::from_xyz(15.0, 0.0, 0.0),
 ///     ));
 /// }
 /// ```
