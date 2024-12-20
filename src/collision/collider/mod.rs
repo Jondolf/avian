@@ -115,6 +115,8 @@ pub trait ScalableCollider: AnyCollider {
 /// Note that a disabled collider will still contribute to the mass properties of the rigid body
 /// it is attached to. Set the [`Mass`] of the collider to zero to prevent this.
 ///
+/// [`ColliderDisabled`] only applies to the entity it is attached to, not its children.
+///
 /// # Example
 ///
 /// ```
@@ -145,6 +147,11 @@ pub trait ScalableCollider: AnyCollider {
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`RigidBodyDisabled`]: Disables a rigid body.
+/// - [`JointDisabled`]: Disables a joint constraint.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

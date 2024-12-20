@@ -240,6 +240,9 @@ use derive_more::From;
 /// - [Lock translational and rotational axes](LockedAxes)
 /// - [Dominance]
 /// - [Continuous Collision Detection](dynamics::ccd)
+///     - [Speculative collision](dynamics::ccd#speculative-collision)
+///     - [Swept CCD](dynamics::ccd#swept-ccd)
+/// - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 /// - [Temporarily disabling a rigid body](RigidBodyDisabled)
 /// - [Automatic deactivation with sleeping](Sleeping)
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq)]
@@ -349,6 +352,11 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ColliderDisabled`]: Disables a collider.
+/// - [`JointDisabled`]: Disables a joint constraint.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

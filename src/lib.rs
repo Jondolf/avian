@@ -3,8 +3,8 @@
 //! **Avian** is an ECS-driven 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 //!
 //! Check out the [GitHub repository](https://github.com/Jondolf/avian)
-//! for more information about the design, read the [Getting started](#getting-started)
-//! guide below to get up to speed, and take a look at the [Table of contents](#table-of-contents)
+//! for more information about the design, read the [Getting Started](#getting-started)
+//! guide below to get up to speed, and take a look at the [Table of Contents](#table-of-contents)
 //! for an overview of the engine's features and their documentation.
 //!
 //! You can also check out the [FAQ](#frequently-asked-questions), and if you encounter
@@ -58,13 +58,14 @@
     doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                        | Yes                     |"
 )]
 //! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                                       | Yes                     |
-//! | `bevy_picking`         | Enables physics picking support for `bevy_picking` using the [`PhysicsPickingPlugin`].  The plugin must be added separately.              | Yes                     |
+//! | `bevy_picking`         | Enables physics picking support for [`bevy_picking`] using the [`PhysicsPickingPlugin`]. The plugin must be added separately.             | Yes                     |
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                                    | Yes                     |
-//! | `enhanced-determinism` | Enables increased determinism.                                                                                                            | No                      |
+//! | `enhanced-determinism` | Enables cross-platform deterministic math, improving determinism across architectures at a small performance cost.                        | No                      |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.          | Yes                     |
 //! | `simd`                 | Enables [SIMD] optimizations.                                                                                                             | No                      |
 //! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                                        | No                      |
 //!
+//! [`bevy_picking`]: bevy::picking
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
 //! ### Add the Plugins
@@ -131,6 +132,7 @@
 //! - [Continuous Collision Detection (CCD)](dynamics::ccd)
 //!     - [Speculative collision](dynamics::ccd#speculative-collision)
 //!     - [Swept CCD](dynamics::ccd#swept-ccd)
+//! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 //! - [Temporarily disabling a rigid body](RigidBodyDisabled)
 //! - [Automatic deactivation with sleeping](Sleeping)
 //!
@@ -266,14 +268,6 @@
 //! larger velocities and forces than you would in 3D. Make sure you set [`Gravity`] to some larger value
 //! as well, because its magnitude is `9.81` by default, which is tiny in pixels.
 //!
-//! ### Why did my rigid body suddenly vanish?
-//!
-//! Make sure to [give your rigid bodies some mass](RigidBody#adding-mass-properties), either by adding a [`Collider`]
-//! or a [`MassPropertiesBundle`]. If your bodies don't have any mass, any physical interaction is likely to
-//! instantly give them infinite velocity.
-//!
-//! Avian should automatically print warnings when it detects bodies with an invalid mass or inertia.
-//!
 //! ### Why is performance so bad?
 //!
 //! Make sure you are building your project in release mode using `cargo build --release`.
@@ -314,8 +308,7 @@
 //! }
 //! ```
 //!
-//! If you want *all* rigid bodies to be interpolated or extrapolated by default, you can use
-//! [`PhysicsInterpolationPlugin::interpolate_all()`]:
+//! To make *all* rigid bodies interpolated by default, use [`PhysicsInterpolationPlugin::interpolate_all()`]:
 //!
 //! ```no_run
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -331,6 +324,23 @@
 //! ```
 //!
 //! See the [`PhysicsInterpolationPlugin`] for more information.
+//!
+//! If this does not fix the choppiness, the problem could also be related to system ordering.
+//! If you have a system for camera following, make sure it runs *after* physics,
+//! but *before* Bevy's transform propagation in `PostUpdate`.
+//!
+//! ```
+//! # use bevy::prelude::*;
+//! #
+//! # let mut app = App::new();
+//! #
+//! app.add_systems(
+//!     PostUpdate,
+//!     camera_follow_player.before(TransformSystem::TransformPropagate),
+//! );
+//! #
+//! # fn camera_follow_player() {}
+//! ```
 //!
 //! ### Is there a character controller?
 //!

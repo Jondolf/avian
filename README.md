@@ -51,6 +51,7 @@ Below are some of the current features of Avian.
   - Ergonomic component-based API for raycasts and shapecasts
   - Flexible `SpatialQuery` system parameter
   - Spatial query filters
+- `Transform` interpolation and extrapolation for fixed timesteps
 - Debug rendering for colliders, AABBs, contacts, joints, sleeping, axes and spatial queries
 - Configurable scheduling and high customizability
 - Highly modular plugin architecture, freely extend and replace parts of the engine
