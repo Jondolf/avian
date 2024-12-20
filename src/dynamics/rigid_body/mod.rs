@@ -349,6 +349,11 @@ pub(crate) type RigidBodyActiveFilter = (Without<RigidBodyDisabled>, Without<Sle
 ///     }
 /// }
 /// ```
+///
+/// # Related Components
+///
+/// - [`ColliderDisabled`]: Disables a collider.
+/// - [`JointDisabled`]: Disables a joint constraint.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

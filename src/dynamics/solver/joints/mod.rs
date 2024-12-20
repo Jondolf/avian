@@ -348,6 +348,11 @@ impl AngleLimit {
 ///
 /// Note that when re-enabling the joint, the bodies may snap back violently
 /// if they have moved significantly from the constrained positions while the joint was disabled.
+///
+/// # Related Components
+///
+/// - [`RigidBodyDisabled`]: Disables a rigid body.
+/// - [`ColliderDisabled`]: Disables a collider.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
