@@ -1,6 +1,6 @@
 [package]
 name = "avian2d"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
@@ -61,7 +61,7 @@ required-features = ["2d"]
 bench = false
 
 [dependencies]
-avian_derive = { path = "../avian_derive", version = "0.1" }
+avian_derive = { path = "../avian_derive", version = "0.2" }
 bevy = { version = "0.15", default-features = false }
 bevy_math = { version = "0.15" }
 bevy_heavy = { version = "0.1" }
@@ -86,7 +86,7 @@ glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
-bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump" }
+bevy_mod_debugdump = { version = "0.12" }
 
 [[example]]
 name = "dynamic_character_2d"

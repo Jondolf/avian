@@ -1,4 +1,4 @@
-//! # ![Avian Physics](https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/logo.svg)
+//! ![Avian Physics](https://raw.githubusercontent.com/Jondolf/avian/avian/assets/branding/logo.svg)
 //!
 //! **Avian** is an ECS-driven 2D and 3D physics engine for the [Bevy game engine](https://bevyengine.org/).
 //!
@@ -10,22 +10,22 @@
 //! You can also check out the [FAQ](#frequently-asked-questions), and if you encounter
 //! any further problems, consider saying hello on the [Bevy Discord](https://discord.gg/bevy)!
 //!
-//! ## Getting Started
+//! # Getting Started
 //!
 //! This short guide should help you get started with Avian.
 //!
-//! ### Add the Dependency
+//! ## Add the Dependency
 //!
 //! First, add `avian2d` or `avian3d` to the dependencies in your `Cargo.toml`:
 //!  
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! avian2d = "0.1"
+//! avian2d = "0.2"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! avian3d = "0.1"
+//! avian3d = "0.2"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,10 +39,10 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.1", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.2", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
-//! ### Feature Flags
+//! ## Feature Flags
 //!
 //! | Feature                | Description                                                                                                                              | Default feature         |
 //! | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
@@ -68,7 +68,7 @@
 //! [`bevy_picking`]: bevy::picking
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
-//! ### Add the Plugins
+//! ## Add the Plugins
 //!
 //! Avian is designed to be very modular. It is built from several [plugins](PhysicsPlugins) that
 //! manage different parts of the engine. These plugins can be easily initialized and configured through
@@ -112,12 +112,12 @@
 //! You can find lots of [usage examples](https://github.com/Jondolf/avian#more-examples)
 //! in the project's [repository](https://github.com/Jondolf/avian).
 //!
-//! ## Table of Contents
+//! # Table of Contents
 //!
 //! Below is a structured overview of the documentation for the various
 //! features of the engine.
 //!
-//! ### Rigid Body Dynamics
+//! ## Rigid Body Dynamics
 //!
 //! - [Rigid body types](RigidBody#rigid-body-types)
 //! - [Creating rigid bodies](RigidBody#creation)
@@ -138,7 +138,7 @@
 //!
 //! See the [`dynamics`] module for more details about rigid body dynamics in Avian.
 //!
-//! ### Collision Detection
+//! ## Collision Detection
 //!
 //! - [Colliders](Collider)
 //!     - [Creation](Collider#creation)
@@ -158,7 +158,7 @@
 //!
 //! See the [`collision`] module for more details about collision detection and colliders in Avian.
 //!
-//! ### Constraints and Joints
+//! ## Constraints and Joints
 //!
 //! - [Joints](dynamics::solver::joints)
 //!     - [Fixed joint](FixedJoint)
@@ -171,7 +171,7 @@
 //!
 //! Joint motors and articulations are not supported yet, but they will be implemented in a future release.
 //!
-//! ### Spatial Queries
+//! ## Spatial Queries
 //!
 //! - [Spatial query types](spatial_query)
 //!     - [Raycasting](spatial_query#raycasting) and [`RayCaster`]
@@ -181,7 +181,7 @@
 //! - [Spatial query filters](SpatialQueryFilter)
 //! - [The `SpatialQuery` system parameter](SpatialQuery)
 //!
-//! ### Configuration
+//! ## Configuration
 //!
 //! - [Gravity]
 //! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
@@ -189,7 +189,7 @@
 //! - [Configure simulation fidelity with substeps](SubstepCount)
 //! - [Render physics objects for debugging](PhysicsDebugPlugin)
 //!
-//! ### Scheduling
+//! ## Scheduling
 //!
 //! - [Schedules and sets](PhysicsSchedulePlugin#schedules-and-sets)
 //!     - [`PhysicsSet`]
@@ -203,7 +203,7 @@
 //! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
 //! - [Usage on servers](#can-the-engine-be-used-on-servers)
 //!
-//! ### Architecture
+//! ## Architecture
 //!
 //! - [List of plugins and their responsibilities](PhysicsPlugins)
 //! - Extending and modifying the engine
@@ -211,7 +211,7 @@
 //!     - [Custom XPBD constraints](dynamics::solver::xpbd#custom-constraints)
 //!     - [Custom joints](dynamics::solver::joints#custom-joints)
 //!
-//! ## Frequently Asked Questions
+//! # Frequently Asked Questions
 //!
 //! - [How does Avian compare to Rapier and bevy_rapier?](#how-does-avian-compare-to-rapier-and-bevy_rapier)
 //! - [Why is nothing happening?](#why-is-nothing-happening)
@@ -224,7 +224,7 @@
 //! - [Can the engine be used on servers?](#can-the-engine-be-used-on-servers)
 //! - [Something else?](#something-else)
 //!
-//! ### How does Avian compare to Rapier and bevy_rapier?
+//! ## How does Avian compare to Rapier and bevy_rapier?
 //!
 //! Rapier is the biggest and most used physics engine in the Rust ecosystem, and it is currently
 //! the most mature and feature-rich option.
@@ -257,18 +257,18 @@
 //! and a more native Bevy integration, consider using Avian. Their core APIs are also quite similar,
 //! so switching between them shouldn't be too difficult.
 //!
-//! ### Why is nothing happening?
+//! ## Why is nothing happening?
 //!
 //! Make sure you have added the [`PhysicsPlugins`] plugin group and you have given your rigid bodies
 //! a [`RigidBody`] component. See the [getting started](#getting-started) section.
 //!
-//! ### Why is everything moving so slowly?
+//! ## Why is everything moving so slowly?
 //!
 //! If your application is in 2D, you might be using pixels as length units. This will require you to use
 //! larger velocities and forces than you would in 3D. Make sure you set [`Gravity`] to some larger value
 //! as well, because its magnitude is `9.81` by default, which is tiny in pixels.
 //!
-//! ### Why is performance so bad?
+//! ## Why is performance so bad?
 //!
 //! Make sure you are building your project in release mode using `cargo build --release`.
 //!
@@ -280,7 +280,7 @@
 //! codegen-units = 1
 //! ```
 //!
-//! ### Why does movement look choppy?
+//! ## Why does movement look choppy?
 //!
 //! To produce consistent, frame rate independent behavior, physics by default runs
 //! in the [`FixedPostUpdate`] schedule with a fixed timestep, meaning that the time between
@@ -342,7 +342,7 @@
 //! # fn camera_follow_player() {}
 //! ```
 //!
-//! ### Is there a character controller?
+//! ## Is there a character controller?
 //!
 //! Avian does not have a built-in character controller, so if you need one,
 //! you will need to implement it yourself. However, third party character controllers
@@ -370,7 +370,7 @@
 [`kinematic_character_3d`]: https://github.com/Jondolf/avian/tree/main/crates/avian3d/examples/kinematic_character_3d"
 )]
 //!
-//! ### Why are there separate `Position` and `Rotation` components?
+//! ## Why are there separate `Position` and `Rotation` components?
 //!
 //! While `Transform` can be used for the vast majority of things, Avian internally
 //! uses separate [`Position`] and [`Rotation`] components. These are automatically
@@ -393,13 +393,13 @@
 //! Using `Transform` feels more idiomatic and simple, so it would be nice if it could be used directly
 //! as long as we can get around the drawbacks.
 //!
-//! ### Can the engine be used on servers?
+//! ## Can the engine be used on servers?
 //!
 //! Yes! Networking often requires running the simulation in a specific schedule, and in Avian it is straightforward
 //! to [set the schedule that runs physics](PhysicsPlugins#custom-schedule) and [configure the timestep](Physics) if needed.
 //! By default, physics runs at a fixed timestep in [`FixedPostUpdate`].
 //!
-//! ### Something else?
+//! ## Something else?
 //!
 //! Physics engines are very large and Avian is young, so stability issues and bugs are to be expected.
 //!
@@ -410,7 +410,7 @@
 //! You can also come and say hello on the [Bevy Discord server](https://discord.com/invite/gMUk5Ph).
 //! There, you can find an Avian Physics topic on the `#ecosystem-crates` channel where you can ask questions.
 //!
-//! ## License
+//! # License
 //!
 //! Avian is free and open source. All code in the Avian repository is dual-licensed under either:
 //!

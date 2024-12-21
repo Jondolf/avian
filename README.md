@@ -59,7 +59,7 @@ Below are some of the current features of Avian.
 - `f32`/`f64` precision (`f32` by default)
 
 You can find a more complete list along with documentation in the
-[Table of contents](https://docs.rs/avian3d/latest/avian3d/#table-of-contents)
+[Table of Contents](https://docs.rs/avian3d/latest/avian3d/#table-of-contents)
 on docs.rs.
 
 ## Documentation
@@ -67,18 +67,18 @@ on docs.rs.
 - [2D documentation](https://docs.rs/avian2d)
 - [3D documentation](https://docs.rs/avian3d)
 
-## Usage example
+## Usage Example
 
 First, add `avian2d` or `avian3d` to your dependencies in `Cargo.toml`:
 
 ```toml
 # For 2D applications:
 [dependencies]
-avian2d = "0.1"
+avian2d = "0.2"
 
 # For 3D applications:
 [dependencies]
-avian3d = "0.1"
+avian3d = "0.2"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
@@ -109,11 +109,8 @@ fn setup(
     commands.spawn((
         RigidBody::Static,
         Collider::cylinder(4.0, 0.1),
-        PbrBundle {
-            mesh: meshes.add(Cylinder::new(4.0, 0.1)),
-            material: materials.add(Color::WHITE),
-            ..default()
-        },
+        Mesh3d(meshes.add(Cylinder::new(4.0, 0.1))),
+        MeshMaterial3d(materials.add(Color::WHITE)),
     ));
 
     // Dynamic physics object with a collision shape and initial angular velocity
@@ -121,35 +118,31 @@ fn setup(
         RigidBody::Dynamic,
         Collider::cuboid(1.0, 1.0, 1.0),
         AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
-        PbrBundle {
-            mesh: meshes.add(Cuboid::from_length(1.0)),
-            material: materials.add(Color::srgb_u8(124, 144, 255)),
-            transform: Transform::from_xyz(0.0, 4.0, 0.0),
-            ..default()
-        },
+        Mesh3d(meshes.add(Cuboid::from_length(1.0))),
+        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
+        Transform::from_xyz(0.0, 4.0, 0.0),
     ));
 
     // Light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
-        ..default()
-    });
+        Transform::from_xyz(4.0, 8.0, 4.0),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Dir3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(-2.5, 4.5, 9.0).looking_at(Vec3::ZERO, Dir3::Y),
+    ));
 }
 ```
 
 ![A spinning cube falling onto a circular platform](https://github.com/user-attachments/assets/14d25e7e-9d46-467c-9fe6-dc408cd23398)
 
-## More examples
+## More Examples
 
 You can find lots of 2D and 3D examples in [/crates/avian2d/examples](/crates/avian2d/examples) and [/crates/avian3d/examples](/crates/avian3d/examples) respectively.
 
@@ -164,11 +157,11 @@ and precision:
 cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 ```
 
-## Supported Bevy versions
+## Supported Bevy Versions
 
 | Bevy    | Avian |
 | ------- | ----- |
-| 0.15    | main  |
+| 0.15    | 0.2   |
 | 0.14    | 0.1   |
 
 <details>
@@ -184,7 +177,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 </details>
 
-## Future features
+## Future Features
 
 - Per-entity collision hooks or callbacks
 - Flags for what types of collisions are active, like collisions against specific rigid body types, sensors or parents

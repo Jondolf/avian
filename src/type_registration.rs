@@ -34,6 +34,8 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<AngularVelocity>()
             .register_type::<PreSolveLinearVelocity>()
             .register_type::<PreSolveAngularVelocity>()
+            .register_type::<MaxLinearSpeed>()
+            .register_type::<MaxAngularSpeed>()
             .register_type::<Restitution>()
             .register_type::<Friction>()
             .register_type::<LinearDamping>()

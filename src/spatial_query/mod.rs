@@ -4,7 +4,7 @@
 //! and various types of intersections. Currently, four types of spatial queries are supported:
 //!
 //! - [Raycasts](#raycasting)
-//! - [Shapecasts](#shapecasting),
+//! - [Shapecasts](#shapecasting)
 //! - [Point projection](#point-projection)
 //! - [Intersection tests](#intersection-tests)
 //!
