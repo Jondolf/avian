@@ -68,6 +68,12 @@ use indexmap::IndexMap;
 /// The collisions can be accessed at any time, but modifications to contacts should be performed
 /// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
 ///
+/// ## Ignoring collisions
+///
+/// You can attach an [`IgnoredCollisions`] component to an entity with a
+/// [`Collider`] to completely avoid collision detection between the entity and
+/// the entities contained within the [`IgnoredCollisions`] component.
+///
 /// ## Filtering and Removing Collisions
 ///
 /// The following methods can be used for filtering or removing existing collisions:
