@@ -479,6 +479,7 @@ pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
 pub mod dynamics;
+pub mod graph;
 pub mod interpolation;
 pub mod math;
 #[cfg(feature = "bevy_picking")]
