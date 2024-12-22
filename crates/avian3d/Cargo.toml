@@ -63,7 +63,7 @@ required-features = ["3d"]
 bench = false
 
 [dependencies]
-avian_derive = { path = "../avian_derive", version = "0.2" }
+avian_derive = { path = "../avian_derive", version = "0.2", features = ["3d"] }
 bevy = { version = "0.15", default-features = false }
 bevy_math = { version = "0.15" }
 bevy_heavy = { version = "0.1" }
