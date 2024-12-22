@@ -25,4 +25,4 @@ bevy = { version = "0.15", default-features = false, features = [
     "bevy_window",
     "x11",                # github actions runners don't have libxkbcommon installed, so can't use wayland
 ] }
-avian2d = { path = "../avian2d", default-features = false }
+avian2d = { path = "../avian2d", default-features = false, features = ["2d"] }

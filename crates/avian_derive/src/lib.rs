@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 
 use proc_macro_error::{abort, emit_error, proc_macro_error};
 use quote::quote;
-use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
+use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, File};
 
 // Modified macro from the discontinued Heron
 // https://github.com/jcornaz/heron/blob/main/macros/src/lib.rs
@@ -122,11 +122,38 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
         (1 << variants.len()) - 1
     };
 
+    let use_items = if cfg!(feature = "2d") && !cfg!(feature = "3d") {
+        syn::parse::<File>(
+            quote! {
+                use avian2d::prelude::PhysicsLayer;
+            }
+            .into(),
+        )
+        .unwrap()
+    } else if cfg!(feature = "3d") && !cfg!(feature = "2d") {
+        syn::parse::<File>(
+            quote! {
+                use avian3d::prelude::PhysicsLayer;
+            }
+            .into(),
+        )
+        .unwrap()
+    } else {
+        // Used within this repository.
+        syn::parse::<File>(
+            quote! {
+                #[cfg(feature = "2d")]
+                use avian2d::prelude::PhysicsLayer;
+                #[cfg(feature = "3d")]
+                use avian3d::prelude::PhysicsLayer;
+            }
+            .into(),
+        )
+        .unwrap()
+    };
+
     let expanded = quote! {
-        #[cfg(feature = "2d")]
-        use avian2d::prelude::PhysicsLayer;
-        #[cfg(feature = "3d")]
-        use avian3d::prelude::PhysicsLayer;
+        #use_items
 
         impl PhysicsLayer for #enum_ident {
             fn all_bits() -> u32 {
