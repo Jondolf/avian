@@ -25,6 +25,11 @@ impl NodeIndex {
     pub fn index(self) -> usize {
         self.0 as usize
     }
+
+    /// Returns `true` if this is the special `END` index.
+    pub fn is_end(self) -> bool {
+        self == NodeIndex::END
+    }
 }
 
 /// An edge identifier for a graph structure.
@@ -42,6 +47,11 @@ impl EdgeIndex {
     /// Returns the inner `u32` value as a `usize`.
     pub fn index(self) -> usize {
         self.0 as usize
+    }
+
+    /// Returns `true` if this is the special `END` index.
+    pub fn is_end(self) -> bool {
+        self == EdgeIndex::END
     }
 }
 
@@ -147,7 +157,7 @@ fn index_twice<T>(arr: &mut [T], a: usize, b: usize) -> Pair<&mut T> {
 }
 
 impl<N, E> UnGraph<N, E> {
-    /// Creates a new `UnGraph` with estimated capacity.
+    /// Creates a new [`UnGraph`] with estimated capacity.
     pub fn with_capacity(nodes: usize, edges: usize) -> Self {
         UnGraph {
             nodes: Vec::with_capacity(nodes),

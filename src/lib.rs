@@ -479,7 +479,6 @@ pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
 pub mod dynamics;
-pub mod graph;
 pub mod interpolation;
 pub mod math;
 #[cfg(feature = "bevy_picking")]
@@ -489,6 +488,8 @@ pub mod prepare;
 pub mod schedule;
 pub mod spatial_query;
 pub mod sync;
+
+pub mod data_structures;
 
 mod type_registration;
 pub use type_registration::PhysicsTypeRegistrationPlugin;
