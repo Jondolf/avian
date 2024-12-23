@@ -272,7 +272,7 @@ fn generate_constraints<C: AnyCollider>(
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
-    for contacts in narrow_phase.collisions.get_internal().values() {
+    for contacts in narrow_phase.collisions.iter() {
         let Ok([collider1, collider2]) = narrow_phase
             .collider_query
             .get_many([contacts.entity1, contacts.entity2])
@@ -573,15 +573,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         );
 
         // Get the previous contacts if there are any.
-        let previous_contacts = if collider1.entity < collider2.entity {
-            self.collisions
-                .get_internal()
-                .get(&(collider1.entity, collider2.entity))
-        } else {
-            self.collisions
-                .get_internal()
-                .get(&(collider2.entity, collider1.entity))
-        };
+        let previous_contacts = self.collisions.get(collider1.entity, collider2.entity);
 
         let mut total_normal_impulse = 0.0;
         let mut total_tangent_impulse = default();
@@ -706,7 +698,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 }
 
 fn remove_ended_collisions(mut collisions: ResMut<Collisions>) {
-    collisions.retain(|contacts| contacts.during_current_frame);
+    collisions.graph.retain_edges(|graph, edge| {
+        graph
+            .edge_weight(edge)
+            .is_some_and(|contacts| contacts.during_current_frame)
+    });
 }
 
 // TODO: The collision state handling feels a bit confusing and error-prone.
@@ -716,7 +712,7 @@ pub fn reset_collision_states(
     mut collisions: ResMut<Collisions>,
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
-    for contacts in collisions.get_internal_mut().values_mut() {
+    for contacts in collisions.iter_mut() {
         contacts.total_normal_impulse = 0.0;
         contacts.total_tangent_impulse = default();
 

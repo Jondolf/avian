@@ -325,7 +325,7 @@ fn wake_on_collision_ended(
     }
 
     // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
-    for contacts in collisions.get_internal().values() {
+    for contacts in collisions.iter() {
         if contacts.during_current_frame || !contacts.during_previous_frame {
             continue;
         }

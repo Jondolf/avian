@@ -33,11 +33,19 @@ pub use layers::*;
 mod feature_id;
 pub use feature_id::PackedFeatureId;
 
-use crate::prelude::*;
+use crate::{
+    data_structures::{
+        entity_data_index::EntityDataIndex,
+        graph::{EdgeIndex, NodeIndex, UnGraph},
+    },
+    prelude::*,
+};
 use bevy::prelude::*;
-use indexmap::IndexMap;
 
-// TODO: Refactor this into a contact graph.
+// TODO: Add `retain` method.
+// TODO: Handle edge addition/removal properly, and add `ContactFlags`.
+// TODO: Update docs.
+
 // Collisions are stored in an `IndexMap` that uses fxhash.
 // It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.
 //
@@ -96,20 +104,26 @@ use indexmap::IndexMap;
 ///
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
-#[derive(Resource, Clone, Debug, Default, PartialEq)]
-pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
+#[derive(Resource, Clone, Debug, Default)]
+pub struct Collisions {
+    // TODO: Separate intersection graph and contact graph.
+    /// The contact graph where nodes are entities and edges are contact pairs.
+    pub graph: UnGraph<Entity, Contacts>,
+    /// A map from entities to their corresponding node indices in the contact graph.
+    entity_graph_index: EntityDataIndex<NodeIndex>,
+}
 
 impl Collisions {
     /// Returns a reference to the internal `IndexMap`.
-    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &self.0
+    #[deprecated(since = "0.3.0", note = "Access `graph` instead.")]
+    pub fn get_internal(&self) -> &UnGraph<Entity, Contacts> {
+        &self.graph
     }
 
     /// Returns a mutable reference to the internal `IndexMap`.
-    pub fn get_internal_mut(
-        &mut self,
-    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
-        &mut self.0
+    #[deprecated(since = "0.3.0", note = "Access `graph` instead.")]
+    pub fn get_internal_mut(&mut self) -> &mut UnGraph<Entity, Contacts> {
+        &mut self.graph
     }
 
     /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
@@ -117,13 +131,16 @@ impl Collisions {
     ///
     /// The order of the entities does not matter.
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
-        // the keys are always sorted in order of `Entity`
-        if entity2 < entity1 {
-            return self.get(entity2, entity1);
-        }
-        self.0
-            .get(&(entity1, entity2))
-            .filter(|contacts| contacts.during_current_frame)
+        let (Some(&index1), Some(&index2)) = (
+            self.entity_graph_index.get(entity1),
+            self.entity_graph_index.get(entity2),
+        ) else {
+            return None;
+        };
+
+        self.graph
+            .find_edge(index1, index2)
+            .and_then(|edge| self.graph.edge_weight(edge))
     }
 
     /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
@@ -131,13 +148,16 @@ impl Collisions {
     ///
     /// The order of the entities does not matter.
     pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
-        // the keys are always sorted in entity order
-        if entity2 < entity1 {
-            return self.get_mut(entity2, entity1);
-        }
-        self.0
-            .get_mut(&(entity1, entity2))
-            .filter(|contacts| contacts.during_current_frame)
+        let (Some(&index1), Some(&index2)) = (
+            self.entity_graph_index.get(entity1),
+            self.entity_graph_index.get(entity2),
+        ) else {
+            return None;
+        };
+
+        self.graph
+            .find_edge(index1, index2)
+            .and_then(|edge| self.graph.edge_weight_mut(edge))
     }
 
     /// Returns `true` if the given entities have been in contact during this frame.
@@ -151,45 +171,30 @@ impl Collisions {
 
     /// Returns an iterator over the current collisions that have happened during the current physics frame.
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
-        self.0
-            .values()
-            .filter(|collision| collision.during_current_frame)
+        self.graph.all_edge_weights()
     }
 
     /// Returns a mutable iterator over the collisions that have happened during the current physics frame.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
-        self.0
-            .values_mut()
-            .filter(|collision| collision.during_current_frame)
+        self.graph.all_edge_weights_mut()
     }
 
     /// Returns an iterator over all collisions with a given entity.
     pub fn collisions_with_entity(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
-        self.0
-            .iter()
-            .filter_map(move |((entity1, entity2), contacts)| {
-                if contacts.during_current_frame && (*entity1 == entity || *entity2 == entity) {
-                    Some(contacts)
-                } else {
-                    None
-                }
-            })
+        self.entity_graph_index
+            .get(entity)
+            .into_iter()
+            .flat_map(move |&index| self.graph.edge_weights(index))
     }
 
+    // TODO: Return an empty iterator instead of `None`.
     /// Returns an iterator over all collisions with a given entity.
     pub fn collisions_with_entity_mut(
         &mut self,
         entity: Entity,
-    ) -> impl Iterator<Item = &mut Contacts> {
-        self.0
-            .iter_mut()
-            .filter_map(move |((entity1, entity2), contacts)| {
-                if contacts.during_current_frame && (*entity1 == entity || *entity2 == entity) {
-                    Some(contacts)
-                } else {
-                    None
-                }
-            })
+    ) -> Option<impl Iterator<Item = &mut Contacts>> {
+        let index = *self.entity_graph_index.get(entity)?;
+        Some(self.graph.edge_weights_mut(index))
     }
 
     /// Inserts contact data for a collision between two entities.
@@ -200,15 +205,23 @@ impl Collisions {
     /// **Note**: Manually inserting collisions can be error prone and should generally be avoided.
     /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](Self::get_mut)
     /// or [`iter_mut`](Self::iter_mut).
-    pub fn insert_collision_pair(&mut self, contacts: Contacts) -> Option<Contacts> {
-        // order the keys by entity ID so that we don't get duplicate contacts
-        // between two entities
-        if contacts.entity1 < contacts.entity2 {
-            self.0
-                .insert((contacts.entity1, contacts.entity2), contacts)
-        } else {
-            self.0
-                .insert((contacts.entity2, contacts.entity1), contacts)
+    pub fn insert_collision_pair(&mut self, contacts: Contacts) {
+        let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
+            contacts.entity1,
+            contacts.entity2,
+            NodeIndex::END,
+        );
+
+        if index1.is_end() {
+            *index1 = self.graph.add_node(contacts.entity1);
+        }
+
+        if index2.is_end() {
+            *index2 = self.graph.add_node(contacts.entity2);
+        }
+
+        if self.graph.find_edge(*index1, *index2).is_none() {
+            self.graph.add_edge(*index1, *index2, contacts);
         }
     }
 
@@ -223,38 +236,46 @@ impl Collisions {
         // Otherwise reserve half the hint (rounded up), so the map
         // will only resize twice in the worst case.
         let iter = collisions.into_iter();
-        let reserve = if self.get_internal().is_empty() {
+        let reserve = if self.graph.raw_edges().is_empty() {
             iter.size_hint().0
         } else {
             (iter.size_hint().0 + 1) / 2
         };
-        self.get_internal_mut().reserve(reserve);
+        self.graph.reserve_edges(reserve);
         iter.for_each(move |contacts| {
             self.insert_collision_pair(contacts);
         });
     }
 
-    /// Retains only the collisions for which the specified predicate returns `true`.
-    /// Collisions for which the predicate returns `false` are removed.
-    pub fn retain<F>(&mut self, mut keep: F)
-    where
-        F: FnMut(&mut Contacts) -> bool,
-    {
-        self.0.retain(|_, contacts| keep(contacts));
-    }
+    // TODO: Retain
 
     /// Removes a collision between two entites and returns its value.
     ///
     /// The order of the entities does not matter.
     pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
-        self.0
-            .swap_remove(&(entity1, entity2))
-            .or_else(|| self.0.swap_remove(&(entity2, entity1)))
+        let (Some(&index1), Some(&index2)) = (
+            self.entity_graph_index.get(entity1),
+            self.entity_graph_index.get(entity2),
+        ) else {
+            return None;
+        };
+
+        self.graph
+            .find_edge(index1, index2)
+            .and_then(|edge| self.graph.remove_edge(edge))
     }
 
     /// Removes all collisions that involve the given entity.
     pub fn remove_collisions_with_entity(&mut self, entity: Entity) {
-        self.retain(|contacts| contacts.entity1 != entity && contacts.entity2 != entity);
+        // TODO: Avoid collecting the edges.
+        let edges: Vec<EdgeIndex> = self
+            .graph
+            .edges(NodeIndex(entity.index()))
+            .map(|edge| edge.index())
+            .collect();
+        edges.iter().for_each(|edge| {
+            self.graph.remove_edge(*edge);
+        });
     }
 }
 

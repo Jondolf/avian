@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::prelude::*;
+use crate::{data_structures::entity_data_index::entity_from_index_and_gen, prelude::*};
 use bevy::{prelude::*, utils::HashMap};
 use parry::{
     bounding_volume::Aabb,
@@ -899,10 +899,6 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'_, 
     fn typed_qbvh(&self) -> &Qbvh<Self::PartId> {
         &self.pipeline.qbvh
     }
-}
-
-fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
-    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).
