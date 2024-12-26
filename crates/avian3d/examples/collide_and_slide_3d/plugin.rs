@@ -130,7 +130,7 @@ pub struct CharacterControllerBundle {
     grounded: KCCGrounded,
     gravity: KCCGravity,
     slope: KCCSlope,
-    movement: MovementSettings, // Add this field
+    movement: MovementSettings,
     coyote_time: KCCCoyoteTime,
 }
 
@@ -142,7 +142,7 @@ impl Default for CharacterControllerBundle {
             grounded: KCCGrounded::default(),
             gravity: KCCGravity::default(),
             slope: KCCSlope::default(),
-            movement: MovementSettings::default(), // Add this field
+            movement: MovementSettings::default(),
             coyote_time: KCCCoyoteTime::default(),
         }
     }
@@ -590,11 +590,6 @@ fn depenetrate(
 }
 
 /// Updates velocity history for character controllers between physics steps.
-///
-/// Maintains velocity state for:
-/// - Interpolation calculations
-/// - Physics state preservation
-/// - Derivative computations
 pub fn update_kinematic_character_controller(mut query: Query<&mut KinematicCharacterController>) {
     for mut controller in query.iter_mut() {
         controller.prev_velocity = controller.velocity;
