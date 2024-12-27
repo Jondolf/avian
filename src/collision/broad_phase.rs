@@ -10,6 +10,7 @@ use bevy::{
         system::lifetimeless::Read,
     },
     prelude::*,
+    utils::{HashMap, HashSet},
 };
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
@@ -24,6 +25,7 @@ pub struct BroadPhasePlugin;
 impl Plugin for BroadPhasePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BroadCollisionPairs>()
+            .init_resource::<NewBroadCollisionPairs>()
             .init_resource::<AabbIntervals>();
 
         app.configure_sets(
@@ -71,7 +73,13 @@ pub enum BroadPhaseSet {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
-pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
+pub struct BroadCollisionPairs(pub HashSet<(Entity, Entity)>);
+
+#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Resource)]
+pub struct NewBroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Contains the entities whose AABBs intersect the AABB of this entity.
 /// Updated automatically during broad phase collision detection.
@@ -189,6 +197,7 @@ fn add_new_aabb_intervals(
 fn collect_collision_pairs(
     intervals: ResMut<AabbIntervals>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut new_broad_collision_pairs: ResMut<NewBroadCollisionPairs>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
 ) {
     for mut intersections in &mut aabb_intersection_query {
@@ -198,6 +207,7 @@ fn collect_collision_pairs(
     sweep_and_prune(
         intervals,
         &mut broad_collision_pairs.0,
+        &mut new_broad_collision_pairs.0,
         &mut aabb_intersection_query,
     );
 }
@@ -207,14 +217,15 @@ fn collect_collision_pairs(
 /// Sweep and prune exploits temporal coherence, as bodies are unlikely to move significantly between two simulation steps. Insertion sort is used, as it is good at sorting nearly sorted lists efficiently.
 fn sweep_and_prune(
     mut intervals: ResMut<AabbIntervals>,
-    broad_collision_pairs: &mut Vec<(Entity, Entity)>,
+    broad_collision_pairs: &mut HashSet<(Entity, Entity)>,
+    new_broad_collision_pairs: &mut Vec<(Entity, Entity)>,
     aabb_intersection_query: &mut Query<&mut AabbIntersections>,
 ) {
     // Sort bodies along the x-axis using insertion sort, a sorting algorithm great for sorting nearly sorted lists.
     insertion_sort(&mut intervals.0, |a, b| a.2.min.x > b.2.min.x);
 
     // Clear broad phase collisions from previous iteration.
-    broad_collision_pairs.clear();
+    new_broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (ent1, parent1, aabb1, layers1, store_intersections1, inactive1)) in
@@ -245,8 +256,22 @@ fn sweep_and_prune(
                 continue;
             }
 
-            broad_collision_pairs.push((*ent1, *ent2));
+            let key = if *ent1 < *ent2 {
+                (*ent1, *ent2)
+            } else {
+                (*ent2, *ent1)
+            };
 
+            // Avoid duplicate pairs.
+            if broad_collision_pairs.contains(&key) {
+                continue;
+            }
+
+            // Create a new collision pair.
+            broad_collision_pairs.insert(key);
+            new_broad_collision_pairs.push(key);
+
+            // TODO: Handle this more efficiently.
             if *store_intersections1 {
                 if let Ok(mut intersections) = aabb_intersection_query.get_mut(*ent1) {
                     intersections.push(*ent2);

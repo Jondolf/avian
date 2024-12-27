@@ -25,6 +25,7 @@ pub mod contact_reporting;
 pub mod narrow_phase;
 
 pub mod collider;
+use bit_vec::BitVec;
 pub use collider::*;
 
 mod layers;
@@ -111,6 +112,7 @@ pub struct Collisions {
     pub graph: UnGraph<Entity, Contacts>,
     /// A map from entities to their corresponding node indices in the contact graph.
     entity_graph_index: EntityDataIndex<NodeIndex>,
+    pub(crate) contact_state_bits: BitVec,
 }
 
 impl Collisions {
@@ -279,6 +281,33 @@ impl Collisions {
     }
 }
 
+/// Flags indicating the status and type of a contact pair.
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct ContactPairFlags(u8);
+
+bitflags::bitflags! {
+    impl ContactPairFlags: u8 {
+        /// Set if the colliders are touching, including sensors.
+        const TOUCHING = 0b0000_0001;
+        /// Set if the AABBs of the colliders are no longer overlapping.
+        const DISJOINT_AABB = 0b0000_0010;
+        /// Set if the colliders are touching and were not touching previously.
+        const STARTED_TOUCHING = 0b0000_0100;
+        /// Set if the colliders are not touching and were touching previously.
+        const STOPPED_TOUCHING = 0b0000_1000;
+        /// Set if at least one of the colliders is a sensor.
+        const SENSOR = 0b0001_0000;
+        /// Set if the contact pair should emit contact events.
+        const CONTACT_EVENTS = 0b0010_0000;
+        // Reserved for future use when we have sensor intersection events.
+        // /// Set if the contact pair should emit sensor intersection events.
+        // const SENSOR_EVENTS = 0b0100_0000;
+    }
+}
+
 /// All contacts between two colliders.
 ///
 /// The contacts are stored in contact manifolds.
@@ -299,12 +328,6 @@ pub struct Contacts {
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
     pub manifolds: Vec<ContactManifold>,
-    /// True if either of the colliders involved is a sensor.
-    pub is_sensor: bool,
-    /// True if the bodies have been in contact during this frame.
-    pub during_current_frame: bool,
-    /// True if the bodies were in contact during the previous frame.
-    pub during_previous_frame: bool,
     /// The total normal impulse applied to the first body in a collision.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
@@ -321,9 +344,25 @@ pub struct Contacts {
     #[cfg(feature = "3d")]
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Vector2,
+    /// Flag indicating the status and type of the contact pair.
+    pub flags: ContactPairFlags,
 }
 
 impl Contacts {
+    #[inline]
+    pub fn new(entity1: Entity, entity2: Entity) -> Self {
+        Self {
+            entity1,
+            entity2,
+            body_entity1: None,
+            body_entity2: None,
+            manifolds: Vec::new(),
+            total_normal_impulse: 0.0,
+            total_tangent_impulse: default(),
+            flags: ContactPairFlags::empty(),
+        }
+    }
+
     /// The force corresponding to the total normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
@@ -354,12 +393,12 @@ impl Contacts {
 
     /// Returns `true` if a collision started during the current frame.
     pub fn collision_started(&self) -> bool {
-        !self.during_previous_frame && self.during_current_frame
+        self.flags.contains(ContactPairFlags::STARTED_TOUCHING)
     }
 
     /// Returns `true` if a collision stopped during the current frame.
     pub fn collision_stopped(&self) -> bool {
-        self.during_previous_frame && !self.during_current_frame
+        self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
     }
 
     /// Returns the contact with the largest penetration depth.

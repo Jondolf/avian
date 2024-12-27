@@ -158,15 +158,15 @@ pub fn report_contacts(
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
 ) {
     // TODO: Would batching events be worth it?
-    for contacts in collisions.iter() {
+    /*for contacts in collisions.iter() {
         let (entity1, entity2) = (contacts.entity1, contacts.entity2);
 
-        if contacts.during_current_frame {
+        if contacts.flags.contains(ContactPairFlags::TOUCHING) {
             // TODO: Remove `Collision` event so we don't need to clone.
             collision_ev_writer.send(Collision(contacts.clone()));
 
             // Collision started
-            if !contacts.during_previous_frame {
+            if contacts.collision_started() {
                 collision_started_ev_writer.send(CollisionStarted(entity1, entity2));
 
                 if let Ok(mut colliding_entities1) = colliders.get_mut(entity1) {
@@ -179,7 +179,7 @@ pub fn report_contacts(
         }
 
         // Collision ended
-        if !contacts.during_current_frame && contacts.during_previous_frame {
+        if contacts.collision_stopped() {
             collision_ended_ev_writer.send(CollisionEnded(entity1, entity2));
 
             if let Ok(mut colliding_entities1) = colliders.get_mut(entity1) {
@@ -189,5 +189,5 @@ pub fn report_contacts(
                 colliding_entities2.remove(&entity1);
             }
         }
-    }
+    }*/
 }

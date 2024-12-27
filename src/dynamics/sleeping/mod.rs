@@ -325,10 +325,7 @@ fn wake_on_collision_ended(
     }
 
     // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
-    for contacts in collisions.iter() {
-        if contacts.during_current_frame || !contacts.during_previous_frame {
-            continue;
-        }
+    for contacts in collisions.iter().filter(|c| c.collision_stopped()) {
         if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity1) {
             if is_sleeping {
                 commands.entity(contacts.entity1).remove::<Sleeping>();

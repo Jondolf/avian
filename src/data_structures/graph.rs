@@ -35,7 +35,7 @@ impl NodeIndex {
 /// An edge identifier for a graph structure.
 #[derive(Clone, Copy, Debug, Default, PartialEq, PartialOrd, Eq, Ord, Hash, From)]
 #[cfg_attr(feature = "serialize", derive(Serialize, Deserialize))]
-pub struct EdgeIndex(u32);
+pub struct EdgeIndex(pub u32);
 
 impl EdgeIndex {
     /// A special index used to denote the abscence of an edge,
