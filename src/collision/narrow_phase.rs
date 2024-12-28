@@ -15,12 +15,13 @@ use bevy::{
     ecs::{
         intern::Interned,
         schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
-        system::SystemParam,
+        system::{StaticSystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
 };
 use bit_vec::BitVec;
 use broad_phase::NewBroadCollisionPairs;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 /// Computes contacts between entities and generates contact constraints for them.
 ///
@@ -34,17 +35,17 @@ use broad_phase::NewBroadCollisionPairs;
 /// The plugin takes a collider type. This should be [`Collider`] for
 /// the vast majority of applications, but for custom collisión backends
 /// you may use any collider that implements the [`AnyCollider`] trait.
-pub struct NarrowPhasePlugin<C: AnyCollider> {
+pub struct NarrowPhasePlugin<C: AnyCollider, H: CollisionHooks = ()> {
     schedule: Interned<dyn ScheduleLabel>,
     /// If `true`, the narrow phase will generate [`ContactConstraint`]s
     /// and add them to the [`ContactConstraints`] resource.
     ///
     /// Contact constraints are used by the [`SolverPlugin`] for solving contacts.
     generate_constraints: bool,
-    _phantom: PhantomData<C>,
+    _phantom: PhantomData<(C, H)>,
 }
 
-impl<C: AnyCollider> NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks> NarrowPhasePlugin<C, H> {
     /// Creates a [`NarrowPhasePlugin`] with the schedule used for running its systems
     /// and whether it should generate [`ContactConstraint`]s for the [`ContactConstraints`] resource.
     ///
@@ -60,13 +61,16 @@ impl<C: AnyCollider> NarrowPhasePlugin<C> {
     }
 }
 
-impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks> Default for NarrowPhasePlugin<C, H> {
     fn default() -> Self {
         Self::new(PhysicsSchedule, true)
     }
 }
 
-impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks + 'static> Plugin for NarrowPhasePlugin<C, H>
+where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
     fn build(&self, app: &mut App) {
         // For some systems, we only want one instance, even if there are multiple
         // NarrowPhasePlugin instances with different collider types.
@@ -110,7 +114,7 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         // Collect contacts into `Collisions`.
         app.add_systems(
             self.schedule,
-            collect_collisions::<C>
+            collect_collisions::<C, H>
                 .in_set(NarrowPhaseSet::CollectCollisions)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
@@ -219,20 +223,26 @@ pub enum NarrowPhaseSet {
     Last,
 }
 
-fn collect_collisions<C: AnyCollider>(
+fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
     new_broad_collision_pairs: Res<NewBroadCollisionPairs>,
     mut collision_started_event_writer: EventWriter<CollisionStarted>,
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
-) {
-    narrow_phase.update(
+    hooks: StaticSystemParam<H>,
+    mut par_commands: ParallelCommands,
+) where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
+    narrow_phase.update::<H>(
         &mut broad_collision_pairs,
         &new_broad_collision_pairs,
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
+        &mut hooks.into_inner(),
+        &mut par_commands,
     );
 }
 
@@ -369,14 +379,18 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
-    fn update(
+    fn update<H: CollisionHooks>(
         &mut self,
         broad_collision_pairs: &mut BroadCollisionPairs,
         new_broad_collision_pairs: &NewBroadCollisionPairs,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
-    ) {
+        hooks: &mut H::Item<'_, '_>,
+        par_commands: &mut ParallelCommands,
+    ) where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
         // TODO: These scaled versions could be in their own resource
         //       and updated just before physics every frame.
         // Cache default margins scaled by the length unit.
@@ -393,7 +407,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Compute contacts for all contact pairs.
-        let bit_vec = self.update_contacts(delta_secs);
+        let bit_vec = self.update_contacts::<H>(delta_secs, hooks, par_commands);
 
         // Contact pairs that should be removed.
         // This temporary storage is currently needed because removing pairs while iterating
@@ -435,7 +449,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .flags
                     .contains(ContactPairFlags::STARTED_TOUCHING)
                 {
-                    // TODO: When sensor events are separate, handle tnem separately.
+                    // TODO: When sensor events are separate, handle them separately.
 
                     // Send collision started event.
                     if contact_pair
@@ -464,7 +478,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             .send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
                     }
 
-                    debug_assert_eq!(contact_pair.manifolds.len(), 0);
+                    debug_assert!(contact_pair.manifolds.is_empty());
 
                     contact_pair
                         .flags
@@ -482,189 +496,243 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
     }
 
-    fn update_contacts(&mut self, delta_secs: Scalar) -> BitVec {
-        // TODO: Don't reallocate this every frame.
-        let mut state_change_bits = BitVec::from_elem(self.collisions.graph.edge_count(), false);
+    fn update_contacts<H: CollisionHooks>(
+        &mut self,
+        delta_secs: Scalar,
+        hooks: &H::Item<'_, '_>,
+        par_commands: &mut ParallelCommands,
+    ) -> BitVec
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
+        let initial = BitVec::from_elem(self.collisions.graph.edge_count(), false);
+        let state_change_bits = self
+            .collisions
+            .graph
+            .raw_edges_mut()
+            .par_iter_mut()
+            .enumerate()
+            .map_with(
+                initial.clone(),
+                |state_change_bits, (contact_id, contacts)| {
+                    let contacts = &mut contacts.weight;
 
-        // TODO: Parallelize, with a bit set for each worker.
-        for (contact_id, contacts) in self.collisions.iter_mut().enumerate() {
-            // TODO
-            // self.handle_entity_pair(edge, &mut state_change_bits, edge_index, delta_secs);
+                    // TODO
+                    // self.handle_entity_pair(edge, &mut state_change_bits, edge_index, delta_secs);
 
-            let Ok([collider1, collider2]) = self
-                .collider_query
-                .get_many([contacts.entity1, contacts.entity2])
-            else {
-                continue;
-            };
+                    let Ok([collider1, collider2]) = self
+                        .collider_query
+                        .get_many([contacts.entity1, contacts.entity2])
+                    else {
+                        return state_change_bits.clone();
+                    };
 
-            let body1_bundle = collider1
-                .parent
-                .and_then(|p| self.body_query.get(p.get()).ok());
-            let body2_bundle = collider2
-                .parent
-                .and_then(|p| self.body_query.get(p.get()).ok());
+                    // Check if the AABBs of the colliders still overlap and the contact pair is valid.
+                    let overlap = collider1.aabb.intersects(&collider2.aabb);
 
-            // The rigid body's collision margin and speculative margin will be used
-            // if the collider doesn't have them specified.
-            let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
-                .as_ref()
-                .map(|(body, collision_margin, speculative_margin)| {
-                    (
-                        body.linear_velocity.0,
-                        *collision_margin,
-                        *speculative_margin,
-                    )
-                })
-                .unwrap_or_default();
-            let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
-                .as_ref()
-                .map(|(body, collision_margin, speculative_margin)| {
-                    (
-                        body.linear_velocity.0,
-                        *collision_margin,
-                        *speculative_margin,
-                    )
-                })
-                .unwrap_or_default();
+                    if !overlap {
+                        // The AABBs don't overlap. The contact pair will be removed later.
+                        contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
+                        contacts.flags.set(ContactPairFlags::TOUCHING, false);
+                        state_change_bits.set(contact_id, true);
+                    } else {
+                        // The AABBs overlap. Compute contacts.
 
-            // Use the collider's own collision margin if specified, and fall back to the body's
-            // collision margin.
-            //
-            // The collision margin adds artificial thickness to colliders for performance
-            // and stability. See the `CollisionMargin` documentation for more details.
-            let collision_margin1 = collider1
-                .collision_margin
-                .or(rb_collision_margin1)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin2 = collider2
-                .collision_margin
-                .or(rb_collision_margin2)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin_sum = collision_margin1 + collision_margin2;
+                        let body1_bundle = collider1
+                            .parent
+                            .and_then(|p| self.body_query.get(p.get()).ok());
+                        let body2_bundle = collider2
+                            .parent
+                            .and_then(|p| self.body_query.get(p.get()).ok());
 
-            // Use the collider's own speculative margin if specified, and fall back to the body's
-            // speculative margin.
-            //
-            // The speculative margin is used to predict contacts that might happen during the frame.
-            // This is used for speculative collision. See the CCD and `SpeculativeMargin` documentation
-            // for more details.
-            let speculative_margin1 = collider1
-                .speculative_margin
-                .map_or(rb_speculative_margin1.map(|margin| margin.0), |margin| {
-                    Some(margin.0)
-                });
-            let speculative_margin2 = collider2
-                .speculative_margin
-                .map_or(rb_speculative_margin2.map(|margin| margin.0), |margin| {
-                    Some(margin.0)
-                });
+                        // The rigid body's collision margin and speculative margin will be used
+                        // if the collider doesn't have them specified.
+                        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) =
+                            body1_bundle
+                                .as_ref()
+                                .map(|(body, collision_margin, speculative_margin)| {
+                                    (
+                                        body.linear_velocity.0,
+                                        *collision_margin,
+                                        *speculative_margin,
+                                    )
+                                })
+                                .unwrap_or_default();
+                        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) =
+                            body2_bundle
+                                .as_ref()
+                                .map(|(body, collision_margin, speculative_margin)| {
+                                    (
+                                        body.linear_velocity.0,
+                                        *collision_margin,
+                                        *speculative_margin,
+                                    )
+                                })
+                                .unwrap_or_default();
 
-            // Compute the effective speculative margin, clamping it based on velocities and the maximum bound.
-            let effective_speculative_margin = {
-                let speculative_margin1 =
-                    speculative_margin1.unwrap_or(*self.default_speculative_margin);
-                let speculative_margin2 =
-                    speculative_margin2.unwrap_or(*self.default_speculative_margin);
-                let inv_delta_secs = delta_secs.recip();
+                        // Use the collider's own collision margin if specified, and fall back to the body's
+                        // collision margin.
+                        //
+                        // The collision margin adds artificial thickness to colliders for performance
+                        // and stability. See the `CollisionMargin` documentation for more details.
+                        let collision_margin1 = collider1
+                            .collision_margin
+                            .or(rb_collision_margin1)
+                            .map_or(0.0, |margin| margin.0);
+                        let collision_margin2 = collider2
+                            .collision_margin
+                            .or(rb_collision_margin2)
+                            .map_or(0.0, |margin| margin.0);
+                        let collision_margin_sum = collision_margin1 + collision_margin2;
 
-                // Clamp velocities to the maximum speculative margins.
-                if speculative_margin1 < Scalar::MAX {
-                    lin_vel1 = lin_vel1.clamp_length_max(speculative_margin1 * inv_delta_secs);
-                }
-                if speculative_margin2 < Scalar::MAX {
-                    lin_vel2 = lin_vel2.clamp_length_max(speculative_margin2 * inv_delta_secs);
-                }
+                        // Use the collider's own speculative margin if specified, and fall back to the body's
+                        // speculative margin.
+                        //
+                        // The speculative margin is used to predict contacts that might happen during the frame.
+                        // This is used for speculative collision. See the CCD and `SpeculativeMargin` documentation
+                        // for more details.
+                        let speculative_margin1 = collider1
+                            .speculative_margin
+                            .map_or(rb_speculative_margin1.map(|margin| margin.0), |margin| {
+                                Some(margin.0)
+                            });
+                        let speculative_margin2 = collider2
+                            .speculative_margin
+                            .map_or(rb_speculative_margin2.map(|margin| margin.0), |margin| {
+                                Some(margin.0)
+                            });
 
-                // TODO: Check if AABBs intersect?
+                        // Compute the effective speculative margin, clamping it based on velocities and the maximum bound.
+                        let effective_speculative_margin = {
+                            let speculative_margin1 =
+                                speculative_margin1.unwrap_or(*self.default_speculative_margin);
+                            let speculative_margin2 =
+                                speculative_margin2.unwrap_or(*self.default_speculative_margin);
+                            let inv_delta_secs = delta_secs.recip();
 
-                // Compute the effective margin based on how much the bodies
-                // are expected to move relative to each other.
-                delta_secs * (lin_vel1 - lin_vel2).length()
-            };
+                            // Clamp velocities to the maximum speculative margins.
+                            if speculative_margin1 < Scalar::MAX {
+                                lin_vel1 =
+                                    lin_vel1.clamp_length_max(speculative_margin1 * inv_delta_secs);
+                            }
+                            if speculative_margin2 < Scalar::MAX {
+                                lin_vel2 =
+                                    lin_vel2.clamp_length_max(speculative_margin2 * inv_delta_secs);
+                            }
 
-            // The maximum distance at which contacts are detected.
-            // At least as large as the contact tolerance.
-            let max_contact_distance =
-                effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
+                            // TODO: Check if AABBs intersect?
 
-            let position1 = collider1.current_position();
-            let position2 = collider2.current_position();
+                            // Compute the effective margin based on how much the bodies
+                            // are expected to move relative to each other.
+                            delta_secs * (lin_vel1 - lin_vel2).length()
+                        };
 
-            // Check if the AABBs of the colliders still overlap and the contact pair is valid.
-            let overlap = collider1.aabb.intersects(&collider2.aabb);
+                        // The maximum distance at which contacts are detected.
+                        // At least as large as the contact tolerance.
+                        let max_contact_distance = effective_speculative_margin
+                            .max(*self.contact_tolerance)
+                            + collision_margin_sum;
 
-            if !overlap {
-                // The AABBs don't overlap. The contact pair will be removed later.
-                contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
-                contacts.flags.set(ContactPairFlags::TOUCHING, false);
-                state_change_bits.set(contact_id, true);
-            } else {
-                // The AABBs overlap. Compute contacts.
+                        let position1 = collider1.current_position();
+                        let position2 = collider2.current_position();
 
-                let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
+                        // Initialize the contact pair.
+                        // TODO: Do this when creating contacts?
+                        contacts.body_entity1 = collider1.parent.map(|p| p.get());
+                        contacts.body_entity2 = collider2.parent.map(|p| p.get());
+                        contacts.flags.set(
+                            ContactPairFlags::SENSOR,
+                            collider1.is_sensor || collider2.is_sensor,
+                        );
+                        contacts.flags.set(
+                            ContactPairFlags::MODIFY_CONTACTS,
+                            collider1
+                                .active_hooks()
+                                .union(collider2.active_hooks())
+                                .contains(ActiveCollisionHooks::MODIFY_CONTACTS),
+                        );
 
-                // TODO: It'd be good to persist the manifolds and let Parry match contacts.
-                //       This isn't currently done because it requires using Parry's contact manifold type.
-                // Compute the contact manifolds using the effective speculative margin.
-                let mut new_manifolds = collider1.shape.contact_manifolds(
-                    collider2.shape,
-                    position1,
-                    *collider1.rotation,
-                    position2,
-                    *collider2.rotation,
-                    max_contact_distance,
-                );
+                        let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
 
-                // Check if the colliders are now touching.
-                let touching = new_manifolds.iter().any(|m| !m.contacts.is_empty());
-                contacts.flags.set(ContactPairFlags::TOUCHING, touching);
+                        // Save the old manifolds for warm starting.
+                        let old_manifolds = contacts.manifolds.clone();
 
-                // Match contacts and copy previous contact impulses for warm starting the solver.
-                let mut total_normal_impulse = 0.0;
-                let mut total_tangent_impulse = default();
+                        // TODO: It'd be good to persist the manifolds and let Parry match contacts.
+                        //       This isn't currently done because it requires using Parry's contact manifold type.
+                        // Compute the contact manifolds using the effective speculative margin.
+                        contacts.manifolds = collider1.shape.contact_manifolds(
+                            collider2.shape,
+                            position1,
+                            *collider1.rotation,
+                            position2,
+                            *collider2.rotation,
+                            max_contact_distance,
+                        );
 
-                // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
-                //       If we let Parry handle contact matching, this wouldn't be needed.
-                if new_manifolds.len() <= 4 && self.config.match_contacts {
-                    // TODO: Cache this?
-                    let distance_threshold = 0.1 * self.length_unit.0;
+                        // Check if the colliders are now touching.
+                        let mut touching =
+                            contacts.manifolds.iter().any(|m| !m.contacts.is_empty());
 
-                    for manifold in new_manifolds.iter_mut() {
-                        for previous_manifold in contacts.manifolds.iter() {
-                            manifold
-                                .match_contacts(&previous_manifold.contacts, distance_threshold);
-
-                            // Add contact impulses to total impulses.
-                            for contact in manifold.contacts.iter() {
-                                total_normal_impulse += contact.normal_impulse;
-                                total_tangent_impulse += contact.tangent_impulse;
+                        if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
+                            par_commands.command_scope(|commands| {
+                                touching = hooks.modify_contacts(contacts, commands);
+                            });
+                            if !touching {
+                                contacts.manifolds.clear();
                             }
                         }
+
+                        contacts.flags.set(ContactPairFlags::TOUCHING, touching);
+
+                        // Match contacts and copy previous contact impulses for warm starting the solver.
+                        let mut total_normal_impulse = 0.0;
+                        let mut total_tangent_impulse = default();
+
+                        // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
+                        //       If we let Parry handle contact matching, this wouldn't be needed.
+                        if contacts.manifolds.len() <= 4 && self.config.match_contacts {
+                            // TODO: Cache this?
+                            let distance_threshold = 0.1 * self.length_unit.0;
+
+                            for manifold in contacts.manifolds.iter_mut() {
+                                for previous_manifold in old_manifolds.iter() {
+                                    manifold.match_contacts(
+                                        &previous_manifold.contacts,
+                                        distance_threshold,
+                                    );
+
+                                    // Add contact impulses to total impulses.
+                                    for contact in manifold.contacts.iter() {
+                                        total_normal_impulse += contact.normal_impulse;
+                                        total_tangent_impulse += contact.tangent_impulse;
+                                    }
+                                }
+                            }
+                        }
+
+                        contacts.total_normal_impulse = total_normal_impulse;
+                        contacts.total_tangent_impulse = total_tangent_impulse;
+
+                        if touching && !was_touching {
+                            contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);
+                            contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
+                            state_change_bits.set(contact_id, true);
+                        } else if !touching && was_touching {
+                            contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
+                            state_change_bits.set(contact_id, true);
+                        }
                     }
-                }
 
-                // Update the contacts.
-                contacts.manifolds = new_manifolds;
-                contacts.total_normal_impulse = total_normal_impulse;
-                contacts.total_tangent_impulse = total_tangent_impulse;
-                contacts.body_entity1 = collider1.parent.map(|p| p.get());
-                contacts.body_entity2 = collider2.parent.map(|p| p.get());
-                contacts.flags.set(
-                    ContactPairFlags::SENSOR,
-                    collider1.is_sensor || collider2.is_sensor,
-                );
-
-                if touching && !was_touching {
-                    contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);
-                    contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
-                    state_change_bits.set(contact_id, true);
-                } else if !touching && was_touching {
-                    contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
-                    state_change_bits.set(contact_id, true);
-                }
-            }
-        }
+                    state_change_bits.clone()
+                },
+            )
+            .reduce(
+                || initial.clone(),
+                |mut a, b| {
+                    a.or(&b);
+                    a
+                },
+            );
 
         state_change_bits
     }

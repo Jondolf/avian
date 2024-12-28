@@ -27,7 +27,7 @@ f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
-parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
+parallel = ["parry2d?/parallel", "parry2d-f64?/parallel", "bevy/multi_threaded"]
 enhanced-determinism = [
     "dep:libm",
     "parry2d?/enhanced-determinism",
@@ -77,6 +77,7 @@ fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"
 bit-vec = "0.8"
+rayon = "1.10"
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }

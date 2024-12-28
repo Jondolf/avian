@@ -22,6 +22,7 @@ pub mod broad_phase;
 ))]
 pub mod contact_query;
 pub mod contact_reporting;
+pub mod hooks;
 pub mod narrow_phase;
 
 pub mod collider;
@@ -300,11 +301,10 @@ bitflags::bitflags! {
         const STOPPED_TOUCHING = 0b0000_1000;
         /// Set if at least one of the colliders is a sensor.
         const SENSOR = 0b0001_0000;
-        /// Set if the contact pair should emit contact events.
+        /// Set if the contact pair should emit contact events or sensor events.
         const CONTACT_EVENTS = 0b0010_0000;
-        // Reserved for future use when we have sensor intersection events.
-        // /// Set if the contact pair should emit sensor intersection events.
-        // const SENSOR_EVENTS = 0b0100_0000;
+        /// Set if the contact pair should have a custom contact modification hook applied.
+        const MODIFY_CONTACTS = 0b0100_0000;
     }
 }
 
