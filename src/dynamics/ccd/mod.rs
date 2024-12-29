@@ -607,7 +607,7 @@ fn solve_swept_ccd(
                 );
 
                 let sweep_mode = if ccd1.mode == SweepMode::Linear
-                    && body2.ccd.map_or(true, |ccd| ccd.mode == SweepMode::Linear)
+                    && body2.ccd.is_none_or(|ccd| ccd.mode == SweepMode::Linear)
                 {
                     SweepMode::Linear
                 } else {

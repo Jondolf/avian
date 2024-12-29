@@ -22,6 +22,7 @@ pub mod broad_phase;
 ))]
 pub mod contact_query;
 pub mod contact_reporting;
+pub mod hooks;
 pub mod narrow_phase;
 
 pub mod collider;

@@ -152,6 +152,7 @@
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
+//! - [Collision hooks](CollisionHooks)
 //! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
 //! - [Temporarily disabling a collider](ColliderDisabled)
@@ -508,6 +509,7 @@ pub mod prelude {
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
             },
+            hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
@@ -534,7 +536,9 @@ mod utils;
 mod tests;
 
 use bevy::{
-    app::PluginGroupBuilder, ecs::intern::Interned, ecs::schedule::ScheduleLabel, prelude::*,
+    app::PluginGroupBuilder,
+    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemParamItem},
+    prelude::*,
 };
 #[allow(unused_imports)]
 use prelude::*;
@@ -687,9 +691,10 @@ use prelude::*;
 ///
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
-pub struct PhysicsPlugins {
+pub struct PhysicsPlugins<Hooks: CollisionHooks = ()> {
     schedule: Interned<dyn ScheduleLabel>,
     length_unit: Scalar,
+    _phantom: std::marker::PhantomData<Hooks>,
 }
 
 impl PhysicsPlugins {
@@ -700,6 +705,22 @@ impl PhysicsPlugins {
         Self {
             schedule: schedule.intern(),
             length_unit: 1.0,
+            _phantom: Default::default(),
+        }
+    }
+
+    /// Adds the given [`CollisionHooks`] for user-defined contact filtering and modification.
+    ///
+    /// Only one set of collision hooks can be defined. Multiple calls to this method will
+    /// overwrite previous ones.
+    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPlugins<H>
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
+        PhysicsPlugins::<H> {
+            schedule: self.schedule,
+            length_unit: self.length_unit,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -749,7 +770,10 @@ impl Default for PhysicsPlugins {
     }
 }
 
-impl PluginGroup for PhysicsPlugins {
+impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPlugins<H>
+where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
     fn build(self) -> PluginGroupBuilder {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
@@ -764,10 +788,10 @@ impl PluginGroup for PhysicsPlugins {
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
-            .add(NarrowPhasePlugin::<Collider>::default());
+            .add(NarrowPhasePlugin::<Collider, H>::default());
 
         builder
-            .add(BroadPhasePlugin)
+            .add(BroadPhasePlugin::<H>::default())
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))

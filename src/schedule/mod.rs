@@ -120,6 +120,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
+// TODO: Remove this in favor of collision hooks.
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
