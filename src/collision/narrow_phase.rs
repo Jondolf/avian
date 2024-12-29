@@ -670,8 +670,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         );
 
                         // Check if the colliders are now touching.
-                        let mut touching =
-                            contacts.manifolds.iter().any(|m| !m.contacts.is_empty());
+                        let mut touching = contacts.manifolds.iter().any(|m| !m.points.is_empty());
 
                         if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
                             par_commands.command_scope(|commands| {
@@ -697,12 +696,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             for manifold in contacts.manifolds.iter_mut() {
                                 for previous_manifold in old_manifolds.iter() {
                                     manifold.match_contacts(
-                                        &previous_manifold.contacts,
+                                        &previous_manifold.points,
                                         distance_threshold,
                                     );
 
                                     // Add contact impulses to total impulses.
-                                    for contact in manifold.contacts.iter() {
+                                    for contact in manifold.points.iter() {
                                         total_normal_impulse += contact.normal_impulse;
                                         total_tangent_impulse += contact.tangent_impulse;
                                     }
@@ -915,10 +914,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 for manifold in new_manifolds.iter_mut() {
                     for previous_manifold in contacts.manifolds.iter() {
-                        manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
+                        manifold.match_contacts(&previous_manifold.points, distance_threshold);
 
                         // Add contact impulses to total impulses.
-                        for contact in manifold.contacts.iter() {
+                        for contact in manifold.points.iter() {
                             total_normal_impulse += contact.normal_impulse;
                             total_tangent_impulse += contact.tangent_impulse;
                         }
@@ -1006,8 +1005,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction,
-                restitution,
+                friction.dynamic_coefficient,
+                restitution.coefficient,
+                #[cfg(feature = "2d")]
+                contact_manifold.tangent_speed,
+                #[cfg(feature = "3d")]
+                contact_manifold.tangent_velocity,
                 contact_softness,
                 self.config.match_contacts,
                 delta_secs,

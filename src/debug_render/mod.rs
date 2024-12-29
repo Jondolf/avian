@@ -316,11 +316,12 @@ fn debug_render_contacts(
         };
 
         for manifold in contacts.manifolds.iter() {
-            for contact in manifold.contacts.iter() {
+            let normal1 = manifold.global_normal1(rotation1);
+            let normal2 = manifold.global_normal2(rotation2);
+
+            for contact in manifold.points.iter() {
                 let p1 = contact.global_point1(position1, rotation1);
                 let p2 = contact.global_point2(position2, rotation2);
-                let normal1 = contact.global_normal1(rotation1);
-                let normal2 = contact.global_normal2(rotation2);
 
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {

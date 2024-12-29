@@ -184,26 +184,24 @@ pub fn contact_manifolds(
                 shape2,
                 prediction_distance,
             ) {
-                let normal1 = Vector::from(contact.normal1);
-                let normal2 = Vector::from(contact.normal2);
+                let local_normal1 = Vector::from(contact.normal1);
+                let local_normal2 = Vector::from(contact.normal2);
 
                 // Make sure normals are valid
-                if !normal1.is_normalized() || !normal2.is_normalized() {
+                if !local_normal1.is_normalized() || !local_normal2.is_normalized() {
                     return vec![];
                 }
 
-                return vec![ContactManifold {
-                    normal1,
-                    normal2,
-                    contacts: vec![ContactData::new(
+                return vec![ContactManifold::new(
+                    vec![ContactPoint::new(
                         contact.point1.into(),
                         contact.point2.into(),
-                        normal1,
-                        normal2,
                         -contact.dist,
                     )],
-                    index: 0,
-                }];
+                    local_normal1,
+                    local_normal2,
+                    0,
+                )];
             }
         }
     }
@@ -215,41 +213,37 @@ pub fn contact_manifolds(
         .filter_map(|manifold| {
             let subpos1 = manifold.subshape_pos1.unwrap_or_default();
             let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-            let normal1: Vector = subpos1
+            let local_normal1: Vector = subpos1
                 .rotation
                 .transform_vector(&manifold.local_n1)
                 .normalize()
                 .into();
-            let normal2: Vector = subpos2
+            let local_normal2: Vector = subpos2
                 .rotation
                 .transform_vector(&manifold.local_n2)
                 .normalize()
                 .into();
 
             // Make sure normals are valid
-            if !normal1.is_normalized() || !normal2.is_normalized() {
+            if !local_normal1.is_normalized() || !local_normal2.is_normalized() {
                 return None;
             }
 
-            let manifold = ContactManifold {
-                normal1,
-                normal2,
-                contacts: manifold
-                    .contacts()
-                    .iter()
-                    .map(|contact| {
-                        ContactData::new(
-                            subpos1.transform_point(&contact.local_p1).into(),
-                            subpos2.transform_point(&contact.local_p2).into(),
-                            normal1,
-                            normal2,
-                            -contact.dist,
-                        )
-                        .with_feature_ids(contact.fid1.into(), contact.fid2.into())
-                    })
-                    .collect(),
-                index: manifold_index,
-            };
+            let points = manifold
+                .contacts()
+                .iter()
+                .map(|contact| {
+                    ContactPoint::new(
+                        subpos1.transform_point(&contact.local_p1).into(),
+                        subpos2.transform_point(&contact.local_p2).into(),
+                        -contact.dist,
+                    )
+                    .with_feature_ids(contact.fid1.into(), contact.fid2.into())
+                })
+                .collect();
+
+            let manifold =
+                ContactManifold::new(points, local_normal1, local_normal2, manifold_index);
 
             manifold_index += 1;
 
