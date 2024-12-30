@@ -691,35 +691,32 @@ use prelude::*;
 ///
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
-pub struct PhysicsPlugins<Hooks: CollisionHooks = ()> {
+pub struct PhysicsPlugins {
     schedule: Interned<dyn ScheduleLabel>,
     length_unit: Scalar,
-    _phantom: std::marker::PhantomData<Hooks>,
 }
 
 impl PhysicsPlugins {
     /// Creates a [`PhysicsPlugins`] plugin group using the given schedule for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is [`FixedPostUpdate`].
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
             length_unit: 1.0,
-            _phantom: Default::default(),
         }
     }
 
     /// Adds the given [`CollisionHooks`] for user-defined contact filtering and modification.
     ///
-    /// Only one set of collision hooks can be defined. Multiple calls to this method will
-    /// overwrite previous ones.
-    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPlugins<H>
+    /// Returns a [`PhysicsPluginsWithHooks`] plugin group, which wraps the original [`PhysicsPlugins`],
+    /// and applies the provided hooks. Only one set of collision hooks can be defined per application.
+    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPluginsWithHooks<H>
     where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        PhysicsPlugins::<H> {
-            schedule: self.schedule,
-            length_unit: self.length_unit,
+        PhysicsPluginsWithHooks::<H> {
+            plugins: self,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -770,10 +767,7 @@ impl Default for PhysicsPlugins {
     }
 }
 
-impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPlugins<H>
-where
-    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-{
+impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
@@ -788,10 +782,10 @@ where
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
-            .add(NarrowPhasePlugin::<Collider, H>::default());
+            .add(NarrowPhasePlugin::<Collider>::default());
 
         builder
-            .add(BroadPhasePlugin::<H>::default())
+            .add(BroadPhasePlugin::<()>::default())
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
@@ -801,5 +795,68 @@ where
             .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())
+    }
+}
+
+// This type is separate from `PhysicsPlugins` to avoid requiring users to use generics
+// like `PhysicsPlugins::<()>::default()` unless they actually want to use collision hooks.
+/// A [`PhysicsPlugins`] plugin group with [`CollisionHooks`] specified.
+pub struct PhysicsPluginsWithHooks<H: CollisionHooks> {
+    plugins: PhysicsPlugins,
+    _phantom: std::marker::PhantomData<H>,
+}
+
+impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
+    /// Creates a new [`PhysicsPluginsWithHooks`] plugin group using the given [`CollisionHooks`]
+    /// and schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is [`FixedPostUpdate`].
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            plugins: PhysicsPlugins::new(schedule),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Sets the value used for the [`PhysicsLengthUnit`], a units-per-meter scaling factor
+    /// that adjusts the engine's internal properties to the scale of the world.
+    ///
+    /// See [`PhysicsPlugins::with_length_unit`] for more information.
+    pub fn with_length_unit(mut self, unit: Scalar) -> Self {
+        self.plugins.length_unit = unit;
+        self
+    }
+}
+
+impl<H: CollisionHooks> Default for PhysicsPluginsWithHooks<H> {
+    fn default() -> Self {
+        Self {
+            plugins: PhysicsPlugins::default(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPluginsWithHooks<H>
+where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
+    fn build(self) -> PluginGroupBuilder {
+        // Replace the default collision hooks with the user-defined ones.
+        let builder = self
+            .plugins
+            .build()
+            .disable::<BroadPhasePlugin>()
+            .add(BroadPhasePlugin::<H>::default());
+
+        #[cfg(all(
+            feature = "default-collider",
+            any(feature = "parry-f32", feature = "parry-f64")
+        ))]
+        let builder = builder
+            .disable::<NarrowPhasePlugin<Collider>>()
+            .add(NarrowPhasePlugin::<Collider, H>::default());
+
+        builder
     }
 }
