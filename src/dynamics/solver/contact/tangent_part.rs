@@ -139,7 +139,7 @@ impl ContactTangentPart {
             // This is needed for solving the two tangent directions simultaneously.
             // TODO. Derive and explain the math for this, or consider an alternative approach,
             //       like using the Jacobians to compute the actual effective mass matrix.
-            part.effective_inverse_mass[2] = 2.0 * (i1_rt11.dot(i1_rt21) + i2_rt12.dot(i2_rt22));
+            part.effective_inverse_mass[2] = 2.0 * (rt11.dot(i1_rt21) + rt12.dot(i2_rt22));
         }
 
         part
