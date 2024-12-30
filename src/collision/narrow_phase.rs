@@ -258,7 +258,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
-    #[cfg(not(feature = "parallel"))] mut commands: Commands,
+    #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -407,7 +407,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         broad_collision_pairs: &[(Entity, Entity)],
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
-        #[cfg(not(feature = "parallel"))] commands: Commands,
+        #[cfg(not(feature = "parallel"))] mut commands: Commands,
         #[cfg(feature = "parallel")] par_commands: ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -459,7 +459,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
                 if let Some(contacts) =
-                    self.handle_entity_pair(entity1, entity2, delta_secs, hooks, &mut commands)
+                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
                 {
                     self.collisions.insert_collision_pair(contacts);
                 }

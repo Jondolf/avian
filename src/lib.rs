@@ -152,8 +152,8 @@
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
-//! - [Collision hooks](CollisionHooks)
-//! - [Accessing, filtering and modifying collisions](Collisions)
+//! - [Accessing collision data](Collisions)
+//! - [Filtering and modifying contacts with hooks](CollisionHooks)
 //! - [Manual contact queries](contact_query)
 //! - [Temporarily disabling a collider](ColliderDisabled)
 //!
