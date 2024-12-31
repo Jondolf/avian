@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.15", default-features = false }
-avian3d = { path = "../avian3d", default-features = false, features = ["3d"] }
+avian3d = { path = "../avian3d", default-features = false }
 criterion = "0.5"
