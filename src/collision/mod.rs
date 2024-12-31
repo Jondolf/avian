@@ -234,6 +234,7 @@ impl Collisions {
     }
 }
 
+// TODO: Rename to `ContactPair`.
 /// All contacts between two colliders.
 ///
 /// The contacts are stored in contact manifolds.
@@ -254,12 +255,7 @@ pub struct Contacts {
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
     pub manifolds: Vec<ContactManifold>,
-    /// True if either of the colliders involved is a sensor.
-    pub is_sensor: bool,
-    /// True if the bodies have been in contact during this frame.
-    pub during_current_frame: bool,
-    /// True if the bodies were in contact during the previous frame.
-    pub during_previous_frame: bool,
+    // TODO: Remove these?
     /// The total normal impulse applied to the first body in a collision.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
@@ -276,9 +272,32 @@ pub struct Contacts {
     #[cfg(feature = "3d")]
     #[doc(alias = "total_friction_impulse")]
     pub total_tangent_impulse: Vector2,
+    /// True if either of the colliders involved is a sensor.
+    pub is_sensor: bool,
+    /// True if the bodies have been in contact during this frame.
+    pub during_current_frame: bool,
+    /// True if the bodies were in contact during the previous frame.
+    pub during_previous_frame: bool,
 }
 
 impl Contacts {
+    /// Creates new [`Contacts`] with the given entities.
+    #[inline]
+    pub fn new(entity1: Entity, entity2: Entity) -> Self {
+        Self {
+            entity1,
+            entity2,
+            body_entity1: None,
+            body_entity2: None,
+            manifolds: Vec::new(),
+            total_normal_impulse: 0.0,
+            total_tangent_impulse: default(),
+            is_sensor: false,
+            during_current_frame: false,
+            during_previous_frame: false,
+        }
+    }
+
     /// The force corresponding to the total normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
@@ -323,7 +342,7 @@ impl Contacts {
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
         self.manifolds
             .iter()
             .filter_map(|manifold| manifold.find_deepest_contact())
@@ -335,32 +354,88 @@ impl Contacts {
     }
 }
 
-/// A contact manifold between two colliders, containing a set of contact points.
-/// Each contact in a manifold shares the same contact normal.
+/// A contact manifold describing a contact surface between two colliders,
+/// represented by a set of [contact points](ContactPoint) and surface properties.
+///
+/// A manifold can typically be a single point, a line segment, or a polygon formed by its contact points.
+/// Each contact point in a manifold shares the same contact normal.
+#[cfg_attr(
+    feature = "2d",
+    doc = "
+
+In 2D, contact manifolds are limited to 2 points."
+)]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
-    /// The contacts in this manifold.
-    pub contacts: Vec<ContactData>,
-    /// A contact normal shared by all contacts in this manifold,
+    // TODO: This should be an `ArrayVec` or similar in 2D since it is limited to 2 contacts.
+    /// The contact points that belong to this manifold.
+    ///
+    /// Each contact point in the manifold shares the same contact normal.
+    pub points: Vec<ContactPoint>,
+    /// The contact normal shared by all points in this manifold,
     /// expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal shared by all contacts in this manifold,
+    pub local_normal1: Vector,
+    /// The contact normal shared by all points in this manifold,
     /// expressed in the local space of the second entity.
-    pub normal2: Vector,
+    pub local_normal2: Vector,
+    /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
+    pub dynamic_friction: Scalar,
+    /// The effective coefficient of [restitution](Restitution) used for the contact surface.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The index of the manifold in the collision.
     pub index: usize,
 }
 
 impl ContactManifold {
+    /// Creates a new [`ContactManifold`] with the given contact points and surface normals,
+    /// expressed in local space.
+    ///
+    /// `index` represents the index of the manifold in the collision.
+    pub fn new(
+        points: Vec<ContactPoint>,
+        local_normal1: Vector,
+        local_normal2: Vector,
+        index: usize,
+    ) -> Self {
+        Self {
+            points,
+            local_normal1,
+            local_normal2,
+            dynamic_friction: 0.0,
+            restitution: 0.0,
+            #[cfg(feature = "2d")]
+            tangent_speed: 0.0,
+            #[cfg(feature = "3d")]
+            tangent_velocity: Vector::ZERO,
+            index,
+        }
+    }
+
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
+    pub fn global_normal1(&self, rotation: impl Into<Rotation>) -> Vector {
+        let rotation: Rotation = rotation.into();
+        rotation * self.local_normal1
     }
 
     /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
+    pub fn global_normal2(&self, rotation: impl Into<Rotation>) -> Vector {
+        let rotation: Rotation = rotation.into();
+        rotation * self.local_normal2
     }
 
     /// Copies impulses from previous contacts to matching contacts in `self`.
@@ -370,13 +445,13 @@ impl ContactManifold {
     /// for determining if points are too far away from each other to be considered matching.
     pub fn match_contacts(
         &mut self,
-        previous_contacts: &[ContactData],
+        previous_contacts: &[ContactPoint],
         distance_threshold: Scalar,
     ) {
         // The squared maximum distance for two contact points to be considered matching.
         let distance_threshold_squared = distance_threshold.powi(2);
 
-        for contact in self.contacts.iter_mut() {
+        for contact in self.points.iter_mut() {
             for previous_contact in previous_contacts.iter() {
                 // If the feature IDs match, copy the contact impulses over for warm starting.
                 if (contact.feature_id1 == previous_contact.feature_id1
@@ -397,13 +472,21 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && (contact.point1.distance_squared(previous_contact.point1)
+                    && (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point1)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point2)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point2)
                             < distance_threshold_squared)
-                    || (contact.point1.distance_squared(previous_contact.point2)
+                    || (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point2)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point1)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point1)
                             < distance_threshold_squared)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
@@ -420,8 +503,8 @@ impl ContactManifold {
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
-        self.contacts.iter().max_by(|a, b| {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
+        self.points.iter().max_by(|a, b| {
             a.penetration
                 .partial_cmp(&b.penetration)
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -432,7 +515,7 @@ impl ContactManifold {
 /// Data related to a single contact between two bodies.
 ///
 /// If you want a contact that belongs to a [contact manifold](ContactManifold) and has more data,
-/// see [`ContactData`].
+/// see [`ContactPoint`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SingleContact {
@@ -468,23 +551,37 @@ impl SingleContact {
 
     /// Returns the global contact point on the first entity,
     /// transforming the local point by the given entity position and rotation.
-    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
+    pub fn global_point1(
+        &self,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+    ) -> Vector {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
         position.0 + rotation * self.point1
     }
 
     /// Returns the global contact point on the second entity,
     /// transforming the local point by the given entity position and rotation.
-    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
+    pub fn global_point2(
+        &self,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+    ) -> Vector {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
         position.0 + rotation * self.point2
     }
 
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
+    pub fn global_normal1(&self, rotation: impl Into<Rotation>) -> Vector {
+        let rotation: Rotation = rotation.into();
         rotation * self.normal1
     }
 
     /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
+    pub fn global_normal2(&self, rotation: impl Into<Rotation>) -> Vector {
+        let rotation: Rotation = rotation.into();
         rotation * self.normal2
     }
 
@@ -506,18 +603,14 @@ impl SingleContact {
     }
 }
 
-/// Data related to a contact between two bodies.
+/// Data associated with a contact point in a [`ContactManifold`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContactData {
+pub struct ContactPoint {
     /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
+    pub local_point1: Vector,
     /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
+    pub local_point2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
     /// The impulse applied to the first body along the normal.
@@ -544,23 +637,15 @@ pub struct ContactData {
     pub feature_id2: PackedFeatureId,
 }
 
-impl ContactData {
-    /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
+impl ContactPoint {
+    /// Creates a new [`ContactPoint`]. The contact points and normals should be given in local space.
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        point1: Vector,
-        point2: Vector,
-        normal1: Vector,
-        normal2: Vector,
-        penetration: Scalar,
-    ) -> Self {
+    pub fn new(local_point1: Vector, local_point2: Vector, penetration: Scalar) -> Self {
         Self {
-            point1,
-            point2,
-            normal1,
-            normal2,
+            local_point1,
+            local_point2,
             penetration,
             normal_impulse: 0.0,
             tangent_impulse: default(),
@@ -606,31 +691,32 @@ impl ContactData {
 
     /// Returns the global contact point on the first entity,
     /// transforming the local point by the given entity position and rotation.
-    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point1
+    pub fn global_point1(
+        &self,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+    ) -> Vector {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
+        position.0 + rotation * self.local_point1
     }
 
     /// Returns the global contact point on the second entity,
     /// transforming the local point by the given entity position and rotation.
-    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point2
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
+    pub fn global_point2(
+        &self,
+        position: impl Into<Position>,
+        rotation: impl Into<Rotation>,
+    ) -> Vector {
+        let position: Position = position.into();
+        let rotation: Rotation = rotation.into();
+        position.0 + rotation * self.local_point2
     }
 
     /// Flips the contact data, swapping the points, normals, and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.point1, &mut self.point2);
-        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
         std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.tangent_impulse = -self.tangent_impulse;
@@ -640,10 +726,8 @@ impl ContactData {
     /// and negating the impulses.
     pub fn flipped(&self) -> Self {
         Self {
-            point1: self.point2,
-            point2: self.point1,
-            normal1: self.normal2,
-            normal2: self.normal1,
+            local_point1: self.local_point2,
+            local_point2: self.local_point1,
             penetration: self.penetration,
             normal_impulse: -self.normal_impulse,
             tangent_impulse: -self.tangent_impulse,

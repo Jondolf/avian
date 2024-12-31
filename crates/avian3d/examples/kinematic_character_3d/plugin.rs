@@ -339,19 +339,19 @@ fn kinematic_controller_collisions(
         // Each contact in a single manifold shares the same contact normal.
         for manifold in contacts.manifolds.iter() {
             let normal = if is_first {
-                -manifold.global_normal1(rotation)
+                -manifold.global_normal1(*rotation)
             } else {
-                -manifold.global_normal2(rotation)
+                -manifold.global_normal2(*rotation)
             };
 
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
-                if contact.penetration > 0.0 {
-                    position.0 += normal * contact.penetration;
+            for contact_point in manifold.points.iter() {
+                if contact_point.penetration > 0.0 {
+                    position.0 += normal * contact_point.penetration;
                 }
-                deepest_penetration = deepest_penetration.max(contact.penetration);
+                deepest_penetration = deepest_penetration.max(contact_point.penetration);
             }
 
             // For now, this system only handles velocity corrections for collisions against static geometry.

@@ -308,22 +308,22 @@ fn debug_render_contacts(
     }
 
     for contacts in collisions.iter() {
-        let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
+        let Ok((&position1, &rotation1)) = colliders.get(contacts.entity1) else {
             continue;
         };
-        let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
+        let Ok((&position2, &rotation2)) = colliders.get(contacts.entity2) else {
             continue;
         };
 
         for manifold in contacts.manifolds.iter() {
-            for contact in manifold.contacts.iter() {
-                let p1 = contact.global_point1(position1, rotation1);
-                let p2 = contact.global_point2(position2, rotation2);
-                let normal1 = contact.global_normal1(rotation1);
-                let normal2 = contact.global_normal2(rotation2);
+            let normal1 = manifold.global_normal1(rotation1);
+            let normal2 = manifold.global_normal2(rotation2);
+            for contact_point in manifold.points.iter() {
+                let p1 = contact_point.global_point1(position1, rotation1);
+                let p2 = contact_point.global_point2(position2, rotation2);
 
                 // Don't render contacts that aren't penetrating
-                if contact.penetration <= Scalar::EPSILON {
+                if contact_point.penetration <= Scalar::EPSILON {
                     continue;
                 }
 

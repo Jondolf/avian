@@ -671,12 +671,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
-                        manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
+                        manifold.match_contacts(&previous_manifold.points, distance_threshold);
 
                         // Add contact impulses to total impulses.
-                        for contact in manifold.contacts.iter() {
-                            contacts.total_normal_impulse += contact.normal_impulse;
-                            contacts.total_tangent_impulse += contact.tangent_impulse;
+                        for point in manifold.points.iter() {
+                            contacts.total_normal_impulse += point.normal_impulse;
+                            contacts.total_tangent_impulse += point.tangent_impulse;
                         }
                     }
                 }
@@ -750,8 +750,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction,
-                restitution,
+                friction.dynamic_coefficient,
+                restitution.coefficient,
+                #[cfg(feature = "2d")]
+                contact_manifold.tangent_speed,
+                #[cfg(feature = "3d")]
+                contact_manifold.tangent_velocity,
                 contact_softness,
                 self.config.match_contacts,
                 delta_secs,

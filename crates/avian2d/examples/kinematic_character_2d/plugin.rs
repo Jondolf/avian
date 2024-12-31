@@ -295,7 +295,7 @@ fn kinematic_controller_collisions(
         let character_rb: RigidBody;
         let is_other_dynamic: bool;
 
-        let (mut position, rotation, mut linear_velocity, max_slope_angle) =
+        let (mut position, &rotation, mut linear_velocity, max_slope_angle) =
             if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
                 is_first = true;
                 character_rb = *bodies.get(collider_parent1.get()).unwrap();
@@ -331,11 +331,11 @@ fn kinematic_controller_collisions(
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
-                if contact.penetration > 0.0 {
-                    position.0 += normal * contact.penetration;
+            for contact_point in manifold.points.iter() {
+                if contact_point.penetration > 0.0 {
+                    position.0 += normal * contact_point.penetration;
                 }
-                deepest_penetration = deepest_penetration.max(contact.penetration);
+                deepest_penetration = deepest_penetration.max(contact_point.penetration);
             }
 
             // For now, this system only handles velocity corrections for collisions against static geometry.

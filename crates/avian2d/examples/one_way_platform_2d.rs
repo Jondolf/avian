@@ -280,7 +280,7 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
         if one_way_platform.0.contains(&other_entity) {
             let any_penetrating = contacts.manifolds.iter().any(|manifold| {
                 manifold
-                    .contacts
+                    .points
                     .iter()
                     .any(|contact| contact.penetration > 0.0)
             });
@@ -316,8 +316,8 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
                 // then this collision should occur: the entity is on top of the platform.
                 if contacts.manifolds.iter().all(|manifold| {
                     let normal = match relevant_normal {
-                        RelevantNormal::Normal1 => manifold.normal1,
-                        RelevantNormal::Normal2 => manifold.normal2,
+                        RelevantNormal::Normal1 => manifold.local_normal1,
+                        RelevantNormal::Normal2 => manifold.local_normal2,
                     };
 
                     normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
