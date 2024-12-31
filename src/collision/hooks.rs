@@ -137,7 +137,7 @@ use bevy::{ecs::system::ReadOnlySystemParam, prelude::*};
 /// Collision hooks can access the ECS quite freely, but there are a few limitations:
 ///
 /// - Only one set of collision hooks can be defined per broad phase and narrow phase.
-/// - Only read-only access is allowed for the hook system parameter. Use the provided [`Commands`] for deferred changes.
+/// - Only read-only ECS access is allowed for the hook system parameter. Use the provided [`Commands`] for deferred ECS operations.
 ///   - Note that command execution order is unspecified if the `parallel` feature is enabled.
 /// - Access to the [`BroadCollisionPairs`] resource is not allowed inside [`CollisionHooks::filter_pairs`].
 ///   Trying to access it will result in a panic.
@@ -150,10 +150,15 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     ///
     /// This is called in the broad phase, before [`Contacts`] have been computed for the pair.
     ///
-    /// Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::FILTER_PAIRS`] set.
+    /// The provided [`Commands`] can be used for deferred ECS operations that run after
+    /// broad phase pairs have been found.
     ///
-    /// Access to the [`BroadCollisionPairs`] resource is not allowed in this method.
-    /// Trying to access it will result in a panic.
+    /// # Notes
+    ///
+    /// - Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::FILTER_PAIRS`] set.
+    /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
+    /// - Access to the [`BroadCollisionPairs`] resource is not allowed in this method.
+    ///   Trying to access it will result in a panic.
     fn filter_pairs(&self, entity1: Entity, entity2: Entity, commands: &mut Commands) -> bool {
         true
     }
@@ -164,10 +169,17 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// This is called in the narrow phase, after [`Contacts`] have been computed for the pair,
     /// but before constraints have been generated for the contact solver.
     ///
-    /// Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::MODIFY_CONTACTS`] set.
+    /// The provided [`Commands`] can be used for deferred ECS operations that run after
+    /// narrow phase [`Contacts`] have been computed and constraints have been generated.
     ///
-    /// Access to the [`Collisions`] resource is not allowed in this method.
-    /// Trying to access it will result in a panic.
+    /// # Notes
+    ///
+    /// - Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::MODIFY_CONTACTS`] set.
+    /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
+    /// - Impulses stored in `contacts` are from the previous physics tick.
+    /// - Command execution order is unspecified if the `parallel` feature is enabled.
+    /// - Access to the [`Collisions`] resource is not allowed in this method.
+    ///   Trying to access it will result in a panic.
     fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
         true
     }
