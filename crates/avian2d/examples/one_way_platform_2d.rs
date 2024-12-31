@@ -244,7 +244,7 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
     /// it will no longer be allowed to pass through.
     fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
         // This is the contact modification hook, called after collision detection,
-        // but before contact constraints are created. Mutable access to the ECS
+        // but before constraints are created for the solver. Mutable access to the ECS
         // is not allowed, but we can queue commands to perform deferred changes.
 
         // Differentiate between which normal of the manifold we should use
@@ -357,21 +357,18 @@ impl Command for OneWayPlatformCommand {
                 platform_entity,
                 entity,
             } => {
-                let Some(mut one_way_platforms) = world.get_mut::<OneWayPlatform>(platform_entity)
-                else {
-                    return;
-                };
-                one_way_platforms.0.insert(entity);
+                if let Some(mut platform) = world.get_mut::<OneWayPlatform>(platform_entity) {
+                    platform.0.insert(entity);
+                }
             }
+
             OneWayPlatformCommand::Remove {
                 platform_entity,
                 entity,
             } => {
-                let Some(mut one_way_platforms) = world.get_mut::<OneWayPlatform>(platform_entity)
-                else {
-                    return;
-                };
-                one_way_platforms.0.remove(&entity);
+                if let Some(mut platform) = world.get_mut::<OneWayPlatform>(platform_entity) {
+                    platform.0.remove(&entity);
+                }
             }
         }
     }
