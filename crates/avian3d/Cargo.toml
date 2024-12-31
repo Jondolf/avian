@@ -109,6 +109,14 @@ name = "chain_3d"
 required-features = ["3d", "default-collider"]
 
 [[example]]
+name = "collider_constructors"
+required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
+name = "conveyor_belt"
+required-features = ["3d", "default-collider"]
+
+[[example]]
 name = "cubes"
 required-features = ["3d", "default-collider"]
 
@@ -142,10 +150,6 @@ required-features = ["3d", "default-collider", "bevy_picking"]
 
 [[example]]
 name = "trimesh_shapes_3d"
-required-features = ["3d", "default-collider", "bevy_scene"]
-
-[[example]]
-name = "collider_constructors"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
