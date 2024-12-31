@@ -695,7 +695,7 @@ pub struct PhysicsPlugins {
 impl PhysicsPlugins {
     /// Creates a [`PhysicsPlugins`] plugin group using the given schedule for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
