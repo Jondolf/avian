@@ -8,10 +8,6 @@ description = "Provides derive implementations for Avian Physics"
 repository = "https://github.com/Jondolf/avian"
 readme = "README.md"
 
-[features]
-2d = []
-3d = []
-
 [lib]
 proc-macro = true
 bench = false

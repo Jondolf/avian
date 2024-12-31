@@ -434,12 +434,6 @@ impl Default for CollisionLayers {
 
 #[cfg(test)]
 mod tests {
-    // Needed for `PhysicsLayer` derive macro
-    #[cfg(feature = "2d")]
-    use crate as avian2d;
-    #[cfg(feature = "3d")]
-    use crate as avian3d;
-
     use crate::prelude::*;
 
     #[derive(PhysicsLayer, Default)]
