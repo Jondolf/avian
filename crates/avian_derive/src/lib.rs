@@ -123,11 +123,6 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        #[cfg(feature = "2d")]
-        use avian2d::prelude::PhysicsLayer;
-        #[cfg(feature = "3d")]
-        use avian3d::prelude::PhysicsLayer;
-
         impl PhysicsLayer for #enum_ident {
             fn all_bits() -> u32 {
                 #all_bits
