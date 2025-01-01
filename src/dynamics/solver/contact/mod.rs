@@ -116,14 +116,14 @@ impl ContactConstraint {
             friction,
             restitution,
             normal: manifold.normal,
-            points: Vec::with_capacity(manifold.contacts.len()),
+            points: Vec::with_capacity(manifold.points.len()),
             manifold_index: manifold_id,
         };
 
         let tangents =
             constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-        for mut contact in manifold.contacts.iter().copied() {
+        for mut contact in manifold.points.iter().copied() {
             // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
                 contact.point1 = transform.rotation * contact.point1 + transform.translation;

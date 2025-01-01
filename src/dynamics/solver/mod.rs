@@ -508,8 +508,7 @@ fn store_contact_impulses(
 
         let manifold = &mut contacts.manifolds[constraint.manifold_index];
 
-        for (contact, constraint_point) in
-            manifold.contacts.iter_mut().zip(constraint.points.iter())
+        for (contact, constraint_point) in manifold.points.iter_mut().zip(constraint.points.iter())
         {
             contact.normal_impulse = constraint_point.normal_part.impulse;
             contact.tangent_impulse = constraint_point

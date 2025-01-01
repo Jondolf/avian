@@ -285,7 +285,7 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
         if one_way_platform.0.contains(&other_entity) {
             let any_penetrating = contacts.manifolds.iter().any(|manifold| {
                 manifold
-                    .contacts
+                    .points
                     .iter()
                     .any(|contact| contact.penetration > 0.0)
             });

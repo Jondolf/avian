@@ -326,7 +326,7 @@ fn kinematic_controller_collisions(
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 if contact.penetration > 0.0 {
                     position.0 += normal * contact.penetration;
                 }

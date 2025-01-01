@@ -323,7 +323,7 @@ impl Contacts {
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
         self.manifolds
             .iter()
             .filter_map(|manifold| manifold.find_deepest_contact())
@@ -335,20 +335,32 @@ impl Contacts {
     }
 }
 
-/// A contact manifold between two colliders, containing a set of contact points.
-/// Each contact in a manifold shares the same contact normal.
+/// A contact manifold describing a contact surface between two colliders,
+/// represented by a set of [contact points](ContactPoint) and surface properties.
+///
+/// A manifold can typically be a single point, a line segment, or a polygon formed by its contact points.
+/// Each contact point in a manifold shares the same contact normal.
+#[cfg_attr(
+    feature = "2d",
+    doc = "
+In 2D, contact manifolds are limited to 2 points."
+)]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
-    /// The contact points in this manifold.
-    #[cfg(feature = "2d")]
-    pub contacts: arrayvec::ArrayVec<ContactData, 2>,
-    /// The contact points in this manifold.
-    #[cfg(feature = "3d")]
-    pub contacts: Vec<ContactData>,
-    /// The unit contact normal in world space, pointing from the first entity to the second.
+    /// The contact points in this manifold. Limited to 2 points in 2D.
     ///
-    /// The same normal is shared by all contact points in this manifold,
+    /// Each point in a manifold shares the same `normal`.
+    #[cfg(feature = "2d")]
+    pub points: arrayvec::ArrayVec<ContactPoint, 2>,
+    /// The contact points in this manifold.
+    ///
+    /// Each point in a manifold shares the same `normal`.
+    #[cfg(feature = "3d")]
+    pub points: Vec<ContactPoint>,
+    /// The unit contact normal in world space, pointing from the first shape to the second.
+    ///
+    /// The same normal is shared by all `points` in a manifold,
     pub normal: Vector,
     /// The index of the manifold in the collision.
     pub index: usize,
@@ -362,13 +374,13 @@ impl ContactManifold {
     /// for determining if points are too far away from each other to be considered matching.
     pub fn match_contacts(
         &mut self,
-        previous_contacts: &[ContactData],
+        previous_contacts: &[ContactPoint],
         distance_threshold: Scalar,
     ) {
         // The squared maximum distance for two contact points to be considered matching.
         let distance_threshold_squared = distance_threshold.powi(2);
 
-        for contact in self.contacts.iter_mut() {
+        for contact in self.points.iter_mut() {
             for previous_contact in previous_contacts.iter() {
                 // If the feature IDs match, copy the contact impulses over for warm starting.
                 if (contact.feature_id1 == previous_contact.feature_id1
@@ -406,14 +418,14 @@ impl ContactManifold {
         }
     }
 
-    /// Returns the contact with the largest penetration depth.
+    /// Returns the contact point with the largest penetration depth.
     ///
     /// If the objects are separated but there is still a speculative contact,
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
-        self.contacts.iter().max_by(|a, b| {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
+        self.points.iter().max_by(|a, b| {
             a.penetration
                 .partial_cmp(&b.penetration)
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -424,7 +436,7 @@ impl ContactManifold {
 /// Data related to a single contact between two bodies.
 ///
 /// If you want a contact that belongs to a [contact manifold](ContactManifold) and has more data,
-/// see [`ContactData`].
+/// see [`ContactPoint`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SingleContact {
@@ -498,27 +510,31 @@ impl SingleContact {
     }
 }
 
-/// Data related to a contact between two bodies.
+/// Data associated with a contact point in a [`ContactManifold`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContactData {
+pub struct ContactPoint {
     /// Contact point on the first entity in local coordinates.
     pub point1: Vector,
     /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
-    /// Penetration depth.
+    /// The penetration depth.
+    ///
+    /// Can be negative if the objects are separated and [speculative collision] is enabled.
+    ///
+    /// [speculative collision]: crate::dynamics::ccd#speculative-collision
     pub penetration: Scalar,
-    /// The impulse applied to the first body along the normal.
+    /// The impulse applied to the first body along the contact normal.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     pub normal_impulse: Scalar,
-    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
-    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
     /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
     #[cfg(feature = "3d")]
@@ -532,8 +548,8 @@ pub struct ContactData {
     pub feature_id2: PackedFeatureId,
 }
 
-impl ContactData {
-    /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
+impl ContactPoint {
+    /// Creates a new [`ContactPoint`]. The points should be given in local space.
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
@@ -596,7 +612,7 @@ impl ContactData {
         position.0 + rotation * self.point2
     }
 
-    /// Flips the contact data, swapping the points, normals, and feature IDs,
+    /// Flips the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
         std::mem::swap(&mut self.point1, &mut self.point2);
@@ -605,7 +621,7 @@ impl ContactData {
         self.tangent_impulse = -self.tangent_impulse;
     }
 
-    /// Returns a flipped copy of the contact data, swapping the points, normals, and feature IDs,
+    /// Returns a flipped copy of the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flipped(&self) -> Self {
         Self {

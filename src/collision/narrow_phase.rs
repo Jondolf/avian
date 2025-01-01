@@ -671,10 +671,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
-                        manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
+                        manifold.match_contacts(&previous_manifold.points, distance_threshold);
 
                         // Add contact impulses to total impulses.
-                        for contact in manifold.contacts.iter() {
+                        for contact in manifold.points.iter() {
                             contacts.total_normal_impulse += contact.normal_impulse;
                             contacts.total_tangent_impulse += contact.tangent_impulse;
                         }

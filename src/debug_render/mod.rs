@@ -316,7 +316,7 @@ fn debug_render_contacts(
         };
 
         for manifold in contacts.manifolds.iter() {
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 let p1 = contact.global_point1(position1, rotation1);
                 let p2 = contact.global_point2(position2, rotation2);
 

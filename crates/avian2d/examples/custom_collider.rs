@@ -91,7 +91,7 @@ impl AnyCollider for CircleCollider {
             vec![ContactManifold {
                 index: 0,
                 normal: rotation1 * normal1,
-                contacts: avian2d::data_structures::ArrayVec::from_iter([ContactData {
+                points: avian2d::data_structures::ArrayVec::from_iter([ContactPoint {
                     point1,
                     point2,
                     penetration: sum_radius - distance_squared.sqrt(),

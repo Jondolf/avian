@@ -198,13 +198,13 @@ pub fn contact_manifolds(
                 return vec![ContactManifold {
                     normal,
                     #[cfg(feature = "2d")]
-                    contacts: arrayvec::ArrayVec::from_iter([ContactData::new(
+                    points: arrayvec::ArrayVec::from_iter([ContactPoint::new(
                         contact.point1.into(),
                         contact.point2.into(),
                         -contact.dist,
                     )]),
                     #[cfg(feature = "3d")]
-                    contacts: vec![ContactData::new(
+                    points: vec![ContactPoint::new(
                         contact.point1.into(),
                         contact.point2.into(),
                         -contact.dist,
@@ -236,11 +236,11 @@ pub fn contact_manifolds(
 
             let manifold = ContactManifold {
                 normal,
-                contacts: manifold
+                points: manifold
                     .contacts()
                     .iter()
                     .map(|contact| {
-                        ContactData::new(
+                        ContactPoint::new(
                             subpos1.transform_point(&contact.local_p1).into(),
                             subpos2.transform_point(&contact.local_p2).into(),
                             -contact.dist,
