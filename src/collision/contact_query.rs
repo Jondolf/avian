@@ -192,18 +192,18 @@ pub fn contact_manifolds(
                     return vec![];
                 }
 
-                return vec![ContactManifold {
-                    normal1,
-                    normal2,
-                    contacts: vec![ContactData::new(
+                return vec![ContactManifold::new(
+                    vec![ContactData::new(
                         contact.point1.into(),
                         contact.point2.into(),
                         normal1,
                         normal2,
                         -contact.dist,
                     )],
-                    index: 0,
-                }];
+                    normal1,
+                    normal2,
+                    0,
+                )];
             }
         }
     }
@@ -231,10 +231,8 @@ pub fn contact_manifolds(
                 return None;
             }
 
-            let manifold = ContactManifold {
-                normal1,
-                normal2,
-                contacts: manifold
+            let manifold = ContactManifold::new(
+                manifold
                     .contacts()
                     .iter()
                     .map(|contact| {
@@ -248,8 +246,10 @@ pub fn contact_manifolds(
                         .with_feature_ids(contact.fid1.into(), contact.fid2.into())
                     })
                     .collect(),
-                index: manifold_index,
-            };
+                normal1,
+                normal2,
+                manifold_index,
+            );
 
             manifold_index += 1;
 

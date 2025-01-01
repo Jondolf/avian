@@ -335,24 +335,74 @@ impl Contacts {
     }
 }
 
-/// A contact manifold between two colliders, containing a set of contact points.
-/// Each contact in a manifold shares the same contact normal.
+/// A contact manifold describing a contact surface between two colliders,
+/// represented by a set of [contact points](ContactData) and surface properties.
+///
+/// A manifold can typically be a single point, a line segment, or a polygon formed by its contact points.
+/// Each contact point in a manifold shares the same contact normal.
+#[cfg_attr(
+    feature = "2d",
+    doc = "
+In 2D, contact manifolds are limited to 2 points."
+)]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
-    /// The contacts in this manifold.
+    // TODO: This should be an `ArrayVec` or similar in 2D since it is limited to 2 contacts.
+    /// The contact points that belong to this manifold.
+    ///
+    /// Each contact point in the manifold shares the same contact normal.
     pub contacts: Vec<ContactData>,
-    /// A contact normal shared by all contacts in this manifold,
+    /// The contact normal shared by all points in this manifold,
     /// expressed in the local space of the first entity.
     pub normal1: Vector,
-    /// A contact normal shared by all contacts in this manifold,
+    /// The contact normal shared by all points in this manifold,
     /// expressed in the local space of the second entity.
     pub normal2: Vector,
+    /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
+    pub dynamic_friction: Scalar,
+    /// The effective coefficient of [restitution](Restitution) used for the contact surface.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    // TODO: Jolt also supports a relative angular surface velocity, which can be used for making
+    //       objects rotate on platforms. Would that be useful enough to warrant the extra memory usage?
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The index of the manifold in the collision.
     pub index: usize,
 }
 
 impl ContactManifold {
+    /// Creates a new [`ContactManifold`] with the given contact points and surface normals,
+    /// expressed in local space.
+    ///
+    /// `index` represents the index of the manifold in the collision.
+    pub fn new(contacts: Vec<ContactData>, normal1: Vector, normal2: Vector, index: usize) -> Self {
+        Self {
+            contacts,
+            normal1,
+            normal2,
+            dynamic_friction: 0.0,
+            restitution: 0.0,
+            #[cfg(feature = "2d")]
+            tangent_speed: 0.0,
+            #[cfg(feature = "3d")]
+            tangent_velocity: Vector::ZERO,
+            index,
+        }
+    }
+
     /// Returns the world-space contact normal pointing towards the exterior of the first entity.
     pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
         rotation * self.normal1
@@ -506,7 +556,7 @@ impl SingleContact {
     }
 }
 
-/// Data related to a contact between two bodies.
+/// Data associated with a contact point in a [`ContactManifold`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactData {

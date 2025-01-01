@@ -750,8 +750,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction,
-                restitution,
+                friction.dynamic_coefficient,
+                restitution.coefficient,
+                #[cfg(feature = "2d")]
+                contact_manifold.tangent_speed,
+                #[cfg(feature = "3d")]
+                contact_manifold.tangent_velocity,
                 contact_softness,
                 self.config.match_contacts,
                 delta_secs,

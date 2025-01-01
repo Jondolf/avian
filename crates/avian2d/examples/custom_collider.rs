@@ -88,11 +88,8 @@ impl AnyCollider for CircleCollider {
             let point1 = normal1 * self.radius;
             let point2 = normal2 * other.radius;
 
-            vec![ContactManifold {
-                index: 0,
-                normal1,
-                normal2,
-                contacts: vec![ContactData {
+            vec![ContactManifold::new(
+                vec![ContactData {
                     feature_id1: PackedFeatureId::face(0),
                     feature_id2: PackedFeatureId::face(0),
                     point1,
@@ -104,7 +101,10 @@ impl AnyCollider for CircleCollider {
                     normal_impulse: 0.0,
                     tangent_impulse: 0.0,
                 }],
-            }]
+                normal1,
+                normal2,
+                0,
+            )]
         } else {
             vec![]
         }

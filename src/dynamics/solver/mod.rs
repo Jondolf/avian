@@ -467,7 +467,7 @@ fn solve_restitution(
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
     for constraint in constraints.iter_mut() {
-        let restitution = constraint.restitution.coefficient;
+        let restitution = constraint.restitution;
 
         if restitution == 0.0 {
             continue;
