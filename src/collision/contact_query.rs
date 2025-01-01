@@ -90,7 +90,7 @@ pub fn contact(
             let normal1: Vector = (rotation1.inverse() * Vector::from(contact.normal1)).normalize();
             let normal2: Vector = (rotation2.inverse() * Vector::from(contact.normal2)).normalize();
 
-            // Make sure normals are valid
+            // Make sure the normal is valid
             if !normal1.is_normalized() || !normal2.is_normalized() {
                 return None;
             }
@@ -156,8 +156,12 @@ pub fn contact_manifolds(
     rotation2: impl Into<Rotation>,
     prediction_distance: Scalar,
 ) -> Vec<ContactManifold> {
-    let isometry1 = make_isometry(position1.into(), rotation1.into());
-    let isometry2 = make_isometry(position2.into(), rotation2.into());
+    let position1: Position = position1.into();
+    let position2: Position = position2.into();
+    let rotation1: Rotation = rotation1.into();
+    let rotation2: Rotation = rotation2.into();
+    let isometry1 = make_isometry(position1, rotation1);
+    let isometry2 = make_isometry(position2, rotation2);
     let isometry12 = isometry1.inv_mul(&isometry2);
 
     // TODO: Reuse manifolds from previous frame to improve performance
@@ -184,22 +188,18 @@ pub fn contact_manifolds(
                 shape2,
                 prediction_distance,
             ) {
-                let normal1 = Vector::from(contact.normal1);
-                let normal2 = Vector::from(contact.normal2);
+                let normal = rotation1 * Vector::from(contact.normal1);
 
-                // Make sure normals are valid
-                if !normal1.is_normalized() || !normal2.is_normalized() {
+                // Make sure the normal is valid
+                if !normal.is_normalized() {
                     return vec![];
                 }
 
                 return vec![ContactManifold {
-                    normal1,
-                    normal2,
+                    normal,
                     contacts: vec![ContactData::new(
                         contact.point1.into(),
                         contact.point2.into(),
-                        normal1,
-                        normal2,
                         -contact.dist,
                     )],
                     index: 0,
@@ -215,25 +215,20 @@ pub fn contact_manifolds(
         .filter_map(|manifold| {
             let subpos1 = manifold.subshape_pos1.unwrap_or_default();
             let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-            let normal1: Vector = subpos1
+            let local_normal: Vector = subpos1
                 .rotation
                 .transform_vector(&manifold.local_n1)
                 .normalize()
                 .into();
-            let normal2: Vector = subpos2
-                .rotation
-                .transform_vector(&manifold.local_n2)
-                .normalize()
-                .into();
+            let normal = rotation1 * local_normal;
 
-            // Make sure normals are valid
-            if !normal1.is_normalized() || !normal2.is_normalized() {
+            // Make sure the normal is valid
+            if !normal.is_normalized() {
                 return None;
             }
 
             let manifold = ContactManifold {
-                normal1,
-                normal2,
+                normal,
                 contacts: manifold
                     .contacts()
                     .iter()
@@ -241,8 +236,6 @@ pub fn contact_manifolds(
                         ContactData::new(
                             subpos1.transform_point(&contact.local_p1).into(),
                             subpos2.transform_point(&contact.local_p2).into(),
-                            normal1,
-                            normal2,
                             -contact.dist,
                         )
                         .with_feature_ids(contact.fid1.into(), contact.fid2.into())

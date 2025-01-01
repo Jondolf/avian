@@ -342,27 +342,15 @@ impl Contacts {
 pub struct ContactManifold {
     /// The contacts in this manifold.
     pub contacts: Vec<ContactData>,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the second entity.
-    pub normal2: Vector,
+    /// The unit contact normal in world space, pointing from the first entity to the second.
+    ///
+    /// The same normal is shared by all contact points in this manifold,
+    pub normal: Vector,
     /// The index of the manifold in the collision.
     pub index: usize,
 }
 
 impl ContactManifold {
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
-    }
-
     /// Copies impulses from previous contacts to matching contacts in `self`.
     ///
     /// Contacts are first matched based on their [feature IDs](PackedFeatureId), and if they are unknown,
@@ -514,10 +502,6 @@ pub struct ContactData {
     pub point1: Vector,
     /// Contact point on the second entity in local coordinates.
     pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
     /// The impulse applied to the first body along the normal.
@@ -549,18 +533,10 @@ impl ContactData {
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        point1: Vector,
-        point2: Vector,
-        normal1: Vector,
-        normal2: Vector,
-        penetration: Scalar,
-    ) -> Self {
+    pub fn new(point1: Vector, point2: Vector, penetration: Scalar) -> Self {
         Self {
             point1,
             point2,
-            normal1,
-            normal2,
             penetration,
             normal_impulse: 0.0,
             tangent_impulse: default(),
@@ -616,21 +592,10 @@ impl ContactData {
         position.0 + rotation * self.point2
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
-    }
-
     /// Flips the contact data, swapping the points, normals, and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
         std::mem::swap(&mut self.point1, &mut self.point2);
-        std::mem::swap(&mut self.normal1, &mut self.normal2);
         std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.tangent_impulse = -self.tangent_impulse;
@@ -642,8 +607,6 @@ impl ContactData {
         Self {
             point1: self.point2,
             point2: self.point1,
-            normal1: self.normal2,
-            normal2: self.normal1,
             penetration: self.penetration,
             normal_impulse: -self.normal_impulse,
             tangent_impulse: -self.tangent_impulse,

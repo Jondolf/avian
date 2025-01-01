@@ -102,15 +102,6 @@ impl ContactConstraint {
         let collision_margin: Scalar = collision_margin.into().0;
         let speculative_margin: Scalar = speculative_margin.into().0;
 
-        // Local-space outward contact normal on the first body.
-        // The normal is transformed from collider-space to body-space.
-        let local_normal1 = collider_transform1.map_or(manifold.normal1, |transform| {
-            transform.rotation * manifold.normal1
-        });
-
-        // The world-space normal used for the contact solve.
-        let normal = *body1.rotation * local_normal1;
-
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
         let inverse_mass_sum = body1.mass().inverse() + body2.mass().inverse();
@@ -124,7 +115,7 @@ impl ContactConstraint {
             collider_entity2,
             friction,
             restitution,
-            normal,
+            normal: manifold.normal,
             points: Vec::with_capacity(manifold.contacts.len()),
             manifold_index: manifold_id,
         };
@@ -158,8 +149,9 @@ impl ContactConstraint {
 
             // Keep the contact if (1) the separation distance is below the required threshold,
             // or if (2) the bodies are expected to come into contact within the next frame.
+            let normal_speed = relative_velocity.dot(constraint.normal);
             let keep_contact = effective_distance < speculative_margin || {
-                let delta_distance = relative_velocity.dot(normal) * delta_secs;
+                let delta_distance = normal_speed * delta_secs;
                 effective_distance + delta_distance < speculative_margin
             };
 
@@ -175,7 +167,7 @@ impl ContactConstraint {
                     i2,
                     r1,
                     r2,
-                    normal,
+                    constraint.normal,
                     warm_start.then_some(contact.normal_impulse),
                     softness,
                 ),
@@ -196,8 +188,8 @@ impl ContactConstraint {
                 local_anchor2,
                 anchor1: r1,
                 anchor2: r2,
-                normal_speed: normal.dot(relative_velocity),
-                initial_separation: -contact.penetration - (r2 - r1).dot(normal),
+                normal_speed,
+                initial_separation: -contact.penetration - (r2 - r1).dot(constraint.normal),
             };
 
             constraint.points.push(point);

@@ -319,8 +319,6 @@ fn debug_render_contacts(
             for contact in manifold.contacts.iter() {
                 let p1 = contact.global_point1(position1, rotation1);
                 let p2 = contact.global_point2(position2, rotation2);
-                let normal1 = contact.global_normal1(rotation1);
-                let normal2 = contact.global_normal2(rotation2);
 
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {
@@ -356,8 +354,18 @@ fn debug_render_contacts(
                             }
                         };
 
-                    gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1 * length_unit.0, color);
-                    gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1 * length_unit.0, color_dim);
+                    gizmos.draw_arrow(
+                        p1,
+                        p1 + manifold.normal * length,
+                        0.1 * length_unit.0,
+                        color,
+                    );
+                    gizmos.draw_arrow(
+                        p2,
+                        p2 - manifold.normal * length,
+                        0.1 * length_unit.0,
+                        color_dim,
+                    );
                 }
             }
         }

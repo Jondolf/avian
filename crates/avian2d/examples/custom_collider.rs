@@ -90,15 +90,12 @@ impl AnyCollider for CircleCollider {
 
             vec![ContactManifold {
                 index: 0,
-                normal1,
-                normal2,
+                normal: rotation1 * normal1,
                 contacts: vec![ContactData {
                     feature_id1: PackedFeatureId::face(0),
                     feature_id2: PackedFeatureId::face(0),
                     point1,
                     point2,
-                    normal1,
-                    normal2,
                     penetration: sum_radius - distance_squared.sqrt(),
                     // Impulses are computed by the constraint solver
                     normal_impulse: 0.0,
