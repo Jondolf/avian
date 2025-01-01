@@ -79,21 +79,21 @@ impl AnyCollider for CircleCollider {
         let sum_radius = self.radius + other.radius;
 
         if distance_squared < (sum_radius + prediction_distance).powi(2) {
-            let normal1 = if distance_squared != 0.0 {
+            let local_normal1 = if distance_squared != 0.0 {
                 delta_pos.normalize_or_zero()
             } else {
                 Vector::X
             };
-            let normal2 = delta_rot.inverse() * (-normal1);
-            let point1 = normal1 * self.radius;
-            let point2 = normal2 * other.radius;
+            let local_normal2 = delta_rot.inverse() * (-local_normal1);
+            let local_point1 = local_normal1 * self.radius;
+            let local_point2 = local_normal2 * other.radius;
 
             vec![ContactManifold {
                 index: 0,
-                normal: rotation1 * normal1,
+                normal: rotation1 * local_normal1,
                 points: avian2d::data_structures::ArrayVec::from_iter([ContactPoint {
-                    point1,
-                    point2,
+                    local_point1,
+                    local_point2,
                     penetration: sum_radius - distance_squared.sqrt(),
                     // Impulses are computed by the constraint solver.
                     normal_impulse: 0.0,

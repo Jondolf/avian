@@ -242,9 +242,9 @@ impl Collisions {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Contacts {
-    /// First entity in the contact.
+    /// The first collider entity in the contact.
     pub entity1: Entity,
-    /// Second entity in the contact.
+    /// The second collider entity in the contact.
     pub entity2: Entity,
     /// The entity of the first body involved in the contact.
     pub body_entity1: Option<Entity>,
@@ -401,13 +401,21 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && (contact.point1.distance_squared(previous_contact.point1)
+                    && (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point1)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point2)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point2)
                             < distance_threshold_squared)
-                    || (contact.point1.distance_squared(previous_contact.point2)
+                    || (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point2)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point1)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point1)
                             < distance_threshold_squared)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
@@ -440,14 +448,14 @@ impl ContactManifold {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SingleContact {
-    /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
+    /// The contact point on the first shape in local space.
+    pub local_point1: Vector,
+    /// The contact point on the second shape in local space.
+    pub local_point2: Vector,
+    /// The contact normal expressed in the local space of the first shape.
+    pub local_normal1: Vector,
+    /// The contact normal expressed in the local space of the second shape.
+    pub local_normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
 }
@@ -455,56 +463,56 @@ pub struct SingleContact {
 impl SingleContact {
     /// Creates a new [`SingleContact`]. The contact points and normals should be given in local space.
     pub fn new(
-        point1: Vector,
-        point2: Vector,
-        normal1: Vector,
-        normal2: Vector,
+        local_point1: Vector,
+        local_point2: Vector,
+        local_normal1: Vector,
+        local_normal2: Vector,
         penetration: Scalar,
     ) -> Self {
         Self {
-            point1,
-            point2,
-            normal1,
-            normal2,
+            local_point1,
+            local_point2,
+            local_normal1,
+            local_normal2,
             penetration,
         }
     }
 
-    /// Returns the global contact point on the first entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the first shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point1
+        position.0 + rotation * self.local_point1
     }
 
-    /// Returns the global contact point on the second entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the second shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point2
+        position.0 + rotation * self.local_point2
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
+    /// Returns the world-space contact normal pointing from the first shape to the second.
     pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
+        rotation * self.local_normal1
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    /// Returns the world-space contact normal pointing from the second shape to the first.
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
+        rotation * self.local_normal2
     }
 
     /// Flips the contact data, swapping the points and normals.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.point1, &mut self.point2);
-        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
+        std::mem::swap(&mut self.local_normal1, &mut self.local_normal2);
     }
 
     /// Returns a flipped copy of the contact data, swapping the points and normals.
     pub fn flipped(&self) -> Self {
         Self {
-            point1: self.point2,
-            point2: self.point1,
-            normal1: self.normal2,
-            normal2: self.normal1,
+            local_point1: self.local_point2,
+            local_point2: self.local_point1,
+            local_normal1: self.local_normal2,
+            local_normal2: self.local_normal1,
             penetration: self.penetration,
         }
     }
@@ -514,10 +522,10 @@ impl SingleContact {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPoint {
-    /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
+    /// The contact point on the first shape in local space.
+    pub local_point1: Vector,
+    /// The contact point on the second shape in local space.
+    pub local_point2: Vector,
     /// The penetration depth.
     ///
     /// Can be negative if the objects are separated and [speculative collision] is enabled.
@@ -553,10 +561,10 @@ impl ContactPoint {
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
-    pub fn new(point1: Vector, point2: Vector, penetration: Scalar) -> Self {
+    pub fn new(local_point1: Vector, local_point2: Vector, penetration: Scalar) -> Self {
         Self {
-            point1,
-            point2,
+            local_point1,
+            local_point2,
             penetration,
             normal_impulse: 0.0,
             tangent_impulse: default(),
@@ -600,22 +608,22 @@ impl ContactPoint {
         self.tangent_impulse / delta_time
     }
 
-    /// Returns the global contact point on the first entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the first shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point1
+        position.0 + rotation * self.local_point1
     }
 
-    /// Returns the global contact point on the second entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the second shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point2
+        position.0 + rotation * self.local_point2
     }
 
     /// Flips the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.point1, &mut self.point2);
+        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
         std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.tangent_impulse = -self.tangent_impulse;
@@ -625,8 +633,8 @@ impl ContactPoint {
     /// and negating the impulses.
     pub fn flipped(&self) -> Self {
         Self {
-            point1: self.point2,
-            point2: self.point1,
+            local_point1: self.local_point2,
+            local_point2: self.local_point1,
             penetration: self.penetration,
             normal_impulse: -self.normal_impulse,
             tangent_impulse: -self.tangent_impulse,

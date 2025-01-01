@@ -126,18 +126,18 @@ impl ContactConstraint {
         for mut contact in manifold.points.iter().copied() {
             // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
-                contact.point1 = transform.rotation * contact.point1 + transform.translation;
+                contact.local_point1 = transform.rotation * contact.local_point1 + transform.translation;
             }
             if let Some(transform) = collider_transform2 {
-                contact.point2 = transform.rotation * contact.point2 + transform.translation;
+                contact.local_point2 = transform.rotation * contact.local_point2 + transform.translation;
             }
 
             contact.penetration += collision_margin;
 
             let effective_distance = -contact.penetration;
 
-            let local_anchor1 = contact.point1 - body1.center_of_mass.0;
-            let local_anchor2 = contact.point2 - body2.center_of_mass.0;
+            let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
+            let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
 
             // Store fixed world-space anchors.
             // This improves rolling behavior for shapes like balls and capsules.
