@@ -40,7 +40,7 @@ pub struct SyncPlugin {
 impl SyncPlugin {
     /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -50,7 +50,7 @@ impl SyncPlugin {
 
 impl Default for SyncPlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
