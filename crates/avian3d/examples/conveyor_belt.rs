@@ -1,3 +1,6 @@
+//! Demonstrates how to use `CollisionHooks::modify_contacts`
+//! and `tangent_velocity` to simulate conveyor belts.
+
 use avian3d::{math::*, prelude::*};
 use bevy::{
     ecs::system::{lifetimeless::Read, SystemParam},
@@ -10,19 +13,35 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
+            // Add our collision hooks to modify contacts for conveyor belts.
             PhysicsPlugins::default().with_collision_hooks::<ConveyorHooks>(),
         ))
         .add_systems(Startup, setup)
         .run();
 }
 
+// Enable contact modification for one-way platforms with the `ActiveCollisionHooks` component.
+// Here we use required components, but you could also add it manually.
+#[derive(Component)]
+#[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
+struct ConveyorBelt {
+    local_direction: Vector,
+    speed: Scalar,
+}
+
+// Define a custom `SystemParam` for our collision hooks.
+// It can have read-only access to queries, resources, and other system parameters.
 #[derive(SystemParam)]
 struct ConveyorHooks<'w, 's> {
     conveyor_query: Query<'w, 's, (Read<ConveyorBelt>, Read<GlobalTransform>)>,
 }
 
+// Implement the `CollisionHooks` trait for our custom system parameter.
 impl CollisionHooks for ConveyorHooks<'_, '_> {
     fn modify_contacts(&self, contacts: &mut Contacts, _commands: &mut Commands) -> bool {
+        // Get the conveyor belt and its global transform.
+        // We don't know which entity is the conveyor belt, if any, so we need to check both.
+        // This also affects the sign used for the conveyor belt's speed to apply it in the correct direction.
         let (Ok((conveyor_belt, global_transform)), sign) = self
             .conveyor_query
             .get(contacts.entity1)
@@ -30,23 +49,21 @@ impl CollisionHooks for ConveyorHooks<'_, '_> {
                 (Ok(q), -1.0)
             })
         else {
-            return false;
+            // If neither entity is a conveyor belt, return `true` early
+            // to accept the contact pair without any modifications.
+            return true;
         };
 
+        // Iterate over all contact surfaces between the conveyor belt and the other collider,
+        // and apply a relative velocity to simulate the movement of the conveyor belt's surface.
         for manifold in contacts.manifolds.iter_mut() {
             let direction = global_transform.rotation() * conveyor_belt.local_direction;
             manifold.tangent_velocity = sign * conveyor_belt.speed * direction;
         }
 
+        // Return `true` to accept the contact pair.
         true
     }
-}
-
-#[derive(Component)]
-#[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
-struct ConveyorBelt {
-    local_direction: Vector,
-    speed: Scalar,
 }
 
 fn setup(
@@ -63,7 +80,7 @@ fn setup(
     let long_conveyor_material = materials.add(Color::srgb(0.3, 0.3, 0.3));
     let short_conveyor_material = materials.add(Color::srgb(0.2, 0.2, 0.2));
 
-    // Spawn conveyor belts
+    // Spawn four conveyor belts.
     commands.spawn((
         RigidBody::Static,
         Collider::from(long_conveyor),
@@ -119,13 +136,13 @@ fn setup(
         MeshMaterial3d(short_conveyor_material),
     ));
 
-    // Spawn cube stacks
+    // Spawn cube stacks on top of one of the conveyor belts.
     let cuboid_mesh = meshes.add(Cuboid::default());
     let cuboid_material = materials.add(Color::srgb(0.2, 0.7, 0.9));
     for x in -2..2 {
         for y in 0..3 {
             for z in -2..2 {
-                let position = Vec3::new(x as f32 + 10.0, y as f32 + 0.5, z as f32);
+                let position = Vec3::new(x as f32 + 10.0, y as f32 + 1.0, z as f32);
                 commands.spawn((
                     RigidBody::Dynamic,
                     // This small margin just helps prevent hitting internal edges

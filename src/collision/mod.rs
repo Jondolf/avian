@@ -390,6 +390,8 @@ pub struct ContactManifold {
     /// such as conveyor belts.
     #[cfg(feature = "2d")]
     pub tangent_speed: Scalar,
+    // TODO: Jolt also supports a relative angular surface velocity, which can be used for making
+    //       objects rotate on platforms. Would that be useful enough to warrant the extra memory usage?
     /// The desired relative linear velocity of the bodies along the surface,
     /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
     ///
