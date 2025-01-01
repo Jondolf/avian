@@ -73,6 +73,7 @@ nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "1"
 indexmap = "2.0.0"
+arrayvec = "0.7"
 fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"

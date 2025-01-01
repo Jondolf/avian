@@ -197,6 +197,13 @@ pub fn contact_manifolds(
 
                 return vec![ContactManifold {
                     normal,
+                    #[cfg(feature = "2d")]
+                    contacts: arrayvec::ArrayVec::from_iter([ContactData::new(
+                        contact.point1.into(),
+                        contact.point2.into(),
+                        -contact.dist,
+                    )]),
+                    #[cfg(feature = "3d")]
                     contacts: vec![ContactData::new(
                         contact.point1.into(),
                         contact.point2.into(),

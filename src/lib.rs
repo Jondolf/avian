@@ -490,6 +490,14 @@ pub mod schedule;
 pub mod spatial_query;
 pub mod sync;
 
+// TODO: Make this a proper module once we have more data structures, like an `UnGraph`.
+#[cfg(feature = "2d")]
+pub mod data_structures {
+    //! Special data structures used in Avian.
+
+    pub use arrayvec::ArrayVec;
+}
+
 mod type_registration;
 pub use type_registration::PhysicsTypeRegistrationPlugin;
 

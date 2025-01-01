@@ -340,7 +340,11 @@ impl Contacts {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
-    /// The contacts in this manifold.
+    /// The contact points in this manifold.
+    #[cfg(feature = "2d")]
+    pub contacts: arrayvec::ArrayVec<ContactData, 2>,
+    /// The contact points in this manifold.
+    #[cfg(feature = "3d")]
     pub contacts: Vec<ContactData>,
     /// The unit contact normal in world space, pointing from the first entity to the second.
     ///
