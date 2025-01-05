@@ -265,7 +265,7 @@ pub struct Contacts {
 impl Contacts {
     /// Computes the sum of all impulses applied along contact normals between the contact pair.
     ///
-    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
     pub fn total_normal_impulse(&self) -> Vector {
         self.manifolds.iter().fold(Vector::ZERO, |acc, manifold| {
             acc + manifold.normal * manifold.total_normal_impulse()
@@ -276,7 +276,7 @@ impl Contacts {
     ///
     /// This is the sum of impulse magnitudes, *not* the magnitude of the [`total_normal_impulse`](Self::total_normal_impulse).
     ///
-    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
     pub fn total_normal_impulse_magnitude(&self) -> Scalar {
         self.manifolds
             .iter()
@@ -287,7 +287,7 @@ impl Contacts {
     /// Finds the largest impulse between the contact pair, and the associated world-space contact normal,
     /// pointing from the first shape to the second.
     ///
-    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
     pub fn max_normal_impulse(&self) -> (Scalar, Vector) {
         let mut magnitude: Scalar = 0.0;
         let mut normal = Vector::ZERO;
@@ -301,6 +301,18 @@ impl Contacts {
         }
 
         (magnitude, normal)
+    }
+
+    /// The force corresponding to the total normal impulse applied over `delta_time`.
+    ///
+    /// Because contacts are solved over several substeps, `delta_time` should
+    /// typically use `Time<Substeps>::delta_secs()`.
+    #[deprecated(
+        note = "Use `total_normal_impulse` instead, and divide it by `Time<Substeps>::delta_secs()`",
+        since = "0.3.0"
+    )]
+    pub fn total_normal_force(&self, delta_time: Scalar) -> Scalar {
+        self.total_normal_impulse_magnitude() / delta_time
     }
 
     /// Returns `true` if a collision started during the current frame.
@@ -546,17 +558,17 @@ pub struct ContactPoint {
     pub penetration: Scalar,
     /// The impulse applied to the first body along the contact normal.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     pub normal_impulse: Scalar,
     /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
     /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Vector2,
@@ -595,7 +607,7 @@ impl ContactPoint {
     /// The force corresponding to the normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     pub fn normal_force(&self, delta_time: Scalar) -> Scalar {
         self.normal_impulse / delta_time
     }
@@ -603,7 +615,7 @@ impl ContactPoint {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
@@ -613,7 +625,7 @@ impl ContactPoint {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Vector2 {
