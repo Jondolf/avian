@@ -349,7 +349,7 @@ fn debug_render_contacts(
                         * match config.contact_normal_scale {
                             ContactGizmoScale::Constant(length) => length,
                             ContactGizmoScale::Scaled(scale) => {
-                                scale * contacts.total_normal_impulse
+                                scale * contact.normal_impulse
                                     / time.delta_secs_f64().adjust_precision()
                             }
                         };

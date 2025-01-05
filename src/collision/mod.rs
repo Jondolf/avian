@@ -260,51 +260,47 @@ pub struct Contacts {
     pub during_current_frame: bool,
     /// True if the bodies were in contact during the previous frame.
     pub during_previous_frame: bool,
-    /// The total normal impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    pub total_normal_impulse: Scalar,
-    /// The total tangent impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "2d")]
-    #[doc(alias = "total_friction_impulse")]
-    pub total_tangent_impulse: Scalar,
-    /// The total tangent impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "3d")]
-    #[doc(alias = "total_friction_impulse")]
-    pub total_tangent_impulse: Vector2,
 }
 
 impl Contacts {
-    /// The force corresponding to the total normal impulse applied over `delta_time`.
+    /// Computes the sum of all impulses applied along contact normals between the contact pair.
     ///
-    /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
-    pub fn total_normal_force(&self, delta_time: Scalar) -> Scalar {
-        self.total_normal_impulse / delta_time
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    pub fn total_normal_impulse(&self) -> Vector {
+        self.manifolds.iter().fold(Vector::ZERO, |acc, manifold| {
+            acc + manifold.normal * manifold.total_normal_impulse()
+        })
     }
 
-    /// The force corresponding to the total tangent impulse applied over `delta_time`.
+    /// Computes the sum of the magnitudes of all impulses applied along contact normals between the contact pair.
     ///
-    /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "2d")]
-    #[doc(alias = "total_friction_force")]
-    pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
-        self.total_tangent_impulse / delta_time
+    /// This is the sum of impulse magnitudes, *not* the magnitude of the [`total_normal_impulse`](Self::total_normal_impulse).
+    ///
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    pub fn total_normal_impulse_magnitude(&self) -> Scalar {
+        self.manifolds
+            .iter()
+            .fold(0.0, |acc, manifold| acc + manifold.total_normal_impulse())
     }
 
-    /// The force corresponding to the total tangent impulse applied over `delta_time`.
+    // TODO: We could also return a reference to the whole manifold. Would that be useful?
+    /// Finds the largest impulse between the contact pair, and the associated world-space contact normal,
+    /// pointing from the first shape to the second.
     ///
-    /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "3d")]
-    #[doc(alias = "total_friction_force")]
-    pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
-        self.total_tangent_impulse / delta_time
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_seconds()`.
+    pub fn max_normal_impulse(&self) -> (Scalar, Vector) {
+        let mut magnitude: Scalar = 0.0;
+        let mut normal = Vector::ZERO;
+
+        for manifold in &self.manifolds {
+            let impulse = manifold.max_normal_impulse();
+            if impulse.abs() > magnitude.abs() {
+                magnitude = impulse;
+                normal = manifold.normal;
+            }
+        }
+
+        (magnitude, normal)
     }
 
     /// Returns `true` if a collision started during the current frame.
@@ -367,6 +363,22 @@ pub struct ContactManifold {
 }
 
 impl ContactManifold {
+    /// The sum of the impulses applied at the contact points in the manifold along the contact normal.
+    fn total_normal_impulse(&self) -> Scalar {
+        self.points
+            .iter()
+            .fold(0.0, |acc, contact| acc + contact.normal_impulse)
+    }
+
+    /// The magnitude of the largest impulse applied at a contact point in the manifold along the contact normal.
+    fn max_normal_impulse(&self) -> Scalar {
+        self.points
+            .iter()
+            .map(|contact| contact.normal_impulse)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0)
+    }
+
     /// Copies impulses from previous contacts to matching contacts in `self`.
     ///
     /// Contacts are first matched based on their [feature IDs](PackedFeatureId), and if they are unknown,

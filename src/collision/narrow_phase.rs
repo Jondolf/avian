@@ -645,8 +645,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 || collider2.is_sensor
                 || !collider1.is_rb
                 || !collider2.is_rb,
-            total_normal_impulse: 0.0,
-            total_tangent_impulse: default(),
         };
 
         let active_hooks = collider1.active_hooks().union(collider2.active_hooks());
@@ -672,12 +670,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
                         manifold.match_contacts(&previous_manifold.points, distance_threshold);
-
-                        // Add contact impulses to total impulses.
-                        for contact in manifold.points.iter() {
-                            contacts.total_normal_impulse += contact.normal_impulse;
-                            contacts.total_tangent_impulse += contact.tangent_impulse;
-                        }
                     }
                 }
             }
@@ -776,9 +768,6 @@ pub fn reset_collision_states(
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
-        contacts.total_normal_impulse = 0.0;
-        contacts.total_tangent_impulse = default();
-
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
             contacts.body_entity1.unwrap_or(contacts.entity1),
             contacts.body_entity2.unwrap_or(contacts.entity2),
