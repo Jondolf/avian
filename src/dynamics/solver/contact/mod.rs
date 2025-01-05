@@ -126,10 +126,12 @@ impl ContactConstraint {
         for mut contact in manifold.points.iter().copied() {
             // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
-                contact.local_point1 = transform.rotation * contact.local_point1 + transform.translation;
+                contact.local_point1 =
+                    transform.rotation * contact.local_point1 + transform.translation;
             }
             if let Some(transform) = collider_transform2 {
-                contact.local_point2 = transform.rotation * contact.local_point2 + transform.translation;
+                contact.local_point2 =
+                    transform.rotation * contact.local_point2 + transform.translation;
             }
 
             contact.penetration += collision_margin;
