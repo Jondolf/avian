@@ -206,15 +206,6 @@ pub(crate) fn init_previous_global_transform(
     }
 }
 
-/*
-
-- Each body has a sleep timer
-- Each island has a `is_sleeping` property
-- For awake islands: If all entities can sleep, set `is_sleeping` to `true`
-- For sleeping islands: If any entity is woken up, wake up the whole island
-
-*/
-
 /// Copies `GlobalTransform` changes to [`Position`] and [`Rotation`].
 /// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
