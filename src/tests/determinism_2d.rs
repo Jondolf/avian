@@ -41,6 +41,10 @@ fn cross_platform_determinism_2d() {
             .with_length_unit(0.5)
             .build()
             .disable::<ColliderHierarchyPlugin>(),
+        #[cfg(feature = "bevy_scene")]
+        AssetPlugin::default(),
+        #[cfg(feature = "bevy_scene")]
+        bevy::scene::ScenePlugin::default(),
     ))
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
         1.0 / 64.0,
