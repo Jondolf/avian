@@ -174,9 +174,9 @@ fn pass_through_one_way_platform(
         if keyboard_input.pressed(KeyCode::ArrowDown) && keyboard_input.pressed(KeyCode::Space) {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::Always;
 
-            // Wake up body when it's allowed to drop down.
+            // Wake up the body when it's allowed to drop down.
             // Otherwise it won't fall because gravity isn't simulated.
-            commands.entity(entity).remove::<Sleeping>();
+            commands.queue(WakeUpBody(entity));
         } else {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::ByNormal;
         }
