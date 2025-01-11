@@ -546,7 +546,7 @@ impl From<Rot2> for Rotation {
 impl From<Rotation> for Rot2 {
     /// Creates a [`Rot2`] from a [`Rotation`].
     fn from(rot: Rotation) -> Self {
-        Self::from_sin_cos(rot.cos as f32, rot.sin as f32)
+        Self::from_sin_cos(rot.sin as f32, rot.cos as f32)
     }
 }
 
