@@ -109,6 +109,24 @@ impl Default for DeactivationTime {
     }
 }
 
+/// A [`Command`] that wakes up a [rigid body](RigidBody) by removing the [`Sleeping`] component
+/// and resetting the [`TimeSleeping`] to zero.
+pub struct WakeUpBody(pub Entity);
+
+impl Command for WakeUpBody {
+    fn apply(self, world: &mut World) {
+        let Ok(mut entity_mut) = world.get_entity_mut(self.0) else {
+            return;
+        };
+
+        entity_mut.remove::<Sleeping>();
+
+        if let Some(mut time_sleeping) = entity_mut.get_mut::<TimeSleeping>() {
+            time_sleeping.0 = 0.0;
+        };
+    }
+}
+
 /// Adds the [`Sleeping`] component to bodies whose linear and anigular velocities have been
 /// under the [`SleepingThreshold`] for a duration indicated by [`DeactivationTime`].
 #[allow(clippy::type_complexity)]
@@ -205,7 +223,6 @@ pub(crate) fn wake_on_changed(
                 Ref<Rotation>,
                 Ref<LinearVelocity>,
                 Ref<AngularVelocity>,
-                &mut TimeSleeping,
             ),
             (
                 With<Sleeping>,
@@ -220,7 +237,7 @@ pub(crate) fn wake_on_changed(
         // These are not modified by the physics engine
         // and don't need special handling.
         Query<
-            (Entity, &mut TimeSleeping),
+            Entity,
             Or<(
                 Changed<ExternalForce>,
                 Changed<ExternalTorque>,
@@ -235,20 +252,18 @@ pub(crate) fn wake_on_changed(
 ) {
     let this_run = system_tick.this_run();
 
-    for (entity, pos, rot, lin_vel, ang_vel, mut time_sleeping) in &mut query.p0() {
+    for (entity, pos, rot, lin_vel, ang_vel) in &query.p0() {
         if is_changed_after_tick(pos, last_physics_tick.0, this_run)
             || is_changed_after_tick(rot, last_physics_tick.0, this_run)
             || is_changed_after_tick(lin_vel, last_physics_tick.0, this_run)
             || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)
         {
-            commands.entity(entity).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
+            commands.queue(WakeUpBody(entity));
         }
     }
 
-    for (entity, mut time_sleeping) in &mut query.p1() {
-        commands.entity(entity).remove::<Sleeping>();
-        time_sleeping.0 = 0.0;
+    for entity in &query.p1() {
+        commands.queue(WakeUpBody(entity));
     }
 }
 
@@ -259,13 +274,9 @@ fn is_changed_after_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_r
 
 /// Removes the [`Sleeping`] component from all sleeping bodies.
 /// Triggered automatically when [`Gravity`] is changed.
-fn wake_all_sleeping_bodies(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
-) {
-    for (entity, mut time_sleeping) in &mut bodies {
-        commands.entity(entity).remove::<Sleeping>();
-        time_sleeping.0 = 0.0;
+fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<Sleeping>>) {
+    for entity in &bodies {
+        commands.queue(WakeUpBody(entity));
     }
 }
 

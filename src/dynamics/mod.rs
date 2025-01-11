@@ -87,7 +87,7 @@ pub mod prelude {
             },
             *,
         },
-        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold},
+        sleeping::{DeactivationTime, SleepingPlugin, SleepingThreshold, WakeUpBody},
         solver::{
             joints::*,
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},

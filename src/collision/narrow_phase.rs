@@ -724,9 +724,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // When an active body collides with a sleeping body, wake up the sleeping body.
         self.parallel_commands.command_scope(|mut commands| {
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             } else if body2.is_sleeping {
-                commands.entity(body2.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
         });
 
