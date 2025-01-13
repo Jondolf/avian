@@ -2,7 +2,7 @@
 
 use proc_macro::TokenStream;
 
-use proc_macro_error::{abort, emit_error, proc_macro_error};
+use proc_macro_error2::{abort, emit_error, proc_macro_error};
 use quote::quote;
 use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 
