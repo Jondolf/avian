@@ -1,9 +1,9 @@
 //! Common components and bundles for rigid bodies.
 
+pub mod forces;
 pub mod mass_properties;
 
 // Components
-mod forces;
 mod locked_axes;
 mod physics_material;
 mod world_query;
