@@ -20,7 +20,6 @@ use bevy::{
         PickSet,
     },
     prelude::*,
-    render::view::RenderLayers,
 };
 
 /// Adds the physics picking backend to your app, enabling picking for [colliders](Collider).
@@ -31,7 +30,11 @@ impl Plugin for PhysicsPickingPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PhysicsPickingSettings>()
             .add_systems(PreUpdate, update_hits.in_set(PickSet::Backend))
-            .register_type::<(PhysicsPickingSettings, PhysicsPickable)>();
+            .register_type::<(
+                PhysicsPickingSettings,
+                PhysicsPickable,
+                PhysicsPickingLayers,
+            )>();
     }
 }
 
@@ -54,11 +57,12 @@ pub struct PhysicsPickingSettings {
 pub struct PhysicsPickable;
 
 /// An optional component on the camera that filters which entities the camera can pick.
-#[derive(Debug, Clone, Component)]
+#[derive(Debug, Clone, Component, Reflect)]
+#[reflect(Component)]
 pub struct PhysicsPickingLayers(pub LayerMask);
 
 impl PhysicsPickingLayers {
-    /// Creates a new `PhysicsPickingLayers` with the given layer mask.
+    /// Creates a new [`PhysicsPickingLayers`] with the given [`LayerMask`].
     pub fn new(mask: impl Into<LayerMask>) -> Self {
         Self(mask.into())
     }
@@ -66,25 +70,29 @@ impl PhysicsPickingLayers {
 
 /// Queries for collider intersections with pointers using [`PhysicsPickingSettings`] and sends [`PointerHits`] events.
 pub fn update_hits(
-    picking_cameras: Query<(&Camera, Option<&PhysicsPickingLayers>, Option<&PhysicsPickable>, Option<&RenderLayers>)>,
+    picking_cameras: Query<(
+        &Camera,
+        Option<&PhysicsPickingLayers>,
+        Option<&PhysicsPickable>,
+    )>,
     ray_map: Res<RayMap>,
     pickables: Query<&PickingBehavior>,
     marked_targets: Query<&PhysicsPickable>,
-    layers: Query<&RenderLayers>,
     backend_settings: Res<PhysicsPickingSettings>,
     spatial_query: SpatialQuery,
     mut output_events: EventWriter<PointerHits>,
 ) {
     for (&ray_id, &ray) in ray_map.map().iter() {
-        let Ok((camera, physics_layers, cam_pickable, cam_layers)) = picking_cameras.get(ray_id.camera) else {
+        let Ok((camera, physics_layers, cam_pickable)) = picking_cameras.get(ray_id.camera) else {
             continue;
         };
         if backend_settings.require_markers && cam_pickable.is_none() || !camera.is_active {
             continue;
         }
 
-        let cam_layers = cam_layers.unwrap_or_default();
-        let filter = physics_layers.map(|layers| SpatialQueryFilter::from_mask(layers.0)).unwrap_or_default();
+        let filter = physics_layers
+            .map(|layers| SpatialQueryFilter::from_mask(layers.0))
+            .unwrap_or_default();
 
         #[cfg(feature = "2d")]
         {
@@ -97,16 +105,12 @@ pub fn update_hits(
                     let marker_requirement =
                         !backend_settings.require_markers || marked_targets.get(entity).is_ok();
 
-                    // Other entities missing render layers are on the default layer 0
-                    let entity_layers = layers.get(entity).unwrap_or_default();
-                    let render_layers_match = cam_layers.intersects(entity_layers);
-
                     let is_pickable = pickables
                         .get(entity)
                         .map(|p| *p != PickingBehavior::IGNORE)
                         .unwrap_or(true);
 
-                    if marker_requirement && render_layers_match && is_pickable {
+                    if marker_requirement && is_pickable {
                         hits.push((
                             entity,
                             HitData::new(ray_id.camera, 0.0, Some(ray.origin.f32()), None),
@@ -132,16 +136,12 @@ pub fn update_hits(
                         let marker_requirement =
                             !backend_settings.require_markers || marked_targets.get(entity).is_ok();
 
-                        // Other entities missing render layers are on the default layer 0
-                        let entity_layers = layers.get(entity).unwrap_or_default();
-                        let render_layers_match = cam_layers.intersects(entity_layers);
-
                         let is_pickable = pickables
                             .get(entity)
                             .map(|p| *p != PickingBehavior::IGNORE)
                             .unwrap_or(true);
 
-                        marker_requirement && render_layers_match && is_pickable
+                        marker_requirement && is_pickable
                     },
                 )
                 .map(|ray_hit_data| {
