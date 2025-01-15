@@ -53,9 +53,13 @@ pub struct PhysicsPickingSettings {
 #[reflect(Component, Default)]
 pub struct PhysicsPickable;
 
+/// An optional component on the camera that filters which entities the camera can pick.
+#[derive(Debug, Clone, Component)]
+pub struct PhysicsPickingLayers(pub LayerMask);
+
 /// Queries for collider intersections with pointers using [`PhysicsPickingSettings`] and sends [`PointerHits`] events.
 pub fn update_hits(
-    picking_cameras: Query<(&Camera, Option<&PhysicsPickable>, Option<&RenderLayers>)>,
+    picking_cameras: Query<(&Camera, Option<&PhysicsPickingLayers>, Option<&PhysicsPickable>, Option<&RenderLayers>)>,
     ray_map: Res<RayMap>,
     pickables: Query<&PickingBehavior>,
     marked_targets: Query<&PhysicsPickable>,
@@ -65,7 +69,7 @@ pub fn update_hits(
     mut output_events: EventWriter<PointerHits>,
 ) {
     for (&ray_id, &ray) in ray_map.map().iter() {
-        let Ok((camera, cam_pickable, cam_layers)) = picking_cameras.get(ray_id.camera) else {
+        let Ok((camera, physics_layers, cam_pickable, cam_layers)) = picking_cameras.get(ray_id.camera) else {
             continue;
         };
         if backend_settings.require_markers && cam_pickable.is_none() || !camera.is_active {
@@ -73,6 +77,7 @@ pub fn update_hits(
         }
 
         let cam_layers = cam_layers.unwrap_or_default();
+        let filter = physics_layers.map(|layers| SpatialQueryFilter::from_mask(layers.0)).unwrap_or_default();
 
         #[cfg(feature = "2d")]
         {
@@ -80,7 +85,7 @@ pub fn update_hits(
 
             spatial_query.point_intersections_callback(
                 ray.origin.truncate().adjust_precision(),
-                &SpatialQueryFilter::default(),
+                &filter,
                 |entity| {
                     let marker_requirement =
                         !backend_settings.require_markers || marked_targets.get(entity).is_ok();
@@ -115,7 +120,7 @@ pub fn update_hits(
                     ray.direction,
                     Scalar::MAX,
                     true,
-                    &SpatialQueryFilter::default(),
+                    &filter,
                     &|entity| {
                         let marker_requirement =
                             !backend_settings.require_markers || marked_targets.get(entity).is_ok();
