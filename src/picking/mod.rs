@@ -57,6 +57,13 @@ pub struct PhysicsPickable;
 #[derive(Debug, Clone, Component)]
 pub struct PhysicsPickingLayers(pub LayerMask);
 
+impl PhysicsPickingLayers {
+    /// Creates a new `PhysicsPickingLayers` with the given layer mask.
+    pub fn new(mask: impl Into<LayerMask>) -> Self {
+        Self(mask.into())
+    }
+}
+
 /// Queries for collider intersections with pointers using [`PhysicsPickingSettings`] and sends [`PointerHits`] events.
 pub fn update_hits(
     picking_cameras: Query<(&Camera, Option<&PhysicsPickingLayers>, Option<&PhysicsPickable>, Option<&RenderLayers>)>,
