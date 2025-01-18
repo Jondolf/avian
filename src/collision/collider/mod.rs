@@ -47,7 +47,7 @@ pub trait IntoCollider<C: AnyCollider> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component {
+pub trait AnyCollider: Component + ComputeMassProperties {
     /// A type providing additional context for collider operations.
     ///
     /// `Context` allows you to access an arbitrary [`ReadOnlySystemParam`] on
@@ -143,9 +143,6 @@ pub trait AnyCollider: Component {
             .merged(self.aabb(end_position, end_rotation, entity, context))
     }
 
-    /// Computes the collider's mass properties based on its shape and a given density.
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties;
-
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
     /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
@@ -184,6 +181,58 @@ pub trait ScalableCollider: AnyCollider {
     }
 }
 
+/// A marker component that indicates that a [collider](Collider) is disabled
+/// and should not detect collisions or be included in spatial queries.
+///
+/// This is useful for temporarily disabling a collider without removing it from the world.
+/// To re-enable the collider, simply remove this component.
+///
+/// Note that a disabled collider will still contribute to the mass properties of the rigid body
+/// it is attached to. Set the [`Mass`] of the collider to zero to prevent this.
+///
+/// [`ColliderDisabled`] only applies to the entity it is attached to, not its children.
+///
+/// # Example
+///
+/// ```
+#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use bevy::prelude::*;
+/// #
+/// #[derive(Component)]
+/// pub struct Character;
+///
+/// /// Disables colliders for all rigid body characters, for example during cutscenes.
+/// fn disable_character_colliders(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).insert(ColliderDisabled);
+///     }
+/// }
+///
+/// /// Enables colliders for all rigid body characters.
+/// fn enable_character_colliders(
+///     mut commands: Commands,
+///     query: Query<Entity, (With<RigidBody>, With<Character>)>,
+/// ) {
+///     for entity in &query {
+///         commands.entity(entity).remove::<ColliderDisabled>();
+///     }
+/// }
+/// ```
+///
+/// # Related Components
+///
+/// - [`RigidBodyDisabled`]: Disables a rigid body.
+/// - [`JointDisabled`]: Disables a joint constraint.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default)]
+pub struct ColliderDisabled;
+
 /// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
 ///
 /// If the collider is a child of a rigid body, this points to the body's `Entity` ID.
@@ -193,7 +242,7 @@ pub trait ScalableCollider: AnyCollider {
 /// This component is added and updated automatically based on entity hierarchies and should not
 /// be modified directly.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -305,7 +354,7 @@ impl From<Transform> for ColliderTransform {
 ///
 /// Sensor colliders do *not* contribute to the mass properties of rigid bodies.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -504,24 +553,34 @@ impl Default for ColliderAabb {
 #[doc(alias = "ContactSkin")]
 pub struct CollisionMargin(pub Scalar);
 
-/// A component that stores the entities that are colliding with an entity.
+/// A component for reading which entities are colliding with a collider entity.
+/// Must be added manually for desired colliders.
 ///
-/// This component is automatically added for all entities with a [`Collider`],
-/// but it will only be filled if the [`ContactReportingPlugin`] is enabled (by default, it is).
+/// Requires the [`ContactReportingPlugin`] (included in [`PhysicsPlugins`])
+/// to be enabled for this component to be updated.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
+/// fn setup(mut commands: Commands) {
+///     commands.spawn((
+///         RigidBody::Dynamic,
+///         Collider::capsule(0.5, 1.5),
+///         // Add the `CollidingEntities` component to read entities colliding with this entity.
+///         CollidingEntities::default(),
+///     ));
+/// }
+///
 /// fn my_system(query: Query<(Entity, &CollidingEntities)>) {
 ///     for (entity, colliding_entities) in &query {
 ///         println!(
-///             "{:?} is colliding with the following entities: {:?}",
+///             "{} is colliding with the following entities: {:?}",
 ///             entity,
-///             colliding_entities
+///             colliding_entities,
 ///         );
 ///     }
 /// }
@@ -542,7 +601,3 @@ impl MapEntities for CollidingEntities {
             .collect()
     }
 }
-
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub(crate) struct PreviousColliderTransform(pub ColliderTransform);

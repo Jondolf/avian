@@ -12,7 +12,6 @@ fn main() {
             PhysicsPlugins::default(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
-        .insert_resource(Msaa::Sample4)
         .add_systems(Startup, setup)
         .add_systems(Update, movement)
         .run();
@@ -31,12 +30,9 @@ fn setup(
 
     // Ground
     commands.spawn((
-        PbrBundle {
-            mesh: cube_mesh.clone(),
-            material: materials.add(Color::srgb(0.7, 0.7, 0.8)),
-            transform: Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
-            ..default()
-        },
+        Mesh3d(cube_mesh.clone()),
+        MeshMaterial3d(materials.add(Color::srgb(0.7, 0.7, 0.8))),
+        Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
         RigidBody::Static,
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
@@ -49,13 +45,9 @@ fn setup(
             for z in -2..2 {
                 let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
-                    PbrBundle {
-                        mesh: cube_mesh.clone(),
-                        material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
-                        transform: Transform::from_translation(position)
-                            .with_scale(Vec3::splat(cube_size as f32)),
-                        ..default()
-                    },
+                    Mesh3d(cube_mesh.clone()),
+                    MeshMaterial3d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
+                    Transform::from_translation(position).with_scale(Vec3::splat(cube_size as f32)),
                     RigidBody::Dynamic,
                     Collider::cuboid(1.0, 1.0, 1.0),
                     MovementAcceleration(10.0),
@@ -65,22 +57,20 @@ fn setup(
     }
 
     // Directional light
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
+    commands.spawn((
+        DirectionalLight {
             illuminance: 5000.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
-        ..default()
-    });
+        Transform::default().looking_at(Vec3::new(-1.0, -2.5, -1.5), Vec3::Y),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 12.0, 40.0))
-            .looking_at(Vec3::Y * 5.0, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_translation(Vec3::new(0.0, 12.0, 40.0)).looking_at(Vec3::Y * 5.0, Vec3::Y),
+    ));
 }
 
 fn movement(
@@ -90,7 +80,7 @@ fn movement(
 ) {
     // Precision is adjusted so that the example works with
     // both the `f32` and `f64` features. Otherwise you don't need this.
-    let delta_time = time.delta_seconds_f64().adjust_precision();
+    let delta_time = time.delta_secs_f64().adjust_precision();
 
     for (movement_acceleration, mut linear_velocity) in &mut query {
         let up = keyboard_input.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]);

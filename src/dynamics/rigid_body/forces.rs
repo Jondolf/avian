@@ -27,7 +27,7 @@ impl FloatZero for Scalar {
 /// By default, the force persists across frames. You can clear the force manually using
 /// [`clear`](Self::clear) or set `persistent` to false.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -60,7 +60,7 @@ impl FloatZero for Scalar {
 /// }
 /// ```
 ///
-/// ## Local forces
+/// # Local Forces
 ///
 /// The force stored in `ExternalForce` is in world space.
 ///
@@ -154,7 +154,9 @@ impl ExternalForce {
         self
     }
 
-    /// Applies the given world-space `force` at a local `point`, which will also cause torque to be applied.
+    /// Applies the given `force` at the specified `point`, which will also cause torque to be applied.
+    ///
+    /// The force, point, and center of mass must be given in world space.
     pub fn apply_force_at_point(
         &mut self,
         force: Vector,
@@ -203,7 +205,7 @@ impl ExternalForce {
 /// By default, the torque persists across frames. You can clear the torque manually using
 /// [`clear`](Self::clear) or set `persistent` to false.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -316,7 +318,7 @@ impl ExternalTorque {
 /// By default, the impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -349,7 +351,7 @@ impl ExternalTorque {
 /// }
 /// ```
 ///
-/// ## Local impulses
+/// # Local Impulses
 ///
 /// The impulse stored in `ExternalImpulse` is in world space.
 ///
@@ -442,7 +444,9 @@ impl ExternalImpulse {
         self
     }
 
-    /// Applies the given world-space `impulse` at a local `point`, which will also cause an angular impulse to be applied.
+    /// Applies the given `impulse` at the specified `point`, which will also cause an angular impulse to be applied.
+    ///
+    /// The impulse, point, and center of mass must be given in world space.
     pub fn apply_impulse_at_point(
         &mut self,
         impulse: Vector,
@@ -491,7 +495,7 @@ impl ExternalImpulse {
 /// By default, the angular impulse is cleared every frame. You can set `persistent` to true in order to persist
 /// the impulse across frames.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]

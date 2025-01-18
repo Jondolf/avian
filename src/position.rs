@@ -1,5 +1,7 @@
 //! Components for physics positions and rotations.
 
+#![allow(clippy::unnecessary_cast)]
+
 use crate::prelude::*;
 use bevy::{math::DQuat, prelude::*};
 use derive_more::From;
@@ -9,7 +11,7 @@ use crate::math::Matrix;
 
 /// The global position of a [rigid body](RigidBody) or a [collider](Collider).
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Position`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -20,7 +22,7 @@ use crate::math::Matrix;
 /// The reasons why the engine uses a separate [`Position`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -124,7 +126,7 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// The rotation angle is wrapped to be within the `(-pi, pi]` range.
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -135,7 +137,7 @@ pub(crate) type RotationValue = Quaternion;
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian2d::prelude::*;
@@ -330,6 +332,7 @@ impl Rotation {
     /// accumulated floating point error, or if the rotation was constructed
     /// with invalid values.
     #[inline]
+    #[must_use]
     pub fn try_normalize(self) -> Option<Self> {
         let recip = self.length_recip();
         if recip.is_finite() && recip > 0.0 {
@@ -350,9 +353,23 @@ impl Rotation {
     ///
     /// Panics if `self` has a length of zero, NaN, or infinity when debug assertions are enabled.
     #[inline]
+    #[must_use]
     pub fn normalize(self) -> Self {
         let length_recip = self.length_recip();
         Self::from_sin_cos(self.sin * length_recip, self.cos * length_recip)
+    }
+
+    /// Returns `self` after an approximate normalization,
+    /// assuming the value is already nearly normalized.
+    /// Useful for preventing numerical error accumulation.
+    #[inline]
+    #[must_use]
+    pub fn fast_renormalize(self) -> Self {
+        // First-order Tayor approximation
+        // 1/L = (L^2)^(-1/2) ≈ 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+        let length_squared = self.length_squared();
+        let approx_inv_length = 0.5 * (3.0 - length_squared);
+        Self::from_sin_cos(self.sin * approx_inv_length, self.cos * approx_inv_length)
     }
 
     /// Returns `true` if the rotation is neither infinite nor NaN.
@@ -518,6 +535,22 @@ impl From<Rotation> for Matrix {
 }
 
 #[cfg(feature = "2d")]
+impl From<Rot2> for Rotation {
+    /// Creates a [`Rotation`] from a [`Rot2`].
+    fn from(rot: Rot2) -> Self {
+        Self::from_sin_cos(rot.sin as Scalar, rot.cos as Scalar)
+    }
+}
+
+#[cfg(feature = "2d")]
+impl From<Rotation> for Rot2 {
+    /// Creates a [`Rot2`] from a [`Rotation`].
+    fn from(rot: Rotation) -> Self {
+        Self::from_sin_cos(rot.sin as f32, rot.cos as f32)
+    }
+}
+
+#[cfg(feature = "2d")]
 impl std::ops::Mul for Rotation {
     type Output = Self;
 
@@ -636,7 +669,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
 /// The global physics rotation of a [rigid body](RigidBody) or a [collider](Collider).
 ///
-/// ## Relation to `Transform` and `GlobalTransform`
+/// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
 /// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
@@ -647,7 +680,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 /// The reasons why the engine uses a separate [`Rotation`] component can be found
 /// [here](crate#why-are-there-separate-position-and-rotation-components).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use avian3d::prelude::*;
@@ -669,6 +702,8 @@ pub struct Rotation(pub Quaternion);
 #[cfg(feature = "3d")]
 impl Rotation {
     /// Inverts the rotation.
+    #[inline]
+    #[must_use]
     pub fn inverse(&self) -> Self {
         Self(self.0.inverse())
     }
@@ -684,6 +719,7 @@ impl Rotation {
     /// the result resembles a kind of ease-in-out effect.
     ///
     /// If you would like the angular velocity to remain constant, consider using [`slerp`](Self::slerp) instead.
+    #[inline]
     pub fn nlerp(self, end: Self, t: Scalar) -> Self {
         Self(self.0.lerp(end.0, t))
     }
@@ -698,17 +734,22 @@ impl Rotation {
     ///
     /// If you would like the rotation to have a kind of ease-in-out effect, consider
     /// using the slightly more efficient [`nlerp`](Self::nlerp) instead.
+    #[inline]
     pub fn slerp(self, end: Self, t: Scalar) -> Self {
         Self(self.0.slerp(end.0, t))
     }
 
-    /// Performs a renormalization of the contained quaternion
+    /// Returns `self` after an approximate normalization,
+    /// assuming the value is already nearly normalized.
+    /// Useful for preventing numerical error accumulation.
     #[inline]
-    pub fn renormalize(&mut self) {
-        let length_squared = self.0.length_squared();
-        // 1/L = (L^2)^-(1/2) = ~= 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+    #[must_use]
+    pub fn fast_renormalize(self) -> Self {
+        // First-order Tayor approximation
+        // 1/L = (L^2)^(-1/2) ≈ 1 - (L^2 - 1) / 2 = (3 - L^2) / 2
+        let length_squared = self.length_squared();
         let approx_inv_length = 0.5 * (3.0 - length_squared);
-        self.0 = self.0 * approx_inv_length;
+        Self(self.0 * approx_inv_length)
     }
 }
 

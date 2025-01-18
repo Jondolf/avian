@@ -1,8 +1,8 @@
-//! Provides derive implementations for Avian.
+//! Provides derive implementations for [Avian Physics](https://github.com/Jondolf/avian).
 
 use proc_macro::TokenStream;
 
-use proc_macro_error::{abort, emit_error, proc_macro_error};
+use proc_macro_error2::{abort, emit_error, proc_macro_error};
 use quote::quote;
 use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput};
 
@@ -123,11 +123,6 @@ pub fn derive_physics_layer(input: TokenStream) -> TokenStream {
     };
 
     let expanded = quote! {
-        #[cfg(feature = "2d")]
-        use avian2d::prelude::PhysicsLayer;
-        #[cfg(feature = "3d")]
-        use avian3d::prelude::PhysicsLayer;
-
         impl PhysicsLayer for #enum_ident {
             fn all_bits() -> u32 {
                 #all_bits

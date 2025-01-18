@@ -14,7 +14,7 @@ mod primitives2d;
 mod primitives3d;
 
 #[cfg(feature = "2d")]
-pub(crate) use primitives2d::{EllipseWrapper, RegularPolygonWrapper};
+pub use primitives2d::{EllipseColliderShape, RegularPolygonColliderShape};
 
 impl<T: IntoCollider<Collider>> From<T> for Collider {
     fn from(value: T) -> Self {
@@ -157,14 +157,15 @@ impl From<FillMode> for parry::transformation::voxelization::FillMode {
     }
 }
 
+/// Flags used for the preprocessing of a triangle mesh collider.
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct TrimeshFlags(u8);
+
 bitflags::bitflags! {
-    /// Flags used for the preprocessing of a triangle mesh collider.
-    #[repr(transparent)]
-    #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
-    #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-    #[cfg_attr(feature = "serialize", reflect_value(Serialize, Deserialize))]
-    #[reflect_value(Hash, PartialEq, Debug)]
-    pub struct  TrimeshFlags: u8 {
+    impl TrimeshFlags: u8 {
         /// If set, the half-edge topology of the trimesh will be computed if possible.
         const HALF_EDGE_TOPOLOGY = 0b0000_0001;
         /// If set, the half-edge topology and connected components of the trimesh will be computed if possible.
@@ -214,7 +215,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 
 /// A collider used for detecting collisions and generating contacts.
 ///
-/// ## Creation
+/// # Creation
 ///
 /// `Collider` has tons of methods for creating colliders of various shapes:
 ///
@@ -248,7 +249,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 ///         RigidBody::Dynamic,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
-///         TransformBundle::from_transform(Transform::from_xyz(0.0, 2.0, 0.0)),
+///         Transform::from_xyz(0.0, 2.0, 0.0),
 ///     ));
 #[cfg_attr(
     feature = "2d",
@@ -262,15 +263,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders can be further configured using various components like [`Friction`], [`Restitution`],
-/// [`Sensor`], [`CollisionLayers`], and [`CollisionMargin`].
-///
-/// In addition, Avian automatically adds some other components for colliders, like the following:
-///
-/// - [`ColliderParent`]
-/// - [`ColliderAabb`]
-/// - [`CollidingEntities`]
-/// - [`ColliderDensity`]
-/// - [`ColliderMassProperties`]
+/// [`Sensor`], [`CollisionLayers`], [`CollisionMargin`], and [`ColliderDensity`].
 ///
 /// If you need to specify the shape of the collider statically, use [`ColliderConstructor`] and build your collider
 /// with the [`Collider::try_from_constructor`] method.
@@ -281,7 +274,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     doc = "Colliders can also be generated automatically for meshes and scenes. See [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]."
 )]
 ///
-/// ### Multiple colliders
+/// ## Multiple Colliders
 ///
 /// It can often be useful to attach multiple colliders to the same rigid body.
 ///
@@ -308,25 +301,13 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 ///             // Spawn the child colliders positioned relative to the rigid body
 #[cfg_attr(
     feature = "2d",
-    doc = "            children.spawn((
-                Collider::circle(0.5),
-                TransformBundle::from_transform(Transform::from_xyz(2.0, 0.0, 0.0)),
-            ));
-            children.spawn((
-                Collider::circle(0.5),
-                TransformBundle::from_transform(Transform::from_xyz(-2.0, 0.0, 0.0)),
-            ));"
+    doc = "            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "            children.spawn((
-                Collider::sphere(0.5),
-                TransformBundle::from_transform(Transform::from_xyz(2.0, 0.0, 0.0)),
-            ));
-            children.spawn((
-                Collider::sphere(0.5),
-                TransformBundle::from_transform(Transform::from_xyz(-2.0, 0.0, 0.0)),
-            ));"
+    doc = "            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
+            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));"
 )]
 ///         });
 /// }
@@ -339,7 +320,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
 /// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
 ///
-/// ## See more
+/// # See More
 ///
 /// - [Rigid bodies](RigidBody)
 /// - [Density](ColliderDensity)
@@ -356,7 +337,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// - [Accessing, filtering and modifying collisions](Collisions)
 /// - [Manual contact queries](contact_query)
 ///
-/// ## Advanced usage
+/// # Advanced Usage
 ///
 /// Internally, `Collider` uses the shapes provided by `parry`. If you want to create a collider
 /// using these shapes, you can simply use `Collider::from(SharedShape::some_method())`.
@@ -365,8 +346,9 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// or [`Collider::shape_scaled()`] methods.
 ///
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
-#[derive(Clone, Component)]
+#[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[require(ColliderMarker, ColliderAabb, ColliderDensity, ColliderMassProperties)]
 pub struct Collider {
     /// The raw unscaled collider shape.
     shape: SharedShape,
@@ -402,42 +384,6 @@ impl Default for Collider {
     }
 }
 
-impl std::fmt::Debug for Collider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.shape_scaled().as_typed_shape() {
-            TypedShape::Ball(shape) => write!(f, "{:?}", shape),
-            TypedShape::Cuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundCuboid(shape) => write!(f, "{:?}", shape),
-            TypedShape::Capsule(shape) => write!(f, "{:?}", shape),
-            TypedShape::Segment(shape) => write!(f, "{:?}", shape),
-            TypedShape::Triangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::RoundTriangle(shape) => write!(f, "{:?}", shape),
-            TypedShape::TriMesh(_) => write!(f, "Trimesh (not representable)"),
-            TypedShape::Polyline(_) => write!(f, "Polyline (not representable)"),
-            TypedShape::HalfSpace(shape) => write!(f, "{:?}", shape),
-            TypedShape::HeightField(shape) => write!(f, "{:?}", shape),
-            TypedShape::Compound(_) => write!(f, "Compound (not representable)"),
-            TypedShape::Custom(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::ConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::Cone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCylinder(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundCone(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "3d")]
-            TypedShape::RoundConvexPolyhedron(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::ConvexPolygon(shape) => write!(f, "{:?}", shape),
-            #[cfg(feature = "2d")]
-            TypedShape::RoundConvexPolygon(shape) => write!(f, "{:?}", shape),
-        }
-    }
-}
-
 impl AnyCollider for Collider {
     type Context = ();
 
@@ -454,27 +400,6 @@ impl AnyCollider for Collider {
         ColliderAabb {
             min: aabb.mins.into(),
             max: aabb.maxs.into(),
-        }
-    }
-
-    fn mass_properties(&self, density: Scalar) -> ColliderMassProperties {
-        let props = self.shape_scaled().mass_properties(density);
-
-        ColliderMassProperties {
-            mass: Mass(props.mass()),
-            inverse_mass: InverseMass(props.inv_mass),
-
-            #[cfg(feature = "2d")]
-            inertia: Inertia(props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inertia: Inertia(props.reconstruct_inertia_matrix().into()),
-
-            #[cfg(feature = "2d")]
-            inverse_inertia: InverseInertia(1.0 / props.principal_inertia()),
-            #[cfg(feature = "3d")]
-            inverse_inertia: InverseInertia(props.reconstruct_inverse_inertia_matrix().into()),
-
-            center_of_mass: CenterOfMass(props.local_com.into()),
         }
     }
 
@@ -499,6 +424,87 @@ impl AnyCollider for Collider {
             rotation2,
             prediction_distance,
         )
+    }
+}
+
+// TODO: `bevy_heavy` supports computing the individual mass properties efficiently for Bevy's primitive shapes,
+//       but Parry doesn't support it for its own shapes, so we have to compute all mass properties in each method :(
+#[cfg(feature = "2d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_angular_inertia(&self) -> f32 {
+        self.angular_inertia(1.0)
+    }
+
+    fn angular_inertia(&self, mass: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        props.principal_inertia() as f32
+    }
+
+    fn center_of_mass(&self) -> Vec2 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
+    }
+}
+
+#[cfg(feature = "3d")]
+impl ComputeMassProperties for Collider {
+    fn mass(&self, density: f32) -> f32 {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+        props.mass() as f32
+    }
+
+    fn unit_principal_angular_inertia(&self) -> Vec3 {
+        self.principal_angular_inertia(1.0)
+    }
+
+    fn principal_angular_inertia(&self, mass: f32) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(mass as Scalar);
+        Vector::from(props.principal_inertia()).f32()
+    }
+
+    fn local_inertial_frame(&self) -> Quat {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Quaternion::from(props.principal_inertia_local_frame).f32()
+    }
+
+    fn center_of_mass(&self) -> Vec3 {
+        let props = self.shape_scaled().mass_properties(1.0);
+        Vector::from(props.local_com).f32()
+    }
+
+    fn mass_properties(&self, density: f32) -> MassProperties {
+        let props = self.shape_scaled().mass_properties(density as Scalar);
+
+        MassProperties {
+            mass: props.mass() as f32,
+            #[cfg(feature = "2d")]
+            angular_inertia: props.principal_inertia() as f32,
+            #[cfg(feature = "3d")]
+            principal_angular_inertia: Vector::from(props.principal_inertia()).f32(),
+            #[cfg(feature = "3d")]
+            local_inertial_frame: Quaternion::from(props.principal_inertia_local_frame).f32(),
+            center_of_mass: Vector::from(props.local_com).f32(),
+        }
     }
 }
 
@@ -617,16 +623,16 @@ impl Collider {
             .contains_point(&make_isometry(translation, rotation), &point.into())
     }
 
-    /// Computes the time of impact and normal between the given ray and `self`
+    /// Computes the distance and normal between the given ray and `self`
     /// transformed by `translation` and `rotation`.
     ///
-    /// The returned tuple is in the format `(time_of_impact, normal)`.
+    /// The returned tuple is in the format `(distance, normal)`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
-    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_distance`: The maximum distance the ray can travel.
     /// - `solid`: If true and the ray origin is inside of a collider, the hit point will be the ray origin itself.
     ///   Otherwise, the collider will be treated as hollow, and the hit point will be at the collider's boundary.
     pub fn cast_ray(
@@ -635,13 +641,13 @@ impl Collider {
         rotation: impl Into<Rotation>,
         ray_origin: Vector,
         ray_direction: Vector,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
         solid: bool,
     ) -> Option<(Scalar, Vector)> {
         let hit = self.shape_scaled().cast_ray_and_get_normal(
             &make_isometry(translation, rotation),
             &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
-            max_time_of_impact,
+            max_distance,
             solid,
         );
         hit.map(|hit| (hit.time_of_impact, hit.normal.into()))
@@ -649,23 +655,23 @@ impl Collider {
 
     /// Tests whether the given ray intersects `self` transformed by `translation` and `rotation`.
     ///
-    /// ## Arguments
+    /// # Arguments
     ///
     /// - `ray_origin`: Where the ray is cast from.
     /// - `ray_direction`: What direction the ray is cast in.
-    /// - `max_time_of_impact`: The maximum distance that the ray can travel.
+    /// - `max_distance`: The maximum distance the ray can travel.
     pub fn intersects_ray(
         &self,
         translation: impl Into<Position>,
         rotation: impl Into<Rotation>,
         ray_origin: Vector,
         ray_direction: Vector,
-        max_time_of_impact: Scalar,
+        max_distance: Scalar,
     ) -> bool {
         self.shape_scaled().intersects_ray(
             &make_isometry(translation, rotation),
             &parry::query::Ray::new(ray_origin.into(), ray_direction.into()),
-            max_time_of_impact,
+            max_distance,
         )
     }
 
@@ -710,7 +716,7 @@ impl Collider {
     /// Creates a collider with an ellipse shape defined by a half-width and half-height.
     #[cfg(feature = "2d")]
     pub fn ellipse(half_width: Scalar, half_height: Scalar) -> Self {
-        SharedShape::new(EllipseWrapper(Ellipse::new(
+        SharedShape::new(EllipseColliderShape(Ellipse::new(
             half_width as f32,
             half_height as f32,
         )))
@@ -793,14 +799,45 @@ impl Collider {
         SharedShape::segment(a.into(), b.into()).into()
     }
 
-    /// Creates a collider with a triangle shape defined by its points `a`, `b` and `c`.
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    ///
+    /// If the triangle is oriented clockwise, it will be reversed to be counterclockwise
+    /// by swapping `b` and `c`. This is needed for collision detection.
+    ///
+    /// If you know that the given points produce a counterclockwise triangle,
+    /// consider using [`Collider::triangle_unchecked`] instead.
+    #[cfg(feature = "2d")]
+    pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
+        let mut triangle = parry::shape::Triangle::new(a.into(), b.into(), c.into());
+
+        // Make sure the triangle is counterclockwise. This is needed for collision detection.
+        if triangle.orientation(1e-8) == parry::shape::TriangleOrientation::Clockwise {
+            triangle.reverse();
+        }
+
+        SharedShape::new(triangle).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    ///
+    /// The orientation of the triangle is assumed to be counterclockwise.
+    /// This is needed for collision detection.
+    ///
+    /// If you are unsure about the orientation of the triangle, consider using [`Collider::triangle`] instead.
+    #[cfg(feature = "2d")]
+    pub fn triangle_unchecked(a: Vector, b: Vector, c: Vector) -> Self {
+        SharedShape::triangle(a.into(), b.into(), c.into()).into()
+    }
+
+    /// Creates a collider with a triangle shape defined by its points `a`, `b`, and `c`.
+    #[cfg(feature = "3d")]
     pub fn triangle(a: Vector, b: Vector, c: Vector) -> Self {
         SharedShape::triangle(a.into(), b.into(), c.into()).into()
     }
 
     /// Creates a collider with a regular polygon shape defined by the circumradius and the number of sides.
     #[cfg(feature = "2d")]
-    pub fn regular_polygon(circumradius: f32, sides: usize) -> Self {
+    pub fn regular_polygon(circumradius: f32, sides: u32) -> Self {
         RegularPolygon::new(circumradius, sides).collider()
     }
 
@@ -940,7 +977,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -950,10 +987,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -977,7 +1011,7 @@ impl Collider {
     /// The [`CollisionMargin`] component can be used to add thickness to the shape if needed.
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -987,10 +1021,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::trimesh_from_mesh_with_config(&mesh, TrimeshFlags::all()).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1003,7 +1034,7 @@ impl Collider {
 
     /// Creates a collider with a convex polygon shape obtained from the convex hull of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -1013,10 +1044,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_hull_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1028,7 +1056,7 @@ impl Collider {
 
     /// Creates a compound shape obtained from the decomposition of a `Mesh`.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -1038,10 +1066,7 @@ impl Collider {
     ///     let mesh = Mesh::from(Cuboid::default());
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh(&mesh).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1055,7 +1080,7 @@ impl Collider {
     /// Creates a compound shape obtained from the decomposition of a `Mesh`
     /// with the given [`VhacdParameters`] passed to the decomposition algorithm.
     ///
-    /// ## Example
+    /// # Example
     ///
     /// ```
     /// use avian3d::prelude::*;
@@ -1069,10 +1094,7 @@ impl Collider {
     ///     };
     ///     commands.spawn((
     ///         Collider::convex_decomposition_from_mesh_with_config(&mesh, &config).unwrap(),
-    ///         PbrBundle {
-    ///             mesh: meshes.add(mesh),
-    ///             ..default()
-    ///         },
+    ///         Mesh3d(meshes.add(mesh)),
     ///     ));
     /// }
     /// ```
@@ -1294,7 +1316,7 @@ fn scale_shape(
                     Ok(SharedShape::ball(b.radius * scale.x.abs()))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
-                    Ok(SharedShape::new(EllipseWrapper(Ellipse {
+                    Ok(SharedShape::new(EllipseColliderShape(Ellipse {
                         half_size: Vec2::splat(b.radius as f32) * scale.f32().abs(),
                     })))
                 }
@@ -1441,18 +1463,17 @@ fn scale_shape(
             }
             Ok(SharedShape::compound(scaled))
         }
-        TypedShape::Custom(_id) => {
+        TypedShape::Custom(_shape) => {
             #[cfg(feature = "2d")]
-            if _id == 1 {
-                if let Some(ellipse) = shape.as_shape::<EllipseWrapper>() {
-                    return Ok(SharedShape::new(EllipseWrapper(Ellipse {
+            {
+                if let Some(ellipse) = _shape.as_shape::<EllipseColliderShape>() {
+                    return Ok(SharedShape::new(EllipseColliderShape(Ellipse {
                         half_size: ellipse.half_size * scale.f32().abs(),
                     })));
                 }
-            } else if _id == 2 {
-                if let Some(polygon) = shape.as_shape::<RegularPolygonWrapper>() {
+                if let Some(polygon) = _shape.as_shape::<RegularPolygonColliderShape>() {
                     if scale.x == scale.y {
-                        return Ok(SharedShape::new(RegularPolygonWrapper(
+                        return Ok(SharedShape::new(RegularPolygonColliderShape(
                             RegularPolygon::new(
                                 polygon.circumradius() * scale.x.abs() as f32,
                                 polygon.sides,

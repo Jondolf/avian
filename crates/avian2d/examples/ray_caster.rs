@@ -9,7 +9,6 @@ use avian2d::{math::*, prelude::*};
 use bevy::{
     color::palettes::css::{GREEN, ORANGE_RED},
     prelude::*,
-    sprite::MaterialMesh2dBundle,
 };
 use examples_common_2d::*;
 
@@ -31,7 +30,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2d);
 
     // Spawn a perimeter of circles that the ray will be cast against
     let radius = 16.0;
@@ -42,16 +41,9 @@ fn setup(
             }
 
             commands.spawn((
-                MaterialMesh2dBundle {
-                    mesh: meshes.add(Circle::new(radius)).into(),
-                    material: materials.add(Color::srgb(0.2, 0.7, 0.9)),
-                    transform: Transform::from_xyz(
-                        x as f32 * radius * 3.0,
-                        y as f32 * radius * 3.0,
-                        0.0,
-                    ),
-                    ..default()
-                },
+                Mesh2d(meshes.add(Circle::new(radius))),
+                MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
+                Transform::from_xyz(x as f32 * radius * 3.0, y as f32 * radius * 3.0, 0.0),
                 Collider::circle(radius as Scalar),
             ));
         }
@@ -74,11 +66,7 @@ fn render_rays(mut rays: Query<(&mut RayCaster, &mut RayHits)>, mut gizmos: Gizm
         let direction = ray.global_direction().f32();
 
         for hit in hits.iter() {
-            gizmos.line_2d(
-                origin,
-                origin + direction * hit.time_of_impact as f32,
-                GREEN,
-            );
+            gizmos.line_2d(origin, origin + direction * hit.distance as f32, GREEN);
         }
         if hits.is_empty() {
             gizmos.line_2d(origin, origin + direction * 1_000_000.0, ORANGE_RED);

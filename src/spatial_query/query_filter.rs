@@ -1,10 +1,13 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{
+    ecs::entity::{EntityHash, EntityHashSet},
+    prelude::*,
+};
 
 use crate::prelude::*;
 
 /// Rules that determine which colliders are taken into account in [spatial queries](crate::spatial_query).
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -36,21 +39,28 @@ pub struct SpatialQueryFilter {
     /// Specifies which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
     pub mask: LayerMask,
     /// Entities that will not be included in [spatial queries](crate::spatial_query).
-    pub excluded_entities: HashSet<Entity>,
+    pub excluded_entities: EntityHashSet,
 }
 
 impl Default for SpatialQueryFilter {
     fn default() -> Self {
-        Self {
-            mask: LayerMask::ALL,
-            excluded_entities: default(),
-        }
+        Self::DEFAULT
     }
 }
 
 impl SpatialQueryFilter {
+    /// The default [`SpatialQueryFilter`] configuration that includes all collision layers
+    /// and has no excluded entities.
+    pub const DEFAULT: Self = Self {
+        mask: LayerMask::ALL,
+        excluded_entities: EntityHashSet::with_hasher(EntityHash),
+    };
+
     /// Creates a new [`SpatialQueryFilter`] with the given [`LayerMask`] determining
-    /// which [collision layers](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
+    /// which [collision layers] will be included in the [spatial query].
+    ///
+    /// [collision layers]: CollisionLayers
+    /// [spatial query]: crate::spatial_query
     pub fn from_mask(mask: impl Into<LayerMask>) -> Self {
         Self {
             mask: mask.into(),
@@ -58,16 +68,21 @@ impl SpatialQueryFilter {
         }
     }
 
-    /// Creates a new [`SpatialQueryFilter`] with the given entities excluded from the [spatial query](crate::spatial_query).
+    /// Creates a new [`SpatialQueryFilter`] with the given entities excluded from the [spatial query].
+    ///
+    /// [spatial query]: crate::spatial_query
     pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
         Self {
-            excluded_entities: HashSet::from_iter(entities),
+            excluded_entities: EntityHashSet::from_iter(entities),
             ..default()
         }
     }
 
     /// Sets the [`LayerMask`] of the filter configuration. Only colliders with the corresponding
-    /// [collision layer memberships](CollisionLayers) will be included in the [spatial query](crate::spatial_query).
+    /// [collision layer memberships] will be included in the [spatial query].
+    ///
+    /// [collision layer memberships]: CollisionLayers
+    /// [spatial query]: crate::spatial_query
     pub fn with_mask(mut self, masks: impl Into<LayerMask>) -> Self {
         self.mask = masks.into();
         self
@@ -75,12 +90,13 @@ impl SpatialQueryFilter {
 
     /// Excludes the given entities from the [spatial query](crate::spatial_query).
     pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
-        self.excluded_entities = HashSet::from_iter(entities);
+        self.excluded_entities = EntityHashSet::from_iter(entities);
         self
     }
 
-    /// Tests if an entity should be included in [spatial queries](crate::spatial_query) based on the
-    /// filter configuration.
+    /// Tests if an entity should be included in [spatial queries] based on the filter configuration.
+    ///
+    /// [spatial queries]: crate::spatial_query
     pub fn test(&self, entity: Entity, layers: CollisionLayers) -> bool {
         !self.excluded_entities.contains(&entity)
             && CollisionLayers::new(LayerMask::ALL, self.mask)
