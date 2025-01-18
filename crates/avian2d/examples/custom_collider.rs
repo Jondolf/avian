@@ -74,6 +74,9 @@ impl AnyCollider for CircleCollider {
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
+        _entity1: Entity,
+        _entity2: Entity,
+        _context: &Self::Context,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
         let rotation1: Rotation = rotation1.into();

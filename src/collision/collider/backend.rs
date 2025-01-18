@@ -157,9 +157,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 .unwrap()
                 .set_scale(scale.adjust_precision(), 10);
 
-            let mut entity_ref = world.entity_mut(entity);
+            let entity_ref = world.entity(entity);
             let collider = entity_ref.get::<C>().unwrap();
 
+            // Compute the AABB of the collider.
+            // TODO: This doesn't have the correct position.
             let aabb = {
                 let mut context_state = {
                     let cell = world.as_unsafe_world_cell_readonly();
@@ -196,12 +198,15 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 collider.mass_properties(density.0)
             };
 
-            if let Some(mut collider_aabb) = entity_ref.get_mut::<ColliderAabb>() {
+            // Update the collider's AABB and mass properties.
+            let mut entity_mut = world.entity_mut(entity);
+
+            if let Some(mut collider_aabb) = entity_mut.get_mut::<ColliderAabb>() {
                 *collider_aabb = aabb;
             }
 
             if let Some(mut collider_mass_properties) =
-                entity_ref.get_mut::<ColliderMassProperties>()
+                entity_mut.get_mut::<ColliderMassProperties>()
             {
                 *collider_mass_properties = ColliderMassProperties::from(mass_properties);
             }
