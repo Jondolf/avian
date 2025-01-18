@@ -193,15 +193,21 @@ fn integrate_velocities(
                 .locked_axes
                 .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-            // Apply damping
+            // Apply damping.
+            //
+            // This is using the first-order Taylor approximation of the exponential decay function.
+            // It is used over the Padé approximation to avoid a division.
+            //
+            // The approximation was tested to be very accurate at reasonable time steps.
+            // See https://github.com/Jondolf/avian/pull/633.
             if let Some(lin_damping) = body.lin_damping {
                 if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
-                    body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                    body.lin_vel.0 *= 1.0 - delta_secs * lin_damping.0;
                 }
             }
             if let Some(ang_damping) = body.ang_damping {
                 if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                    body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+                    body.ang_vel.0 *= 1.0 - delta_secs * ang_damping.0;
                 }
             }
 
