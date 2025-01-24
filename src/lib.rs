@@ -152,8 +152,7 @@
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
-//! - [Accessing collision data](Collisions)
-//! - [Filtering and modifying contacts with hooks](CollisionHooks)
+//! - [Accessing, filtering and modifying collisions](Collisions)
 //! - [Manual contact queries](contact_query)
 //! - [Temporarily disabling a collider](ColliderDisabled)
 //!
@@ -509,7 +508,6 @@ pub mod prelude {
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
             },
-            hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
@@ -537,7 +535,7 @@ mod tests;
 
 use bevy::{
     app::PluginGroupBuilder,
-    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemParamItem},
+    ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
 #[allow(unused_imports)]
@@ -707,20 +705,6 @@ impl PhysicsPlugins {
         }
     }
 
-    /// Adds the given [`CollisionHooks`] for user-defined contact filtering and modification.
-    ///
-    /// Returns a [`PhysicsPluginsWithHooks`] plugin group, which wraps the original [`PhysicsPlugins`],
-    /// and applies the provided hooks. Only one set of collision hooks can be defined per application.
-    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPluginsWithHooks<H>
-    where
-        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-    {
-        PhysicsPluginsWithHooks::<H> {
-            plugins: self,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
     /// Sets the value used for the [`PhysicsLengthUnit`], a units-per-meter scaling factor
     /// that adjusts the engine's internal properties to the scale of the world.
     ///
@@ -785,7 +769,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(NarrowPhasePlugin::<Collider>::default());
 
         builder
-            .add(BroadPhasePlugin::<()>::default())
+            .add(BroadPhasePlugin)
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
@@ -795,68 +779,5 @@ impl PluginGroup for PhysicsPlugins {
             .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())
-    }
-}
-
-// This type is separate from `PhysicsPlugins` to avoid requiring users to use generics
-// like `PhysicsPlugins::<()>::default()` unless they actually want to use collision hooks.
-/// A [`PhysicsPlugins`] plugin group with [`CollisionHooks`] specified.
-pub struct PhysicsPluginsWithHooks<H: CollisionHooks> {
-    plugins: PhysicsPlugins,
-    _phantom: std::marker::PhantomData<H>,
-}
-
-impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
-    /// Creates a new [`PhysicsPluginsWithHooks`] plugin group using the given [`CollisionHooks`]
-    /// and schedule for running the [`PhysicsSchedule`].
-    ///
-    /// The default schedule is [`FixedPostUpdate`].
-    pub fn new(schedule: impl ScheduleLabel) -> Self {
-        Self {
-            plugins: PhysicsPlugins::new(schedule),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-
-    /// Sets the value used for the [`PhysicsLengthUnit`], a units-per-meter scaling factor
-    /// that adjusts the engine's internal properties to the scale of the world.
-    ///
-    /// See [`PhysicsPlugins::with_length_unit`] for more information.
-    pub fn with_length_unit(mut self, unit: Scalar) -> Self {
-        self.plugins.length_unit = unit;
-        self
-    }
-}
-
-impl<H: CollisionHooks> Default for PhysicsPluginsWithHooks<H> {
-    fn default() -> Self {
-        Self {
-            plugins: PhysicsPlugins::default(),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPluginsWithHooks<H>
-where
-    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-{
-    fn build(self) -> PluginGroupBuilder {
-        // Replace the default collision hooks with the user-defined ones.
-        let builder = self
-            .plugins
-            .build()
-            .disable::<BroadPhasePlugin>()
-            .add(BroadPhasePlugin::<H>::default());
-
-        #[cfg(all(
-            feature = "default-collider",
-            any(feature = "parry-f32", feature = "parry-f64")
-        ))]
-        let builder = builder
-            .disable::<NarrowPhasePlugin<Collider>>()
-            .add(NarrowPhasePlugin::<Collider, H>::default());
-
-        builder
     }
 }

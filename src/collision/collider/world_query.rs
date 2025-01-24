@@ -23,7 +23,6 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,
-    pub active_hooks: Option<&'static ActiveCollisionHooks>,
 }
 
 impl<C: AnyCollider> ColliderQueryItem<'_, C> {
@@ -35,11 +34,5 @@ impl<C: AnyCollider> ColliderQueryItem<'_, C> {
                 .accumulated_translation
                 .as_ref()
                 .map_or_else(default, |t| t.0)
-    }
-
-    /// Returns the [`ActiveCollisionHooks`] for the collider.
-    pub fn active_hooks(&self) -> ActiveCollisionHooks {
-        self.active_hooks
-            .map_or(ActiveCollisionHooks::empty(), |h| *h)
     }
 }

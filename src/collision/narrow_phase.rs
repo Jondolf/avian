@@ -16,7 +16,7 @@ use bevy::{
     ecs::{
         intern::Interned,
         schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
-        system::{StaticSystemParam, SystemParam, SystemParamItem},
+        system::SystemParam,
     },
     prelude::*,
 };
@@ -33,17 +33,17 @@ use bevy::{
 /// The plugin takes a collider type. This should be [`Collider`] for
 /// the vast majority of applications, but for custom collisión backends
 /// you may use any collider that implements the [`AnyCollider`] trait.
-pub struct NarrowPhasePlugin<C: AnyCollider, H: CollisionHooks = ()> {
+pub struct NarrowPhasePlugin<C: AnyCollider> {
     schedule: Interned<dyn ScheduleLabel>,
     /// If `true`, the narrow phase will generate [`ContactConstraint`]s
     /// and add them to the [`ContactConstraints`] resource.
     ///
     /// Contact constraints are used by the [`SolverPlugin`] for solving contacts.
     generate_constraints: bool,
-    _phantom: PhantomData<(C, H)>,
+    _phantom: PhantomData<C>,
 }
 
-impl<C: AnyCollider, H: CollisionHooks> NarrowPhasePlugin<C, H> {
+impl<C: AnyCollider> NarrowPhasePlugin<C> {
     /// Creates a [`NarrowPhasePlugin`] with the schedule used for running its systems
     /// and whether it should generate [`ContactConstraint`]s for the [`ContactConstraints`] resource.
     ///
@@ -59,16 +59,13 @@ impl<C: AnyCollider, H: CollisionHooks> NarrowPhasePlugin<C, H> {
     }
 }
 
-impl<C: AnyCollider, H: CollisionHooks> Default for NarrowPhasePlugin<C, H> {
+impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
     fn default() -> Self {
         Self::new(PhysicsSchedule, true)
     }
 }
 
-impl<C: AnyCollider, H: CollisionHooks + 'static> Plugin for NarrowPhasePlugin<C, H>
-where
-    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-{
+impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
     fn build(&self, app: &mut App) {
         // For some systems, we only want one instance, even if there are multiple
         // NarrowPhasePlugin instances with different collider types.
@@ -132,7 +129,7 @@ where
         // Collect contacts into `Collisions`.
         app.add_systems(
             self.schedule,
-            collect_collisions::<C, H>
+            collect_collisions::<C>
                 .in_set(NarrowPhaseSet::CollectCollisions)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
@@ -253,22 +250,12 @@ pub enum NarrowPhaseSet {
     Last,
 }
 
-fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
+fn collect_collisions<C: AnyCollider>(
     mut narrow_phase: NarrowPhase<C>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
-    hooks: StaticSystemParam<H>,
-    #[cfg(not(feature = "parallel"))] commands: Commands,
-    #[cfg(feature = "parallel")] commands: ParallelCommands,
-) where
-    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-{
-    narrow_phase.update::<H>(
-        &broad_collision_pairs,
-        time.delta_seconds_adjusted(),
-        &hooks.into_inner(),
-        commands,
-    );
+) {
+    narrow_phase.update(&broad_collision_pairs, time.delta_seconds_adjusted());
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -402,16 +389,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
-    fn update<H: CollisionHooks + 'static>(
-        &mut self,
-        broad_collision_pairs: &[(Entity, Entity)],
-        delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
-        #[cfg(not(feature = "parallel"))] mut commands: Commands,
-        #[cfg(feature = "parallel")] par_commands: ParallelCommands,
-    ) where
-        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-    {
+    fn update(&mut self, broad_collision_pairs: &[(Entity, Entity)], delta_secs: Scalar) {
         // TODO: These scaled versions could be in their own resource
         //       and updated just before physics every frame.
         // Cache default margins scaled by the length unit.
@@ -431,19 +409,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                     // Compute contacts for this intersection pair and generate
                     // contact constraints for them.
-                    par_commands.command_scope(|mut commands| {
-                        for &(entity1, entity2) in chunks {
-                            if let Some(contacts) = self.handle_entity_pair::<H>(
-                                entity1,
-                                entity2,
-                                delta_secs,
-                                hooks,
-                                &mut commands,
-                            ) {
-                                new_collisions.push(contacts);
-                            }
+                    for &(entity1, entity2) in chunks {
+                        if let Some(contacts) =
+                            self.handle_entity_pair(entity1, entity2, delta_secs)
+                        {
+                            new_collisions.push(contacts);
                         }
-                    });
+                    }
 
                     new_collisions
                 })
@@ -458,9 +430,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
-                {
+                if let Some(contacts) = self.handle_entity_pair::<H>(entity1, entity2, delta_secs) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -471,17 +441,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// or expected to start intersecting within the next frame. This includes
     /// [speculative collision](dynamics::ccd#speculative-collision).
     #[allow(clippy::too_many_arguments)]
-    pub fn handle_entity_pair<H: CollisionHooks>(
+    pub fn handle_entity_pair(
         &self,
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
-        commands: &mut Commands,
-    ) -> Option<Contacts>
-    where
-        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-    {
+    ) -> Option<Contacts> {
         let Ok([collider1, collider2]) = self.collider_query.get_many([entity1, entity2]) else {
             return None;
         };
@@ -576,13 +541,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let max_contact_distance =
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
-        self.compute_contact_pair::<H>(
-            &collider1,
-            &collider2,
-            max_contact_distance,
-            hooks,
-            commands,
-        )
+        self.compute_contact_pair(&collider1, &collider2, max_contact_distance)
     }
 
     /// Computes contacts between `collider1` and `collider2`.
@@ -592,17 +551,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// to be detected. A value greater than zero means that contacts are generated
     /// based on the closest points even if the shapes are separated.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub fn compute_contact_pair<H: CollisionHooks>(
+    pub fn compute_contact_pair(
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         max_distance: Scalar,
-        hooks: &H::Item<'_, '_>,
-        commands: &mut Commands,
-    ) -> Option<Contacts>
-    where
-        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-    {
+    ) -> Option<Contacts> {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
 
@@ -648,14 +602,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             total_normal_impulse: 0.0,
             total_tangent_impulse: default(),
         };
-
-        let active_hooks = collider1.active_hooks().union(collider2.active_hooks());
-        if active_hooks.contains(ActiveCollisionHooks::MODIFY_CONTACTS) {
-            let keep_contacts = hooks.modify_contacts(&mut contacts, commands);
-            if !keep_contacts {
-                return None;
-            }
-        }
 
         if contacts.manifolds.is_empty() {
             return None;
