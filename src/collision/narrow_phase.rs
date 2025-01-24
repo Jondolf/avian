@@ -430,7 +430,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) = self.handle_entity_pair::<H>(entity1, entity2, delta_secs) {
+                if let Some(contacts) = self.handle_entity_pair(entity1, entity2, delta_secs) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
