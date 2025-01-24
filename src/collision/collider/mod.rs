@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
-        system::{ReadOnlySystemParam, SystemParam},
+        system::{ReadOnlySystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
     utils::HashSet,
@@ -110,20 +110,22 @@ pub trait AnyCollider: Component + ComputeMassProperties {
     type Context: for<'w, 's> ReadOnlySystemParam<Item<'w, 's>: Send + Sync>;
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
-    /// with the given position and rotation.
+    /// with the given position and rotation, and an [`AabbContext`]
+    /// for context-sensitive behavior and ECS access.
     #[cfg_attr(
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn aabb(
+    fn aabb_with_context(
         &self,
         position: Vector,
         rotation: impl Into<Rotation>,
-        entity: Entity,
-        context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        context: &AabbContext<Self::Context>,
     ) -> ColliderAabb;
 
-    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider,
+    /// with a [`AabbContext`] for context-sensitive behavior and ECS access.
+    ///
     /// This corresponds to the space the shape would occupy if it moved from the given
     /// start position to the given end position.
     #[cfg_attr(
@@ -136,29 +138,74 @@ pub trait AnyCollider: Component + ComputeMassProperties {
         start_rotation: impl Into<Rotation>,
         end_position: Vector,
         end_rotation: impl Into<Rotation>,
-        entity: Entity,
-        context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        context: &AabbContext<Self::Context>,
     ) -> ColliderAabb {
-        self.aabb(start_position, start_rotation, entity, context)
-            .merged(self.aabb(end_position, end_rotation, entity, context))
+        self.aabb_with_context(start_position, start_rotation, context)
+            .merged(self.aabb_with_context(end_position, end_rotation, context))
     }
 
-    /// Computes all [`ContactManifold`]s between two colliders.
+    /// Computes all [`ContactManifold`]s between two colliders, with a [`ContactManifoldContext`]
+    /// for context-sensitive behavior and ECS access.
     ///
     /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
     /// or if the given shapes are invalid.
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
+        prediction_distance: Scalar,
+        context: &ContactManifoldContext<Self::Context>,
+    ) -> Vec<ContactManifold>;
+}
+
+#[derive(Deref)]
+pub struct AabbContext<'a, 'w, 's, T: ReadOnlySystemParam> {
+    entity: Entity,
+    #[deref]
+    item: &'a SystemParamItem<'w, 's, T>,
+}
+
+impl<'a, 'w, 's, T: ReadOnlySystemParam> AabbContext<'a, 'w, 's, T> {
+    pub fn new(entity: Entity, item: &'a <T as SystemParam>::Item<'w, 's>) -> Self {
+        Self { entity, item }
+    }
+
+    pub fn entity(&self) -> Entity {
+        self.entity
+    }
+}
+
+#[derive(Deref)]
+pub struct ContactManifoldContext<'a, 'w, 's, T: ReadOnlySystemParam> {
+    entity1: Entity,
+    entity2: Entity,
+    #[deref]
+    item: &'a SystemParamItem<'w, 's, T>,
+}
+
+impl<'a, 'w, 's, T: ReadOnlySystemParam> ContactManifoldContext<'a, 'w, 's, T> {
+    pub fn new(
         entity1: Entity,
         entity2: Entity,
-        context: &<Self::Context as SystemParam>::Item<'_, '_>,
-        prediction_distance: Scalar,
-    ) -> Vec<ContactManifold>;
+        item: &'a <T as SystemParam>::Item<'w, 's>,
+    ) -> Self {
+        Self {
+            entity1,
+            entity2,
+            item,
+        }
+    }
+
+    pub fn entity1(&self) -> Entity {
+        self.entity1
+    }
+
+    pub fn entity2(&self) -> Entity {
+        self.entity2
+    }
 }
 
 /// A trait for colliders that support scaling.

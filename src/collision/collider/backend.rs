@@ -16,6 +16,7 @@ use bevy::{
     },
     prelude::*,
 };
+use collider::AabbContext;
 use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
 
 /// A plugin for handling generic collider backend logic.
@@ -179,12 +180,18 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         type_name::<C::Context>()
                     )
                 });
-                let context = context_state.0.get(&world);
+
+                let collider_context = context_state.0.get(&world);
+                let aabb_context = AabbContext::new(entity, &collider_context);
 
                 entity_ref
                     .get::<ColliderAabb>()
                     .copied()
-                    .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default(), entity, &context))
+                    .unwrap_or(collider.aabb_with_context(
+                        Vector::ZERO,
+                        Rotation::default(),
+                        &aabb_context,
+                    ))
             };
 
             let density = entity_ref
@@ -570,7 +577,7 @@ fn update_aabb<C: AnyCollider>(
     narrow_phase_config: Res<NarrowPhaseConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
-    context: StaticSystemParam<'_, '_, C::Context>,
+    collider_context: StaticSystemParam<'_, '_, C::Context>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
     let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
@@ -590,6 +597,8 @@ fn update_aabb<C: AnyCollider>(
         ang_vel,
     ) in &mut colliders
     {
+        let context = AabbContext::new(entity, &*collider_context);
+
         let collision_margin = collision_margin.map_or(0.0, |margin| margin.0);
         let speculative_margin = if has_swept_ccd {
             Scalar::MAX
@@ -599,7 +608,7 @@ fn update_aabb<C: AnyCollider>(
 
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .aabb(pos.0, *rot, entity, &context)
+                .aabb_with_context(pos.0, *rot, &context)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -655,7 +664,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, entity, &context)
+            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, &context)
             .grow(Vector::splat(collision_margin));
     }
 }

@@ -610,16 +610,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let manifolds = collider1.shape.contact_manifolds(
+        let manifolds = collider1.shape.contact_manifolds_with_context(
             collider2.shape,
             position1,
             *collider1.rotation,
             position2,
             *collider2.rotation,
-            collider1.entity,
-            collider2.entity,
-            &self.context,
             max_distance,
+            &ContactManifoldContext::new(collider1.entity, collider2.entity, &*self.context),
         );
 
         if manifolds.is_empty() {

@@ -3,7 +3,8 @@
 use crate::{make_isometry, prelude::*};
 #[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-use bevy::{ecs::system::SystemParam, log, prelude::*};
+use bevy::{log, prelude::*};
+use collider::AabbContext;
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::shape::{RoundShape, SharedShape, TypedShape};
@@ -387,39 +388,29 @@ impl Default for Collider {
 impl AnyCollider for Collider {
     type Context = ();
 
-    fn aabb(
+    fn aabb_with_context(
         &self,
         position: Vector,
         rotation: impl Into<Rotation>,
-        _entity: Entity,
-        _context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        _context: &AabbContext<Self::Context>,
     ) -> ColliderAabb {
-        let aabb = self
-            .shape_scaled()
-            .compute_aabb(&make_isometry(position, rotation));
-        ColliderAabb {
-            min: aabb.mins.into(),
-            max: aabb.maxs.into(),
-        }
+        self.aabb(position, rotation)
     }
 
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
-        _entity1: Entity,
-        _entity2: Entity,
-        _context: &<Self::Context as SystemParam>::Item<'_, '_>,
         prediction_distance: Scalar,
+        _context: &ContactManifoldContext<Self::Context>,
     ) -> Vec<ContactManifold> {
-        contact_query::contact_manifolds(
-            self,
+        self.contact_manifolds(
+            other,
             position1,
             rotation1,
-            other,
             position2,
             rotation2,
             prediction_distance,
@@ -571,6 +562,65 @@ impl Collider {
         } else {
             log::error!("Failed to create convex hull for scaled collider.");
         }
+    }
+
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
+    /// with the given position and rotation.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    pub fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
+        let aabb = self
+            .shape_scaled()
+            .compute_aabb(&make_isometry(position, rotation));
+        ColliderAabb {
+            min: aabb.mins.into(),
+            max: aabb.maxs.into(),
+        }
+    }
+
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    ///
+    /// This corresponds to the space the shape would occupy if it moved from the given
+    /// start position to the given end position.
+    #[cfg_attr(
+        feature = "2d",
+        doc = "\n\nThe rotation is counterclockwise and in radians."
+    )]
+    pub fn swept_aabb(
+        &self,
+        start_position: Vector,
+        start_rotation: impl Into<Rotation>,
+        end_position: Vector,
+        end_rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
+        self.aabb(start_position, start_rotation)
+            .merged(self.aabb(end_position, end_rotation))
+    }
+
+    /// Computes all [`ContactManifold`]s between two colliders.
+    ///
+    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// or if the given shapes are invalid.
+    pub fn contact_manifolds(
+        &self,
+        other: &Self,
+        position1: Vector,
+        rotation1: impl Into<Rotation>,
+        position2: Vector,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: Scalar,
+    ) -> Vec<ContactManifold> {
+        contact_query::contact_manifolds(
+            self,
+            position1,
+            rotation1,
+            other,
+            position2,
+            rotation2,
+            prediction_distance,
+        )
     }
 
     /// Projects the given `point` onto `self` transformed by `translation` and `rotation`.
