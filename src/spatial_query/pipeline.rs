@@ -186,7 +186,7 @@ impl SpatialQueryPipeline {
     /// - `max_distance`: The maximum distance the ray can travel.
     /// - `solid`: If true *and* the ray origin is inside of a collider, the hit point will be the ray origin itself.
     ///   Otherwise, the collider will be treated as hollow, and the hit point will be at its boundary.
-    /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `false`.
+    /// - `predicate`: A function called on each entity hit by the ray. The ray keeps travelling until the predicate returns `true`.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     ///
     /// # Related Methods
@@ -370,7 +370,7 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `config`: A [`ShapeCastConfig`] that determines the behavior of the cast.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
-    /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `false`.
+    /// - `predicate`: A function called on each entity hit by the shape. The shape keeps travelling until the predicate returns `true`.
     ///
     /// # Related Methods
     ///
@@ -592,7 +592,7 @@ impl SpatialQueryPipeline {
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
     ///     Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
-    /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider that passes the predicate.
+    /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider for which the `predicate` returns `true`
     ///
     /// # Related Methods
     ///
