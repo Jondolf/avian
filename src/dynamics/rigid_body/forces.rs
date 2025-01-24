@@ -1,3 +1,6 @@
+//! Forces, torques, linear impulses, and angular impulses
+//! that can be applied to dynamic rigid bodies.
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
