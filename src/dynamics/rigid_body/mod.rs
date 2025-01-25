@@ -69,7 +69,7 @@ use derive_more::From;
 /// use bevy::prelude::*;
 ///
 /// fn move_bodies(mut query: Query<&mut Transform, With<RigidBody>>) {
-///     for mut transform in query.iter_mut() {
+///     for mut transform in &mut query {
 ///         transform.translation.x += 0.1;
 ///     }
 /// }
@@ -87,13 +87,26 @@ use derive_more::From;
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn accelerate_bodies(mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>) {
-///     for (mut linear_velocity, mut angular_velocity) in query.iter_mut() {
-///         linear_velocity.x += 0.05;
-#[cfg_attr(feature = "2d", doc = "        angular_velocity.0 += 0.05;")]
-#[cfg_attr(feature = "3d", doc = "        angular_velocity.z += 0.05;")]
+/// # #[cfg(feature = "f32")]
+/// fn accelerate_bodies(
+///     mut query: Query<(&mut LinearVelocity, &mut AngularVelocity)>,
+///     time: Res<Time>,
+/// ) {
+///     let delta_secs = time.delta_secs();
+///     for (mut linear_velocity, mut angular_velocity) in &mut query {
+///         linear_velocity.x += 2.0 * delta_secs;
+#[cfg_attr(
+    feature = "2d",
+    doc = "        angular_velocity.0 += 0.5 * delta_secs;"
+)]
+#[cfg_attr(
+    feature = "3d",
+    doc = "        angular_velocity.z += 0.5 * delta_secs;"
+)]
 ///     }
 /// }
+/// # #[cfg(feature = "f64")]
+/// # fn main() {}
 /// ```
 ///
 /// For applying forces and impulses to dynamic bodies, see the [`ExternalForce`], [`ExternalTorque`],
@@ -397,6 +410,7 @@ pub struct TimeSleeping(pub Scalar);
 pub struct SleepingDisabled;
 
 /// Translation accumulated during the physics frame.
+/// Used primarily by solver internals.
 ///
 /// When updating position during integration or constraint solving, the required translation
 /// is added to [`AccumulatedTranslation`], instead of [`Position`]. This improves numerical stability
@@ -409,7 +423,7 @@ pub struct SleepingDisabled;
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct AccumulatedTranslation(pub Vector);
 
-/// The linear velocity of a [rigid body](RigidBody).
+/// The linear velocity of a [rigid body](RigidBody), typically in meters per second.
 ///
 /// # Example
 ///
@@ -418,15 +432,21 @@ pub struct AccumulatedTranslation(pub Vector);
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn accelerate_bodies(mut query: Query<&mut LinearVelocity>) {
-///     for mut linear_velocity in query.iter_mut() {
-///         linear_velocity.x += 0.05;
+/// # #[cfg(feature = "f32")]
+/// fn accelerate_linear(mut query: Query<&mut LinearVelocity>, time: Res<Time>) {
+///     let delta_secs = time.delta_secs();
+///     for mut linear_velocity in &mut query {
+///         // Accelerate the entity towards +X at `2.0` units per second squared.
+///         linear_velocity.x += 2.0 * delta_secs;
 ///     }
 /// }
+/// # #[cfg(feature = "f64")]
+/// # fn main() {}
 /// ```
 ///
 /// # Related Components
 ///
+/// - [`AngularVelocity`]: The angular velocity of a body.
 /// - [`ExternalForce`]: Applies a force to a dynamic body.
 /// - [`LinearDamping`]: Reduces the linear velocity of a body over time, similar to air resistance.
 /// - [`MaxLinearSpeed`]: Clamps the linear velocity of a body.
@@ -441,7 +461,8 @@ impl LinearVelocity {
     pub const ZERO: LinearVelocity = LinearVelocity(Vector::ZERO);
 }
 
-/// The maximum linear speed of a [rigid body](RigidBody), clamping the [`LinearVelocity`].
+/// The maximum linear speed of a [rigid body](RigidBody), clamping the [`LinearVelocity`],
+/// typically in meters per second.
 ///
 /// This can be useful for limiting how fast bodies can move, and can help control behavior and prevent instability.
 ///
@@ -470,7 +491,8 @@ impl Default for MaxLinearSpeed {
     }
 }
 
-/// The maximum angular speed of a [rigid body](RigidBody), clamping the [`AngularVelocity`].
+/// The maximum angular speed of a [rigid body](RigidBody), clamping the [`AngularVelocity`],
+/// in radians per second.
 ///
 /// This can be useful for limiting how fast bodies can rotate, and can help control behavior and prevent instability.
 ///
@@ -513,15 +535,21 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 /// use avian2d::prelude::*;
 /// use bevy::prelude::*;
 ///
-/// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
-///     for mut angular_velocity in query.iter_mut() {
-///         angular_velocity.0 += 0.05;
+/// # #[cfg(feature = "f32")]
+/// fn accelerate_angular(mut query: Query<&mut AngularVelocity>, time: Res<Time>) {
+///     let delta_secs = time.delta_secs();
+///     for mut angular_velocity in &mut query {
+///         // Accelerate counterclockwise rotation by `0.5` radians per second squared.
+///         angular_velocity.0 += 0.5 * delta_secs;
 ///     }
 /// }
+/// # #[cfg(feature = "f64")]
+/// # fn main() {}
 /// ```
 ///
 /// # Related Components
 ///
+/// - [`LinearVelocity`]: The linear velocity of a body.
 /// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
@@ -532,7 +560,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularVelocity(pub Scalar);
 
-/// The angular velocity of a [rigid body](RigidBody) as a rotation axis
+/// The angular velocity of a [rigid body](RigidBody), represented as a rotation axis
 /// multiplied by the angular speed in radians per second.
 ///
 /// # Example
@@ -541,15 +569,21 @@ pub struct AngularVelocity(pub Scalar);
 /// use avian3d::prelude::*;
 /// use bevy::prelude::*;
 ///
-/// fn increase_angular_velocities(mut query: Query<&mut AngularVelocity>) {
-///     for mut angular_velocity in query.iter_mut() {
-///         angular_velocity.z += 0.05;
+/// # #[cfg(feature = "f32")]
+/// fn accelerate_angular(mut query: Query<&mut AngularVelocity>, time: Res<Time>) {
+///     let delta_secs = time.delta_secs();
+///     for mut angular_velocity in &mut query {
+///         // Accelerate rotation about the Z axis by `0.5` radians per second squared.
+///         angular_velocity.z += 0.5 * delta_secs;
 ///     }
 /// }
+/// # #[cfg(feature = "f64")]
+/// # fn main() {}
 /// ```
 ///
 /// # Related Components
 ///
+/// - [`LinearVelocity`]: The linear velocity of a body.
 /// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
