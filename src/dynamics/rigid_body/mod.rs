@@ -539,7 +539,7 @@ pub(crate) struct PreSolveLinearVelocity(pub Vector);
 /// fn accelerate_angular(mut query: Query<&mut AngularVelocity>, time: Res<Time>) {
 ///     let delta_secs = time.delta_secs();
 ///     for mut angular_velocity in &mut query {
-///         // Accelerate counterclockwise rotation by `0.5` radians per second squared.
+///         // Accelerate rotation counterclockwise at `0.5` radians per second squared.
 ///         angular_velocity.0 += 0.5 * delta_secs;
 ///     }
 /// }
@@ -573,7 +573,7 @@ pub struct AngularVelocity(pub Scalar);
 /// fn accelerate_angular(mut query: Query<&mut AngularVelocity>, time: Res<Time>) {
 ///     let delta_secs = time.delta_secs();
 ///     for mut angular_velocity in &mut query {
-///         // Accelerate rotation about the Z axis by `0.5` radians per second squared.
+///         // Accelerate rotation about the Z axis at `0.5` radians per second squared.
 ///         angular_velocity.z += 0.5 * delta_secs;
 ///     }
 /// }
