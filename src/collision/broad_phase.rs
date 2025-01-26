@@ -169,8 +169,8 @@ fn add_new_aabb_intervals(
                 *aabb,
                 // Default to treating collider as immovable/static for filtering unnecessary collision checks
                 layers.map_or(CollisionLayers::default(), |layers| *layers),
-                rb.is_some_and(|rb| rb.is_static()),
                 store_intersections,
+                rb.is_some_and(|rb| rb.is_static()),
             )
         },
     );
