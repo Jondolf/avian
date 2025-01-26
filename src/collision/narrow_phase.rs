@@ -796,6 +796,8 @@ pub fn reset_collision_states(
                 contacts.during_current_frame = true;
             }
         } else {
+            // One of the entities does not exist, so the collision has ended.
+            contacts.during_previous_frame = true;
             contacts.during_current_frame = false;
         }
     }
