@@ -3,6 +3,8 @@
 //! By default, the [`PhysicsPickingPlugin`] will test intersections with the pointer against all colliders.
 //! If you want physics picking to be opt-in, you can set [`PhysicsPickingSettings::require_markers`] to `true`
 //! and add a [`PhysicsPickable`] component to the desired camera and target entities.
+//!
+//! Cameras can further filter which entities are pickable with the [`PhysicsPickingFilter`] component.
 
 use std::f32::consts::PI;
 
@@ -91,6 +93,7 @@ fn setup_scene(
                 )
                 .with_rotation(Quat::from_rotation_x(-PI / 4.)),
                 Shape,
+                CollisionLayers::new(0b0010, 0b0000),
             ))
             .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
             .observe(update_material_on::<Pointer<Out>>(white_matl.clone()))

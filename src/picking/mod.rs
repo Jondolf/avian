@@ -6,6 +6,8 @@
 //!
 //! To make physics picking entirely opt-in, set [`PhysicsPickingSettings::require_markers`]
 //! to `true` and add a [`PhysicsPickable`] component to the desired camera and target entities.
+//!
+//! Cameras can further filter which entities are pickable with the [`PhysicsPickingFilter`] component.
 #![cfg_attr(
     feature = "3d",
     doc = "
@@ -15,6 +17,7 @@ Note that in 3D, only the closest intersection will be reported."
 
 use crate::prelude::*;
 use bevy::{
+    ecs::entity::EntityHashSet,
     picking::{
         backend::{ray::RayMap, HitData, PointerHits},
         PickSet,
@@ -33,7 +36,7 @@ impl Plugin for PhysicsPickingPlugin {
             .register_type::<(
                 PhysicsPickingSettings,
                 PhysicsPickable,
-                PhysicsPickingLayers,
+                PhysicsPickingFilter,
             )>();
     }
 }
@@ -42,7 +45,7 @@ impl Plugin for PhysicsPickingPlugin {
 #[derive(Resource, Default, Reflect)]
 #[reflect(Resource, Default)]
 pub struct PhysicsPickingSettings {
-    /// When set to `true` picking will only happen between cameras and entities marked with
+    /// When set to `true`, picking will only happen between cameras and entities marked with
     /// [`PhysicsPickable`]. `false` by default.
     ///
     /// This setting is provided to give you fine-grained control over which cameras and entities
@@ -56,23 +59,57 @@ pub struct PhysicsPickingSettings {
 #[reflect(Component, Default)]
 pub struct PhysicsPickable;
 
-/// An optional component on the camera that filters which entities the camera can pick.
-#[derive(Debug, Clone, Component, Reflect)]
-#[reflect(Component)]
-pub struct PhysicsPickingLayers(pub LayerMask);
+/// An optional component with a [`SpatialQueryFilter`] to determine
+/// which physics entities a camera considers for [physics picking](crate::picking).
+///
+/// If not present on a camera, picking will consider all colliders.
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[reflect(Component, Debug, Default)]
+pub struct PhysicsPickingFilter(pub SpatialQueryFilter);
 
-impl PhysicsPickingLayers {
-    /// Creates a new [`PhysicsPickingLayers`] with the given [`LayerMask`].
-    pub fn new(mask: impl Into<LayerMask>) -> Self {
-        Self(mask.into())
+impl PhysicsPickingFilter {
+    /// Creates a new [`PhysicsPickingFilter`] with the given [`LayerMask`] determining
+    /// which [collision layers] will be pickable.
+    ///
+    /// [collision layers]: CollisionLayers
+    /// [spatial query]: crate::spatial_query
+    pub fn from_mask(mask: impl Into<LayerMask>) -> Self {
+        Self(SpatialQueryFilter::from_mask(mask))
+    }
+
+    /// Creates a new [`PhysicsPickingFilter`] with the given entities excluded from physics picking.
+    ///
+    /// [spatial query]: crate::spatial_query
+    pub fn from_excluded_entities(entities: impl IntoIterator<Item = Entity>) -> Self {
+        Self(SpatialQueryFilter::from_excluded_entities(entities))
+    }
+
+    /// Sets the [`LayerMask`] of the filter configuration. Only colliders with the corresponding
+    /// [collision layer memberships] will be pickable.
+    ///
+    /// [collision layer memberships]: CollisionLayers
+    /// [spatial query]: crate::spatial_query
+    pub fn with_mask(mut self, masks: impl Into<LayerMask>) -> Self {
+        self.0.mask = masks.into();
+        self
+    }
+
+    /// Excludes the given entities from physics picking.
+    pub fn with_excluded_entities(mut self, entities: impl IntoIterator<Item = Entity>) -> Self {
+        self.0.excluded_entities = EntityHashSet::from_iter(entities);
+        self
     }
 }
+
+// Store a const reference to the default filter to avoid unnecessary allocations.
+const DEFAULT_FILTER_REF: &PhysicsPickingFilter =
+    &PhysicsPickingFilter(SpatialQueryFilter::DEFAULT);
 
 /// Queries for collider intersections with pointers using [`PhysicsPickingSettings`] and sends [`PointerHits`] events.
 pub fn update_hits(
     picking_cameras: Query<(
         &Camera,
-        Option<&PhysicsPickingLayers>,
+        Option<&PhysicsPickingFilter>,
         Option<&PhysicsPickable>,
     )>,
     ray_map: Res<RayMap>,
@@ -83,16 +120,15 @@ pub fn update_hits(
     mut output_events: EventWriter<PointerHits>,
 ) {
     for (&ray_id, &ray) in ray_map.map().iter() {
-        let Ok((camera, physics_layers, cam_pickable)) = picking_cameras.get(ray_id.camera) else {
+        let Ok((camera, picking_filter, cam_pickable)) = picking_cameras.get(ray_id.camera) else {
             continue;
         };
+
         if backend_settings.require_markers && cam_pickable.is_none() || !camera.is_active {
             continue;
         }
 
-        let filter = physics_layers
-            .map(|layers| SpatialQueryFilter::from_mask(layers.0))
-            .unwrap_or_default();
+        let filter = picking_filter.unwrap_or(DEFAULT_FILTER_REF);
 
         #[cfg(feature = "2d")]
         {
@@ -100,7 +136,7 @@ pub fn update_hits(
 
             spatial_query.point_intersections_callback(
                 ray.origin.truncate().adjust_precision(),
-                &filter,
+                &filter.0,
                 |entity| {
                     let marker_requirement =
                         !backend_settings.require_markers || marked_targets.get(entity).is_ok();
@@ -131,7 +167,7 @@ pub fn update_hits(
                     ray.direction,
                     Scalar::MAX,
                     true,
-                    &filter,
+                    &filter.0,
                     &|entity| {
                         let marker_requirement =
                             !backend_settings.require_markers || marked_targets.get(entity).is_ok();
