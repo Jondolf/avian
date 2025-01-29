@@ -93,7 +93,6 @@ fn setup_scene(
                 )
                 .with_rotation(Quat::from_rotation_x(-PI / 4.)),
                 Shape,
-                CollisionLayers::new(0b0010, 0b0000),
             ))
             .observe(update_material_on::<Pointer<Over>>(hover_matl.clone()))
             .observe(update_material_on::<Pointer<Out>>(white_matl.clone()))
