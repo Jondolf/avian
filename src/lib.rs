@@ -498,7 +498,9 @@ pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
     #[cfg(feature = "bevy_picking")]
-    pub use crate::picking::{PhysicsPickable, PhysicsPickingPlugin, PhysicsPickingSettings};
+    pub use crate::picking::{
+        PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
+    };
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
     pub use crate::{
