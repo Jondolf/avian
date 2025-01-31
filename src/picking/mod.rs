@@ -17,7 +17,7 @@ Note that in 3D, only the closest intersection will be reported."
 
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::EntityHashSet,
+    ecs::entity::hash_set::EntityHashSet,
     picking::{
         backend::{ray::RayMap, HitData, PointerHits},
         PickSet,
@@ -113,7 +113,7 @@ pub fn update_hits(
         Option<&PhysicsPickable>,
     )>,
     ray_map: Res<RayMap>,
-    pickables: Query<&PickingBehavior>,
+    pickables: Query<&Pickable>,
     marked_targets: Query<&PhysicsPickable>,
     backend_settings: Res<PhysicsPickingSettings>,
     spatial_query: SpatialQuery,
@@ -143,7 +143,7 @@ pub fn update_hits(
 
                     let is_pickable = pickables
                         .get(entity)
-                        .map(|p| *p != PickingBehavior::IGNORE)
+                        .map(|p| *p != Pickable::IGNORE)
                         .unwrap_or(true);
 
                     if marker_requirement && is_pickable {
@@ -174,7 +174,7 @@ pub fn update_hits(
 
                         let is_pickable = pickables
                             .get(entity)
-                            .map(|p| *p != PickingBehavior::IGNORE)
+                            .map(|p| *p != Pickable::IGNORE)
                             .unwrap_or(true);
 
                         marker_requirement && is_pickable

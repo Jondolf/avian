@@ -1,6 +1,5 @@
 use crate::prelude::*;
-use bevy::prelude::*;
-use bevy::utils::HashMap;
+use bevy::{platform_support::collections::HashMap, prelude::*};
 
 /// A component that will automatically generate [`Collider`]s on its descendants at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
@@ -736,7 +735,6 @@ mod tests {
             AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             ScenePlugin,
-            HierarchyPlugin,
             PhysicsPlugins::default(),
         ))
         .init_resource::<Assets<Mesh>>();

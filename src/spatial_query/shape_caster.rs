@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::ComponentId,
+        component::HookContext,
         entity::{EntityMapper, MapEntities},
         world::DeferredWorld,
     },
@@ -408,8 +408,8 @@ impl ShapeCaster {
     }
 }
 
-fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
-    let shape_caster = world.get::<ShapeCaster>(entity).unwrap();
+fn on_add_shape_caster(mut world: DeferredWorld, ctx: HookContext) {
+    let shape_caster = world.get::<ShapeCaster>(ctx.entity).unwrap();
     let max_hits = if shape_caster.max_hits == u32::MAX {
         10
     } else {
@@ -417,7 +417,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
     };
 
     // Initialize capacity for hits
-    world.get_mut::<ShapeHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
+    world.get_mut::<ShapeHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Configuration for a shape cast.

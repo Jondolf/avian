@@ -12,7 +12,7 @@ pub struct ExampleCommonPlugin;
 impl Plugin for ExampleCommonPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            FrameTimeDiagnosticsPlugin,
+            FrameTimeDiagnosticsPlugin::default(),
             #[cfg(feature = "use-debug-plugin")]
             PhysicsDebugPlugin::default(),
         ))

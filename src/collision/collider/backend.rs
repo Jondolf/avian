@@ -100,9 +100,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
-        hooks.on_add(|mut world, entity, _| {
+        hooks.on_add(|mut world, ctx| {
             let existing_global_transform = world
-                .entity(entity)
+                .entity(ctx.entity)
                 .get::<GlobalTransform>()
                 .copied()
                 .unwrap_or_default();
@@ -120,12 +120,12 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 // the `Transform` component before the collider is initialized, which in turn means that it will
                 // always be initialized with the correct `GlobalTransform`.
                 let parent_global_transform = world
-                    .entity(entity)
-                    .get::<Parent>()
+                    .entity(ctx.entity)
+                    .get::<ChildOf>()
                     .and_then(|parent| world.entity(parent.get()).get::<GlobalTransform>().copied())
                     .unwrap_or_default();
                 let transform = world
-                    .entity(entity)
+                    .entity(ctx.entity)
                     .get::<Transform>()
                     .copied()
                     .unwrap_or_default();
@@ -140,12 +140,12 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             // This overwrites the scale set by the constructor, but that one is
             // meant to be only changed after initialization.
             world
-                .entity_mut(entity)
+                .entity_mut(ctx.entity)
                 .get_mut::<C>()
                 .unwrap()
                 .set_scale(scale.adjust_precision(), 10);
 
-            let mut entity_ref = world.entity_mut(entity);
+            let mut entity_ref = world.entity_mut(ctx.entity);
             let collider = entity_ref.get::<C>().unwrap();
 
             let aabb = entity_ref
@@ -178,13 +178,16 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // and updates rigid bodies when their collider is removed.
         app.world_mut()
             .register_component_hooks::<C>()
-            .on_remove(|mut world, entity, _| {
+            .on_remove(|mut world, ctx| {
                 // Remove the `ColliderMarker` associated with the collider.
                 // TODO: If the same entity had multiple *different* types of colliders, this would
                 //       get removed even if just one collider was removed. This is a very niche edge case though.
-                world.commands().entity(entity).remove::<ColliderMarker>();
+                world
+                    .commands()
+                    .entity(ctx.entity)
+                    .remove::<ColliderMarker>();
 
-                let entity_ref = world.entity_mut(entity);
+                let entity_ref = world.entity_mut(ctx.entity);
 
                 // Get the rigid body entity that the collider is attached to.
                 let Some(parent) = entity_ref.get::<ColliderParent>().copied() else {
@@ -193,11 +196,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
                 // Get the ID of the one-shot system run for collider removals.
                 let ColliderRemovalSystem(system_id) =
-                    world.resource::<ColliderRemovalSystem>().to_owned();
-                let system_id = *system_id;
+                    *world.resource::<ColliderRemovalSystem>().to_owned();
 
                 // Handle collider removal.
-                world.commands().run_system_with_input(system_id, parent);
+                world.commands().run_system_with(system_id, parent);
             });
 
         // When the `Sensor` component is added to a collider, queue its rigid body for a mass property update.
@@ -205,7 +207,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             |trigger: Trigger<OnAdd, Sensor>,
              mut commands: Commands,
              query: Query<(&ColliderMassProperties, &ColliderParent)>| {
-                if let Ok((collider_mass_properties, parent)) = query.get(trigger.entity()) {
+                if let Ok((collider_mass_properties, parent)) = query.get(trigger.target()) {
                     // If the collider mass properties are zero, there is nothing to subtract.
                     if *collider_mass_properties == ColliderMassProperties::ZERO {
                         return;
@@ -228,7 +230,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 &mut ColliderMassProperties,
             )>| {
                 if let Ok((collider, density, mut collider_mass_properties)) =
-                    collider_query.get_mut(trigger.entity())
+                    collider_query.get_mut(trigger.target())
                 {
                     // Update collider mass props.
                     *collider_mass_properties =
@@ -624,9 +626,9 @@ fn update_aabb<C: AnyCollider>(
 pub fn update_collider_scale<C: ScalableCollider>(
     mut colliders: ParamSet<(
         // Root bodies
-        Query<(&Transform, &mut C), (Without<Parent>, Changed<Transform>)>,
+        Query<(&Transform, &mut C), (Without<ChildOf>, Changed<Transform>)>,
         // Child colliders
-        Query<(&ColliderTransform, &mut C), (With<Parent>, Changed<ColliderTransform>)>,
+        Query<(&ColliderTransform, &mut C), (With<ChildOf>, Changed<ColliderTransform>)>,
     )>,
     sync_config: Res<SyncConfig>,
 ) {
@@ -717,7 +719,6 @@ mod tests {
             MassPropertyPlugin::new(FixedPostUpdate),
             ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
             ColliderHierarchyPlugin::new(FixedPostUpdate),
-            HierarchyPlugin,
         ));
 
         let collider = Collider::capsule(0.5, 2.0);
@@ -735,7 +736,7 @@ mod tests {
         let child = app
             .world_mut()
             .spawn((collider, Transform::from_xyz(1.0, 0.0, 0.0)))
-            .set_parent(parent)
+            .insert(ChildOf(parent))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);

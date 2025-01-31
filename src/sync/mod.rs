@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::{prelude::*, prepare::PrepareSet};
+use crate::prelude::*;
 use ancestor_marker::{AncestorMarker, AncestorMarkerPlugin};
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -54,9 +54,6 @@ impl Default for SyncPlugin {
     }
 }
 
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct MarkRigidBodyAncestors;
-
 impl Plugin for SyncPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SyncConfig>()
@@ -78,15 +75,7 @@ impl Plugin for SyncPlugin {
         // Mark ancestors of colliders with `AncestorMarker<RigidBody>`.
         // This is used to speed up transform propagation by skipping
         // trees that have no rigid bodies.
-        app.add_plugins(
-            AncestorMarkerPlugin::<RigidBody>::new(self.schedule)
-                .add_markers_in_set(MarkRigidBodyAncestors),
-        );
-
-        app.configure_sets(
-            self.schedule,
-            MarkRigidBodyAncestors.in_set(PrepareSet::First),
-        );
+        app.add_plugins(AncestorMarkerPlugin::<RigidBody>::default());
 
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
         // between the end of the previous physics frame and the start of this physics frame.
@@ -251,7 +240,7 @@ type PosToTransformComponents = (
     &'static mut Transform,
     &'static Position,
     &'static Rotation,
-    Option<&'static Parent>,
+    Option<&'static ChildOf>,
 );
 
 type PosToTransformFilter = (With<RigidBody>, Or<(Changed<Position>, Changed<Rotation>)>);
@@ -369,7 +358,7 @@ pub fn sync_simple_transforms_physics(
             (&Transform, &mut GlobalTransform),
             (
                 Or<(Changed<Transform>, Added<GlobalTransform>)>,
-                Without<Parent>,
+                Without<ChildOf>,
                 Or<(
                     Without<AncestorMarker<RigidBody>>,
                     Without<AncestorMarker<ColliderMarker>>,
@@ -380,7 +369,7 @@ pub fn sync_simple_transforms_physics(
         Query<
             (Ref<Transform>, &mut GlobalTransform),
             (
-                Without<Parent>,
+                Without<ChildOf>,
                 Or<(
                     Without<AncestorMarker<RigidBody>>,
                     Without<AncestorMarker<ColliderMarker>>,
@@ -389,7 +378,7 @@ pub fn sync_simple_transforms_physics(
             ),
         >,
     )>,
-    mut orphaned: RemovedComponents<Parent>,
+    mut orphaned: RemovedComponents<ChildOf>,
 ) {
     // Update changed entities.
     query
@@ -439,7 +428,7 @@ type TransformQueryData = (
 
 type ParentQueryData = (
     Entity,
-    Ref<'static, Parent>,
+    Ref<'static, ChildOf>,
     Has<RigidBody>,
     Has<ColliderMarker>,
 );
@@ -463,15 +452,15 @@ pub fn propagate_transforms_physics(
             Has<ColliderMarker>,
         ),
         (
-            Without<Parent>,
+            Without<ChildOf>,
             Or<(
                 With<AncestorMarker<RigidBody>>,
                 With<AncestorMarker<ColliderMarker>>,
             )>,
         ),
     >,
-    mut orphaned: RemovedComponents<Parent>,
-    transform_query: Query<TransformQueryData, With<Parent>>,
+    mut orphaned: RemovedComponents<ChildOf>,
+    transform_query: Query<TransformQueryData, With<ChildOf>>,
     // This is used if the entity has no physics entity ancestor.
     parent_query_1: Query<ParentQueryData>,
     // This is used if the entity is a physics entity with children *or* if any ancestor is a physics entity.
@@ -488,7 +477,7 @@ pub fn propagate_transforms_physics(
                 *global_transform = GlobalTransform::from(*transform);
             }
 
-            let handle = |(child, actual_parent, is_parent_rb, is_parent_collider): (Entity, Ref<Parent>, bool, bool)| {
+            let handle = |(child, actual_parent, is_parent_rb, is_parent_collider): (Entity, Ref<ChildOf>, bool, bool)| {
                 assert_eq!(
                     actual_parent.get(), entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
@@ -540,7 +529,7 @@ pub fn propagate_transforms_physics(
 #[allow(clippy::type_complexity)]
 unsafe fn propagate_transforms_physics_recursive(
     parent: &GlobalTransform,
-    transform_query: &Query<TransformQueryData, With<Parent>>,
+    transform_query: &Query<TransformQueryData, With<ChildOf>>,
     // This is used if the entity has no physics entity ancestor.
     parent_query_1: &Query<ParentQueryData>,
     // This is used if the entity is a physics entity with children *or* if any ancestor is a physics entity.
@@ -564,7 +553,7 @@ unsafe fn propagate_transforms_physics_recursive(
             //   \   /
             //     D
             //
-            // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
+            // D has two parents, B and C. If the propagation passes through C, but the ChildOf component on D points to B,
             // the above check will panic as the origin parent does match the recorded parent.
             //
             // Also consider the following case, where A and B are roots:

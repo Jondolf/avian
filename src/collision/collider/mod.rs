@@ -2,9 +2,11 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        component::Mutable,
+        entity::{hash_set::EntityHashSet, EntityMapper, MapEntities},
+    },
     prelude::*,
-    utils::HashSet,
 };
 use derive_more::From;
 
@@ -44,7 +46,7 @@ pub trait IntoCollider<C: AnyCollider> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component + ComputeMassProperties {
+pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
@@ -516,7 +518,7 @@ pub struct CollisionMargin(pub Scalar);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct CollidingEntities(pub HashSet<Entity>);
+pub struct CollidingEntities(pub EntityHashSet);
 
 impl MapEntities for CollidingEntities {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {

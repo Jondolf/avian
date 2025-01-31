@@ -146,7 +146,7 @@ pub fn init_transforms<C: Component>(
             Option<&Position>,
             Option<&Rotation>,
             Option<&PreviousRotation>,
-            Option<&Parent>,
+            Option<&ChildOf>,
             Has<RigidBody>,
         ),
         Added<C>,

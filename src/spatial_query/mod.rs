@@ -213,7 +213,7 @@ type RayCasterPositionQueryComponents = (
     &'static mut RayCaster,
     Option<&'static Position>,
     Option<&'static Rotation>,
-    Option<&'static Parent>,
+    Option<&'static ChildOf>,
     Option<&'static GlobalTransform>,
 );
 
@@ -281,7 +281,7 @@ type ShapeCasterPositionQueryComponents = (
     &'static mut ShapeCaster,
     Option<&'static Position>,
     Option<&'static Rotation>,
-    Option<&'static Parent>,
+    Option<&'static ChildOf>,
     Option<&'static GlobalTransform>,
 );
 

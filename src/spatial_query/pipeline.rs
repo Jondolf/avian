@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    ecs::entity::hash_map::EntityHashMap, platform_support::collections::HashMap, prelude::*,
+};
 use parry::{
     bounding_volume::Aabb,
     math::Isometry,
@@ -28,7 +30,7 @@ use parry::{
 pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
-    pub(crate) colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+    pub(crate) colliders: EntityHashMap<(Isometry<Scalar>, Collider, CollisionLayers)>,
     pub(crate) entity_generations: HashMap<u32, u32>,
 }
 
@@ -37,7 +39,7 @@ impl Default for SpatialQueryPipeline {
         Self {
             qbvh: Qbvh::new(),
             dispatcher: Arc::new(DefaultQueryDispatcher),
-            colliders: HashMap::default(),
+            colliders: EntityHashMap::default(),
             entity_generations: HashMap::default(),
         }
     }
@@ -105,7 +107,7 @@ impl SpatialQueryPipeline {
 
     fn update_internal(
         &mut self,
-        colliders: HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+        colliders: EntityHashMap<(Isometry<Scalar>, Collider, CollisionLayers)>,
         added: impl Iterator<Item = Entity>,
     ) {
         self.colliders = colliders;
@@ -120,9 +122,7 @@ impl SpatialQueryPipeline {
             }
         }
 
-        struct DataGenerator<'a>(
-            &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
-        );
+        struct DataGenerator<'a>(&'a EntityHashMap<(Isometry<Scalar>, Collider, CollisionLayers)>);
 
         impl parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'_> {
             fn size_hint(&self) -> usize {
@@ -590,7 +590,7 @@ impl SpatialQueryPipeline {
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
-    ///     Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function for filtering which entities are considered in the query. The projection will be on the closest collider for which the `predicate` returns `true`
     ///
@@ -811,7 +811,7 @@ impl SpatialQueryPipeline {
 }
 
 pub(crate) struct QueryPipelineAsCompositeShape<'a> {
-    colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+    colliders: &'a EntityHashMap<(Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
     query_filter: &'a SpatialQueryFilter,
 }
@@ -856,7 +856,7 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'_> {
 }
 
 pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
-    colliders: &'a HashMap<Entity, (Isometry<Scalar>, Collider, CollisionLayers)>,
+    colliders: &'a EntityHashMap<(Isometry<Scalar>, Collider, CollisionLayers)>,
     pipeline: &'a SpatialQueryPipeline,
     query_filter: &'a SpatialQueryFilter,
     predicate: &'b dyn Fn(Entity) -> bool,
@@ -902,7 +902,7 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'_, 
 }
 
 fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
-    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
+    bevy::prelude::Entity::from_bits(((generation as u64) << 32) | index as u64)
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).

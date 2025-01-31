@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::ComponentId,
+        component::HookContext,
         entity::{EntityMapper, MapEntities},
         world::DeferredWorld,
     },
@@ -342,8 +342,8 @@ impl RayCaster {
     }
 }
 
-fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
-    let ray_caster = world.get::<RayCaster>(entity).unwrap();
+fn on_add_ray_caster(mut world: DeferredWorld, ctx: HookContext) {
+    let ray_caster = world.get::<RayCaster>(ctx.entity).unwrap();
     let max_hits = if ray_caster.max_hits == u32::MAX {
         10
     } else {
@@ -351,7 +351,7 @@ fn on_add_ray_caster(mut world: DeferredWorld, entity: Entity, _component_id: Co
     };
 
     // Initialize capacity for hits
-    world.get_mut::<RayHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
+    world.get_mut::<RayHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Contains the hits of a ray cast by a [`RayCaster`].
