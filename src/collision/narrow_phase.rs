@@ -281,7 +281,7 @@ fn generate_constraints<C: AnyCollider>(
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (_, collisions, mut constraints) in physics_world_query.iter_mut() {
+    physics_world_query.par_iter_mut().for_each(|(_, collisions, mut constraints)| {
         // TODO: Parallelize.
         for contacts in collisions.get_internal().values() {
             let Ok([collider1, collider2]) = narrow_phase
@@ -366,7 +366,7 @@ fn generate_constraints<C: AnyCollider>(
                 );
             }
         }
-    }
+    });
 }
 
 /// A system parameter for managing the narrow phase.
