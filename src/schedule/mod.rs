@@ -11,6 +11,7 @@ use std::time::Duration;
 // For doc links
 #[allow(unused_imports)]
 use crate::prelude::*;
+use crate::MainPhysicsWorldEntity;
 
 use bevy::{
     ecs::intern::Interned,
@@ -53,6 +54,12 @@ impl Default for PhysicsSchedulePlugin {
 
 impl Plugin for PhysicsSchedulePlugin {
     fn build(&self, app: &mut App) {
+        // TODO: Where should this be initialized?
+        app.add_index::<PhysicsWorldId>();
+
+        let default_world_entity = app.world_mut().spawn(MainPhysicsWorld).id();
+        app.insert_resource(MainPhysicsWorldEntity(default_world_entity));
+
         app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>();

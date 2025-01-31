@@ -62,9 +62,6 @@ pub struct BruteForceBroadPhasePlugin;
 
 impl Plugin for BruteForceBroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        // Initialize the resource that the collision pairs are added to.
-        app.init_resource::<BroadCollisionPairs>();
-
         // Make sure the PhysicsSchedule is available.
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -77,7 +74,8 @@ impl Plugin for BruteForceBroadPhasePlugin {
 
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    // Here we assume that only one physics world exists.
+    mut broad_collision_pairs: Single<&mut BroadCollisionPairs>,
 ) {
     // Clear old collision pairs.
     broad_collision_pairs.0.clear();

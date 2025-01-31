@@ -523,7 +523,7 @@ pub mod prelude {
         spatial_query::{self, *},
         sync::SyncPlugin,
         type_registration::PhysicsTypeRegistrationPlugin,
-        PhysicsPlugins,
+        MainPhysicsWorld, PhysicsPlugins, PhysicsWorld, PhysicsWorldId,
     };
     pub(crate) use crate::{
         math::*,
@@ -542,6 +542,8 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemParamItem},
     prelude::*,
 };
+use collision::broad_phase::AabbIntervals;
+use dynamics::solver::ContactConstraints;
 #[allow(unused_imports)]
 use prelude::*;
 
@@ -861,4 +863,30 @@ where
 
         builder
     }
+}
+
+/// A physics world.
+#[derive(Component, Default)]
+#[require(AabbIntervals, BroadCollisionPairs, Collisions, ContactConstraints)]
+pub struct PhysicsWorld;
+
+/// A marker component for the default physics world.
+#[derive(Component, Default)]
+#[require(PhysicsWorld)]
+pub struct MainPhysicsWorld;
+
+/// The default physics world entity.
+#[derive(Resource)]
+pub struct MainPhysicsWorldEntity(pub Entity);
+
+/// An identifier that assigns an entity to a [`PhysicsWorld`].
+#[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Reflect)]
+#[reflect(Component, PartialEq, Debug, Hash)]
+#[component(immutable)]
+pub enum PhysicsWorldId {
+    /// The entity belongs to the [`MainPhysicsWorld`].
+    #[default]
+    Main,
+    /// The entity belongs to a [`PhysicsWorld`] with the given [`Entity`] ID.
+    Id(Entity),
 }

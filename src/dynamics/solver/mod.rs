@@ -72,8 +72,7 @@ impl SolverPlugin {
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SolverConfig>()
-            .init_resource::<ContactSoftnessCoefficients>()
-            .init_resource::<ContactConstraints>();
+            .init_resource::<ContactSoftnessCoefficients>();
 
         if app
             .world()
@@ -372,8 +371,8 @@ fn update_contact_softness(
     }
 }
 
-/// A resource that stores the contact constraints.
-#[derive(Resource, Default, Deref, DerefMut)]
+/// A component that stores contact constraints for a [`PhysicsWorld`].
+#[derive(Component, Default, Deref, DerefMut)]
 pub struct ContactConstraints(pub Vec<ContactConstraint>);
 
 /// Warm starts the solver by applying the impulses from the previous frame or substep.
@@ -381,29 +380,31 @@ pub struct ContactConstraints(pub Vec<ContactConstraint>);
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start(
     mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut physics_worlds: Query<&mut ContactConstraints>,
     solver_config: Res<SolverConfig>,
 ) {
-    for constraint in constraints.iter_mut() {
-        debug_assert!(!constraint.points.is_empty());
+    for mut constraints in physics_worlds.iter_mut() {
+        for constraint in constraints.iter_mut() {
+            debug_assert!(!constraint.points.is_empty());
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+            let Ok([mut body1, mut body2]) =
+                bodies.get_many_mut([constraint.entity1, constraint.entity2])
+            else {
+                continue;
+            };
 
-        let normal = constraint.normal;
-        let tangent_directions =
-            constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+            let normal = constraint.normal;
+            let tangent_directions =
+                constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-        constraint.warm_start(
-            &mut body1,
-            &mut body2,
-            normal,
-            tangent_directions,
-            solver_config.warm_start_coefficient,
-        );
+            constraint.warm_start(
+                &mut body1,
+                &mut body2,
+                normal,
+                tangent_directions,
+                solver_config.warm_start_coefficient,
+            );
+        }
     }
 }
 
@@ -423,7 +424,7 @@ fn warm_start(
 #[allow(clippy::type_complexity)]
 fn solve_contacts<const USE_BIAS: bool>(
     mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut physics_worlds: Query<&mut ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
@@ -431,20 +432,22 @@ fn solve_contacts<const USE_BIAS: bool>(
     let delta_secs = time.delta_seconds_adjusted();
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
-    for constraint in &mut constraints.0 {
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+    for mut constraints in physics_worlds.iter_mut() {
+        for constraint in &mut constraints.0 {
+            let Ok([mut body1, mut body2]) =
+                bodies.get_many_mut([constraint.entity1, constraint.entity2])
+            else {
+                continue;
+            };
 
-        constraint.solve(
-            &mut body1,
-            &mut body2,
-            delta_secs,
-            USE_BIAS,
-            max_overlap_solve_speed,
-        );
+            constraint.solve(
+                &mut body1,
+                &mut body2,
+                delta_secs,
+                USE_BIAS,
+                max_overlap_solve_speed,
+            );
+        }
     }
 }
 
@@ -459,63 +462,64 @@ fn solve_contacts<const USE_BIAS: bool>(
 #[allow(clippy::type_complexity)]
 fn solve_restitution(
     mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut physics_worlds: Query<&mut ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
 ) {
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
-    for constraint in constraints.iter_mut() {
-        let restitution = constraint.restitution.coefficient;
+    for mut constraints in physics_worlds.iter_mut() {
+        for constraint in constraints.iter_mut() {
+            let restitution = constraint.restitution.coefficient;
 
-        if restitution == 0.0 {
-            continue;
-        }
+            if restitution == 0.0 {
+                continue;
+            }
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+            let Ok([mut body1, mut body2]) =
+                bodies.get_many_mut([constraint.entity1, constraint.entity2])
+            else {
+                continue;
+            };
 
-        // Performing multiple iterations can result in more accurate restitution,
-        // but only if there are more than one contact point.
-        let restitution_iterations = if constraint.points.len() > 1 {
-            solver_config.restitution_iterations
-        } else {
-            1
-        };
+            // Performing multiple iterations can result in more accurate restitution,
+            // but only if there are more than one contact point.
+            let restitution_iterations = if constraint.points.len() > 1 {
+                solver_config.restitution_iterations
+            } else {
+                1
+            };
 
-        for _ in 0..restitution_iterations {
-            constraint.apply_restitution(&mut body1, &mut body2, threshold);
+            for _ in 0..restitution_iterations {
+                constraint.apply_restitution(&mut body1, &mut body2, threshold);
+            }
         }
     }
 }
 
 /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
 /// They will be used for [warm starting](SubstepSolverSet::WarmStart).
-fn store_contact_impulses(
-    constraints: Res<ContactConstraints>,
-    mut collisions: ResMut<Collisions>,
-) {
-    for constraint in constraints.iter() {
-        let Some(contacts) =
-            collisions.get_mut(constraint.collider_entity1, constraint.collider_entity2)
-        else {
-            continue;
-        };
+fn store_contact_impulses(mut physics_worlds: Query<(&mut Collisions, &ContactConstraints)>) {
+    for (mut collisions, constraints) in physics_worlds.iter_mut() {
+        for constraint in constraints.iter() {
+            let Some(contacts) =
+                collisions.get_mut(constraint.collider_entity1, constraint.collider_entity2)
+            else {
+                continue;
+            };
 
-        let manifold = &mut contacts.manifolds[constraint.manifold_index];
+            let manifold = &mut contacts.manifolds[constraint.manifold_index];
 
-        for (contact, constraint_point) in
-            manifold.contacts.iter_mut().zip(constraint.points.iter())
-        {
-            contact.normal_impulse = constraint_point.normal_part.impulse;
-            contact.tangent_impulse = constraint_point
-                .tangent_part
-                .as_ref()
-                .map_or(default(), |part| part.impulse);
+            for (contact, constraint_point) in
+                manifold.contacts.iter_mut().zip(constraint.points.iter())
+            {
+                contact.normal_impulse = constraint_point.normal_part.impulse;
+                contact.tangent_impulse = constraint_point
+                    .tangent_part
+                    .as_ref()
+                    .map_or(default(), |part| part.impulse);
+            }
         }
     }
 }

@@ -132,7 +132,12 @@ impl Command for WakeUpBody {
 #[allow(clippy::type_complexity)]
 pub fn mark_sleeping_bodies(
     mut commands: Commands,
-    mut query: Query<
+    mut physics_worlds: ParamSet<(
+        Query<(Entity, &Collisions)>,
+        Query<(Entity, &Collisions), With<MainPhysicsWorld>>,
+    )>,
+    mut query: QueryByIndex<
+        PhysicsWorldId,
         (
             Entity,
             &RigidBody,
@@ -142,7 +147,6 @@ pub fn mark_sleeping_bodies(
         ),
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
-    collisions: Res<Collisions>,
     rb_query: Query<&RigidBody>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
@@ -152,7 +156,61 @@ pub fn mark_sleeping_bodies(
     let length_unit_sq = length_unit.powi(2);
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
+    for (world_entity, collisions) in &physics_worlds.p0() {
+        let mut query = query.at(&PhysicsWorldId::Id(world_entity));
+        mark_sleeping_bodies_single(
+            &mut commands,
+            &mut query,
+            &rb_query,
+            collisions,
+            &deactivation_time,
+            &sleep_threshold,
+            length_unit_sq,
+            delta_secs,
+        );
+    }
+
+    if let Ok((_, collisions)) = physics_worlds.p1().get_single() {
+        let mut query = query.at(&PhysicsWorldId::Main);
+        mark_sleeping_bodies_single(
+            &mut commands,
+            &mut query,
+            &rb_query,
+            collisions,
+            &deactivation_time,
+            &sleep_threshold,
+            length_unit_sq,
+            delta_secs,
+        );
+    }
+}
+
+/// Adds the [`Sleeping`] component to bodies whose linear and anigular velocities have been
+/// under the [`SleepingThreshold`] for a duration indicated by [`DeactivationTime`].
+#[allow(clippy::type_complexity)]
+pub fn mark_sleeping_bodies_single(
+    commands: &mut Commands,
+    query: &mut Query<
+        (
+            Entity,
+            &RigidBody,
+            &mut LinearVelocity,
+            &mut AngularVelocity,
+            &mut TimeSleeping,
+        ),
+        (
+            (Without<Sleeping>, Without<SleepingDisabled>),
+            With<PhysicsWorldId>,
+        ),
+    >,
+    rb_query: &Query<&RigidBody>,
+    collisions: &Collisions,
+    deactivation_time: &DeactivationTime,
+    sleep_threshold: &SleepingThreshold,
+    length_unit_sq: Scalar,
+    delta_secs: Scalar,
+) {
+    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in query.iter_mut() {
         let colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
             if entity == c.entity1 {
                 c.entity2
@@ -284,6 +342,10 @@ fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<S
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
     mut commands: Commands,
+    mut physics_worlds: ParamSet<(
+        Query<(Entity, &Collisions)>,
+        Query<(Entity, &Collisions), With<MainPhysicsWorld>>,
+    )>,
     bodies: Query<
         (Ref<Position>, Has<RigidBodyDisabled>),
         (
@@ -296,11 +358,52 @@ fn wake_on_collision_ended(
         Ref<ColliderTransform>,
         Has<ColliderDisabled>,
     )>,
-    collisions: Res<Collisions>,
-    mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
+    mut sleeping: QueryByIndex<PhysicsWorldId, (Entity, &mut TimeSleeping, Has<Sleeping>)>,
+) {
+    for (world_entity, collisions) in &physics_worlds.p0() {
+        let mut sleeping = sleeping.at(&PhysicsWorldId::Id(world_entity));
+        wake_on_collision_ended_single(
+            &mut commands,
+            &bodies,
+            &colliders,
+            &mut sleeping,
+            collisions,
+        );
+    }
+
+    if let Ok((_, collisions)) = physics_worlds.p1().get_single() {
+        let mut sleeping = sleeping.at(&PhysicsWorldId::Main);
+        wake_on_collision_ended_single(
+            &mut commands,
+            &bodies,
+            &colliders,
+            &mut sleeping,
+            collisions,
+        );
+    }
+}
+
+/// Wakes up bodies when they stop colliding.
+#[allow(clippy::type_complexity)]
+fn wake_on_collision_ended_single(
+    commands: &mut Commands,
+    bodies: &Query<
+        (Ref<Position>, Has<RigidBodyDisabled>),
+        (
+            Or<(Added<RigidBodyDisabled>, Changed<Position>)>,
+            Without<Sleeping>,
+        ),
+    >,
+    colliders: &Query<(
+        &ColliderParent,
+        Ref<ColliderTransform>,
+        Has<ColliderDisabled>,
+    )>,
+    sleeping: &mut Query<(Entity, &mut TimeSleeping, Has<Sleeping>), ((), With<PhysicsWorldId>)>,
+    collisions: &Collisions,
 ) {
     // Wake up bodies when a body they're colliding with moves or gets disabled.
-    for (entity, mut time_sleeping, is_sleeping) in &mut sleeping {
+    for (entity, mut time_sleeping, is_sleeping) in sleeping.iter_mut() {
         // Skip anything that isn't currently sleeping and already has a time_sleeping of zero.
         // We can't gate the sleeping query using With<Sleeping> here because must also reset
         // non-zero time_sleeping to 0 when a colliding body moves.

@@ -295,7 +295,7 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    collisions: Res<Collisions>,
+    physics_world_query: Query<&Collisions>,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,
@@ -307,57 +307,64 @@ fn debug_render_contacts(
         return;
     }
 
-    for contacts in collisions.iter() {
-        let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
-            continue;
-        };
-        let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
-            continue;
-        };
+    for collisions in physics_world_query.iter() {
+        for contacts in collisions.iter() {
+            let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
+                continue;
+            };
+            let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
+                continue;
+            };
 
-        for manifold in contacts.manifolds.iter() {
-            for contact in manifold.contacts.iter() {
-                let p1 = contact.global_point1(position1, rotation1);
-                let p2 = contact.global_point2(position2, rotation2);
-                let normal1 = contact.global_normal1(rotation1);
-                let normal2 = contact.global_normal2(rotation2);
+            for manifold in contacts.manifolds.iter() {
+                for contact in manifold.contacts.iter() {
+                    let p1 = contact.global_point1(position1, rotation1);
+                    let p2 = contact.global_point2(position2, rotation2);
+                    let normal1 = contact.global_normal1(rotation1);
+                    let normal2 = contact.global_normal2(rotation2);
 
-                // Don't render contacts that aren't penetrating
-                if contact.penetration <= Scalar::EPSILON {
-                    continue;
-                }
-
-                // Draw contact points
-                if let Some(color) = config.contact_point_color {
-                    #[cfg(feature = "2d")]
-                    {
-                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0 as f32, color);
-                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0 as f32, color);
+                    // Don't render contacts that aren't penetrating
+                    if contact.penetration <= Scalar::EPSILON {
+                        continue;
                     }
-                    #[cfg(feature = "3d")]
-                    {
-                        gizmos.sphere(p1.f32(), 0.1 * length_unit.0 as f32, color);
-                        gizmos.sphere(p2.f32(), 0.1 * length_unit.0 as f32, color);
+
+                    // Draw contact points
+                    if let Some(color) = config.contact_point_color {
+                        #[cfg(feature = "2d")]
+                        {
+                            gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0 as f32, color);
+                            gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0 as f32, color);
+                        }
+                        #[cfg(feature = "3d")]
+                        {
+                            gizmos.sphere(p1.f32(), 0.1 * length_unit.0 as f32, color);
+                            gizmos.sphere(p2.f32(), 0.1 * length_unit.0 as f32, color);
+                        }
                     }
-                }
 
-                // Draw contact normals
-                if let Some(color) = config.contact_normal_color {
-                    // Use dimmer color for second normal
-                    let color_dim = color.mix(&Color::BLACK, 0.5);
+                    // Draw contact normals
+                    if let Some(color) = config.contact_normal_color {
+                        // Use dimmer color for second normal
+                        let color_dim = color.mix(&Color::BLACK, 0.5);
 
-                    // The length of the normal arrows
-                    let length = length_unit.0
-                        * match config.contact_normal_scale {
-                            ContactGizmoScale::Constant(length) => length,
-                            ContactGizmoScale::Scaled(scale) => {
-                                scale * contacts.total_normal_impulse
-                                    / time.delta_secs_f64().adjust_precision()
-                            }
-                        };
+                        // The length of the normal arrows
+                        let length = length_unit.0
+                            * match config.contact_normal_scale {
+                                ContactGizmoScale::Constant(length) => length,
+                                ContactGizmoScale::Scaled(scale) => {
+                                    scale * contacts.total_normal_impulse
+                                        / time.delta_secs_f64().adjust_precision()
+                                }
+                            };
 
-                    gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1 * length_unit.0, color);
-                    gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1 * length_unit.0, color_dim);
+                        gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1 * length_unit.0, color);
+                        gizmos.draw_arrow(
+                            p2,
+                            p2 + normal2 * length,
+                            0.1 * length_unit.0,
+                            color_dim,
+                        );
+                    }
                 }
             }
         }

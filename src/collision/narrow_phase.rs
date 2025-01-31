@@ -76,14 +76,9 @@ where
 
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
-            .init_resource::<Collisions>()
             .init_resource::<DefaultFriction>()
             .init_resource::<DefaultRestitution>()
             .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
-
-        if self.generate_constraints {
-            app.init_resource::<ContactConstraints>();
-        }
 
         app.configure_sets(
             self.schedule,
@@ -144,8 +139,10 @@ where
                 // Clear contact constraints.
                 app.add_systems(
                     self.schedule,
-                    (|mut constraints: ResMut<ContactConstraints>| {
-                        constraints.clear();
+                    (|mut physics_worlds: Query<&mut ContactConstraints>| {
+                        physics_worlds
+                            .iter_mut()
+                            .for_each(|mut constraints| constraints.clear());
                     })
                     .after(NarrowPhaseSet::PostProcess)
                     .before(NarrowPhaseSet::GenerateConstraints),
@@ -255,7 +252,7 @@ pub enum NarrowPhaseSet {
 
 fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    broad_collision_pairs: Res<BroadCollisionPairs>,
+    mut physics_world_query: Query<(&BroadCollisionPairs, &mut Collisions)>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
     #[cfg(not(feature = "parallel"))] commands: Commands,
@@ -264,7 +261,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     narrow_phase.update::<H>(
-        &broad_collision_pairs,
+        &mut physics_world_query,
         time.delta_seconds_adjusted(),
         &hooks.into_inner(),
         commands,
@@ -276,7 +273,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
 //       `PostProcessCollisions` setup.
 fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut physics_world_query: Query<(&BroadCollisionPairs, &Collisions, &mut ContactConstraints)>,
     contact_softness: Res<ContactSoftnessCoefficients>,
     default_friction: Res<DefaultFriction>,
     default_restitution: Res<DefaultRestitution>,
@@ -284,88 +281,90 @@ fn generate_constraints<C: AnyCollider>(
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    // TODO: Parallelize.
-    for contacts in narrow_phase.collisions.get_internal().values() {
-        let Ok([collider1, collider2]) = narrow_phase
-            .collider_query
-            .get_many([contacts.entity1, contacts.entity2])
-        else {
-            continue;
-        };
-
-        let body1_bundle = collider1
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
-        let body2_bundle = collider2
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
-        if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
-            body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
-            body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
-        ) {
-            // At least one of the bodies must be dynamic for contact constraints
-            // to be generated.
-            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+    for (_, collisions, mut constraints) in physics_world_query.iter_mut() {
+        // TODO: Parallelize.
+        for contacts in collisions.get_internal().values() {
+            let Ok([collider1, collider2]) = narrow_phase
+                .collider_query
+                .get_many([contacts.entity1, contacts.entity2])
+            else {
                 continue;
+            };
+
+            let body1_bundle = collider1
+                .parent
+                .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            let body2_bundle = collider2
+                .parent
+                .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
+                body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
+                body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
+            ) {
+                // At least one of the bodies must be dynamic for contact constraints
+                // to be generated.
+                if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+                    continue;
+                }
+
+                // Use the collider's own collision margin if specified, and fall back to the body's
+                // collision margin.
+                //
+                // The collision margin adds artificial thickness to colliders for performance
+                // and stability. See the `CollisionMargin` documentation for more details.
+                let collision_margin1 = collider1
+                    .collision_margin
+                    .or(rb_collision_margin1)
+                    .map_or(0.0, |margin| margin.0);
+                let collision_margin2 = collider2
+                    .collision_margin
+                    .or(rb_collision_margin2)
+                    .map_or(0.0, |margin| margin.0);
+                let collision_margin_sum = collision_margin1 + collision_margin2;
+
+                // Get combined friction and restitution coefficients of the colliders
+                // or the bodies they are attached to. Fall back to the global defaults.
+                let friction = collider1
+                    .friction
+                    .or(body1.friction)
+                    .copied()
+                    .unwrap_or(default_friction.0)
+                    .combine(
+                        collider2
+                            .friction
+                            .or(body2.friction)
+                            .copied()
+                            .unwrap_or(default_friction.0),
+                    );
+                let restitution = collider1
+                    .restitution
+                    .or(body1.restitution)
+                    .copied()
+                    .unwrap_or(default_restitution.0)
+                    .combine(
+                        collider2
+                            .restitution
+                            .or(body2.restitution)
+                            .copied()
+                            .unwrap_or(default_restitution.0),
+                    );
+
+                // Generate contact constraints for the computed contacts
+                // and add them to `constraints`.
+                narrow_phase.generate_constraints(
+                    contacts,
+                    &mut constraints,
+                    &body1,
+                    &body2,
+                    &collider1,
+                    &collider2,
+                    friction,
+                    restitution,
+                    collision_margin_sum,
+                    *contact_softness,
+                    delta_secs,
+                );
             }
-
-            // Use the collider's own collision margin if specified, and fall back to the body's
-            // collision margin.
-            //
-            // The collision margin adds artificial thickness to colliders for performance
-            // and stability. See the `CollisionMargin` documentation for more details.
-            let collision_margin1 = collider1
-                .collision_margin
-                .or(rb_collision_margin1)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin2 = collider2
-                .collision_margin
-                .or(rb_collision_margin2)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin_sum = collision_margin1 + collision_margin2;
-
-            // Get combined friction and restitution coefficients of the colliders
-            // or the bodies they are attached to. Fall back to the global defaults.
-            let friction = collider1
-                .friction
-                .or(body1.friction)
-                .copied()
-                .unwrap_or(default_friction.0)
-                .combine(
-                    collider2
-                        .friction
-                        .or(body2.friction)
-                        .copied()
-                        .unwrap_or(default_friction.0),
-                );
-            let restitution = collider1
-                .restitution
-                .or(body1.restitution)
-                .copied()
-                .unwrap_or(default_restitution.0)
-                .combine(
-                    collider2
-                        .restitution
-                        .or(body2.restitution)
-                        .copied()
-                        .unwrap_or(default_restitution.0),
-                );
-
-            // Generate contact constraints for the computed contacts
-            // and add them to `constraints`.
-            narrow_phase.generate_constraints(
-                contacts,
-                &mut constraints,
-                &body1,
-                &body2,
-                &collider1,
-                &collider2,
-                friction,
-                restitution,
-                collision_margin_sum,
-                *contact_softness,
-                delta_secs,
-            );
         }
     }
 }
@@ -389,8 +388,6 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
         ),
         Without<RigidBodyDisabled>,
     >,
-    /// Contacts found by the narrow phase.
-    pub collisions: ResMut<'w, Collisions>,
     /// Configuration options for the narrow phase.
     pub config: Res<'w, NarrowPhaseConfig>,
     length_unit: Res<'w, PhysicsLengthUnit>,
@@ -404,7 +401,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// and adding them to [`Collisions`].
     fn update<H: CollisionHooks + 'static>(
         &mut self,
-        broad_collision_pairs: &[(Entity, Entity)],
+        physics_world_query: &mut Query<(&BroadCollisionPairs, &mut Collisions)>,
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
         #[cfg(not(feature = "parallel"))] mut commands: Commands,
@@ -421,47 +418,55 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             *self.contact_tolerance = self.length_unit.0 * self.config.contact_tolerance;
         }
 
-        #[cfg(feature = "parallel")]
-        {
-            // TODO: Verify if `par_splat_map` is deterministic. If not, sort the constraints (and collisions).
-            broad_collision_pairs
-                .iter()
-                .par_splat_map(ComputeTaskPool::get(), None, |_i, chunks| {
-                    let mut new_collisions = Vec::<Contacts>::with_capacity(chunks.len());
+        for (broad_collision_pairs, mut collisions) in physics_world_query.iter_mut() {
+            #[cfg(feature = "parallel")]
+            {
+                // TODO: Verify if `par_splat_map` is deterministic. If not, sort the constraints (and collisions).
+                broad_collision_pairs
+                    .iter()
+                    .par_splat_map(ComputeTaskPool::get(), None, |_i, chunks| {
+                        let mut new_collisions = Vec::<Contacts>::with_capacity(chunks.len());
 
-                    // Compute contacts for this intersection pair and generate
-                    // contact constraints for them.
-                    par_commands.command_scope(|mut commands| {
-                        for &(entity1, entity2) in chunks {
-                            if let Some(contacts) = self.handle_entity_pair::<H>(
-                                entity1,
-                                entity2,
-                                delta_secs,
-                                hooks,
-                                &mut commands,
-                            ) {
-                                new_collisions.push(contacts);
+                        // Compute contacts for this intersection pair and generate
+                        // contact constraints for them.
+                        par_commands.command_scope(|mut commands| {
+                            for &(entity1, entity2) in chunks {
+                                if let Some(contacts) = self.handle_entity_pair::<H>(
+                                    entity1,
+                                    entity2,
+                                    &collisions,
+                                    delta_secs,
+                                    hooks,
+                                    &mut commands,
+                                ) {
+                                    new_collisions.push(contacts);
+                                }
                             }
-                        }
-                    });
+                        });
 
-                    new_collisions
-                })
-                .into_iter()
-                .for_each(|new_collisions| {
-                    // Add the collisions and constraints from each chunk.
-                    self.collisions.extend(new_collisions);
-                });
-        }
-        #[cfg(not(feature = "parallel"))]
-        {
-            // Compute contacts for this intersection pair and generate
-            // contact constraints for them.
-            for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
-                {
-                    self.collisions.insert_collision_pair(contacts);
+                        new_collisions
+                    })
+                    .into_iter()
+                    .for_each(|new_collisions| {
+                        // Add the collisions and constraints from each chunk.
+                        collisions.extend(new_collisions);
+                    });
+            }
+            #[cfg(not(feature = "parallel"))]
+            {
+                // Compute contacts for this intersection pair and generate
+                // contact constraints for them.
+                for &(entity1, entity2) in broad_collision_pairs {
+                    if let Some(contacts) = self.handle_entity_pair::<H>(
+                        entity1,
+                        entity2,
+                        &collisions,
+                        delta_secs,
+                        hooks,
+                        &mut commands,
+                    ) {
+                        collisions.insert_collision_pair(contacts);
+                    }
                 }
             }
         }
@@ -475,6 +480,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &self,
         entity1: Entity,
         entity2: Entity,
+        collisions: &Collisions,
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
         commands: &mut Commands,
@@ -579,6 +585,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         self.compute_contact_pair::<H>(
             &collider1,
             &collider2,
+            collisions,
             max_contact_distance,
             hooks,
             commands,
@@ -596,6 +603,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        collisions: &Collisions,
         max_distance: Scalar,
         hooks: &H::Item<'_, '_>,
         commands: &mut Commands,
@@ -624,11 +632,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Get the previous contacts if there are any.
         let previous_contacts = if collider1.entity < collider2.entity {
-            self.collisions
+            collisions
                 .get_internal()
                 .get(&(collider1.entity, collider2.entity))
         } else {
-            self.collisions
+            collisions
                 .get_internal()
                 .get(&(collider2.entity, collider1.entity))
         };
@@ -764,41 +772,45 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     }
 }
 
-fn remove_ended_collisions(mut collisions: ResMut<Collisions>) {
-    collisions.retain(|contacts| contacts.during_current_frame);
+fn remove_ended_collisions(mut physics_world_query: Query<&mut Collisions>) {
+    for mut collisions in physics_world_query.iter_mut() {
+        collisions.retain(|contacts| contacts.during_current_frame);
+    }
 }
 
 // TODO: The collision state handling feels a bit confusing and error-prone.
 //       Ideally, the narrow phase wouldn't need to handle it at all, or it would at least be simpler.
 /// Resets collision states like `during_current_frame` and `during_previous_frame`.
 pub fn reset_collision_states(
-    mut collisions: ResMut<Collisions>,
+    mut physics_world_query: Query<&mut Collisions>,
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
-    for contacts in collisions.get_internal_mut().values_mut() {
-        contacts.total_normal_impulse = 0.0;
-        contacts.total_tangent_impulse = default();
+    for mut collisions in physics_world_query.iter_mut() {
+        for contacts in collisions.get_internal_mut().values_mut() {
+            contacts.total_normal_impulse = 0.0;
+            contacts.total_tangent_impulse = default();
 
-        if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
-            contacts.body_entity1.unwrap_or(contacts.entity1),
-            contacts.body_entity2.unwrap_or(contacts.entity2),
-        ]) {
-            let active1 = !rb1.is_some_and(|rb| rb.is_static()) && !sleeping1;
-            let active2 = !rb2.is_some_and(|rb| rb.is_static()) && !sleeping2;
+            if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
+                contacts.body_entity1.unwrap_or(contacts.entity1),
+                contacts.body_entity2.unwrap_or(contacts.entity2),
+            ]) {
+                let active1 = !rb1.is_some_and(|rb| rb.is_static()) && !sleeping1;
+                let active2 = !rb2.is_some_and(|rb| rb.is_static()) && !sleeping2;
 
-            // Reset collision states if either of the bodies is active (not static or sleeping)
-            // Otherwise, the bodies are still in contact.
-            if active1 || active2 {
+                // Reset collision states if either of the bodies is active (not static or sleeping)
+                // Otherwise, the bodies are still in contact.
+                if active1 || active2 {
+                    contacts.during_previous_frame = true;
+                    contacts.during_current_frame = false;
+                } else {
+                    contacts.during_previous_frame = true;
+                    contacts.during_current_frame = true;
+                }
+            } else {
+                // One of the entities does not exist, so the collision has ended.
                 contacts.during_previous_frame = true;
                 contacts.during_current_frame = false;
-            } else {
-                contacts.during_previous_frame = true;
-                contacts.during_current_frame = true;
             }
-        } else {
-            // One of the entities does not exist, so the collision has ended.
-            contacts.during_previous_frame = true;
-            contacts.during_current_frame = false;
         }
     }
 }

@@ -263,6 +263,7 @@ use derive_more::From;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 #[require(
+    PhysicsWorldId,
     LinearVelocity,
     AngularVelocity,
     // TODO: Make these force components optional.

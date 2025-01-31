@@ -152,38 +152,40 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 /// Sends collision events and updates [`CollidingEntities`].
 pub fn report_contacts(
     mut colliders: Query<&mut CollidingEntities>,
-    collisions: Res<Collisions>,
+    collisions_query: Query<&Collisions>,
     mut collision_ev_writer: EventWriter<Collision>,
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
 ) {
     // TODO: Would batching events be worth it?
-    for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
-        if contacts.during_current_frame {
-            collision_ev_writer.send(Collision(contacts.clone()));
+    for collisions in collisions_query.iter() {
+        for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
+            if contacts.during_current_frame {
+                collision_ev_writer.send(Collision(contacts.clone()));
 
-            // Collision started
-            if !contacts.during_previous_frame {
-                collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
+                // Collision started
+                if !contacts.during_previous_frame {
+                    collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
+
+                    if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
+                        colliding_entities1.insert(*entity2);
+                    }
+                    if let Ok(mut colliding_entities2) = colliders.get_mut(*entity2) {
+                        colliding_entities2.insert(*entity1);
+                    }
+                }
+            }
+
+            // Collision ended
+            if !contacts.during_current_frame && contacts.during_previous_frame {
+                collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
 
                 if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
-                    colliding_entities1.insert(*entity2);
+                    colliding_entities1.remove(entity2);
                 }
                 if let Ok(mut colliding_entities2) = colliders.get_mut(*entity2) {
-                    colliding_entities2.insert(*entity1);
+                    colliding_entities2.remove(entity1);
                 }
-            }
-        }
-
-        // Collision ended
-        if !contacts.during_current_frame && contacts.during_previous_frame {
-            collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
-
-            if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
-                colliding_entities1.remove(entity2);
-            }
-            if let Ok(mut colliding_entities2) = colliders.get_mut(*entity2) {
-                colliding_entities2.remove(entity1);
             }
         }
     }

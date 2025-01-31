@@ -36,9 +36,6 @@ where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BroadCollisionPairs>()
-            .init_resource::<AabbIntervals>();
-
         app.configure_sets(
             PhysicsSchedule,
             (
@@ -80,10 +77,10 @@ pub enum BroadPhaseSet {
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
-#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
+#[derive(Component, Reflect, Debug, Default, Deref, DerefMut)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Resource)]
+#[reflect(Component, Debug)]
 pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Contains the entities whose AABBs intersect the AABB of this entity.
@@ -96,8 +93,8 @@ pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 pub struct AabbIntersections(pub Vec<Entity>);
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
-#[derive(Resource, Default)]
-struct AabbIntervals(
+#[derive(Component, Default)]
+pub struct AabbIntervals(
     Vec<(
         Entity,
         ColliderParent,
@@ -131,6 +128,7 @@ impl MapEntities for AabbIntervals {
 /// Updates [`AabbIntervals`] to keep them in sync with the [`ColliderAabb`]s.
 #[allow(clippy::type_complexity)]
 fn update_aabb_intervals(
+    mut interval_query: Query<&mut AabbIntervals>,
     aabbs: Query<
         (
             &ColliderAabb,
@@ -143,46 +141,47 @@ fn update_aabb_intervals(
         Without<ColliderDisabled>,
     >,
     rbs: Query<&RigidBody>,
-    mut intervals: ResMut<AabbIntervals>,
 ) {
-    intervals
-        .0
-        .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
-            if let Ok((
-                new_aabb,
-                new_parent,
-                new_layers,
-                hooks,
-                new_store_intersections,
-                is_sleeping,
-            )) = aabbs.get(*collider_entity)
-            {
-                if !new_aabb.min.is_finite() || !new_aabb.max.is_finite() {
-                    return false;
-                }
-
-                *aabb = *new_aabb;
-                *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
-                *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
-
-                let is_static =
-                    new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
-
-                flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
-                flags.set(
-                    AabbIntervalFlags::STORE_INTERSECTIONS,
+    for mut intervals in &mut interval_query {
+        intervals
+            .0
+            .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
+                if let Ok((
+                    new_aabb,
+                    new_parent,
+                    new_layers,
+                    hooks,
                     new_store_intersections,
-                );
-                flags.set(
-                    AabbIntervalFlags::CUSTOM_FILTER,
-                    hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
-                );
+                    is_sleeping,
+                )) = aabbs.get(*collider_entity)
+                {
+                    if !new_aabb.min.is_finite() || !new_aabb.max.is_finite() {
+                        return false;
+                    }
 
-                true
-            } else {
-                false
-            }
-        });
+                    *aabb = *new_aabb;
+                    *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
+                    *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
+
+                    let is_static = new_parent
+                        .is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
+
+                    flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
+                    flags.set(
+                        AabbIntervalFlags::STORE_INTERSECTIONS,
+                        new_store_intersections,
+                    );
+                    flags.set(
+                        AabbIntervalFlags::CUSTOM_FILTER,
+                        hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
+                    );
+
+                    true
+                } else {
+                    false
+                }
+            });
+    }
 }
 
 type AabbIntervalQueryData = (
@@ -198,10 +197,51 @@ type AabbIntervalQueryData = (
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
-    added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    aabbs: Query<AabbIntervalQueryData>,
-    mut intervals: ResMut<AabbIntervals>,
+    mut physics_world_query: ParamSet<(
+        Query<(Entity, &mut AabbIntervals)>,
+        Query<(Entity, &mut AabbIntervals), With<MainPhysicsWorld>>,
+    )>,
+    mut added_aabbs: QueryByIndex<
+        PhysicsWorldId,
+        AabbIntervalQueryData,
+        (Added<ColliderAabb>, Without<ColliderDisabled>),
+    >,
+    mut aabbs: QueryByIndex<PhysicsWorldId, AabbIntervalQueryData>,
     mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
+) {
+    for (physics_world_id, intervals) in &mut physics_world_query.p0() {
+        let id = PhysicsWorldId::Id(physics_world_id);
+        add_new_aabb_intervals_single(
+            added_aabbs.at(&id),
+            aabbs.at(&id),
+            intervals,
+            &mut re_enabled_colliders,
+        );
+    }
+
+    if let Ok((_, intervals)) = physics_world_query.p1().get_single_mut() {
+        add_new_aabb_intervals_single(
+            added_aabbs.at(&PhysicsWorldId::Main),
+            aabbs.at(&PhysicsWorldId::Main),
+            intervals,
+            &mut re_enabled_colliders,
+        );
+    }
+}
+
+/// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
+#[allow(clippy::type_complexity)]
+fn add_new_aabb_intervals_single(
+    added_aabbs: Query<
+        AabbIntervalQueryData,
+        (
+            (Added<ColliderAabb>, Without<ColliderDisabled>),
+            With<PhysicsWorldId>,
+        ),
+    >,
+    aabbs: Query<AabbIntervalQueryData, ((), With<PhysicsWorldId>)>,
+    mut intervals: Mut<AabbIntervals>,
+    re_enabled_colliders: &mut RemovedComponents<ColliderDisabled>,
 ) {
     let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
@@ -230,8 +270,7 @@ fn add_new_aabb_intervals(
 
 /// Collects bodies that are potentially colliding.
 fn collect_collision_pairs<H: CollisionHooks>(
-    intervals: ResMut<AabbIntervals>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut physics_world_query: Query<(&mut BroadCollisionPairs, &mut AabbIntervals)>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
@@ -242,23 +281,25 @@ fn collect_collision_pairs<H: CollisionHooks>(
         intersections.clear();
     }
 
-    sweep_and_prune::<H>(
-        intervals,
-        &mut broad_collision_pairs.0,
-        &mut aabb_intersection_query,
-        &mut hooks.into_inner(),
-        &mut commands,
-    );
+    for (mut broad_collision_pairs, mut intervals) in physics_world_query.iter_mut() {
+        sweep_and_prune::<H>(
+            &mut intervals,
+            &mut broad_collision_pairs.0,
+            &mut aabb_intersection_query,
+            &hooks,
+            &mut commands,
+        );
+    }
 }
 
 /// Sorts the entities by their minimum extents along an axis and collects the entity pairs that have intersecting AABBs.
 ///
 /// Sweep and prune exploits temporal coherence, as bodies are unlikely to move significantly between two simulation steps. Insertion sort is used, as it is good at sorting nearly sorted lists efficiently.
 fn sweep_and_prune<H: CollisionHooks>(
-    mut intervals: ResMut<AabbIntervals>,
+    intervals: &mut AabbIntervals,
     broad_collision_pairs: &mut Vec<(Entity, Entity)>,
     aabb_intersection_query: &mut Query<&mut AabbIntersections>,
-    hooks: &mut H::Item<'_, '_>,
+    hooks: &H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
