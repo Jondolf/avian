@@ -3,6 +3,7 @@
 //! See [`PhysicsSchedulePlugin`].
 
 mod time;
+use dynamics::solver::schedule::SubstepCount;
 pub use time::*;
 
 mod diagnostics;
@@ -23,7 +24,7 @@ use bevy::{
 
 /// Sets up the default scheduling, system set configuration, and time resources for physics.
 ///
-/// ## Schedules and sets
+/// # Schedules and Sets
 ///
 /// This plugin initializes and configures the following schedules and system sets:
 ///
@@ -31,9 +32,7 @@ use bevy::{
 ///   You can use these to schedule your own systems before or after physics is run without
 ///   having to worry about implementation details.
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
-/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
-///   the broad phase and the substepping loop.
-/// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`SolverSet::Substep`].
+/// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop.
 pub struct PhysicsSchedulePlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -60,6 +59,9 @@ impl Plugin for PhysicsSchedulePlugin {
         app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
             .init_resource::<SubstepCount>();
+
+        // TODO: Where should this be initialized?
+        app.init_resource::<PhysicsLengthUnit>();
 
         // Configure higher level system sets for the given schedule
         let schedule = self.schedule;
@@ -104,22 +106,6 @@ impl Plugin for PhysicsSchedulePlugin {
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
         );
 
-        // Set up the substep schedule, the schedule that runs the inner substepping loop
-        app.edit_schedule(SubstepSchedule, |schedule| {
-            schedule
-                .set_executor_kind(ExecutorKind::SingleThreaded)
-                .set_build_settings(ScheduleBuildSettings {
-                    ambiguity_detection: LogLevel::Error,
-                    ..default()
-                });
-        });
-
-        // TODO: This should probably just be in the SolverPlugin.
-        app.add_systems(
-            PhysicsSchedule,
-            run_substep_schedule.in_set(SolverSet::Substep),
-        );
-
         // Update step time diagnostics.
         app.add_systems(
             PhysicsSchedule,
@@ -152,18 +138,14 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-/// The substepping schedule that runs in [`SolverSet::Substep`].
-/// The number of substeps per physics step is configured through the [`SubstepCount`] resource.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct SubstepSchedule;
-
+// TODO: Remove this in favor of collision hooks.
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
 /// The schedule is empty by default and runs in
 /// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
 ///
-/// ## Example
+/// # Example
 ///
 /// Below is an example of how you could add a system that filters collisions.
 ///
@@ -203,7 +185,7 @@ pub struct PostProcessCollisions;
 /// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
 ///    and [`Rotation`] in sync with `Transform`.
 ///
-/// ## See also
+/// # See Also
 ///
 /// - [`PhysicsSchedule`]: Responsible for advancing the simulation in [`PhysicsSet::StepSimulation`].
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
@@ -272,44 +254,6 @@ pub enum PhysicsStepSet {
     Last,
 }
 
-/// The number of substeps used in the simulation.
-///
-/// A higher number of substeps reduces the value of [`Time`],
-/// which results in a more accurate simulation, but also reduces performance. The default
-/// substep count is currently 6.
-///
-/// If you use a very high substep count and encounter stability issues, consider enabling the `f64`
-/// feature as shown in the [getting started guide](crate#getting-started) to avoid floating point
-/// precision problems.
-///
-/// ## Example
-///
-/// You can change the number of substeps by inserting the [`SubstepCount`] resource:
-///
-/// ```no_run
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .insert_resource(SubstepCount(12))
-///         .run();
-/// }
-/// ```
-#[derive(Debug, Reflect, Resource, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Resource, PartialEq)]
-pub struct SubstepCount(pub u32);
-
-impl Default for SubstepCount {
-    fn default() -> Self {
-        Self(6)
-    }
-}
-
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
@@ -322,24 +266,27 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
             .delta()
             .mul_f64(physics_clock.relative_speed_f64());
 
-        // Advance physics clock by timestep if not paused.
+        // Advance the physics clock by the timestep if not paused.
         if !is_paused {
             world.resource_mut::<Time<Physics>>().advance_by(timestep);
 
-            // Advance substep clock already so that systems running before the substepping loop have the right delta.
+            // Advance the substep clock already so that systems running
+            // before the substepping loop have the right delta.
             let SubstepCount(substeps) = *world.resource::<SubstepCount>();
             let sub_delta = timestep.div_f64(substeps as f64);
             world.resource_mut::<Time<Substeps>>().advance_by(sub_delta);
         }
 
-        // Set generic `Time` resource to `Time<Physics>`.
+        // Set the generic `Time` resource to `Time<Physics>`.
         *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 
-        // Advance simulation.
-        trace!("running PhysicsSchedule");
-        schedule.run(world);
+        // Advance the simulation.
+        if !world.resource::<Time>().delta().is_zero() {
+            trace!("running PhysicsSchedule");
+            schedule.run(world);
+        }
 
-        // If physics is paused, reset delta time to stop simulation
+        // If physics is paused, reset delta time to stop the simulation
         // unless users manually advance `Time<Physics>`.
         if is_paused {
             world
@@ -347,31 +294,9 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
                 .advance_by(Duration::ZERO);
         }
 
-        // Set generic `Time` resource back to the clock that was active before physics.
+        // Set the generic `Time` resource back to the clock that was active before physics.
         *world.resource_mut::<Time>() = old_clock;
     });
 
     is_first_run.0 = false;
-}
-
-/// Runs the [`SubstepSchedule`].
-fn run_substep_schedule(world: &mut World) {
-    let delta = world.resource::<Time<Physics>>().delta();
-    let SubstepCount(substeps) = *world.resource::<SubstepCount>();
-    let sub_delta = delta.div_f64(substeps as f64);
-
-    let mut sub_delta_time = world.resource_mut::<Time<Substeps>>();
-    sub_delta_time.advance_by(sub_delta);
-
-    let _ = world.try_schedule_scope(SubstepSchedule, |world, schedule| {
-        for i in 0..substeps {
-            trace!("running SubstepSchedule: {i}");
-            *world.resource_mut::<Time>() = world.resource::<Time<Substeps>>().as_generic();
-            schedule.run(world);
-        }
-    });
-
-    // Set generic `Time` resource back to `Time<Physics>`.
-    // Later, it's set back to the default clock after the `PhysicsSchedule`.
-    *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 }

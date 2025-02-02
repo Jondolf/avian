@@ -99,7 +99,7 @@ pub enum IntegrationSet {
 /// You can also control how gravity affects a specific [rigid body](RigidBody) using the [`GravityScale`]
 /// component. The magnitude of the gravity will be multiplied by this scaling factor.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -154,19 +154,21 @@ struct VelocityIntegrationQuery {
     ang_vel: &'static mut AngularVelocity,
     force: &'static ExternalForce,
     torque: &'static ExternalTorque,
-    mass: &'static Mass,
-    angular_inertia: &'static AngularInertia,
+    mass: &'static ComputedMass,
+    angular_inertia: &'static ComputedAngularInertia,
     #[cfg(feature = "3d")]
     global_angular_inertia: &'static GlobalAngularInertia,
     lin_damping: Option<&'static LinearDamping>,
     ang_damping: Option<&'static AngularDamping>,
+    max_linear_speed: Option<&'static MaxLinearSpeed>,
+    max_angular_speed: Option<&'static MaxAngularSpeed>,
     gravity_scale: Option<&'static GravityScale>,
     locked_axes: Option<&'static LockedAxes>,
 }
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
-    mut bodies: Query<VelocityIntegrationQuery, Without<Sleeping>>,
+    mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
     gravity: Res<Gravity>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -190,45 +192,64 @@ fn integrate_velocities(
             return;
         }
 
-        if body.rb.is_kinematic() {
-            return;
+        if body.rb.is_dynamic() {
+            let locked_axes = body
+                .locked_axes
+                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
+            // Apply damping
+            if let Some(lin_damping) = body.lin_damping {
+                if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
+                    body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                }
+            }
+            if let Some(ang_damping) = body.ang_damping {
+                if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
+                    body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+                }
+            }
+
+            let external_force = body.force.force();
+            let external_torque = body.torque.torque() + body.force.torque();
+            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
+
+            semi_implicit_euler::integrate_velocity(
+                &mut body.lin_vel.0,
+                &mut body.ang_vel.0,
+                external_force,
+                external_torque,
+                *body.mass,
+                body.angular_inertia,
+                #[cfg(feature = "3d")]
+                body.global_angular_inertia,
+                #[cfg(feature = "3d")]
+                *body.rot,
+                locked_axes,
+                gravity,
+                delta_secs,
+            );
         }
 
-        let locked_axes = body
-            .locked_axes
-            .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
-
-        // Apply damping
-        if let Some(lin_damping) = body.lin_damping {
-            if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
-                body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+        // Clamp velocities
+        if let Some(max_linear_speed) = body.max_linear_speed {
+            let linear_speed_squared = body.lin_vel.0.length_squared();
+            if linear_speed_squared > max_linear_speed.0.powi(2) {
+                body.lin_vel.0 *= max_linear_speed.0 / linear_speed_squared.sqrt();
             }
         }
-        if let Some(ang_damping) = body.ang_damping {
-            if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+        if let Some(max_angular_speed) = body.max_angular_speed {
+            #[cfg(feature = "2d")]
+            if body.ang_vel.abs() > max_angular_speed.0 {
+                body.ang_vel.0 = max_angular_speed.copysign(body.ang_vel.0);
+            }
+            #[cfg(feature = "3d")]
+            {
+                let angular_speed_squared = body.ang_vel.0.length_squared();
+                if angular_speed_squared > max_angular_speed.0.powi(2) {
+                    body.ang_vel.0 *= max_angular_speed.0 / angular_speed_squared.sqrt();
+                }
             }
         }
-
-        let external_force = body.force.force();
-        let external_torque = body.torque.torque() + body.force.torque();
-        let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
-
-        semi_implicit_euler::integrate_velocity(
-            &mut body.lin_vel.0,
-            &mut body.ang_vel.0,
-            external_force,
-            external_torque,
-            *body.mass,
-            body.angular_inertia,
-            #[cfg(feature = "3d")]
-            body.global_angular_inertia,
-            #[cfg(feature = "3d")]
-            *body.rot,
-            locked_axes,
-            gravity,
-            delta_secs,
-        );
     });
 
     diagnostics.integrate_velocities += start.elapsed();
@@ -247,7 +268,7 @@ fn integrate_positions(
             &AngularVelocity,
             Option<&LockedAxes>,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -307,12 +328,12 @@ type ImpulseQueryComponents = (
     &'static mut LinearVelocity,
     &'static mut AngularVelocity,
     &'static Rotation,
-    &'static Mass,
+    &'static ComputedMass,
     &'static GlobalAngularInertia,
     Option<&'static LockedAxes>,
 );
 
-fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, Without<Sleeping>>) {
+fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, RigidBodyActiveFilter>) {
     for (
         rb,
         impulse,

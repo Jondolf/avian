@@ -115,8 +115,12 @@
 //! especially for thin objects spinning at very high speeds. This is typically quite rare however,
 //! and speculative collision should work fine for the majority of cases.
 //!
-//! For an approach that is more expensive but doesn't suffer from ghost collisions
-//! or missed collisions, consider using swept CCD, which is described in the following section.
+//! Speculative collisions can also absorb some energy in contacts, causing even perfectly elastic
+//! objects to lose kinetic energy over several bounces.
+//!
+//! For an approach that is more expensive but doesn't suffer from ghost collisions,
+//! missed collisions, or inaccurate restitution, consider using swept CCD,
+//! which is described in the following section.
 //!
 //! ## Swept CCD
 //!
@@ -335,7 +339,7 @@ impl SpeculativeMargin {
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
-///         TransformBundle::from_transform(Transform::from_xyz(-10.0, 3.0, 0.0)),
+///         Transform::from_xyz(-10.0, 3.0, 0.0),
 ///     ));
 ///
 ///     // Spawn another dynamic rigid body with swept CCD, but this time only considering
@@ -347,7 +351,7 @@ impl SpeculativeMargin {
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.1),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.1),")]
-///         TransformBundle::from_transform(Transform::from_xyz(-10.0, -3.0, 0.0)),
+///         Transform::from_xyz(-10.0, -3.0, 0.0),
 ///     ));
 ///
 ///     // Spawn a thin, long object rotating at a high speed.
@@ -368,7 +372,7 @@ impl SpeculativeMargin {
 ///         RigidBody::Static,
 #[cfg_attr(feature = "2d", doc = "        Collider::rectangle(0.2, 10.0),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::cuboid(0.2, 10.0, 10.0),")]
-///         TransformBundle::from_transform(Transform::from_xyz(15.0, 0.0, 0.0)),
+///         Transform::from_xyz(15.0, 0.0, 0.0),
 ///     ));
 /// }
 /// ```
@@ -500,7 +504,7 @@ struct SweptCcdBodyQuery {
     ang_vel: Option<&'static AngularVelocity>,
     ccd: Option<&'static SweptCcd>,
     collider: &'static Collider,
-    com: &'static CenterOfMass,
+    com: &'static ComputedCenterOfMass,
 }
 
 /// Performs [sweep-based mContinuous Collision Detection](self#swept-ccd)
@@ -608,7 +612,7 @@ fn solve_swept_ccd(
                 );
 
                 let sweep_mode = if ccd1.mode == SweepMode::Linear
-                    && body2.ccd.map_or(true, |ccd| ccd.mode == SweepMode::Linear)
+                    && body2.ccd.is_none_or(|ccd| ccd.mode == SweepMode::Linear)
                 {
                     SweepMode::Linear
                 } else {
@@ -651,7 +655,7 @@ fn solve_swept_ccd(
             {
                 let delta_rot = Quaternion::from_scaled_axis(ang_vel1.0 * min_toi);
                 rot1.0 = delta_rot * prev_rot.0 .0;
-                rot1.renormalize();
+                *rot1 = rot1.fast_renormalize();
             }
 
             if let Some(mut collider_translation) = body2.translation {
@@ -668,7 +672,7 @@ fn solve_swept_ccd(
                     let delta_rot = Quaternion::from_scaled_axis(collider_ang_vel * min_toi);
 
                     body2.rot.0 = delta_rot * collider_prev_rot.0 .0;
-                    body2.rot.renormalize();
+                    *body2.rot = body2.rot.fast_renormalize();
                 }
             }
         }

@@ -22,6 +22,7 @@ pub mod broad_phase;
 ))]
 pub mod contact_query;
 pub mod contact_reporting;
+pub mod hooks;
 pub mod narrow_phase;
 
 pub mod collider;
@@ -49,16 +50,7 @@ use indexmap::IndexMap;
 // ==========================================
 /// A resource that stores all collision pairs.
 ///
-/// Each colliding entity pair is associated with [`Contacts`] that can be accessed and modified
-/// using the various associated methods.
-///
-/// ## Usage
-///
-/// [`Collisions`] can be accessed at almost anytime, but for modifying and filtering collisions,
-/// it is recommended to use the [`PostProcessCollisions`] schedule. See its documentation
-/// for more information.
-///
-/// ### Querying collisions
+/// # Querying Collisions
 ///
 /// The following methods can be used for querying existing collisions:
 ///
@@ -68,31 +60,15 @@ use indexmap::IndexMap;
 /// - [`collisions_with_entity`](Self::collisions_with_entity) and
 ///   [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
 ///
-/// The collisions can be accessed at any time, but modifications to contacts should be performed
-/// in the [`PostProcessCollisions`] schedule. Otherwise, the physics solver will use the old contact data.
+/// Collisions can be accessed at almost any time, but modifications to contacts should be performed
+/// in the [`PostProcessCollisions`] schedule or in [`CollisionHooks`].
 ///
-/// ### Filtering and removing collisions
+/// # Filtering and Modifying Collisions
 ///
-/// The following methods can be used for filtering or removing existing collisions:
+/// Advanced collision filtering and modification can be done using [`CollisionHooks`].
+/// See its documentation for more information.
 ///
-/// - [`retain`](Self::retain)
-/// - [`remove_collision_pair`](Self::remove_collision_pair)
-/// - [`remove_collisions_with_entity`](Self::remove_collisions_with_entity)
-///
-/// Collision filtering and removal should be done in the [`PostProcessCollisions`] schedule.
-/// Otherwise, the physics solver will use the old contact data.
-///
-/// ### Adding new collisions
-///
-/// The following methods can be used for adding new collisions:
-///
-/// - [`insert_collision_pair`](Self::insert_collision_pair)
-/// - [`extend`](Self::extend)
-///
-/// The most convenient place for adding new collisions is in the [`PostProcessCollisions`] schedule.
-/// Otherwise, the physics solver might not have access to them in time.
-///
-/// ## Implementation details
+/// # Implementation Details
 ///
 /// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
 /// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
@@ -229,7 +205,7 @@ impl Collisions {
         let reserve = if self.get_internal().is_empty() {
             iter.size_hint().0
         } else {
-            (iter.size_hint().0 + 1) / 2
+            iter.size_hint().0.div_ceil(2)
         };
         self.get_internal_mut().reserve(reserve);
         iter.for_each(move |contacts| {

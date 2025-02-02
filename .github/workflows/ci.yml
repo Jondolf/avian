@@ -19,6 +19,17 @@ jobs:
             - name: Run cargo check
               run: cargo check
 
+    docs:
+        name: Check Documentation
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Run cargo doc
+              run: cargo doc --workspace --no-deps --document-private-items --keep-going
+              env:
+                  RUSTDOCFLAGS: "-D warnings"
+
     test:
         name: Test Suite
         strategy:

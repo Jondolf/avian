@@ -38,7 +38,6 @@ fn setup(
             Transform::from_xyz(-2.0, -0.5, 0.0),
             RigidBody::Dynamic,
             Collider::cuboid(1., 1., 1.),
-            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
         ))
         .id();
 

@@ -40,7 +40,7 @@ fn setup(
             MeshMaterial3d(cube_material),
             Transform::from_xyz(0.0, -2.0, 0.0),
             RigidBody::Dynamic,
-            MassPropertiesBundle::new_computed(&Collider::cuboid(1.0, 1.0, 1.0), 1.0),
+            MassPropertiesBundle::from_shape(&Cuboid::from_length(1.0), 1.0),
         ))
         .id();
 

@@ -11,7 +11,7 @@
 //!
 //! For a dynamic character controller, see the `dynamic_character_2d` example.
 //!
-//! ## Warning
+//! # Warning
 //!
 //! Note that this is *not* intended to be a fully featured character controller,
 //! and the collision logic is quite basic.

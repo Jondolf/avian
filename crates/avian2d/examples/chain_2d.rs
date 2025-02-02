@@ -49,7 +49,7 @@ fn setup(
         let current_particle = commands
             .spawn((
                 RigidBody::Dynamic,
-                MassPropertiesBundle::new_computed(&Collider::circle(particle_radius), 1.0),
+                MassPropertiesBundle::from_shape(&Circle::new(particle_radius as f32), 1.0),
                 Mesh2d(particle_mesh.clone()),
                 MeshMaterial2d(particle_material.clone()),
                 Transform::from_xyz(0.0, -i as f32 * (particle_radius as f32 * 2.0 + 1.0), 0.0),

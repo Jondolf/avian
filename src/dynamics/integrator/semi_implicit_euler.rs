@@ -37,8 +37,8 @@ pub fn integrate_velocity(
     ang_vel: &mut AngularValue,
     force: Vector,
     torque: TorqueValue,
-    mass: Mass,
-    angular_inertia: &AngularInertia,
+    mass: ComputedMass,
+    angular_inertia: &ComputedAngularInertia,
     #[cfg(feature = "3d")] global_angular_inertia: &GlobalAngularInertia,
     #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
@@ -123,6 +123,7 @@ pub fn integrate_position(
         let delta_rot = Rotation::radians(ang_vel * delta_seconds);
         if delta_rot != Rotation::IDENTITY && delta_rot.is_finite() {
             *rot *= delta_rot;
+            *rot = rot.fast_renormalize();
         }
     }
     #[cfg(feature = "3d")]
@@ -133,7 +134,7 @@ pub fn integrate_position(
         if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
             let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
             rot.0 = delta_rot * rot.0;
-            rot.renormalize();
+            *rot = rot.fast_renormalize();
         }
     }
 }
@@ -141,7 +142,7 @@ pub fn integrate_position(
 /// Computes linear acceleration based on the given forces and mass.
 pub fn linear_acceleration(
     force: Vector,
-    mass: Mass,
+    mass: ComputedMass,
     locked_axes: LockedAxes,
     gravity: Vector,
 ) -> Vector {
@@ -173,13 +174,13 @@ correction, use `solve_gyroscopic_torque`."
 )]
 pub fn angular_acceleration(
     torque: TorqueValue,
-    global_angular_inertia: &AngularInertia,
+    global_angular_inertia: &ComputedAngularInertia,
     locked_axes: LockedAxes,
 ) -> AngularValue {
     // Effective inverse inertia along each axis
     let effective_angular_inertia = locked_axes.apply_to_angular_inertia(*global_angular_inertia);
 
-    if effective_angular_inertia != AngularInertia::INFINITY
+    if effective_angular_inertia != ComputedAngularInertia::INFINITY
         && effective_angular_inertia.is_finite()
     {
         // Newton's 2nd law for rotational movement:
@@ -247,11 +248,11 @@ mod tests {
         #[cfg(feature = "3d")]
         let mut angular_velocity = Vector::Z * 2.0;
 
-        let mass = Mass::new(1.0);
+        let mass = ComputedMass::new(1.0);
         #[cfg(feature = "2d")]
-        let angular_inertia = AngularInertia::new(1.0);
+        let angular_inertia = ComputedAngularInertia::new(1.0);
         #[cfg(feature = "3d")]
-        let angular_inertia = AngularInertia::new(Vector::ONE);
+        let angular_inertia = ComputedAngularInertia::new(Vector::ONE);
 
         let gravity = Vector::NEG_Y * 9.81;
 

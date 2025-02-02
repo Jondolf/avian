@@ -17,7 +17,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 ///
 /// Each shapecast is defined by a `shape` (a [`Collider`]), its local `shape_rotation`, a local `origin` and
 /// a local `direction`. The [`ShapeCaster`] will find each hit and add them to the [`ShapeHits`] component in
-/// the order of the time of impact.
+/// the order of distance.
 ///
 /// Computing lots of hits can be expensive, especially against complex geometry, so the maximum number of hits
 /// is one by default. This can be configured through the `max_hits` property.
@@ -25,7 +25,7 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 /// The [`ShapeCaster`] is the easiest way to handle simple shapecasting. If you want more control and don't want
 /// to perform shapecasts on every frame, consider using the [`SpatialQuery`] system parameter.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -63,55 +63,83 @@ use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOpt
 pub struct ShapeCaster {
     /// Controls if the shape caster is enabled.
     pub enabled: bool,
+
     /// The shape being cast represented as a [`Collider`].
     #[reflect(ignore)]
     pub shape: Collider,
+
     /// The local origin of the shape relative to the [`Position`] and [`Rotation`]
     /// of the shape caster entity or its parent.
     ///
     /// To get the global origin, use the `global_origin` method.
     pub origin: Vector,
+
     /// The global origin of the shape.
     global_origin: Vector,
+
     /// The local rotation of the shape being cast relative to the [`Rotation`]
     /// of the shape caster entity or its parent. Expressed in radians.
     ///
     /// To get the global shape rotation, use the `global_shape_rotation` method.
     #[cfg(feature = "2d")]
     pub shape_rotation: Scalar,
+
     /// The local rotation of the shape being cast relative to the [`Rotation`]
     /// of the shape caster entity or its parent.
     ///
     /// To get the global shape rotation, use the `global_shape_rotation` method.
     #[cfg(feature = "3d")]
     pub shape_rotation: Quaternion,
+
     /// The global rotation of the shape.
     #[cfg(feature = "2d")]
     global_shape_rotation: Scalar,
+
     /// The global rotation of the shape.
     #[cfg(feature = "3d")]
     global_shape_rotation: Quaternion,
+
     /// The local direction of the shapecast relative to the [`Rotation`] of the shape caster entity or its parent.
     ///
     /// To get the global direction, use the `global_direction` method.
     pub direction: Dir,
+
     /// The global direction of the shapecast.
     global_direction: Dir,
-    /// The maximum distance the shape can travel. By default this is infinite, so the shape will travel
-    /// until a hit is found.
-    pub max_time_of_impact: Scalar,
+
     /// The maximum number of hits allowed. By default this is one and only the first hit is returned.
     pub max_hits: u32,
-    /// Controls how the shapecast behaves when the shape is already penetrating a [collider](Collider)
-    /// at the shape origin.
+
+    /// The maximum distance the shape can travel.
     ///
-    /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
-    /// the shapecast will not stop immediately, and will instead continue until another hit.\
-    /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
+    /// By default, this is infinite.
+    #[doc(alias = "max_time_of_impact")]
+    pub max_distance: Scalar,
+
+    /// The separation distance at which the shapes will be considered as impacting.
+    ///
+    /// If the shapes are separated by a distance smaller than `target_distance` at the origin of the cast,
+    /// the computed contact points and normals are only reliable if [`ShapeCaster::compute_contact_on_penetration`]
+    /// is set to `true`.
+    ///
+    /// By default, this is `0.0`, so the shapes will only be considered as impacting when they first touch.
+    pub target_distance: Scalar,
+
+    /// If `true`, contact points and normals will be calculated even when the cast distance is `0.0`.
+    ///
+    /// The default is `true`.
+    pub compute_contact_on_penetration: bool,
+
+    /// If `true` *and* the shape is travelling away from the object that was hit,
+    /// the cast will ignore any impact that happens at the cast origin.
+    ///
+    /// The default is `false`.
     pub ignore_origin_penetration: bool,
+
     /// If true, the shape caster ignores hits against its own [`Collider`]. This is the default.
     pub ignore_self: bool,
-    /// Rules that determine which colliders are taken into account in the query.
+
+    /// Rules that determine which colliders are taken into account in the shape cast.
     pub query_filter: SpatialQueryFilter,
 }
 
@@ -135,8 +163,10 @@ impl Default for ShapeCaster {
             global_shape_rotation: Quaternion::IDENTITY,
             direction: Dir::X,
             global_direction: Dir::X,
-            max_time_of_impact: Scalar::MAX,
             max_hits: 1,
+            max_distance: Scalar::MAX,
+            target_distance: 0.0,
+            compute_contact_on_penetration: true,
             ignore_origin_penetration: false,
             ignore_self: true,
             query_filter: SpatialQueryFilter::default(),
@@ -190,10 +220,30 @@ impl ShapeCaster {
         self
     }
 
+    /// Sets the separation distance at which the shapes will be considered as impacting.
+    ///
+    /// If the shapes are separated by a distance smaller than `target_distance` at the origin of the cast,
+    /// the computed contact points and normals are only reliable if [`ShapeCaster::compute_contact_on_penetration`]
+    /// is set to `true`.
+    ///
+    /// By default, this is `0.0`, so the shapes will only be considered as impacting when they first touch.
+    pub fn with_target_distance(mut self, target_distance: Scalar) -> Self {
+        self.target_distance = target_distance;
+        self
+    }
+
+    /// Sets if contact points and normals should be calculated even when the cast distance is `0.0`.
+    ///
+    /// The default is `true`.
+    pub fn with_compute_contact_on_penetration(mut self, compute_contact: bool) -> Self {
+        self.compute_contact_on_penetration = compute_contact;
+        self
+    }
+
     /// Controls how the shapecast behaves when the shape is already penetrating a [collider](Collider)
     /// at the shape origin.
     ///
-    /// If set to true **and** the shape is being cast in a direction where it will eventually stop penetrating,
+    /// If set to `true` **and** the shape is being cast in a direction where it will eventually stop penetrating,
     /// the shapecast will not stop immediately, and will instead continue until another hit.\
     /// If set to false, the shapecast will stop immediately and return the hit. This is the default.
     pub fn with_ignore_origin_penetration(mut self, ignore: bool) -> Self {
@@ -202,16 +252,23 @@ impl ShapeCaster {
     }
 
     /// Sets if the shape caster should ignore hits against its own [`Collider`].
-    /// The default is true.
+    ///
+    /// The default is `true`.
     pub fn with_ignore_self(mut self, ignore: bool) -> Self {
         self.ignore_self = ignore;
         self
     }
 
-    /// Sets the maximum time of impact, i.e. the maximum distance that the ray is allowed to travel.
-    pub fn with_max_time_of_impact(mut self, max_time_of_impact: Scalar) -> Self {
-        self.max_time_of_impact = max_time_of_impact;
+    /// Sets the maximum distance the shape can travel.
+    pub fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+        self.max_distance = max_distance;
         self
+    }
+
+    /// Sets the maximum time of impact, i.e. the maximum distance that the shape is allowed to travel.
+    #[deprecated(since = "0.2.0", note = "Renamed to `with_max_distance`")]
+    pub fn with_max_time_of_impact(self, max_time_of_impact: Scalar) -> Self {
+        self.with_max_distance(max_time_of_impact)
     }
 
     /// Sets the maximum number of allowed hits.
@@ -320,7 +377,7 @@ impl ShapeCaster {
                 &pipeline_shape,
                 &**self.shape.shape_scaled(),
                 ShapeCastOptions {
-                    max_time_of_impact: self.max_time_of_impact,
+                    max_time_of_impact: self.max_distance,
                     stop_at_penetration: !self.ignore_origin_penetration,
                     ..default()
                 },
@@ -329,7 +386,7 @@ impl ShapeCaster {
             if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
                 |(_, (entity_index, hit))| ShapeHitData {
                     entity: query_pipeline.entity_from_index(entity_index),
-                    time_of_impact: hit.time_of_impact,
+                    distance: hit.time_of_impact,
                     point1: hit.witness1.into(),
                     point2: hit.witness2.into(),
                     normal1: hit.normal1.into(),
@@ -363,12 +420,98 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
     world.get_mut::<ShapeHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
-/// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of time of impact.
+/// Configuration for a shape cast.
+#[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct ShapeCastConfig {
+    /// The maximum distance the shape can travel.
+    ///
+    /// By default, this is infinite.
+    #[doc(alias = "max_time_of_impact")]
+    pub max_distance: Scalar,
+
+    /// The separation distance at which the shapes will be considered as impacting.
+    ///
+    /// If the shapes are separated by a distance smaller than `target_distance` at the origin of the cast,
+    /// the computed contact points and normals are only reliable if [`ShapeCastConfig::compute_contact_on_penetration`]
+    /// is set to `true`.
+    ///
+    /// By default, this is `0.0`, so the shapes will only be considered as impacting when they first touch.
+    pub target_distance: Scalar,
+
+    /// If `true`, contact points and normals will be calculated even when the cast distance is `0.0`.
+    ///
+    /// The default is `true`.
+    pub compute_contact_on_penetration: bool,
+
+    /// If `true` *and* the shape is travelling away from the object that was hit,
+    /// the cast will ignore any impact that happens at the cast origin.
+    ///
+    /// The default is `false`.
+    pub ignore_origin_penetration: bool,
+}
+
+impl Default for ShapeCastConfig {
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
+impl ShapeCastConfig {
+    /// The default [`ShapeCastConfig`] configuration.
+    pub const DEFAULT: Self = Self {
+        max_distance: Scalar::MAX,
+        target_distance: 0.0,
+        compute_contact_on_penetration: true,
+        ignore_origin_penetration: false,
+    };
+
+    /// Creates a new [`ShapeCastConfig`] with a given maximum distance the shape can travel.
+    #[inline]
+    pub const fn from_max_distance(max_distance: Scalar) -> Self {
+        Self {
+            max_distance,
+            target_distance: 0.0,
+            compute_contact_on_penetration: true,
+            ignore_origin_penetration: false,
+        }
+    }
+
+    /// Creates a new [`ShapeCastConfig`] with a given separation distance at which
+    /// the shapes will be considered as impacting.
+    #[inline]
+    pub const fn from_target_distance(target_distance: Scalar) -> Self {
+        Self {
+            max_distance: Scalar::MAX,
+            target_distance,
+            compute_contact_on_penetration: true,
+            ignore_origin_penetration: false,
+        }
+    }
+
+    /// Sets the maximum distance the shape can travel.
+    #[inline]
+    pub const fn with_max_distance(mut self, max_distance: Scalar) -> Self {
+        self.max_distance = max_distance;
+        self
+    }
+
+    /// Sets the separation distance at which the shapes will be considered as impacting.
+    #[inline]
+    pub const fn with_target_distance(mut self, target_distance: Scalar) -> Self {
+        self.target_distance = target_distance;
+        self
+    }
+}
+
+/// Contains the hits of a shape cast by a [`ShapeCaster`]. The hits are in the order of distance.
 ///
 /// The maximum number of hits depends on the value of `max_hits` in [`ShapeCaster`]. By default only
 /// one hit is computed, as shapecasting for many results can be expensive.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -380,11 +523,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
 /// fn print_hits(query: Query<&ShapeHits, With<ShapeCaster>>) {
 ///     for hits in &query {
 ///         for hit in hits.iter() {
-///             println!(
-///                 "Hit entity {} with time of impact {}",
-///                 hit.entity,
-///                 hit.time_of_impact,
-///             );
+///             println!("Hit entity {} with distance {}", hit.entity, hit.distance);
 ///         }
 ///     }
 /// }
@@ -421,7 +560,7 @@ impl ShapeHits {
         self.count = 0;
     }
 
-    /// Returns an iterator over the hits in the order of time of impact.
+    /// Returns an iterator over the hits in the order of distance.
     pub fn iter(&self) -> std::slice::Iter<ShapeHitData> {
         self.as_slice().iter()
     }
@@ -443,19 +582,27 @@ impl MapEntities for ShapeHits {
 pub struct ShapeHitData {
     /// The entity of the collider that was hit by the shape.
     pub entity: Entity,
-    /// The time of impact (TOI), or how long the shape travelled before the initial hit.
-    pub time_of_impact: Scalar,
-    /// The closest point on the collider that was hit by the shapecast, at the time of impact,
-    /// expressed in the local space of the collider shape.
+
+    /// How far the shape travelled before the initial hit.
+    #[doc(alias = "time_of_impact")]
+    pub distance: Scalar,
+
+    /// The closest point on the shape that was hit, expressed in world space.
+    ///
+    /// If the shapes are penetrating or the target distance is greater than zero,
+    /// this will be different from `point2`.
     pub point1: Vector,
-    /// The closest point on the cast shape, at the time of impact,
-    /// expressed in the local space of the cast shape.
+
+    /// The closest point on the shape that was cast, expressed in world space.
+    ///
+    /// If the shapes are penetrating or the target distance is greater than zero,
+    /// this will be different from `point1`.
     pub point2: Vector,
-    /// The outward normal on the collider that was hit by the shapecast, at the time of impact,
-    /// expressed in the local space of the collider shape.
+
+    /// The outward surface normal on the hit shape at `point1`, expressed in world space.
     pub normal1: Vector,
-    /// The outward normal on the cast shape, at the time of impact,
-    /// expressed in the local space of the cast shape.
+
+    /// The outward surface normal on the cast shape at `point2`, expressed in world space.
     pub normal2: Vector,
 }
 

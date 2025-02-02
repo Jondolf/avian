@@ -126,7 +126,7 @@ impl CharacterControllerBundle {
                 Quaternion::default(),
                 Dir3::NEG_Y,
             )
-            .with_max_time_of_impact(0.2),
+            .with_max_distance(0.2),
             gravity: ControllerGravity(gravity),
             movement: MovementBundle::default(),
         }

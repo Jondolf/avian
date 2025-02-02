@@ -330,7 +330,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// Note that this system only works for constraints that are modeled as entities.
 /// If you store constraints in a resource, you must create your own system for solving them.
 ///
-/// ## User constraints
+/// # User Constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
 /// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.
@@ -350,7 +350,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery>,
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
@@ -377,10 +377,13 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 
             // At least one of the participating bodies is active, so wake up any sleeping bodies
             for body in &mut bodies {
-                body.time_sleeping.0 = 0.0;
+                // Reset the sleep timer
+                if let Some(time_sleeping) = body.time_sleeping.as_mut() {
+                    time_sleeping.0 = 0.0;
+                }
 
                 if body.is_sleeping {
-                    commands.entity(body.entity).remove::<Sleeping>();
+                    commands.queue(WakeUpBody(body.entity));
                 }
             }
 
@@ -405,7 +408,7 @@ pub(super) fn project_linear_velocity(
             &AccumulatedTranslation,
             &mut LinearVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -438,7 +441,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -470,7 +473,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
