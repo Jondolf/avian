@@ -483,6 +483,7 @@ pub mod prelude {
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
+        diagnostics::PhysicsDiagnosticsPlugin,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         position::{Position, Rotation},
         prepare::{init_transforms, PrepareConfig, PreparePlugin},
@@ -493,6 +494,7 @@ pub mod prelude {
         PhysicsPlugins,
     };
     pub(crate) use crate::{
+        diagnostics::AppDiagnosticsExt,
         math::*,
         position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
     };

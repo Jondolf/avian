@@ -33,6 +33,9 @@ pub use layers::*;
 mod feature_id;
 pub use feature_id::PackedFeatureId;
 
+mod diagnostics;
+pub use diagnostics::CollisionDiagnostics;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;

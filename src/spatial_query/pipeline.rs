@@ -372,11 +372,11 @@ impl SpatialQueryPipeline {
     /// - `direction`: What direction the shape is cast in.
     /// - `max_time_of_impact`: The maximum distance that the shape can travel.
     /// - `ignore_origin_penetration`: If true and the shape is already penetrating a collider at the
-    ///     shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
-    ///     hit will be returned.
+    ///   shape origin, the hit will be ignored and only the next hit will be computed. Otherwise, the initial
+    ///   hit will be returned.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
-    ///     entity should be ignored.
+    ///   entity should be ignored.
     ///
     /// See also: [`SpatialQuery::cast_shape`]
     #[allow(clippy::too_many_arguments)]
@@ -589,10 +589,10 @@ impl SpatialQueryPipeline {
     ///
     /// - `point`: The point that should be projected.
     /// - `solid`: If true and the point is inside of a collider, the projection will be at the point.
-    ///     Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
+    ///   Otherwise, the collider will be treated as hollow, and the projection will be at the collider's boundary.
     /// - `query_filter`: A [`SpatialQueryFilter`] that determines which colliders are taken into account in the query.
     /// - `predicate`: A function with which the colliders are filtered. Given the Entity it should return false, if the
-    ///     entity should be ignored.
+    ///   entity should be ignored.
     ///
     /// See also: [`SpatialQuery::project_point`]
     pub fn project_point_predicate(
@@ -898,7 +898,7 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'_, 
 }
 
 fn entity_from_index_and_gen(index: u32, generation: u32) -> bevy::prelude::Entity {
-    bevy::prelude::Entity::from_bits((generation as u64) << 32 | index as u64)
+    bevy::prelude::Entity::from_bits(((generation as u64) << 32) | index as u64)
 }
 
 /// The result of a [point projection](spatial_query#point-projection) on a [collider](Collider).

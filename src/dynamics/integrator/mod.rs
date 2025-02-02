@@ -11,6 +11,7 @@ use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
 };
+use dynamics::solver::SolverDiagnostics;
 
 /// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 ///
@@ -168,7 +169,10 @@ fn integrate_velocities(
     mut bodies: Query<VelocityIntegrationQuery, Without<Sleeping>>,
     gravity: Res<Gravity>,
     time: Res<Time>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     bodies.par_iter_mut().for_each(|mut body| {
@@ -226,6 +230,8 @@ fn integrate_velocities(
             delta_secs,
         );
     });
+
+    diagnostics.integrate_velocities += start.elapsed();
 }
 
 #[allow(clippy::type_complexity)]
@@ -244,7 +250,10 @@ fn integrate_positions(
         Without<Sleeping>,
     >,
     time: Res<Time>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     bodies.par_iter_mut().for_each(
@@ -278,6 +287,8 @@ fn integrate_positions(
             );
         },
     );
+
+    diagnostics.integrate_positions += start.elapsed();
 }
 
 #[cfg(feature = "2d")]

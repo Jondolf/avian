@@ -161,6 +161,9 @@ mod shape_caster;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 mod system_param;
 
+mod diagnostics;
+pub use diagnostics::SpatialQueryDiagnostics;
+
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 pub use pipeline::*;
 pub use query_filter::*;
@@ -199,7 +202,7 @@ impl Plugin for SpatialQueryPlugin {
                 ))]
                 (
                     update_shape_caster_positions,
-                    |mut spatial_query: SpatialQuery| spatial_query.update_pipeline(),
+                    update_spatial_query_pipeline,
                     raycast,
                     shapecast,
                 )
@@ -209,6 +212,23 @@ impl Plugin for SpatialQueryPlugin {
                 .in_set(PhysicsStepSet::SpatialQuery),
         );
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer diagnostics for spatial queries.
+        app.register_physics_diagnostics::<SpatialQueryDiagnostics>();
+    }
+}
+
+/// Updates the [`SpatialQueryPipeline`].
+pub fn update_spatial_query_pipeline(
+    mut spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
+) {
+    let start = bevy::utils::Instant::now();
+
+    spatial_query.update_pipeline();
+
+    diagnostics.update_pipeline = start.elapsed();
 }
 
 type RayCasterPositionQueryComponents = (
@@ -376,7 +396,13 @@ fn update_shape_caster_positions(
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
-fn raycast(mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>, spatial_query: SpatialQuery) {
+fn raycast(
+    mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>,
+    spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
+) {
+    let start = bevy::utils::Instant::now();
+
     for (entity, mut ray, mut hits) in &mut rays {
         if ray.enabled {
             ray.cast(entity, &mut hits, &spatial_query.query_pipeline);
@@ -384,13 +410,18 @@ fn raycast(mut rays: Query<(Entity, &mut RayCaster, &mut RayHits)>, spatial_quer
             hits.clear();
         }
     }
+
+    diagnostics.update_ray_casters = start.elapsed();
 }
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn shapecast(
     mut shape_casters: Query<(Entity, &ShapeCaster, &mut ShapeHits)>,
     spatial_query: SpatialQuery,
+    mut diagnostics: ResMut<SpatialQueryDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     for (entity, shape_caster, mut hits) in &mut shape_casters {
         if shape_caster.enabled {
             shape_caster.cast(entity, &mut hits, &spatial_query.query_pipeline);
@@ -398,4 +429,6 @@ fn shapecast(
             hits.clear();
         }
     }
+
+    diagnostics.update_shape_casters = start.elapsed();
 }

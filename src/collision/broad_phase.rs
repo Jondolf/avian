@@ -170,7 +170,7 @@ fn add_new_aabb_intervals(
                 *aabb,
                 // Default to treating collider as immovable/static for filtering unnecessary collision checks
                 layers.map_or(CollisionLayers::default(), |layers| *layers),
-                rb.map_or(false, |rb| rb.is_static()),
+                rb.is_some_and(|rb| rb.is_static()),
                 store_intersections,
             )
         });
@@ -182,7 +182,10 @@ fn collect_collision_pairs(
     intervals: ResMut<AabbIntervals>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     for mut intersections in &mut aabb_intersection_query {
         intersections.clear();
     }
@@ -192,6 +195,8 @@ fn collect_collision_pairs(
         &mut broad_collision_pairs.0,
         &mut aabb_intersection_query,
     );
+
+    diagnostics.broad_phase = start.elapsed();
 }
 
 /// Sorts the entities by their minimum extents along an axis and collects the entity pairs that have intersecting AABBs.

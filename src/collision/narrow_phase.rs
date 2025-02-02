@@ -20,6 +20,7 @@ use bevy::{
     },
     prelude::*,
 };
+use dynamics::solver::SolverDiagnostics;
 
 /// Computes contacts between entities and generates contact constraints for them.
 ///
@@ -167,6 +168,11 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
             );
         }
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 #[derive(Resource, Default)]
@@ -254,8 +260,14 @@ fn collect_collisions<C: AnyCollider>(
     mut narrow_phase: NarrowPhase<C>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     narrow_phase.update(&broad_collision_pairs, time.delta_seconds_adjusted());
+
+    diagnostics.narrow_phase = start.elapsed();
+    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -268,7 +280,11 @@ fn generate_constraints<C: AnyCollider>(
     default_friction: Res<DefaultFriction>,
     default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
+    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
+    mut solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
@@ -354,6 +370,12 @@ fn generate_constraints<C: AnyCollider>(
                 delta_secs,
             );
         }
+    }
+
+    collision_diagnostics.generate_constraints = start.elapsed();
+
+    if let Some(mut solver_diagnostics) = solver_diagnostics {
+        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
     }
 }
 

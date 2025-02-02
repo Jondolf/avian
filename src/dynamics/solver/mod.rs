@@ -7,6 +7,9 @@ pub mod joints;
 pub mod softness_parameters;
 pub mod xpbd;
 
+mod diagnostics;
+pub use diagnostics::SolverDiagnostics;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -155,7 +158,10 @@ impl Plugin for SolverPlugin {
                  mut constraints: ResMut<ContactConstraints>,
                  solver_config: Res<SolverConfig>,
                  length_unit: Res<PhysicsLengthUnit>,
-                 time: Res<Time>| {
+                 time: Res<Time>,
+                 mut diagnostics: ResMut<SolverDiagnostics>| {
+                    let start = bevy::utils::Instant::now();
+
                     solve_contacts(
                         &mut bodies,
                         &mut constraints.0,
@@ -164,6 +170,8 @@ impl Plugin for SolverPlugin {
                         true,
                         solver_config.max_overlap_solve_speed * length_unit.0,
                     );
+
+                    diagnostics.solve_constraints += start.elapsed();
                 },
             )
                 .in_set(SubstepSolverSet::SolveConstraints),
@@ -177,7 +185,10 @@ impl Plugin for SolverPlugin {
                  mut constraints: ResMut<ContactConstraints>,
                  solver_config: Res<SolverConfig>,
                  length_unit: Res<PhysicsLengthUnit>,
-                 time: Res<Time>| {
+                 time: Res<Time>,
+                 mut diagnostics: ResMut<SolverDiagnostics>| {
+                    let start = bevy::utils::Instant::now();
+
                     solve_contacts(
                         &mut bodies,
                         &mut constraints.0,
@@ -186,6 +197,8 @@ impl Plugin for SolverPlugin {
                         false,
                         solver_config.max_overlap_solve_speed * length_unit.0,
                     );
+
+                    diagnostics.relax_velocities += start.elapsed();
                 },
             )
                 .in_set(SubstepSolverSet::Relax),
@@ -233,6 +246,11 @@ impl Plugin for SolverPlugin {
                 .chain()
                 .in_set(SubstepSolverSet::XpbdVelocityProjection),
         );
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for the solver.
+        app.register_physics_diagnostics::<SolverDiagnostics>();
     }
 }
 
@@ -505,7 +523,10 @@ fn warm_start(
     mut bodies: Query<RigidBodyQuery>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
 
@@ -527,6 +548,8 @@ fn warm_start(
             solver_config.warm_start_coefficient,
         );
     }
+
+    diagnostics.warm_start += start.elapsed();
 }
 
 /// Solves contacts by iterating through the given contact constraints
@@ -584,7 +607,10 @@ fn solve_restitution(
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
@@ -613,6 +639,8 @@ fn solve_restitution(
             constraint.apply_restitution(&mut body1, &mut body2, threshold);
         }
     }
+
+    diagnostics.apply_restitution += start.elapsed();
 }
 
 /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
@@ -620,7 +648,10 @@ fn solve_restitution(
 fn store_contact_impulses(
     constraints: Res<ContactConstraints>,
     mut collisions: ResMut<Collisions>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     for constraint in constraints.iter() {
         let Some(contacts) =
             collisions.get_mut(constraint.collider_entity1, constraint.collider_entity2)
@@ -640,6 +671,8 @@ fn store_contact_impulses(
                 .map_or(default(), |part| part.impulse);
         }
     }
+
+    diagnostics.store_impulses += start.elapsed();
 }
 
 /// Finalizes the positions of bodies by applying the [`AccumulatedTranslation`].
@@ -656,7 +689,10 @@ fn apply_translation(
         ),
         Changed<AccumulatedTranslation>,
     >,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     for (rb, mut pos, rot, prev_rot, mut translation, center_of_mass) in &mut bodies {
         if rb.is_static() {
             continue;
@@ -667,6 +703,8 @@ fn apply_translation(
         pos.0 += crate::utils::get_pos_translation(&translation, prev_rot, rot, center_of_mass);
         translation.0 = Vector::ZERO;
     }
+
+    diagnostics.finalize += start.elapsed();
 }
 
 /// Applies velocity corrections caused by joint damping.

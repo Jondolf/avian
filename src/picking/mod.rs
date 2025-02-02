@@ -12,7 +12,10 @@
     doc = "Note that in 3D, only the closest intersection will be reported."
 )]
 
-use crate::prelude::*;
+use crate::{
+    diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics},
+    prelude::*,
+};
 use bevy::{
     picking::{
         backend::{ray::RayMap, HitData, PointerHits},
@@ -21,6 +24,34 @@ use bevy::{
     prelude::*,
     render::view::RenderLayers,
 };
+
+use std::time::Duration;
+
+use bevy::{
+    diagnostic::DiagnosticPath,
+    prelude::{ReflectResource, Resource},
+    reflect::Reflect,
+};
+
+/// Diagnostics for spatial queries.
+#[derive(Resource, Debug, Default, Reflect)]
+#[reflect(Resource, Debug)]
+pub struct PhysicsPickingDiagnostics {
+    /// Time spent updating hits for the physics picking backend.
+    pub update_hits: Duration,
+}
+
+impl PhysicsDiagnostics for PhysicsPickingDiagnostics {
+    fn timer_paths(&self) -> Vec<(&'static DiagnosticPath, Duration)> {
+        vec![(Self::UPDATE_HITS, Duration::default())]
+    }
+}
+
+impl_diagnostic_paths! {
+    impl PhysicsPickingDiagnostics {
+        UPDATE_HITS: "avian/physics/update_hits",
+    }
+}
 
 /// Adds the physics picking backend to your app, enabling picking for [colliders](Collider).
 #[derive(Clone, Default)]
@@ -31,6 +62,11 @@ impl Plugin for PhysicsPickingPlugin {
         app.init_resource::<PhysicsPickingSettings>()
             .add_systems(PreUpdate, update_hits.in_set(PickSet::Backend))
             .register_type::<(PhysicsPickingSettings, PhysicsPickable)>();
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Register diagnostics for physics picking.
+        app.register_physics_diagnostics::<PhysicsPickingDiagnostics>();
     }
 }
 
@@ -62,7 +98,10 @@ pub fn update_hits(
     backend_settings: Res<PhysicsPickingSettings>,
     spatial_query: SpatialQuery,
     mut output_events: EventWriter<PointerHits>,
+    mut diagnostics: ResMut<PhysicsPickingDiagnostics>,
 ) {
+    let start_time = bevy::utils::Instant::now();
+
     for (&ray_id, &ray) in ray_map.map().iter() {
         let Ok((camera, cam_pickable, cam_layers)) = picking_cameras.get(ray_id.camera) else {
             continue;
@@ -151,4 +190,6 @@ pub fn update_hits(
             }
         }
     }
+
+    diagnostics.update_hits = start_time.elapsed();
 }
