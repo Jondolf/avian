@@ -516,7 +516,9 @@ pub mod prelude {
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
-        diagnostics::PhysicsDiagnosticsPlugin,
+        diagnostics::{
+            PhysicsDiagnosticsPlugin, PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings,
+        },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
         position::{Position, Rotation},

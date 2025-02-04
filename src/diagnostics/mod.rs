@@ -1,6 +1,9 @@
 //! Basic diagnostics support.
 
 mod path_macro;
+mod ui;
+
+pub use ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
 
 use crate::{
     collision::ColliderMarker,
