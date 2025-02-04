@@ -1,3 +1,8 @@
+//! Debug UI for displaying [physics diagnostics](crate::diagnostics), such as how much time
+//! each part of the simulation takes, and how many rigid bodies and collisions there are.
+//!
+//! See [`PhysicsDiagnosticsPlugin`] for more information.
+
 use crate::{diagnostics::*, prelude::*};
 use bevy::color::palettes::tailwind::{GREEN_400, RED_400};
 use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
@@ -6,19 +11,22 @@ use dynamics::solver::SolverDiagnostics;
 
 const FRAME_TIME_DIAGNOSTIC: &DiagnosticPath = &FrameTimeDiagnosticsPlugin::FRAME_TIME;
 
-/// A plugin that adds a debug UI for [physics diagnostics](PhysicsDiagnosticsPlugin).
+/// A plugin that adds debug UI for [physics diagnostics](crate::diagnostics), such as how much time
+/// each part of the simulation takes, and how many rigid bodies and collisions there are.
 ///
 /// To customize the visibility and appearance of the UI, modify the [`PhysicsDiagnosticsUiSettings`] resource.
 pub struct PhysicsDiagnosticsUiPlugin;
 
 impl Plugin for PhysicsDiagnosticsUiPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<PhysicsDiagnosticsUiSettings>();
+
         app.init_resource::<PhysicsDiagnosticsUiSettings>();
 
         app.add_systems(Startup, setup_diagnostics_ui).add_systems(
             Update,
             (
-                update_diagnostics_ui_node,
+                update_diagnostics_ui_visibility,
                 update_counters,
                 update_timers,
                 update_diagnostic_row_visibility,
@@ -29,8 +37,10 @@ impl Plugin for PhysicsDiagnosticsUiPlugin {
     }
 }
 
-/// Settings for the physics diagnostics UI.
-#[derive(Resource)]
+/// Settings for the [physics diagnostics](crate::diagnostics)
+/// debug [UI](PhysicsDiagnosticsUiPlugin).
+#[derive(Resource, Debug, Reflect)]
+#[reflect(Resource, Debug)]
 pub struct PhysicsDiagnosticsUiSettings {
     /// Whether the diagnostics UI is enabled.
     pub enabled: bool,
@@ -38,31 +48,73 @@ pub struct PhysicsDiagnosticsUiSettings {
     pub show_average_times: bool,
 }
 
-#[derive(Component)]
-pub struct PhysicsDiagnosticsUiNode;
-
-fn update_diagnostics_ui_node(
-    settings: Res<PhysicsDiagnosticsUiSettings>,
-    mut query: Query<&mut Node, With<PhysicsDiagnosticsUiNode>>,
-) {
-    if !settings.is_changed() {
-        return;
-    }
-
-    for mut node in &mut query {
-        node.display = if settings.enabled {
-            Display::Flex
-        } else {
-            Display::None
-        };
-    }
-}
-
 impl Default for PhysicsDiagnosticsUiSettings {
     fn default() -> Self {
         Self {
             enabled: true,
             show_average_times: true,
+        }
+    }
+}
+
+/// A marker component for the [physics diagnostics](crate::diagnostics)
+/// debug [UI](PhysicsDiagnosticsUiPlugin) node.
+#[derive(Component)]
+pub struct PhysicsDiagnosticsUiNode;
+
+/// A marker component for a group of diagnostics.
+#[derive(Component)]
+struct DiagnosticGroup;
+
+/// A marker component for a row representing the name and value of a diagnostic.
+#[derive(Component)]
+struct DiagnosticRow;
+
+/// A marker component for the name text node of a diagnostic.
+#[derive(Component)]
+#[require(TextFont(diagnostic_font))]
+struct PhysicsDiagnosticName;
+
+/// A component with the [`DiagnosticPath`] of a diagnostic.
+#[derive(Component)]
+#[require(TextFont(diagnostic_font))]
+struct PhysicsDiagnosticPath(&'static DiagnosticPath);
+
+/// A marker component for a counter diagnostic.
+#[derive(Component)]
+#[require(TextFont(diagnostic_font))]
+struct PhysicsDiagnosticCounter;
+
+/// A marker component for a timer diagnostic.
+#[derive(Component)]
+#[require(TextFont(diagnostic_font))]
+struct PhysicsDiagnosticTimer;
+
+fn diagnostic_font() -> TextFont {
+    TextFont {
+        font_size: 10.0,
+        ..default()
+    }
+}
+
+/// A component that configures how the text color should adapt
+/// based on the numerical value of a diagnostic.
+///
+/// The color will linearly interpolate between green and red
+/// based on the `lower_bound` and `upper_bound`.
+/// If the value is below `lower_bound`, the color will be green.
+/// If the value is above `upper_bound`, the color will be red.
+#[derive(Component, Clone, Copy)]
+struct AdaptiveTextSettings {
+    lower_bound: f32,
+    upper_bound: f32,
+}
+
+impl AdaptiveTextSettings {
+    fn new(lower_bound: f32, upper_bound: f32) -> Self {
+        Self {
+            lower_bound,
+            upper_bound,
         }
     }
 }
@@ -171,7 +223,7 @@ fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
             cmd.timer_texts(spatial_query_timers, AdaptiveTextSettings::new(0.0, 4.0));
         });
 
-    // Separator
+    // Total times
     cmd.diagnostic_group("Total Times").with_children(|cmd| {
         cmd.timer_text(
             "Total Step",
@@ -192,6 +244,7 @@ fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
     });
 }
 
+/// An extension trait for building physics diagnostics UI.
 trait CommandsExt {
     fn diagnostic_group(&mut self, name: &str) -> EntityCommands;
 
@@ -216,12 +269,6 @@ trait CommandsExt {
         }
     }
 }
-
-#[derive(Component)]
-struct DiagnosticGroup;
-
-#[derive(Component)]
-struct DiagnosticRow;
 
 impl CommandsExt for ChildBuilder<'_> {
     fn diagnostic_group(&mut self, name: &str) -> EntityCommands {
@@ -283,44 +330,6 @@ impl CommandsExt for ChildBuilder<'_> {
                 Text::new("-"),
             ));
         });
-    }
-}
-
-#[derive(Component)]
-#[require(TextFont(diagnostic_font))]
-struct PhysicsDiagnosticPath(&'static DiagnosticPath);
-
-#[derive(Component)]
-#[require(TextFont(diagnostic_font))]
-struct PhysicsDiagnosticName;
-
-fn diagnostic_font() -> TextFont {
-    TextFont {
-        font_size: 10.0,
-        ..default()
-    }
-}
-
-#[derive(Component)]
-#[require(TextFont(diagnostic_font))]
-struct PhysicsDiagnosticCounter;
-
-#[derive(Component)]
-#[require(TextFont(diagnostic_font))]
-struct PhysicsDiagnosticTimer;
-
-#[derive(Component, Clone, Copy)]
-struct AdaptiveTextSettings {
-    lower_bound: f32,
-    upper_bound: f32,
-}
-
-impl AdaptiveTextSettings {
-    fn new(lower_bound: f32, upper_bound: f32) -> Self {
-        Self {
-            lower_bound,
-            upper_bound,
-        }
     }
 }
 
@@ -403,6 +412,23 @@ fn update_timers(
 
         // Make sure the node is visible.
         node.display = Display::Flex;
+    }
+}
+
+fn update_diagnostics_ui_visibility(
+    settings: Res<PhysicsDiagnosticsUiSettings>,
+    mut query: Query<&mut Node, With<PhysicsDiagnosticsUiNode>>,
+) {
+    if !settings.is_changed() {
+        return;
+    }
+
+    for mut node in &mut query {
+        node.display = if settings.enabled {
+            Display::Flex
+        } else {
+            Display::None
+        };
     }
 }
 
