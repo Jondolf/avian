@@ -1,7 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use avian3d::{diagnostics::*, math::*, prelude::*};
-use bevy::diagnostic::LogDiagnosticsPlugin;
+use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_3d::ExampleCommonPlugin;
 
@@ -9,10 +8,8 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
-            LogDiagnosticsPlugin::default(),
-            ExampleCommonPlugin,
             PhysicsPlugins::default(),
-            PhysicsDiagnosticsPlugin,
+            ExampleCommonPlugin,
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Startup, setup)
