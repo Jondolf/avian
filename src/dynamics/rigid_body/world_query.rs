@@ -115,8 +115,8 @@ impl RigidBodyQueryItem<'_> {
         }
     }
 
-    /// Clamps both [LinearVelocity] as well as [AngularVelocity] to the
-    /// limits determined by [MaxLinearSpeed] and [MaxAngularSpeed], if present
+    /// Clamps both [`LinearVelocity`] as well as [`AngularVelocity`] to the
+    /// limits determined by [`MaxLinearSpeed`] and [`MaxAngularSpeed`], if present
     pub fn clamp_velocities(&mut self) {
         if let Some(max_linear_speed) = self.max_linear_speed {
             let linear_speed_squared = self.linear_velocity.0.length_squared();
