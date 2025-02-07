@@ -126,8 +126,8 @@ impl RigidBodyQueryItem<'_> {
         }
         if let Some(max_angular_speed) = self.max_angular_speed {
             #[cfg(feature = "2d")]
-            if self.ang_vel.abs() > max_angular_speed.0 {
-                self.ang_vel.0 = max_angular_speed.copysign(self.ang_vel.0);
+            if self.angular_velocity.abs() > max_angular_speed.0 {
+                self.angular_velocity.0 = max_angular_speed.copysign(self.angular_velocity.0);
             }
             #[cfg(feature = "3d")]
             {
