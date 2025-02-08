@@ -36,7 +36,7 @@ use bevy::{
     reflect::Reflect,
 };
 
-/// Diagnostics for spatial queries.
+/// Diagnostics for [physics picking](crate::picking).
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource, Debug)]
 pub struct PhysicsPickingDiagnostics {
@@ -56,7 +56,7 @@ impl_diagnostic_paths! {
     }
 }
 
-/// Adds the physics picking backend to your app, enabling picking for [colliders](Collider).
+/// Adds the [physics picking](crate::picking) backend to your app, enabling picking for [colliders](Collider).
 #[derive(Clone, Default)]
 pub struct PhysicsPickingPlugin;
 

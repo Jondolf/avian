@@ -8,6 +8,7 @@ use bevy::color::palettes::tailwind::{GREEN_400, RED_400};
 use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
 use dynamics::solver::SolverDiagnostics;
+use entity_counters::PhysicsEntityDiagnosticsPlugin;
 
 const FRAME_TIME_DIAGNOSTIC: &DiagnosticPath = &FrameTimeDiagnosticsPlugin::FRAME_TIME;
 
@@ -39,6 +40,9 @@ impl Plugin for PhysicsDiagnosticsUiPlugin {
     fn finish(&self, app: &mut App) {
         if !app.is_plugin_added::<PhysicsTotalDiagnosticsPlugin>() {
             app.add_plugins(PhysicsTotalDiagnosticsPlugin);
+        }
+        if !app.is_plugin_added::<PhysicsEntityDiagnosticsPlugin>() {
+            app.add_plugins(PhysicsEntityDiagnosticsPlugin);
         }
     }
 }
