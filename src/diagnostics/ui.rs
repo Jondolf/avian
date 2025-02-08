@@ -401,7 +401,7 @@ fn update_timers(
 
     for (mut text, mut text_color, color_config, path, mut node) in &mut query {
         // Get the diagnostic.
-        let Some(diagnostic) = diagnostics.get(path.0) else {
+        let Some(diagnostic) = diagnostics.get(path.0).filter(|d| d.value().is_some()) else {
             // Hide the diagnostic if the diagnostic is not found.
             node.display = Display::None;
             continue;

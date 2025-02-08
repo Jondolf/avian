@@ -59,20 +59,27 @@ pub(super) fn update_step_time(start: Res<PhysicsStepStart>, mut diagnostics: Di
     });
 }
 
+/// Updates miscellaneous physics diagnostics that are not covered by other diagnostics.
 fn update_other_physics_diagnostics(mut diagnostics: Diagnostics, store: Res<DiagnosticsStore>) {
+    // Get the total time spent on the physics step.
     let total = store
         .get(PhysicsTotalDiagnostics::STEP_TIME)
         .and_then(|d| d.measurement().map(|m| m.value))
         .unwrap_or(0.0);
+
+    // Get the total time spent on the physics step not covered by other diagnostics.
     let timed: f64 = store
         .iter()
         .filter_map(|d| {
-            if d.suffix != "ms"
+            // Only consider timers that are not the total step time or this diagnostic.
+            if (d.suffix != "s" && d.suffix != "ms" && d.suffix != "us")
                 || d.path() == PhysicsTotalDiagnostics::STEP_TIME
                 || d.path() == PhysicsTotalDiagnostics::MISCELLANEOUS
             {
                 return None;
             }
+
+            // Only consider timers that are under the "avian" path.
             d.path()
                 .components()
                 .next()
@@ -81,7 +88,9 @@ fn update_other_physics_diagnostics(mut diagnostics: Diagnostics, store: Res<Dia
         })
         .sum();
 
-    diagnostics.add_measurement(PhysicsTotalDiagnostics::MISCELLANEOUS, || {
-        (total - timed).max(0.0)
-    });
+    if timed > 0.0 {
+        diagnostics.add_measurement(PhysicsTotalDiagnostics::MISCELLANEOUS, || {
+            (total - timed).max(0.0)
+        });
+    }
 }
