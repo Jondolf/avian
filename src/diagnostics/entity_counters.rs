@@ -11,14 +11,14 @@ pub struct PhysicsEntityDiagnosticsPlugin;
 
 impl Plugin for PhysicsEntityDiagnosticsPlugin {
     fn build(&self, app: &mut App) {
+        // Register diagnostics for physics entity counts.
+        // NOTE: This should be done after the `PhysicsDiagnosticsPlugin` is added.
+        app.register_physics_diagnostics::<PhysicsEntityDiagnostics>();
+
         app.add_systems(
             PhysicsSchedule,
             diagnostic_entity_counts.in_set(PhysicsStepSet::First),
         );
-
-        // Register diagnostics for physics entity counts.
-        // NOTE: This should be done after the `PhysicsDiagnosticsPlugin` is added.
-        app.register_physics_diagnostics::<PhysicsEntityDiagnostics>();
     }
 }
 

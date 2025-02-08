@@ -47,7 +47,7 @@
 //!
 //! The following diagnostics are available but not added by default:
 //!
-//! - [`PhysicsTotalDiagnostics`]: Total physics timers (requires the `bevy_diagnostic` feature).
+//! - [`PhysicsTotalDiagnostics`]: Total physics timers and counters.
 //! - [`PhysicsEntityDiagnostics`]: Physics entity counters.
 //!
 //! Additionally, physics plugins may implement their own diagnostics that *are* enabled by default.
@@ -65,15 +65,14 @@
 
 mod entity_counters;
 mod path_macro;
-#[cfg(feature = "bevy_diagnostic")]
-mod total_timers;
+mod total;
 
 #[cfg(feature = "diagnostic_ui")]
 pub mod ui;
 pub use entity_counters::PhysicsEntityDiagnostics;
 pub(crate) use path_macro::impl_diagnostic_paths;
 #[cfg(feature = "bevy_diagnostic")]
-pub use total_timers::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
+pub use total::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
 
 use crate::{schedule::PhysicsSchedule, PhysicsStepSet};
 use bevy::{

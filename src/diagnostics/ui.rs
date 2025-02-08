@@ -155,6 +155,10 @@ fn setup_diagnostics_ui(mut commands: Commands, settings: Res<PhysicsDiagnostics
 }
 
 fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
+    // Step counter
+    cmd.diagnostic_group("Step Counter")
+        .with_children(|cmd| cmd.counter_text("Step Number", PhysicsTotalDiagnostics::STEP_NUMBER));
+
     cmd.diagnostic_group("Counters").with_children(|cmd| {
         // Dynamic, kinematic, and static body counters
         cmd.diagnostic_row().with_children(|cmd| {
