@@ -1,3 +1,6 @@
+//! This example demonstrates how to enable and display diagnostics for physics,
+//! allowing you to monitor the performance of the physics simulation.
+
 #![allow(clippy::unnecessary_cast)]
 
 use avian3d::{math::*, prelude::*};
@@ -16,11 +19,19 @@ fn main() {
             // in a debug UI. Requires the `diagnostic_ui` feature.
             PhysicsDiagnosticsUiPlugin,
         ))
+        // The `PhysicsDiagnosticsUiSettings` resource can be used to configure the diagnostics UI.
+        //
+        // .insert_resource(PhysicsDiagnosticsUiSettings {
+        //     enabled: false,
+        //     ..default()
+        // })
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Startup, setup)
         .add_systems(Update, movement)
         .run();
 }
+
+// The rest of this example is just setting up a simple scene with cubes that can be moved around.
 
 /// The acceleration used for movement.
 #[derive(Component)]
@@ -45,9 +56,9 @@ fn setup(
     let cube_size = 2.0;
 
     // Spawn cube stacks
-    for x in -2..2 {
-        for y in -2..2 {
-            for z in -2..2 {
+    for x in -3..3 {
+        for y in -3..15 {
+            for z in -3..3 {
                 let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
                     Mesh3d(cube_mesh.clone()),
@@ -74,7 +85,7 @@ fn setup(
     // Camera
     commands.spawn((
         Camera3d::default(),
-        Transform::from_translation(Vec3::new(0.0, 12.0, 40.0)).looking_at(Vec3::Y * 5.0, Vec3::Y),
+        Transform::from_translation(Vec3::new(0.0, 35.0, 80.0)).looking_at(Vec3::Y * 10.0, Vec3::Y),
     ));
 }
 
