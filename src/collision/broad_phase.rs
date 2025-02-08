@@ -64,6 +64,11 @@ where
         physics_schedule
             .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 /// System sets for systems running in [`PhysicsStepSet::BroadPhase`].

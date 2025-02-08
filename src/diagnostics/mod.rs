@@ -160,6 +160,11 @@ pub trait AppDiagnosticsExt {
 
 impl AppDiagnosticsExt for App {
     fn register_physics_diagnostics<T: PhysicsDiagnostics>(&mut self) {
+        // Avoid duplicate registrations.
+        if self.world().is_resource_added::<T>() {
+            return;
+        }
+
         // Initialize the diagnostics resource.
         self.init_resource::<T>();
 

@@ -54,6 +54,11 @@ impl Plugin for ContactReportingPlugin {
 
         physics_schedule.add_systems(report_contacts.in_set(PhysicsStepSet::ReportContacts));
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 /// A [collision event](ContactReportingPlugin#collision-events)
