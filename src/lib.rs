@@ -506,7 +506,7 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
-    #[cfg(feature = "diagnostics_ui")]
+    #[cfg(feature = "diagnostic_ui")]
     pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
     #[cfg(feature = "bevy_diagnostic")]
     pub use crate::diagnostics::PhysicsDiagnosticsPlugin;

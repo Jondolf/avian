@@ -2,14 +2,19 @@
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
-use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
             PhysicsPlugins::default(),
-            ExampleCommonPlugin,
+            // Add the `PhysicsDiagnosticsPlugin` to write physics diagnostics
+            // to the `DiagnosticsStore` resource in `bevy_diagnostic`.
+            // Requires the `bevy_diagnostic` feature.
+            PhysicsDiagnosticsPlugin,
+            // Add the `PhysicsDiagnosticsUiPlugin` to display physics diagnostics
+            // in a debug UI. Requires the `diagnostic_ui` feature.
+            PhysicsDiagnosticsUiPlugin,
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Startup, setup)
