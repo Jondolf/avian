@@ -4,7 +4,7 @@
 ///
 /// The macro can be used like this:
 ///
-/// ```
+/// ```ignore
 /// impl_diagnostic_paths! {
 ///     pub struct SolverDiagnostics {
 ///         PREPARE_CONSTRAINTS: "avian/solver/prepare_constraints",
@@ -20,8 +20,8 @@
 /// pub struct SolverDiagnostics;
 ///
 /// impl SolverDiagnostics {
-///     pub const PREPARE_CONSTRAINTS: &'static DiagnosticPath = &DiagnosticPath::const_new("avian/solver/prepare_constraints");
-///     pub const INTEGRATE_VELOCITIES: &'static DiagnosticPath = &DiagnosticPath::const_new("avian/solver/integrate_velocities");
+///     pub const PREPARE_CONSTRAINTS: &'static bevy::diagnostic::DiagnosticPath = &bevy::diagnostic::DiagnosticPath::const_new("avian/solver/prepare_constraints");
+///     pub const INTEGRATE_VELOCITIES: &'static bevy::diagnostic::DiagnosticPath = &bevy::diagnostic::DiagnosticPath::const_new("avian/solver/integrate_velocities");
 ///     // ...
 /// }
 /// ```
