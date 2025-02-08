@@ -4,7 +4,7 @@
 #![allow(clippy::unnecessary_cast)]
 
 use avian3d::{math::*, prelude::*};
-use bevy::prelude::*;
+use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*};
 
 fn main() {
     App::new()
@@ -18,6 +18,8 @@ fn main() {
             // Add the `PhysicsDiagnosticsUiPlugin` to display physics diagnostics
             // in a debug UI. Requires the `diagnostic_ui` feature.
             PhysicsDiagnosticsUiPlugin,
+            // Optional: Add the `FrameTimeDiagnosticsPlugin` to display frame time.
+            FrameTimeDiagnosticsPlugin,
         ))
         // The `PhysicsDiagnosticsUiSettings` resource can be used to configure the diagnostics UI.
         //
