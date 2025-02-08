@@ -52,6 +52,8 @@ fn cross_platform_determinism_2d() {
     .add_systems(Startup, setup_scene)
     .add_systems(PostProcessCollisions, ignore_joint_collisions);
 
+    app.finish();
+
     // Run the simulation `STEP_COUNT` times.
     for _ in 0..STEP_COUNT {
         app.update();

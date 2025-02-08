@@ -64,6 +64,11 @@ where
         physics_schedule
             .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 /// System sets for systems running in [`PhysicsStepSet::BroadPhase`].
@@ -235,12 +240,15 @@ fn collect_collision_pairs<H: CollisionHooks>(
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     for mut intersections in &mut aabb_intersection_query {
         intersections.clear();
     }
+
+    let start = bevy::utils::Instant::now();
 
     sweep_and_prune::<H>(
         intervals,
@@ -249,6 +257,8 @@ fn collect_collision_pairs<H: CollisionHooks>(
         &mut hooks.into_inner(),
         &mut commands,
     );
+
+    diagnostics.broad_phase = start.elapsed();
 }
 
 /// Sorts the entities by their minimum extents along an axis and collects the entity pairs that have intersecting AABBs.
