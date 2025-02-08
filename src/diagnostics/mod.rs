@@ -7,13 +7,14 @@
 //! and registering it using [`AppDiagnosticsExt::register_physics_diagnostics`].
 //!
 //! If the `bevy_diagnostic` feature is enabled and the [`PhysicsDiagnosticsPlugin`] is added to the app,
-//! these diagnostics will also be automatically written to the [`Diagnostics`] resource.
+//! these diagnostics will also be automatically written to the [`DiagnosticsStore`] resource.
 //!
 //! If the `diagnostic_ui` feature is enabled and the [`PhysicsDiagnosticsUiPlugin`] is added to the app,
 //! a debug UI will also be available for displaying these diagnostics in real-time.
 //!
 //! [`NarrowPhasePlugin`]: crate::narrow_phase::NarrowPhasePlugin
 //! [`SolverPlugin`]: crate::dynamics::solver::SolverPlugin
+//! [`DiagnosticsStore`]: bevy::diagnostic::DiagnosticsStore
 //! [`PhysicsDiagnosticsUiPlugin`]: crate::diagnostics::ui::PhysicsDiagnosticsUiPlugin
 //!
 //! # Example
