@@ -192,7 +192,11 @@
 //! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
-//! - [Render physics objects for debugging](PhysicsDebugPlugin)
+//!
+//! ## Debugging and Profiling
+//!
+//! - [Physics debug rendering](PhysicsDebugPlugin)
+//! - [Physics diagnostics](diagnostics)
 //!
 //! ## Scheduling
 //!
