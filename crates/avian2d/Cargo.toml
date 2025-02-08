@@ -96,7 +96,7 @@ bevy_mod_debugdump = { version = "0.12" }
 
 [package.metadata.docs.rs]
 # Enable features when building the docs on docs.rs
-features = ["diagnostics_ui"]
+features = ["diagnostic_ui"]
 
 [[example]]
 name = "dynamic_character_2d"
