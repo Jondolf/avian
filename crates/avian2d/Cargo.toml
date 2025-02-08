@@ -53,7 +53,12 @@ serialize = [
     "parry2d-f64?/serde-serialize",
     "bitflags/serde",
 ]
-diagnostics_ui = ["bevy/bevy_ui"]
+
+# Enables writing timer and counter information to the `DiagnosticsStore` in `bevy_diagnostic`.
+bevy_diagnostic = []
+
+# Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
+diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
 [lib]
 name = "avian2d"

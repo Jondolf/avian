@@ -59,8 +59,9 @@
 )]
 //! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                                                 | Yes             |
 //! | `bevy_picking`         | Enables physics picking support for [`bevy_picking`] using the [`PhysicsPickingPlugin`]. The plugin must be added separately.                       | Yes             |
+//! | `bevy_diagnostic`      | Enables writing [physics diagnostics] to the [`DiagnosticsStore`] with the [`PhysicsDiagnosticsPlugin`]. The plugin must be added separately.       | No              |
+//! | `diagnostic_ui`        | Enables [physics diagnostics] UI for performance timers and counters using the [`PhysicsDiagnosticsUiPlugin`]. The plugin must be added separately. | No              |
 //! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                                              | Yes             |
-//! | `diagnostics_ui`       | Enables [physics diagnostics] UI for performance timers and counters using the [`PhysicsDiagnosticsUiPlugin`]. The plugin must be added separately. | Yes             |
 //! | `enhanced-determinism` | Enables cross-platform deterministic math, improving determinism across architectures at a small performance cost.                                  | No              |
 //! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.                    | Yes             |
 //! | `simd`                 | Enables [SIMD] optimizations.                                                                                                                       | No              |
@@ -68,6 +69,7 @@
 //!
 //! [`bevy_picking`]: bevy::picking
 //! [physics diagnostics]: diagnostics
+//! [`DiagnosticsStore`]: bevy::diagnostic::DiagnosticsStore
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
 //! ## Add the Plugins
@@ -502,6 +504,8 @@ pub mod prelude {
     pub use crate::debug_render::*;
     #[cfg(feature = "diagnostics_ui")]
     pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
+    #[cfg(feature = "bevy_diagnostic")]
+    pub use crate::diagnostics::PhysicsDiagnosticsPlugin;
     #[cfg(feature = "bevy_picking")]
     pub use crate::picking::{
         PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
@@ -520,7 +524,6 @@ pub mod prelude {
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
         },
-        diagnostics::PhysicsDiagnosticsPlugin,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
         position::{Position, Rotation},

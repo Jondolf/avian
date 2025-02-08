@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use avian2d::prelude::*;
+use avian2d::{
+    diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings},
+    prelude::*,
+};
 use bevy::{
     diagnostic::FrameTimeDiagnosticsPlugin,
     input::common_conditions::{input_just_pressed, input_pressed},

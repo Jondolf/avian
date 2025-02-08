@@ -1,9 +1,14 @@
 //! Basic diagnostics support.
 
 mod path_macro;
+#[cfg(feature = "bevy_diagnostic")]
+mod total_timers;
 
-#[cfg(feature = "diagnostics_ui")]
+#[cfg(feature = "diagnostic_ui")]
 pub mod ui;
+pub(crate) use path_macro::impl_diagnostic_paths;
+#[cfg(feature = "bevy_diagnostic")]
+pub use total_timers::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
 
 use crate::{
     collision::ColliderMarker,
@@ -18,7 +23,6 @@ use bevy::{
     utils::Duration,
 };
 use bevy::{prelude::ReflectResource, reflect::Reflect};
-pub(crate) use path_macro::impl_diagnostic_paths;
 
 /// An extension trait for registering physics diagnostics.
 pub trait AppDiagnosticsExt {
@@ -34,37 +38,49 @@ impl AppDiagnosticsExt for App {
         // Initialize the diagnostics resource.
         self.init_resource::<T>();
 
-        // If physics diagnostics are not enabled, return early.
-        if !self.is_plugin_added::<PhysicsDiagnosticsPlugin>() {
-            return;
-        }
+        // Make sure the system set exists, even if `PhysicsDiagnosticsPlugin` is not added.
+        self.configure_sets(
+            PhysicsSchedule,
+            PhysicsDiagnosticsSystems::Reset.before(PhysicsStepSet::First),
+        );
 
-        // Register diagnostics for the paths returned by the diagnostics resource.
-        let diagnostics = T::default();
-        let timer_paths = diagnostics.timer_paths();
-        let counter_paths = diagnostics.counter_paths();
-
-        for path in timer_paths.iter().map(|(path, _)| *path) {
-            // All timers are in milliseconds.
-            self.register_diagnostic(Diagnostic::new(path.clone()).with_suffix("ms"));
-        }
-
-        for path in counter_paths.iter().map(|(path, _)| *path) {
-            self.register_diagnostic(Diagnostic::new(path.clone()).with_smoothing_factor(0.0));
-        }
-
-        // Add systems to reset the diagnostics and write them to the `Diagnostics` resource.
+        // Add a system to reset the resource, even if `PhysicsDiagnosticsPlugin` is not added.
         self.add_systems(
             PhysicsSchedule,
-            (
-                T::reset
-                    .in_set(PhysicsDiagnosticsSystems::Reset)
-                    .ambiguous_with_all(),
+            T::reset
+                .in_set(PhysicsDiagnosticsSystems::Reset)
+                .ambiguous_with_all(),
+        );
+
+        #[cfg(feature = "bevy_diagnostic")]
+        {
+            // If physics diagnostics are not enabled, return early.
+            if !self.is_plugin_added::<PhysicsDiagnosticsPlugin>() {
+                return;
+            }
+
+            // Register diagnostics for the paths returned by the diagnostics resource.
+            let diagnostics = T::default();
+            let timer_paths = diagnostics.timer_paths();
+            let counter_paths = diagnostics.counter_paths();
+
+            for path in timer_paths.iter().map(|(path, _)| *path) {
+                // All timers are in milliseconds.
+                self.register_diagnostic(Diagnostic::new(path.clone()).with_suffix("ms"));
+            }
+
+            for path in counter_paths.iter().map(|(path, _)| *path) {
+                self.register_diagnostic(Diagnostic::new(path.clone()).with_smoothing_factor(0.0));
+            }
+
+            // Add systems to reset the diagnostics and write them to the `Diagnostics` resource.
+            self.add_systems(
+                PhysicsSchedule,
                 T::write_diagnostics
                     .in_set(PhysicsDiagnosticsSystems::WriteDiagnostics)
                     .ambiguous_with_all(),
-            ),
-        );
+            );
+        }
     }
 }
 
@@ -73,7 +89,7 @@ impl AppDiagnosticsExt for App {
 pub enum PhysicsDiagnosticsSystems {
     /// Resets diagnostics to their default values.
     Reset,
-    /// Writes diagnostics to the [`Diagnostics`] resource.
+    /// Writes physics diagnostics to other resources, commonly `DiagnosticsStore`.
     WriteDiagnostics,
 }
 
@@ -95,6 +111,7 @@ pub trait PhysicsDiagnostics: Default + Resource {
     }
 
     /// A system that writes diagnostics to the given [`Diagnostics`] instance.
+    #[cfg(feature = "bevy_diagnostic")]
     fn write_diagnostics(physics_diagnostics: Res<Self>, mut diagnostics: Diagnostics) {
         for (path, duration) in physics_diagnostics.timer_paths() {
             diagnostics.add_measurement(path, || duration.as_secs_f64() * 1000.0);
@@ -106,48 +123,12 @@ pub trait PhysicsDiagnostics: Default + Resource {
     }
 }
 
-/// Diagnostics for physics entity counts.
-#[derive(Resource, Debug, Default, Reflect)]
-#[reflect(Resource, Debug)]
-pub struct PhysicsEntityDiagnostics {
-    /// The number of dynamic bodies.
-    pub dynamic_body_count: u32,
-    /// The number of kinematic bodies.
-    pub kinematic_body_count: u32,
-    /// The number of static bodies.
-    pub static_body_count: u32,
-    /// The number of colliders.
-    pub collider_count: u32,
-    /// The number of joint.
-    pub joint_count: u32,
-}
-
-impl PhysicsDiagnostics for PhysicsEntityDiagnostics {
-    fn counter_paths(&self) -> Vec<(&'static DiagnosticPath, u32)> {
-        vec![
-            (Self::DYNAMIC_BODY_COUNT, self.dynamic_body_count),
-            (Self::KINEMATIC_BODY_COUNT, self.kinematic_body_count),
-            (Self::STATIC_BODY_COUNT, self.static_body_count),
-            (Self::COLLIDER_COUNT, self.collider_count),
-            (Self::JOINT_COUNT, self.joint_count),
-        ]
-    }
-}
-
-impl_diagnostic_paths! {
-    impl PhysicsEntityDiagnostics {
-        DYNAMIC_BODY_COUNT: "avian/entity_count/dynamic_bodies",
-        KINEMATIC_BODY_COUNT: "avian/entity_count/kinematic_bodies",
-        STATIC_BODY_COUNT: "avian/entity_count/static_bodies",
-        COLLIDER_COUNT: "avian/entity_count/colliders",
-        JOINT_COUNT: "avian/entity_count/joints",
-    }
-}
-
 /// A plugin that adds various diagnostics for debugging purposes.
 /// It is not enabled by default and must be added manually.
+#[cfg(feature = "bevy_diagnostic")]
 pub struct PhysicsDiagnosticsPlugin;
 
+#[cfg(feature = "bevy_diagnostic")]
 impl Plugin for PhysicsDiagnosticsPlugin {
     fn build(&self, app: &mut App) {
         app.configure_sets(
@@ -170,7 +151,49 @@ impl Plugin for PhysicsDiagnosticsPlugin {
     }
 }
 
+/// Diagnostics for physics entity counts.
+#[derive(Resource, Debug, Default, Reflect)]
+#[reflect(Resource, Debug)]
+#[cfg(feature = "bevy_diagnostic")]
+pub struct PhysicsEntityDiagnostics {
+    /// The number of dynamic bodies.
+    pub dynamic_body_count: u32,
+    /// The number of kinematic bodies.
+    pub kinematic_body_count: u32,
+    /// The number of static bodies.
+    pub static_body_count: u32,
+    /// The number of colliders.
+    pub collider_count: u32,
+    /// The number of joint.
+    pub joint_count: u32,
+}
+
+#[cfg(feature = "bevy_diagnostic")]
+impl PhysicsDiagnostics for PhysicsEntityDiagnostics {
+    fn counter_paths(&self) -> Vec<(&'static DiagnosticPath, u32)> {
+        vec![
+            (Self::DYNAMIC_BODY_COUNT, self.dynamic_body_count),
+            (Self::KINEMATIC_BODY_COUNT, self.kinematic_body_count),
+            (Self::STATIC_BODY_COUNT, self.static_body_count),
+            (Self::COLLIDER_COUNT, self.collider_count),
+            (Self::JOINT_COUNT, self.joint_count),
+        ]
+    }
+}
+
+#[cfg(feature = "bevy_diagnostic")]
+impl_diagnostic_paths! {
+    impl PhysicsEntityDiagnostics {
+        DYNAMIC_BODY_COUNT: "avian/entity_count/dynamic_bodies",
+        KINEMATIC_BODY_COUNT: "avian/entity_count/kinematic_bodies",
+        STATIC_BODY_COUNT: "avian/entity_count/static_bodies",
+        COLLIDER_COUNT: "avian/entity_count/colliders",
+        JOINT_COUNT: "avian/entity_count/joints",
+    }
+}
+
 // TODO: This is pretty inefficient.
+#[cfg(feature = "bevy_diagnostic")]
 fn diagnostic_entity_counts(
     rigid_bodies_query: Query<&RigidBody>,
     colliders_query: Query<&ColliderMarker>,

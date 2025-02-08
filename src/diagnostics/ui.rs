@@ -35,6 +35,12 @@ impl Plugin for PhysicsDiagnosticsUiPlugin {
                 .chain(),
         );
     }
+
+    fn finish(&self, app: &mut App) {
+        if !app.is_plugin_added::<PhysicsTotalDiagnosticsPlugin>() {
+            app.add_plugins(PhysicsTotalDiagnosticsPlugin);
+        }
+    }
 }
 
 /// Settings for the [physics diagnostics](crate::diagnostics)
@@ -223,11 +229,19 @@ fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
             cmd.timer_texts(spatial_query_timers, AdaptiveTextSettings::new(0.0, 4.0));
         });
 
+    cmd.diagnostic_group("Other").with_children(|cmd| {
+        cmd.timer_text(
+            "Other",
+            PhysicsTotalDiagnostics::MISCELLANEOUS,
+            AdaptiveTextSettings::new(0.0, 4.0),
+        );
+    });
+
     // Total times
     cmd.diagnostic_group("Total Times").with_children(|cmd| {
         cmd.timer_text(
             "Total Step",
-            PhysicsStepDiagnostics::STEP_TIME,
+            PhysicsTotalDiagnostics::STEP_TIME,
             AdaptiveTextSettings {
                 lower_bound: 3.0,
                 upper_bound: 20.0,

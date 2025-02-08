@@ -12,7 +12,7 @@ use crate::diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics};
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource, Debug)]
 pub struct SpatialQueryDiagnostics {
-    /// Time speqnt updating the [`SpatialQueryPipeline`](super::SpatialQueryPipeline).
+    /// Time spent updating the [`SpatialQueryPipeline`](super::SpatialQueryPipeline).
     pub update_pipeline: Duration,
     /// Time spent updating [`RayCaster`](super::RayCaster) hits.
     pub update_ray_casters: Duration,

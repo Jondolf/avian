@@ -6,9 +6,6 @@ mod time;
 use dynamics::solver::schedule::SubstepCount;
 pub use time::*;
 
-mod diagnostics;
-pub use diagnostics::PhysicsStepDiagnostics;
-
 use std::time::Duration;
 
 // For doc links
@@ -105,21 +102,6 @@ impl Plugin for PhysicsSchedulePlugin {
             schedule,
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
         );
-
-        // Update step time diagnostics.
-        app.add_systems(
-            PhysicsSchedule,
-            (
-                diagnostics::update_physics_step_start.in_set(PhysicsStepSet::First),
-                diagnostics::update_step_time.in_set(PhysicsStepSet::Last),
-            ),
-        );
-    }
-
-    fn finish(&self, app: &mut App) {
-        // Register diagnostics for physics steps.
-        app.insert_resource(diagnostics::PhysicsStepStart(bevy::utils::Instant::now()));
-        app.register_physics_diagnostics::<PhysicsStepDiagnostics>();
     }
 }
 
