@@ -23,6 +23,10 @@ pub struct SleepingPlugin;
 
 impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
+        // TODO: This is only relevant for dynamic bodies. Different bodies should be distinguished with marker components.
+        // Add sleep timer for all rigid bodies.
+        let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
+
         app.init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>()
             .init_resource::<LastPhysicsTick>();
@@ -105,6 +109,24 @@ impl Default for DeactivationTime {
     }
 }
 
+/// A [`Command`] that wakes up a [rigid body](RigidBody) by removing the [`Sleeping`] component
+/// and resetting the [`TimeSleeping`] to zero.
+pub struct WakeUpBody(pub Entity);
+
+impl Command for WakeUpBody {
+    fn apply(self, world: &mut World) {
+        let Ok(mut entity_mut) = world.get_entity_mut(self.0) else {
+            return;
+        };
+
+        entity_mut.remove::<Sleeping>();
+
+        if let Some(mut time_sleeping) = entity_mut.get_mut::<TimeSleeping>() {
+            time_sleeping.0 = 0.0;
+        };
+    }
+}
+
 /// Adds the [`Sleeping`] component to bodies whose linear and anigular velocities have been
 /// under the [`SleepingThreshold`] for a duration indicated by [`DeactivationTime`].
 #[allow(clippy::type_complexity)]
@@ -117,10 +139,10 @@ pub fn mark_sleeping_bodies(
             &mut LinearVelocity,
             &mut AngularVelocity,
             &mut TimeSleeping,
-            &CollidingEntities,
         ),
         (Without<Sleeping>, Without<SleepingDisabled>),
     >,
+    collisions: Res<Collisions>,
     rb_query: Query<&RigidBody>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
@@ -130,8 +152,15 @@ pub fn mark_sleeping_bodies(
     let length_unit_sq = length_unit.powi(2);
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping, colliding_entities) in &mut query
-    {
+    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
+        let colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
+            if entity == c.entity1 {
+                c.entity2
+            } else {
+                c.entity1
+            }
+        });
+
         // Only dynamic bodies can sleep, and only if they are not
         // in contact with other dynamic bodies.
         //
@@ -139,7 +168,7 @@ pub fn mark_sleeping_bodies(
         // sleeping/waking is implemented with simulation islands.
         if !rb.is_dynamic()
             || rb_query
-                .iter_many(colliding_entities.iter())
+                .iter_many(colliding_entities)
                 .any(|rb| rb.is_dynamic())
         {
             continue;
@@ -194,7 +223,6 @@ pub(crate) fn wake_on_changed(
                 Ref<Rotation>,
                 Ref<LinearVelocity>,
                 Ref<AngularVelocity>,
-                &mut TimeSleeping,
             ),
             (
                 With<Sleeping>,
@@ -209,7 +237,7 @@ pub(crate) fn wake_on_changed(
         // These are not modified by the physics engine
         // and don't need special handling.
         Query<
-            (Entity, &mut TimeSleeping),
+            Entity,
             Or<(
                 Changed<ExternalForce>,
                 Changed<ExternalTorque>,
@@ -224,20 +252,18 @@ pub(crate) fn wake_on_changed(
 ) {
     let this_run = system_tick.this_run();
 
-    for (entity, pos, rot, lin_vel, ang_vel, mut time_sleeping) in &mut query.p0() {
+    for (entity, pos, rot, lin_vel, ang_vel) in &query.p0() {
         if is_changed_after_tick(pos, last_physics_tick.0, this_run)
             || is_changed_after_tick(rot, last_physics_tick.0, this_run)
             || is_changed_after_tick(lin_vel, last_physics_tick.0, this_run)
             || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)
         {
-            commands.entity(entity).remove::<Sleeping>();
-            time_sleeping.0 = 0.0;
+            commands.queue(WakeUpBody(entity));
         }
     }
 
-    for (entity, mut time_sleeping) in &mut query.p1() {
-        commands.entity(entity).remove::<Sleeping>();
-        time_sleeping.0 = 0.0;
+    for entity in &query.p1() {
+        commands.queue(WakeUpBody(entity));
     }
 }
 
@@ -248,13 +274,9 @@ fn is_changed_after_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_r
 
 /// Removes the [`Sleeping`] component from all sleeping bodies.
 /// Triggered automatically when [`Gravity`] is changed.
-fn wake_all_sleeping_bodies(
-    mut commands: Commands,
-    mut bodies: Query<(Entity, &mut TimeSleeping), With<Sleeping>>,
-) {
-    for (entity, mut time_sleeping) in &mut bodies {
-        commands.entity(entity).remove::<Sleeping>();
-        time_sleeping.0 = 0.0;
+fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<Sleeping>>) {
+    for entity in &bodies {
+        commands.queue(WakeUpBody(entity));
     }
 }
 
@@ -262,13 +284,31 @@ fn wake_all_sleeping_bodies(
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
     mut commands: Commands,
-    moved_bodies: Query<Ref<Position>, (Changed<Position>, Without<Sleeping>)>,
-    colliders: Query<(&ColliderParent, Ref<ColliderTransform>)>,
+    bodies: Query<
+        (Ref<Position>, Has<RigidBodyDisabled>),
+        (
+            Or<(Added<RigidBodyDisabled>, Changed<Position>)>,
+            Without<Sleeping>,
+        ),
+    >,
+    colliders: Query<(
+        &ColliderParent,
+        Ref<ColliderTransform>,
+        Has<ColliderDisabled>,
+    )>,
     collisions: Res<Collisions>,
-    mut sleeping: Query<(Entity, &mut TimeSleeping)>,
+    mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
 ) {
-    // Wake up bodies when a body they're colliding with moves.
-    for (entity, mut time_sleeping) in &mut sleeping {
+    // Wake up bodies when a body they're colliding with moves or gets disabled.
+    for (entity, mut time_sleeping, is_sleeping) in &mut sleeping {
+        // Skip anything that isn't currently sleeping and already has a time_sleeping of zero.
+        // We can't gate the sleeping query using With<Sleeping> here because must also reset
+        // non-zero time_sleeping to 0 when a colliding body moves.
+        let must_check = is_sleeping || time_sleeping.0 > 0.0;
+        if !must_check {
+            continue;
+        }
+
         // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
         let mut colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
             if entity == c.entity1 {
@@ -278,12 +318,19 @@ fn wake_on_collision_ended(
             }
         });
         if colliding_entities.any(|other_entity| {
-            colliders.get(other_entity).is_ok_and(|(p, transform)| {
-                transform.is_changed()
-                    || moved_bodies.get(p.get()).is_ok_and(|pos| pos.is_changed())
-            })
+            colliders
+                .get(other_entity)
+                .is_ok_and(|(p, transform, is_collider_disabled)| {
+                    is_collider_disabled
+                        || transform.is_changed()
+                        || bodies
+                            .get(p.get())
+                            .is_ok_and(|(pos, is_rb_disabled)| is_rb_disabled || pos.is_changed())
+                })
         }) {
-            commands.entity(entity).remove::<Sleeping>();
+            if is_sleeping {
+                commands.entity(entity).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
     }
@@ -293,12 +340,16 @@ fn wake_on_collision_ended(
         if contacts.during_current_frame || !contacts.during_previous_frame {
             continue;
         }
-        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity1) {
-            commands.entity(contacts.entity1).remove::<Sleeping>();
+        if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity1) {
+            if is_sleeping {
+                commands.entity(contacts.entity1).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
-        if let Ok((_, mut time_sleeping)) = sleeping.get_mut(contacts.entity2) {
-            commands.entity(contacts.entity2).remove::<Sleeping>();
+        if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity2) {
+            if is_sleeping {
+                commands.entity(contacts.entity2).remove::<Sleeping>();
+            }
             time_sleeping.0 = 0.0;
         }
     }

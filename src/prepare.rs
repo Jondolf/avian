@@ -4,13 +4,9 @@
 
 #![allow(clippy::type_complexity)]
 
-use crate::prelude::*;
+use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
-    ecs::{
-        intern::Interned,
-        query::{QueryData, QueryFilter},
-        schedule::ScheduleLabel,
-    },
+    ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
 };
 
@@ -18,8 +14,6 @@ use bevy::{
 /// and updates components.
 ///
 /// - Adds missing rigid body components for entities with a [`RigidBody`] component
-/// - Adds missing mass properties for entities with a [`RigidBody`] component
-/// - Updates mass properties
 /// - Clamps restitution coefficients between 0 and 1
 ///
 /// The [`Transform`] component will be initialized based on [`Position`] or [`Rotation`]
@@ -77,6 +71,8 @@ pub enum PrepareSet {
 
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<SyncConfig>()
+            .register_type::<SyncConfig>();
         app.configure_sets(
             self.schedule,
             (
@@ -91,65 +87,6 @@ impl Plugin for PreparePlugin {
 
         app.init_resource::<PrepareConfig>()
             .register_type::<PrepareConfig>();
-
-        // NOTE: This will be redundant once we have required components.
-        // Initialize missing components for rigid bodies.
-        app.world_mut()
-            .register_component_hooks::<RigidBody>()
-            .on_add(|mut world, entity, _| {
-                let entity_ref = world.entity(entity);
-
-                let lin_vel = *entity_ref.get::<LinearVelocity>().unwrap_or(&default());
-                let ang_vel = *entity_ref.get::<AngularVelocity>().unwrap_or(&default());
-                let force = *entity_ref.get::<ExternalForce>().unwrap_or(&default());
-                let torque = *entity_ref.get::<ExternalTorque>().unwrap_or(&default());
-                let impulse = *entity_ref.get::<ExternalImpulse>().unwrap_or(&default());
-                let angular_impulse = *entity_ref
-                    .get::<ExternalAngularImpulse>()
-                    .unwrap_or(&default());
-                let restitution = *entity_ref.get::<Restitution>().unwrap_or(&default());
-                let friction = *entity_ref.get::<Friction>().unwrap_or(&default());
-                let time_sleeping = *entity_ref.get::<TimeSleeping>().unwrap_or(&default());
-
-                let mass = entity_ref.get::<Mass>().copied();
-                let inverse_mass = entity_ref.get::<InverseMass>().copied();
-                let inertia = entity_ref.get::<Inertia>().copied();
-                let inverse_inertia = entity_ref.get::<InverseInertia>().copied();
-                let center_of_mass = *entity_ref.get::<CenterOfMass>().unwrap_or(&default());
-
-                let mut commands = world.commands();
-                let mut entity_commands = commands.entity(entity);
-
-                entity_commands.try_insert((
-                    AccumulatedTranslation::default(),
-                    lin_vel,
-                    ang_vel,
-                    PreSolveLinearVelocity::default(),
-                    PreSolveAngularVelocity::default(),
-                    force,
-                    torque,
-                    impulse,
-                    angular_impulse,
-                    restitution,
-                    friction,
-                    time_sleeping,
-                ));
-
-                entity_commands.try_insert((
-                    mass.unwrap_or(Mass(
-                        inverse_mass.map_or(0.0, |inverse_mass| 1.0 / inverse_mass.0),
-                    )),
-                    inverse_mass.unwrap_or(InverseMass(mass.map_or(0.0, |mass| 1.0 / mass.0))),
-                    inertia.unwrap_or(
-                        inverse_inertia
-                            .map_or(Inertia::ZERO, |inverse_inertia| inverse_inertia.inverse()),
-                    ),
-                    inverse_inertia.unwrap_or(
-                        inertia.map_or(InverseInertia::ZERO, |inertia| inertia.inverse()),
-                    ),
-                    center_of_mass,
-                ));
-            });
 
         // Note: Collider logic is handled by the `ColliderBackendPlugin`
         app.add_systems(
@@ -166,18 +103,6 @@ impl Plugin for PreparePlugin {
         .add_systems(
             self.schedule,
             init_transforms::<RigidBody>.in_set(PrepareSet::InitTransforms),
-        )
-        .add_systems(
-            self.schedule,
-            (
-                update_mass_properties,
-                clamp_collider_density,
-                clamp_restitution,
-                // All the components we added above must exist before we can simulate the bodies.
-                apply_deferred,
-            )
-                .chain()
-                .in_set(PrepareSet::Finalize),
         );
     }
 }
@@ -411,76 +336,6 @@ pub fn init_transforms<C: Component>(
                 cmds.try_insert((transform, Position(new_position), new_rotation));
             }
         }
-    }
-}
-
-#[derive(QueryData)]
-struct RigidBodyInitializationQuery {
-    lin_vel: Option<&'static LinearVelocity>,
-    ang_vel: Option<&'static AngularVelocity>,
-    force: Option<&'static ExternalForce>,
-    torque: Option<&'static ExternalTorque>,
-    impulse: Option<&'static ExternalImpulse>,
-    angular_impulse: Option<&'static ExternalAngularImpulse>,
-    restitution: Option<&'static Restitution>,
-    friction: Option<&'static Friction>,
-    time_sleeping: Option<&'static TimeSleeping>,
-    mass: Option<&'static Mass>,
-    inverse_mass: Option<&'static InverseMass>,
-    inertia: Option<&'static Inertia>,
-    inverse_inertia: Option<&'static InverseInertia>,
-    center_of_mass: Option<&'static CenterOfMass>,
-}
-
-/// Updates each body's [`InverseMass`] and [`InverseInertia`] whenever [`Mass`] or [`Inertia`] are changed.
-pub fn update_mass_properties(
-    mut bodies: Query<
-        (
-            Entity,
-            &RigidBody,
-            Ref<Mass>,
-            &mut InverseMass,
-            Ref<Inertia>,
-            &mut InverseInertia,
-        ),
-        Or<(Changed<Mass>, Changed<Inertia>)>,
-    >,
-) {
-    for (entity, rb, mass, mut inv_mass, inertia, mut inv_inertia) in &mut bodies {
-        let is_mass_valid = mass.is_finite() && mass.0 >= Scalar::EPSILON;
-        #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.is_finite() && inertia.0 >= Scalar::EPSILON;
-        #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.is_finite() && *inertia != Inertia::ZERO;
-
-        if mass.is_changed() && is_mass_valid {
-            inv_mass.0 = 1.0 / mass.0;
-        }
-        if inertia.is_changed() && is_inertia_valid {
-            inv_inertia.0 = inertia.inverse().0;
-        }
-
-        // Warn about dynamic bodies with no mass or inertia
-        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
-            warn!(
-                "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
-                entity
-            );
-        }
-    }
-}
-
-/// Clamps coefficients of [restitution](Restitution) to be between 0.0 and 1.0.
-fn clamp_restitution(mut query: Query<&mut Restitution, Changed<Restitution>>) {
-    for mut restitution in &mut query {
-        restitution.coefficient = restitution.coefficient.clamp(0.0, 1.0);
-    }
-}
-
-/// Clamps [`ColliderDensity`] to be above 0.0.
-fn clamp_collider_density(mut query: Query<&mut ColliderDensity, Changed<ColliderDensity>>) {
-    for mut density in &mut query {
-        density.0 = density.max(Scalar::EPSILON);
     }
 }
 

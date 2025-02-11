@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::{prelude::*, prepare::PrepareSet, utils::get_pos_translation};
+use crate::{prelude::*, prepare::PrepareSet};
 use ancestor_marker::{AncestorMarker, AncestorMarkerPlugin};
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -16,7 +16,7 @@ pub mod ancestor_marker;
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
 ///
-/// ## Syncing between [`Position`]/[`Rotation`] and [`Transform`]
+/// # Syncing Between [`Position`]/[`Rotation`] and [`Transform`]
 ///
 /// By default, each body's `Transform` will be updated when [`Position`] or [`Rotation`]
 /// change, and vice versa. This means that you can use any of these components to move
@@ -25,7 +25,7 @@ pub mod ancestor_marker;
 /// You can configure what data is synchronized and how it is synchronized
 /// using the [`SyncConfig`] resource.
 ///
-/// ## `Transform` hierarchies
+/// # `Transform` Hierarchies
 ///
 /// When synchronizing changes in [`Position`] or [`Rotation`] to `Transform`,
 /// the engine treats nested [rigid bodies](RigidBody) as a flat structure. This means that
@@ -40,7 +40,7 @@ pub struct SyncPlugin {
 impl SyncPlugin {
     /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -50,7 +50,7 @@ impl SyncPlugin {
 
 impl Default for SyncPlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
@@ -143,15 +143,24 @@ impl Plugin for SyncPlugin {
     }
 }
 
-/// Configures what physics data is synchronized by the [`SyncPlugin`] and how.
+/// Configures what physics data is synchronized by the [`SyncPlugin`] and [`PreparePlugin`] and how.
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct SyncConfig {
     /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::PositionToTransform`].
     pub position_to_transform: bool,
     /// Updates [`Position`] and [`Rotation`] based on transform changes,
-    /// allowing you to move bodies using `Transform`. Defaults to true.
+    /// allowing you to move bodies using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`SyncSet::TransformToPosition`].
     pub transform_to_position: bool,
+    /// Updates [`Collider::scale()`] based on transform changes,
+    /// allowing you to scale colliders using [`Transform`]. Defaults to true.
+    ///
+    /// This operation is run in [`PrepareSet::Finalize`]
+    pub transform_to_collider_scale: bool,
 }
 
 impl Default for SyncConfig {
@@ -159,6 +168,7 @@ impl Default for SyncConfig {
         SyncConfig {
             position_to_transform: true,
             transform_to_position: true,
+            transform_to_collider_scale: true,
         }
     }
 }
@@ -206,67 +216,33 @@ pub fn transform_to_position(
         &GlobalTransform,
         &PreviousGlobalTransform,
         &mut Position,
-        Option<&AccumulatedTranslation>,
         &mut Rotation,
-        Option<&PreviousRotation>,
-        Option<&CenterOfMass>,
     )>,
 ) {
-    for (
-        global_transform,
-        previous_transform,
-        mut position,
-        accumulated_translation,
-        mut rotation,
-        previous_rotation,
-        center_of_mass,
-    ) in &mut query
-    {
+    for (global_transform, previous_transform, mut position, mut rotation) in &mut query {
         // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
             continue;
         }
 
-        let transform = global_transform.compute_transform();
-        let previous_transform = previous_transform.compute_transform();
-        let pos = position.0
-            + accumulated_translation.map_or(Vector::ZERO, |t| {
-                get_pos_translation(
-                    t,
-                    &previous_rotation.copied().unwrap_or_default(),
-                    &rotation,
-                    &center_of_mass.copied().unwrap_or_default(),
-                )
-            });
+        let global_transform = global_transform.compute_transform();
 
         #[cfg(feature = "2d")]
         {
-            position.0 = (previous_transform.translation.truncate()
-                + (transform.translation - previous_transform.translation).truncate())
-            .adjust_precision()
-                + (pos - previous_transform.translation.truncate().adjust_precision());
+            position.0 = global_transform.translation.truncate().adjust_precision();
         }
         #[cfg(feature = "3d")]
         {
-            position.0 = (previous_transform.translation
-                + (transform.translation - previous_transform.translation))
-                .adjust_precision()
-                + (pos - previous_transform.translation.adjust_precision());
+            position.0 = global_transform.translation.adjust_precision();
         }
 
         #[cfg(feature = "2d")]
         {
-            let rot = Rotation::from(transform.rotation.adjust_precision());
-            let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot * (rot * prev_rot.inverse()) * (*rotation * prev_rot.inverse());
+            *rotation = Rotation::from(global_transform.rotation.adjust_precision());
         }
         #[cfg(feature = "3d")]
         {
-            rotation.0 = (previous_transform.rotation
-                + (transform.rotation - previous_transform.rotation)
-                + (rotation.f32() - previous_transform.rotation))
-                .normalize()
-                .adjust_precision();
+            rotation.0 = global_transform.rotation.adjust_precision();
         }
     }
 }

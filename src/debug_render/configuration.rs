@@ -378,7 +378,7 @@ impl PhysicsGizmos {
 ///
 /// This overwrites the global [`PhysicsGizmos`] for this specific entity.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]

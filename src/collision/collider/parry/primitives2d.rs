@@ -1,7 +1,7 @@
-use crate::{AdjustPrecision, AsF32, Scalar, Vector, FRAC_PI_2, PI, TAU};
+use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
-use super::{Collider, IntoCollider};
-use bevy::prelude::Deref;
+use super::{AsF32, Collider, IntoCollider};
+use bevy::prelude::{Deref, DerefMut};
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
 use parry::{
@@ -25,14 +25,18 @@ impl IntoCollider<Collider> for Circle {
 
 impl IntoCollider<Collider> for Ellipse {
     fn collider(&self) -> Collider {
-        Collider::from(SharedShape::new(EllipseWrapper(*self)))
+        Collider::from(SharedShape::new(EllipseColliderShape(*self)))
     }
 }
 
-#[derive(Clone, Copy, Debug, Deref)]
-pub(crate) struct EllipseWrapper(pub(crate) Ellipse);
+/// An ellipse shape that can be stored in a [`SharedShape`] for an ellipse [`Collider`].
+///
+/// This wrapper is required to allow implementing the necessary traits from [`parry`]
+/// for Bevy's [`Ellipse`] type.
+#[derive(Clone, Copy, Debug, Deref, DerefMut)]
+pub struct EllipseColliderShape(pub Ellipse);
 
-impl SupportMap for EllipseWrapper {
+impl SupportMap for EllipseColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         let [a, b] = self.half_size.adjust_precision().to_array();
@@ -41,9 +45,25 @@ impl SupportMap for EllipseWrapper {
     }
 }
 
-impl Shape for EllipseWrapper {
+impl Shape for EllipseColliderShape {
+    fn clone_dyn(&self) -> Box<dyn Shape> {
+        Box::new(*self)
+    }
+
+    fn scale_dyn(
+        &self,
+        scale: &parry::math::Vector<Scalar>,
+        _num_subdivisions: u32,
+    ) -> Option<Box<dyn parry::shape::Shape>> {
+        let half_size = Vector::from(*scale).f32() * self.half_size;
+        Some(Box::new(EllipseColliderShape(Ellipse::new(
+            half_size.x,
+            half_size.y,
+        ))))
+    }
+
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Isometry2d::IDENTITY);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -51,10 +71,8 @@ impl Shape for EllipseWrapper {
     }
 
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let aabb = self.aabb_2d(isometry);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -62,7 +80,7 @@ impl Shape for EllipseWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Isometry2d::IDENTITY);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -73,10 +91,8 @@ impl Shape for EllipseWrapper {
         &self,
         position: &Isometry<Scalar>,
     ) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let sphere = self.bounding_circle(isometry);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -103,7 +119,7 @@ impl Shape for EllipseWrapper {
     }
 
     fn as_typed_shape(&self) -> parry::shape::TypedShape {
-        parry::shape::TypedShape::Custom(1)
+        parry::shape::TypedShape::Custom(self)
     }
 
     fn ccd_thickness(&self) -> Scalar {
@@ -119,7 +135,7 @@ impl Shape for EllipseWrapper {
     }
 }
 
-impl RayCast for EllipseWrapper {
+impl RayCast for EllipseColliderShape {
     fn cast_local_ray_and_get_normal(
         &self,
         ray: &parry::query::Ray,
@@ -136,7 +152,7 @@ impl RayCast for EllipseWrapper {
     }
 }
 
-impl PointQuery for EllipseWrapper {
+impl PointQuery for EllipseColliderShape {
     fn project_local_point(
         &self,
         pt: &parry::math::Point<Scalar>,
@@ -227,14 +243,18 @@ impl IntoCollider<Collider> for BoxedPolygon {
 
 impl IntoCollider<Collider> for RegularPolygon {
     fn collider(&self) -> Collider {
-        Collider::from(SharedShape::new(RegularPolygonWrapper(*self)))
+        Collider::from(SharedShape::new(RegularPolygonColliderShape(*self)))
     }
 }
 
-#[derive(Clone, Copy, Debug, Deref)]
-pub(crate) struct RegularPolygonWrapper(pub(crate) RegularPolygon);
+/// A regular polygon shape that can be stored in a [`SharedShape`] for a regular polygon [`Collider`].
+///
+/// This wrapper is required to allow implementing the necessary traits from [`parry`]
+/// for Bevy's [`RegularPolygon`] type.
+#[derive(Clone, Copy, Debug, Deref, DerefMut)]
+pub struct RegularPolygonColliderShape(pub RegularPolygon);
 
-impl SupportMap for RegularPolygonWrapper {
+impl SupportMap for RegularPolygonColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         // TODO: For polygons with a small number of sides, maybe just iterating
@@ -245,9 +265,9 @@ impl SupportMap for RegularPolygonWrapper {
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vector::Y)
+            -Vector::from(*direction).angle_to(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vector::Y)
+            TAU - Vector::from(*direction).angle_to(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
@@ -261,7 +281,7 @@ impl SupportMap for RegularPolygonWrapper {
     }
 }
 
-impl PolygonalFeatureMap for RegularPolygonWrapper {
+impl PolygonalFeatureMap for RegularPolygonColliderShape {
     #[inline]
     fn local_support_feature(
         &self,
@@ -273,9 +293,9 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
 
         // Counterclockwise
         let angle_from_top = if direction.x < 0.0 {
-            -Vector::from(*direction).angle_between(Vector::Y)
+            -Vector::from(*direction).angle_to(Vector::Y)
         } else {
-            TAU - Vector::from(*direction).angle_between(Vector::Y)
+            TAU - Vector::from(*direction).angle_to(Vector::Y)
         };
 
         // How many rotations of `external_angle` correspond to the vertices.
@@ -303,9 +323,25 @@ impl PolygonalFeatureMap for RegularPolygonWrapper {
     }
 }
 
-impl Shape for RegularPolygonWrapper {
+impl Shape for RegularPolygonColliderShape {
+    fn clone_dyn(&self) -> Box<dyn Shape> {
+        Box::new(*self)
+    }
+
+    fn scale_dyn(
+        &self,
+        scale: &parry::math::Vector<Scalar>,
+        _num_subdivisions: u32,
+    ) -> Option<Box<dyn parry::shape::Shape>> {
+        let circumradius = Vector::from(*scale).f32() * self.circumradius();
+        Some(Box::new(RegularPolygonColliderShape(RegularPolygon::new(
+            circumradius.length(),
+            self.sides,
+        ))))
+    }
+
     fn compute_local_aabb(&self) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(Vec2::ZERO, 0.0);
+        let aabb = self.aabb_2d(Isometry2d::IDENTITY);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -313,10 +349,8 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_aabb(&self, position: &Isometry<Scalar>) -> parry::bounding_volume::Aabb {
-        let aabb = self.aabb_2d(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let aabb = self.aabb_2d(isometry);
         parry::bounding_volume::Aabb::new(
             aabb.min.adjust_precision().into(),
             aabb.max.adjust_precision().into(),
@@ -324,7 +358,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn compute_local_bounding_sphere(&self) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(Vec2::ZERO, 0.0);
+        let sphere = self.bounding_circle(Isometry2d::IDENTITY);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -335,10 +369,8 @@ impl Shape for RegularPolygonWrapper {
         &self,
         position: &Isometry<Scalar>,
     ) -> parry::bounding_volume::BoundingSphere {
-        let sphere = self.bounding_circle(
-            Vector::from(position.translation).f32(),
-            position.rotation.angle() as f32,
-        );
+        let isometry = math::na_iso_to_iso(position);
+        let sphere = self.bounding_circle(isometry);
         parry::bounding_volume::BoundingSphere::new(
             sphere.center.adjust_precision().into(),
             sphere.radius().adjust_precision(),
@@ -369,7 +401,7 @@ impl Shape for RegularPolygonWrapper {
     }
 
     fn as_typed_shape(&self) -> parry::shape::TypedShape {
-        parry::shape::TypedShape::Custom(2)
+        parry::shape::TypedShape::Custom(self)
     }
 
     fn ccd_thickness(&self) -> Scalar {
@@ -413,7 +445,7 @@ impl Shape for RegularPolygonWrapper {
     }
 }
 
-impl RayCast for RegularPolygonWrapper {
+impl RayCast for RegularPolygonColliderShape {
     fn cast_local_ray_and_get_normal(
         &self,
         ray: &parry::query::Ray,
@@ -430,7 +462,7 @@ impl RayCast for RegularPolygonWrapper {
     }
 }
 
-impl PointQuery for RegularPolygonWrapper {
+impl PointQuery for RegularPolygonColliderShape {
     fn project_local_point(
         &self,
         pt: &parry::math::Point<Scalar>,

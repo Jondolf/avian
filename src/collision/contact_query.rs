@@ -26,7 +26,7 @@ pub type UnsupportedShape = Unsupported;
 /// Returns `None` if the colliders are separated by a distance greater than `prediction_distance`
 /// or if the given shapes are invalid.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -116,7 +116,7 @@ pub fn contact(
 /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
 /// or if the given shapes are invalid.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -282,7 +282,7 @@ pub enum ClosestPoints {
 ///
 /// Returns `Err(UnsupportedShape)` if either of the collider shapes is not supported.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -377,7 +377,7 @@ pub fn closest_points(
 /// Returns `0.0` if the colliders are touching or penetrating, and `Err(UnsupportedShape)`
 /// if either of the collider shapes is not supported.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -445,7 +445,7 @@ pub fn distance(
 ///
 /// Returns `Err(UnsupportedShape)` if either of the collider shapes is not supported.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
@@ -538,7 +538,7 @@ pub struct TimeOfImpact {
 /// Returns `Ok(None)` if the time of impact is greater than `max_time_of_impact`
 /// and `Err(UnsupportedShape)` if either of the collider shapes is not supported.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// # #[cfg(feature = "2d")]

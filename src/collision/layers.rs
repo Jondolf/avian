@@ -257,7 +257,7 @@ impl Not for LayerMask {
 ///
 /// [bitmasks]: https://en.wikipedia.org/wiki/Mask_(computing)
 ///
-/// ## Creation
+/// # Creation
 ///
 /// Collision layers store memberships and filters using [`LayerMask`]s. A [`LayerMask`] can be created using
 /// bitmasks, or by creating an enum that implements [`PhysicsLayer`].
@@ -328,7 +328,7 @@ impl Not for LayerMask {
 /// }
 /// ```
 ///
-/// ## Modifying layers
+/// # Modifying Layers
 ///
 /// Existing [`CollisionLayers`] can be modified by simply accessing the `memberships` and `filters`
 /// and changing their [`LayerMask`]s.
@@ -434,12 +434,6 @@ impl Default for CollisionLayers {
 
 #[cfg(test)]
 mod tests {
-    // Needed for PhysicsLayer derive macro
-    #[cfg(feature = "2d")]
-    use crate as avian2d;
-    #[cfg(feature = "3d")]
-    use crate as avian3d;
-
     use crate::prelude::*;
 
     #[derive(PhysicsLayer, Default)]

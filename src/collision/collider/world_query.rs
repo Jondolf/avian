@@ -23,9 +23,10 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,
+    pub active_hooks: Option<&'static ActiveCollisionHooks>,
 }
 
-impl<'w, C: AnyCollider> ColliderQueryItem<'w, C> {
+impl<C: AnyCollider> ColliderQueryItem<'_, C> {
     /// Returns the current position of the body. This is a sum of the [`Position`] and
     /// [`AccumulatedTranslation`] components.
     pub fn current_position(&self) -> Vector {
@@ -34,5 +35,11 @@ impl<'w, C: AnyCollider> ColliderQueryItem<'w, C> {
                 .accumulated_translation
                 .as_ref()
                 .map_or_else(default, |t| t.0)
+    }
+
+    /// Returns the [`ActiveCollisionHooks`] for the collider.
+    pub fn active_hooks(&self) -> ActiveCollisionHooks {
+        self.active_hooks
+            .map_or(ActiveCollisionHooks::empty(), |h| *h)
     }
 }
