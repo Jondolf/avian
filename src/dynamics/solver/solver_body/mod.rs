@@ -2,6 +2,9 @@
 //!
 //! This helps improve memory locality and makes random access faster for the constraint solver.
 
+mod plugin;
+pub use plugin::SolverBodyPlugin;
+
 use bevy::{
     prelude::*,
     tasks::{ParallelSliceMut, TaskPool},
@@ -219,6 +222,8 @@ impl SolverBodies {
     }
 }
 
+// TODO: In Bevy 0.16, this should probably be an immutable component?
+//       We could also make the inner value private and only expose a read-only API.
 /// A component that stores the index of a [`SolverBody`] in the [`SolverBodies`] resource.
 #[derive(Component, Clone, Copy, Debug, Deref, PartialEq, Eq, Reflect)]
 #[reflect(Component, Debug, PartialEq)]

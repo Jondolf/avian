@@ -11,7 +11,7 @@ pub mod xpbd;
 
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
-use solver_body::{SolverBodies, SolverBody, SolverBodyIndex};
+use solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyPlugin};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -28,7 +28,7 @@ use self::{
 ///
 /// # Implementation
 ///
-/// The solver primarily uses TGS Soft, an impulse-based solver with substepping and [soft constraints](softness_parameters).
+/// Avian uses an impulse-based solver with substepping and [soft constraints](softness_parameters).
 /// Warm starting is used to improve convergence, along with a relaxation pass to reduce overshooting.
 ///
 /// [Speculative collision](dynamics::ccd#speculative-collision) is used by default to prevent tunneling.
@@ -36,6 +36,17 @@ use self::{
 ///
 /// [Joints](joints) and user constraints are currently solved using [Extended Position-Based Dynamics (XPBD)](xpbd).
 /// In the future, they may transition to an impulse-based approach as well.
+///
+/// ## Solver Bodies
+///
+/// The solver maintains a [`SolverBodies`] resource with a [`SolverBody`] for each awake dynamic
+/// and kinematic body. It stores the body data needed by the solver in a more optimized format
+/// with better memory locality and faster random access.
+///
+/// Only awake dynamic bodies and kinematic bodies have an associated solver body.
+/// Static bodies and sleeping dynamic bodies do not move and are not included in the solver.
+///
+/// The [`SolverBodyPlugin`] is added for managing solver bodies and synchronizing them with rigid body data.
 ///
 /// # Steps
 ///
@@ -77,63 +88,12 @@ impl SolverPlugin {
 
 impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
+        // Add the `SolverBodyPlugin` to manage solver bodies and synchronize them with rigid body data.
+        app.add_plugins(SolverBodyPlugin);
+
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
-            .init_resource::<ContactConstraints>()
-            .init_resource::<SolverBodies>();
-
-        app.register_required_components_with::<RigidBody, SolverBodyIndex>(|| {
-            SolverBodyIndex::INVALID
-        });
-
-        // Add a solver body for each dynamic and kinematic rigid body when:
-        // 1. The rigid body is created.
-        // 2. The rigid body is enabled by removing `RigidBodyDisabled`.
-        // 3. The rigid body is set to be dynamic or kinematic.
-        // 4. The rigid body is woken up.
-
-        // Add a solver body for each dynamic and kinematic rigid body when the rigid body is created.
-        app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
-             solver_bodies: ResMut<SolverBodies>| {
-                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
-            },
-        );
-
-        // Add a solver body for each dynamic and kinematic rigid body
-        // when the associated rigid body is enabled or woken up.
-        app.add_observer(
-            |trigger: Trigger<OnRemove, (RigidBodyDisabled, Sleeping)>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
-             solver_bodies: ResMut<SolverBodies>| {
-                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
-            },
-        );
-
-        // Remove-swap solver bodies when:
-        // 1. The rigid body is removed.
-        // 2. The rigid body is disabled by adding `RigidBodyDisabled`.
-        // 3. The rigid body is put to sleep.
-        // 4. The rigid body is set to be static.
-
-        // Remove-swap solver bodies when their associated rigid body is removed.
-        app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBody>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
-             solver_bodies: ResMut<SolverBodies>| {
-                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
-            },
-        );
-
-        // Remove-swap solver bodies when their associated rigid body is disabled or put to sleep.
-        app.add_observer(
-            |trigger: Trigger<OnAdd, (RigidBodyDisabled, Sleeping)>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
-             solver_bodies: ResMut<SolverBodies>| {
-                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
-            },
-        );
+            .init_resource::<ContactConstraints>();
 
         if app
             .world()
@@ -150,13 +110,6 @@ impl Plugin for SolverPlugin {
 
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
 
-        // Prepare solver bodies before the substepping loop.
-        physics.add_systems(
-            (on_change_rigid_body_type, prepare_solver_bodies)
-                .chain()
-                .in_set(SolverSet::PrepareSolverBodies),
-        );
-
         // Update previous rotations before the substepping loop.
         physics.add_systems(
             (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
@@ -166,10 +119,6 @@ impl Plugin for SolverPlugin {
             })
             .in_set(SolverSet::PreSubstep),
         );
-
-        // Write back solver body data to rigid bodies.
-        // This runs after the substepping loop.
-        physics.add_systems(writeback_solver_bodies.chain().in_set(SolverSet::Finalize));
 
         // Apply restitution.
         physics.add_systems(solve_restitution.in_set(SolverSet::Restitution));
@@ -244,89 +193,6 @@ impl Plugin for SolverPlugin {
     fn finish(&self, app: &mut App) {
         // Register timer and counter diagnostics for the solver.
         app.register_physics_diagnostics::<SolverDiagnostics>();
-    }
-}
-
-fn on_change_rigid_body_type(
-    mut bodies: ResMut<SolverBodies>,
-    query: Query<(Entity, Ref<RigidBody>, &mut SolverBodyIndex), Changed<RigidBody>>,
-) {
-    for (entity, rb, &index) in &mut query.iter() {
-        // Only handle modifications to the rigid body type here.
-        if rb.is_added() {
-            continue;
-        }
-
-        if rb.is_static() {
-            // Swap-remove the solver body.
-            bodies.swap_remove(index);
-
-            // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
-            if let Some(last_entity) = bodies.get_entity(index) {
-                // SAFETY: The entity is guaranteed to exist.
-                if let Ok((_, _, mut last_index)) = unsafe { query.get_unchecked(last_entity) } {
-                    *last_index = index;
-                }
-            }
-        } else if !bodies.contains_index(index) {
-            // Create a new solver body if the rigid body is dynamic or kinematic.
-            bodies.push(entity, SolverBody::default());
-        }
-    }
-}
-
-fn add_solver_body(
-    In(entity): In<Entity>,
-    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
-    mut solver_bodies: ResMut<SolverBodies>,
-) {
-    if let Ok((rb, mut index)) = rb_query.get_mut(entity) {
-        if rb.is_static() {
-            return;
-        }
-
-        // Create a new solver body if the rigid body is dynamic or kinematic.
-        index.0 = solver_bodies.len();
-        solver_bodies.push(entity, SolverBody::default());
-    }
-}
-
-fn remove_swap_solver_body(
-    In(entity): In<Entity>,
-    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
-    mut solver_bodies: ResMut<SolverBodies>,
-) {
-    if let Ok((rb, &index)) = rb_query.get(entity) {
-        if rb.is_static() {
-            return;
-        }
-
-        // Swap-remove the solver body.
-        solver_bodies.swap_remove(index);
-
-        // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
-        if let Some(last_entity) = solver_bodies.get_entity(index) {
-            if let Ok((_, mut last_index)) = rb_query.get_mut(last_entity) {
-                *last_index = index;
-            }
-        }
-    }
-}
-
-fn prepare_solver_bodies(
-    mut bodies: ResMut<SolverBodies>,
-    query: Query<(&SolverBodyIndex, &LinearVelocity, &AngularVelocity)>,
-) {
-    for (index, linear_velocity, angular_velocity) in &query {
-        if !index.is_valid() {
-            continue;
-        }
-
-        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
-        solver_body.linear_velocity = linear_velocity.0;
-        solver_body.angular_velocity = angular_velocity.0;
-        solver_body.delta_position = Vector::ZERO;
-        solver_body.delta_rotation = Rotation::IDENTITY;
     }
 }
 
@@ -703,37 +569,6 @@ fn store_contact_impulses(
     }
 
     diagnostics.store_impulses += start.elapsed();
-}
-
-/// Writes back solver body data to rigid bodies.
-#[allow(clippy::type_complexity)]
-fn writeback_solver_bodies(
-    mut bodies: ResMut<SolverBodies>,
-    mut query: Query<(
-        &mut Position,
-        &mut Rotation,
-        &mut LinearVelocity,
-        &mut AngularVelocity,
-        &SolverBodyIndex,
-    )>,
-    mut diagnostics: ResMut<SolverDiagnostics>,
-) {
-    let start = bevy::utils::Instant::now();
-
-    for (mut pos, mut rot, mut lin_vel, mut ang_vel, index) in &mut query {
-        if !index.is_valid() {
-            continue;
-        }
-
-        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
-
-        pos.0 += solver_body.delta_position;
-        *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
-        lin_vel.0 = solver_body.linear_velocity;
-        ang_vel.0 = solver_body.angular_velocity;
-    }
-
-    diagnostics.finalize += start.elapsed();
 }
 
 /// Applies velocity corrections caused by joint damping.
