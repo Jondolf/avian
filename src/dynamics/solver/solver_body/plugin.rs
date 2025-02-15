@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::query::QueryFilter, prelude::*};
 
 use crate::{
     dynamics::solver::SolverDiagnostics, AngularVelocity, LinearVelocity, PhysicsSchedule,
@@ -8,7 +8,6 @@ use crate::{
 
 use super::{SolverBodies, SolverBody, SolverBodyIndex};
 
-// TODO: Add tests for this.
 /// A plugin for managing [`SolverBodies`].
 ///
 /// A [`SolverBody`] is created for each dynamic and kinematic rigid body when:
@@ -48,28 +47,41 @@ impl Plugin for SolverBodyPlugin {
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
-            |trigger: Trigger<OnRemove, (RigidBodyDisabled, Sleeping)>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
+            |trigger: Trigger<OnRemove, RigidBodyDisabled>,
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), Without<Sleeping>>,
              solver_bodies: ResMut<SolverBodies>| {
-                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+                add_solver_body::<Without<Sleeping>>(In(trigger.entity()), rb_query, solver_bodies);
+            },
+        );
+        app.add_observer(
+            |trigger: Trigger<OnRemove, Sleeping>,
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), Without<RigidBodyDisabled>>,
+             solver_bodies: ResMut<SolverBodies>| {
+                add_solver_body::<Without<RigidBodyDisabled>>(
+                    In(trigger.entity()),
+                    rb_query,
+                    solver_bodies,
+                );
             },
         );
 
         // Remove-swap solver bodies when their associated rigid body is removed.
         app.add_observer(
             |trigger: Trigger<OnRemove, RigidBody>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+             rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
+             index_query: Query<&mut SolverBodyIndex>,
              solver_bodies: ResMut<SolverBodies>| {
-                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+                remove_solver_body(In(trigger.entity()), rb_query, index_query, solver_bodies);
             },
         );
 
         // Remove-swap solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
             |trigger: Trigger<OnAdd, (RigidBodyDisabled, Sleeping)>,
-             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+             rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
+             index_query: Query<&mut SolverBodyIndex>,
              solver_bodies: ResMut<SolverBodies>| {
-                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+                remove_solver_body(In(trigger.entity()), rb_query, index_query, solver_bodies);
             },
         );
 
@@ -90,36 +102,42 @@ impl Plugin for SolverBodyPlugin {
 }
 
 fn on_change_rigid_body_type(
-    mut bodies: ResMut<SolverBodies>,
-    query: Query<(Entity, Ref<RigidBody>, &mut SolverBodyIndex), Changed<RigidBody>>,
+    mut solver_bodies: ResMut<SolverBodies>,
+    rb_query: Query<(Entity, Ref<RigidBody>), (With<SolverBodyIndex>, Changed<RigidBody>)>,
+    mut index_query: Query<&mut SolverBodyIndex>,
 ) {
-    for (entity, rb, &index) in &mut query.iter() {
+    for (entity, rb) in &rb_query {
         // Only handle modifications to the rigid body type here.
         if rb.is_added() {
             continue;
         }
 
+        let mut index = index_query.get_mut(entity).unwrap();
+
         if rb.is_static() {
+            // Reset the `SolverBodyIndex`.
+            *index = SolverBodyIndex::INVALID;
+
             // Swap-remove the solver body.
-            bodies.swap_remove(index);
+            solver_bodies.swap_remove(*index);
 
             // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
-            if let Some(last_entity) = bodies.get_entity(index) {
-                // SAFETY: The entity is guaranteed to exist.
-                if let Ok((_, _, mut last_index)) = unsafe { query.get_unchecked(last_entity) } {
+            if let Some(last_entity) = solver_bodies.get_entity(*index) {
+                let index = *index;
+                if let Ok(mut last_index) = index_query.get_mut(last_entity) {
                     *last_index = index;
                 }
             }
-        } else if !bodies.contains_index(index) {
+        } else if !solver_bodies.contains_index(*index) {
             // Create a new solver body if the rigid body is dynamic or kinematic.
-            bodies.push(entity, SolverBody::default());
+            solver_bodies.push(entity, SolverBody::default());
         }
     }
 }
 
-fn add_solver_body(
+fn add_solver_body<F: QueryFilter>(
     In(entity): In<Entity>,
-    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
+    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex), F>,
     mut solver_bodies: ResMut<SolverBodies>,
 ) {
     if let Ok((rb, mut index)) = rb_query.get_mut(entity) {
@@ -133,23 +151,28 @@ fn add_solver_body(
     }
 }
 
-fn remove_swap_solver_body(
+fn remove_solver_body(
     In(entity): In<Entity>,
-    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+    rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
+    mut index_query: Query<&mut SolverBodyIndex>,
     mut solver_bodies: ResMut<SolverBodies>,
 ) {
-    if let Ok((rb, &index)) = rb_query.get(entity) {
+    if let Ok(rb) = rb_query.get(entity) {
         if rb.is_static() {
             return;
         }
 
-        // Swap-remove the solver body.
+        let mut index_mut = index_query.get_mut(entity).unwrap();
+        let index = *index_mut;
+
+        // Swap-remove the solver body and reset the `SolverBodyIndex`.
         solver_bodies.swap_remove(index);
+        *index_mut = SolverBodyIndex::INVALID;
 
         // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
-        if let Some(last_entity) = solver_bodies.get_entity(index) {
-            if let Ok((_, mut last_index)) = rb_query.get_mut(last_entity) {
-                *last_index = index;
+        if let Some(swapped_entity) = solver_bodies.get_entity(index) {
+            if let Ok(mut swapped_index) = index_query.get_mut(swapped_entity) {
+                *swapped_index = index;
             }
         }
     }
@@ -164,12 +187,12 @@ fn prepare_solver_bodies(
             continue;
         }
 
-        // SAFETY: The index is guaranteed to be valid.
-        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
-        solver_body.linear_velocity = linear_velocity.0;
-        solver_body.angular_velocity = angular_velocity.0;
-        solver_body.delta_position = Vector::ZERO;
-        solver_body.delta_rotation = Rotation::IDENTITY;
+        if let Some(solver_body) = bodies.get_mut(*index) {
+            solver_body.linear_velocity = linear_velocity.0;
+            solver_body.angular_velocity = angular_velocity.0;
+            solver_body.delta_position = Vector::ZERO;
+            solver_body.delta_rotation = Rotation::IDENTITY;
+        }
     }
 }
 
@@ -203,4 +226,74 @@ fn writeback_solver_bodies(
     }
 
     diagnostics.finalize += start.elapsed();
+}
+
+// TODO: Change rigid body type to static and immediately despawn it.
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{dynamics::solver::SolverBodyIndex, PhysicsSchedulePlugin, SolverSchedulePlugin};
+
+    fn create_app() -> App {
+        let mut app = App::new();
+
+        app.add_plugins((
+            PhysicsSchedulePlugin::default(),
+            SolverSchedulePlugin,
+            SolverBodyPlugin,
+        ));
+
+        app
+    }
+
+    fn has_solver_body(app: &App, entity: Entity) -> bool {
+        app.world()
+            .resource::<SolverBodies>()
+            .contains_entity(entity)
+    }
+
+    fn get_solver_body_entity(app: &App, index: usize) -> Entity {
+        app.world()
+            .resource::<SolverBodies>()
+            .get_entity(SolverBodyIndex(index))
+            .unwrap()
+    }
+
+    #[test]
+    fn add_remove_solver_bodies() {
+        let mut app = create_app();
+
+        // Create a dynamic, kinematic, and static rigid body.
+        let entity1 = app.world_mut().spawn(RigidBody::Dynamic).id();
+        let entity2 = app.world_mut().spawn(RigidBody::Kinematic).id();
+        let entity3 = app.world_mut().spawn(RigidBody::Static).id();
+
+        // The dynamic and kinematic rigid bodies should have solver bodies.
+        assert!(has_solver_body(&app, entity1));
+        assert!(has_solver_body(&app, entity2));
+        assert!(!has_solver_body(&app, entity3));
+
+        // Disable the dynamic rigid body.
+        app.world_mut()
+            .entity_mut(entity1)
+            .insert(RigidBodyDisabled);
+
+        // The entity should no longer have a solver body.
+        // Its index should be `SolverBodyIndex::INVALID`.
+        assert!(!has_solver_body(&app, entity1));
+
+        // The index of the kinematic rigid body should be `0`.
+        assert_eq!(get_solver_body_entity(&app, 0), entity2);
+
+        // Enable the dynamic rigid body.
+        app.world_mut()
+            .entity_mut(entity1)
+            .remove::<RigidBodyDisabled>();
+
+        // The dynamic rigid body should have a solver body again.
+        assert!(has_solver_body(&app, entity1));
+
+        // The index of the dynamic rigid body should be `1`.
+        assert_eq!(get_solver_body_entity(&app, 1), entity1);
+    }
 }
