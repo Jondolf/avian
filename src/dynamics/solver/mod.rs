@@ -86,18 +86,52 @@ impl Plugin for SolverPlugin {
             SolverBodyIndex::INVALID
         });
 
+        // Add a solver body for each dynamic and kinematic rigid body when:
+        // 1. The rigid body is created.
+        // 2. The rigid body is enabled by removing `RigidBodyDisabled`.
+        // 3. The rigid body is set to be dynamic or kinematic.
+        // 4. The rigid body is woken up.
+
+        // Add a solver body for each dynamic and kinematic rigid body when the rigid body is created.
         app.add_observer(
             |trigger: Trigger<OnAdd, RigidBody>,
-             mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
-             mut solver_bodies: ResMut<SolverBodies>| {
-                if let Ok((rb, mut index)) = rb_query.get_mut(trigger.entity()) {
-                    if rb.is_static() {
-                        return;
-                    }
-                    let solver_body = SolverBody::default();
-                    index.0 = solver_bodies.len();
-                    solver_bodies.push(solver_body);
-                }
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
+             solver_bodies: ResMut<SolverBodies>| {
+                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+            },
+        );
+
+        // Add a solver body for each dynamic and kinematic rigid body
+        // when the associated rigid body is enabled or woken up.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, (RigidBodyDisabled, Sleeping)>,
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
+             solver_bodies: ResMut<SolverBodies>| {
+                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+            },
+        );
+
+        // Remove-swap solver bodies when:
+        // 1. The rigid body is removed.
+        // 2. The rigid body is disabled by adding `RigidBodyDisabled`.
+        // 3. The rigid body is put to sleep.
+        // 4. The rigid body is set to be static.
+
+        // Remove-swap solver bodies when their associated rigid body is removed.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, RigidBody>,
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+             solver_bodies: ResMut<SolverBodies>| {
+                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+            },
+        );
+
+        // Remove-swap solver bodies when their associated rigid body is disabled or put to sleep.
+        app.add_observer(
+            |trigger: Trigger<OnAdd, (RigidBodyDisabled, Sleeping)>,
+             rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+             solver_bodies: ResMut<SolverBodies>| {
+                remove_swap_solver_body(In(trigger.entity()), rb_query, solver_bodies);
             },
         );
 
@@ -117,7 +151,11 @@ impl Plugin for SolverPlugin {
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
 
         // Prepare solver bodies before the substepping loop.
-        physics.add_systems(prepare_solver_bodies.in_set(SolverSet::PrepareSolverBodies));
+        physics.add_systems(
+            (on_change_rigid_body_type, prepare_solver_bodies)
+                .chain()
+                .in_set(SolverSet::PrepareSolverBodies),
+        );
 
         // Update previous rotations before the substepping loop.
         physics.add_systems(
@@ -206,6 +244,72 @@ impl Plugin for SolverPlugin {
     fn finish(&self, app: &mut App) {
         // Register timer and counter diagnostics for the solver.
         app.register_physics_diagnostics::<SolverDiagnostics>();
+    }
+}
+
+fn on_change_rigid_body_type(
+    mut bodies: ResMut<SolverBodies>,
+    query: Query<(Entity, Ref<RigidBody>, &mut SolverBodyIndex), Changed<RigidBody>>,
+) {
+    for (entity, rb, &index) in &mut query.iter() {
+        // Only handle modifications to the rigid body type here.
+        if rb.is_added() {
+            continue;
+        }
+
+        if rb.is_static() {
+            // Swap-remove the solver body.
+            bodies.swap_remove(index);
+
+            // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
+            if let Some(last_entity) = bodies.get_entity(index) {
+                // SAFETY: The entity is guaranteed to exist.
+                if let Ok((_, _, mut last_index)) = unsafe { query.get_unchecked(last_entity) } {
+                    *last_index = index;
+                }
+            }
+        } else if !bodies.contains_index(index) {
+            // Create a new solver body if the rigid body is dynamic or kinematic.
+            bodies.push(entity, SolverBody::default());
+        }
+    }
+}
+
+fn add_solver_body(
+    In(entity): In<Entity>,
+    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
+    mut solver_bodies: ResMut<SolverBodies>,
+) {
+    if let Ok((rb, mut index)) = rb_query.get_mut(entity) {
+        if rb.is_static() {
+            return;
+        }
+
+        // Create a new solver body if the rigid body is dynamic or kinematic.
+        index.0 = solver_bodies.len();
+        solver_bodies.push(entity, SolverBody::default());
+    }
+}
+
+fn remove_swap_solver_body(
+    In(entity): In<Entity>,
+    mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+    mut solver_bodies: ResMut<SolverBodies>,
+) {
+    if let Ok((rb, &index)) = rb_query.get(entity) {
+        if rb.is_static() {
+            return;
+        }
+
+        // Swap-remove the solver body.
+        solver_bodies.swap_remove(index);
+
+        // Update the `SolverBodyIndex` of the entity whose solver body was swapped.
+        if let Some(last_entity) = solver_bodies.get_entity(index) {
+            if let Ok((_, mut last_index)) = rb_query.get_mut(last_entity) {
+                *last_index = index;
+            }
+        }
     }
 }
 
@@ -442,7 +546,7 @@ fn warm_start(
 
         // Get the solver bodies for the two colliding entities.
         let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
         // If the body is `None`, it is a static or kinematic body.
         let body1 = body1.unwrap_or(&mut dummy_body1);
@@ -497,7 +601,7 @@ fn solve_contacts<const USE_BIAS: bool>(
     for constraint in &mut constraints.0 {
         // Get the solver bodies for the two colliding entities.
         let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
         // If the body is `None`, it is a static or kinematic body.
         let body1 = body1.unwrap_or(&mut dummy_body1);
@@ -546,7 +650,7 @@ fn solve_restitution(
 
         // Get the solver bodies for the two colliding entities.
         let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
         // If the body is `None`, it is a static or kinematic body.
         let body1 = body1.unwrap_or(&mut dummy_body1);

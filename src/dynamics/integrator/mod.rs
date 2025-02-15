@@ -10,7 +10,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
-    tasks::{ComputeTaskPool, ParallelSliceMut},
+    tasks::ComputeTaskPool,
 };
 use dynamics::solver::{
     solver_body::{SolverBodies, SolverBodyIndex},
