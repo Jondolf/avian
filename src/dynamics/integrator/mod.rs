@@ -188,6 +188,13 @@ fn integrate_velocities(
             previous_position.0 = body.pos.0;
         }
 
+        // TODO: This wouldn't be necessary if we filter out static bodies in the query.
+        if !body.solver_index.is_valid() {
+            return;
+        }
+
+        // SAFETY: The index is checked to be valid above.
+        //         The `SolverBodyPlugin` is responsible for ensuring that valid indices are in bounds.
         let solver_body = unsafe { solver_bodies.get_unchecked_mut(body.solver_index.0) };
 
         if body.rb.is_dynamic() {

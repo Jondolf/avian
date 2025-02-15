@@ -216,13 +216,13 @@ fn writeback_solver_bodies(
             continue;
         }
 
-        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
-
-        // TODO: Make sure rotation about the center of mass is handled correctly.
-        pos.0 += solver_body.delta_position;
-        *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
-        lin_vel.0 = solver_body.linear_velocity;
-        ang_vel.0 = solver_body.angular_velocity;
+        if let Some(solver_body) = bodies.get_mut(*index) {
+            // TODO: Make sure rotation about the center of mass is handled correctly.
+            pos.0 += solver_body.delta_position;
+            *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
+            lin_vel.0 = solver_body.linear_velocity;
+            ang_vel.0 = solver_body.angular_velocity;
+        }
     }
 
     diagnostics.finalize += start.elapsed();
