@@ -416,7 +416,7 @@ pub struct SleepingDisabled;
 /// is added to [`AccumulatedTranslation`], instead of [`Position`]. This improves numerical stability
 /// of the simulation, especially for bodies far away from world origin.
 ///
-/// At the end of each physics frame, the actual [`Position`] is updated in [`SolverSet::ApplyTranslation`].
+/// At the end of each physics frame, the actual [`Position`] is updated in [`SolverSet::Finalize`].
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

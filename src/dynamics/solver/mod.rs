@@ -6,10 +6,12 @@ pub mod contact;
 pub mod joints;
 pub mod schedule;
 pub mod softness_parameters;
+pub mod solver_body;
 pub mod xpbd;
 
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
+use solver_body::{SolverBodies, SolverBody, SolverBodyIndex};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -40,7 +42,8 @@ use self::{
 /// Below are the main steps of the `SolverPlugin`.
 ///
 /// 1. [Generate and prepare constraints](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints)
-/// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
+/// 2. [Prepare solver bodies](SolverSet::PrepareSolverBodies)
+/// 3. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
 ///     1. [Integrate velocities](super::integrator::IntegrationSet::Velocity)
 ///     2. [Warm start](SubstepSolverSet::WarmStart)
 ///     3. [Solve constraints with bias](SubstepSolverSet::SolveConstraints)
@@ -49,9 +52,9 @@ use self::{
 ///     6. [Solve XPBD constraints (joints)](SubstepSolverSet::SolveXpbdConstraints)
 ///     7. [Solve user-defined constraints](SubstepSolverSet::SolveUserConstraints)
 ///     8. [Update velocities after XPBD constraint solving.](SubstepSolverSet::XpbdVelocityProjection)
-/// 3. [Apply restitution](SolverSet::Restitution)
-/// 4. [Finalize positions by applying](SolverSet::ApplyTranslation) [`AccumulatedTranslation`]
-/// 5. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
+/// 4. [Apply restitution](SolverSet::Restitution)
+/// 5. [Write back solver body data to rigid bodies](SolverSet::Finalize)
+/// 6. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
 pub struct SolverPlugin {
     length_unit: Scalar,
 }
@@ -76,7 +79,27 @@ impl Plugin for SolverPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
-            .init_resource::<ContactConstraints>();
+            .init_resource::<ContactConstraints>()
+            .init_resource::<SolverBodies>();
+
+        app.register_required_components_with::<RigidBody, SolverBodyIndex>(|| {
+            SolverBodyIndex::INVALID
+        });
+
+        app.add_observer(
+            |trigger: Trigger<OnAdd, RigidBody>,
+             mut rb_query: Query<(&RigidBody, &mut SolverBodyIndex)>,
+             mut solver_bodies: ResMut<SolverBodies>| {
+                if let Ok((rb, mut index)) = rb_query.get_mut(trigger.entity()) {
+                    if rb.is_static() {
+                        return;
+                    }
+                    let solver_body = SolverBody::default();
+                    index.0 = solver_bodies.len();
+                    solver_bodies.push(solver_body);
+                }
+            },
+        );
 
         if app
             .world()
@@ -93,6 +116,9 @@ impl Plugin for SolverPlugin {
 
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
 
+        // Prepare solver bodies before the substepping loop.
+        physics.add_systems(prepare_solver_bodies.in_set(SolverSet::PrepareSolverBodies));
+
         // Update previous rotations before the substepping loop.
         physics.add_systems(
             (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
@@ -103,13 +129,9 @@ impl Plugin for SolverPlugin {
             .in_set(SolverSet::PreSubstep),
         );
 
-        // Finalize the positions of bodies by applying the `AccumulatedTranslation`.
+        // Write back solver body data to rigid bodies.
         // This runs after the substepping loop.
-        physics.add_systems(
-            apply_translation
-                .chain()
-                .in_set(SolverSet::ApplyTranslation),
-        );
+        physics.add_systems(writeback_solver_bodies.chain().in_set(SolverSet::Finalize));
 
         // Apply restitution.
         physics.add_systems(solve_restitution.in_set(SolverSet::Restitution));
@@ -184,6 +206,23 @@ impl Plugin for SolverPlugin {
     fn finish(&self, app: &mut App) {
         // Register timer and counter diagnostics for the solver.
         app.register_physics_diagnostics::<SolverDiagnostics>();
+    }
+}
+
+fn prepare_solver_bodies(
+    mut bodies: ResMut<SolverBodies>,
+    query: Query<(&SolverBodyIndex, &LinearVelocity, &AngularVelocity)>,
+) {
+    for (index, linear_velocity, angular_velocity) in &query {
+        if !index.is_valid() {
+            continue;
+        }
+
+        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
+        solver_body.linear_velocity = linear_velocity.0;
+        solver_body.angular_velocity = angular_velocity.0;
+        solver_body.delta_position = Vector::ZERO;
+        solver_body.delta_rotation = Rotation::IDENTITY;
     }
 }
 
@@ -388,29 +427,34 @@ pub struct ContactConstraints(pub Vec<ContactConstraint>);
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start(
-    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    mut bodies: ResMut<SolverBodies>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = bevy::utils::Instant::now();
 
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
+
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+        // Get the solver bodies for the two colliding entities.
+        let (body1, body2) =
+            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+
+        // If the body is `None`, it is a static or kinematic body.
+        let body1 = body1.unwrap_or(&mut dummy_body1);
+        let body2 = body2.unwrap_or(&mut dummy_body2);
 
         let normal = constraint.normal;
         let tangent_directions =
-            constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+            constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
 
         constraint.warm_start(
-            &mut body1,
-            &mut body2,
+            body1,
+            body2,
             normal,
             tangent_directions,
             solver_config.warm_start_coefficient,
@@ -435,7 +479,7 @@ fn warm_start(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_contacts<const USE_BIAS: bool>(
-    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    mut bodies: ResMut<SolverBodies>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -447,20 +491,19 @@ fn solve_contacts<const USE_BIAS: bool>(
     let delta_secs = time.delta_seconds_adjusted();
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
-    for constraint in &mut constraints.0 {
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
 
-        constraint.solve(
-            &mut body1,
-            &mut body2,
-            delta_secs,
-            USE_BIAS,
-            max_overlap_solve_speed,
-        );
+    for constraint in &mut constraints.0 {
+        // Get the solver bodies for the two colliding entities.
+        let (body1, body2) =
+            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+
+        // If the body is `None`, it is a static or kinematic body.
+        let body1 = body1.unwrap_or(&mut dummy_body1);
+        let body2 = body2.unwrap_or(&mut dummy_body2);
+
+        constraint.solve(body1, body2, delta_secs, USE_BIAS, max_overlap_solve_speed);
     }
 
     if USE_BIAS {
@@ -480,7 +523,7 @@ fn solve_contacts<const USE_BIAS: bool>(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_restitution(
-    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    mut bodies: ResMut<SolverBodies>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -491,6 +534,9 @@ fn solve_restitution(
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
+
     for constraint in constraints.iter_mut() {
         let restitution = constraint.restitution.coefficient;
 
@@ -498,11 +544,13 @@ fn solve_restitution(
             continue;
         }
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
-        else {
-            continue;
-        };
+        // Get the solver bodies for the two colliding entities.
+        let (body1, body2) =
+            unsafe { bodies.get_pair_unchecked(constraint.index1, constraint.index2) };
+
+        // If the body is `None`, it is a static or kinematic body.
+        let body1 = body1.unwrap_or(&mut dummy_body1);
+        let body2 = body2.unwrap_or(&mut dummy_body2);
 
         // Performing multiple iterations can result in more accurate restitution,
         // but only if there are more than one contact point.
@@ -513,7 +561,7 @@ fn solve_restitution(
         };
 
         for _ in 0..restitution_iterations {
-            constraint.apply_restitution(&mut body1, &mut body2, threshold);
+            constraint.apply_restitution(body1, body2, threshold);
         }
     }
 
@@ -530,6 +578,7 @@ fn store_contact_impulses(
     let start = bevy::utils::Instant::now();
 
     for constraint in constraints.iter() {
+        // TODO: If contacts are stored in a vec and constraint indices are the same, we can avoid the lookup.
         let Some(contacts) =
             collisions.get_mut(constraint.collider_entity1, constraint.collider_entity2)
         else {
@@ -552,33 +601,32 @@ fn store_contact_impulses(
     diagnostics.store_impulses += start.elapsed();
 }
 
-/// Finalizes the positions of bodies by applying the [`AccumulatedTranslation`].
+/// Writes back solver body data to rigid bodies.
 #[allow(clippy::type_complexity)]
-fn apply_translation(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut Position,
-            &Rotation,
-            &PreviousRotation,
-            &mut AccumulatedTranslation,
-            &ComputedCenterOfMass,
-        ),
-        Changed<AccumulatedTranslation>,
-    >,
+fn writeback_solver_bodies(
+    mut bodies: ResMut<SolverBodies>,
+    mut query: Query<(
+        &mut Position,
+        &mut Rotation,
+        &mut LinearVelocity,
+        &mut AngularVelocity,
+        &SolverBodyIndex,
+    )>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = bevy::utils::Instant::now();
 
-    for (rb, mut pos, rot, prev_rot, mut translation, center_of_mass) in &mut bodies {
-        if rb.is_static() {
+    for (mut pos, mut rot, mut lin_vel, mut ang_vel, index) in &mut query {
+        if !index.is_valid() {
             continue;
         }
 
-        // We must also account for the translation caused by rotations around the center of mass,
-        // as it may be offset from `Position`.
-        pos.0 += crate::utils::get_pos_translation(&translation, prev_rot, rot, center_of_mass);
-        translation.0 = Vector::ZERO;
+        let solver_body = unsafe { bodies.get_unchecked_mut(index.0) };
+
+        pos.0 += solver_body.delta_position;
+        *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
+        lin_vel.0 = solver_body.linear_velocity;
+        ang_vel.0 = solver_body.angular_velocity;
     }
 
     diagnostics.finalize += start.elapsed();

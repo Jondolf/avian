@@ -31,11 +31,12 @@ impl Plugin for SolverSchedulePlugin {
         // See `SolverSet` for what each system set is responsible for.
         physics.configure_sets(
             (
+                SolverSet::PrepareSolverBodies,
                 SolverSet::PreSubstep,
                 SolverSet::Substep,
                 SolverSet::PostSubstep,
                 SolverSet::Restitution,
-                SolverSet::ApplyTranslation,
+                SolverSet::Finalize,
                 SolverSet::StoreContactImpulses,
             )
                 .chain()
@@ -82,12 +83,17 @@ pub struct SubstepSchedule;
 /// Below is the core solver loop.
 ///
 /// 1. Generate and prepare constraints ([`NarrowPhaseSet::GenerateConstraints`](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints))
-/// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SolverSet::Substep`])
-/// 3. Apply restitution ([`SolverSet::Restitution`])
-/// 4. Finalize positions by applying [`AccumulatedTranslation`] ([`SolverSet::ApplyTranslation`])
-/// 5. Store contact impulses for next frame's warm starting ([`SolverSet::StoreContactImpulses`])
+/// 2. Prepare solver bodies ([`SolverSet::PrepareSolverBodies`])
+/// 3. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SolverSet::Substep`])
+/// 4. Apply restitution ([`SolverSet::Restitution`])
+/// 5. Write back solver body data to rigid bodies. ([`SolverSet::Finalize`])
+/// 6. Store contact impulses for next frame's warm starting ([`SolverSet::StoreContactImpulses`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SolverSet {
+    /// Prepares [`SolverBodies`] for the substepping loop.
+    ///
+    /// [`SolverBodies`]: super::SolverBodies
+    PrepareSolverBodies,
     /// A system set for systems running just before the substepping loop.
     PreSubstep,
     /// A system set for the substepping loop.
@@ -96,11 +102,8 @@ pub enum SolverSet {
     PostSubstep,
     /// Applies [restitution](Restitution) for bodies after solving overlap.
     Restitution,
-    /// Finalizes the positions of bodies by applying the [`AccumulatedTranslation`].
-    ///
-    /// Constraints don't modify the positions of bodies directly and instead adds
-    /// to this translation to improve numerical stability when bodies are far from the world origin.
-    ApplyTranslation,
+    /// Writes back solver body data to rigid bodies.
+    Finalize,
     /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
     /// They will be used for [warm starting](SubstepSolverSet::WarmStart) the next frame or substep.
     ///

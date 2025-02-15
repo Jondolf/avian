@@ -38,11 +38,11 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Apply rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
             let delta_angle = Self::get_delta_rot(inv_inertia1, impulse);
-            *body1.rotation = body1.rotation.add_angle(delta_angle);
+            *body1.rotation = body1.rotation.add_angle_fast(delta_angle);
         }
         if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
             let delta_angle = Self::get_delta_rot(inv_inertia2, -impulse);
-            *body2.rotation = body2.rotation.add_angle(delta_angle);
+            *body2.rotation = body2.rotation.add_angle_fast(delta_angle);
         }
 
         impulse
@@ -199,11 +199,11 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         // Apply rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
             let delta_angle = Self::get_delta_rot(inv_inertia1, p);
-            *body1.rotation = body1.rotation.add_angle(delta_angle);
+            *body1.rotation = body1.rotation.add_angle_fast(delta_angle);
         }
         if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
             let delta_angle = Self::get_delta_rot(inv_inertia2, -p);
-            *body2.rotation = body2.rotation.add_angle(delta_angle);
+            *body2.rotation = body2.rotation.add_angle_fast(delta_angle);
         }
 
         p

@@ -49,7 +49,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
             #[cfg(feature = "2d")]
             {
                 let delta_angle = Self::get_delta_rot(inv_inertia1, r1, impulse);
-                *body1.rotation = body1.rotation.add_angle(delta_angle);
+                *body1.rotation = body1.rotation.add_angle_fast(delta_angle);
             }
             #[cfg(feature = "3d")]
             {
@@ -68,7 +68,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
             #[cfg(feature = "2d")]
             {
                 let delta_angle = Self::get_delta_rot(inv_inertia2, r2, -impulse);
-                *body2.rotation = body2.rotation.add_angle(delta_angle);
+                *body2.rotation = body2.rotation.add_angle_fast(delta_angle);
             }
             #[cfg(feature = "3d")]
             {
