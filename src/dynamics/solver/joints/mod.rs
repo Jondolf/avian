@@ -90,6 +90,8 @@ mod prismatic;
 mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
+#[cfg(feature = "3d")]
+mod swing_limit;
 
 mod angular_hinge;
 mod debug_render;
@@ -107,6 +109,8 @@ pub use prismatic::*;
 pub use revolute::*;
 #[cfg(feature = "3d")]
 pub use spherical::*;
+#[cfg(feature = "3d")]
+pub use swing_limit::SwingLimit;
 
 use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;

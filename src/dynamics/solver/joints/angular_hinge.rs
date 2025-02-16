@@ -9,6 +9,8 @@ use bevy::{
 };
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
 
+use super::swing_limit::SwingLimitSolverData;
+
 /// The angular part of a hinge joint.
 #[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -31,6 +33,10 @@ pub struct AngularHinge {
 
     /// The extents of the allowed relative rotation of the bodies around the `aligned_axis`.
     pub angle_limit: Option<AngleLimit>,
+
+    /// The swing limit of the hinge joint.
+    #[cfg(feature = "3d")]
+    pub swing_limit: SwingLimit,
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
@@ -60,6 +66,8 @@ pub struct AngularHingeSolverData {
     pub rotation_difference: Scalar,
     #[cfg(feature = "3d")]
     pub rotation_difference: Quaternion,
+    #[cfg(feature = "3d")]
+    pub swing_limit: SwingLimitSolverData,
     #[cfg(feature = "2d")]
     pub effective_mass: f32,
     #[cfg(feature = "3d")]
@@ -132,6 +140,12 @@ impl ImpulseJoint for AngularHinge {
         if solver_data.effective_mass > 0.0 {
             solver_data.effective_mass = 1.0 / solver_data.effective_mass;
         }
+
+        #[cfg(feature = "3d")]
+        {
+            self.swing_limit
+                .prepare(body1, body2, &mut solver_data.swing_limit, delta_secs);
+        }
     }
 
     fn warm_start(
@@ -142,6 +156,12 @@ impl ImpulseJoint for AngularHinge {
     ) {
         let inv_inertia1 = body1.effective_world_inv_inertia();
         let inv_inertia2 = body2.effective_world_inv_inertia();
+
+        #[cfg(feature = "3d")]
+        {
+            self.swing_limit
+                .warm_start(body1, body2, &solver_data.swing_limit);
+        }
 
         #[cfg(feature = "2d")]
         {
@@ -179,6 +199,17 @@ impl ImpulseJoint for AngularHinge {
     ) {
         let inv_inertia1 = body1.effective_world_inv_inertia();
         let inv_inertia2 = body2.effective_world_inv_inertia();
+
+        #[cfg(feature = "3d")]
+        {
+            self.swing_limit.solve(
+                body1,
+                body2,
+                &mut solver_data.swing_limit,
+                delta_secs,
+                use_bias,
+            );
+        }
 
         // Limits
         #[cfg(feature = "2d")]
@@ -273,7 +304,6 @@ impl ImpulseJoint for AngularHinge {
                 let axis1 = *body1.rotation * self.local_axis1;
                 let axis2 = *body2.rotation * self.local_axis2;
                 let error_angles = Self::get_error_angles(axis1, axis2, solver_data.jacobian);
-                println!("Error angles: {:?}", error_angles);
                 // Negation: We want to oppose the error.
                 hinge_bias = error_angles * -solver_data.coefficients.bias;
 
@@ -369,6 +399,7 @@ impl AngularHinge {
             #[cfg(feature = "3d")]
             local_axis2: Vector3::Z,
             angle_limit: None,
+            swing_limit: SwingLimit::new(0.5),
             stiffness: SoftnessParameters::new(1.0, 0.125 / (1.0 / 60.0)),
         }
     }
