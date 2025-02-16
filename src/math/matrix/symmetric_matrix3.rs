@@ -396,9 +396,9 @@ impl SymmetricMatrix3 {
     #[must_use]
     pub fn mul_symmetric_matrix3(&self, rhs: &Self) -> Matrix3 {
         Matrix3::from_cols(
-            self.col(0).mul(rhs.col(0)),
-            self.col(1).mul(rhs.col(1)),
-            self.col(2).mul(rhs.col(2)),
+            self.mul_vector3(rhs.col(0)),
+            self.mul_vector3(rhs.col(1)),
+            self.mul_vector3(rhs.col(2)),
         )
     }
 
@@ -595,23 +595,7 @@ impl Mul<Matrix3> for SymmetricMatrix3 {
     type Output = Matrix3;
     #[inline]
     fn mul(self, rhs: Matrix3) -> Self::Output {
-        Matrix3::from_cols_array_2d(&[
-            [
-                self.m00 * rhs.x_axis.x + self.m01 * rhs.x_axis.y + self.m02 * rhs.x_axis.z,
-                self.m01 * rhs.x_axis.x + self.m11 * rhs.x_axis.y + self.m12 * rhs.x_axis.z,
-                self.m02 * rhs.x_axis.x + self.m12 * rhs.x_axis.y + self.m22 * rhs.x_axis.z,
-            ],
-            [
-                self.m00 * rhs.y_axis.x + self.m01 * rhs.y_axis.y + self.m02 * rhs.y_axis.z,
-                self.m01 * rhs.y_axis.x + self.m11 * rhs.y_axis.y + self.m12 * rhs.y_axis.z,
-                self.m02 * rhs.y_axis.x + self.m12 * rhs.y_axis.y + self.m22 * rhs.y_axis.z,
-            ],
-            [
-                self.m00 * rhs.z_axis.x + self.m01 * rhs.z_axis.y + self.m02 * rhs.z_axis.z,
-                self.m01 * rhs.z_axis.x + self.m11 * rhs.z_axis.y + self.m12 * rhs.z_axis.z,
-                self.m02 * rhs.z_axis.x + self.m12 * rhs.z_axis.y + self.m22 * rhs.z_axis.z,
-            ],
-        ])
+        self.mul_matrix3(&rhs)
     }
 }
 
@@ -781,5 +765,30 @@ impl UlpsEq for SymmetricMatrix3 {
             && UlpsEq::ulps_eq(&self.m02, &other.m02, epsilon, max_ulps)
             && UlpsEq::ulps_eq(&self.m12, &other.m12, epsilon, max_ulps)
             && UlpsEq::ulps_eq(&self.m22, &other.m22, epsilon, max_ulps)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mat2x3_mul_mat3x3() {
+        let mat_3x3 = SymmetricMatrix3::new(13.0, 7.0, 19.0, 5.0, 61.0, 3.0);
+        let mat2x3 = Matrix2x3::new(2.0, 3.0, 1.0, 9.0, 4.0, 10.0);
+        assert_eq!(
+            mat2x3 * mat_3x3,
+            Matrix2x3::new(109.0, 292.0, 263.0, 676.0, 111.0, 636.0)
+        );
+    }
+
+    #[test]
+    fn inverse() {
+        let mat = SymmetricMatrix3::new(13.0, 7.0, 19.0, 5.0, 61.0, 3.0);
+        let inverse = mat.inverse();
+        assert_eq!(
+            inverse,
+            SymmetricMatrix3::new(0.1093, -0.0336, -0.0098, 0.0095, 0.0195, -0.0005)
+        );
     }
 }

@@ -164,7 +164,7 @@ impl Matrix2x3 {
         let zy = self.z_axis.x * other.y_axis.x + self.z_axis.y * other.y_axis.y;
         let zz = self.z_axis.x * other.z_axis.x + self.z_axis.y * other.z_axis.y;
 
-        SymmetricMatrix3::new(xx, yx, yy, zx, zy, zz)
+        SymmetricMatrix3::new(xx, yx, zx, yy, zy, zz)
     }
 
     /// Computes `(self.transpose() * other).transpose()`.
@@ -315,5 +315,20 @@ impl DivAssign<Scalar> for Matrix2x3 {
     #[inline]
     fn div_assign(&mut self, rhs: Scalar) {
         *self = *self / rhs;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mul_by_transposed() {
+        let mat1 = Matrix2x3::new(2.0, 3.0, 1.0, 9.0, 4.0, 10.0);
+        let mat2 = Matrix2x3::new(13.0, 5.0, 7.0, 9.0, 19.0, 61.0);
+        assert_eq!(
+            mat1.mul_by_transposed(mat2),
+            Matrix2::from_cols_array(&[109.0, 292.0, 263.0, 706.0])
+        );
     }
 }

@@ -58,9 +58,11 @@ impl SymmetricMatrix5 {
     #[inline]
     #[must_use]
     pub fn inverse(&self) -> Self {
+        // [ A  BT ]^-1 = [ (A - BT * D^-1 * B)^-1, -(A - BT * D^-1 * B)^-1 * BT * D^-1                  ]
+        // [ B  D  ]      [ symmetric               D^-1 + D^-1 * B * (A - BT * D^-1 * B)^-1 * BT * D^-1 ]
         let inv_d = self.d.inverse();
         let bt_inv_d = self.b.transposed_mul_mat2(inv_d);
-        let bt_inv_d_b = self.b.transposed_mul(bt_inv_d);
+        let bt_inv_d_b = bt_inv_d.transposed_mul(self.b);
         let a = (self.a - bt_inv_d_b).inverse();
 
         let neg_bt = a.mul_by_transposed_mat2x3(bt_inv_d);
@@ -73,14 +75,22 @@ impl SymmetricMatrix5 {
 
     /// Computes `v * self`, where `v` is a 1x5 vector split into subvectors `v1` and `v2`.
     #[inline]
-    pub fn transform_pair(&self, v1: &mut Vector3, v2: &mut Vector2) {
+    pub fn transform_pair(&self, mut v1: Vector3, mut v2: Vector2) -> (Vector3, Vector2) {
         let (a, b, d) = (self.a, self.b, self.d);
-        v1.x = v1.x * a.m00 + v1.y * a.m01 + v1.z * a.m02 + v2.x * b.x_axis.x + v2.y * b.x_axis.y;
-        v1.y = v1.x * a.m01 + v1.y * a.m11 + v1.z * a.m12 + v2.x * b.y_axis.x + v2.y * b.y_axis.y;
-        v1.z = v1.x * a.m02 + v1.y * a.m12 + v1.z * a.m22 + v2.x * b.z_axis.x + v2.y * b.z_axis.y;
 
-        v2.x = v1.dot(b.row(0)) + v2.x * d.x_axis.x + v2.y * d.y_axis.x;
-        v2.y = v1.dot(b.row(1)) + v2.x * d.x_axis.y + v2.y * d.y_axis.y;
+        let (mut result1, mut result2) = (Vector3::ZERO, Vector2::ZERO);
+
+        result1.x =
+            v1.x * a.m00 + v1.y * a.m01 + v1.z * a.m02 + v2.x * b.x_axis.x + v2.y * b.x_axis.y;
+        result1.y =
+            v1.x * a.m01 + v1.y * a.m11 + v1.z * a.m12 + v2.x * b.y_axis.x + v2.y * b.y_axis.y;
+        result1.z =
+            v1.x * a.m02 + v1.y * a.m12 + v1.z * a.m22 + v2.x * b.z_axis.x + v2.y * b.z_axis.y;
+
+        result2.x = v1.dot(b.row(0)) + v2.x * d.x_axis.x + v2.y * d.x_axis.y;
+        result2.y = v1.dot(b.row(1)) + v2.x * d.x_axis.y + v2.y * d.y_axis.y;
+
+        (result1, result2)
     }
 }
 
@@ -192,5 +202,46 @@ impl DivAssign<Scalar> for SymmetricMatrix5 {
     #[inline]
     fn div_assign(&mut self, rhs: Scalar) {
         *self = *self / rhs;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Matrix2, Matrix2x3, SymmetricMatrix3, Vector2, Vector3};
+
+    use super::SymmetricMatrix5;
+
+    #[test]
+    fn inverse() {
+        let mat = SymmetricMatrix5 {
+            a: SymmetricMatrix3::new(13.0, 7.0, 19.0, 5.0, 61.0, 3.0),
+            b: Matrix2x3::new(2.0, 3.0, 1.0, 9.0, 4.0, 10.0),
+            d: Matrix2::from_cols_array(&[11.0, 8.0, 8.0, 6.0]),
+        };
+        let inverse = mat.inverse();
+        assert_eq!(
+            inverse,
+            SymmetricMatrix5 {
+                a: SymmetricMatrix3::new(0.0958, -0.0185, 0.003, -0.0046, 0.0072, -0.011),
+                b: Matrix2x3::new(0.0484, -0.0897, -0.0612, 0.0857, -0.0509, 0.0738),
+                d: Matrix2::from_cols_array(&[-0.1545, 0.3585, 0.3585, -0.5182]),
+            }
+        );
+    }
+
+    #[test]
+    fn transform_vec5() {
+        let mat = SymmetricMatrix5 {
+            a: SymmetricMatrix3::new(13.0, 7.0, 19.0, 5.0, 61.0, 3.0),
+            b: Matrix2x3::new(2.0, 3.0, 1.0, 9.0, 4.0, 10.0),
+            d: Matrix2::from_cols_array(&[11.0, 8.0, 8.0, 6.0]),
+        };
+        assert_eq!(
+            mat.transform_pair(Vector3::new(3.0, -6.0, 2.0), Vector2::new(9.0, 1.0)),
+            (
+                Vector3::new(56.0, 131.0, -257.0,),
+                Vector2::new(115.0, 53.0)
+            )
+        );
     }
 }
