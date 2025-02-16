@@ -6,6 +6,8 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
+use std::cmp::Ordering;
+
 use crate::{dynamics::solver::softness_parameters::SoftnessCoefficients, prelude::*};
 use bevy::{ecs::entity::Entity, reflect::Reflect, utils::default};
 
@@ -75,6 +77,11 @@ pub struct ContactConstraint {
     /// The inverse inertia of the second body.
     #[cfg(feature = "3d")]
     pub inverse_inertia2: Matrix,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
     /// The combined [`Friction`] of the bodies.
     pub friction: Friction,
     /// The combined [`Restitution`] of the bodies.
@@ -119,12 +126,33 @@ impl ContactConstraint {
         // The world-space normal used for the contact solve.
         let normal = *body1.rotation * local_normal1;
 
-        // TODO: How should we properly take the locked axes into account for the mass here?
-        let inv_mass1 = body1.mass().inverse();
-        let inv_mass2 = body2.mass().inverse();
+        // Compute the relative dominance of the bodies.
+        let relative_dominance = body1.dominance() - body2.dominance();
+
+        // Compute the inverse mass and angular inertia, taking into account the relative dominance.
+        // TODO: How should we properly take locked axes into account for mass?
+        let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
+            Ordering::Equal => (
+                body1.mass().inverse(),
+                body1.effective_global_angular_inertia(),
+                body2.mass().inverse(),
+                body2.effective_global_angular_inertia(),
+            ),
+            Ordering::Greater => (
+                0.0,
+                ComputedAngularInertia::INFINITY,
+                body2.mass().inverse(),
+                body2.effective_global_angular_inertia(),
+            ),
+            Ordering::Less => (
+                body1.mass().inverse(),
+                body1.effective_global_angular_inertia(),
+                0.0,
+                ComputedAngularInertia::INFINITY,
+            ),
+        };
+
         let inverse_mass_sum = inv_mass1 + inv_mass2;
-        let i1 = body1.effective_global_angular_inertia();
-        let i2 = body2.effective_global_angular_inertia();
 
         let mut constraint = Self {
             index1: *body1.solver_index,
@@ -135,6 +163,7 @@ impl ContactConstraint {
             inverse_mass2: inv_mass2,
             inverse_inertia1: i1.inverse(),
             inverse_inertia2: i2.inverse(),
+            relative_dominance,
             friction,
             restitution,
             normal,

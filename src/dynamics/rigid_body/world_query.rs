@@ -195,12 +195,12 @@ impl RigidBodyQueryReadOnlyItem<'_> {
     /// Returns the [dominance](Dominance) of the body.
     ///
     /// If it isn't specified, the default of `0` is returned for dynamic bodies.
-    /// For static and kinematic bodies, `i8::MAX` (`127`) is always returned instead.
-    pub fn dominance(&self) -> i8 {
+    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
+    pub fn dominance(&self) -> i16 {
         if !self.rb.is_dynamic() {
-            i8::MAX
+            i8::MAX as i16 + 1
         } else {
-            self.dominance.map_or(0, |dominance| dominance.0)
+            self.dominance.map_or(0, |dominance| dominance.0) as i16
         }
     }
 }
