@@ -312,9 +312,12 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
         // Set generic `Time` resource to `Time<Physics>`.
         *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 
-        // Advance simulation.
-        trace!("running PhysicsSchedule");
-        schedule.run(world);
+        // Advance simulation if delta time is nonzero.
+        if !world.resource::<Time<Physics>>().delta().is_zero() {
+            // Run the physics schedule.
+            trace!("running PhysicsSchedule");
+            schedule.run(world);
+        }
 
         // If physics is paused, reset delta time to stop simulation
         // unless users manually advance `Time<Physics>`.

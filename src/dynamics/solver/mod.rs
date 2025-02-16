@@ -108,6 +108,8 @@ impl Plugin for SolverPlugin {
                     }
                 },
                 prepare_joints::<HingeJoint>.ambiguous_with_all(),
+                prepare_joints::<AngularHinge>.ambiguous_with_all(),
+                prepare_joints::<PointConstraint>.ambiguous_with_all(),
             )
                 .chain()
                 .in_set(SolverSet::PreSubstep),
@@ -151,7 +153,12 @@ impl Plugin for SolverPlugin {
         // This applies the impulses stored from the previous substep,
         // which improves convergence.
         substeps.add_systems(
-            (warm_start, warm_start_joints::<HingeJoint>)
+            (
+                warm_start,
+                warm_start_joints::<HingeJoint>,
+                warm_start_joints::<AngularHinge>,
+                warm_start_joints::<PointConstraint>,
+            )
                 .chain()
                 .in_set(SubstepSolverSet::WarmStart),
         );
@@ -174,6 +181,8 @@ impl Plugin for SolverPlugin {
                     );
                 },
                 solve_joints::<HingeJoint, true>,
+                solve_joints::<AngularHinge, true>,
+                solve_joints::<PointConstraint, true>,
             )
                 .chain()
                 .in_set(SubstepSolverSet::SolveConstraints),
@@ -198,6 +207,8 @@ impl Plugin for SolverPlugin {
                     );
                 },
                 solve_joints::<HingeJoint, false>,
+                solve_joints::<AngularHinge, false>,
+                solve_joints::<PointConstraint, false>,
             )
                 .chain()
                 .in_set(SubstepSolverSet::Relax),
@@ -219,19 +230,19 @@ impl Plugin for SolverPlugin {
                         previous_rotation.0 = *rotation;
                     }
                 },
-                xpbd::solve_constraint::<FixedJoint, 2>,
+                /*xpbd::solve_constraint::<FixedJoint, 2>,
                 xpbd::solve_constraint::<RevoluteJoint, 2>,
                 #[cfg(feature = "3d")]
                 xpbd::solve_constraint::<SphericalJoint, 2>,
                 xpbd::solve_constraint::<PrismaticJoint, 2>,
-                xpbd::solve_constraint::<DistanceJoint, 2>,
+                xpbd::solve_constraint::<DistanceJoint, 2>,*/
             )
                 .chain()
                 .in_set(SubstepSolverSet::SolveXpbdConstraints),
         );
 
         // Perform XPBD velocity updates after constraint solving.
-        substeps.add_systems(
+        /*substeps.add_systems(
             (
                 xpbd::project_linear_velocity,
                 xpbd::project_angular_velocity,
@@ -244,7 +255,7 @@ impl Plugin for SolverPlugin {
             )
                 .chain()
                 .in_set(SubstepSolverSet::XpbdVelocityProjection),
-        );
+        );*/
     }
 }
 
@@ -582,17 +593,14 @@ fn solve_contacts(
     }
 }
 
-/// Warm starts the solver by applying the impulses from the previous frame or substep.
-///
-/// See [`SubstepSolverSet::WarmStart`] for more information.
 fn prepare_joints<Joint: ImpulseJoint + Component>(
     bodies: Query<RigidBodyQueryReadOnly>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
-    time: Res<Time>,
+    time: Res<Time<Substeps>>,
 ) where
     Joint::SolverData: Component,
 {
-    let delta_secs = time.delta_seconds_adjusted();
+    let delta_secs = time.delta_seconds_f64() as Scalar;
     for (joint, mut solver_data) in joints.iter_mut() {
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
             let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();

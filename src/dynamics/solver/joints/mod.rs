@@ -91,9 +91,18 @@ mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
 
+mod angular_hinge;
+mod debug_render;
+mod point_constraint;
+mod point_constraint_part;
+
+pub use debug_render::ConstraintDebugRender;
+
+pub use angular_hinge::AngularHinge;
 pub use distance::*;
 pub use fixed::*;
 pub use hinge::*;
+pub use point_constraint::PointConstraint;
 pub use prismatic::*;
 pub use revolute::*;
 #[cfg(feature = "3d")]

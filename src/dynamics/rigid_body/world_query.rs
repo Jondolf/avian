@@ -107,6 +107,12 @@ impl<'w> RigidBodyQueryItem<'w> {
             )
     }
 
+    /// Returns the global center of mass of the body.
+    #[inline]
+    pub fn global_center_of_mass(&self) -> Vector {
+        self.current_position() + *self.rotation * self.center_of_mass.0
+    }
+
     /// Returns the [dominance](Dominance) of the body.
     ///
     /// If it isn't specified, the default of `0` is returned for dynamic bodies.
@@ -219,6 +225,12 @@ impl<'w> RigidBodyQueryReadOnlyItem<'w> {
                 self.rotation,
                 self.center_of_mass,
             )
+    }
+
+    /// Returns the global center of mass of the body.
+    #[inline]
+    pub fn global_center_of_mass(&self) -> Vector {
+        self.current_position() + *self.rotation * self.center_of_mass.0
     }
 
     /// Returns the [dominance](Dominance) of the body.

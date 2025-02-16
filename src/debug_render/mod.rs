@@ -128,6 +128,11 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<RevoluteJoint>,
                     #[cfg(feature = "3d")]
                     debug_render_joints::<SphericalJoint>,
+                    #[cfg(feature = "3d")]
+                    debug_render_constraints::<HingeJoint>,
+                    #[cfg(feature = "3d")]
+                    debug_render_constraints::<AngularHinge>,
+                    debug_render_constraints::<PointConstraint>,
                     debug_render_raycasts,
                     #[cfg(all(
                         feature = "default-collider",
@@ -360,6 +365,18 @@ fn debug_render_contacts(
                     gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1 * length_unit.0, color_dim);
                 }
             }
+        }
+    }
+}
+
+fn debug_render_constraints<T: Component + ImpulseJoint + ConstraintDebugRender>(
+    bodies: Query<RigidBodyQueryReadOnly>,
+    constraints: Query<&T>,
+    mut gizmos: Gizmos<PhysicsGizmos>,
+) {
+    for joint in &constraints {
+        if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
+            joint.render(&body1, &body2, Color::WHITE, &mut gizmos);
         }
     }
 }
