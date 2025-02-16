@@ -87,12 +87,14 @@ pub struct HingeJointSolverData {
     pub upper_impulse: f32,
 }
 
-impl ImpulseJoint for HingeJoint {
-    type SolverData = HingeJointSolverData;
-
+impl EntityConstraint<2> for HingeJoint {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
     }
+}
+
+impl ImpulseJoint for HingeJoint {
+    type SolverData = HingeJointSolverData;
 
     fn prepare(
         &self,
@@ -483,14 +485,6 @@ impl ImpulseJoint for HingeJoint {
                 }
             }
         }
-    }
-
-    fn local_anchor_1(&self) -> Vector {
-        self.local_anchor1
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        self.local_anchor2
     }
 }
 

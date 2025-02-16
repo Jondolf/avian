@@ -593,7 +593,7 @@ fn solve_contacts(
     }
 }
 
-fn prepare_joints<Joint: ImpulseJoint + Component>(
+fn prepare_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
     bodies: Query<RigidBodyQueryReadOnly>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
     time: Res<Time<Substeps>>,
@@ -621,7 +621,7 @@ fn prepare_joints<Joint: ImpulseJoint + Component>(
 /// Warm starts the solver by applying the impulses from the previous frame or substep.
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
-fn warm_start_joints<Joint: ImpulseJoint + Component>(
+fn warm_start_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
     mut commands: Commands,
     mut bodies: Query<RigidBodyQuery>,
     mut joints: Query<(&Joint, &Joint::SolverData), Without<RigidBody>>,
@@ -657,7 +657,7 @@ fn warm_start_joints<Joint: ImpulseJoint + Component>(
 }
 
 /// Solves impulse-based joint constraints.
-pub fn solve_joints<Joint: ImpulseJoint + Component, const USE_BIAS: bool>(
+pub fn solve_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component, const USE_BIAS: bool>(
     mut commands: Commands,
     mut bodies: Query<RigidBodyQuery>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,

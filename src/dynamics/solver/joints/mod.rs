@@ -115,13 +115,16 @@ pub use swing_limit::SwingLimit;
 use crate::{dynamics::solver::xpbd::*, prelude::*};
 use bevy::prelude::*;
 
+/// A trait for constraints between entities.
+pub trait EntityConstraint<const N: usize>: Component {
+    /// Returns the entities connected by the constraint.
+    fn entities(&self) -> [Entity; N];
+}
+
 /// A trait for impulse-based [joints].
 pub trait ImpulseJoint {
     /// Cached data used by the joint solver.
     type SolverData: Default;
-
-    /// Gets the entities connected by the joint.
-    fn entities(&self) -> [Entity; 2];
 
     /// Prepares the joint for the solver by caching necessary data.
     fn prepare(
@@ -149,12 +152,6 @@ pub trait ImpulseJoint {
         delta_secs: Scalar,
         use_bias: bool,
     );
-
-    /// Returns the local attachment point on the first body.
-    fn local_anchor_1(&self) -> Vector;
-
-    /// Returns the local attachment point on the second body.
-    fn local_anchor_2(&self) -> Vector;
 }
 
 /// A trait for [joints](self).

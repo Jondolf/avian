@@ -15,11 +15,9 @@ use bevy::{
 };
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
 
-use super::{angular_hinge::AngularHinge, point_constraint_part::PointConstraintPart};
+use super::point_constraint_part::PointConstraintPart;
 
-/// A hinge joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
-///
-/// Hinges can be useful for things like wheels, fans, revolving doors etc.
+/// A point-to-point constraint that prevents relative translation of the attached bodies.
 #[derive(Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -68,12 +66,14 @@ pub struct PointConstraintSolverData {
     pub effective_mass: SymmetricMatrix3,
 }
 
-impl ImpulseJoint for PointConstraint {
-    type SolverData = PointConstraintSolverData;
-
+impl EntityConstraint<2> for PointConstraint {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
     }
+}
+
+impl ImpulseJoint for PointConstraint {
+    type SolverData = PointConstraintSolverData;
 
     fn prepare(
         &self,
@@ -217,14 +217,6 @@ impl ImpulseJoint for PointConstraint {
             body2.linear_velocity.0 += impulse * inv_mass2;
             body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
         }
-    }
-
-    fn local_anchor_1(&self) -> Vector {
-        self.local_anchor1
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        self.local_anchor2
     }
 }
 

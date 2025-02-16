@@ -85,12 +85,14 @@ type EffectiveMass = Scalar;
 #[cfg(feature = "3d")]
 type EffectiveMass = Matrix2;
 
-impl ImpulseJoint for AngularHinge {
-    type SolverData = AngularHingeSolverData;
-
+impl EntityConstraint<2> for AngularHinge {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
     }
+}
+
+impl ImpulseJoint for AngularHinge {
+    type SolverData = AngularHingeSolverData;
 
     fn prepare(
         &self,
@@ -328,14 +330,6 @@ impl ImpulseJoint for AngularHinge {
                 body2.angular_velocity.0 -= neg_impulse_to_velocity2 * csi;
             }
         }
-    }
-
-    fn local_anchor_1(&self) -> Vector {
-        default()
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        default()
     }
 }
 

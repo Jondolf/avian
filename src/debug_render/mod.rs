@@ -369,7 +369,9 @@ fn debug_render_contacts(
     }
 }
 
-fn debug_render_constraints<T: Component + ImpulseJoint + ConstraintDebugRender>(
+fn debug_render_constraints<
+    T: Component + ImpulseJoint + EntityConstraint<2> + ConstraintDebugRender,
+>(
     bodies: Query<RigidBodyQueryReadOnly>,
     constraints: Query<&T>,
     mut gizmos: Gizmos<PhysicsGizmos>,
