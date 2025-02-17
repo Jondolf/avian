@@ -2,10 +2,6 @@
 
 use crate::prelude::*;
 use bevy::{
-    color::palettes::{
-        css::{PINK, RED},
-        tailwind::CYAN_400,
-    },
     ecs::{
         component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
@@ -15,7 +11,7 @@ use bevy::{
 };
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
 
-use super::{angular_hinge::AngularHinge, point_constraint_part::PointConstraintPart};
+use super::point_constraint_part::PointConstraintPart;
 
 /// A hinge joint prevents relative movement of the attached bodies, except for rotation around one `aligned_axis`.
 ///
@@ -120,9 +116,9 @@ impl ImpulseJoint for HingeJoint {
             solver_data.rotation_difference = body1.rotation.0.inverse() * body2.rotation.0;
         }
 
-        let inverse_mass_sum = body1.inverse_mass.0 + body2.inverse_mass.0;
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let inverse_mass_sum = body1.mass.inverse() + body2.mass.inverse();
+        let i1 = body1.effective_global_angular_inertia().inverse();
+        let i2 = body2.effective_global_angular_inertia().inverse();
 
         // A revolute joint is a point-to-point constraint with optional limits.
         // It tries to align the points p2 and p1.
@@ -241,10 +237,10 @@ impl ImpulseJoint for HingeJoint {
         let r1 = *body1.rotation * local_r1;
         let r2 = *body2.rotation * local_r2;
 
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         #[cfg(feature = "2d")]
         {
@@ -290,10 +286,10 @@ impl ImpulseJoint for HingeJoint {
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Limits
         if let Some(limit) = self.angle_limit {
@@ -561,10 +557,14 @@ impl ConstraintDebugRender for HingeJoint {
         let hinge_axis1 = *body1.rotation * self.aligned_axis;
         let hinge_axis2 = *body2.rotation * self.aligned_axis;
 
-        gizmos.arrow(r1, r1 + hinge_axis1, CYAN_400);
-        gizmos.arrow(r2, r2 + hinge_axis2, PINK);
-        gizmos.sphere(r1, default(), 0.05, color);
-        gizmos.sphere(r2, default(), 0.05, color);
+        gizmos.arrow(
+            r1,
+            r1 + hinge_axis1,
+            bevy::color::palettes::tailwind::CYAN_400,
+        );
+        gizmos.arrow(r2, r2 + hinge_axis2, bevy::color::palettes::css::PINK);
+        gizmos.sphere(r1, 0.05, color);
+        gizmos.sphere(r2, 0.05, color);
     }
 }
 

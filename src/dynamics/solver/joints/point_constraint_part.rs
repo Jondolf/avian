@@ -1,13 +1,6 @@
 use crate::prelude::*;
-use bevy::{
-    ecs::{
-        component::{ComponentHooks, StorageType},
-        entity::{EntityMapper, MapEntities},
-        reflect::ReflectMapEntities,
-    },
-    prelude::*,
-};
-use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
+use bevy::prelude::*;
+use dynamics::solver::softness_parameters::SoftnessCoefficients;
 
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -22,11 +15,6 @@ pub struct PointConstraintPart {
 type EffectiveMass = Matrix2;
 #[cfg(feature = "3d")]
 type EffectiveMass = SymmetricMatrix3;
-
-#[cfg(feature = "2d")]
-type AngularInertiaValue = Scalar;
-#[cfg(feature = "3d")]
-type AngularInertiaValue = SymmetricMatrix3;
 
 impl PointConstraintPart {
     pub fn compute_incremental_impulse(

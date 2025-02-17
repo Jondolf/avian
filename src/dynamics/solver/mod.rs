@@ -510,7 +510,7 @@ fn prepare_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
 ) where
     Joint::SolverData: Component,
 {
-    let delta_secs = time.delta_seconds_f64() as Scalar;
+    let delta_secs = time.delta_secs_f64() as Scalar;
     for (joint, mut solver_data) in joints.iter_mut() {
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
             let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
@@ -550,15 +550,11 @@ fn warm_start_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
                 continue;
             }
 
-            // At least one of the participating bodies is active, so wake up any sleeping bodies
-            body1.time_sleeping.0 = 0.0;
-            body2.time_sleeping.0 = 0.0;
-
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             }
             if body2.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
 
             joint.warm_start(&mut body1, &mut body2, solver_data);
@@ -589,15 +585,11 @@ pub fn solve_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component, const
                 continue;
             }
 
-            // At least one of the participating bodies is active, so wake up any sleeping bodies
-            body1.time_sleeping.0 = 0.0;
-            body2.time_sleeping.0 = 0.0;
-
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             }
             if body2.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
 
             joint.solve(

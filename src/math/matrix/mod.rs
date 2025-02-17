@@ -1,3 +1,5 @@
+//! Custom matrix types and operations.
+
 mod matrix2x3;
 
 mod symmetric_matrix3;

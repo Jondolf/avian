@@ -2,10 +2,6 @@
 
 use crate::prelude::*;
 use bevy::{
-    color::palettes::{
-        css::{PINK, RED},
-        tailwind::CYAN_400,
-    },
     ecs::{
         component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
@@ -91,9 +87,9 @@ impl ImpulseJoint for PointConstraint {
         solver_data.point_constraint.center_difference =
             body2.current_position() - body1.current_position();
 
-        let inverse_mass_sum = body1.inverse_mass.0 + body2.inverse_mass.0;
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let inverse_mass_sum = body1.mass.inverse() + body2.mass.inverse();
+        let i1 = body1.effective_global_angular_inertia().inverse();
+        let i2 = body2.effective_global_angular_inertia().inverse();
 
         // A revolute joint is a point-to-point constraint with optional limits.
         // It tries to align the points p2 and p1.
@@ -159,10 +155,10 @@ impl ImpulseJoint for PointConstraint {
         let r1 = *body1.rotation * local_r1;
         let r2 = *body2.rotation * local_r2;
 
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         if body1.rb.is_dynamic() {
             body1.linear_velocity.0 -= solver_data.point_constraint.impulse * inv_mass1;
@@ -184,10 +180,10 @@ impl ImpulseJoint for PointConstraint {
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // TODO: Cache these.
         let local_r1 = self.local_anchor1 - body1.center_of_mass.0;
@@ -275,8 +271,8 @@ impl ConstraintDebugRender for PointConstraint {
         }
         #[cfg(feature = "3d")]
         {
-            gizmos.sphere(r1, default(), 0.05, color);
-            gizmos.sphere(r2, default(), 0.05, color);
+            gizmos.sphere(r1, 0.05, color);
+            gizmos.sphere(r2, 0.05, color);
         }
     }
 }

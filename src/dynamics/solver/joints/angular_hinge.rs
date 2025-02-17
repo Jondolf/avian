@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use bevy::{
-    color::palettes::{css::PINK, tailwind::CYAN_400},
     ecs::{
         component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
@@ -9,6 +8,7 @@ use bevy::{
 };
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
 
+#[cfg(feature = "3d")]
 use super::swing_limit::SwingLimitSolverData;
 
 /// The angular part of a hinge joint.
@@ -80,11 +80,6 @@ pub struct AngularHingeSolverData {
     pub upper_impulse: f32,
 }
 
-#[cfg(feature = "2d")]
-type EffectiveMass = Scalar;
-#[cfg(feature = "3d")]
-type EffectiveMass = Matrix2;
-
 impl EntityConstraint<2> for AngularHinge {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
@@ -110,8 +105,8 @@ impl ImpulseJoint for AngularHinge {
             solver_data.rotation_difference = body1.rotation.0.inverse() * body2.rotation.0;
         }
 
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let i1 = body1.effective_global_angular_inertia().inverse();
+        let i2 = body2.effective_global_angular_inertia().inverse();
 
         #[cfg(feature = "2d")]
         {
@@ -156,8 +151,8 @@ impl ImpulseJoint for AngularHinge {
         body2: &mut RigidBodyQueryItem,
         solver_data: &AngularHingeSolverData,
     ) {
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         #[cfg(feature = "3d")]
         {
@@ -199,8 +194,8 @@ impl ImpulseJoint for AngularHinge {
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         #[cfg(feature = "3d")]
         {
@@ -393,6 +388,7 @@ impl AngularHinge {
             #[cfg(feature = "3d")]
             local_axis2: Vector3::Z,
             angle_limit: None,
+            #[cfg(feature = "3d")]
             swing_limit: SwingLimit::new(0.5),
             stiffness: SoftnessParameters::new(1.0, 0.125 / (1.0 / 60.0)),
         }
@@ -446,15 +442,15 @@ impl ConstraintDebugRender for AngularHinge {
         gizmos.arrow(
             body1.current_position(),
             body1.current_position() + hinge_axis1,
-            CYAN_400,
+            bevy::color::palettes::tailwind::CYAN_400,
         );
         gizmos.arrow(
             body2.current_position(),
             body2.current_position() + hinge_axis2,
-            PINK,
+            bevy::color::palettes::css::PINK,
         );
-        gizmos.sphere(body1.current_position(), default(), 0.05, color);
-        gizmos.sphere(body2.current_position(), default(), 0.05, color);
+        gizmos.sphere(body1.current_position(), 0.05, color);
+        gizmos.sphere(body2.current_position(), 0.05, color);
     }
 }
 

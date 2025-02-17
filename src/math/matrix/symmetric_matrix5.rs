@@ -75,7 +75,7 @@ impl SymmetricMatrix5 {
 
     /// Computes `v * self`, where `v` is a 1x5 vector split into subvectors `v1` and `v2`.
     #[inline]
-    pub fn transform_pair(&self, mut v1: Vector3, mut v2: Vector2) -> (Vector3, Vector2) {
+    pub fn transform_pair(&self, v1: Vector3, v2: Vector2) -> (Vector3, Vector2) {
         let (a, b, d) = (self.a, self.b, self.d);
 
         let (mut result1, mut result2) = (Vector3::ZERO, Vector2::ZERO);

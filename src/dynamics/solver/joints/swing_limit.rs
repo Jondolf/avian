@@ -100,8 +100,8 @@ impl ImpulseJoint for SwingLimit {
         solver_data: &mut SwingLimitSolverData,
         delta_secs: Scalar,
     ) {
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let i1 = body1.effective_global_angular_inertia().inverse();
+        let i2 = body2.effective_global_angular_inertia().inverse();
 
         // Update the Jacobian for the axis attached to the first body.
         // Note that J1 == -J2, so we only need to compute J1.
@@ -147,8 +147,8 @@ impl ImpulseJoint for SwingLimit {
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let i1 = body1.effective_world_inv_inertia();
-        let i2 = body2.effective_world_inv_inertia();
+        let i1 = body1.effective_global_angular_inertia().inverse();
+        let i2 = body2.effective_global_angular_inertia().inverse();
 
         // Solving without bias is done after position integration, which can change rotation.
         // Recompute the Jacobian, effective mass, and impulse-to-velocity values with the new axes.

@@ -219,7 +219,7 @@ pub fn solve_gyroscopic_torque(
     let jacobian = local_inertia
         + delta_seconds
             * SymmetricMatrix3::from(
-                skew_symmetric_mat3(local_ang_vel) * local_inertia.0
+                skew_symmetric_mat3(local_ang_vel) * local_inertia
                     - skew_symmetric_mat3(angular_momentum),
             );
 

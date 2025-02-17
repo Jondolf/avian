@@ -3,6 +3,7 @@
 //! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
 pub mod matrix;
+pub use matrix::*;
 
 #[cfg(feature = "f32")]
 mod single;
@@ -13,9 +14,6 @@ pub use single::*;
 mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
-
-pub mod matrix;
-pub use matrix::*;
 
 use bevy_math::{prelude::*, *};
 
