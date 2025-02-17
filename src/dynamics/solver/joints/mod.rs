@@ -2,7 +2,7 @@
 //! They act as [constraints](dynamics::solver::xpbd#constraints) that restrict different *Degrees Of Freedom*
 //! depending on the joint type.
 //!
-//! ## Degrees Of Freedom (DOF)
+//! # Degrees of Freedom (DOF)
 //!
 //! In 3D, entities can normally translate and rotate along the `X`, `Y` and `Z` axes.
 //! Therefore, they have 3 translational DOF and 3 rotational DOF, which is a total of 6 DOF.
@@ -23,7 +23,7 @@
     doc = "| [`SphericalJoint`] | 1 Rotation                | 3 Rotations                 |"
 )]
 //!
-//! ## Using joints
+//! # Using Joints
 //!
 //! In Avian, joints are modeled as components. You can create a joint by simply spawning
 //! an entity and adding the joint component you want, giving the connected entities as arguments
@@ -43,33 +43,33 @@
 //! }
 //! ```
 //!
-//! ### Stiffness
+//! ## Stiffness
 //!
 //! You can control the stiffness of a joint with the `with_compliance` method.
 //! *Compliance* refers to the inverse of stiffness, so using a compliance of 0 corresponds to
 //! infinite stiffness.
 //!
-//! ### Attachment positions
+//! ## Attachment Positions
 //!
 //! By default, joints are connected to the centers of entities, but attachment positions can be used to change this.
 //!
 //! You can use `with_local_anchor_1` and `with_local_anchor_2` to set the attachment positions on the first
 //! and second entity respectively.
 //!
-//! ### Damping
+//! ## Damping
 //!
 //! You can configure the linear and angular damping caused by joints using the `with_linear_velocity_damping` and
 //! `with_angular_velocity_damping` methods. Increasing the damping values will cause the velocities
 //! of the connected entities to decrease faster.
 //!
-//! ### Other configuration
+//! ## Other Configuration
 //!
 //! Different joints may have different configuration options. Many joints allow you to change the axis of allowed
 //! translation or rotation, and they may have distance or angle limits along these axes.
 //!
 //! Take a look at the documentation and methods of each joint to see all of the configuration options.
 //!
-//! ## Custom joints
+//! # Custom Joints
 //!
 //! Joints are [constraints](dynamics::solver::xpbd#constraints) that implement [`Joint`] and [`XpbdConstraint`].
 //!
@@ -392,3 +392,23 @@ impl AngleLimit {
         None
     }
 }
+
+/// A marker component that indicates that a [joint](self) is disabled
+/// and should not constrain the bodies it is attached to.
+/// Must be on the same entity as the joint.
+///
+/// This is useful for temporarily disabling a joint without removing it from the world.
+/// To re-enable the joint, simply remove this component.
+///
+/// Note that when re-enabling the joint, the bodies may snap back violently
+/// if they have moved significantly from the constrained positions while the joint was disabled.
+///
+/// # Related Components
+///
+/// - [`RigidBodyDisabled`]: Disables a rigid body.
+/// - [`ColliderDisabled`]: Disables a collider.
+#[derive(Reflect, Clone, Copy, Component, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default)]
+pub struct JointDisabled;

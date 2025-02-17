@@ -38,12 +38,9 @@ fn setup(
 ) {
     // Player
     commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Capsule3d::new(0.4, 1.0)),
-            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
-            transform: Transform::from_xyz(0.0, 1.5, 0.0),
-            ..default()
-        },
+        Mesh3d(meshes.add(Capsule3d::new(0.4, 1.0))),
+        MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
+        Transform::from_xyz(0.0, 1.5, 0.0),
         CharacterControllerBundle::new(Collider::capsule(0.4, 1.0)).with_movement(
             30.0,
             0.92,
@@ -59,40 +56,33 @@ fn setup(
     commands.spawn((
         RigidBody::Dynamic,
         Collider::cuboid(1.0, 1.0, 1.0),
-        PbrBundle {
-            mesh: meshes.add(Cuboid::default()),
-            material: materials.add(Color::srgb(0.8, 0.7, 0.6)),
-            transform: Transform::from_xyz(3.0, 2.0, 3.0),
-            ..default()
-        },
+        Mesh3d(meshes.add(Cuboid::default())),
+        MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
+        Transform::from_xyz(3.0, 2.0, 3.0),
     ));
 
     // Environment (see the `collider_constructors` example for creating colliders from scenes)
     commands.spawn((
-        SceneBundle {
-            scene: assets.load("character_controller_demo.glb#Scene0"),
-            transform: Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
-            ..default()
-        },
+        SceneRoot(assets.load("character_controller_demo.glb#Scene0")),
+        Transform::from_rotation(Quat::from_rotation_y(-std::f32::consts::PI * 0.5)),
         ColliderConstructorHierarchy::new(ColliderConstructor::ConvexHullFromMesh),
         RigidBody::Static,
     ));
 
     // Light
-    commands.spawn(PointLightBundle {
-        point_light: PointLight {
+    commands.spawn((
+        PointLight {
             intensity: 2_000_000.0,
             range: 50.0,
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(0.0, 15.0, 0.0),
-        ..default()
-    });
+        Transform::from_xyz(0.0, 15.0, 0.0),
+    ));
 
     // Camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-7.0, 9.5, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3d::default(),
+        Transform::from_xyz(-7.0, 9.5, 15.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }

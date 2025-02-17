@@ -16,10 +16,11 @@ use bevy::{
     ecs::{
         intern::Interned,
         schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
-        system::SystemParam,
+        system::{StaticSystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
 };
+use dynamics::solver::SolverDiagnostics;
 
 /// Computes contacts between entities and generates contact constraints for them.
 ///
@@ -33,17 +34,17 @@ use bevy::{
 /// The plugin takes a collider type. This should be [`Collider`] for
 /// the vast majority of applications, but for custom collisión backends
 /// you may use any collider that implements the [`AnyCollider`] trait.
-pub struct NarrowPhasePlugin<C: AnyCollider> {
+pub struct NarrowPhasePlugin<C: AnyCollider, H: CollisionHooks = ()> {
     schedule: Interned<dyn ScheduleLabel>,
     /// If `true`, the narrow phase will generate [`ContactConstraint`]s
     /// and add them to the [`ContactConstraints`] resource.
     ///
     /// Contact constraints are used by the [`SolverPlugin`] for solving contacts.
     generate_constraints: bool,
-    _phantom: PhantomData<C>,
+    _phantom: PhantomData<(C, H)>,
 }
 
-impl<C: AnyCollider> NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks> NarrowPhasePlugin<C, H> {
     /// Creates a [`NarrowPhasePlugin`] with the schedule used for running its systems
     /// and whether it should generate [`ContactConstraint`]s for the [`ContactConstraints`] resource.
     ///
@@ -59,13 +60,16 @@ impl<C: AnyCollider> NarrowPhasePlugin<C> {
     }
 }
 
-impl<C: AnyCollider> Default for NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks> Default for NarrowPhasePlugin<C, H> {
     fn default() -> Self {
         Self::new(PhysicsSchedule, true)
     }
 }
 
-impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
+impl<C: AnyCollider, H: CollisionHooks + 'static> Plugin for NarrowPhasePlugin<C, H>
+where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
     fn build(&self, app: &mut App) {
         // For some systems, we only want one instance, even if there are multiple
         // NarrowPhasePlugin instances with different collider types.
@@ -74,7 +78,9 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
-            .register_type::<NarrowPhaseConfig>();
+            .init_resource::<DefaultFriction>()
+            .init_resource::<DefaultRestitution>()
+            .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
@@ -113,21 +119,21 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
                 (
                     // Reset collision states.
                     reset_collision_states
+                        .in_set(PhysicsStepSet::NarrowPhase)
                         .after(NarrowPhaseSet::First)
                         .before(NarrowPhaseSet::CollectCollisions),
                     // Remove ended collisions after contact reporting
                     remove_ended_collisions
                         .after(PhysicsStepSet::ReportContacts)
                         .before(PhysicsStepSet::Sleeping),
-                )
-                    .chain(),
+                ),
             );
         }
 
         // Collect contacts into `Collisions`.
         app.add_systems(
             self.schedule,
-            collect_collisions::<C>
+            collect_collisions::<C, H>
                 .in_set(NarrowPhaseSet::CollectCollisions)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
@@ -159,18 +165,16 @@ impl<C: AnyCollider> Plugin for NarrowPhasePlugin<C> {
         }
 
         if is_first_instance {
-            #[cfg(debug_assertions)]
-            app.add_systems(
-                self.schedule,
-                log_overlap_at_spawn
-                    .in_set(NarrowPhaseSet::PostProcess)
-                    .before(run_post_process_collisions_schedule),
-            );
             app.add_systems(
                 self.schedule,
                 run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
             );
         }
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
     }
 }
 
@@ -255,12 +259,28 @@ pub enum NarrowPhaseSet {
     Last,
 }
 
-fn collect_collisions<C: AnyCollider>(
+fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
-) {
-    narrow_phase.update(&broad_collision_pairs, time.delta_seconds_adjusted());
+    hooks: StaticSystemParam<H>,
+    #[cfg(not(feature = "parallel"))] commands: Commands,
+    #[cfg(feature = "parallel")] commands: ParallelCommands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
+) where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
+    let start = bevy::utils::Instant::now();
+
+    narrow_phase.update::<H>(
+        &broad_collision_pairs,
+        time.delta_seconds_adjusted(),
+        &hooks.into_inner(),
+        commands,
+    );
+
+    diagnostics.narrow_phase = start.elapsed();
+    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -270,8 +290,14 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
+    default_friction: Res<DefaultFriction>,
+    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
+    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
+    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
@@ -314,6 +340,33 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
+            // Get combined friction and restitution coefficients of the colliders
+            // or the bodies they are attached to. Fall back to the global defaults.
+            let friction = collider1
+                .friction
+                .or(body1.friction)
+                .copied()
+                .unwrap_or(default_friction.0)
+                .combine(
+                    collider2
+                        .friction
+                        .or(body2.friction)
+                        .copied()
+                        .unwrap_or(default_friction.0),
+                );
+            let restitution = collider1
+                .restitution
+                .or(body1.restitution)
+                .copied()
+                .unwrap_or(default_restitution.0)
+                .combine(
+                    collider2
+                        .restitution
+                        .or(body2.restitution)
+                        .copied()
+                        .unwrap_or(default_restitution.0),
+                );
+
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -323,11 +376,19 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
+                friction,
+                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,
             );
         }
+    }
+
+    collision_diagnostics.generate_constraints = start.elapsed();
+
+    if let Some(mut solver_diagnostics) = solver_diagnostics {
+        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
     }
 }
 
@@ -339,7 +400,7 @@ fn generate_constraints<C: AnyCollider>(
 #[derive(SystemParam)]
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     parallel_commands: ParallelCommands<'w, 's>,
-    collider_query: Query<'w, 's, ColliderQuery<C>>,
+    collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     body_query: Query<
         'w,
         's,
@@ -348,6 +409,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
             Option<&'static CollisionMargin>,
             Option<&'static SpeculativeMargin>,
         ),
+        Without<RigidBodyDisabled>,
     >,
     /// Contacts found by the narrow phase.
     pub collisions: ResMut<'w, Collisions>,
@@ -359,10 +421,19 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     contact_tolerance: Local<'s, Scalar>,
 }
 
-impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
+impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase by computing [`Contacts`] based on [`BroadCollisionPairs`]
     /// and adding them to [`Collisions`].
-    fn update(&mut self, broad_collision_pairs: &[(Entity, Entity)], delta_secs: Scalar) {
+    fn update<H: CollisionHooks + 'static>(
+        &mut self,
+        broad_collision_pairs: &[(Entity, Entity)],
+        delta_secs: Scalar,
+        hooks: &H::Item<'_, '_>,
+        #[cfg(not(feature = "parallel"))] mut commands: Commands,
+        #[cfg(feature = "parallel")] par_commands: ParallelCommands,
+    ) where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
         // TODO: These scaled versions could be in their own resource
         //       and updated just before physics every frame.
         // Cache default margins scaled by the length unit.
@@ -382,13 +453,19 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
 
                     // Compute contacts for this intersection pair and generate
                     // contact constraints for them.
-                    for &(entity1, entity2) in chunks {
-                        if let Some(contacts) =
-                            self.handle_entity_pair(entity1, entity2, delta_secs)
-                        {
-                            new_collisions.push(contacts);
+                    par_commands.command_scope(|mut commands| {
+                        for &(entity1, entity2) in chunks {
+                            if let Some(contacts) = self.handle_entity_pair::<H>(
+                                entity1,
+                                entity2,
+                                delta_secs,
+                                hooks,
+                                &mut commands,
+                            ) {
+                                new_collisions.push(contacts);
+                            }
                         }
-                    }
+                    });
 
                     new_collisions
                 })
@@ -403,7 +480,9 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) = self.handle_entity_pair(entity1, entity2, delta_secs) {
+                if let Some(contacts) =
+                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
+                {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -414,12 +493,17 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// or expected to start intersecting within the next frame. This includes
     /// [speculative collision](dynamics::ccd#speculative-collision).
     #[allow(clippy::too_many_arguments)]
-    pub fn handle_entity_pair(
+    pub fn handle_entity_pair<H: CollisionHooks>(
         &self,
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
-    ) -> Option<Contacts> {
+        hooks: &H::Item<'_, '_>,
+        commands: &mut Commands,
+    ) -> Option<Contacts>
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
         let Ok([collider1, collider2]) = self.collider_query.get_many([entity1, entity2]) else {
             return None;
         };
@@ -514,7 +598,13 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         let max_contact_distance =
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
-        self.compute_contact_pair(&collider1, &collider2, max_contact_distance)
+        self.compute_contact_pair::<H>(
+            &collider1,
+            &collider2,
+            max_contact_distance,
+            hooks,
+            commands,
+        )
     }
 
     /// Computes contacts between `collider1` and `collider2`.
@@ -524,19 +614,24 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     /// to be detected. A value greater than zero means that contacts are generated
     /// based on the closest points even if the shapes are separated.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub fn compute_contact_pair(
+    pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         max_distance: Scalar,
-    ) -> Option<Contacts> {
+        hooks: &H::Item<'_, '_>,
+        commands: &mut Commands,
+    ) -> Option<Contacts>
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
 
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let mut manifolds = collider1.shape.contact_manifolds(
+        let manifolds = collider1.shape.contact_manifolds(
             collider2.shape,
             position1,
             *collider1.rotation,
@@ -544,6 +639,10 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
             *collider2.rotation,
             max_distance,
         );
+
+        if manifolds.is_empty() {
+            return None;
+        }
 
         // Get the previous contacts if there are any.
         let previous_contacts = if collider1.entity < collider2.entity {
@@ -556,48 +655,57 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
                 .get(&(collider2.entity, collider1.entity))
         };
 
-        let mut total_normal_impulse = 0.0;
-        let mut total_tangent_impulse = default();
+        let mut contacts = Contacts {
+            entity1: collider1.entity,
+            entity2: collider2.entity,
+            body_entity1: collider1.parent.map(|p| p.get()),
+            body_entity2: collider2.parent.map(|p| p.get()),
+            during_current_frame: true,
+            during_previous_frame: previous_contacts.is_some_and(|c| c.during_previous_frame),
+            manifolds,
+            is_sensor: collider1.is_sensor
+                || collider2.is_sensor
+                || !collider1.is_rb
+                || !collider2.is_rb,
+            total_normal_impulse: 0.0,
+            total_tangent_impulse: default(),
+        };
+
+        let active_hooks = collider1.active_hooks().union(collider2.active_hooks());
+        if active_hooks.contains(ActiveCollisionHooks::MODIFY_CONTACTS) {
+            let keep_contacts = hooks.modify_contacts(&mut contacts, commands);
+            if !keep_contacts {
+                return None;
+            }
+        }
+
+        if contacts.manifolds.is_empty() {
+            return None;
+        }
 
         // Match contacts and copy previous contact impulses for warm starting the solver.
         // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
         //       If we let Parry handle contact matching, this wouldn't be needed.
-        if manifolds.len() <= 4 && self.config.match_contacts {
+        if contacts.manifolds.len() <= 4 && self.config.match_contacts {
             if let Some(previous_contacts) = previous_contacts {
                 // TODO: Cache this?
                 let distance_threshold = 0.1 * self.length_unit.0;
 
-                for manifold in manifolds.iter_mut() {
+                for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
                         manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
 
                         // Add contact impulses to total impulses.
                         for contact in manifold.contacts.iter() {
-                            total_normal_impulse += contact.normal_impulse;
-                            total_tangent_impulse += contact.tangent_impulse;
+                            contacts.total_normal_impulse += contact.normal_impulse;
+                            contacts.total_tangent_impulse += contact.tangent_impulse;
                         }
                     }
                 }
             }
         }
 
-        let contacts = Contacts {
-            entity1: collider1.entity,
-            entity2: collider2.entity,
-            body_entity1: collider1.parent.map(|p| p.get()),
-            body_entity2: collider2.parent.map(|p| p.get()),
-            during_current_frame: true,
-            during_previous_frame: previous_contacts.map_or(false, |c| c.during_previous_frame),
-            manifolds,
-            is_sensor: collider1.is_sensor
-                || collider2.is_sensor
-                || !collider1.is_rb
-                || !collider2.is_rb,
-            total_normal_impulse,
-            total_tangent_impulse,
-        };
-
-        (!contacts.manifolds.is_empty()).then_some(contacts)
+        Some(contacts)
     }
 
     /// Generates [`ContactConstraint`]s for the given bodies and their corresponding colliders
@@ -617,6 +725,8 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Friction,
+        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -636,22 +746,11 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
         // When an active body collides with a sleeping body, wake up the sleeping body.
         self.parallel_commands.command_scope(|mut commands| {
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             } else if body2.is_sleeping {
-                commands.entity(body2.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
         });
-
-        // Get combined friction and restitution coefficients of the colliders
-        // or the bodies they are attached to.
-        let friction = collider1
-            .friction
-            .unwrap_or(body1.friction)
-            .combine(*collider2.friction.unwrap_or(body2.friction));
-        let restitution = collider1
-            .restitution
-            .unwrap_or(body1.restitution)
-            .combine(*collider2.restitution.unwrap_or(body2.restitution));
 
         let contact_softness = if !body1.rb.is_dynamic() || !body2.rb.is_dynamic() {
             contact_softness.non_dynamic
@@ -687,43 +786,6 @@ impl<'w, 's, C: AnyCollider> NarrowPhase<'w, 's, C> {
     }
 }
 
-#[cfg(debug_assertions)]
-fn log_overlap_at_spawn(
-    collisions: Res<Collisions>,
-    added_bodies: Query<(Ref<RigidBody>, Option<&Name>, &Position)>,
-) {
-    for contacts in collisions.get_internal().values() {
-        let Ok([(rb1, name1, position1), (rb2, name2, position2)]) = added_bodies.get_many([
-            contacts.body_entity1.unwrap_or(contacts.entity1),
-            contacts.body_entity2.unwrap_or(contacts.entity2),
-        ]) else {
-            continue;
-        };
-
-        // only warn if at least one of the bodies is dynamic
-        if !rb1.is_dynamic() && !rb2.is_dynamic() {
-            continue;
-        }
-
-        if rb1.is_added() || rb2.is_added() {
-            // If the RigidBody entity has a name, use that for debug.
-            let debug_id1 = match name1 {
-                Some(n) => format!("{:?} ({n})", contacts.entity1),
-                None => format!("{:?}", contacts.entity1),
-            };
-            let debug_id2 = match name2 {
-                Some(n) => format!("{:?} ({n})", contacts.entity2),
-                None => format!("{:?}", contacts.entity2),
-            };
-            warn!(
-                "{debug_id1} and {debug_id2} are overlapping at spawn, which can result in explosive behavior.",
-            );
-            debug!("{debug_id1} is at {}", position1.0);
-            debug!("{debug_id2} is at {}", position2.0);
-        }
-    }
-}
-
 fn remove_ended_collisions(mut collisions: ResMut<Collisions>) {
     collisions.retain(|contacts| contacts.during_current_frame);
 }
@@ -743,8 +805,8 @@ pub fn reset_collision_states(
             contacts.body_entity1.unwrap_or(contacts.entity1),
             contacts.body_entity2.unwrap_or(contacts.entity2),
         ]) {
-            let active1 = !rb1.map_or(false, |rb| rb.is_static()) && !sleeping1;
-            let active2 = !rb2.map_or(false, |rb| rb.is_static()) && !sleeping2;
+            let active1 = !rb1.is_some_and(|rb| rb.is_static()) && !sleeping1;
+            let active2 = !rb2.is_some_and(|rb| rb.is_static()) && !sleeping2;
 
             // Reset collision states if either of the bodies is active (not static or sleeping)
             // Otherwise, the bodies are still in contact.
@@ -756,6 +818,8 @@ pub fn reset_collision_states(
                 contacts.during_current_frame = true;
             }
         } else {
+            // One of the entities does not exist, so the collision has ended.
+            contacts.during_previous_frame = true;
             contacts.during_current_frame = false;
         }
     }

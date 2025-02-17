@@ -30,15 +30,17 @@ impl ContactTangentPart {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         inverse_mass_sum: Scalar,
-        inverse_inertia1: impl Into<InverseInertia>,
-        inverse_inertia2: impl Into<InverseInertia>,
+        angular_inertia1: impl Into<ComputedAngularInertia>,
+        angular_inertia2: impl Into<ComputedAngularInertia>,
         r1: Vector,
         r2: Vector,
         tangents: [Vector; DIM - 1],
         warm_start_impulse: Option<TangentImpulse>,
     ) -> Self {
-        let i1 = inverse_inertia1.into().0;
-        let i2 = inverse_inertia2.into().0;
+        let angular_inertia1: ComputedAngularInertia = angular_inertia1.into();
+        let angular_inertia2: ComputedAngularInertia = angular_inertia2.into();
+        let i1 = angular_inertia1.inverse();
+        let i2 = angular_inertia2.inverse();
 
         let mut part = Self {
             impulse: warm_start_impulse.unwrap_or_default(),
@@ -137,7 +139,7 @@ impl ContactTangentPart {
             // This is needed for solving the two tangent directions simultaneously.
             // TODO. Derive and explain the math for this, or consider an alternative approach,
             //       like using the Jacobians to compute the actual effective mass matrix.
-            part.effective_inverse_mass[2] = 2.0 * (i1_rt11.dot(i1_rt21) + i2_rt12.dot(i2_rt22));
+            part.effective_inverse_mass[2] = 2.0 * (rt11.dot(i1_rt21) + rt12.dot(i2_rt22));
         }
 
         part

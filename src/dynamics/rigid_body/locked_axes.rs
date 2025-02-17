@@ -9,7 +9,7 @@ use crate::prelude::*;
 /// specific axes is to use methods like [`lock_translation_x`](Self::lock_translation_x), but you can also
 /// use bits directly with the [`from_bits`](Self::from_bits) and [`to_bits`](Self::to_bits) methods.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -223,28 +223,47 @@ impl LockedAxes {
         vector
     }
 
-    /// Sets the given rotation to zero if rotational axes are locked.
+    /// Sets the given angular inertia to zero if rotational axes are locked.
     #[cfg(feature = "2d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Scalar) -> Scalar {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+
         if self.is_rotation_locked() {
-            rotation = 0.0;
+            *angular_inertia.inverse_mut() = 0.0;
         }
-        rotation
+
+        angular_inertia
     }
 
-    /// Sets rotational axes of the given 3x3 matrix to zero based on the [`LockedAxes`] configuration.
+    /// Sets axes of the given angular inertia to zero based on the [`LockedAxes`] configuration.
     #[cfg(feature = "3d")]
-    pub(crate) fn apply_to_rotation(&self, mut rotation: Matrix3) -> Matrix3 {
+    pub(crate) fn apply_to_angular_inertia(
+        &self,
+        angular_inertia: impl Into<ComputedAngularInertia>,
+    ) -> ComputedAngularInertia {
+        let mut angular_inertia = angular_inertia.into();
+        let angular_inertia_mut = angular_inertia.inverse_mut();
+
         if self.is_rotation_x_locked() {
-            rotation.x_axis = Vector::ZERO;
+            angular_inertia_mut.m00 = 0.0;
+            angular_inertia_mut.m01 = 0.0;
+            angular_inertia_mut.m02 = 0.0;
         }
         if self.is_rotation_y_locked() {
-            rotation.y_axis = Vector::ZERO;
+            angular_inertia_mut.m11 = 0.0;
+            angular_inertia_mut.m01 = 0.0;
+            angular_inertia_mut.m12 = 0.0;
         }
         if self.is_rotation_z_locked() {
-            rotation.z_axis = Vector::ZERO;
+            angular_inertia_mut.m22 = 0.0;
+            angular_inertia_mut.m02 = 0.0;
+            angular_inertia_mut.m12 = 0.0;
         }
-        rotation
+
+        angular_inertia
     }
 
     /// Sets the given angular inertia to zero if rotational axes are locked.

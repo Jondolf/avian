@@ -117,7 +117,7 @@
 //!
 //! **Note**: In the following theory, primarily the word "particle" is used, but the same logic applies to normal
 //! [rigid bodies](RigidBody) as well. However, unlike particles, rigid bodies can also have angular quantities such as
-//! [rotation](Rotation) and [angular inertia](Inertia), so constraints can also affect their orientation. This is explained
+//! [rotation](Rotation) and [angular inertia](AngularInertia), so constraints can also affect their orientation. This is explained
 //! in more detail [at the end](#rigid-body-constraints).
 //!
 //! ### Constraint functions
@@ -182,7 +182,7 @@
 //! ### Rigid body constraints
 //!
 //! Unlike particles, [rigid bodies](RigidBody) also have angular quantities like [rotation](Rotation),
-//! [angular velocity](AngularVelocity) and [angular inertia](Inertia). In addition, constraints can be applied at specific
+//! [angular velocity](AngularVelocity) and [angular inertia](AngularInertia). In addition, constraints can be applied at specific
 //! points in the body, like contact positions or joint attachment positions, which also affects the orientation.
 //!
 //! When the constraint is not applied at the center of mass, the inverse mass in the computation of `Δλ` must
@@ -195,7 +195,7 @@
 //! w_i = 1 / m_i + (r_i x ▽C_i)^T * I_i^-1 * (r_i x ▽C_i)
 //! ```
 //!
-//! where `m_i` is the [mass](Mass) of body `i`, `I_i^-1` is the [inverse inertia tensor](InverseInertia), and `^T` refers to the
+//! where `m_i` is the [mass](Mass) of body `i`, `I_i^-1` is the inverse [angular inertia tensor](AngularInertia), and `^T` refers to the
 //! transpose of a vector. Note that the value of the inertia tensor depends on the orientation of the body, so it should be
 //! recomputed each time the constraint is solved.
 //!
@@ -330,7 +330,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// Note that this system only works for constraints that are modeled as entities.
 /// If you store constraints in a resource, you must create your own system for solving them.
 ///
-/// ## User constraints
+/// # User Constraints
 ///
 /// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
 /// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.
@@ -350,8 +350,8 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// ```
 pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
     mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery>,
-    mut constraints: Query<&mut C, Without<RigidBody>>,
+    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
@@ -377,10 +377,13 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 
             // At least one of the participating bodies is active, so wake up any sleeping bodies
             for body in &mut bodies {
-                body.time_sleeping.0 = 0.0;
+                // Reset the sleep timer
+                if let Some(time_sleeping) = body.time_sleeping.as_mut() {
+                    time_sleeping.0 = 0.0;
+                }
 
                 if body.is_sleeping {
-                    commands.entity(body.entity).remove::<Sleeping>();
+                    commands.queue(WakeUpBody(body.entity));
                 }
             }
 
@@ -405,7 +408,7 @@ pub(super) fn project_linear_velocity(
             &AccumulatedTranslation,
             &mut LinearVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -438,7 +441,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {
@@ -470,7 +473,7 @@ pub(super) fn project_angular_velocity(
             &PreSolveRotation,
             &mut AngularVelocity,
         ),
-        Without<Sleeping>,
+        RigidBodyActiveFilter,
     >,
     time: Res<Time>,
 ) {

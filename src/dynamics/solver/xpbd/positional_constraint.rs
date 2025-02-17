@@ -37,10 +37,10 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         r1: Vector,
         r2: Vector,
     ) -> Vector {
-        let inv_mass1 = body1.effective_inv_mass();
-        let inv_mass2 = body2.effective_inv_mass();
-        let inv_inertia1 = body1.effective_world_inv_inertia();
-        let inv_inertia2 = body2.effective_world_inv_inertia();
+        let inv_mass1 = body1.effective_inverse_mass();
+        let inv_mass2 = body2.effective_inverse_mass();
+        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
+        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
 
         // Apply positional and rotational updates
         if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
@@ -59,7 +59,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
                 //       Maybe the math above can be done in a way that keeps rotations normalized?
                 let delta_quat = Self::get_delta_rot(inv_inertia1, r1, impulse);
                 body1.rotation.0 = delta_quat * body1.rotation.0;
-                body1.rotation.renormalize();
+                *body1.rotation = body1.rotation.fast_renormalize();
             }
         }
         if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
@@ -75,7 +75,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
                 // See comments for `body1` above.
                 let delta_quat = Self::get_delta_rot(inv_inertia2, r2, -impulse);
                 body2.rotation.0 = delta_quat * body2.rotation.0;
-                body2.rotation.renormalize();
+                *body2.rotation = body2.rotation.fast_renormalize();
             }
         }
 
@@ -92,7 +92,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            body.inverse_mass.0 + body.inverse_inertia.0 * r.perp_dot(n).powi(2)
+            body.mass.inverse() + body.angular_inertia.inverse() * r.perp_dot(n).powi(2)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -109,13 +109,13 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            let inverse_inertia = body.effective_world_inv_inertia();
+            let inverse_inertia = body.effective_global_angular_inertia().inverse();
 
             let r_cross_n = r.cross(n); // Compute the cross product only once
 
             // The line below is equivalent to Eq (2) because the component-wise multiplication of a transposed vector and another vector is equal to the dot product of the two vectors.
             // a^T * b = a • b
-            body.inverse_mass.0 + r_cross_n.dot(inverse_inertia * r_cross_n)
+            body.mass.inverse() + r_cross_n.dot(inverse_inertia * r_cross_n)
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0

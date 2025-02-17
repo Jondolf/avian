@@ -2,6 +2,8 @@
 //!
 //! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
+pub mod matrix;
+
 #[cfg(feature = "f32")]
 mod single;
 #[cfg(feature = "f32")]
@@ -23,6 +25,14 @@ pub const DIM: usize = 2;
 /// The active dimension.
 #[cfg(feature = "3d")]
 pub const DIM: usize = 3;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) use bevy_math::Vec2 as VectorF32;
+
+/// The `f32` vector type chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) use bevy_math::Vec3 as VectorF32;
 
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
@@ -104,6 +114,34 @@ impl AsF32 for Quat {
     }
 }
 
+impl AsF32 for DMat2 {
+    type F32 = Mat2;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat2()
+    }
+}
+
+impl AsF32 for Mat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for DMat3 {
+    type F32 = Mat3;
+    fn f32(&self) -> Self::F32 {
+        self.as_mat3()
+    }
+}
+
+impl AsF32 for Mat3 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
 #[cfg(feature = "2d")]
 pub(crate) fn cross(a: Vector, b: Vector) -> Scalar {
     a.perp_dot(b)
@@ -122,8 +160,9 @@ pub trait RecipOrZero {
 }
 
 impl RecipOrZero for f32 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -132,8 +171,9 @@ impl RecipOrZero for f32 {
 }
 
 impl RecipOrZero for f64 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
-        if self != 0.0 {
+        if self != 0.0 && self.is_finite() {
             self.recip()
         } else {
             0.0
@@ -142,12 +182,14 @@ impl RecipOrZero for f64 {
 }
 
 impl RecipOrZero for Vec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for Vec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -158,12 +200,14 @@ impl RecipOrZero for Vec3 {
 }
 
 impl RecipOrZero for DVec2 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(self.x.recip_or_zero(), self.y.recip_or_zero())
     }
 }
 
 impl RecipOrZero for DVec3 {
+    #[inline]
     fn recip_or_zero(self) -> Self {
         Self::new(
             self.x.recip_or_zero(),
@@ -171,6 +215,77 @@ impl RecipOrZero for DVec3 {
             self.z.recip_or_zero(),
         )
     }
+}
+
+/// An extension trait for matrix types.
+pub trait MatExt {
+    /// Computes the inverse of `self` if `self` is not zero,
+    /// and returns zero otherwise to avoid division by zero.
+    fn inverse_or_zero(self) -> Self;
+}
+
+impl MatExt for Mat2 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl MatExt for DMat2 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl MatExt for Mat3 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl MatExt for DMat3 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl MatExt for SymmetricMatrix3 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+#[expect(clippy::unnecessary_cast)]
+#[cfg(all(feature = "2d", any(feature = "parry-f32", feature = "parry-f64")))]
+pub(crate) fn na_iso_to_iso(isometry: &parry::math::Isometry<Scalar>) -> Isometry2d {
+    Isometry2d::new(
+        Vector::from(isometry.translation).f32(),
+        Rot2::from_sin_cos(isometry.rotation.im as f32, isometry.rotation.re as f32),
+    )
 }
 
 #[cfg(all(

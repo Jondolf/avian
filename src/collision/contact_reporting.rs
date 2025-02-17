@@ -7,7 +7,7 @@ use bevy::prelude::*;
 
 /// Sends collision events and updates [`CollidingEntities`].
 ///
-/// ## Collision events
+/// # Collision Events
 ///
 /// If the [`ContactReportingPlugin`] is enabled (the default), the following
 /// collision events are sent each frame in [`PhysicsStepSet::ReportContacts`]:
@@ -33,7 +33,7 @@ use bevy::prelude::*;
 /// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
 ///     for Collision(contacts) in collision_event_reader.read() {
 ///         println!(
-///             "Entities {:?} and {:?} are colliding",
+///             "Entities {} and {} are colliding",
 ///             contacts.entity1,
 ///             contacts.entity2,
 ///         );
@@ -54,12 +54,17 @@ impl Plugin for ContactReportingPlugin {
 
         physics_schedule.add_systems(report_contacts.in_set(PhysicsStepSet::ReportContacts));
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent for each collision.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -76,7 +81,7 @@ impl Plugin for ContactReportingPlugin {
 /// fn print_collisions(mut collision_event_reader: EventReader<Collision>) {
 ///     for Collision(contacts) in collision_event_reader.read() {
 ///         println!(
-///             "Entities {:?} and {:?} are colliding",
+///             "Entities {} and {} are colliding",
 ///             contacts.entity1,
 ///             contacts.entity2,
 ///         );
@@ -90,7 +95,7 @@ pub struct Collision(pub Contacts);
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent when two entities start colliding.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -107,7 +112,7 @@ pub struct Collision(pub Contacts);
 /// fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
 ///     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
 ///         println!(
-///             "Entities {:?} and {:?} started colliding",
+///             "Entities {} and {} started colliding",
 ///             entity1,
 ///             entity2,
 ///         );
@@ -121,7 +126,7 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 /// A [collision event](ContactReportingPlugin#collision-events)
 /// that is sent when two entities stop colliding.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -138,7 +143,7 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 /// fn print_ended_collisions(mut collision_event_reader: EventReader<CollisionEnded>) {
 ///     for CollisionEnded(entity1, entity2) in collision_event_reader.read() {
 ///         println!(
-///             "Entities {:?} and {:?} stopped colliding",
+///             "Entities {} and {} stopped colliding",
 ///             entity1,
 ///             entity2,
 ///         );
@@ -156,7 +161,10 @@ pub fn report_contacts(
     mut collision_ev_writer: EventWriter<Collision>,
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     // TODO: Would batching events be worth it?
     for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
         if contacts.during_current_frame {
@@ -187,4 +195,6 @@ pub fn report_contacts(
             }
         }
     }
+
+    diagnostics.collision_events = start.elapsed();
 }
