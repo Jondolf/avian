@@ -203,7 +203,7 @@ pub fn angular_acceleration(
 pub fn solve_gyroscopic_torque(
     ang_vel: Vector,
     rotation: Quaternion,
-    local_inertia: Matrix,
+    local_inertia: SymmetricMatrix3,
     delta_seconds: Scalar,
 ) -> Vector {
     // Based on the "Gyroscopic Motion" section of Erin Catto's GDC 2015 slides on Numerical Methods.

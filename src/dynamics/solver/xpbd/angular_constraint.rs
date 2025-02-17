@@ -286,7 +286,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
 
     /// Computes the update in rotation when applying an angular correction `p`.
     #[cfg(feature = "3d")]
-    fn get_delta_rot(inverse_inertia: Matrix3, p: Vector) -> Quaternion {
+    fn get_delta_rot(inverse_inertia: SymmetricMatrix3, p: Vector) -> Quaternion {
         // Equation 8/9
         Quaternion::from_scaled_axis(inverse_inertia * p)
     }

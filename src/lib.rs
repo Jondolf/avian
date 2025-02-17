@@ -530,6 +530,7 @@ pub mod prelude {
         },
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
+        math::matrix::SymmetricMatrix3,
         position::{Position, Rotation},
         prepare::{init_transforms, PrepareConfig, PreparePlugin},
         schedule::*,

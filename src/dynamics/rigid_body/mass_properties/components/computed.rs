@@ -431,7 +431,7 @@ impl From<ComputedAngularInertia> for AngularInertia {
 pub struct ComputedAngularInertia {
     // TODO: The matrix should be symmetric and positive definite.
     //       We could add a custom `SymmetricMat3` type to enforce symmetricity and reduce memory usage.
-    inverse: Matrix,
+    inverse: SymmetricMatrix3,
 }
 
 impl Default for ComputedAngularInertia {
@@ -444,7 +444,7 @@ impl Default for ComputedAngularInertia {
 impl ComputedAngularInertia {
     /// Infinite angular inertia.
     pub const INFINITY: Self = Self {
-        inverse: Matrix::ZERO,
+        inverse: SymmetricMatrix3::ZERO,
     };
 
     /// Creates a new [`ComputedAngularInertia`] from the given principal angular inertia.
@@ -468,7 +468,7 @@ impl ComputedAngularInertia {
             "principal angular inertia must be positive or zero for all axes"
         );
 
-        Self::from_inverse_tensor(Matrix::from_diagonal(
+        Self::from_inverse_tensor(SymmetricMatrix3::from_diagonal(
             principal_angular_inertia.recip_or_zero(),
         ))
     }
@@ -491,7 +491,7 @@ impl ComputedAngularInertia {
         } else if !principal_angular_inertia.cmpge(Vector::ZERO).all() {
             Err(AngularInertiaError::Negative)
         } else {
-            Ok(Self::from_inverse_tensor(Matrix::from_diagonal(
+            Ok(Self::from_inverse_tensor(SymmetricMatrix3::from_diagonal(
                 principal_angular_inertia.recip_or_zero(),
             )))
         }
@@ -520,11 +520,11 @@ impl ComputedAngularInertia {
             "principal angular inertia must be positive or zero for all axes"
         );
 
-        Self::from_inverse_tensor(
-            Matrix::from_quat(orientation)
-                * Matrix::from_diagonal(principal_angular_inertia.recip_or_zero())
-                * Matrix::from_quat(orientation.inverse()),
-        )
+        Self::from_inverse_tensor(SymmetricMatrix3::from_matrix3_unchecked(
+            Matrix3::from_quat(orientation)
+                * Matrix3::from_diagonal(principal_angular_inertia.recip_or_zero())
+                * Matrix3::from_quat(orientation.inverse()),
+        ))
     }
 
     /// Tries to create a new [`ComputedAngularInertia`] from the given principal angular inertia
@@ -549,9 +549,11 @@ impl ComputedAngularInertia {
             Err(AngularInertiaError::Negative)
         } else {
             Ok(Self::from_inverse_tensor(
-                Matrix::from_quat(orientation)
-                    * Matrix::from_diagonal(principal_angular_inertia.recip_or_zero())
-                    * Matrix::from_quat(orientation.inverse()),
+                SymmetricMatrix3::from_matrix3_unchecked(
+                    Matrix3::from_quat(orientation)
+                        * Matrix3::from_diagonal(principal_angular_inertia.recip_or_zero())
+                        * Matrix3::from_quat(orientation.inverse()),
+                ),
             ))
         }
     }
@@ -563,7 +565,7 @@ impl ComputedAngularInertia {
     /// Note that this involves an invertion because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "from_mat3")]
-    pub fn from_tensor(tensor: Matrix) -> Self {
+    pub fn from_tensor(tensor: SymmetricMatrix3) -> Self {
         Self::from_inverse_tensor(tensor.inverse_or_zero())
     }
 
@@ -572,7 +574,7 @@ impl ComputedAngularInertia {
     /// The tensor should be symmetric and positive definite.
     #[inline]
     #[doc(alias = "from_inverse_mat3")]
-    pub fn from_inverse_tensor(inverse_tensor: Matrix) -> Self {
+    pub fn from_inverse_tensor(inverse_tensor: SymmetricMatrix3) -> Self {
         Self {
             inverse: inverse_tensor,
         }
@@ -586,7 +588,7 @@ impl ComputedAngularInertia {
     ///
     /// Equivalent to [`ComputedAngularInertia::tensor`].
     #[inline]
-    pub fn value(self) -> Matrix {
+    pub fn value(self) -> SymmetricMatrix3 {
         self.tensor()
     }
 
@@ -596,7 +598,7 @@ impl ComputedAngularInertia {
     ///
     /// Equivalent to [`ComputedAngularInertia::inverse_tensor`].
     #[inline]
-    pub fn inverse(self) -> Matrix {
+    pub fn inverse(self) -> SymmetricMatrix3 {
         self.inverse_tensor()
     }
 
@@ -604,7 +606,7 @@ impl ComputedAngularInertia {
     ///
     /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
-    pub(crate) fn inverse_mut(&mut self) -> &mut Matrix {
+    pub(crate) fn inverse_mut(&mut self) -> &mut SymmetricMatrix3 {
         self.inverse_tensor_mut()
     }
 
@@ -615,7 +617,7 @@ impl ComputedAngularInertia {
     /// instead of `angular_inertia.value().inverse() * foo`.
     #[inline]
     #[doc(alias = "as_mat3")]
-    pub fn tensor(self) -> Matrix {
+    pub fn tensor(self) -> SymmetricMatrix3 {
         self.inverse.inverse_or_zero()
     }
 
@@ -624,7 +626,7 @@ impl ComputedAngularInertia {
     /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3")]
-    pub fn inverse_tensor(self) -> Matrix {
+    pub fn inverse_tensor(self) -> SymmetricMatrix3 {
         self.inverse
     }
 
@@ -633,7 +635,7 @@ impl ComputedAngularInertia {
     /// Note that this is a no-op because [`ComputedAngularInertia`] internally stores the inverse angular inertia.
     #[inline]
     #[doc(alias = "as_inverse_mat3_mut")]
-    pub fn inverse_tensor_mut(&mut self) -> &mut Matrix {
+    pub fn inverse_tensor_mut(&mut self) -> &mut SymmetricMatrix3 {
         &mut self.inverse
     }
 
@@ -650,7 +652,7 @@ impl ComputedAngularInertia {
     /// about the local coordinate axes defined by the local inertial frame.
     #[doc(alias = "diagonalize")]
     pub fn principal_angular_inertia_with_local_frame(&self) -> (Vector, Quaternion) {
-        let angular_inertia = AngularInertia::from_tensor(self.tensor().f32());
+        let angular_inertia = AngularInertia::from_tensor(self.tensor().to_matrix3().f32());
         (
             angular_inertia.principal.adjust_precision(),
             angular_inertia.local_frame.adjust_precision(),
@@ -663,18 +665,23 @@ impl ComputedAngularInertia {
     #[inline]
     pub fn rotated(self, rotation: Quaternion) -> Self {
         let rot_mat3 = Matrix::from_quat(rotation);
-        Self::from_inverse_tensor((rot_mat3 * self.inverse) * rot_mat3.transpose())
+        Self::from_inverse_tensor(SymmetricMatrix3::from_matrix3_unchecked(
+            (rot_mat3 * self.inverse) * rot_mat3.transpose(),
+        ))
     }
 
     /// Computes the angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
-    pub fn shifted_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+    pub fn shifted_tensor(&self, mass: Scalar, offset: Vector) -> SymmetricMatrix3 {
         if mass > 0.0 && mass.is_finite() && offset != Vector::ZERO {
             let diagonal_element = offset.length_squared();
             let diagonal_mat = Matrix3::from_diagonal(Vector::splat(diagonal_element));
             let offset_outer_product =
                 Matrix3::from_cols(offset * offset.x, offset * offset.y, offset * offset.z);
-            self.tensor() + (diagonal_mat + offset_outer_product) * mass
+            self.tensor()
+                + SymmetricMatrix3::from_matrix3_unchecked(
+                    (diagonal_mat + offset_outer_product) * mass,
+                )
         } else {
             self.tensor()
         }
@@ -682,7 +689,7 @@ impl ComputedAngularInertia {
 
     /// Computes the inverse angular inertia tensor shifted by the given offset, taking into account the given mass.
     #[inline]
-    pub fn shifted_inverse_tensor(&self, mass: Scalar, offset: Vector) -> Matrix3 {
+    pub fn shifted_inverse_tensor(&self, mass: Scalar, offset: Vector) -> SymmetricMatrix3 {
         self.shifted_tensor(mass, offset).inverse_or_zero()
     }
 
@@ -706,8 +713,8 @@ impl ComputedAngularInertia {
 }
 
 #[cfg(feature = "3d")]
-impl From<Matrix> for ComputedAngularInertia {
-    fn from(tensor: Matrix) -> Self {
+impl From<SymmetricMatrix3> for ComputedAngularInertia {
+    fn from(tensor: SymmetricMatrix3) -> Self {
         Self::from_tensor(tensor)
     }
 }
@@ -725,7 +732,7 @@ impl From<AngularInertia> for ComputedAngularInertia {
 #[cfg(feature = "3d")]
 impl From<ComputedAngularInertia> for AngularInertia {
     fn from(inertia: ComputedAngularInertia) -> Self {
-        Self::from_tensor(inertia.tensor().f32())
+        Self::from_tensor(inertia.tensor().to_matrix3().f32())
     }
 }
 
@@ -798,8 +805,8 @@ impl From<GlobalAngularInertia> for ComputedAngularInertia {
 }
 
 #[cfg(feature = "3d")]
-impl From<Matrix> for GlobalAngularInertia {
-    fn from(tensor: Matrix) -> Self {
+impl From<SymmetricMatrix3> for GlobalAngularInertia {
+    fn from(tensor: SymmetricMatrix3) -> Self {
         Self(ComputedAngularInertia::from_tensor(tensor))
     }
 }
@@ -998,20 +1005,18 @@ mod tests {
         let angular_inertia = ComputedAngularInertia::new(Vector::new(10.0, 20.0, 30.0));
         assert_relative_eq!(
             angular_inertia.inverse_tensor(),
-            ComputedAngularInertia::from_inverse_tensor(Matrix::from_diagonal(Vector::new(
-                0.1,
-                0.05,
-                1.0 / 30.0
-            )))
+            ComputedAngularInertia::from_inverse_tensor(SymmetricMatrix3::from_diagonal(
+                Vector::new(0.1, 0.05, 1.0 / 30.0)
+            ))
             .inverse_tensor()
         );
         assert_relative_eq!(
             angular_inertia.tensor(),
-            Matrix::from_diagonal(Vector::new(10.0, 20.0, 30.0))
+            SymmetricMatrix3::from_diagonal(Vector::new(10.0, 20.0, 30.0))
         );
         assert_relative_eq!(
             angular_inertia.inverse_tensor(),
-            Matrix::from_diagonal(Vector::new(0.1, 0.05, 1.0 / 30.0))
+            SymmetricMatrix3::from_diagonal(Vector::new(0.1, 0.05, 1.0 / 30.0))
         );
     }
 
@@ -1025,10 +1030,12 @@ mod tests {
         );
         assert_eq!(
             angular_inertia,
-            ComputedAngularInertia::from_inverse_tensor(Matrix::from_diagonal(Vector::ZERO))
+            ComputedAngularInertia::from_inverse_tensor(SymmetricMatrix3::from_diagonal(
+                Vector::ZERO
+            ))
         );
-        assert_relative_eq!(angular_inertia.tensor(), Matrix::ZERO);
-        assert_relative_eq!(angular_inertia.inverse_tensor(), Matrix::ZERO);
+        assert_relative_eq!(angular_inertia.tensor(), SymmetricMatrix3::ZERO);
+        assert_relative_eq!(angular_inertia.inverse_tensor(), SymmetricMatrix3::ZERO);
         assert!(angular_inertia.is_infinite());
         assert!(!angular_inertia.is_finite());
         assert!(!angular_inertia.is_nan());
@@ -1044,10 +1051,10 @@ mod tests {
         );
         assert_eq!(
             angular_inertia,
-            ComputedAngularInertia::from_inverse_tensor(Matrix::ZERO)
+            ComputedAngularInertia::from_inverse_tensor(SymmetricMatrix3::ZERO)
         );
-        assert_relative_eq!(angular_inertia.tensor(), Matrix::ZERO);
-        assert_relative_eq!(angular_inertia.inverse_tensor(), Matrix::ZERO);
+        assert_relative_eq!(angular_inertia.tensor(), SymmetricMatrix3::ZERO);
+        assert_relative_eq!(angular_inertia.inverse_tensor(), SymmetricMatrix3::ZERO);
         assert!(angular_inertia.is_infinite());
         assert!(!angular_inertia.is_finite());
         assert!(!angular_inertia.is_nan());

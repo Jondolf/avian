@@ -2,6 +2,8 @@
 //!
 //! Most of the math types are feature-dependent, so they will be different for `2d`/`3d` and `f32`/`f64`.
 
+pub mod matrix;
+
 #[cfg(feature = "f32")]
 mod single;
 #[cfg(feature = "f32")]
@@ -253,6 +255,17 @@ impl MatExt for Mat3 {
 }
 
 impl MatExt for DMat3 {
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+}
+
+impl MatExt for SymmetricMatrix3 {
     #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {

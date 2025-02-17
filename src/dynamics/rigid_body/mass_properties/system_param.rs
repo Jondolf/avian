@@ -103,12 +103,12 @@ impl MassPropertyHelper<'_, '_> {
                 {
                     mass_props.principal_angular_inertia = angular_inertia.principal;
                     mass_props.local_inertial_frame = angular_inertia.local_frame;
-                    computed_inertia.set(
+                    computed_inertia.set(SymmetricMatrix3::from_matrix3_unchecked(
                         mass_props
                             .angular_inertia_tensor()
                             .as_mat3()
                             .adjust_precision(),
-                    );
+                    ));
                 }
             }
         } else {
@@ -118,12 +118,12 @@ impl MassPropertyHelper<'_, '_> {
             }
             #[cfg(feature = "3d")]
             {
-                computed_inertia.set(
+                computed_inertia.set(SymmetricMatrix3::from_matrix3_unchecked(
                     mass_props
                         .angular_inertia_tensor()
                         .as_mat3()
                         .adjust_precision(),
-                );
+                ));
             }
         }
 
