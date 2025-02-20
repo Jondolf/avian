@@ -459,9 +459,16 @@ impl ContactManifold {
     /// expressed in local space.
     ///
     /// `index` represents the index of the manifold in the collision.
-    pub fn new(points: Vec<ContactPoint>, normal: Vector, index: usize) -> Self {
+    pub fn new(
+        points: impl IntoIterator<Item = ContactPoint>,
+        normal: Vector,
+        index: usize,
+    ) -> Self {
         Self {
-            points,
+            #[cfg(feature = "2d")]
+            points: arrayvec::ArrayVec::from_iter(points),
+            #[cfg(feature = "3d")]
+            points: points.into_iter().collect(),
             normal,
             dynamic_friction: 0.0,
             restitution: 0.0,

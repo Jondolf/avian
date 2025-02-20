@@ -153,5 +153,5 @@ impl<T> EntityDataIndex<T> {
 
 /// Creates an entity from an index and a generation number.
 pub fn entity_from_index_and_gen(index: u32, generation: u32) -> Entity {
-    Entity::from_bits((generation as u64) << 32 | index as u64)
+    Entity::from_bits(((generation as u64) << 32) | index as u64)
 }

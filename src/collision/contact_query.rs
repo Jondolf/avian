@@ -195,22 +195,13 @@ pub fn contact_manifolds(
                     return vec![];
                 }
 
-                return vec![ContactManifold::new(
-                    #[cfg(feature = "2d")]
-                    arrayvec::ArrayVec::from_iter([ContactPoint::new(
-                        contact.point1.into(),
-                        contact.point2.into(),
-                        -contact.dist,
-                    )]),
-                    #[cfg(feature = "3d")]
-                    vec![ContactPoint::new(
-                        contact.point1.into(),
-                        contact.point2.into(),
-                        -contact.dist,
-                    )],
-                    normal,
-                    0,
+                let points = [ContactPoint::new(
+                    contact.point1.into(),
+                    contact.point2.into(),
+                    -contact.dist,
                 )];
+
+                return vec![ContactManifold::new(points, normal, 0)];
             }
         }
     }
@@ -234,18 +225,14 @@ pub fn contact_manifolds(
                 return None;
             }
 
-            let points = manifold
-                .contacts()
-                .iter()
-                .map(|contact| {
-                    ContactPoint::new(
-                        subpos1.transform_point(&contact.local_p1).into(),
-                        subpos2.transform_point(&contact.local_p2).into(),
-                        -contact.dist,
-                    )
-                    .with_feature_ids(contact.fid1.into(), contact.fid2.into())
-                })
-                .collect();
+            let points = manifold.contacts().iter().map(|contact| {
+                ContactPoint::new(
+                    subpos1.transform_point(&contact.local_p1).into(),
+                    subpos2.transform_point(&contact.local_p2).into(),
+                    -contact.dist,
+                )
+                .with_feature_ids(contact.fid1.into(), contact.fid2.into())
+            });
 
             let manifold = ContactManifold::new(points, local_normal, manifold_index);
 

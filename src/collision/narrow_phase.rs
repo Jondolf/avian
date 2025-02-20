@@ -237,8 +237,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
-    #[cfg(not(feature = "parallel"))] commands: Commands,
-    #[cfg(feature = "parallel")] commands: ParallelCommands,
+    commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -252,11 +251,11 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
         &mut hooks.into_inner(),
-        &mut commands,
+        commands,
     );
 
     diagnostics.narrow_phase = start.elapsed();
-    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
+    diagnostics.contact_count = narrow_phase.collisions.graph.edge_count() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -410,8 +409,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
         hooks: &mut H::Item<'_, '_>,
-        #[cfg(not(feature = "parallel"))] mut commands: Commands,
-        #[cfg(feature = "parallel")] par_commands: ParallelCommands,
+        commands: ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
@@ -524,7 +522,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &mut self,
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
-        par_commands: &mut ParallelCommands,
+        par_commands: ParallelCommands,
     ) -> BitVec
     where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -697,8 +695,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         let mut touching = contacts.manifolds.iter().any(|m| !m.points.is_empty());
 
                         if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
-                            par_commands.command_scope(|commands| {
-                                touching = hooks.modify_contacts(contacts, commands);
+                            par_commands.command_scope(|mut commands| {
+                                touching = hooks.modify_contacts(contacts, &mut commands);
                             });
                             if !touching {
                                 contacts.manifolds.clear();
@@ -706,10 +704,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
 
                         contacts.flags.set(ContactPairFlags::TOUCHING, touching);
-
-                        // Match contacts and copy previous contact impulses for warm starting the solver.
-                        let mut total_normal_impulse = 0.0;
-                        let mut total_tangent_impulse = default();
 
                         // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
                         //       If we let Parry handle contact matching, this wouldn't be needed.
@@ -723,18 +717,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                         &previous_manifold.points,
                                         distance_threshold,
                                     );
-
-                                    // Add contact impulses to total impulses.
-                                    for contact in manifold.points.iter() {
-                                        total_normal_impulse += contact.normal_impulse;
-                                        total_tangent_impulse += contact.tangent_impulse;
-                                    }
                                 }
                             }
                         }
-
-                        contacts.total_normal_impulse = total_normal_impulse;
-                        contacts.total_tangent_impulse = total_tangent_impulse;
 
                         if touching && !was_touching {
                             contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);
@@ -868,7 +853,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let max_contact_distance =
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
-        self.compute_contact_pair(
+        self.compute_contact_pair::<H>(
             contacts,
             state_change_bits,
             contact_id,
@@ -926,10 +911,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             let touching = !new_manifolds.is_empty();
             contacts.flags.set(ContactPairFlags::TOUCHING, touching);
 
-            // Match contacts and copy previous contact impulses for warm starting the solver.
-            let mut total_normal_impulse = 0.0;
-            let mut total_tangent_impulse = default();
-
             // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
             //       If we let Parry handle contact matching, this wouldn't be needed.
             if new_manifolds.len() <= 4 && self.config.match_contacts {
@@ -939,20 +920,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 for manifold in new_manifolds.iter_mut() {
                     for previous_manifold in contacts.manifolds.iter() {
                         manifold.match_contacts(&previous_manifold.points, distance_threshold);
-
-                        // Add contact impulses to total impulses.
-                        for contact in manifold.points.iter() {
-                            total_normal_impulse += contact.normal_impulse;
-                            total_tangent_impulse += contact.tangent_impulse;
-                        }
                     }
                 }
             }
 
             // Update the contacts.
             contacts.manifolds = new_manifolds;
-            contacts.total_normal_impulse = total_normal_impulse;
-            contacts.total_tangent_impulse = total_tangent_impulse;
 
             if touching && !was_touching {
                 contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);

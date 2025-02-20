@@ -1,5 +1,6 @@
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use broad_phase::NewBroadCollisionPairs;
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
@@ -78,15 +79,29 @@ impl Plugin for BruteForceBroadPhasePlugin {
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
     mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut new_broad_collision_pairs: ResMut<NewBroadCollisionPairs>,
 ) {
     // Clear old collision pairs.
-    broad_collision_pairs.0.clear();
+    new_broad_collision_pairs.0.clear();
 
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
-    for [(ent_a, aabb_a, rb_a), (ent_b, aabb_b, rb_b)] in bodies.iter_combinations() {
+    for [(entity1, aabb1, rb1), (entity2, aabb2, rb2)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect
-        if (rb_a.is_dynamic() || rb_b.is_dynamic()) && aabb_a.intersects(aabb_b) {
-            broad_collision_pairs.0.push((ent_a, ent_b));
+        if (rb1.is_dynamic() || rb2.is_dynamic()) && aabb1.intersects(aabb2) {
+            let key = if entity1 < entity2 {
+                (entity1, entity2)
+            } else {
+                (entity2, entity1)
+            };
+
+            // Avoid duplicate pairs.
+            if broad_collision_pairs.contains(&key) {
+                continue;
+            }
+
+            // Create a new collision pair.
+            broad_collision_pairs.insert(key);
+            new_broad_collision_pairs.push(key);
         }
     }
 }

@@ -9,7 +9,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
-            PhysicsPlugins::default(),
+            PhysicsPlugins::new(PostUpdate),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
         .add_systems(Startup, setup)
@@ -40,10 +40,10 @@ fn setup(
     let cube_size = 2.0;
 
     // Spawn cube stacks
-    for x in -2..2 {
-        for y in -2..2 {
-            for z in -2..2 {
-                let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
+    for x in -5..5 {
+        for y in 0..14 {
+            for z in -5..5 {
+                let position = Vec3::new(x as f32 * 1.5, y as f32, z as f32 * 1.5) * cube_size;
                 commands.spawn((
                     Mesh3d(cube_mesh.clone()),
                     MeshMaterial3d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
@@ -69,7 +69,8 @@ fn setup(
     // Camera
     commands.spawn((
         Camera3d::default(),
-        Transform::from_translation(Vec3::new(0.0, 12.0, 40.0)).looking_at(Vec3::Y * 5.0, Vec3::Y),
+        Transform::from_translation(Vec3::new(0.0, 25.0, 100.0))
+            .looking_at(Vec3::Y * 10.0, Vec3::Y),
     ));
 }
 

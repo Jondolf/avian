@@ -138,7 +138,6 @@ fn setup(
         PassThroughOneWayPlatform::ByNormal,
         MovementSpeed(250.0),
         JumpImpulse(450.0),
-        ActiveCollisionHooks::ALL,
     ));
 }
 

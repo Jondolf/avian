@@ -713,10 +713,9 @@ use prelude::*;
 ///
 /// You can find a full working example
 /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_broad_phase.rs).
-pub struct PhysicsPlugins<Hooks: CollisionHooks = ()> {
+pub struct PhysicsPlugins {
     schedule: Interned<dyn ScheduleLabel>,
     length_unit: Scalar,
-    _phantom: std::marker::PhantomData<Hooks>,
 }
 
 impl PhysicsPlugins {
@@ -727,7 +726,6 @@ impl PhysicsPlugins {
         Self {
             schedule: schedule.intern(),
             length_unit: 1.0,
-            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -783,21 +781,6 @@ impl PhysicsPlugins {
         self.length_unit = unit;
         self
     }
-
-    /// Adds the given [`CollisionHooks`] for user-defined contact filtering and modification.
-    ///
-    /// Only one set of collision hooks can be defined. Multiple calls to this method will
-    /// overwrite previous ones.
-    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPlugins<H>
-    where
-        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-    {
-        PhysicsPlugins::<H> {
-            schedule: self.schedule,
-            length_unit: self.length_unit,
-            _phantom: std::marker::PhantomData,
-        }
-    }
 }
 
 impl Default for PhysicsPlugins {
@@ -806,10 +789,7 @@ impl Default for PhysicsPlugins {
     }
 }
 
-impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPlugins<H>
-where
-    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
-{
+impl PluginGroup for PhysicsPlugins {
     fn build(self) -> PluginGroupBuilder {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
@@ -824,10 +804,10 @@ where
         ))]
         let builder = builder
             .add(ColliderBackendPlugin::<Collider>::new(self.schedule))
-            .add(NarrowPhasePlugin::<Collider, H>::default());
+            .add(NarrowPhasePlugin::<Collider>::default());
 
         builder
-            .add(BroadPhasePlugin::<H>::default())
+            .add(BroadPhasePlugin::<()>::default())
             .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
