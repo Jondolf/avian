@@ -549,12 +549,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         entity1: Entity,
         entity2: Entity,
     ) {
-        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
-        if let Ok(mut colliding_entities1) = unsafe { query.get_unchecked(entity1) } {
+        if let Ok(mut colliding_entities1) = query.get_mut(entity1) {
             colliding_entities1.insert(entity2);
         }
-        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
-        if let Ok(mut colliding_entities2) = unsafe { query.get_unchecked(entity2) } {
+        if let Ok(mut colliding_entities2) = query.get_mut(entity2) {
             colliding_entities2.insert(entity1);
         }
     }
@@ -565,12 +563,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         entity1: Entity,
         entity2: Entity,
     ) {
-        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
-        if let Ok(mut colliding_entities1) = unsafe { query.get_unchecked(entity1) } {
+        if let Ok(mut colliding_entities1) = query.get_mut(entity1) {
             colliding_entities1.remove(&entity2);
         }
-        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
-        if let Ok(mut colliding_entities2) = unsafe { query.get_unchecked(entity2) } {
+        if let Ok(mut colliding_entities2) = query.get_mut(entity2) {
             colliding_entities2.remove(&entity1);
         }
     }
