@@ -8,6 +8,8 @@ use dynamics::solver::softness_parameters::SoftnessCoefficients;
 #[reflect(Debug, Component, PartialEq)]
 pub struct PointConstraintPart {
     pub center_difference: Vector,
+    pub r1: Vector,
+    pub r2: Vector,
     pub impulse: Vector,
 }
 
@@ -18,12 +20,9 @@ type EffectiveMass = SymmetricMatrix3;
 
 impl PointConstraintPart {
     pub fn compute_incremental_impulse(
+        &self,
         body1: &RigidBodyQueryItem,
         body2: &RigidBodyQueryItem,
-        r1: Vector,
-        r2: Vector,
-        accumulated_impulse: Vector,
-        center_difference: Vector,
         effective_mass: &EffectiveMass,
         softness: &SoftnessCoefficients,
         use_bias: bool,
@@ -33,17 +32,18 @@ impl PointConstraintPart {
         let mut impulse_scale = 0.0;
 
         if use_bias {
-            let separation = Self::position_error(body1, body2, r1, r2, center_difference);
+            let separation =
+                Self::position_error(body1, body2, self.r1, self.r2, self.center_difference);
             bias = softness.bias * separation;
             mass_scale = softness.mass_scale;
             impulse_scale = softness.impulse_scale;
         }
 
-        let velocity_error = Self::velocity_error(body1, body2, r1, r2);
+        let velocity_error = Self::velocity_error(body1, body2, self.r1, self.r2);
 
         // Compute the impulse.
         -effective_mass.mul_scalar(mass_scale) * (velocity_error + bias)
-            - impulse_scale * accumulated_impulse
+            - impulse_scale * self.impulse
     }
 
     pub fn position_error(
@@ -72,36 +72,35 @@ impl PointConstraintPart {
     /// Computes the inverse effective mass matrix for the constraint.
     #[cfg(feature = "2d")]
     #[inline]
-    pub fn compute_inverse_effective_mass(
+    pub fn effective_inverse_mass(
+        &self,
         inverse_mass_sum: Scalar,
         inverse_angular_inertia1: &Scalar,
         inverse_angular_inertia2: &Scalar,
-        r1: Vector,
-        r2: Vector,
     ) -> Matrix2 {
         let k00 = inverse_mass_sum
-            + r1.y.powi(2) * inverse_angular_inertia1
-            + r2.y.powi(2) * inverse_angular_inertia2;
-        let k10 = -r1.y * r1.x * inverse_angular_inertia1 - r2.y * r2.x * inverse_angular_inertia2;
+            + self.r1.y.powi(2) * inverse_angular_inertia1
+            + self.r2.y.powi(2) * inverse_angular_inertia2;
+        let k10 = -self.r1.y * self.r1.x * inverse_angular_inertia1
+            - self.r2.y * self.r2.x * inverse_angular_inertia2;
         let k01 = k10;
         let k11 = inverse_mass_sum
-            + r1.x.powi(2) * inverse_angular_inertia1
-            + r2.x.powi(2) * inverse_angular_inertia2;
+            + self.r1.x.powi(2) * inverse_angular_inertia1
+            + self.r2.x.powi(2) * inverse_angular_inertia2;
         Matrix2::from_cols_array(&[k00, k10, k01, k11])
     }
 
     #[cfg(feature = "3d")]
     #[inline]
-    pub fn compute_inverse_effective_mass(
+    pub fn effective_inverse_mass(
+        &self,
         inverse_mass_sum: Scalar,
         inverse_angular_inertia1: &SymmetricMatrix3,
         inverse_angular_inertia2: &SymmetricMatrix3,
-        r1: Vector,
-        r2: Vector,
     ) -> SymmetricMatrix3 {
         let mut effective_inverse_mass;
-        let angular_contribution1 = inverse_angular_inertia1.skew(r1);
-        let angular_contribution2 = inverse_angular_inertia2.skew(r2);
+        let angular_contribution1 = inverse_angular_inertia1.skew(self.r1);
+        let angular_contribution2 = inverse_angular_inertia2.skew(self.r2);
         effective_inverse_mass = angular_contribution1 + angular_contribution2;
         effective_inverse_mass.m00 += inverse_mass_sum;
         effective_inverse_mass.m11 += inverse_mass_sum;

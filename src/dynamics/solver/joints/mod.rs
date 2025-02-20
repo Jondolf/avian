@@ -85,7 +85,10 @@
 
 mod distance;
 mod fixed;
-mod hinge;
+#[cfg(feature = "2d")]
+mod hinge2d;
+#[cfg(feature = "3d")]
+mod hinge3d;
 mod prismatic;
 mod revolute;
 #[cfg(feature = "3d")]
@@ -103,7 +106,10 @@ pub use debug_render::ConstraintDebugRender;
 pub use angular_hinge::AngularHinge;
 pub use distance::*;
 pub use fixed::*;
-pub use hinge::*;
+#[cfg(feature = "2d")]
+pub use hinge2d::*;
+#[cfg(feature = "3d")]
+pub use hinge3d::*;
 pub use point_constraint::PointConstraint;
 pub use prismatic::*;
 pub use revolute::*;

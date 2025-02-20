@@ -152,7 +152,7 @@ impl ImpulseJoint for SwingLimit {
 
         // Solving without bias is done after position integration, which can change rotation.
         // Recompute the Jacobian, effective mass, and impulse-to-velocity values with the new axes.
-        if use_bias {
+        if !use_bias {
             let axis1 = body1.rotation.0 * self.local_axis1;
             let axis2 = body2.rotation.0 * self.local_axis2;
             solver_data.jacobian1 = SwingLimit::jacobian1(axis1, axis2);
@@ -256,7 +256,7 @@ impl SwingLimit {
         let neg_angular_contribution2 = data.neg_impulse_to_velocity2.dot(data.jacobian1);
 
         // Return the effective mass K^-1.
-        data.effective_mass = 1.0 / (angular_contribution1 + neg_angular_contribution2)
+        data.effective_mass = (angular_contribution1 + neg_angular_contribution2).recip_or_zero()
     }
 }
 
@@ -268,7 +268,7 @@ impl SwingLimit {
             local_axis2: Vector3::X,
             max_angle,
             // TODO: Tune these values
-            stiffness: SoftnessParameters::new(1.0, 60.0),
+            stiffness: SoftnessParameters::new(1.0, 10.0),
         }
     }
 

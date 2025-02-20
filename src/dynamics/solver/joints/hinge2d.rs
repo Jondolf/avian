@@ -1,4 +1,4 @@
-//! [`PointConstraint`] component.
+//! [`HingeJoint`] component.
 
 use crate::prelude::*;
 use bevy::{
@@ -13,29 +13,34 @@ use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParame
 
 use super::point_constraint_part::PointConstraintPart;
 
-/// A point-to-point constraint that prevents relative translation of the attached bodies.
-#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+/// A hinge joint prevents relative translation of the attached bodies, but allows rotation.
+///
+/// Hinges can be useful for things like wheels, fans, revolving doors etc.
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
-pub struct PointConstraint {
-    /// First entity constrained by the joint.
+pub struct HingeJoint {
+    /// The first entity constrained by the joint.
     pub entity1: Entity,
 
-    /// Second entity constrained by the joint.
+    /// The second entity constrained by the joint.
     pub entity2: Entity,
 
-    /// Attachment point on the first body.
+    /// The attachment point expressed in the local space of the first body.
     pub local_anchor1: Vector,
 
-    /// Attachment point on the second body.
+    /// The attachment point expressed in the local space of the second body.
     pub local_anchor2: Vector,
+
+    /// The extents of the allowed relative rotation of the bodies.
+    pub angle_limit: Option<AngleLimit>,
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
 }
 
-impl Component for PointConstraint {
+impl Component for HingeJoint {
     const STORAGE_TYPE: StorageType = StorageType::Table;
 
     fn register_component_hooks(hooks: &mut ComponentHooks) {
@@ -43,39 +48,53 @@ impl Component for PointConstraint {
             world
                 .commands()
                 .entity(entity)
-                .insert(PointConstraintSolverData::default());
+                .insert(HingeJointSolverData::default());
         });
     }
 }
 
-/// Cached data required by the impulse-based solver for [`PointConstraint`].
+/// Cached data required by the impulse-based solver for [`HingeJoint`].
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct PointConstraintSolverData {
-    pub coefficients: SoftnessCoefficients,
+pub struct HingeJointSolverData {
+    /// The point-to-point constraint part of the hinge joint.
     pub point_constraint: PointConstraintPart,
-    #[cfg(feature = "2d")]
-    pub effective_mass: Matrix2,
-    #[cfg(feature = "3d")]
-    pub effective_mass: SymmetricMatrix3,
+
+    /// The relative rotation between the two bodies.
+    pub rotation_difference: Scalar,
+
+    /// The effective mass of the point-to-point constraint.
+    pub effective_point_constraint_mass: Matrix2,
+
+    /// The effective mass of the angle limit constraint.
+    pub axial_mass: f32,
+
+    /// The accumulated impulse applied by the lower angle limit.
+    pub lower_impulse: f32,
+
+    /// The accumulated impulse applied by the upper angle limit.
+    pub upper_impulse: f32,
+
+    /// Coefficients computed for the spring parameters of the constraint.
+    pub coefficients: SoftnessCoefficients,
 }
 
-impl EntityConstraint<2> for PointConstraint {
+impl EntityConstraint<2> for HingeJoint {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
     }
 }
 
-impl ImpulseJoint for PointConstraint {
-    type SolverData = PointConstraintSolverData;
+impl ImpulseJoint for HingeJoint {
+    type SolverData = HingeJointSolverData;
 
     fn prepare(
         &self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
-        solver_data: &mut PointConstraintSolverData,
+        solver_data: &mut HingeJointSolverData,
         delta_secs: Scalar,
     ) {
         // Update the world-space anchor points.
@@ -84,64 +103,29 @@ impl ImpulseJoint for PointConstraint {
         solver_data.point_constraint.r1 = *body1.rotation * local_r1;
         solver_data.point_constraint.r2 = *body2.rotation * local_r2;
 
-        // Update the center difference.
+        // TODO: Support a rotation offset.
+        // Update the center difference and rotation difference.
         solver_data.point_constraint.center_difference =
             body2.current_position() - body1.current_position();
+        solver_data.rotation_difference = body1.rotation.angle_between(*body2.rotation);
 
         let inverse_mass_sum = body1.mass.inverse() + body2.mass.inverse();
         let i1 = body1.effective_global_angular_inertia().inverse();
         let i2 = body2.effective_global_angular_inertia().inverse();
 
-        // A revolute joint is a point-to-point constraint with optional limits.
-        // It tries to align the points p2 and p1.
-        //
-        // Position constraint:
-        //
-        // C = p2 - p1 = x2 + r2 - x1 - r1 = 0
-        //
-        // where x1 and x2 are the positions of the bodies, and r1 and r2 are world-space anchor points
-        // relative to the center of mass of the first and second body respectively.
-        //
-        // Velocity constraint:
-        //
-        // C' = v_r2 - v_r1
-        //    = v2 + cross(w2, r2) - v1 - cross(w1, r1)
-        //    = v2 + r2_skew * w2 - v1 - r2_skew * w1
-        //    = 0
-        //
-        // where v1 and v2 are linear velocities, w1 and w2 are angular velocities,
-        // and r_skew is a skew-symmetric matrix for vector r (see `SymmetricMatrix3::skew`).
-        //
-        // Jacobian:
-        //
-        //      lin1   ang1   lin2   ang2
-        //     [ -E, -r1_skew, E, r2_skew ] J_trans
-        // J = [  0, -axis_x,  0, axis_x  ] J_rot_x (3D only)
-        //     [  0, -axis_y,  0, axis_y  ] J_rot_y (3D only)
-        //
-        // where E is the identity matrix, and axis_x and axis_y are the two orthogonal axes.
-        //
-        // Mass matrix:
-        //
-        //     [ m1E   0   0   0  ]
-        // M = [  0    I1  0   0  ]
-        //     [  0    0  m2E  0  ]
-        //     [  0    0   0   I2 ]
-        //
-        // Effective inverse mass matrix in 2D:
-        //
-        // K = J * M^-1 * J^T
-        //   = [  m1 + m2 + r1_y^2 * i1 + r2_y^2 * i2, -r1_y * r1_x * i1 - r2_y * r2_x * i2 ]
-        //     [ -r1_y * r1_x * i1 - r2_y * r2_x * i2,  m1 + m2 + r1_x^2 * i1 + r2_x^2 * i2 ]
-        //
-        // Effective inverse mass matrix in 3D:
-        //
-        // TODO
-
-        solver_data.effective_mass = solver_data
+        // Update the effective mass of the point-to-point constraint.
+        solver_data.effective_point_constraint_mass = solver_data
             .point_constraint
             .effective_inverse_mass(inverse_mass_sum, &i1, &i2)
             .inverse();
+
+        // Update the effective mass of the angle limit constraint.
+        let inverse_axial_mass = i1 + i2;
+        solver_data.axial_mass = inverse_axial_mass;
+
+        if solver_data.axial_mass > 0.0 {
+            solver_data.axial_mass = 1.0 / solver_data.axial_mass;
+        }
 
         solver_data.coefficients = self.stiffness.compute_coefficients(delta_secs);
     }
@@ -150,7 +134,7 @@ impl ImpulseJoint for PointConstraint {
         &self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        solver_data: &PointConstraintSolverData,
+        solver_data: &HingeJointSolverData,
     ) {
         let inv_mass1 = body1.effective_inverse_mass();
         let inv_mass2 = body2.effective_inverse_mass();
@@ -160,14 +144,15 @@ impl ImpulseJoint for PointConstraint {
         let r1 = solver_data.point_constraint.r1;
         let r2 = solver_data.point_constraint.r2;
         let point_impulse = solver_data.point_constraint.impulse;
+        let axial_impulse = solver_data.lower_impulse - solver_data.upper_impulse;
 
         if body1.rb.is_dynamic() {
             body1.linear_velocity.0 -= point_impulse * inv_mass1;
-            body1.angular_velocity.0 -= inv_inertia1 * cross(r1, point_impulse);
+            body1.angular_velocity.0 -= inv_inertia1 * (cross(r1, point_impulse) + axial_impulse);
         }
         if body2.rb.is_dynamic() {
             body2.linear_velocity.0 += point_impulse * inv_mass2;
-            body2.angular_velocity.0 += inv_inertia2 * cross(r2, point_impulse);
+            body2.angular_velocity.0 += inv_inertia2 * (cross(r2, point_impulse) + axial_impulse);
         }
     }
 
@@ -175,8 +160,8 @@ impl ImpulseJoint for PointConstraint {
         &self,
         body1: &mut RigidBodyQueryItem,
         body2: &mut RigidBodyQueryItem,
-        solver_data: &mut PointConstraintSolverData,
-        _delta_secs: Scalar,
+        solver_data: &mut HingeJointSolverData,
+        delta_secs: Scalar,
         use_bias: bool,
     ) {
         let inv_mass1 = body1.effective_inverse_mass();
@@ -193,16 +178,90 @@ impl ImpulseJoint for PointConstraint {
             solver_data.point_constraint.r2 = *body2.rotation * local_r2;
 
             let inverse_mass_sum = body1.mass.inverse() + body2.mass.inverse();
-            solver_data.effective_mass = solver_data
+            solver_data.effective_point_constraint_mass = solver_data
                 .point_constraint
                 .effective_inverse_mass(inverse_mass_sum, &inv_inertia1, &inv_inertia2)
                 .inverse();
         }
 
+        // Limits
+        if let Some(limit) = self.angle_limit {
+            let angle = solver_data.rotation_difference;
+
+            // Lower limit
+
+            // Angle constraint. Satisfied when C = 0.
+            let c = angle - limit.min;
+
+            let mut bias = 0.0;
+            let mut mass_scale = 1.0;
+            let mut impulse_scale = 0.0;
+
+            if c > 0.0 {
+                // Speculative
+                bias = c / delta_secs;
+            } else if use_bias {
+                bias = solver_data.coefficients.bias * c;
+                mass_scale = solver_data.coefficients.mass_scale;
+                impulse_scale = solver_data.coefficients.impulse_scale;
+            }
+
+            // Angular velocity constraint. Satisfied when C' = 0.
+            let c_vel = body2.angular_velocity.0 - body1.angular_velocity.0;
+
+            let mut impulse = -solver_data.axial_mass * mass_scale * (c_vel + bias)
+                - impulse_scale * solver_data.lower_impulse;
+            let old_impulse = solver_data.lower_impulse;
+            solver_data.lower_impulse = (solver_data.lower_impulse + impulse).max(0.0);
+            impulse = solver_data.lower_impulse - old_impulse;
+
+            if body1.rb.is_dynamic() {
+                body1.angular_velocity.0 -= inv_inertia1 * impulse;
+            }
+            if body2.rb.is_dynamic() {
+                body2.angular_velocity.0 += inv_inertia2 * impulse;
+            }
+
+            // Upper limit
+
+            // Angle constraint. Satisfied when C = 0.
+            let c = limit.max - angle;
+
+            let mut bias = 0.0;
+            let mut mass_scale = 1.0;
+            let mut impulse_scale = 0.0;
+
+            if c > 0.0 {
+                // Speculative
+                bias = c / delta_secs;
+            } else if use_bias {
+                bias = solver_data.coefficients.bias * c;
+                mass_scale = solver_data.coefficients.mass_scale;
+                impulse_scale = solver_data.coefficients.impulse_scale;
+            }
+
+            // Angular velocity constraint. Satisfied when C' = 0.
+            let c_vel = body1.angular_velocity.0 - body2.angular_velocity.0;
+
+            let mut impulse = -solver_data.axial_mass * mass_scale * (c_vel + bias)
+                - impulse_scale * solver_data.upper_impulse;
+            let old_impulse = solver_data.upper_impulse;
+            solver_data.upper_impulse = (solver_data.upper_impulse + impulse).max(0.0);
+            impulse = solver_data.upper_impulse - old_impulse;
+
+            if body1.rb.is_dynamic() {
+                body1.angular_velocity.0 += inv_inertia1 * impulse;
+            }
+            if body2.rb.is_dynamic() {
+                body2.angular_velocity.0 -= inv_inertia2 * impulse;
+            }
+        }
+
+        // Solve point-to-point constraint.
         let impulse = solver_data.point_constraint.compute_incremental_impulse(
             body1,
             body2,
-            &solver_data.effective_mass,
+            &solver_data.effective_point_constraint_mass,
             &solver_data.coefficients,
             use_bias,
         );
@@ -222,14 +281,15 @@ impl ImpulseJoint for PointConstraint {
     }
 }
 
-impl PointConstraint {
-    /// Creates a new point-to-point constraint between two entities.
+impl HingeJoint {
+    /// Creates a new hinge joint between two entities.
     pub fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
             entity1,
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
+            angle_limit: None,
             stiffness: SoftnessParameters::new(1.0, 10.0),
         }
     }
@@ -250,39 +310,23 @@ impl PointConstraint {
         }
     }
 
+    /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
+    pub fn with_angle_limits(self, min: Scalar, max: Scalar) -> Self {
+        Self {
+            angle_limit: Some(AngleLimit::new(min, max)),
+            ..self
+        }
+    }
+
     /// Sets the softness parameters for the joint.
     pub fn with_softness(self, stiffness: SoftnessParameters) -> Self {
         Self { stiffness, ..self }
     }
 }
 
-impl MapEntities for PointConstraint {
+impl MapEntities for HingeJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.entity1 = entity_mapper.map_entity(self.entity1);
         self.entity2 = entity_mapper.map_entity(self.entity2);
-    }
-}
-
-impl ConstraintDebugRender for PointConstraint {
-    fn render(
-        &self,
-        body1: &RigidBodyQueryReadOnlyItem,
-        body2: &RigidBodyQueryReadOnlyItem,
-        color: Color,
-        gizmos: &mut Gizmos<PhysicsGizmos>,
-    ) {
-        let r1 = body1.global_center_of_mass() + *body1.rotation * self.local_anchor1;
-        let r2 = body2.global_center_of_mass() + *body2.rotation * self.local_anchor2;
-
-        #[cfg(feature = "2d")]
-        {
-            gizmos.circle_2d(r1, 0.05, color);
-            gizmos.circle_2d(r2, 0.05, color);
-        }
-        #[cfg(feature = "3d")]
-        {
-            gizmos.sphere(r1, 0.05, color);
-            gizmos.sphere(r2, 0.05, color);
-        }
     }
 }
