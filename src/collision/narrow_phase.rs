@@ -612,7 +612,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     if !overlap {
                         // The AABBs don't overlap. The contact pair will be removed later.
                         contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
-                        contacts.flags.set(ContactPairFlags::TOUCHING, false);
                         state_change_bits.set(contact_id, true);
                     } else {
                         // The AABBs overlap. Compute contacts.
