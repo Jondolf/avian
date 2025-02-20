@@ -1,8 +1,10 @@
 //! A 2D platformer example with one-way platforms to demonstrate
-//! filtering collisions with systems in the `PostProcessCollisions` schedule.
+//! contact modification with `CollisionHooks`.
 //!
 //! Move with arrow keys, jump with Space and descend through
 //! platforms by pressing Space while holding the down arrow.
+
+#![allow(clippy::type_complexity)]
 
 use avian2d::{math::*, prelude::*};
 use bevy::{
@@ -17,10 +19,11 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             ExampleCommonPlugin,
-            // Add physics plugins and specify a units-per-meter scaling factor, 1 meter = 20 pixels.
-            // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
             PhysicsPlugins::default()
+                // Specify a units-per-meter scaling factor, 1 meter = 20 pixels.
+                // The unit allows the engine to tune its parameters for the scale of the world, improving stability.
                 .with_length_unit(20.0)
+                // Add our custom collision hooks.
                 .with_collision_hooks::<PlatformerCollisionHooks>(),
         ))
         .insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.1)))
@@ -39,17 +42,21 @@ struct MovementSpeed(Scalar);
 #[derive(Component)]
 struct JumpImpulse(Scalar);
 
+// Enable contact modification for one-way platforms with the `ActiveCollisionHooks` component.
+// Here we use required components, but you could also add it manually.
 #[derive(Clone, Eq, PartialEq, Debug, Default, Component)]
+#[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
 pub struct OneWayPlatform(HashSet<Entity>);
 
+/// A component to control how an actor interacts with a one-way platform.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component, Reflect)]
 pub enum PassThroughOneWayPlatform {
     #[default]
-    /// Passes through a `OneWayPlatform` if the contact normal is in line with the platform's local-space up vector
+    /// Passes through a `OneWayPlatform` if the contact normal is in line with the platform's local-space up vector.
     ByNormal,
-    /// Always passes through a `OneWayPlatform`, temporarily set this to allow an actor to jump down through a platform
+    /// Always passes through a `OneWayPlatform`, temporarily set this to allow an actor to jump down through a platform.
     Always,
-    /// Never passes through a `OneWayPlatform`
+    /// Never passes through a `OneWayPlatform`.
     Never,
 }
 
@@ -168,27 +175,33 @@ fn pass_through_one_way_platform(
         if keyboard_input.pressed(KeyCode::ArrowDown) && keyboard_input.pressed(KeyCode::Space) {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::Always;
 
-            // Wake up body when it's allowed to drop down.
+            // Wake up the body when it's allowed to drop down.
             // Otherwise it won't fall because gravity isn't simulated.
-            commands.entity(entity).remove::<Sleeping>();
+            commands.queue(WakeUpBody(entity));
         } else {
             *pass_through_one_way_platform = PassThroughOneWayPlatform::ByNormal;
         }
     }
 }
 
+// Define a custom `SystemParam` for our collision hooks.
+// It can have read-only access to queries, resources, and other system parameters.
 #[derive(SystemParam)]
 struct PlatformerCollisionHooks<'w, 's> {
-    one_way_platforms_query: Query<'w, 's, Read<OneWayPlatform>>,
+    one_way_platforms_query: Query<'w, 's, (Read<OneWayPlatform>, Read<GlobalTransform>)>,
+    // NOTE: This precludes a `OneWayPlatform` passing through a `OneWayPlatform`.
     other_colliders_query: Query<
         'w,
         's,
         Option<Read<PassThroughOneWayPlatform>>,
-        (With<Collider>, Without<OneWayPlatform>), // NOTE: This precludes OneWayPlatform passing through a OneWayPlatform
+        (With<Collider>, Without<OneWayPlatform>),
     >,
 }
 
+// Implement the `CollisionHooks` trait for our custom system parameter.
 impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
+    // Below is a description of the logic used for one-way platforms.
+
     /// Allows entities to pass through [`OneWayPlatform`] entities.
     ///
     /// Passing through is achieved by removing the collisions between the [`OneWayPlatform`]
@@ -201,25 +214,13 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
     /// it is allowed to continue to do so, even if [`PassThroughOneWayPlatform`] has been
     /// set to disallow passing through.
     ///
-    /// > Note that this is a very simplistic implementation of one-way
-    /// > platforms to demonstrate filtering collisions via [`PostProcessCollisions`].
-    /// > You will probably want something more robust to implement one-way
-    /// > platforms properly, or may elect to use a sensor collider for your entities instead,
-    /// > which means you won't need to filter collisions at all.
-    ///
     /// #### When an entity is known to already be passing through the [`OneWayPlatform`]
     ///
-    /// Any time an entity begins passing through a [`OneWayPlatform`], it is added to the
-    /// [`OneWayPlatform`]'s set of currently active penetrations, and will be allowed to
-    /// continue to pass through the platform until it is no longer penetrating the platform.
+    /// When an entity begins passing through a [`OneWayPlatform`], it is added to the
+    /// [`OneWayPlatform`]'s set of active penetrations, and will be allowed to continue
+    /// to pass through until it is no longer penetrating the platform.
     ///
-    /// The entity is allowed to continue to pass through the platform as long as at least
-    /// one contact is penetrating.
-    ///
-    /// Once all of the contacts are no longer penetrating the [`OneWayPlatform`], or all contacts
-    /// have stopped, the entity is forgotten about and the logic falls through to the next part.
-    ///
-    /// #### When an entity is NOT known to be passing through the [`OneWayPlatform`]
+    /// #### When an entity is *not* known to be passing through the [`OneWayPlatform`]
     ///
     /// Depending on the setting of [`PassThroughOneWayPlatform`], the entity may be allowed to
     /// pass through.
@@ -242,7 +243,11 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
     /// Even if an entity is changed to [`PassThroughOneWayPlatform::Never`], it will be allowed to pass
     /// through a [`OneWayPlatform`] if it is already penetrating the platform. Once it exits the platform,
     /// it will no longer be allowed to pass through.
-    fn modify_contacts(&self, contacts: &mut Contacts, mut commands: Commands) -> bool {
+    fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
+        // This is the contact modification hook, called after collision detection,
+        // but before constraints are created for the solver. Mutable access to the ECS
+        // is not allowed, but we can queue commands to perform deferred changes.
+
         // Differentiate between which normal of the manifold we should use
         enum RelevantNormal {
             Normal1,
@@ -251,19 +256,24 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
 
         // First, figure out which entity is the one-way platform, and which is the other.
         // Choose the appropriate normal for pass-through depending on which is which.
-        let (platform_entity, one_way_platform, other_entity, relevant_normal) =
-            if let Ok(one_way_platform) = self.one_way_platforms_query.get(contacts.entity1) {
+        let (platform_entity, one_way_platform, platform_transform, other_entity, relevant_normal) =
+            if let Ok((one_way_platform, platform_transform)) =
+                self.one_way_platforms_query.get(contacts.entity1)
+            {
                 (
                     contacts.entity1,
                     one_way_platform,
+                    platform_transform,
                     contacts.entity2,
                     RelevantNormal::Normal1,
                 )
-            } else if let Ok(one_way_platform) = self.one_way_platforms_query.get(contacts.entity2)
+            } else if let Ok((one_way_platform, platform_transform)) =
+                self.one_way_platforms_query.get(contacts.entity2)
             {
                 (
                     contacts.entity2,
                     one_way_platform,
+                    platform_transform,
                     contacts.entity1,
                     RelevantNormal::Normal2,
                 )
@@ -287,7 +297,10 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
                 return false;
             } else {
                 // If it's no longer penetrating us, forget it.
-                commands.queue(OneWayPlatformCommand::Remove(platform_entity, other_entity));
+                commands.queue(OneWayPlatformCommand::Remove {
+                    platform_entity,
+                    entity: other_entity,
+                });
             }
         }
 
@@ -297,26 +310,33 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
             // Pass-through is set to always, so always ignore this collision
             // and register it as an entity that's currently penetrating.
             Ok(Some(PassThroughOneWayPlatform::Always)) => {
-                commands.queue(OneWayPlatformCommand::Add(platform_entity, other_entity));
+                commands.queue(OneWayPlatformCommand::Add {
+                    platform_entity,
+                    entity: other_entity,
+                });
                 false
             }
             // Default behaviour is "by normal".
             Err(_) | Ok(None) | Ok(Some(PassThroughOneWayPlatform::ByNormal)) => {
                 // If all contact normals are in line with the local up vector of this platform,
                 // then this collision should occur: the entity is on top of the platform.
+                let platform_up = platform_transform.up().truncate().adjust_precision();
                 if contacts.manifolds.iter().all(|manifold| {
                     let normal = match relevant_normal {
-                        RelevantNormal::Normal1 => manifold.local_normal1,
-                        RelevantNormal::Normal2 => manifold.local_normal2,
+                        RelevantNormal::Normal1 => manifold.normal,
+                        RelevantNormal::Normal2 => -manifold.normal,
                     };
 
-                    normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
+                    normal.length() > Scalar::EPSILON && normal.dot(platform_up) >= 0.5
                 }) {
                     true
                 } else {
                     // Otherwise, ignore the collision and register
                     // the other entity as one that's currently penetrating.
-                    commands.queue(OneWayPlatformCommand::Add(platform_entity, other_entity));
+                    commands.queue(OneWayPlatformCommand::Add {
+                        platform_entity,
+                        entity: other_entity,
+                    });
                     false
                 }
             }
@@ -324,27 +344,38 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
     }
 }
 
+/// A command to add/remove entities to/from the set of entities
+/// that are currently in contact with a one-way platform.
 enum OneWayPlatformCommand {
-    Add(Entity, Entity),
-    Remove(Entity, Entity),
+    Add {
+        platform_entity: Entity,
+        entity: Entity,
+    },
+    Remove {
+        platform_entity: Entity,
+        entity: Entity,
+    },
 }
 
 impl Command for OneWayPlatformCommand {
     fn apply(self, world: &mut World) {
         match self {
-            OneWayPlatformCommand::Add(platform_entity, entity) => {
-                let Some(mut one_way_platforms) = world.get_mut::<OneWayPlatform>(platform_entity)
-                else {
-                    return;
-                };
-                one_way_platforms.0.insert(entity);
+            OneWayPlatformCommand::Add {
+                platform_entity,
+                entity,
+            } => {
+                if let Some(mut platform) = world.get_mut::<OneWayPlatform>(platform_entity) {
+                    platform.0.insert(entity);
+                }
             }
-            OneWayPlatformCommand::Remove(platform_entity, entity) => {
-                let Some(mut one_way_platforms) = world.get_mut::<OneWayPlatform>(platform_entity)
-                else {
-                    return;
-                };
-                one_way_platforms.0.remove(&entity);
+
+            OneWayPlatformCommand::Remove {
+                platform_entity,
+                entity,
+            } => {
+                if let Some(mut platform) = world.get_mut::<OneWayPlatform>(platform_entity) {
+                    platform.0.remove(&entity);
+                }
             }
         }
     }

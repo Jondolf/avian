@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::{prelude::*, prepare::PrepareSet, utils::get_pos_translation};
+use crate::{prelude::*, prepare::PrepareSet};
 use ancestor_marker::{AncestorMarker, AncestorMarkerPlugin};
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -40,7 +40,7 @@ pub struct SyncPlugin {
 impl SyncPlugin {
     /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
@@ -50,7 +50,7 @@ impl SyncPlugin {
 
 impl Default for SyncPlugin {
     fn default() -> Self {
-        Self::new(PostUpdate)
+        Self::new(FixedPostUpdate)
     }
 }
 
@@ -216,66 +216,33 @@ pub fn transform_to_position(
         &GlobalTransform,
         &PreviousGlobalTransform,
         &mut Position,
-        Option<&AccumulatedTranslation>,
         &mut Rotation,
-        Option<&PreviousRotation>,
-        Option<&ComputedCenterOfMass>,
     )>,
 ) {
-    for (
-        global_transform,
-        previous_transform,
-        mut position,
-        accumulated_translation,
-        mut rotation,
-        previous_rotation,
-        center_of_mass,
-    ) in &mut query
-    {
+    for (global_transform, previous_transform, mut position, mut rotation) in &mut query {
         // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
             continue;
         }
 
-        let transform = global_transform.compute_transform();
-        let previous_transform = previous_transform.compute_transform();
-        let pos = position.0
-            + accumulated_translation.map_or(Vector::ZERO, |t| {
-                get_pos_translation(
-                    t,
-                    &previous_rotation.copied().unwrap_or_default(),
-                    &rotation,
-                    &center_of_mass.copied().unwrap_or_default(),
-                )
-            });
+        let global_transform = global_transform.compute_transform();
 
         #[cfg(feature = "2d")]
         {
-            position.0 = (previous_transform.translation.truncate()
-                + (transform.translation - previous_transform.translation).truncate())
-            .adjust_precision()
-                + (pos - previous_transform.translation.truncate().adjust_precision());
+            position.0 = global_transform.translation.truncate().adjust_precision();
         }
         #[cfg(feature = "3d")]
         {
-            position.0 = (previous_transform.translation
-                + (transform.translation - previous_transform.translation))
-                .adjust_precision()
-                + (pos - previous_transform.translation.adjust_precision());
+            position.0 = global_transform.translation.adjust_precision();
         }
 
         #[cfg(feature = "2d")]
         {
-            let rot = Rotation::from(transform.rotation.adjust_precision());
-            let prev_rot = Rotation::from(previous_transform.rotation.adjust_precision());
-            *rotation = prev_rot * (prev_rot.inverse() * rot) * (prev_rot.inverse() * *rotation);
+            *rotation = Rotation::from(global_transform.rotation.adjust_precision());
         }
         #[cfg(feature = "3d")]
         {
-            rotation.0 = (previous_transform.rotation
-                * (previous_transform.rotation.inverse() * transform.rotation)
-                * (previous_transform.rotation.inverse() * rotation.f32()))
-            .adjust_precision();
+            rotation.0 = global_transform.rotation.adjust_precision();
         }
     }
 }

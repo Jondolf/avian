@@ -188,10 +188,6 @@ impl Mass {
         doc = "let mass = Mass::from_shape(&Sphere::new(1.0), 2.0);"
     )]
     /// ```
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     #[inline]
     pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
         Self(shape.mass(density))
@@ -344,10 +340,6 @@ impl AngularInertia {
     /// // Bevy's primitive shapes can also be used.
     /// let inertia = AngularInertia::from_shape(&Circle::new(1.0), 2.0);
     /// ```
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     #[inline]
     pub fn from_shape<T: ComputeMassProperties>(shape: &T, mass: f32) -> Self {
         Self(shape.angular_inertia(mass))
@@ -682,10 +674,6 @@ impl AngularInertia {
     /// // Bevy's primitive shapes can also be used.
     /// let inertia = AngularInertia::from_shape(&Sphere::new(1.0), 2.0);
     /// ```
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     #[inline]
     pub fn from_shape<T: ComputeMassProperties>(shape: &T, mass: f32) -> Self {
         let principal = shape.principal_angular_inertia(mass);
@@ -916,10 +904,6 @@ impl CenterOfMass {
         doc = "let center_of_mass = CenterOfMass::from_shape(&Sphere::new(1.0));"
     )]
     /// ```
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     #[inline]
     pub fn from_shape<T: ComputeMassProperties>(shape: &T) -> Self {
         Self(shape.center_of_mass())
@@ -973,10 +957,9 @@ pub struct NoAutoCenterOfMass;
 
 /// Triggers the recomputation of mass properties for rigid bodies when automatic computation is re-enabled.
 fn on_remove_no_auto_mass_property(mut world: DeferredWorld, entity: Entity, _id: ComponentId) {
-    world
-        .commands()
-        .entity(entity)
-        .insert(RecomputeMassProperties);
+    if let Some(mut entity_commands) = world.commands().get_entity(entity) {
+        entity_commands.try_insert(RecomputeMassProperties);
+    }
 }
 
 /// A marker component that forces the recomputation of [`ComputedMass`], [`ComputedAngularInertia`]
@@ -1039,10 +1022,6 @@ impl MassPropertiesBundle {
     /// ));
     /// # }
     /// ```
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
     #[inline]
     pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
         shape.mass_properties(density).to_bundle()

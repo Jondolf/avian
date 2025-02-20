@@ -41,12 +41,18 @@ fn cross_platform_determinism_2d() {
             .with_length_unit(0.5)
             .build()
             .disable::<ColliderHierarchyPlugin>(),
+        #[cfg(feature = "bevy_scene")]
+        AssetPlugin::default(),
+        #[cfg(feature = "bevy_scene")]
+        bevy::scene::ScenePlugin::default(),
     ))
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
         1.0 / 64.0,
     )))
     .add_systems(Startup, setup_scene)
     .add_systems(PostProcessCollisions, ignore_joint_collisions);
+
+    app.finish();
 
     // Run the simulation `STEP_COUNT` times.
     for _ in 0..STEP_COUNT {
@@ -58,7 +64,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0x5b90b194;
+    let expected = 0xb9354ab8;
 
     assert!(
         hash == expected,

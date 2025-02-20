@@ -236,6 +236,8 @@ use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
 use derive_more::From;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
+use dynamics::solver::SolverDiagnostics;
+#[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use parry::query::{
     cast_shapes, cast_shapes_nonlinear, NonlinearRigidMotion, ShapeCastHit, ShapeCastOptions,
 };
@@ -520,7 +522,10 @@ fn solve_swept_ccd(
     colliders: Query<(&Collider, &ColliderParent)>,
     time: Res<Time>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
@@ -607,7 +612,7 @@ fn solve_swept_ccd(
                 );
 
                 let sweep_mode = if ccd1.mode == SweepMode::Linear
-                    && body2.ccd.map_or(true, |ccd| ccd.mode == SweepMode::Linear)
+                    && body2.ccd.is_none_or(|ccd| ccd.mode == SweepMode::Linear)
                 {
                     SweepMode::Linear
                 } else {
@@ -672,6 +677,8 @@ fn solve_swept_ccd(
             }
         }
     }
+
+    diagnostics.swept_ccd += start.elapsed();
 }
 
 /// Computes the time of impact for the motion of two objects for Continuous Collision Detection.

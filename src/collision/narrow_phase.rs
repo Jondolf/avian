@@ -21,6 +21,7 @@ use bevy::{
 };
 use bit_vec::BitVec;
 use broad_phase::NewBroadCollisionPairs;
+use dynamics::solver::SolverDiagnostics;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 /// Computes contacts between entities and generates contact constraints for them.
@@ -140,6 +141,11 @@ where
             );
         }
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 #[derive(Resource, Default)]
@@ -231,10 +237,14 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
-    mut par_commands: ParallelCommands,
+    #[cfg(not(feature = "parallel"))] commands: Commands,
+    #[cfg(feature = "parallel")] commands: ParallelCommands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
+    let start = bevy::utils::Instant::now();
+
     narrow_phase.update::<H>(
         &mut broad_collision_pairs,
         &new_broad_collision_pairs,
@@ -242,8 +252,11 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
         &mut hooks.into_inner(),
-        &mut par_commands,
+        &mut commands,
     );
+
+    diagnostics.narrow_phase = start.elapsed();
+    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -256,7 +269,11 @@ fn generate_constraints<C: AnyCollider>(
     default_friction: Res<DefaultFriction>,
     default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
+    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
+    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     constraints.clear();
@@ -345,6 +362,12 @@ fn generate_constraints<C: AnyCollider>(
             );
         }
     }
+
+    collision_diagnostics.generate_constraints = start.elapsed();
+
+    if let Some(mut solver_diagnostics) = solver_diagnostics {
+        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
+    }
 }
 
 /// A system parameter for managing the narrow phase.
@@ -387,7 +410,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
         hooks: &mut H::Item<'_, '_>,
-        par_commands: &mut ParallelCommands,
+        #[cfg(not(feature = "parallel"))] mut commands: Commands,
+        #[cfg(feature = "parallel")] par_commands: ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
@@ -407,7 +431,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Compute contacts for all contact pairs.
-        let bit_vec = self.update_contacts::<H>(delta_secs, hooks, par_commands);
+        let bit_vec = self.update_contacts::<H>(delta_secs, hooks, commands);
 
         // Contact pairs that should be removed.
         // This temporary storage is currently needed because removing pairs while iterating
@@ -720,7 +744,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
                             state_change_bits.set(contact_id, true);
                         }
-                    }
+                    };
 
                     state_change_bits.clone()
                 },
@@ -740,7 +764,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// or expected to start intersecting within the next frame. This includes
     /// [speculative collision](dynamics::ccd#speculative-collision).
     #[allow(clippy::too_many_arguments)]
-    pub fn handle_entity_pair(
+    pub fn handle_entity_pair<H: CollisionHooks>(
         &self,
         contacts: &mut Contacts,
         state_change_bits: &mut BitVec,
@@ -861,7 +885,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// to be detected. A value greater than zero means that contacts are generated
     /// based on the closest points even if the shapes are separated.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub fn compute_contact_pair(
+    pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
         contacts: &mut Contacts,
         state_change_bits: &mut BitVec,
@@ -979,9 +1003,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // When an active body collides with a sleeping body, wake up the sleeping body.
         self.parallel_commands.command_scope(|mut commands| {
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             } else if body2.is_sleeping {
-                commands.entity(body2.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
         });
 

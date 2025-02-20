@@ -7,7 +7,10 @@ use std::marker::PhantomData;
 
 use crate::prelude::*;
 use bevy::{
-    ecs::system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
+    },
     prelude::*,
     utils::HashSet,
 };
@@ -19,6 +22,8 @@ use bevy::{
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
 /// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
+///
+/// [`CollisionHooks`] can be provided with generics to apply custom filtering for collision pairs.
 pub struct BroadPhasePlugin<H: CollisionHooks = ()>(PhantomData<H>);
 
 impl<H: CollisionHooks> Default for BroadPhasePlugin<H> {
@@ -60,6 +65,11 @@ where
 
         physics_schedule
             .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
     }
 }
 
@@ -120,6 +130,14 @@ bitflags::bitflags! {
         const IS_INACTIVE = 1 << 1;
         /// Set if [`CollisionHooks::filter_pairs`] should be called for this entity.
         const CUSTOM_FILTER = 1 << 2;
+    }
+}
+
+impl MapEntities for AabbIntervals {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        for interval in self.0.iter_mut() {
+            interval.0 = entity_mapper.map_entity(interval.0);
+        }
     }
 }
 
@@ -230,6 +248,8 @@ fn collect_collision_pairs<H: CollisionHooks>(
     mut new_broad_collision_pairs: ResMut<NewBroadCollisionPairs>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
     hooks: StaticSystemParam<H>,
+    mut commands: Commands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -237,13 +257,18 @@ fn collect_collision_pairs<H: CollisionHooks>(
         intersections.clear();
     }
 
+    let start = bevy::utils::Instant::now();
+
     sweep_and_prune::<H>(
         intervals,
         &mut broad_collision_pairs.0,
         &mut new_broad_collision_pairs.0,
         &mut aabb_intersection_query,
         &mut hooks.into_inner(),
+        &mut commands,
     );
+
+    diagnostics.broad_phase = start.elapsed();
 }
 
 /// Sorts the entities by their minimum extents along an axis and collects the entity pairs that have intersecting AABBs.
@@ -255,6 +280,7 @@ fn sweep_and_prune<H: CollisionHooks>(
     new_broad_collision_pairs: &mut Vec<(Entity, Entity)>,
     aabb_intersection_query: &mut Query<&mut AabbIntersections>,
     hooks: &mut H::Item<'_, '_>,
+    commands: &mut Commands,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -267,12 +293,13 @@ fn sweep_and_prune<H: CollisionHooks>(
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (entity1, parent1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
         for (entity2, parent2, aabb2, layers2, flags2) in intervals.0.iter().skip(i + 1) {
-            // x doesn't intersect; check this first so we can discard as soon as possible
+            // x doesn't intersect; check this first so we can discard as soon as possible.
             if aabb2.min.x > aabb1.max.x {
                 break;
             }
 
-            // No collisions between bodies that haven't moved or colliders with incompatible layers or colliders with the same parent
+            // No collisions between bodies that haven't moved or colliders with incompatible layers
+            // or colliders with the same parent.
             if flags1
                 .intersection(*flags2)
                 .contains(AabbIntervalFlags::IS_INACTIVE)
@@ -282,13 +309,13 @@ fn sweep_and_prune<H: CollisionHooks>(
                 continue;
             }
 
-            // y doesn't intersect
+            // y doesn't intersect.
             if aabb1.min.y > aabb2.max.y || aabb1.max.y < aabb2.min.y {
                 continue;
             }
 
             #[cfg(feature = "3d")]
-            // z doesn't intersect
+            // z doesn't intersect.
             if aabb1.min.z > aabb2.max.z || aabb1.max.z < aabb2.min.z {
                 continue;
             }
@@ -309,7 +336,7 @@ fn sweep_and_prune<H: CollisionHooks>(
                 .union(*flags2)
                 .contains(AabbIntervalFlags::CUSTOM_FILTER)
             {
-                let should_collide = hooks.filter_pairs(*entity1, *entity2);
+                let should_collide = hooks.filter_pairs(*entity1, *entity2, commands);
                 if !should_collide {
                     continue;
                 }

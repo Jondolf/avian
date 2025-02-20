@@ -120,6 +120,7 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
+// TODO: Remove this in favor of collision hooks.
 /// A schedule where you can add systems to filter or modify collisions
 /// using the [`Collisions`] resource.
 ///
@@ -247,24 +248,27 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
             .delta()
             .mul_f64(physics_clock.relative_speed_f64());
 
-        // Advance physics clock by timestep if not paused.
+        // Advance the physics clock by the timestep if not paused.
         if !is_paused {
             world.resource_mut::<Time<Physics>>().advance_by(timestep);
 
-            // Advance substep clock already so that systems running before the substepping loop have the right delta.
+            // Advance the substep clock already so that systems running
+            // before the substepping loop have the right delta.
             let SubstepCount(substeps) = *world.resource::<SubstepCount>();
             let sub_delta = timestep.div_f64(substeps as f64);
             world.resource_mut::<Time<Substeps>>().advance_by(sub_delta);
         }
 
-        // Set generic `Time` resource to `Time<Physics>`.
+        // Set the generic `Time` resource to `Time<Physics>`.
         *world.resource_mut::<Time>() = world.resource::<Time<Physics>>().as_generic();
 
-        // Advance simulation.
-        trace!("running PhysicsSchedule");
-        schedule.run(world);
+        // Advance the simulation.
+        if !world.resource::<Time>().delta().is_zero() {
+            trace!("running PhysicsSchedule");
+            schedule.run(world);
+        }
 
-        // If physics is paused, reset delta time to stop simulation
+        // If physics is paused, reset delta time to stop the simulation
         // unless users manually advance `Time<Physics>`.
         if is_paused {
             world
@@ -272,7 +276,7 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
                 .advance_by(Duration::ZERO);
         }
 
-        // Set generic `Time` resource back to the clock that was active before physics.
+        // Set the generic `Time` resource back to the clock that was active before physics.
         *world.resource_mut::<Time>() = old_clock;
     });
 

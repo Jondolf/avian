@@ -88,21 +88,14 @@ impl AnyCollider for CircleCollider {
             let local_point1 = local_normal1 * self.radius;
             let local_point2 = local_normal2 * other.radius;
 
-            vec![ContactManifold::new(
-                vec![ContactPoint {
-                    feature_id1: PackedFeatureId::face(0),
-                    feature_id2: PackedFeatureId::face(0),
-                    local_point1,
-                    local_point2,
-                    penetration: sum_radius - distance_squared.sqrt(),
-                    // Impulses are computed by the constraint solver
-                    normal_impulse: 0.0,
-                    tangent_impulse: 0.0,
-                }],
-                local_normal1,
-                local_normal2,
-                0,
-            )]
+            let points = avian2d::data_structures::ArrayVec::from_iter([ContactPoint::new(
+                local_point1,
+                local_point2,
+                sum_radius - distance_squared.sqrt(),
+            )
+            .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0))]);
+
+            vec![ContactManifold::new(points, rotation1 * local_normal1, 0)]
         } else {
             vec![]
         }

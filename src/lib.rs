@@ -44,28 +44,32 @@
 //!
 //! ## Feature Flags
 //!
-//! | Feature                | Description                                                                                                                              | Default feature         |
-//! | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                              | Yes (`avian2d`)    |
-//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                              | Yes (`avian3d`)    |
-//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                            | Yes                     |
-//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                            | No                      |
-//! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature. | Yes                     |
-//! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                         | Yes                     |
-//! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                         | No                      |
+//! | Feature                | Description                                                                                                                                        | Default feature |
+//! | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+//! | `2d`                   | Enables 2D physics. Incompatible with `3d`.                                                                                                        | Yes (`avian2d`) |
+//! | `3d`                   | Enables 3D physics. Incompatible with `2d`.                                                                                                        | Yes (`avian3d`) |
+//! | `f32`                  | Enables `f32` precision for physics. Incompatible with `f64`.                                                                                      | Yes             |
+//! | `f64`                  | Enables `f64` precision for physics. Incompatible with `f32`.                                                                                      | No              |
+//! | `default-collider`     | Enables the default [`Collider`]. Required for [spatial queries](spatial_query). Requires either the `parry-f32` or `parry-f64` feature.           | Yes             |
+//! | `parry-f32`            | Enables the `f32` version of the Parry collision detection library. Also enables the `default-collider` feature.                                   | Yes             |
+//! | `parry-f64`            | Enables the `f64` version of the Parry collision detection library. Also enables the `default-collider` feature.                                   | No              |
 #![cfg_attr(
     feature = "3d",
-    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                        | Yes                     |"
+    doc = "| `collider-from-mesh`   | Allows you to create [`Collider`]s from `Mesh`es.                                                                                                  | Yes             |"
 )]
-//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                                       | Yes                     |
-//! | `bevy_picking`         | Enables physics picking support for [`bevy_picking`] using the [`PhysicsPickingPlugin`]. The plugin must be added separately.             | Yes                     |
-//! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                                    | Yes                     |
-//! | `enhanced-determinism` | Enables cross-platform deterministic math, improving determinism across architectures at a small performance cost.                        | No                      |
-//! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.          | Yes                     |
-//! | `simd`                 | Enables [SIMD] optimizations.                                                                                                             | No                      |
-//! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                                        | No                      |
+//! | `bevy_scene`           | Enables [`ColliderConstructorHierarchy`] to wait until a [`Scene`] has loaded before processing it.                                                 | Yes             |
+//! | `bevy_picking`         | Enables physics picking support for [`bevy_picking`] using the [`PhysicsPickingPlugin`]. The plugin must be added separately.                       | Yes             |
+//! | `bevy_diagnostic`      | Enables writing [physics diagnostics] to the [`DiagnosticsStore`] with the [`PhysicsDiagnosticsPlugin`]. The plugin must be added separately.       | No              |
+//! | `diagnostic_ui`        | Enables [physics diagnostics] UI for performance timers and counters using the [`PhysicsDiagnosticsUiPlugin`]. The plugin must be added separately. | No              |
+//! | `debug-plugin`         | Enables physics debug rendering using the [`PhysicsDebugPlugin`]. The plugin must be added separately.                                              | Yes             |
+//! | `enhanced-determinism` | Enables cross-platform deterministic math, improving determinism across architectures at a small performance cost.                                  | No              |
+//! | `parallel`             | Enables some extra multithreading, which improves performance for larger simulations but can add some overhead for smaller ones.                    | Yes             |
+//! | `simd`                 | Enables [SIMD] optimizations.                                                                                                                       | No              |
+//! | `serialize`            | Enables support for serialization and deserialization using Serde.                                                                                  | No              |
 //!
 //! [`bevy_picking`]: bevy::picking
+//! [physics diagnostics]: diagnostics
+//! [`DiagnosticsStore`]: bevy::diagnostic::DiagnosticsStore
 //! [SIMD]: https://en.wikipedia.org/wiki/Single_instruction,_multiple_data
 //!
 //! ## Add the Plugins
@@ -152,8 +156,8 @@
 )]
 //! - [Get colliding entities](CollidingEntities)
 //! - [Collision events](ContactReportingPlugin#collision-events)
-//! - [Accessing, filtering and modifying collisions](Collisions)
-//! - [Collision hooks](CollisionHooks)
+//! - [Accessing collision data](Collisions)
+//! - [Filtering and modifying contacts with hooks](CollisionHooks)
 //! - [Manual contact queries](contact_query)
 //! - [Temporarily disabling a collider](ColliderDisabled)
 //!
@@ -188,7 +192,11 @@
 //! - [`Transform` interpolation and extrapolation](PhysicsInterpolationPlugin)
 //! - [Physics speed](Physics#physics-speed)
 //! - [Configure simulation fidelity with substeps](SubstepCount)
-//! - [Render physics objects for debugging](PhysicsDebugPlugin)
+//!
+//! ## Debugging and Profiling
+//!
+//! - [Physics debug rendering](PhysicsDebugPlugin)
+//! - [Physics diagnostics](diagnostics)
 //!
 //! ## Scheduling
 //!
@@ -479,6 +487,7 @@ pub extern crate parry3d_f64 as parry;
 pub mod collision;
 #[cfg(feature = "debug-plugin")]
 pub mod debug_render;
+pub mod diagnostics;
 pub mod dynamics;
 pub mod interpolation;
 pub mod math;
@@ -499,8 +508,14 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
+    #[cfg(feature = "diagnostic_ui")]
+    pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
+    #[cfg(feature = "bevy_diagnostic")]
+    pub use crate::diagnostics::PhysicsDiagnosticsPlugin;
     #[cfg(feature = "bevy_picking")]
-    pub use crate::picking::{PhysicsPickable, PhysicsPickingPlugin, PhysicsPickingSettings};
+    pub use crate::picking::{
+        PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
+    };
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
     pub use crate::{
@@ -526,6 +541,7 @@ pub mod prelude {
         PhysicsPlugins,
     };
     pub(crate) use crate::{
+        diagnostics::AppDiagnosticsExt,
         math::*,
         position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
     };
@@ -577,6 +593,10 @@ use prelude::*;
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsPickingPlugin`]          | Enables a physics picking backend for [`bevy_picking`](bevy::picking) (only with `bevy_picking` feature enabled).                                          |
 /// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
+/// | [`PhysicsDiagnosticsPlugin`]      | Writes [physics diagnostics](diagnostics) to the [`DiagnosticsStore`] (only with `bevy_diagnostic` feature enabled).                                       |
+/// | [`PhysicsDiagnosticsUiPlugin`]    | Displays [physics diagnostics](diagnostics) with a debug UI overlay (only with `diagnostic_ui` feature enabled).                                           |
+///
+/// [`DiagnosticsStore`]: bevy::diagnostic::DiagnosticsStore
 ///
 /// Refer to the documentation of the plugins for more information about their responsibilities and implementations.
 ///
@@ -702,11 +722,25 @@ pub struct PhysicsPlugins<Hooks: CollisionHooks = ()> {
 impl PhysicsPlugins {
     /// Creates a [`PhysicsPlugins`] plugin group using the given schedule for running the [`PhysicsSchedule`].
     ///
-    /// The default schedule is `PostUpdate`.
+    /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             schedule: schedule.intern(),
             length_unit: 1.0,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Adds the given [`CollisionHooks`] for user-defined contact filtering and modification.
+    ///
+    /// Returns a [`PhysicsPluginsWithHooks`] plugin group, which wraps the original [`PhysicsPlugins`],
+    /// and applies the provided hooks. Only one set of collision hooks can be defined per application.
+    pub fn with_collision_hooks<H: CollisionHooks + 'static>(self) -> PhysicsPluginsWithHooks<H>
+    where
+        for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+    {
+        PhysicsPluginsWithHooks::<H> {
+            plugins: self,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -803,5 +837,68 @@ where
             .add(SpatialQueryPlugin)
             .add(SyncPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())
+    }
+}
+
+// This type is separate from `PhysicsPlugins` to avoid requiring users to use generics
+// like `PhysicsPlugins::<()>::default()` unless they actually want to use collision hooks.
+/// A [`PhysicsPlugins`] plugin group with [`CollisionHooks`] specified.
+pub struct PhysicsPluginsWithHooks<H: CollisionHooks> {
+    plugins: PhysicsPlugins,
+    _phantom: std::marker::PhantomData<H>,
+}
+
+impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
+    /// Creates a new [`PhysicsPluginsWithHooks`] plugin group using the given [`CollisionHooks`]
+    /// and schedule for running the [`PhysicsSchedule`].
+    ///
+    /// The default schedule is [`FixedPostUpdate`].
+    pub fn new(schedule: impl ScheduleLabel) -> Self {
+        Self {
+            plugins: PhysicsPlugins::new(schedule),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    /// Sets the value used for the [`PhysicsLengthUnit`], a units-per-meter scaling factor
+    /// that adjusts the engine's internal properties to the scale of the world.
+    ///
+    /// See [`PhysicsPlugins::with_length_unit`] for more information.
+    pub fn with_length_unit(mut self, unit: Scalar) -> Self {
+        self.plugins.length_unit = unit;
+        self
+    }
+}
+
+impl<H: CollisionHooks> Default for PhysicsPluginsWithHooks<H> {
+    fn default() -> Self {
+        Self {
+            plugins: PhysicsPlugins::default(),
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<H: CollisionHooks + 'static> PluginGroup for PhysicsPluginsWithHooks<H>
+where
+    for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
+{
+    fn build(self) -> PluginGroupBuilder {
+        // Replace the default collision hooks with the user-defined ones.
+        let builder = self
+            .plugins
+            .build()
+            .disable::<BroadPhasePlugin>()
+            .add(BroadPhasePlugin::<H>::default());
+
+        #[cfg(all(
+            feature = "default-collider",
+            any(feature = "parry-f32", feature = "parry-f64")
+        ))]
+        let builder = builder
+            .disable::<NarrowPhasePlugin<Collider>>()
+            .add(NarrowPhasePlugin::<Collider, H>::default());
+
+        builder
     }
 }
