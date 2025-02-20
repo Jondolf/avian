@@ -378,6 +378,7 @@ fn generate_constraints<C: AnyCollider>(
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     parallel_commands: ParallelCommands<'w, 's>,
     collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
+    colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
     body_query: Query<
         'w,
         's,
@@ -463,6 +464,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             .send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
                     }
 
+                    // Remove from `CollidingEntities`.
+                    Self::remove_colliding_entities(
+                        &mut self.colliding_entities_query,
+                        contact_pair.entity1,
+                        contact_pair.entity2,
+                    );
+
                     // Remove the contact pair.
                     let (entity1, entity2) = (contact_pair.entity1, contact_pair.entity2);
                     to_remove.push((entity1, entity2));
@@ -482,6 +490,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             .send(CollisionStarted(contact_pair.entity1, contact_pair.entity2));
                     }
 
+                    // Add to `CollidingEntities`.
+                    Self::add_colliding_entities(
+                        &mut self.colliding_entities_query,
+                        contact_pair.entity1,
+                        contact_pair.entity2,
+                    );
+
                     debug_assert!(!contact_pair.manifolds.is_empty());
 
                     contact_pair
@@ -500,6 +515,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             .send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
                     }
 
+                    // Remove from `CollidingEntities`.
+                    Self::remove_colliding_entities(
+                        &mut self.colliding_entities_query,
+                        contact_pair.entity1,
+                        contact_pair.entity2,
+                    );
+
                     debug_assert!(contact_pair.manifolds.is_empty());
 
                     contact_pair
@@ -515,6 +537,38 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Remove the contact pairs that were marked for removal.
         for (entity1, entity2) in to_remove.drain(..) {
             self.collisions.remove_collision_pair(entity1, entity2);
+        }
+    }
+
+    /// Adds the colliding entities to their respective `CollidingEntities` components.
+    fn add_colliding_entities(
+        query: &mut Query<&mut CollidingEntities>,
+        entity1: Entity,
+        entity2: Entity,
+    ) {
+        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
+        if let Ok(mut colliding_entities1) = unsafe { query.get_unchecked(entity1) } {
+            colliding_entities1.insert(entity2);
+        }
+        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
+        if let Ok(mut colliding_entities2) = unsafe { query.get_unchecked(entity2) } {
+            colliding_entities2.insert(entity1);
+        }
+    }
+
+    /// Removes the colliding entities from their respective `CollidingEntities` components.
+    fn remove_colliding_entities(
+        query: &mut Query<&mut CollidingEntities>,
+        entity1: Entity,
+        entity2: Entity,
+    ) {
+        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
+        if let Ok(mut colliding_entities1) = unsafe { query.get_unchecked(entity1) } {
+            colliding_entities1.remove(&entity2);
+        }
+        // SAFETY: There are no other mutable references to this entity's `CollidingEntities`.
+        if let Ok(mut colliding_entities2) = unsafe { query.get_unchecked(entity2) } {
+            colliding_entities2.remove(&entity1);
         }
     }
 
