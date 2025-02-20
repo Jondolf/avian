@@ -89,7 +89,6 @@ impl Plugin for PhysicsSchedulePlugin {
                     PhysicsStepSet::BroadPhase,
                     PhysicsStepSet::NarrowPhase,
                     PhysicsStepSet::Solver,
-                    PhysicsStepSet::ReportContacts,
                     PhysicsStepSet::Sleeping,
                     PhysicsStepSet::SpatialQuery,
                     PhysicsStepSet::Last,
@@ -199,10 +198,9 @@ pub enum PhysicsSet {
 /// 2. Broad phase
 /// 3. Narrow phase
 /// 4. Solver
-/// 5. Report contacts (send collision events)
-/// 6. Sleeping
-/// 7. Spatial queries
-/// 8. Last (empty by default)
+/// 5. Sleeping
+/// 6. Spatial queries
+/// 7. Last (empty by default)
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
     /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
@@ -220,10 +218,6 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SolverPlugin`] and [`SubstepSchedule`].
     Solver,
-    /// Responsible for sending collision events and updating [`CollidingEntities`].
-    ///
-    /// See [`ContactReportingPlugin`].
-    ReportContacts,
     /// Responsible for controlling when bodies should be deactivated and marked as [`Sleeping`].
     ///
     /// See [`SleepingPlugin`].

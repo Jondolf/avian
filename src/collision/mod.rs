@@ -9,24 +9,50 @@
 //!
 //! - [`BroadPhasePlugin`]: Performs intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
 //! - [`NarrowPhasePlugin`]: Computes [`Contacts`] for each pair in [`BroadCollisionPairs`], adding them to [`Collisions`].
-//! - [`ContactReportingPlugin`] (optional): Sends collision events and updates [`CollidingEntities`] based on [`Collisions`].
 //!
 //! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
 //!
 //! You can also find several utility methods for computing contacts in [`contact_query`].
+//!
+//! # Collision Events
+//!
+//! The following collision events are sent each frame:
+//!
+//! - [`CollisionStarted`]
+//! - [`CollisionEnded`]
+//!
+//! You can listen to them with normal event readers:
+//!
+//! ```no_run
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+//! use bevy::prelude::*;
+//!
+//! fn main() {
+//!     App::new()
+//!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+//!         .add_systems(Update, print_collisions)
+//!         .run();
+//! }
+//!
+//! fn print_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
+//!     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
+//!         println!("Entities {entity1} and {entity2} are colliding");
+//!     }
+//! }
+//! ```
 
 pub mod broad_phase;
+pub mod collision_events;
 #[cfg(all(
     feature = "default-collider",
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 pub mod contact_query;
-pub mod contact_reporting;
 pub mod hooks;
 pub mod narrow_phase;
 
 pub mod collider;
-use bit_vec::BitVec;
 pub use collider::*;
 
 mod layers;
@@ -80,7 +106,7 @@ use bevy::prelude::*;
 /// # Implementation Details
 ///
 /// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
-/// and the previous frame, which is used for things like [collision events](ContactReportingPlugin#collision-events).
+/// and the previous frame, which is used for things like [collision events](collision#collision-events).
 ///
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
@@ -91,7 +117,6 @@ pub struct Collisions {
     pub graph: UnGraph<Entity, Contacts>,
     /// A map from entities to their corresponding node indices in the contact graph.
     entity_graph_index: EntityDataIndex<NodeIndex>,
-    pub(crate) contact_state_bits: BitVec,
 }
 
 impl Collisions {

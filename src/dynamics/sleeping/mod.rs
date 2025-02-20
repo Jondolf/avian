@@ -47,8 +47,11 @@ impl Plugin for SleepingPlugin {
                 .before(PhysicsStepSet::BroadPhase),
         );
 
-        physics_schedule
-            .add_systems(wake_on_collision_ended.in_set(PhysicsStepSet::ReportContacts));
+        physics_schedule.add_systems(
+            wake_on_collision_ended
+                .after(PhysicsStepSet::Solver)
+                .before(PhysicsStepSet::Sleeping),
+        );
 
         physics_schedule.add_systems(
             (|mut last_physics_tick: ResMut<LastPhysicsTick>,
@@ -309,7 +312,6 @@ fn wake_on_collision_ended(
             continue;
         }
 
-        // Here we could use CollidingEntities, but it'd be empty if the ContactReportingPlugin was disabled.
         let mut colliding_entities = collisions.collisions_with_entity(entity).map(|c| {
             if entity == c.entity1 {
                 c.entity2

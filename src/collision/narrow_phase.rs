@@ -84,6 +84,9 @@ where
             .init_resource::<DefaultRestitution>()
             .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
+        app.add_event::<CollisionStarted>()
+            .add_event::<CollisionEnded>();
+
         if self.generate_constraints {
             app.init_resource::<ContactConstraints>();
         }

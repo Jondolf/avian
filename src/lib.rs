@@ -155,7 +155,7 @@
     doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
-//! - [Collision events](ContactReportingPlugin#collision-events)
+//! - [Collision events](collision#collision-events)
 //! - [Accessing collision data](Collisions)
 //! - [Filtering and modifying contacts with hooks](CollisionHooks)
 //! - [Manual contact queries](contact_query)
@@ -523,9 +523,7 @@ pub mod prelude {
             self,
             broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
             collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
-            contact_reporting::{
-                Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
-            },
+            collision_events::{CollisionEnded, CollisionStarted},
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,
@@ -577,7 +575,6 @@ use prelude::*;
 /// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
 /// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
 /// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
-/// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
@@ -808,7 +805,6 @@ impl PluginGroup for PhysicsPlugins {
 
         builder
             .add(BroadPhasePlugin::<()>::default())
-            .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SolverSchedulePlugin)
