@@ -235,7 +235,7 @@ pub fn contact_manifolds(
                 .with_feature_ids(contact.fid1.into(), contact.fid2.into())
             });
 
-            let manifold = ContactManifold::new(points, local_normal, manifold_index);
+            let manifold = ContactManifold::new(points, normal, manifold_index);
 
             manifold_index += 1;
 
