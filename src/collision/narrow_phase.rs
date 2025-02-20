@@ -749,7 +749,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// or expected to start intersecting within the next frame. This includes
     /// [speculative collision](dynamics::ccd#speculative-collision).
     #[allow(clippy::too_many_arguments)]
-    pub fn handle_entity_pair<H: CollisionHooks>(
+    pub fn handle_entity_pair(
         &self,
         contacts: &mut Contacts,
         state_change_bits: &mut BitVec,
@@ -853,7 +853,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let max_contact_distance =
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
-        self.compute_contact_pair::<H>(
+        self.compute_contact_pair(
             contacts,
             state_change_bits,
             contact_id,
@@ -870,7 +870,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// to be detected. A value greater than zero means that contacts are generated
     /// based on the closest points even if the shapes are separated.
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-    pub fn compute_contact_pair<H: CollisionHooks>(
+    pub fn compute_contact_pair(
         &self,
         contacts: &mut Contacts,
         state_change_bits: &mut BitVec,
