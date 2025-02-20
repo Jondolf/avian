@@ -2,6 +2,7 @@
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use dynamics::solver::softness_parameters::SoftnessParameters;
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
@@ -16,7 +17,7 @@ fn main() {
             brightness: 2.0,
             ..default()
         })
-        .insert_resource(SubstepCount(80))
+        .insert_resource(SubstepCount(60))
         .insert_resource(Gravity(Vector::NEG_Y * 9.81 * 2.0))
         .add_systems(Startup, (setup, ui))
         .add_systems(Update, movement)
@@ -67,7 +68,7 @@ fn setup(
             SphericalJoint::new(previous_particle, current_particle)
                 .with_local_anchor_1(Vector::NEG_Y * particle_radius * 1.1)
                 .with_local_anchor_2(Vector::Y * particle_radius * 1.1)
-                .with_compliance(0.00001),
+                .with_point_softness(SoftnessParameters::new(1.0, 80.0)),
         );
 
         previous_particle = current_particle;

@@ -127,7 +127,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_joints::<DistanceJoint>,
                     debug_render_joints::<RevoluteJoint>,
                     #[cfg(feature = "3d")]
-                    debug_render_joints::<SphericalJoint>,
+                    debug_render_constraints::<SphericalJoint>,
                     #[cfg(feature = "3d")]
                     debug_render_constraints::<HingeJoint>,
                     #[cfg(feature = "3d")]

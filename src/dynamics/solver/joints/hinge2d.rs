@@ -310,7 +310,7 @@ impl HingeJoint {
         }
     }
 
-    /// Sets the limits of the allowed relative rotation around the `aligned_axis`.
+    /// Sets the limits of the allowed relative rotation.
     pub fn with_angle_limits(self, min: Scalar, max: Scalar) -> Self {
         Self {
             angle_limit: Some(AngleLimit::new(min, max)),

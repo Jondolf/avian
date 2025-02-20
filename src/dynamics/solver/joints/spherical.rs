@@ -1,289 +1,222 @@
 //! [`SphericalJoint`] component.
 
-use crate::{dynamics::solver::xpbd::*, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::{
+        component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
         reflect::ReflectMapEntities,
     },
     prelude::*,
 };
+use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
+
+use super::{point_constraint::PointConstraintSolverData, swing_limit::SwingLimitSolverData};
 
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
 pub struct SphericalJoint {
-    /// First entity constrained by the joint.
-    pub entity1: Entity,
-    /// Second entity constrained by the joint.
-    pub entity2: Entity,
-    /// Attachment point on the first body.
-    pub local_anchor1: Vector,
-    /// Attachment point on the second body.
-    pub local_anchor2: Vector,
-    /// An axis that the attached bodies can swing around. This is normally the x-axis.
-    pub swing_axis: Vector3,
-    /// An axis that the attached bodies can twist around. This is normally the y-axis.
-    pub twist_axis: Vector3,
-    /// The extents of the allowed relative rotation of the bodies around the `swing_axis`.
-    pub swing_limit: Option<AngleLimit>,
-    /// The extents of the allowed relative rotation of the bodies around the `twist_axis`.
-    pub twist_limit: Option<AngleLimit>,
-    /// Linear damping applied by the joint.
-    pub damping_linear: Scalar,
-    /// Angular damping applied by the joint.
-    pub damping_angular: Scalar,
-    /// Lagrange multiplier for the positional correction.
-    pub position_lagrange: Scalar,
-    /// Lagrange multiplier for the angular correction caused by the swing limits.
-    pub swing_lagrange: Scalar,
-    /// Lagrange multiplier for the angular correction caused by the twist limits.
-    pub twist_lagrange: Scalar,
-    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
-    pub compliance: Scalar,
-    /// The force exerted by the joint.
-    pub force: Vector,
-    /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `swing_axis`.
-    pub swing_torque: Torque,
-    /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `twist_axis`.
-    pub twist_torque: Torque,
+    /// The point-to-point constraint of the joint.
+    pub point_constraint: PointConstraint,
+
+    /// The swing limit of the joint.
+    pub swing_limit: Option<SwingLimit>,
 }
 
-impl XpbdConstraint<2> for SphericalJoint {
+/// Cached data required by the impulse-based solver for [`SphericalJoint`].
+#[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
+pub struct SphericalJointSolverData {
+    /// The point-to-point constraint part of the spherical joint.
+    pub point_constraint: PointConstraintSolverData,
+
+    /// The swing limit constraint part of the spherical joint.
+    pub swing_limit: SwingLimitSolverData,
+
+    /// The effective mass of the point-to-point constraint.
+    pub effective_point_constraint_mass: SymmetricMatrix3,
+
+    /// Coefficients computed for the spring parameters of the constraint.
+    pub coefficients: SoftnessCoefficients,
+}
+
+impl Component for SphericalJoint {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_add(|mut world, entity, _| {
+            world
+                .commands()
+                .entity(entity)
+                .insert(SphericalJointSolverData::default());
+        });
+    }
+}
+
+impl EntityConstraint<2> for SphericalJoint {
     fn entities(&self) -> [Entity; 2] {
-        [self.entity1, self.entity2]
+        [self.point_constraint.entity1, self.point_constraint.entity2]
+    }
+}
+
+impl ImpulseJoint for SphericalJoint {
+    type SolverData = SphericalJointSolverData;
+
+    fn prepare(
+        &self,
+        body1: &RigidBodyQueryReadOnlyItem,
+        body2: &RigidBodyQueryReadOnlyItem,
+        solver_data: &mut SphericalJointSolverData,
+        delta_secs: Scalar,
+    ) {
+        // Prepare the point-to-point constraint.
+        self.point_constraint
+            .prepare(body1, body2, &mut solver_data.point_constraint, delta_secs);
+
+        // Prepare the swing limit constraint.
+        if let Some(swing_limit) = &self.swing_limit {
+            swing_limit.prepare(body1, body2, &mut solver_data.swing_limit, delta_secs);
+        }
     }
 
-    fn clear_lagrange_multipliers(&mut self) {
-        self.position_lagrange = 0.0;
-        self.swing_lagrange = 0.0;
-        self.twist_lagrange = 0.0;
+    fn warm_start(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        solver_data: &SphericalJointSolverData,
+    ) {
+        // Warm start the point-to-point constraint.
+        self.point_constraint
+            .warm_start(body1, body2, &solver_data.point_constraint);
+
+        // Warm start the swing limit constraint.
+        if let Some(swing_limit) = &self.swing_limit {
+            swing_limit.warm_start(body1, body2, &solver_data.swing_limit);
+        }
     }
 
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
-        let [body1, body2] = bodies;
-        let compliance = self.compliance;
-
-        // Align positions
-        let mut lagrange = self.position_lagrange;
-        self.force = self.align_position(
+    fn solve(
+        &self,
+        body1: &mut RigidBodyQueryItem,
+        body2: &mut RigidBodyQueryItem,
+        solver_data: &mut SphericalJointSolverData,
+        delta_secs: Scalar,
+        use_bias: bool,
+    ) {
+        // Solve the point-to-point constraint.
+        self.point_constraint.solve(
             body1,
             body2,
-            self.local_anchor1,
-            self.local_anchor2,
-            &mut lagrange,
-            compliance,
-            dt,
+            &mut solver_data.point_constraint,
+            delta_secs,
+            use_bias,
         );
-        self.position_lagrange = lagrange;
 
-        // Apply swing limits
-        self.swing_torque = self.apply_swing_limits(body1, body2, dt);
-
-        // Apply twist limits
-        self.twist_torque = self.apply_twist_limits(body1, body2, dt);
-    }
-}
-
-impl Joint for SphericalJoint {
-    fn new(entity1: Entity, entity2: Entity) -> Self {
-        Self {
-            entity1,
-            entity2,
-            local_anchor1: Vector::ZERO,
-            local_anchor2: Vector::ZERO,
-            swing_axis: Vector3::X,
-            twist_axis: Vector3::Y,
-            swing_limit: None,
-            twist_limit: None,
-            damping_linear: 1.0,
-            damping_angular: 1.0,
-            position_lagrange: 0.0,
-            swing_lagrange: 0.0,
-            twist_lagrange: 0.0,
-            compliance: 0.0,
-            force: Vector::ZERO,
-            #[cfg(feature = "2d")]
-            swing_torque: 0.0,
-            #[cfg(feature = "3d")]
-            swing_torque: Vector::ZERO,
-            #[cfg(feature = "2d")]
-            twist_torque: 0.0,
-            #[cfg(feature = "3d")]
-            twist_torque: Vector::ZERO,
+        // Solve the swing limit constraint.
+        if let Some(swing_limit) = &self.swing_limit {
+            swing_limit.solve(
+                body1,
+                body2,
+                &mut solver_data.swing_limit,
+                delta_secs,
+                use_bias,
+            );
         }
-    }
-
-    fn with_compliance(self, compliance: Scalar) -> Self {
-        Self { compliance, ..self }
-    }
-
-    fn with_local_anchor_1(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor1: anchor,
-            ..self
-        }
-    }
-
-    fn with_local_anchor_2(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor2: anchor,
-            ..self
-        }
-    }
-
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
-        Self {
-            damping_linear: damping,
-            ..self
-        }
-    }
-
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
-        Self {
-            damping_angular: damping,
-            ..self
-        }
-    }
-
-    fn local_anchor_1(&self) -> Vector {
-        self.local_anchor1
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        self.local_anchor2
-    }
-
-    fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 }
 
 impl SphericalJoint {
-    /// Sets the limits of the allowed relative rotation around the `swing_axis`.
-    pub fn with_swing_limits(self, min: Scalar, max: Scalar) -> Self {
+    /// Creates a new spherical joint between two entities.
+    pub fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
-            swing_limit: Some(AngleLimit::new(min, max)),
-            ..self
+            point_constraint: PointConstraint::new(entity1, entity2),
+            swing_limit: None,
         }
     }
 
-    /// Sets the limits of the allowed relative rotation around the `twist_axis`.
-    #[cfg(feature = "3d")]
-    pub fn with_twist_limits(self, min: Scalar, max: Scalar) -> Self {
-        Self {
-            twist_limit: Some(AngleLimit::new(min, max)),
-            ..self
-        }
+    /// Sets the anchor point of the joint in the local space of the first entity.
+    pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
+        self.point_constraint.local_anchor1 = anchor;
+        self
     }
 
-    /// Applies angle limits to limit the relative rotation of the bodies around the `swing_axis`.
-    fn apply_swing_limits(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        dt: Scalar,
-    ) -> Torque {
-        if let Some(joint_limit) = self.swing_limit {
-            let a1 = *body1.rotation * self.swing_axis;
-            let a2 = *body2.rotation * self.swing_axis;
-
-            let n = a1.cross(a2);
-            let n_magnitude = n.length();
-
-            if n_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
-            }
-
-            let n = n / n_magnitude;
-
-            if let Some(correction) = joint_limit.compute_correction(n, a1, a2, PI) {
-                let mut lagrange = self.swing_lagrange;
-                let torque = self.align_orientation(
-                    body1,
-                    body2,
-                    correction,
-                    &mut lagrange,
-                    self.compliance,
-                    dt,
-                );
-                self.swing_lagrange = lagrange;
-                return torque;
-            }
-        }
-        Torque::ZERO
+    /// Sets the anchor point of the joint in the local space of the second entity.
+    pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
+        self.point_constraint.local_anchor2 = anchor;
+        self
     }
 
-    /// Applies angle limits to limit the relative rotation of the bodies around the `twist_axis`.
-    fn apply_twist_limits(
-        &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
-        dt: Scalar,
-    ) -> Torque {
-        if let Some(joint_limit) = self.twist_limit {
-            let a1 = *body1.rotation * self.swing_axis;
-            let a2 = *body2.rotation * self.swing_axis;
+    /// Sets the swing axis attached to the first body in its local space.
+    pub fn with_local_swing_axis1(mut self, axis: Vector) -> Self {
+        let swing_limit = self.swing_limit.get_or_insert(SwingLimit::new(PI));
+        swing_limit.local_axis1 = axis;
+        self
+    }
 
-            let b1 = *body1.rotation * self.twist_axis;
-            let b2 = *body2.rotation * self.twist_axis;
+    /// Sets the swing axis attached to the second body in its local space.
+    pub fn with_local_swing_axis2(mut self, axis: Vector) -> Self {
+        let swing_limit = self.swing_limit.get_or_insert(SwingLimit::new(PI));
+        swing_limit.local_axis2 = axis;
+        self
+    }
 
-            let n = a1 + a2;
-            let n_magnitude = n.length();
+    /// Sets the limits of the allowed relative rotation around the swing axis.
+    pub fn with_swing_limits(mut self, max_angle: Scalar) -> Self {
+        let swing_limit = self.swing_limit.get_or_insert(SwingLimit::new(PI));
+        swing_limit.max_angle = max_angle;
+        self
+    }
 
-            if n_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
-            }
+    /// Sets the softness parameters of the joint.
+    pub fn with_point_softness(mut self, softness: SoftnessParameters) -> Self {
+        self.point_constraint.stiffness = softness;
+        self
+    }
 
-            let n = n / n_magnitude;
-
-            let n1 = b1 - n.dot(b1) * n;
-            let n2 = b2 - n.dot(b2) * n;
-            let n1_magnitude = n1.length();
-            let n2_magnitude = n2.length();
-
-            if n1_magnitude <= Scalar::EPSILON || n2_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
-            }
-
-            let n1 = n1 / n1_magnitude;
-            let n2 = n2 / n2_magnitude;
-
-            let max_correction = if a1.dot(a2) > -0.5 { 2.0 * PI } else { dt };
-
-            if let Some(correction) = joint_limit.compute_correction(n, n1, n2, max_correction) {
-                let mut lagrange = self.twist_lagrange;
-                let torque = self.align_orientation(
-                    body1,
-                    body2,
-                    correction,
-                    &mut lagrange,
-                    self.compliance,
-                    dt,
-                );
-                self.twist_lagrange = lagrange;
-                return torque;
-            }
-        }
-        Torque::ZERO
+    /// Sets the softness parameters of the swing limit.
+    pub fn with_swing_limit_softness(mut self, softness: SoftnessParameters) -> Self {
+        let swing_limit = self.swing_limit.get_or_insert(SwingLimit::new(PI));
+        swing_limit.stiffness = softness;
+        self
     }
 }
 
-impl PositionConstraint for SphericalJoint {}
-
-impl AngularConstraint for SphericalJoint {}
-
 impl MapEntities for SphericalJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.point_constraint.entity1 = entity_mapper.map_entity(self.point_constraint.entity1);
+        self.point_constraint.entity2 = entity_mapper.map_entity(self.point_constraint.entity2);
+    }
+}
+
+impl ConstraintDebugRender for SphericalJoint {
+    fn render(
+        &self,
+        body1: &RigidBodyQueryReadOnlyItem,
+        body2: &RigidBodyQueryReadOnlyItem,
+        color: Color,
+        gizmos: &mut Gizmos<PhysicsGizmos>,
+    ) {
+        let r1 =
+            body1.global_center_of_mass() + *body1.rotation * self.point_constraint.local_anchor1;
+        let r2 =
+            body2.global_center_of_mass() + *body2.rotation * self.point_constraint.local_anchor2;
+
+        #[cfg(feature = "2d")]
+        {
+            gizmos.circle_2d(r1, 0.05, color);
+            gizmos.circle_2d(r2, 0.05, color);
+        }
+        #[cfg(feature = "3d")]
+        {
+            gizmos.sphere(r1, 0.05, color);
+            gizmos.sphere(r2, 0.05, color);
+        }
     }
 }

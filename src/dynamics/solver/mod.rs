@@ -101,6 +101,8 @@ impl Plugin for SolverPlugin {
                         prev_rot.0 = *rot;
                     }
                 },
+                #[cfg(feature = "3d")]
+                prepare_joints::<SphericalJoint>.ambiguous_with_all(),
                 prepare_joints::<HingeJoint>.ambiguous_with_all(),
                 prepare_joints::<AngularHinge>.ambiguous_with_all(),
                 prepare_joints::<PointConstraint>.ambiguous_with_all(),
@@ -134,6 +136,8 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(
             (
                 warm_start,
+                #[cfg(feature = "3d")]
+                warm_start_joints::<SphericalJoint>,
                 warm_start_joints::<HingeJoint>,
                 warm_start_joints::<AngularHinge>,
                 warm_start_joints::<PointConstraint>,
@@ -146,6 +150,8 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(
             (
                 solve_contacts::<true>,
+                #[cfg(feature = "3d")]
+                solve_joints::<SphericalJoint, true>,
                 solve_joints::<HingeJoint, true>,
                 solve_joints::<AngularHinge, true>,
                 solve_joints::<PointConstraint, true>,
@@ -159,6 +165,8 @@ impl Plugin for SolverPlugin {
         substeps.add_systems(
             (
                 solve_contacts::<false>,
+                #[cfg(feature = "3d")]
+                solve_joints::<SphericalJoint, false>,
                 solve_joints::<HingeJoint, false>,
                 solve_joints::<AngularHinge, false>,
                 solve_joints::<PointConstraint, false>,
