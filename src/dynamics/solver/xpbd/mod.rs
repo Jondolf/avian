@@ -377,10 +377,13 @@ pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTIT
 
             // At least one of the participating bodies is active, so wake up any sleeping bodies
             for body in &mut bodies {
-                body.time_sleeping.0 = 0.0;
+                // Reset the sleep timer
+                if let Some(time_sleeping) = body.time_sleeping.as_mut() {
+                    time_sleeping.0 = 0.0;
+                }
 
                 if body.is_sleeping {
-                    commands.entity(body.entity).remove::<Sleeping>();
+                    commands.queue(WakeUpBody(body.entity));
                 }
             }
 

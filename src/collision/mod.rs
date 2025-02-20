@@ -34,6 +34,9 @@ pub use layers::*;
 mod feature_id;
 pub use feature_id::PackedFeatureId;
 
+mod diagnostics;
+pub use diagnostics::CollisionDiagnostics;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
@@ -202,7 +205,7 @@ impl Collisions {
         let reserve = if self.get_internal().is_empty() {
             iter.size_hint().0
         } else {
-            (iter.size_hint().0 + 1) / 2
+            iter.size_hint().0.div_ceil(2)
         };
         self.get_internal_mut().reserve(reserve);
         iter.for_each(move |contacts| {
