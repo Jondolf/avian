@@ -269,12 +269,7 @@ fn kinematic_controller_collisions(
     bodies: Query<&RigidBody>,
     collider_parents: Query<&ColliderParent, Without<Sensor>>,
     mut character_controllers: Query<
-        (
-            &mut Position,
-            &Rotation,
-            &mut LinearVelocity,
-            Option<&MaxSlopeAngle>,
-        ),
+        (&mut Position, &mut LinearVelocity, Option<&MaxSlopeAngle>),
         (With<RigidBody>, With<CharacterController>),
     >,
     time: Res<Time>,
@@ -295,7 +290,7 @@ fn kinematic_controller_collisions(
         let character_rb: RigidBody;
         let is_other_dynamic: bool;
 
-        let (mut position, rotation, mut linear_velocity, max_slope_angle) =
+        let (mut position, mut linear_velocity, max_slope_angle) =
             if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
                 is_first = true;
                 character_rb = *bodies.get(collider_parent1.get()).unwrap();
@@ -323,15 +318,15 @@ fn kinematic_controller_collisions(
         // Each contact in a single manifold shares the same contact normal.
         for manifold in contacts.manifolds.iter() {
             let normal = if is_first {
-                -manifold.global_normal1(rotation)
+                -manifold.normal
             } else {
-                -manifold.global_normal2(rotation)
+                manifold.normal
             };
 
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 if contact.penetration > 0.0 {
                     position.0 += normal * contact.penetration;
                 }
