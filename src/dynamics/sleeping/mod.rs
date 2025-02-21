@@ -283,6 +283,7 @@ fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<S
     }
 }
 
+// TODO: Get rid of this
 /// Wakes up bodies when they stop colliding.
 #[allow(clippy::type_complexity)]
 fn wake_on_collision_ended(
@@ -338,7 +339,7 @@ fn wake_on_collision_ended(
     }
 
     // Wake up bodies when a collision ends, for example when one of the bodies is despawned.
-    for contacts in collisions.iter().filter(|c| c.collision_stopped()) {
+    for contacts in collisions.iter().filter(|c| c.collision_ended()) {
         if let Ok((_, mut time_sleeping, is_sleeping)) = sleeping.get_mut(contacts.entity1) {
             if is_sleeping {
                 commands.entity(contacts.entity1).remove::<Sleeping>();

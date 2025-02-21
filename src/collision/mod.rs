@@ -405,9 +405,19 @@ impl Contacts {
         self.flags.contains(ContactPairFlags::STARTED_TOUCHING)
     }
 
-    /// Returns `true` if a collision stopped during the current frame.
-    pub fn collision_stopped(&self) -> bool {
+    /// Returns `true` if a collision ended during the current frame.
+    pub fn collision_ended(&self) -> bool {
         self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
+    }
+
+    /// Returns `true` if the AABBs of the colliders are no longer overlapping.
+    pub fn disjoint_aabbs(&self) -> bool {
+        self.flags.contains(ContactPairFlags::DISJOINT_AABB)
+    }
+
+    /// Returns `true` if collision events are enabled for the contact pair.
+    pub fn events_enabled(&self) -> bool {
+        self.flags.contains(ContactPairFlags::CONTACT_EVENTS)
     }
 
     /// Returns the contact with the largest penetration depth.
