@@ -67,7 +67,7 @@ pub use diagnostics::CollisionDiagnostics;
 use crate::{
     data_structures::{
         entity_data_index::EntityDataIndex,
-        graph::{EdgeIndex, NodeIndex, UnGraph},
+        graph::{NodeIndex, UnGraph},
     },
     prelude::*,
 };
@@ -208,9 +208,10 @@ impl Collisions {
     /// If a collision entry with the same entities already exists, it will be overwritten,
     /// and the old value will be returned. Otherwise, `None` is returned.
     ///
-    /// **Note**: Manually inserting collisions can be error prone and should generally be avoided.
-    /// If you simply want to modify existing collisions, consider using methods like [`get_mut`](Self::get_mut)
-    /// or [`iter_mut`](Self::iter_mut).
+    /// # Warning
+    ///
+    /// Inserting a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
     pub fn insert_collision_pair(&mut self, contacts: Contacts) {
         let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
             contacts.entity1,
@@ -231,33 +232,16 @@ impl Collisions {
         }
     }
 
-    /// Extends [`Collisions`] with all collision pairs in the given iterable.
-    ///
-    /// This is mostly equivalent to calling [`insert_collision_pair`](Self::insert_collision_pair)
-    /// for each of the collision pairs.
-    pub fn extend<I: IntoIterator<Item = Contacts>>(&mut self, collisions: I) {
-        // (Note: this is a copy of `std`/`hashbrown`/`indexmap`'s reservation logic.)
-        // Keys may be already present or show multiple times in the iterator.
-        // Reserve the entire hint lower bound if the map is empty.
-        // Otherwise reserve half the hint (rounded up), so the map
-        // will only resize twice in the worst case.
-        let iter = collisions.into_iter();
-        let reserve = if self.graph.raw_edges().is_empty() {
-            iter.size_hint().0
-        } else {
-            iter.size_hint().0.div_ceil(2)
-        };
-        self.graph.reserve_edges(reserve);
-        iter.for_each(move |contacts| {
-            self.insert_collision_pair(contacts);
-        });
-    }
-
-    // TODO: Retain
-
     /// Removes a collision between two entites and returns its value.
     ///
     /// The order of the entities does not matter.
+    ///
+    /// # Warning
+    ///
+    /// Removing a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    ///
+    /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
@@ -271,17 +255,31 @@ impl Collisions {
             .and_then(|edge| self.graph.remove_edge(edge))
     }
 
-    /// Removes all collisions that involve the given entity.
-    pub fn remove_collisions_with_entity(&mut self, entity: Entity) {
-        // TODO: Avoid collecting the edges.
-        let edges: Vec<EdgeIndex> = self
-            .graph
-            .edges(NodeIndex(entity.index()))
-            .map(|edge| edge.index())
-            .collect();
-        edges.iter().for_each(|edge| {
-            self.graph.remove_edge(*edge);
-        });
+    /// Removes the collider of the given entity from the collision graph.
+    ///
+    /// This will remove all contacts involving the entity.
+    ///
+    /// # Warning
+    ///
+    /// Removing a collider with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    pub fn remove_collider(&mut self, entity: Entity) {
+        let Some(&index) = self.entity_graph_index.get(entity) else {
+            return;
+        };
+
+        self.graph.remove_node(index);
+
+        // Removing the node swapped the last node to its place,
+        // so we need to remap the entity graph index of the swapped node.
+        if let Some(swapped) = self.graph.node_weight(index).copied() {
+            let swapped_index = self
+                .entity_graph_index
+                .get_mut(swapped)
+                // This should never panic.
+                .expect("swapped entity has no entity graph index mapping");
+            *swapped_index = index;
+        }
     }
 }
 
