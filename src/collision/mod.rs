@@ -2,26 +2,37 @@
 //!
 //! Collision detection involves determining pairs of objects that may currently be in contact
 //! (or are expected to come into contact), and computing contact data for each intersection.
-//! These contacts are then used by the [solver](dynamics::solver) to generate
-//! [`ContactConstraint`](dynamics::solver::contact::ContactConstraint)s and finally resolve overlap.
+//! These contacts are then used by the [solver](dynamics::solver) to generate [`ContactConstraint`]s
+//! and finally resolve overlap.
 //!
-//! In Avian, collision detection is split into three plugins:
+//! [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
 //!
-//! - [`BroadPhasePlugin`]: Performs intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
-//! - [`NarrowPhasePlugin`]: Computes [`Contacts`] for each pair in [`BroadCollisionPairs`], adding them to [`Collisions`].
+//! # Plugins
+//!
+//! In Avian, collision detection is split into two plugins:
+//!
+//! - [`BroadPhasePlugin`]: Performs [AABB](ColliderAabb) intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
+//! - [`NarrowPhasePlugin`]: Manages and computes contacts between colliders, adding them to [`Collisions`]. Also generates [`ContactConstraint`]s for the solver.
 //!
 //! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
 //!
-//! You can also find several utility methods for computing contacts in [`contact_query`].
+//! You can also find several utility methods for computing contacts in the [`contact_query`] module.
+//!
+//! # Accessing Collisions
+//!
+//! The [`Collisions`] resource stores all contact pairs in the physics world.
+//! It can be used to query and read information about collisions between entities.
+//!
+//! See the documentation of [`Collisions`] for more information and usage examples.
 //!
 //! # Collision Events
 //!
-//! The following collision events are sent each frame:
+//! The following collision events are sent each frame when a collision starts or ends:
 //!
 //! - [`CollisionStarted`]
 //! - [`CollisionEnded`]
 //!
-//! You can listen to them with normal event readers:
+//! You can listen to these events with normal event readers:
 //!
 //! ```no_run
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
@@ -41,6 +52,22 @@
 //!     }
 //! }
 //! ```
+//!
+//! Collision events that use observers are not yet supported.
+//!
+//! # Contact Filtering and Modification
+//!
+//! Some advanced contact scenarios may need to filter or modify contacts
+//! with user-defined logic. This can include:
+//!
+//! - One-way platforms
+//! - Conveyor belts
+//! - Non-uniform friction and restitution
+//!
+//! In Avian, this can be done by defining [`CollisionHooks`]. They let you hook into
+//! the collision pipeline, and filter or modify contacts with (almost) full ECS access.
+//!
+//! See the documentation of [`CollisionHooks`] for more information and usage examples.
 
 pub mod broad_phase;
 pub mod collision_events;
@@ -73,21 +100,14 @@ use crate::{
 };
 use bevy::prelude::*;
 
-// TODO: Add `retain` method.
-// TODO: Handle edge addition/removal properly, and add `ContactFlags`.
-// TODO: Update docs.
-
-// Collisions are stored in an `IndexMap` that uses fxhash.
-// It should have faster iteration than a `HashMap` while mostly retaining other performance characteristics.
-//
-// `IndexMap` also preserves insertion order. This can be good or bad depending on the situation,
-// but it can make spawned stacks appear more consistent and uniform, for example in the `move_marbles` example.
-// ==========================================
-/// A resource that stores all collision pairs.
+/// A resource that stores all contact pairs in the physics world.
 ///
-/// # Querying Collisions
+/// Contact pairs exist between [colliders](Collider) that have intersecting [AABBs](ColliderAabb),
+/// even if the shapes themselves are not yet touching.
 ///
-/// The following methods can be used for querying existing collisions:
+/// # Usage
+///
+/// The following methods can be used for querying collisions:
 ///
 /// - [`get`](Self::get) and [`get_mut`](Self::get_mut)
 /// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
@@ -95,24 +115,55 @@ use bevy::prelude::*;
 /// - [`collisions_with_entity`](Self::collisions_with_entity) and
 ///   [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
 ///
-/// Collisions can be accessed at almost any time, but modifications to contacts should be performed
-/// in the [`PostProcessCollisions`] schedule or in [`CollisionHooks`].
+/// For example, to iterate over all collisions with a given entity:
 ///
-/// # Filtering and Modifying Collisions
+/// ```
+#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+/// use bevy::prelude::*;
 ///
-/// Advanced collision filtering and modification can be done using [`CollisionHooks`].
-/// See its documentation for more information.
+/// #[derive(Component)]
+/// struct PressurePlate;
 ///
-/// # Implementation Details
+/// fn activate_pressure_plates(mut query: Query<Entity, With<PressurePlate>>, collisions: Res<Collisions>) {
+///     for pressure_plate in &query {
+///         // Compute the total impulse applied to the pressure plate.
+///         let mut total_impulse = 0.0;
 ///
-/// Internally, the collisions are stored in an `IndexMap` that contains collisions from both the current frame
-/// and the previous frame, which is used for things like [collision events](collision#collision-events).
+///         for contact_pair in collisions.collisions_with_entity(pressure_plate) {
+///             total_impulse += contact_pair.total_normal_impulse_magnitude();
+///         }
 ///
-/// However, the public methods only use the current frame's collisions. To access the internal data structure,
-/// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
+///         if total_impulse > 5.0 {
+///             println!("Pressure plate activated!");
+///         }
+///     }
+/// }
+/// ```
+///
+/// While mutable access is allowed, contact modification and filtering should typically
+/// be done using [`CollisionHooks`]. See its documentation for more information.
+///
+/// # Implementation
+///
+/// Internally, contact pairs are stored in an [undirected graph](UnGraph) where nodes are entities
+/// and edges are the contacts between them. This allows for efficient iteration, both over all contacts
+/// and over contacts with a given entity.
+///
+/// A map from entities to their corresponding node indices in the contact graph is also maintained
+/// for quick lookups by entity.
+///
+/// # Warning
+///
+/// For users, this resource is primarily for querying and reading collision data.
+///
+/// Directly adding, modifying, or removing contact pairs using this resource will *not* trigger any collision events,
+/// wake up the entities involved, or perform any other cleanup. Only make structural modifications if you know what you are doing.
+///
+/// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
 #[derive(Resource, Clone, Debug, Default)]
 pub struct Collisions {
-    // TODO: Separate intersection graph and contact graph.
+    // TODO: We could have a separate intersection graph for sensors.
     /// The contact graph where nodes are entities and edges are contact pairs.
     pub graph: UnGraph<Entity, Contacts>,
     /// A map from entities to their corresponding node indices in the contact graph.
@@ -400,6 +451,16 @@ impl Contacts {
         self.total_normal_impulse_magnitude() / delta_time
     }
 
+    /// Returns `true` if the colliders are touching, including sensors.
+    pub fn touching(&self) -> bool {
+        self.flags.contains(ContactPairFlags::TOUCHING)
+    }
+
+    /// Returns `true` if the AABBs of the colliders are no longer overlapping.
+    pub fn disjoint_aabbs(&self) -> bool {
+        self.flags.contains(ContactPairFlags::DISJOINT_AABB)
+    }
+
     /// Returns `true` if a collision started during the current frame.
     pub fn collision_started(&self) -> bool {
         self.flags.contains(ContactPairFlags::STARTED_TOUCHING)
@@ -408,11 +469,6 @@ impl Contacts {
     /// Returns `true` if a collision ended during the current frame.
     pub fn collision_ended(&self) -> bool {
         self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
-    }
-
-    /// Returns `true` if the AABBs of the colliders are no longer overlapping.
-    pub fn disjoint_aabbs(&self) -> bool {
-        self.flags.contains(ContactPairFlags::DISJOINT_AABB)
     }
 
     /// Returns `true` if collision events are enabled for the contact pair.
