@@ -12,7 +12,6 @@ use bevy::{
         system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
     },
     prelude::*,
-    utils::HashSet,
 };
 
 /// Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using
@@ -38,7 +37,6 @@ where
 {
     fn build(&self, app: &mut App) {
         app.init_resource::<BroadCollisionPairs>()
-            .init_resource::<NewBroadCollisionPairs>()
             .init_resource::<AabbIntervals>();
 
         app.configure_sets(
@@ -87,17 +85,13 @@ pub enum BroadPhaseSet {
 }
 
 /// A list of entity pairs for potential collisions collected during the broad phase.
+///
+/// Only contains pairs that are not already in the [`Collisions`] resource.
 #[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Resource)]
-pub struct BroadCollisionPairs(pub HashSet<(Entity, Entity)>);
-
-#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Resource)]
-pub struct NewBroadCollisionPairs(pub Vec<(Entity, Entity)>);
+pub struct BroadCollisionPairs(pub Vec<(Entity, Entity)>);
 
 /// Contains the entities whose AABBs intersect the AABB of this entity.
 /// Updated automatically during broad phase collision detection.
@@ -244,8 +238,8 @@ fn add_new_aabb_intervals(
 /// Collects bodies that are potentially colliding.
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
-    mut new_broad_collision_pairs: ResMut<NewBroadCollisionPairs>,
+    collisions: Res<Collisions>,
+    mut new_broad_collision_pairs: ResMut<BroadCollisionPairs>,
     mut aabb_intersection_query: Query<&mut AabbIntersections>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
@@ -261,7 +255,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 
     sweep_and_prune::<H>(
         intervals,
-        &mut broad_collision_pairs.0,
+        &collisions,
         &mut new_broad_collision_pairs.0,
         &mut aabb_intersection_query,
         &mut hooks.into_inner(),
@@ -276,8 +270,8 @@ fn collect_collision_pairs<H: CollisionHooks>(
 /// Sweep and prune exploits temporal coherence, as bodies are unlikely to move significantly between two simulation steps. Insertion sort is used, as it is good at sorting nearly sorted lists efficiently.
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
-    broad_collision_pairs: &mut HashSet<(Entity, Entity)>,
-    new_broad_collision_pairs: &mut Vec<(Entity, Entity)>,
+    collisions: &Collisions,
+    broad_collision_pairs: &mut Vec<(Entity, Entity)>,
     aabb_intersection_query: &mut Query<&mut AabbIntersections>,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
@@ -288,7 +282,7 @@ fn sweep_and_prune<H: CollisionHooks>(
     insertion_sort(&mut intervals.0, |a, b| a.2.min.x > b.2.min.x);
 
     // Clear broad phase collisions from previous iteration.
-    new_broad_collision_pairs.clear();
+    broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
     for (i, (entity1, parent1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
@@ -320,14 +314,8 @@ fn sweep_and_prune<H: CollisionHooks>(
                 continue;
             }
 
-            let key = if *entity1 < *entity2 {
-                (*entity1, *entity2)
-            } else {
-                (*entity2, *entity1)
-            };
-
             // Avoid duplicate pairs.
-            if broad_collision_pairs.contains(&key) {
+            if collisions.contains(*entity1, *entity2) {
                 continue;
             }
 
@@ -343,8 +331,7 @@ fn sweep_and_prune<H: CollisionHooks>(
             }
 
             // Create a new collision pair.
-            broad_collision_pairs.insert(key);
-            new_broad_collision_pairs.push(key);
+            broad_collision_pairs.push((*entity1, *entity2));
 
             // TODO: Handle this more efficiently.
             if flags1.contains(AabbIntervalFlags::STORE_INTERSECTIONS) {

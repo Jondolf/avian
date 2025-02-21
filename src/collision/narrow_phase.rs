@@ -20,7 +20,7 @@ use bevy::{
     prelude::*,
 };
 use bit_vec::BitVec;
-use broad_phase::NewBroadCollisionPairs;
+use broad_phase::BroadCollisionPairs;
 use dynamics::solver::SolverDiagnostics;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
@@ -234,8 +234,7 @@ pub enum NarrowPhaseSet {
 
 fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
-    new_broad_collision_pairs: Res<NewBroadCollisionPairs>,
+    broad_collision_pairs: Res<BroadCollisionPairs>,
     mut collision_started_event_writer: EventWriter<CollisionStarted>,
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
@@ -248,8 +247,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     let start = bevy::utils::Instant::now();
 
     narrow_phase.update::<H>(
-        &mut broad_collision_pairs,
-        &new_broad_collision_pairs,
+        &broad_collision_pairs,
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
@@ -407,8 +405,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// and adding them to [`Collisions`].
     fn update<H: CollisionHooks>(
         &mut self,
-        broad_collision_pairs: &mut BroadCollisionPairs,
-        new_broad_collision_pairs: &NewBroadCollisionPairs,
+        broad_collision_pairs: &BroadCollisionPairs,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
@@ -427,7 +424,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Add new contact pairs to the contact graph.
-        for (entity1, entity2) in new_broad_collision_pairs.iter() {
+        for (entity1, entity2) in broad_collision_pairs.iter() {
             self.collisions
                 .insert_collision_pair(Contacts::new(*entity1, *entity2));
         }
@@ -477,7 +474,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Remove the contact pair.
                     let (entity1, entity2) = (contact_pair.entity1, contact_pair.entity2);
                     to_remove.push((entity1, entity2));
-                    broad_collision_pairs.remove(&(entity1, entity2));
                 } else if contact_pair
                     .flags
                     .contains(ContactPairFlags::STARTED_TOUCHING)
