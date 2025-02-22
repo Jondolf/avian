@@ -90,7 +90,7 @@ pub fn contact(
             let normal1: Vector = (rotation1.inverse() * Vector::from(contact.normal1)).normalize();
             let normal2: Vector = (rotation2.inverse() * Vector::from(contact.normal2)).normalize();
 
-            // Make sure the normal is valid
+            // Make sure the normals are valid
             if !normal1.is_normalized() || !normal2.is_normalized() {
                 return None;
             }
@@ -211,6 +211,11 @@ pub fn contact_manifolds(
     manifolds
         .iter()
         .filter_map(|manifold| {
+            // Skip empty manifolds.
+            if manifold.contacts().is_empty() {
+                return None;
+            }
+
             let subpos1 = manifold.subshape_pos1.unwrap_or_default();
             let subpos2 = manifold.subshape_pos2.unwrap_or_default();
             let local_normal: Vector = subpos1

@@ -418,6 +418,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             }
                         }
 
+                        // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
+
                         if touching && !was_touching {
                             // The colliders started touching.
                             contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);
