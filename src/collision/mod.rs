@@ -94,7 +94,7 @@ pub use diagnostics::CollisionDiagnostics;
 use crate::{
     data_structures::{
         entity_data_index::EntityDataIndex,
-        graph::{NodeIndex, UnGraph},
+        graph::{EdgeWeightsMut, NodeIndex, UnGraph},
     },
     prelude::*,
 };
@@ -112,8 +112,8 @@ use bevy::prelude::*;
 /// - [`get`](Self::get) and [`get_mut`](Self::get_mut)
 /// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
 /// - [`contains`](Self::contains)
-/// - [`collisions_with_entity`](Self::collisions_with_entity) and
-///   [`collisions_with_entity_mut`](Self::collisions_with_entity_mut)
+/// - [`collisions_with`](Self::collisions_with) and
+///   [`collisions_with_mut`](Self::collisions_with_mut)
 ///
 /// For example, to iterate over all collisions with a given entity:
 ///
@@ -130,7 +130,7 @@ use bevy::prelude::*;
 ///         // Compute the total impulse applied to the pressure plate.
 ///         let mut total_impulse = 0.0;
 ///
-///         for contact_pair in collisions.collisions_with_entity(pressure_plate) {
+///         for contact_pair in collisions.collisions_with(pressure_plate) {
 ///             total_impulse += contact_pair.total_normal_impulse_magnitude();
 ///         }
 ///
@@ -226,32 +226,53 @@ impl Collisions {
         self.get(entity1, entity2).is_some()
     }
 
-    /// Returns an iterator over the current collisions that have happened during the current physics frame.
+    /// Returns an iterator yielding immutable access to all contact pairs.
+    ///
+    /// Note that contact pairs exist between entities with intersecting AABBs,
+    /// even if the shapes themselves are not yet touching.
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
         self.graph.all_edge_weights()
     }
 
-    /// Returns a mutable iterator over the collisions that have happened during the current physics frame.
+    /// Returns a iterator yielding mutable access to all contact pairs.
+    ///
+    /// Note that contact pairs exist between entities with intersecting AABBs,
+    /// even if the shapes themselves are not yet touching.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
         self.graph.all_edge_weights_mut()
     }
 
-    /// Returns an iterator over all collisions with a given entity.
-    pub fn collisions_with_entity(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
+    /// Returns an iterator yielding immutable access to all collisions with a given entity.
+    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
         self.entity_graph_index
             .get(entity)
             .into_iter()
             .flat_map(move |&index| self.graph.edge_weights(index))
     }
 
-    // TODO: Return an empty iterator instead of `None`.
-    /// Returns an iterator over all collisions with a given entity.
-    pub fn collisions_with_entity_mut(
-        &mut self,
-        entity: Entity,
-    ) -> Option<impl Iterator<Item = &mut Contacts>> {
-        let index = *self.entity_graph_index.get(entity)?;
-        Some(self.graph.edge_weights_mut(index))
+    /// Returns an iterator yielding mutable access to all collisions with a given entity.
+    pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut Contacts> {
+        if let Some(&index) = self.entity_graph_index.get(entity) {
+            self.graph.edge_weights_mut(index)
+        } else {
+            EdgeWeightsMut {
+                graph: &mut self.graph,
+                incoming_edge: None,
+                outgoing_edge: None,
+            }
+        }
+    }
+
+    /// Returns an iterator yielding immutable access to all entities that are colliding with the given entity.
+    pub fn entities_colliding_with(&self, entity: Entity) -> impl Iterator<Item = Entity> + '_ {
+        self.entity_graph_index
+            .get(entity)
+            .into_iter()
+            .flat_map(move |&index| {
+                self.graph
+                    .neighbors(index)
+                    .map(|index| *self.graph.node_weight(index).unwrap())
+            })
     }
 
     /// Inserts contact data for a collision between two entities.

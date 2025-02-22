@@ -394,7 +394,7 @@ fn remove_collider_on<E: Event, C: Component>(
 ) {
     let entity = trigger.entity();
 
-    for contact_pair in collisions.collisions_with_entity(entity) {
+    for contact_pair in collisions.collisions_with(entity) {
         // Send collision ended event.
         if contact_pair
             .flags
