@@ -1,5 +1,6 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{data_structures::pair_key::PairKey, math::*, prelude::*};
 use bevy::prelude::*;
+use broad_phase::{BroadPhaseAddedPairs, BroadPhasePairSet};
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
@@ -7,7 +8,7 @@ fn main() {
 
     app.add_plugins((DefaultPlugins, ExampleCommonPlugin));
 
-    // Add PhysicsPlugins and replace the default broad phase with our custom broad phase.
+    // Add `PhysicsPlugins` and replace the default broad phase with our custom broad phase.
     app.add_plugins(
         PhysicsPlugins::default()
             .build()
@@ -56,44 +57,51 @@ fn setup(
     ));
 }
 
-// Collects pairs of potentially colliding entities into the BroadCollisionPairs resource provided by the physics engine.
+/// Finds pairs of entities with overlapping `ColliderAabb`s, and adds them
+/// to the `BroadPhasePairSet` and `BroadPhaseAddedPairs` resources
+/// used by the physics engine.
+///
 // A brute force algorithm is used for simplicity.
 pub struct BruteForceBroadPhasePlugin;
 
 impl Plugin for BruteForceBroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        // Initialize the resource that the collision pairs are added to.
-        app.init_resource::<BroadCollisionPairs>();
+        // Initialize the resources for broad phase pairs.
+        app.init_resource::<BroadPhasePairSet>()
+            .init_resource::<BroadPhaseAddedPairs>();
 
-        // Make sure the PhysicsSchedule is available.
-        let physics_schedule = app
-            .get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first");
-
-        // Add the broad phase system into the broad phase set
-        physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
+        // Add the broad phase system into the broad phase set.
+        app.add_systems(
+            PhysicsSchedule,
+            collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase),
+        );
     }
 }
 
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
-    collisions: Res<Collisions>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
+    mut added_broad_phase_pairs: ResMut<BroadPhaseAddedPairs>,
 ) {
-    // Clear old collision pairs.
-    broad_collision_pairs.0.clear();
+    // Clear the list of added broad phase pairs.
+    added_broad_phase_pairs.0.clear();
 
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
     for [(entity1, aabb1, rb1), (entity2, aabb2, rb2)] in bodies.iter_combinations() {
-        // At least one of the bodies is dynamic and their AABBs intersect
+        // At least one of the bodies is dynamic and their AABBs intersect.
         if (rb1.is_dynamic() || rb2.is_dynamic()) && aabb1.intersects(aabb2) {
+            // Create a key for this pair of entities.
+            // The key is used for fast lookup in the broad phase pair set.
+            let key = PairKey::new(entity1.index(), entity2.index());
+
             // Avoid duplicate pairs.
-            if collisions.contains(entity1, entity2) {
+            if broad_phase_pairs.contains(&key) {
                 continue;
             }
 
             // Create a new collision pair.
-            broad_collision_pairs.push((entity1, entity2));
+            broad_phase_pairs.insert(key);
+            added_broad_phase_pairs.push((entity1, entity2));
         }
     }
 }

@@ -521,7 +521,7 @@ pub mod prelude {
     pub use crate::{
         collision::{
             self,
-            broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
+            broad_phase::BroadPhasePlugin,
             collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
             collision_events::{CollisionEnded, CollisionStarted},
             hooks::{ActiveCollisionHooks, CollisionHooks},
@@ -573,7 +573,7 @@ use prelude::*;
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
-/// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
+/// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).            |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |

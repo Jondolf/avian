@@ -1,5 +1,5 @@
 use crate::{
-    data_structures::graph::EdgeIndex,
+    data_structures::{graph::EdgeIndex, pair_key::PairKey},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -8,6 +8,7 @@ use bevy::{
     prelude::*,
 };
 use bit_vec::BitVec;
+use broad_phase::BroadPhasePairSet;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 /// A system parameter for managing the narrow phase.
@@ -45,13 +46,14 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase.
     ///
-    /// - Creates a contact pair in the [`Collisions`] resource for each pair in `broad_collision_pairs`.
+    /// - Creates a contact pair in the [`Collisions`] resource for each pair in `broad_phase_pairs`.
     /// - Updates contacts for each contact pair in [`Collisions`].
     /// - Sends collision events when colliders start or stop touching.
     /// - Removes contact pairs from [`Collisions`] when AABBs stop overlapping.
     pub fn update<H: CollisionHooks>(
         &mut self,
-        broad_collision_pairs: &[(Entity, Entity)],
+        broad_phase_pairs: &mut BroadPhasePairSet,
+        added_broad_phase_pairs: &[(Entity, Entity)],
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
@@ -67,8 +69,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             *self.contact_tolerance = self.length_unit.0 * self.config.contact_tolerance;
         }
 
-        // Add new contact pairs found by the broad phase to the contact graph.
-        for (entity1, entity2) in broad_collision_pairs.iter() {
+        // Add new contact pairs found by the broad phase to the contact graph, in deterministic order.
+        for (entity1, entity2) in added_broad_phase_pairs.iter() {
             self.collisions
                 .insert_collision_pair(Contacts::new(*entity1, *entity2));
         }
@@ -120,6 +122,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.entity1,
                         contact_pair.entity2,
                     );
+
+                    // Remove the broad phase pair.
+                    let key =
+                        PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
+                    broad_phase_pairs.remove(&key);
 
                     // Queue the contact pair for removal.
                     let (entity1, entity2) = (contact_pair.entity1, contact_pair.entity2);

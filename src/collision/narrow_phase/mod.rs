@@ -19,6 +19,7 @@ use bevy::{
     },
     prelude::*,
 };
+use broad_phase::{BroadPhaseAddedPairs, BroadPhasePairSet};
 use dynamics::solver::SolverDiagnostics;
 
 /// Manages contacts and generates contact constraints.
@@ -26,7 +27,7 @@ use dynamics::solver::SolverDiagnostics;
 /// # Overview
 ///
 /// The narrow phase creates a contact pair in the [`Collisions`] resource for each AABB intersection pair
-/// found in [`BroadCollisionPairs`]. Contact pairs are only removed once their AABBs no longer overlap.
+/// found by the [broad phase](broad_phase). Contact pairs are only removed once their AABBs no longer overlap.
 ///
 /// For each contact pair in [`Collisions`], the narrow phase then computes updated contact points and normals,
 /// and sends collision events when colliders start or stop touching.
@@ -249,7 +250,8 @@ pub enum NarrowPhaseSet {
 
 fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    broad_collision_pairs: Res<BroadCollisionPairs>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
+    added_broad_phase_pairs: Res<BroadPhaseAddedPairs>,
     mut collision_started_event_writer: EventWriter<CollisionStarted>,
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
@@ -262,7 +264,8 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     let start = bevy::utils::Instant::now();
 
     narrow_phase.update::<H>(
-        &broad_collision_pairs,
+        &mut broad_phase_pairs,
+        &added_broad_phase_pairs,
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),

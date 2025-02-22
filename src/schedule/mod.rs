@@ -205,7 +205,7 @@ pub enum PhysicsSet {
 pub enum PhysicsStepSet {
     /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
     First,
-    /// Responsible for collecting pairs of potentially colliding entities into [`BroadCollisionPairs`] using
+    /// Responsible for collecting pairs of potentially colliding entities into [`BroadPhasePairSet`] using
     /// [AABB](ColliderAabb) intersection tests.
     ///
     /// See [`BroadPhasePlugin`].

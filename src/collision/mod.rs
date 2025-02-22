@@ -11,7 +11,7 @@
 //!
 //! In Avian, collision detection is split into two plugins:
 //!
-//! - [`BroadPhasePlugin`]: Performs [AABB](ColliderAabb) intersection tests to determine potential collisions, adding them to [`BroadCollisionPairs`].
+//! - [`BroadPhasePlugin`]: Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).
 //! - [`NarrowPhasePlugin`]: Manages and computes contacts between colliders, adding them to [`Collisions`]. Also generates [`ContactConstraint`]s for the solver.
 //!
 //! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
