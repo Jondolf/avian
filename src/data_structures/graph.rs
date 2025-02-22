@@ -429,28 +429,32 @@ impl<N, E> UnGraph<N, E> {
         Some(edge.weight)
     }
 
+    /// Returns an iterator of all nodes with an edge connected to `a`.
+    ///
+    /// Produces an empty iterator if the node doesn't exist.
+    ///
+    /// The iterator element type is `NodeIndex`.
+    pub fn neighbors(&self, a: NodeIndex) -> Neighbors<E> {
+        Neighbors {
+            skip_start: a,
+            edges: &self.edges,
+            next: match self.nodes.get(a.index()) {
+                None => [EdgeIndex::END, EdgeIndex::END],
+                Some(n) => n.next,
+            },
+        }
+    }
+
     /// Returns an iterator of all edges connected to `a`.
     ///
     /// Produces an empty iterator if the node doesn't exist.
     ///
     /// The iterator element type is `EdgeReference<E>`.
     pub fn edges(&self, a: NodeIndex) -> Edges<E> {
-        self.edges_directed(a, EdgeDirection::Outgoing)
-    }
-
-    /// Returns an iterator of all edges of `a`, in the specified direction.
-    ///
-    /// - `Outgoing`: All edges connected to `a`, with `a` being the source of each edge.
-    /// - `Incoming`: All edges connected to `a`, with `a` being the target of each edge.
-    ///
-    /// Produces an empty iterator if the node `a` doesn't exist.
-    ///
-    /// The iterator element type is `EdgeReference<E>`.
-    pub fn edges_directed(&self, a: NodeIndex, dir: EdgeDirection) -> Edges<E> {
         Edges {
             skip_start: a,
             edges: &self.edges,
-            direction: dir,
+            direction: EdgeDirection::Outgoing,
             next: match self.nodes.get(a.index()) {
                 None => [EdgeIndex::END, EdgeIndex::END],
                 Some(n) => n.next,
@@ -691,6 +695,57 @@ impl<N, E> UnGraph<N, E> {
     }
 }
 
+/// An iterator over the neighbors of a node.
+///
+/// The iterator element type is `NodeIndex`.
+#[derive(Debug)]
+pub struct Neighbors<'a, E: 'a> {
+    /// The starting node to skip over.
+    skip_start: NodeIndex,
+
+    /// The edges to iterate over.
+    edges: &'a [Edge<E>],
+
+    /// The next edge to visit.
+    next: [EdgeIndex; 2],
+}
+
+impl<E> Iterator for Neighbors<'_, E> {
+    type Item = NodeIndex;
+
+    fn next(&mut self) -> Option<NodeIndex> {
+        // First any outgoing edges.
+        match self.edges.get(self.next[0].index()) {
+            None => {}
+            Some(edge) => {
+                self.next[0] = edge.next[0];
+                return Some(edge.node[1]);
+            }
+        }
+
+        // Then incoming edges.
+        // For an "undirected" iterator, make sure we don't double
+        // count self-loops by skipping them in the incoming list.
+        while let Some(edge) = self.edges.get(self.next[1].index()) {
+            self.next[1] = edge.next[1];
+            if edge.node[0] != self.skip_start {
+                return Some(edge.node[0]);
+            }
+        }
+        None
+    }
+}
+
+impl<E> Clone for Neighbors<'_, E> {
+    fn clone(&self) -> Self {
+        Neighbors {
+            skip_start: self.skip_start,
+            edges: self.edges,
+            next: self.next,
+        }
+    }
+}
+
 /// An iterator over edges from or to a node.
 pub struct Edges<'a, E: 'a> {
     /// The starting node to skip over.
@@ -866,9 +921,14 @@ impl<E> Clone for EdgeWeights<'_, E> {
 
 /// An iterator over mutable references to all edge weights from or to a node.
 pub struct EdgeWeightsMut<'a, N, E> {
-    graph: &'a mut UnGraph<N, E>,
-    incoming_edge: Option<EdgeIndex>,
-    outgoing_edge: Option<EdgeIndex>,
+    /// A mutable reference to the graph.
+    pub graph: &'a mut UnGraph<N, E>,
+
+    /// The next incoming edge to visit.
+    pub incoming_edge: Option<EdgeIndex>,
+
+    /// The next outgoing edge to visit.
+    pub outgoing_edge: Option<EdgeIndex>,
 }
 
 impl<'a, N: Copy, E> Iterator for EdgeWeightsMut<'a, N, E> {
