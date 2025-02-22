@@ -230,7 +230,7 @@
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 
-use crate::{collision::broad_phase::AabbIntersections, prelude::*};
+use crate::prelude::*;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
@@ -378,7 +378,6 @@ impl SpeculativeMargin {
 /// ```
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
-#[require(AabbIntersections)]
 pub struct SweptCcd {
     /// The type of sweep used for swept CCD.
     ///
@@ -517,10 +516,11 @@ struct SweptCcdBodyQuery {
 #[allow(clippy::useless_conversion)]
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn solve_swept_ccd(
-    ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
+    ccd_query: Query<Entity, With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
     colliders: Query<(&Collider, &ColliderParent)>,
     time: Res<Time>,
+    collisions: Res<Collisions>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
@@ -529,7 +529,7 @@ fn solve_swept_ccd(
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
-    for (entity, intersections) in &ccd_query {
+    for entity in &ccd_query {
         // Get the CCD body.
         let Ok(SweptCcdBodyQueryItem {
             pos: pos1,
@@ -557,7 +557,8 @@ fn solve_swept_ccd(
         let (mut min_toi, mut min_toi_entity) = (delta_secs, None);
 
         // Iterate through colliders intersecting the AABB of the CCD body.
-        for (collider2, collider_parent) in colliders.iter_many(intersections.iter()) {
+        let intersecting_entities = collisions.entities_colliding_with(entity);
+        for (collider2, collider_parent) in colliders.iter_many(intersecting_entities) {
             debug_assert_ne!(
                 entity,
                 collider_parent.get(),

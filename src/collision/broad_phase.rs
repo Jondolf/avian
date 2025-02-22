@@ -39,7 +39,7 @@ where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
-        app.register_type::<(BroadPhasePairSet, BroadPhaseAddedPairs, AabbIntersections)>();
+        app.register_type::<(BroadPhasePairSet, BroadPhaseAddedPairs)>();
 
         app.init_resource::<BroadPhasePairSet>()
             .init_resource::<BroadPhaseAddedPairs>()
@@ -110,15 +110,6 @@ pub struct BroadPhasePairSet(pub HashSet<PairKey>);
 #[reflect(Resource)]
 pub struct BroadPhaseAddedPairs(pub Vec<(Entity, Entity)>);
 
-/// Contains the entities whose AABBs intersect the AABB of this entity.
-/// Updated automatically during broad phase collision detection.
-///
-/// Note that this component is only added to bodies with [`SweptCcd`] by default,
-/// but can be added to any entity.
-#[derive(Component, Clone, Debug, Default, Deref, DerefMut, Reflect)]
-#[reflect(Component)]
-pub struct AabbIntersections(pub Vec<Entity>);
-
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
 struct AabbIntervals(
@@ -135,12 +126,10 @@ bitflags::bitflags! {
     /// Flags for AABB intervals in the broad phase.
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
     pub struct AabbIntervalFlags: u8 {
-        /// Set if [`AabbIntersections`] should be stored for this entity.
-        const STORE_INTERSECTIONS = 1 << 0;
         /// Set if the body is sleeping or static.
-        const IS_INACTIVE = 1 << 1;
+        const IS_INACTIVE = 1 << 0;
         /// Set if [`CollisionHooks::filter_pairs`] should be called for this entity.
-        const CUSTOM_FILTER = 1 << 2;
+        const CUSTOM_FILTER = 1 << 1;
     }
 }
 
@@ -161,7 +150,6 @@ fn update_aabb_intervals(
             Option<&ColliderParent>,
             Option<&CollisionLayers>,
             Option<&ActiveCollisionHooks>,
-            Has<AabbIntersections>,
             Has<Sleeping>,
         ),
         Without<ColliderDisabled>,
@@ -172,14 +160,8 @@ fn update_aabb_intervals(
     intervals
         .0
         .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
-            if let Ok((
-                new_aabb,
-                new_parent,
-                new_layers,
-                hooks,
-                new_store_intersections,
-                is_sleeping,
-            )) = aabbs.get(*collider_entity)
+            if let Ok((new_aabb, new_parent, new_layers, hooks, is_sleeping)) =
+                aabbs.get(*collider_entity)
             {
                 if !new_aabb.min.is_finite() || !new_aabb.max.is_finite() {
                     return false;
@@ -193,10 +175,6 @@ fn update_aabb_intervals(
                     new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
-                flags.set(
-                    AabbIntervalFlags::STORE_INTERSECTIONS,
-                    new_store_intersections,
-                );
                 flags.set(
                     AabbIntervalFlags::CUSTOM_FILTER,
                     hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
@@ -216,7 +194,6 @@ type AabbIntervalQueryData = (
     Option<Read<RigidBody>>,
     Option<Read<CollisionLayers>>,
     Option<Read<ActiveCollisionHooks>>,
-    Has<AabbIntersections>,
 );
 
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
@@ -229,9 +206,8 @@ fn add_new_aabb_intervals(
 ) {
     let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
-        |(entity, parent, aabb, rb, layers, hooks, store_intersections)| {
+        |(entity, parent, aabb, rb, layers, hooks)| {
             let mut flags = AabbIntervalFlags::empty();
-            flags.set(AabbIntervalFlags::STORE_INTERSECTIONS, store_intersections);
             flags.set(
                 AabbIntervalFlags::IS_INACTIVE,
                 rb.is_some_and(|rb| rb.is_static()),
@@ -258,24 +234,18 @@ fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
     mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
     mut added_broad_phase_pairs: ResMut<BroadPhaseAddedPairs>,
-    mut aabb_intersection_query: Query<&mut AabbIntersections>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
-    for mut intersections in &mut aabb_intersection_query {
-        intersections.clear();
-    }
-
     let start = bevy::utils::Instant::now();
 
     sweep_and_prune::<H>(
         intervals,
         &mut broad_phase_pairs.0,
         &mut added_broad_phase_pairs.0,
-        &mut aabb_intersection_query,
         &mut hooks.into_inner(),
         &mut commands,
     );
@@ -290,7 +260,6 @@ fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
     broad_phase_pairs: &mut HashSet<PairKey>,
     added_broad_phase_pairs: &mut Vec<(Entity, Entity)>,
-    aabb_intersection_query: &mut Query<&mut AabbIntersections>,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
@@ -355,18 +324,6 @@ fn sweep_and_prune<H: CollisionHooks>(
             // Create a new collision pair.
             broad_phase_pairs.insert(pair_key);
             added_broad_phase_pairs.push((*entity1, *entity2));
-
-            // TODO: We don't need this since `Collisions` already stores the pairs.
-            if flags1.contains(AabbIntervalFlags::STORE_INTERSECTIONS) {
-                if let Ok(mut intersections) = aabb_intersection_query.get_mut(*entity1) {
-                    intersections.push(*entity2);
-                }
-            }
-            if flags2.contains(AabbIntervalFlags::STORE_INTERSECTIONS) {
-                if let Ok(mut intersections) = aabb_intersection_query.get_mut(*entity2) {
-                    intersections.push(*entity1);
-                }
-            }
         }
     }
 }
