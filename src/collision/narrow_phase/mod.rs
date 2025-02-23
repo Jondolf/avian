@@ -8,6 +8,7 @@ pub use system_param::NarrowPhase;
 use std::marker::PhantomData;
 
 use crate::{
+    data_structures::pair_key::PairKey,
     dynamics::solver::{ContactConstraints, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -256,7 +257,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
-    commands: ParallelCommands,
+    mut commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -270,7 +271,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
         &mut hooks.into_inner(),
-        commands,
+        &mut commands,
     );
 
     diagnostics.narrow_phase = start.elapsed();
@@ -388,6 +389,7 @@ fn generate_constraints<C: AnyCollider>(
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
     mut collisions: ResMut<Collisions>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
@@ -412,6 +414,10 @@ fn remove_collider_on<E: Event, C: Component>(
         if let Ok(mut colliding_entities) = query.get_mut(other_entity) {
             colliding_entities.remove(&entity);
         }
+
+        // Remove the broad phase pair.
+        let key = PairKey::new(entity.index(), other_entity.index());
+        broad_phase_pairs.remove(&key);
 
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));

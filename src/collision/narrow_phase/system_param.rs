@@ -58,7 +58,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
         hooks: &mut H::Item<'_, '_>,
-        commands: ParallelCommands,
+        commands: &mut ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
@@ -123,6 +123,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.entity2,
                     );
 
+                    // Wake up the bodies.
+                    // TODO: When we have simulation islands, this will be more efficient.
+                    commands.command_scope(|mut commands| {
+                        commands.queue(WakeUpBody(
+                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                        ));
+                        commands.queue(WakeUpBody(
+                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                        ));
+                    });
+
                     // Remove the broad phase pair.
                     let key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
@@ -145,7 +156,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.entity2,
                     );
 
-                    debug_assert!(!contact_pair.manifolds.is_empty());
+                    debug_assert!(
+                        !contact_pair.manifolds.is_empty(),
+                        "Manifolds should not be empty when colliders start touching"
+                    );
 
                     contact_pair
                         .flags
@@ -167,7 +181,21 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.entity2,
                     );
 
-                    debug_assert!(contact_pair.manifolds.is_empty());
+                    // Wake up the bodies.
+                    // TODO: When we have simulation islands, this will be more efficient.
+                    commands.command_scope(|mut commands| {
+                        commands.queue(WakeUpBody(
+                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                        ));
+                        commands.queue(WakeUpBody(
+                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                        ));
+                    });
+
+                    debug_assert!(
+                        contact_pair.manifolds.is_empty(),
+                        "Manifolds should be empty when colliders stopped touching"
+                    );
 
                     contact_pair
                         .flags
@@ -224,7 +252,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &mut self,
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
-        par_commands: ParallelCommands,
+        par_commands: &mut ParallelCommands,
     ) -> BitVec
     where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
