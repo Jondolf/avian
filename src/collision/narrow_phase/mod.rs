@@ -20,22 +20,26 @@ use bevy::{
     },
     prelude::*,
 };
-use broad_phase::{BroadPhaseAddedPairs, BroadPhasePairSet};
+use broad_phase::BroadPhasePairs;
 use dynamics::solver::SolverDiagnostics;
 
 /// Manages contacts and generates contact constraints.
 ///
 /// # Overview
 ///
-/// The narrow phase creates a contact pair in the [`Collisions`] resource for each AABB intersection pair
-/// found by the [broad phase](broad_phase). Contact pairs are only removed once their AABBs no longer overlap.
+/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`Collisions`]
+/// resource for each pair of intersecting [`ColliderAabb`]s.
 ///
-/// For each contact pair in [`Collisions`], the narrow phase then computes updated contact points and normals,
-/// and sends collision events when colliders start or stop touching.
+/// The narrow phase then determines which contact pairs found in [`Collisions`] are touching,
+/// and computes updated contact points and normals in a parallel loop.
 ///
-/// At the end of the narrow phase, a [`ContactConstraint`] is generated for each contact pair
-/// and added to the [`ContactConstraints`] resource. These constraints are used by the [`SolverPlugin`]
-/// to solve contacts.
+/// Afterwards, the narrow phase removes contact pairs whose AABBs no longer overlap,
+/// and sends collision events for colliders that started or stopped touching.
+/// This is done in a fast serial loop to preserve determinism.
+///
+/// Finally, a [`ContactConstraint`] is generated for each contact pair that is touching
+/// or expected to touch during the time step. These constraints are added to the [`ContactConstraints`]
+/// resource, and are later used by the [`SolverPlugin`] to solve contacts.
 ///
 /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
 ///
@@ -108,7 +112,7 @@ where
             self.schedule,
             (
                 NarrowPhaseSet::First,
-                NarrowPhaseSet::CollectCollisions,
+                NarrowPhaseSet::Update,
                 NarrowPhaseSet::PostProcess,
                 NarrowPhaseSet::GenerateConstraints,
                 NarrowPhaseSet::Last,
@@ -132,11 +136,11 @@ where
                 });
         });
 
-        // Collect contacts into `Collisions`.
+        // Perform narrow phase collision detection.
         app.add_systems(
             self.schedule,
             update_narrow_phase::<C, H>
-                .in_set(NarrowPhaseSet::CollectCollisions)
+                .in_set(NarrowPhaseSet::Update)
                 // Allowing ambiguities is required so that it's possible
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
@@ -235,8 +239,8 @@ impl Default for NarrowPhaseConfig {
 pub enum NarrowPhaseSet {
     /// Runs at the start of the narrow phase. Empty by default.
     First,
-    /// Computes contacts between entities and adds them to the [`Collisions`] resource.
-    CollectCollisions,
+    /// Updates contacts in [`Collisions`] and processes contact state changes.
+    Update,
     /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
     /// to filter and modify collisions.
     ///
@@ -244,6 +248,8 @@ pub enum NarrowPhaseSet {
     /// add custom systems to this set, or to [`PostProcessCollisions`].
     PostProcess,
     /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
+    ///
+    /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
     GenerateConstraints,
     /// Runs at the end of the narrow phase. Empty by default.
     Last,
@@ -251,8 +257,7 @@ pub enum NarrowPhaseSet {
 
 fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
-    added_broad_phase_pairs: Res<BroadPhaseAddedPairs>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
     mut collision_started_event_writer: EventWriter<CollisionStarted>,
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
@@ -266,7 +271,6 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
     narrow_phase.update::<H>(
         &mut broad_phase_pairs,
-        &added_broad_phase_pairs,
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
@@ -389,7 +393,7 @@ fn generate_constraints<C: AnyCollider>(
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
     mut collisions: ResMut<Collisions>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,

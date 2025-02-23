@@ -205,12 +205,14 @@ pub enum PhysicsSet {
 pub enum PhysicsStepSet {
     /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
     First,
-    /// Responsible for collecting pairs of potentially colliding entities into [`BroadPhasePairSet`] using
-    /// [AABB](ColliderAabb) intersection tests.
+    /// Responsible for adding pairs of entities with overlapping [`ColliderAabb`]s
+    /// to the [`BroadPhasePairs`] resource and creating contact pairs for [`Collisions`].
     ///
     /// See [`BroadPhasePlugin`].
+    ///
+    /// [`BroadPhasePairs`]: collision::broad_phase::BroadPhasePairs
     BroadPhase,
-    /// Responsible for computing contacts between entities and sending collision events.
+    /// Responsible for updating contacts in [`Collisions`] and processing contact state changes.
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,

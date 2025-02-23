@@ -27,10 +27,12 @@
 //!
 //! # Collision Events
 //!
-//! The following collision events are sent each frame when a collision starts or ends:
+//! The following events are sent whenever two colliders start or stop touching:
 //!
 //! - [`CollisionStarted`]
 //! - [`CollisionEnded`]
+//!
+//! Collision events are only sent if one of the entities has the [`CollisionEventsEnabled`] component.
 //!
 //! You can listen to these events with normal event readers:
 //!
@@ -42,6 +44,7 @@
 //! fn main() {
 //!     App::new()
 //!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+//!         // ...
 //!         .add_systems(Update, print_collisions)
 //!         .run();
 //! }

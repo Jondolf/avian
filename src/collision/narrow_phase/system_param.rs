@@ -8,7 +8,7 @@ use bevy::{
     prelude::*,
 };
 use bit_vec::BitVec;
-use broad_phase::BroadPhasePairSet;
+use broad_phase::BroadPhasePairs;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 /// A system parameter for managing the narrow phase.
@@ -46,14 +46,12 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase.
     ///
-    /// - Creates a contact pair in the [`Collisions`] resource for each pair in `broad_phase_pairs`.
     /// - Updates contacts for each contact pair in [`Collisions`].
     /// - Sends collision events when colliders start or stop touching.
-    /// - Removes contact pairs from [`Collisions`] when AABBs stop overlapping.
+    /// - Removes pairs from [`BroadPhasePairs`] and [`Collisions`] when AABBs stop overlapping.
     pub fn update<H: CollisionHooks>(
         &mut self,
-        broad_phase_pairs: &mut BroadPhasePairSet,
-        added_broad_phase_pairs: &[(Entity, Entity)],
+        broad_phase_pairs: &mut BroadPhasePairs,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
@@ -69,12 +67,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             *self.contact_tolerance = self.length_unit.0 * self.config.contact_tolerance;
         }
 
-        // Add new contact pairs found by the broad phase to the contact graph, in deterministic order.
-        for (entity1, entity2) in added_broad_phase_pairs.iter() {
-            self.collisions
-                .insert_collision_pair(Contacts::new(*entity1, *entity2));
-        }
-
         // Update contacts for all contact pairs, returning a bit vector for contact state changes.
         // Set bits correspond to contact pairs that were either added or removed.
         let bit_vec = self.update_contacts::<H>(delta_secs, hooks, commands);
@@ -83,7 +75,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
         //       With a stable mapping between contact pair indices and bits, we could remove this.
         // TODO: Pre-allocate this with some reasonable capacity?
-        let mut to_remove = Vec::<(Entity, Entity)>::new();
+        let mut pairs_to_remove = Vec::<EdgeIndex>::new();
 
         // Process contact state changes, iterating over set bits serially to maintain determinism.
         //
@@ -92,15 +84,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         for (i, mut bits) in bit_vec.blocks().enumerate() {
             while bits != 0 {
                 let trailing_zeros = bits.trailing_zeros();
-                let contact_id = i * 32 + trailing_zeros as usize;
+                let pair_index = EdgeIndex(i as u32 * 32 + trailing_zeros);
 
                 let contact_pair = self
                     .collisions
                     .graph
-                    .edge_weight_mut(EdgeIndex(contact_id as u32))
-                    .unwrap_or_else(|| {
-                        panic!("Contact pair not found for EdgeIndex({contact_id})")
-                    });
+                    .edge_weight_mut(pair_index)
+                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
@@ -140,8 +130,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     broad_phase_pairs.remove(&key);
 
                     // Queue the contact pair for removal.
-                    let (entity1, entity2) = (contact_pair.entity1, contact_pair.entity2);
-                    to_remove.push((entity1, entity2));
+                    pairs_to_remove.push(pair_index);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
@@ -208,8 +197,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Remove the contact pairs that were marked for removal.
-        for (entity1, entity2) in to_remove.drain(..) {
-            self.collisions.remove_collision_pair(entity1, entity2);
+        for pair_index in pairs_to_remove.drain(..) {
+            self.collisions.graph.remove_edge(pair_index);
         }
     }
 
@@ -390,22 +379,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         let position1 = collider1.current_position();
                         let position2 = collider2.current_position();
 
-                        // Initialize the contact pair.
-                        // TODO: Do this when creating contacts?
-                        contacts.body_entity1 = collider1.parent.map(|p| p.get());
-                        contacts.body_entity2 = collider2.parent.map(|p| p.get());
-                        contacts.flags.set(
-                            ContactPairFlags::SENSOR,
-                            collider1.is_sensor || collider2.is_sensor,
-                        );
-                        contacts.flags.set(
-                            ContactPairFlags::MODIFY_CONTACTS,
-                            collider1
-                                .active_hooks()
-                                .union(collider2.active_hooks())
-                                .contains(ActiveCollisionHooks::MODIFY_CONTACTS),
-                        );
-
                         let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
 
                         // Save the old manifolds for warm starting.
@@ -457,7 +430,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                         if touching && !was_touching {
                             // The colliders started touching.
-                            contacts.flags.set(ContactPairFlags::CONTACT_EVENTS, true);
                             contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
                             state_change_bits.set(contact_id, true);
                         } else if !touching && was_touching {

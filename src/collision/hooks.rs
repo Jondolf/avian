@@ -139,13 +139,12 @@ use bevy::{ecs::system::ReadOnlySystemParam, prelude::*};
 /// - Only one set of collision hooks can be defined per broad phase and narrow phase.
 /// - Only read-only ECS access is allowed for the hook system parameter. Use the provided [`Commands`] for deferred ECS operations.
 ///   - Note that command execution order is unspecified if the `parallel` feature is enabled.
-/// - Access to the [`BroadPhasePairSet`] and [`BroadPhaseAddedPairs`] resources is not allowed inside [`CollisionHooks::filter_pairs`].
+/// - Access to the [`BroadPhasePairs`] and [`Collisions`] resources is not allowed inside [`CollisionHooks::filter_pairs`].
 ///   Trying to access it will result in a panic.
-/// - Access to the [`BroadPhasePairSet`] and [`Collisions`] resources is not allowed inside [`CollisionHooks::modify_contacts`].
+/// - Access to the [`BroadPhasePairs`] and [`Collisions`] resources is not allowed inside [`CollisionHooks::modify_contacts`].
 ///   Trying to access it will result in a panic.
 ///
-/// [`BroadPhasePairSet`]: crate::broad_phase::BroadPhasePairSet
-/// [`BroadPhaseAddedPairs`]: crate::broad_phase::BroadPhaseAddedPairs
+/// [`BroadPhasePairs`]: crate::broad_phase::BroadPhasePairs
 #[expect(unused_variables)]
 pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// A contact pair filtering hook that determines whether contacts should be computed
@@ -160,8 +159,10 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     ///
     /// - Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::FILTER_PAIRS`] set.
     /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
-    /// - Access to the [`BroadPhasePairSet`] resource is not allowed in this method.
+    /// - Access to the [`BroadPhasePairs`] and [`Collisions`] resources is not allowed in this method.
     ///   Trying to access it will result in a panic.
+    ///
+    /// [`BroadPhasePairs`]: crate::broad_phase::BroadPhasePairs
     fn filter_pairs(&self, entity1: Entity, entity2: Entity, commands: &mut Commands) -> bool {
         true
     }
@@ -181,8 +182,10 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
     /// - Impulses stored in `contacts` are from the previous physics tick.
     /// - Command execution order is unspecified if the `parallel` feature is enabled.
-    /// - Access to the [`Collisions`] resource is not allowed in this method.
+    /// - Access to the [`BroadPhasePairs`] and [`Collisions`] resources is not allowed in this method.
     ///   Trying to access it will result in a panic.
+    ///
+    /// [`BroadPhasePairs`]: crate::broad_phase::BroadPhasePairs
     fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
         true
     }

@@ -21,6 +21,7 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub speculative_margin: Option<&'static SpeculativeMargin>,
     pub is_rb: Has<RigidBody>,
     pub is_sensor: Has<Sensor>,
+    pub collision_events_enabled: Has<CollisionEventsEnabled>,
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,

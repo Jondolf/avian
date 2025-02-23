@@ -523,7 +523,7 @@ pub mod prelude {
             self,
             broad_phase::BroadPhasePlugin,
             collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
-            collision_events::{CollisionEnded, CollisionStarted},
+            collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,

@@ -1,6 +1,6 @@
 use avian3d::{data_structures::pair_key::PairKey, math::*, prelude::*};
 use bevy::prelude::*;
-use broad_phase::{BroadPhaseAddedPairs, BroadPhasePairSet};
+use broad_phase::BroadPhasePairs;
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
@@ -57,18 +57,16 @@ fn setup(
     ));
 }
 
-/// Finds pairs of entities with overlapping `ColliderAabb`s, and adds them
-/// to the `BroadPhasePairSet` and `BroadPhaseAddedPairs` resources
-/// used by the physics engine.
+/// Finds pairs of entities with overlapping `ColliderAabb`s, adds them
+/// to the `BroadPhasePairs` resource, and creates contact pairs for `Collisions`.
 ///
 // A brute force algorithm is used for simplicity.
 pub struct BruteForceBroadPhasePlugin;
 
 impl Plugin for BruteForceBroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        // Initialize the resources for broad phase pairs.
-        app.init_resource::<BroadPhasePairSet>()
-            .init_resource::<BroadPhaseAddedPairs>();
+        // Initialize the resource for broad phase pairs.
+        app.init_resource::<BroadPhasePairs>();
 
         // Add the broad phase system into the broad phase set.
         app.add_systems(
@@ -80,12 +78,9 @@ impl Plugin for BruteForceBroadPhasePlugin {
 
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairSet>,
-    mut added_broad_phase_pairs: ResMut<BroadPhaseAddedPairs>,
+    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
+    mut collisions: ResMut<Collisions>,
 ) {
-    // Clear the list of added broad phase pairs.
-    added_broad_phase_pairs.0.clear();
-
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
     for [(entity1, aabb1, rb1), (entity2, aabb2, rb2)] in bodies.iter_combinations() {
         // At least one of the bodies is dynamic and their AABBs intersect.
@@ -99,9 +94,14 @@ fn collect_collision_pairs(
                 continue;
             }
 
-            // Create a new collision pair.
+            // Add the pair to the broad phase pair set for fast lookup.
             broad_phase_pairs.insert(key);
-            added_broad_phase_pairs.push((entity1, entity2));
+
+            // Create a contact pair as non-touching.
+            // The narrow phase will determine if the entities are touching and compute contact data.
+            // NOTE: To handle sensors, collision hooks, and child colliders, you may need to configure
+            //       `flags` and other properties of the contact pair. This is not done here for simplicity.
+            collisions.insert_collision_pair(Contacts::new(entity1, entity2));
         }
     }
 }
