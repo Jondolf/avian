@@ -223,7 +223,6 @@ pub fn contact_manifolds(
                 .transform_vector(&manifold.local_n1)
                 .normalize()
                 .into();
-            // TODO: Does this handle child colliders correctly?
             let normal = rotation1 * local_normal;
 
             // Make sure the normal is valid
