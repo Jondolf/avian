@@ -299,7 +299,7 @@ fn generate_constraints<C: AnyCollider>(
     constraints.clear();
 
     // TODO: Parallelize.
-    for contacts in narrow_phase.collisions.iter() {
+    for (i, contacts) in narrow_phase.collisions.iter().enumerate() {
         let Ok([collider1, collider2]) = narrow_phase
             .collider_query
             .get_many([contacts.entity1, contacts.entity2])
@@ -368,6 +368,7 @@ fn generate_constraints<C: AnyCollider>(
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
+                i,
                 contacts,
                 &mut constraints,
                 &body1,

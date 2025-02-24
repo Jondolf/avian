@@ -89,6 +89,8 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
+    /// The index of the contact pair in [`Collisions`].
+    pub contact_pair_index: usize,
     /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
     pub manifold_index: usize,
 }
@@ -97,7 +99,8 @@ impl ContactConstraint {
     /// Generates a new [`ContactConstraint`] for the given bodies based on a [`ContactManifold`].
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        manifold_id: usize,
+        contact_pair_index: usize,
+        manifold_index: usize,
         manifold: &ContactManifold,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
@@ -137,7 +140,8 @@ impl ContactConstraint {
             tangent_velocity,
             normal: manifold.normal,
             points: Vec::with_capacity(manifold.points.len()),
-            manifold_index: manifold_id,
+            contact_pair_index,
+            manifold_index,
         };
 
         let tangents =

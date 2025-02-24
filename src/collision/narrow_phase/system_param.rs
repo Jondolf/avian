@@ -465,6 +465,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::too_many_arguments)]
     pub fn generate_constraints(
         &self,
+        contact_pair_index: usize,
         contacts: &Contacts,
         constraints: &mut Vec<ContactConstraint>,
         body1: &RigidBodyQueryReadOnlyItem,
@@ -507,6 +508,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Generate contact constraints for each contact.
         for (i, contact_manifold) in contacts.manifolds.iter().enumerate() {
             let constraint = ContactConstraint::generate(
+                contact_pair_index,
                 i,
                 contact_manifold,
                 body1,
