@@ -23,4 +23,13 @@ impl PairKey {
             Self(((id2 as u64) << 32) | id1 as u64)
         }
     }
+
+    /// Gets the two IDs stored in the pair key in ascending order.
+    #[inline]
+    pub fn get(&self) -> (u32, u32) {
+        (
+            ((self.0 >> 32) & 0xFFFF_FFFF) as u32,
+            (self.0 & 0xFFFF_FFFF) as u32,
+        )
+    }
 }
