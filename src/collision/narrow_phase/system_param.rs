@@ -14,9 +14,9 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelI
 ///
 /// Responsibilities:
 ///
-/// - Creates a contact pair in the [`Collisions`] resource for each pair of intersecting AABBs.
+/// - Updates contacts for each contact pair in [`Collisions`].
+/// - Sends collision events when colliders start or stop touching.
 /// - Removes contact pairs from the [`Collisions`] resource when AABBs stop overlapping.
-/// - Updates contacts for each contact pair, and sends collision events when colliders start or stop touching.
 /// - Generates contact constraints for each contact pair that is touching or expected to start touching.
 #[derive(SystemParam)]
 #[expect(missing_docs)]
