@@ -279,17 +279,6 @@ fn sweep_and_prune<H: CollisionHooks>(
                 break;
             }
 
-            // No collisions between bodies that haven't moved or colliders with incompatible layers
-            // or colliders with the same parent.
-            if flags1
-                .intersection(*flags2)
-                .contains(AabbIntervalFlags::IS_INACTIVE)
-                || !layers1.interacts_with(*layers2)
-                || parent1 == parent2
-            {
-                continue;
-            }
-
             // y doesn't intersect.
             if aabb1.min.y > aabb2.max.y || aabb1.max.y < aabb2.min.y {
                 continue;
@@ -298,6 +287,17 @@ fn sweep_and_prune<H: CollisionHooks>(
             #[cfg(feature = "3d")]
             // z doesn't intersect.
             if aabb1.min.z > aabb2.max.z || aabb1.max.z < aabb2.min.z {
+                continue;
+            }
+
+            // No collisions between bodies that haven't moved or colliders with incompatible layers
+            // or colliders with the same parent.
+            if flags1
+                .intersection(*flags2)
+                .contains(AabbIntervalFlags::IS_INACTIVE)
+                || !layers1.interacts_with(*layers2)
+                || parent1 == parent2
+            {
                 continue;
             }
 
