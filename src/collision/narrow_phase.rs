@@ -617,17 +617,20 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Set the initial surface properties.
         // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
+        let friction = collider1
+            .friction
+            .unwrap_or(&self.default_friction)
+            .combine(*collider2.friction.unwrap_or(&self.default_friction))
+            .dynamic_coefficient;
+        let restitution = collider1
+            .restitution
+            .unwrap_or(&self.default_restitution)
+            .combine(*collider2.restitution.unwrap_or(&self.default_restitution))
+            .coefficient;
+
         manifolds.iter_mut().for_each(|manifold| {
-            manifold.dynamic_friction = collider1
-                .friction
-                .unwrap_or(&self.default_friction)
-                .combine(*collider2.friction.unwrap_or(&self.default_friction))
-                .dynamic_coefficient;
-            manifold.restitution = collider1
-                .restitution
-                .unwrap_or(&self.default_restitution)
-                .combine(*collider2.restitution.unwrap_or(&self.default_restitution))
-                .coefficient;
+            manifold.dynamic_friction = friction;
+            manifold.restitution = restitution;
             #[cfg(feature = "2d")]
             {
                 manifold.tangent_speed = 0.0;
