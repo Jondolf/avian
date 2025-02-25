@@ -36,9 +36,7 @@ impl CoefficientCombine {
     }
 }
 
-/// A resource for the default [`Friction`] to use for physics objects.
-///
-/// Friction can be set for individual colliders and rigid bodies using the [`Friction`] component.
+/// A resource for the default [`Friction`] to use for colliders.
 ///
 /// Defaults to dynamic and static friction coefficients of `0.5` with a combine rule of [`CoefficientCombine::Average`].
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
@@ -47,9 +45,7 @@ impl CoefficientCombine {
 #[reflect(Debug, Default, PartialEq)]
 pub struct DefaultFriction(pub Friction);
 
-/// A resource for the default [`Restitution`] to use for physics objects.
-///
-/// Restitution can be set for individual colliders and rigid bodies using the [`Restitution`] component.
+/// A resource for the default [`Restitution`] to use for colliders.
 ///
 /// Defaults to a coefficient of `0.0` with a combine rule of [`CoefficientCombine::Average`].
 #[derive(Resource, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
@@ -58,7 +54,7 @@ pub struct DefaultFriction(pub Friction);
 #[reflect(Debug, Default, PartialEq)]
 pub struct DefaultRestitution(pub Restitution);
 
-/// A component for [dry friction], controlling how strongly a [rigid body](RigidBody) or [collider](Collider)
+/// A component for [dry friction], controlling how strongly the surface of a [collider](Collider)
 /// opposes sliding along other surfaces while in contact.
 ///
 /// For surfaces that are at rest relative to each other, **static friction** is used.
@@ -68,9 +64,8 @@ pub struct DefaultRestitution(pub Restitution);
 /// The friction coefficients should typically be between 0 and 1, where 0 corresponds to no friction at all, and 1 corresponds to high friction.
 /// However, any non-negative value is allowed.
 ///
-/// If a collider does not have [`Friction`] specified, the [`Friction`] of its rigid body entity will be used instead.
-/// If that is not specified either, collisions use the [`DefaultFriction`] resource. The default dynamic and static friction
-/// coefficients are set to `0.5`.
+/// If a collider does not have [`Friction`] specified, the [`DefaultFriction`] resource is used instead.
+/// The default dynamic and static friction coefficients are set to `0.5`.
 ///
 /// [dry friction]: https://en.wikipedia.org/wiki/Friction#Dry_friction
 /// [Coulomb friction model]: https://en.wikipedia.org/wiki/Friction#Dry_friction
@@ -224,15 +219,14 @@ impl From<Scalar> for Friction {
     }
 }
 
-/// A component for [restitution], controlling how bouncy a [rigid body](RigidBody) or [collider](Collider) is.
+/// A component for [restitution], controlling how bouncy the surface of a [collider](Collider) is.
 ///
 /// The coefficient should be between 0 and 1, where 0 corresponds to a **perfectly inelastic** collision with zero bounce,
 /// and 1 corresponds to a **perfectly elastic** collision that tries to preserve all kinetic energy.
 /// Values larger than 1 can result in unstable or explosive behavior.
 ///
-/// If a collider does not have [`Restitution`] specified, the [`Restitution`] of its rigid body entity will be used instead.
-/// If that is not specified either, collisions use the [`DefaultRestitution`] resource. The default restitution is set to 0,
-/// meaning that objects are not bouncy by default.
+/// If a collider does not have [`Restitution`] specified, the [`DefaultRestitution`] resource is used instead.
+/// The default restitution is set to 0, meaning that objects are not bouncy by default.
 ///
 /// [restitution]: https://en.wikipedia.org/wiki/Coefficient_of_restitution
 ///
