@@ -8,7 +8,6 @@ pub use system_param::NarrowPhase;
 use std::marker::PhantomData;
 
 use crate::{
-    data_structures::pair_key::PairKey,
     dynamics::solver::{ContactConstraints, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -20,7 +19,6 @@ use bevy::{
     },
     prelude::*,
 };
-use broad_phase::BroadPhasePairs;
 use dynamics::solver::SolverDiagnostics;
 
 /// Manages contacts and generates contact constraints.
@@ -257,7 +255,6 @@ pub enum NarrowPhaseSet {
 
 fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut narrow_phase: NarrowPhase<C>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
     mut collision_started_event_writer: EventWriter<CollisionStarted>,
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
@@ -270,7 +267,6 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     let start = bevy::utils::Instant::now();
 
     narrow_phase.update::<H>(
-        &mut broad_phase_pairs,
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
@@ -394,14 +390,14 @@ fn generate_constraints<C: AnyCollider>(
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
     mut collisions: ResMut<Collisions>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
 ) {
     let entity = trigger.entity();
 
-    for contact_pair in collisions.collisions_with(entity) {
+    // Remove the collider from the contact graph.
+    collisions.remove_collider_with(entity, |contact_pair| {
         // Send collision ended event.
         if contact_pair
             .flags
@@ -420,16 +416,9 @@ fn remove_collider_on<E: Event, C: Component>(
             colliding_entities.remove(&entity);
         }
 
-        // Remove the broad phase pair.
-        let key = PairKey::new(entity.index(), other_entity.index());
-        broad_phase_pairs.remove(&key);
-
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));
-    }
-
-    // Remove the collider from the contact graph.
-    collisions.remove_collider(entity);
+    });
 }
 
 /// Runs the [`PostProcessCollisions`] schedule.

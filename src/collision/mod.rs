@@ -98,10 +98,11 @@ use crate::{
     data_structures::{
         entity_data_index::EntityDataIndex,
         graph::{EdgeWeightsMut, NodeIndex, UnGraph},
+        pair_key::PairKey,
     },
     prelude::*,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashSet};
 
 /// A resource that stores all contact pairs in the physics world.
 ///
@@ -117,6 +118,7 @@ use bevy::prelude::*;
 /// - [`contains`](Self::contains)
 /// - [`collisions_with`](Self::collisions_with) and
 ///   [`collisions_with_mut`](Self::collisions_with_mut)
+/// - [`entities_colliding_with`](Self::entities_colliding_with)
 ///
 /// For example, to iterate over all collisions with a given entity:
 ///
@@ -169,18 +171,29 @@ pub struct Collisions {
     // TODO: We could have a separate intersection graph for sensors.
     /// The contact graph where nodes are entities and edges are contact pairs.
     pub graph: UnGraph<Entity, Contacts>,
+
+    /// A set of all contact pairs for fast lookup.
+    ///
+    /// The [`PairKey`] is a unique pair of entity indices, sorted in ascending order,
+    /// concatenated into a single `u64` key.
+    ///
+    /// Two entities have a contact pair if they have intersecting AABBs.
+    pub(crate) pair_set: HashSet<PairKey>,
+
     /// A map from entities to their corresponding node indices in the contact graph.
     entity_graph_index: EntityDataIndex<NodeIndex>,
 }
 
 impl Collisions {
     /// Returns a reference to the internal `IndexMap`.
+    #[inline]
     #[deprecated(since = "0.3.0", note = "Access `graph` instead.")]
     pub fn get_internal(&self) -> &UnGraph<Entity, Contacts> {
         &self.graph
     }
 
     /// Returns a mutable reference to the internal `IndexMap`.
+    #[inline]
     #[deprecated(since = "0.3.0", note = "Access `graph` instead.")]
     pub fn get_internal_mut(&mut self) -> &mut UnGraph<Entity, Contacts> {
         &mut self.graph
@@ -190,6 +203,7 @@ impl Collisions {
     /// else returns `None`.
     ///
     /// The order of the entities does not matter.
+    #[inline]
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
@@ -207,6 +221,7 @@ impl Collisions {
     /// else returns `None`.
     ///
     /// The order of the entities does not matter.
+    #[inline]
     pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
@@ -223,16 +238,27 @@ impl Collisions {
     /// Returns `true` if the given entities have been in contact during this frame.
     ///
     /// The order of the entities does not matter.
+    #[inline]
     pub fn contains(&self, entity1: Entity, entity2: Entity) -> bool {
-        // We can't use `contains` directly because we only want to
-        // count collisions that happened during this frame.
-        self.get(entity1, entity2).is_some()
+        self.contains_key(&PairKey::new(entity1.index(), entity2.index()))
+    }
+
+    /// Returns `true` if the given pair key is in the contact graph.
+    ///
+    /// The pair key should be equivalent to `PairKey::new(entity1.index(), entity2.index())`.
+    ///
+    /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
+    /// If the key is not available, consider using [`contains`](Self::contains) instead.
+    #[inline]
+    pub fn contains_key(&self, pair_key: &PairKey) -> bool {
+        self.pair_set.contains(pair_key)
     }
 
     /// Returns an iterator yielding immutable access to all contact pairs.
     ///
     /// Note that contact pairs exist between entities with intersecting AABBs,
     /// even if the shapes themselves are not yet touching.
+    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
         self.graph.all_edge_weights()
     }
@@ -241,11 +267,13 @@ impl Collisions {
     ///
     /// Note that contact pairs exist between entities with intersecting AABBs,
     /// even if the shapes themselves are not yet touching.
+    #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
         self.graph.all_edge_weights_mut()
     }
 
     /// Returns an iterator yielding immutable access to all collisions with a given entity.
+    #[inline]
     pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
         self.entity_graph_index
             .get(entity)
@@ -254,6 +282,7 @@ impl Collisions {
     }
 
     /// Returns an iterator yielding mutable access to all collisions with a given entity.
+    #[inline]
     pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut Contacts> {
         if let Some(&index) = self.entity_graph_index.get(entity) {
             self.graph.edge_weights_mut(index)
@@ -267,6 +296,7 @@ impl Collisions {
     }
 
     /// Returns an iterator yielding immutable access to all entities that are colliding with the given entity.
+    #[inline]
     pub fn entities_colliding_with(&self, entity: Entity) -> impl Iterator<Item = Entity> + '_ {
         self.entity_graph_index
             .get(entity)
@@ -278,38 +308,108 @@ impl Collisions {
             })
     }
 
-    /// Inserts contact data for a collision between two entities.
+    /// Creates a contact pair between two entities.
     ///
-    /// If a collision entry with the same entities already exists, it will be overwritten,
-    /// and the old value will be returned. Otherwise, `None` is returned.
+    /// If a pair with the same entities already exists, this will do nothing.
     ///
     /// # Warning
     ///
-    /// Inserting a collision pair with this method will *not* trigger any collision events
+    /// Creating a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
-    pub fn insert_collision_pair(&mut self, contacts: Contacts) {
+    #[inline]
+    pub fn add_collision_pair(&mut self, contacts: Contacts) {
+        let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+        self.add_collision_pair_with_key(contacts, pair_key);
+    }
+
+    /// Creates a contact pair between two entities with the given pair key.
+    ///
+    /// The key must be equivalent to `PairKey::new(contacts.entity1.index(), contacts.entity2.index())`.
+    ///
+    /// If a pair with the same entities already exists, this will do nothing.
+    ///
+    /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
+    /// If the key is not available, consider using [`add_collision_pair`] instead.
+    ///
+    /// # Warning
+    ///
+    /// Creating a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    #[inline]
+    pub fn add_collision_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+        // Add the pair to the pair set for fast lookup.
+        if !self.pair_set.insert(pair_key) {
+            // The pair already exists.
+            return;
+        }
+
+        // Ensure that the pair exists in the entity graph index.
         let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
             contacts.entity1,
             contacts.entity2,
             NodeIndex::END,
         );
 
+        // Add the nodes if they don't exist, and add the edge.
         if index1.is_end() {
             *index1 = self.graph.add_node(contacts.entity1);
         }
-
         if index2.is_end() {
             *index2 = self.graph.add_node(contacts.entity2);
         }
-
-        if self.graph.find_edge(*index1, *index2).is_none() {
-            self.graph.add_edge(*index1, *index2, contacts);
-        }
+        self.graph.add_edge(*index1, *index2, contacts);
     }
 
-    /// Removes a collision between two entites and returns its value.
+    /// Inserts a contact pair between two entities.
     ///
-    /// The order of the entities does not matter.
+    /// If a pair with the same entities already exists, it will be overwritten.
+    ///
+    /// # Warning
+    ///
+    /// Inserting a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    #[inline]
+    pub fn insert_collision_pair(&mut self, contacts: Contacts) {
+        let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+        self.insert_collision_pair_with_key(contacts, pair_key);
+    }
+
+    /// Inserts a contact pair between two entities with the given pair key.
+    ///
+    /// The key must be equivalent to `PairKey::new(contacts.entity1.index(), contacts.entity2.index())`.
+    ///
+    /// If a pair with the same entities already exists, it will be overwritten.
+    ///
+    /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
+    /// If the key is not available, consider using [`insert_collision_pair`] instead.
+    ///
+    /// # Warning
+    ///
+    /// Inserting a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    #[inline]
+    pub fn insert_collision_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+        // Add the pair to the pair set for fast lookup.
+        self.pair_set.insert(pair_key);
+
+        // Ensure that the pair exists in the entity graph index.
+        let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
+            contacts.entity1,
+            contacts.entity2,
+            NodeIndex::END,
+        );
+
+        // Add the nodes if they don't exist, and update the edge.
+        if index1.is_end() {
+            *index1 = self.graph.add_node(contacts.entity1);
+        }
+        if index2.is_end() {
+            *index2 = self.graph.add_node(contacts.entity2);
+        }
+        self.graph.update_edge(*index1, *index2, contacts);
+    }
+
+    /// Removes a contact pair between two entites and returns its value.
     ///
     /// # Warning
     ///
@@ -317,6 +417,7 @@ impl Collisions {
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
+    #[inline]
     pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
@@ -325,25 +426,41 @@ impl Collisions {
             return None;
         };
 
+        // Remove the pair from the pair set.
+        self.pair_set
+            .remove(&PairKey::new(entity1.index(), entity2.index()));
+
+        // Remove the edge from the graph.
         self.graph
             .find_edge(index1, index2)
             .and_then(|edge| self.graph.remove_edge(edge))
     }
 
-    /// Removes the collider of the given entity from the collision graph.
-    ///
-    /// This will remove all contacts involving the entity.
+    /// Removes the collider of the given entity from the contact graph,
+    /// calling the given callback for each contact pair that is removed in the process.
     ///
     /// # Warning
     ///
     /// Removing a collider with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
-    pub fn remove_collider(&mut self, entity: Entity) {
+    #[inline]
+    pub fn remove_collider_with<F>(&mut self, entity: Entity, mut pair_callback: F)
+    where
+        F: FnMut(Contacts),
+    {
         let Some(&index) = self.entity_graph_index.get(entity) else {
             return;
         };
 
-        self.graph.remove_node(index);
+        // Remove the entity from the graph.
+        self.graph.remove_node_with(index, |contacts| {
+            let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+
+            pair_callback(contacts);
+
+            // Remove the pair from the pair set.
+            self.pair_set.remove(&pair_key);
+        });
 
         // Removing the node swapped the last node to its place,
         // so we need to remap the entity graph index of the swapped node.

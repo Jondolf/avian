@@ -12,15 +12,13 @@ use bevy::{
         system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
     },
     prelude::*,
-    utils::HashSet,
 };
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 /// the number of potential contacts for the [narrow phase](crate::narrow_phase).
 ///
-/// Intersection pairs found by the broad phase are added to the [`BroadPhasePairs`] resource,
-/// and contact pairs are created for the [`Collisions`] resource.
-/// Removal of these pairs is left to the [narrow phase](crate::narrow_phase).
+/// A contact pair is created in the [`Collisions`] resource for each pair found.
+/// Removing and updating these pairs is left to the [narrow phase](crate::narrow_phase).
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
@@ -40,10 +38,7 @@ where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
-        app.register_type::<BroadPhasePairs>();
-
-        app.init_resource::<BroadPhasePairs>()
-            .init_resource::<AabbIntervals>();
+        app.init_resource::<AabbIntervals>();
 
         app.configure_sets(
             PhysicsSchedule,
@@ -84,21 +79,12 @@ pub enum BroadPhaseSet {
     First,
     /// Updates acceleration structures and other data needed for broad phase collision detection.
     UpdateStructures,
-    /// Finds pairs of entities with overlapping [`ColliderAabb`]s, adds them
-    /// to the [`BroadPhasePairs`] resource, and creates contact pairs for [`Collisions`].
+    /// Finds pairs of entities with overlapping [`ColliderAabb`]s
+    /// and creates contact pairs for them in [`Collisions`].
     CollectCollisions,
     /// Runs at the end of the broad phase. Empty by default.
     Last,
 }
-
-/// A set of collider pairs with intersecting AABBs found by the broad phase.
-///
-/// This is used for efficient lookup of broad phase pairs.
-#[derive(Reflect, Resource, Debug, Default, Deref, DerefMut)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Resource)]
-pub struct BroadPhasePairs(pub HashSet<PairKey>);
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
@@ -247,11 +233,10 @@ fn add_new_aabb_intervals(
     intervals.0.extend(aabbs);
 }
 
-/// Finds pairs of entities with overlapping [`ColliderAabb`]s, adds them
-/// to the [`BroadPhasePairs`] resource, and creates contact pairs for [`Collisions`].
+/// Finds pairs of entities with overlapping [`ColliderAabb`]s
+/// and creates contact pairs for them in [`Collisions`].
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
-    mut broad_phase_pairs: ResMut<BroadPhasePairs>,
     mut collisions: ResMut<Collisions>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
@@ -263,7 +248,6 @@ fn collect_collision_pairs<H: CollisionHooks>(
 
     sweep_and_prune::<H>(
         intervals,
-        &mut broad_phase_pairs,
         &mut collisions,
         &mut hooks.into_inner(),
         &mut commands,
@@ -277,7 +261,6 @@ fn collect_collision_pairs<H: CollisionHooks>(
 /// Sweep and prune exploits temporal coherence, as bodies are unlikely to move significantly between two simulation steps. Insertion sort is used, as it is good at sorting nearly sorted lists efficiently.
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
-    broad_phase_pairs: &mut BroadPhasePairs,
     collisions: &mut Collisions,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
@@ -318,12 +301,9 @@ fn sweep_and_prune<H: CollisionHooks>(
                 continue;
             }
 
-            // Create a key for this pair of entities.
-            // The key is used for fast lookup in the broad phase pair set.
-            let pair_key = PairKey::new(entity1.index(), entity2.index());
-
             // Avoid duplicate pairs.
-            if broad_phase_pairs.contains(&pair_key) {
+            let pair_key = PairKey::new(entity1.index(), entity2.index());
+            if collisions.contains_key(&pair_key) {
                 continue;
             }
 
@@ -337,9 +317,6 @@ fn sweep_and_prune<H: CollisionHooks>(
                     continue;
                 }
             }
-
-            // Add the pair to the broad phase pair set for fast lookup.
-            broad_phase_pairs.insert(pair_key);
 
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
@@ -366,7 +343,7 @@ fn sweep_and_prune<H: CollisionHooks>(
             );
 
             // Add the contact pair to the contact graph.
-            collisions.insert_collision_pair(contacts);
+            collisions.add_collision_pair_with_key(contacts, pair_key);
         }
     }
 }

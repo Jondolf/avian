@@ -8,7 +8,6 @@ use bevy::{
     prelude::*,
 };
 use bit_vec::BitVec;
-use broad_phase::BroadPhasePairs;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 /// A system parameter for managing the narrow phase.
@@ -48,10 +47,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     ///
     /// - Updates contacts for each contact pair in [`Collisions`].
     /// - Sends collision events when colliders start or stop touching.
-    /// - Removes pairs from [`BroadPhasePairs`] and [`Collisions`] when AABBs stop overlapping.
+    /// - Removes pairs from [`Collisions`] when AABBs stop overlapping.
     pub fn update<H: CollisionHooks>(
         &mut self,
-        broad_phase_pairs: &mut BroadPhasePairs,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
@@ -124,10 +122,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         ));
                     });
 
-                    // Remove the broad phase pair.
-                    let key =
+                    // Remove the contact pair from the pair set.
+                    // This is normally done by `Collisions::remove_collision_pair`,
+                    // but since we're removing edges manually, we need to do it here.
+                    let pair_key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
-                    broad_phase_pairs.remove(&key);
+                    self.collisions.pair_set.remove(&pair_key);
 
                     // Queue the contact pair for removal.
                     pairs_to_remove.push(pair_index);

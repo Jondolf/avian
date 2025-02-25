@@ -67,6 +67,9 @@ pub enum EdgeDirection {
 }
 
 impl EdgeDirection {
+    /// The two possible directions for an edge.
+    pub const ALL: [EdgeDirection; 2] = [EdgeDirection::Outgoing, EdgeDirection::Incoming];
+
     /// Returns the opposite direction.
     #[inline]
     fn opposite(self) -> EdgeDirection {
@@ -76,9 +79,6 @@ impl EdgeDirection {
         }
     }
 }
-
-/// The two possible directions for an edge.
-const DIRECTIONS: [EdgeDirection; 2] = [EdgeDirection::Outgoing, EdgeDirection::Incoming];
 
 /// The node type for a graph structure.
 #[derive(Clone, Copy, Debug)]
@@ -287,8 +287,8 @@ impl<N, E> UnGraph<N, E> {
             .map(|ed| (ed.source(), ed.target()))
     }
 
-    /// Removes `a` from the graph if it exists, and returns its weight.
-    /// If it doesn't exist in the graph, returns `None`.
+    /// Removes `a` from the graph if it exists, calling `edge_callback` for each of its edges,
+    /// and returns its weight. If it doesn't exist in the graph, returns `None`.
     ///
     /// Apart from `a`, this invalidates the last node index in the graph
     /// (that node will adopt the removed node index). Edge indices are
@@ -299,9 +299,12 @@ impl<N, E> UnGraph<N, E> {
     /// edges, including *n* calls to [`remove_edge`](Self::remove_edge),
     /// where *n* is the number of edges with an endpoint in `a`,
     /// and including the edges with an endpoint in the displaced node.
-    pub fn remove_node(&mut self, a: NodeIndex) -> Option<N> {
+    pub fn remove_node_with<F>(&mut self, a: NodeIndex, mut edge_callback: F) -> Option<N>
+    where
+        F: FnMut(E),
+    {
         self.nodes.get(a.index())?;
-        for d in DIRECTIONS {
+        for d in EdgeDirection::ALL {
             let k = d as usize;
 
             // Remove all edges from and to this node.
@@ -310,9 +313,8 @@ impl<N, E> UnGraph<N, E> {
                 if next == EdgeIndex::END {
                     break;
                 }
-                let ret = self.remove_edge(next);
-                debug_assert!(ret.is_some());
-                let _ = ret;
+                let edge = self.remove_edge(next).expect("edge not found for removal");
+                edge_callback(edge);
             }
         }
 
@@ -333,7 +335,7 @@ impl<N, E> UnGraph<N, E> {
         let new_index = a;
 
         // Adjust the starts of the out edges, and ends of the in edges.
-        for d in DIRECTIONS {
+        for d in EdgeDirection::ALL {
             let k = d as usize;
             let mut edges = EdgesWalkerMut {
                 edges: &mut self.edges,
@@ -356,7 +358,7 @@ impl<N, E> UnGraph<N, E> {
         e: EdgeIndex,
         edge_next: [EdgeIndex; 2],
     ) {
-        for d in DIRECTIONS {
+        for d in EdgeDirection::ALL {
             let k = d as usize;
             let node = match self.nodes.get_mut(edge_node[k].index()) {
                 Some(r) => r,
@@ -492,7 +494,7 @@ impl<N, E> UnGraph<N, E> {
     /// connected to `a` (and `b`, if the graph edges are undirected).
     pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
         let node = self.nodes.get(a.index())?;
-        for &d in &DIRECTIONS {
+        for &d in &EdgeDirection::ALL {
             let k = d as usize;
             let mut edix = node.next[k];
             while let Some(edge) = self.edges.get(edix.index()) {
@@ -667,7 +669,7 @@ impl<N, E> UnGraph<N, E> {
     {
         for index in self.node_indices().rev() {
             if !visit(self, index) {
-                let ret = self.remove_node(index);
+                let ret = self.remove_node_with(index, |_| ());
                 debug_assert!(ret.is_some());
                 let _ = ret;
             }
