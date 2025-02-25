@@ -343,7 +343,7 @@ fn sweep_and_prune<H: CollisionHooks>(
             );
 
             // Add the contact pair to the contact graph.
-            collisions.add_collision_pair_with_key(contacts, pair_key);
+            collisions.add_pair_with_key(contacts, pair_key);
         }
     }
 }

@@ -94,7 +94,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
                 // 2. The colliders started touching, and a collision started event should be sent.
                 // 3. The colliders stopped touching, and a collision ended event should be sent.
-                if contact_pair.disjoint_aabbs() {
+                if contact_pair.aabbs_disjoint() {
                     // Send a collision ended event if the contact pair was touching.
                     let send_event = contact_pair
                         .flags
@@ -123,7 +123,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     });
 
                     // Remove the contact pair from the pair set.
-                    // This is normally done by `Collisions::remove_collision_pair`,
+                    // This is normally done by `Collisions::remove_pair`,
                     // but since we're removing edges manually, we need to do it here.
                     let pair_key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());

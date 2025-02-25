@@ -199,10 +199,11 @@ impl Collisions {
         &mut self.graph
     }
 
-    /// Returns a reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
-    /// else returns `None`.
+    /// Returns the contact pair between two entities.
+    /// If the pair does not exist, `None` is returned.
     ///
-    /// The order of the entities does not matter.
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
+    /// Use [`Contacts::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
         let (Some(&index1), Some(&index2)) = (
@@ -217,10 +218,11 @@ impl Collisions {
             .and_then(|edge| self.graph.edge_weight(edge))
     }
 
-    /// Returns a mutable reference to the [contacts](Contacts) stored for the given entity pair if they are colliding,
-    /// else returns `None`.
+    /// Returns a mutable reference to the contact pair between two entities.
+    /// If the pair does not exist, `None` is returned.
     ///
-    /// The order of the entities does not matter.
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
+    /// Use [`Contacts::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
     pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
         let (Some(&index1), Some(&index2)) = (
@@ -235,9 +237,10 @@ impl Collisions {
             .and_then(|edge| self.graph.edge_weight_mut(edge))
     }
 
-    /// Returns `true` if the given entities have been in contact during this frame.
+    /// Returns `true` if the given entities have a contact pair.
     ///
-    /// The order of the entities does not matter.
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
+    /// even if the shapes themselves are not yet touching.
     #[inline]
     pub fn contains(&self, entity1: Entity, entity2: Entity) -> bool {
         self.contains_key(&PairKey::new(entity1.index(), entity2.index()))
@@ -256,23 +259,52 @@ impl Collisions {
 
     /// Returns an iterator yielding immutable access to all contact pairs.
     ///
-    /// Note that contact pairs exist between entities with intersecting AABBs,
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
+    ///
+    /// If you only want touching contacts, use [`iter_touching`](Self::iter_touching) instead.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
         self.graph.all_edge_weights()
     }
 
+    /// Returns an iterator yielding immutable access to all contact pairs that are currently touching.
+    ///
+    /// This is a subset of [`iter`](Self::iter) that only includes pairs where the colliders are touching.
+    #[inline]
+    pub fn iter_touching(&self) -> impl Iterator<Item = &Contacts> {
+        self.graph
+            .all_edge_weights()
+            .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
+    }
+
     /// Returns a iterator yielding mutable access to all contact pairs.
     ///
-    /// Note that contact pairs exist between entities with intersecting AABBs,
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
+    ///
+    /// If you only want touching contacts, use [`iter_touching_mut`](Self::iter_touching_mut) instead.
     #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
         self.graph.all_edge_weights_mut()
     }
 
-    /// Returns an iterator yielding immutable access to all collisions with a given entity.
+    /// Returns a iterator yielding mutable access to all contact pairs that are currently touching.
+    ///
+    /// This is a subset of [`iter_mut`](Self::iter_mut) that only includes pairs where the colliders are touching.
+    #[inline]
+    pub fn iter_touching_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
+        self.graph
+            .all_edge_weights_mut()
+            .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
+    }
+
+    /// Returns an iterator yielding immutable access to all contact pairs involving the given entity.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
+    /// even if the shapes themselves are not yet touching.
+    ///
+    /// Use [`Contacts::is_touching`](Contacts::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
     pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
         self.entity_graph_index
@@ -281,7 +313,12 @@ impl Collisions {
             .flat_map(move |&index| self.graph.edge_weights(index))
     }
 
-    /// Returns an iterator yielding mutable access to all collisions with a given entity.
+    /// Returns an iterator yielding mutable access to all contact pairs involving the given entity.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
+    /// even if the shapes themselves are not yet touching.
+    ///
+    /// Use [`Contacts::is_touching`](Contacts::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
     pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut Contacts> {
         if let Some(&index) = self.entity_graph_index.get(entity) {
@@ -295,7 +332,10 @@ impl Collisions {
         }
     }
 
-    /// Returns an iterator yielding immutable access to all entities that are colliding with the given entity.
+    /// Returns an iterator yielding immutable access to all entities that have a contact pair with the given entity.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
+    /// even if the shapes themselves are not yet touching.
     #[inline]
     pub fn entities_colliding_with(&self, entity: Entity) -> impl Iterator<Item = Entity> + '_ {
         self.entity_graph_index
@@ -317,9 +357,9 @@ impl Collisions {
     /// Creating a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_collision_pair(&mut self, contacts: Contacts) {
+    pub fn add_pair(&mut self, contacts: Contacts) {
         let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
-        self.add_collision_pair_with_key(contacts, pair_key);
+        self.add_pair_with_key(contacts, pair_key);
     }
 
     /// Creates a contact pair between two entities with the given pair key.
@@ -329,14 +369,14 @@ impl Collisions {
     /// If a pair with the same entities already exists, this will do nothing.
     ///
     /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
-    /// If the key is not available, consider using [`add_collision_pair`] instead.
+    /// If the key is not available, consider using [`add_pair`] instead.
     ///
     /// # Warning
     ///
     /// Creating a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_collision_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+    pub fn add_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
         // Add the pair to the pair set for fast lookup.
         if !self.pair_set.insert(pair_key) {
             // The pair already exists.
@@ -369,9 +409,9 @@ impl Collisions {
     /// Inserting a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn insert_collision_pair(&mut self, contacts: Contacts) {
+    pub fn insert_pair(&mut self, contacts: Contacts) {
         let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
-        self.insert_collision_pair_with_key(contacts, pair_key);
+        self.insert_pair_with_key(contacts, pair_key);
     }
 
     /// Inserts a contact pair between two entities with the given pair key.
@@ -381,14 +421,14 @@ impl Collisions {
     /// If a pair with the same entities already exists, it will be overwritten.
     ///
     /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
-    /// If the key is not available, consider using [`insert_collision_pair`] instead.
+    /// If the key is not available, consider using [`insert_pair`] instead.
     ///
     /// # Warning
     ///
     /// Inserting a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn insert_collision_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+    pub fn insert_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
         // Add the pair to the pair set for fast lookup.
         self.pair_set.insert(pair_key);
 
@@ -418,7 +458,7 @@ impl Collisions {
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
-    pub fn remove_collision_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
+    pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
             self.entity_graph_index.get(entity2),
@@ -593,12 +633,12 @@ impl Contacts {
     }
 
     /// Returns `true` if the colliders are touching, including sensors.
-    pub fn touching(&self) -> bool {
+    pub fn is_touching(&self) -> bool {
         self.flags.contains(ContactPairFlags::TOUCHING)
     }
 
     /// Returns `true` if the AABBs of the colliders are no longer overlapping.
-    pub fn disjoint_aabbs(&self) -> bool {
+    pub fn aabbs_disjoint(&self) -> bool {
         self.flags.contains(ContactPairFlags::DISJOINT_AABB)
     }
 

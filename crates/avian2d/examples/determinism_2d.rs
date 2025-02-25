@@ -186,7 +186,7 @@ fn setup_ui(mut commands: Commands) {
 // TODO: This should be an optimized built-in feature for joints.
 fn ignore_joint_collisions(joints: Query<&RevoluteJoint>, mut collisions: ResMut<Collisions>) {
     for joint in &joints {
-        collisions.remove_collision_pair(joint.entity1, joint.entity2);
+        collisions.remove_pair(joint.entity1, joint.entity2);
     }
 }
 
