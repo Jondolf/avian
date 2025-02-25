@@ -488,26 +488,57 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
-        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
-        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
+        let (mut lin_vel1, rb_friction1, rb_collision_margin1, rb_speculative_margin1) =
+            body1_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+        let (mut lin_vel2, rb_friction2, rb_collision_margin2, rb_speculative_margin2) =
+            body2_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+
+        // Get combined friction and restitution coefficients of the colliders
+        // or the bodies they are attached to. Fall back to the global defaults.
+        let friction = collider1
+            .friction
+            .or(rb_friction1)
+            .copied()
+            .unwrap_or(self.default_friction.0)
+            .combine(
+                collider2
+                    .friction
+                    .or(rb_friction2)
+                    .copied()
+                    .unwrap_or(self.default_friction.0),
+            )
+            .dynamic_coefficient;
+        let restitution = collider1
+            .restitution
+            .copied()
+            .unwrap_or(self.default_restitution.0)
+            .combine(
+                collider2
+                    .restitution
+                    .copied()
+                    .unwrap_or(self.default_restitution.0),
+            )
+            .coefficient;
 
         // Use the collider's own collision margin if specified, and fall back to the body's
         // collision margin.
@@ -572,6 +603,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         self.compute_contact_pair::<H>(
             &collider1,
             &collider2,
+            friction,
+            restitution,
             max_contact_distance,
             hooks,
             commands,
@@ -589,6 +622,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Scalar,
+        restitution: Scalar,
         max_distance: Scalar,
         hooks: &H::Item<'_, '_>,
         commands: &mut Commands,
@@ -617,17 +652,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Set the initial surface properties.
         // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
-        let friction = collider1
-            .friction
-            .unwrap_or(&self.default_friction)
-            .combine(*collider2.friction.unwrap_or(&self.default_friction))
-            .dynamic_coefficient;
-        let restitution = collider1
-            .restitution
-            .unwrap_or(&self.default_restitution)
-            .combine(*collider2.restitution.unwrap_or(&self.default_restitution))
-            .coefficient;
-
         manifolds.iter_mut().for_each(|manifold| {
             manifold.dynamic_friction = friction;
             manifold.restitution = restitution;
