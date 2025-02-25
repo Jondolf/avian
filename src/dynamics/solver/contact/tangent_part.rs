@@ -154,7 +154,7 @@ impl ContactTangentPart {
         // The desired relative velocity along the contact surface, used to simulate things like conveyor belts.
         #[cfg(feature = "2d")] surface_speed: Scalar,
         #[cfg(feature = "3d")] surface_velocity: Vector,
-        dynamic_friction: Scalar,
+        friction: Scalar,
         normal_impulse: Scalar,
     ) -> Vector {
         // Compute the maximum bound for the friction impulse.
@@ -179,8 +179,7 @@ impl ContactTangentPart {
         //
         // -coefficient * length(normal_impulse) <= impulse_magnitude <= coefficient * length(normal_impulse)
 
-        // TODO: Separate static and dynamic friction
-        let impulse_limit = dynamic_friction * normal_impulse;
+        let impulse_limit = friction * normal_impulse;
 
         #[cfg(feature = "2d")]
         {

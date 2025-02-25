@@ -68,7 +68,7 @@ pub struct ContactConstraint {
     /// The entity of the first collider in the contact.
     pub collider_entity2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
-    pub dynamic_friction: Scalar,
+    pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
     pub restitution: Scalar,
     /// The desired relative linear speed of the bodies along the surface,
@@ -107,7 +107,7 @@ impl ContactConstraint {
         collider_transform2: Option<ColliderTransform>,
         collision_margin: impl Into<CollisionMargin>,
         speculative_margin: impl Into<SpeculativeMargin>,
-        dynamic_friction: Scalar,
+        friction: Scalar,
         restitution: Scalar,
         #[cfg(feature = "2d")] tangent_speed: Scalar,
         #[cfg(feature = "3d")] tangent_velocity: Vector,
@@ -129,7 +129,7 @@ impl ContactConstraint {
             entity2: body2.entity,
             collider_entity1,
             collider_entity2,
-            dynamic_friction,
+            friction,
             restitution,
             #[cfg(feature = "2d")]
             tangent_speed,
@@ -194,7 +194,7 @@ impl ContactConstraint {
                     softness,
                 ),
                 // There should only be a friction part if the coefficient of friction is non-negative.
-                tangent_part: (dynamic_friction > 0.0).then_some(ContactTangentPart::generate(
+                tangent_part: (friction > 0.0).then_some(ContactTangentPart::generate(
                     inverse_mass_sum,
                     i1,
                     i2,
@@ -324,7 +324,7 @@ impl ContactConstraint {
             }
         }
 
-        let friction = self.dynamic_friction;
+        let friction = self.friction;
         let tangent_directions =
             self.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 

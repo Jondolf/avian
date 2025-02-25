@@ -374,7 +374,7 @@ pub struct ContactManifold {
     /// The same normal is shared by all `points` in a manifold,
     pub normal: Vector,
     /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
-    pub dynamic_friction: Scalar,
+    pub friction: Scalar,
     /// The effective coefficient of [restitution](Restitution) used for the contact surface.
     pub restitution: Scalar,
     /// The desired relative linear speed of the bodies along the surface,
@@ -413,7 +413,7 @@ impl ContactManifold {
             #[cfg(feature = "3d")]
             points: points.into_iter().collect(),
             normal,
-            dynamic_friction: 0.0,
+            friction: 0.0,
             restitution: 0.0,
             #[cfg(feature = "2d")]
             tangent_speed: 0.0,

@@ -653,7 +653,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Set the initial surface properties.
         // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
         manifolds.iter_mut().for_each(|manifold| {
-            manifold.dynamic_friction = friction;
+            manifold.friction = friction;
             manifold.restitution = restitution;
             #[cfg(feature = "2d")]
             {
@@ -783,7 +783,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                contact_manifold.dynamic_friction,
+                contact_manifold.friction,
                 contact_manifold.restitution,
                 #[cfg(feature = "2d")]
                 contact_manifold.tangent_speed,
