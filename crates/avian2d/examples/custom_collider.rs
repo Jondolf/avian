@@ -67,7 +67,11 @@ impl AnyCollider for CircleCollider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
-    ) -> Vec<ContactManifold> {
+        manifolds: &mut Vec<ContactManifold>,
+    ) {
+        // Clear the previous manifolds.
+        manifolds.clear();
+
         let rotation1: Rotation = rotation1.into();
         let rotation2: Rotation = rotation2.into();
 
@@ -95,9 +99,7 @@ impl AnyCollider for CircleCollider {
             )
             .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0))];
 
-            vec![ContactManifold::new(points, rotation1 * local_normal1, 0)]
-        } else {
-            vec![]
+            manifolds.push(ContactManifold::new(points, rotation1 * local_normal1, 0));
         }
     }
 }

@@ -71,9 +71,9 @@ pub trait AnyCollider: Component + ComputeMassProperties {
             .merged(self.aabb(end_position, end_rotation))
     }
 
-    /// Computes all [`ContactManifold`]s between two colliders.
+    /// Computes all [`ContactManifold`]s between two colliders, writing the results into `manifolds`.
     ///
-    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// `manifolds` is cleared if the colliders are separated by a distance greater than `prediction_distance`
     /// or if the given shapes are invalid.
     fn contact_manifolds(
         &self,
@@ -83,7 +83,8 @@ pub trait AnyCollider: Component + ComputeMassProperties {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
-    ) -> Vec<ContactManifold>;
+        manifolds: &mut Vec<ContactManifold>,
+    );
 }
 
 /// A trait for colliders that support scaling.

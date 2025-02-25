@@ -155,7 +155,8 @@ pub fn contact_manifolds(
     position2: impl Into<Position>,
     rotation2: impl Into<Rotation>,
     prediction_distance: Scalar,
-) -> Vec<ContactManifold> {
+    manifolds: &mut Vec<ContactManifold>,
+) {
     let position1: Position = position1.into();
     let position2: Position = position2.into();
     let rotation1: Rotation = rotation1.into();
@@ -165,16 +166,19 @@ pub fn contact_manifolds(
     let isometry12 = isometry1.inv_mul(&isometry2);
 
     // TODO: Reuse manifolds from previous frame to improve performance
-    let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
-
+    let mut new_manifolds =
+        Vec::<parry::query::ContactManifold<(), ()>>::with_capacity(manifolds.len());
     let result = parry::query::DefaultQueryDispatcher.contact_manifolds(
         &isometry12,
         collider1.shape_scaled().0.as_ref(),
         collider2.shape_scaled().0.as_ref(),
         prediction_distance,
-        &mut manifolds,
+        &mut new_manifolds,
         &mut None,
     );
+
+    // Clear the old manifolds.
+    manifolds.clear();
 
     // Fall back to support map contacts for unsupported (custom) shapes.
     if result.is_err() {
@@ -192,7 +196,7 @@ pub fn contact_manifolds(
 
                 // Make sure the normal is valid
                 if !normal.is_normalized() {
-                    return vec![];
+                    return;
                 }
 
                 let points = [ContactPoint::new(
@@ -201,51 +205,48 @@ pub fn contact_manifolds(
                     -contact.dist,
                 )];
 
-                return vec![ContactManifold::new(points, normal, 0)];
+                manifolds.push(ContactManifold::new(points, normal, 0));
             }
         }
     }
 
     let mut manifold_index = 0;
 
-    manifolds
-        .iter()
-        .filter_map(|manifold| {
-            // Skip empty manifolds.
-            if manifold.contacts().is_empty() {
-                return None;
-            }
+    manifolds.extend(new_manifolds.iter().filter_map(|manifold| {
+        // Skip empty manifolds.
+        if manifold.contacts().is_empty() {
+            return None;
+        }
 
-            let subpos1 = manifold.subshape_pos1.unwrap_or_default();
-            let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-            let local_normal: Vector = subpos1
-                .rotation
-                .transform_vector(&manifold.local_n1)
-                .normalize()
-                .into();
-            let normal = rotation1 * local_normal;
+        let subpos1 = manifold.subshape_pos1.unwrap_or_default();
+        let subpos2 = manifold.subshape_pos2.unwrap_or_default();
+        let local_normal: Vector = subpos1
+            .rotation
+            .transform_vector(&manifold.local_n1)
+            .normalize()
+            .into();
+        let normal = rotation1 * local_normal;
 
-            // Make sure the normal is valid
-            if !normal.is_normalized() {
-                return None;
-            }
+        // Make sure the normal is valid
+        if !normal.is_normalized() {
+            return None;
+        }
 
-            let points = manifold.contacts().iter().map(|contact| {
-                ContactPoint::new(
-                    subpos1.transform_point(&contact.local_p1).into(),
-                    subpos2.transform_point(&contact.local_p2).into(),
-                    -contact.dist,
-                )
-                .with_feature_ids(contact.fid1.into(), contact.fid2.into())
-            });
+        let points = manifold.contacts().iter().map(|contact| {
+            ContactPoint::new(
+                subpos1.transform_point(&contact.local_p1).into(),
+                subpos2.transform_point(&contact.local_p2).into(),
+                -contact.dist,
+            )
+            .with_feature_ids(contact.fid1.into(), contact.fid2.into())
+        });
 
-            let manifold = ContactManifold::new(points, normal, manifold_index);
+        let manifold = ContactManifold::new(points, normal, manifold_index);
 
-            manifold_index += 1;
+        manifold_index += 1;
 
-            Some(manifold)
-        })
-        .collect()
+        Some(manifold)
+    }));
 }
 
 /// Information about the closest points between two [`Collider`]s.

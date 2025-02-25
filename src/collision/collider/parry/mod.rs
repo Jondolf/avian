@@ -395,6 +395,7 @@ impl AnyCollider for Collider {
         }
     }
 
+    #[inline]
     fn contact_manifolds(
         &self,
         other: &Self,
@@ -403,7 +404,8 @@ impl AnyCollider for Collider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
-    ) -> Vec<ContactManifold> {
+        manifolds: &mut Vec<ContactManifold>,
+    ) {
         contact_query::contact_manifolds(
             self,
             position1,
@@ -412,6 +414,7 @@ impl AnyCollider for Collider {
             position2,
             rotation2,
             prediction_distance,
+            manifolds,
         )
     }
 }
