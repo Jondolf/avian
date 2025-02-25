@@ -1,5 +1,6 @@
 //! Demonstrates how to use `CollisionHooks::modify_contacts`
 //! and `tangent_velocity` to simulate conveyor belts.
+
 use avian3d::{math::*, prelude::*};
 use bevy::{
     ecs::system::{lifetimeless::Read, SystemParam},
@@ -53,10 +54,12 @@ impl CollisionHooks for ConveyorHooks<'_, '_> {
             return true;
         };
 
+        // Calculate the conveyor belt's direction in world space.
+        let direction = global_transform.rotation() * conveyor_belt.local_direction;
+
         // Iterate over all contact surfaces between the conveyor belt and the other collider,
         // and apply a relative velocity to simulate the movement of the conveyor belt's surface.
         for manifold in contacts.manifolds.iter_mut() {
-            let direction = global_transform.rotation() * conveyor_belt.local_direction;
             manifold.tangent_velocity = sign * conveyor_belt.speed * direction;
         }
 
