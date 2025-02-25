@@ -54,6 +54,11 @@ impl Plugin for ContactReportingPlugin {
 
         physics_schedule.add_systems(report_contacts.in_set(PhysicsStepSet::ReportContacts));
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 /// A [collision event](ContactReportingPlugin#collision-events)
@@ -156,7 +161,10 @@ pub fn report_contacts(
     mut collision_ev_writer: EventWriter<Collision>,
     mut collision_started_ev_writer: EventWriter<CollisionStarted>,
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     // TODO: Would batching events be worth it?
     for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
         if contacts.during_current_frame {
@@ -187,4 +195,6 @@ pub fn report_contacts(
             }
         }
     }
+
+    diagnostics.collision_events = start.elapsed();
 }

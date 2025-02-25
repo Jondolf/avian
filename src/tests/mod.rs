@@ -32,6 +32,8 @@ fn create_app() -> App {
         1.0 / 60.0,
     )));
 
+    app.finish();
+
     app
 }
 

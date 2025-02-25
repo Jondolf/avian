@@ -20,6 +20,7 @@ use bevy::{
     },
     prelude::*,
 };
+use dynamics::solver::SolverDiagnostics;
 
 /// Computes contacts between entities and generates contact constraints for them.
 ///
@@ -170,6 +171,11 @@ where
             );
         }
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 #[derive(Resource, Default)]
@@ -260,15 +266,21 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     hooks: StaticSystemParam<H>,
     #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
+    let start = bevy::utils::Instant::now();
+
     narrow_phase.update::<H>(
         &broad_collision_pairs,
         time.delta_seconds_adjusted(),
         &hooks.into_inner(),
         commands,
     );
+
+    diagnostics.narrow_phase = start.elapsed();
+    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -281,7 +293,11 @@ fn generate_constraints<C: AnyCollider>(
     default_friction: Res<DefaultFriction>,
     default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
+    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
+    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
@@ -367,6 +383,12 @@ fn generate_constraints<C: AnyCollider>(
                 delta_secs,
             );
         }
+    }
+
+    collision_diagnostics.generate_constraints = start.elapsed();
+
+    if let Some(mut solver_diagnostics) = solver_diagnostics {
+        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
     }
 }
 
@@ -645,8 +667,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 || collider2.is_sensor
                 || !collider1.is_rb
                 || !collider2.is_rb,
-            total_normal_impulse: 0.0,
-            total_tangent_impulse: default(),
         };
 
         let active_hooks = collider1.active_hooks().union(collider2.active_hooks());
@@ -671,13 +691,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
-                        manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
-
-                        // Add contact impulses to total impulses.
-                        for contact in manifold.contacts.iter() {
-                            contacts.total_normal_impulse += contact.normal_impulse;
-                            contacts.total_tangent_impulse += contact.tangent_impulse;
-                        }
+                        manifold.match_contacts(&previous_manifold.points, distance_threshold);
                     }
                 }
             }
@@ -724,9 +738,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // When an active body collides with a sleeping body, wake up the sleeping body.
         self.parallel_commands.command_scope(|mut commands| {
             if body1.is_sleeping {
-                commands.entity(body1.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body1.entity));
             } else if body2.is_sleeping {
-                commands.entity(body2.entity).remove::<Sleeping>();
+                commands.queue(WakeUpBody(body2.entity));
             }
         });
 
@@ -780,9 +794,6 @@ pub fn reset_collision_states(
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
-        contacts.total_normal_impulse = 0.0;
-        contacts.total_tangent_impulse = default();
-
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
             contacts.body_entity1.unwrap_or(contacts.entity1),
             contacts.body_entity2.unwrap_or(contacts.entity2),
@@ -800,6 +811,8 @@ pub fn reset_collision_states(
                 contacts.during_current_frame = true;
             }
         } else {
+            // One of the entities does not exist, so the collision has ended.
+            contacts.during_previous_frame = true;
             contacts.during_current_frame = false;
         }
     }

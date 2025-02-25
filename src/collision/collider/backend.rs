@@ -664,16 +664,18 @@ struct ColliderRemovalSystem(SystemId<In<ColliderParent>>);
 fn collider_removed(
     In(parent): In<ColliderParent>,
     mut commands: Commands,
-    mut mass_prop_query: Query<&mut TimeSleeping>,
+    mut sleep_query: Query<&mut TimeSleeping>,
 ) {
     let parent = parent.get();
 
-    if let Ok(mut time_sleeping) = mass_prop_query.get_mut(parent) {
-        let mut entity_commands = commands.entity(parent);
+    let Some(mut entity_commands) = commands.get_entity(parent) else {
+        return;
+    };
 
-        // Queue the parent entity for mass property recomputation.
-        entity_commands.insert(RecomputeMassProperties);
+    // Queue the parent entity for mass property recomputation.
+    entity_commands.insert(RecomputeMassProperties);
 
+    if let Ok(mut time_sleeping) = sleep_query.get_mut(parent) {
         // Wake up the rigid body since removing the collider could also remove active contacts.
         entity_commands.remove::<Sleeping>();
         time_sleeping.0 = 0.0;
