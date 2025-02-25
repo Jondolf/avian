@@ -20,7 +20,7 @@ fn main() {
         .run();
 }
 
-// Enable contact modification for one-way platforms with the `ActiveCollisionHooks` component.
+// Enable contact modification for conveyor belts with the `ActiveCollisionHooks` component.
 // Here we use required components, but you could also add it manually.
 #[derive(Component)]
 #[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
