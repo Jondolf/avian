@@ -166,29 +166,31 @@ impl ContactConstraint {
             relative_dominance,
             friction,
             restitution,
-            normal,
-            points: Vec::with_capacity(manifold.contacts.len()),
+            normal: manifold.normal,
+            points: Vec::with_capacity(manifold.points.len()),
             manifold_index: manifold_id,
         };
 
         let tangents =
             constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-        for mut contact in manifold.contacts.iter().copied() {
+        for mut contact in manifold.points.iter().copied() {
             // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
-                contact.point1 = transform.rotation * contact.point1 + transform.translation;
+                contact.local_point1 =
+                    transform.rotation * contact.local_point1 + transform.translation;
             }
             if let Some(transform) = collider_transform2 {
-                contact.point2 = transform.rotation * contact.point2 + transform.translation;
+                contact.local_point2 =
+                    transform.rotation * contact.local_point2 + transform.translation;
             }
 
             contact.penetration += collision_margin;
 
             let effective_distance = -contact.penetration;
 
-            let local_anchor1 = contact.point1 - body1.center_of_mass.0;
-            let local_anchor2 = contact.point2 - body2.center_of_mass.0;
+            let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
+            let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
 
             // Store fixed world-space anchors.
             // This improves rolling behavior for shapes like balls and capsules.
@@ -200,8 +202,9 @@ impl ContactConstraint {
 
             // Keep the contact if (1) the separation distance is below the required threshold,
             // or if (2) the bodies are expected to come into contact within the next frame.
+            let normal_speed = relative_velocity.dot(constraint.normal);
             let keep_contact = effective_distance < speculative_margin || {
-                let delta_distance = relative_velocity.dot(normal) * delta_secs;
+                let delta_distance = normal_speed * delta_secs;
                 effective_distance + delta_distance < speculative_margin
             };
 
@@ -217,7 +220,7 @@ impl ContactConstraint {
                     i2,
                     r1,
                     r2,
-                    normal,
+                    constraint.normal,
                     warm_start.then_some(contact.normal_impulse),
                     softness,
                 ),
@@ -236,8 +239,8 @@ impl ContactConstraint {
                 max_normal_impulse: 0.0,
                 anchor1: r1,
                 anchor2: r2,
-                normal_speed: normal.dot(relative_velocity),
-                initial_separation: -contact.penetration - (r2 - r1).dot(normal),
+                normal_speed,
+                initial_separation: -contact.penetration - (r2 - r1).dot(constraint.normal),
             };
 
             constraint.points.push(point);
