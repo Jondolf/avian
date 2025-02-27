@@ -253,6 +253,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Compute contacts for all contact pairs in parallel.
         // Each thread writes state changes to its own local bit vector.
         // At the end, the results are combined using bit-wise OR.
+        // TODO: Store the per-thread bit vectors in some storage instead of reallocating every time.?
         let state_change_bits = self
             .collisions
             .graph
