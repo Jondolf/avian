@@ -1,14 +1,16 @@
+use std::cell::RefCell;
+
 use crate::{
-    data_structures::{graph::EdgeIndex, pair_key::PairKey},
+    data_structures::{bit_vec::BitVec, graph::EdgeIndex, pair_key::PairKey},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
 use bevy::{
     ecs::system::{SystemParam, SystemParamItem},
     prelude::*,
+    tasks::{ComputeTaskPool, ParallelSliceMut},
 };
-use bit_vec::BitVec;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use thread_local::ThreadLocal;
 
 /// A system parameter for managing the narrow phase.
 ///
@@ -35,12 +37,24 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
         Without<RigidBodyDisabled>,
     >,
     pub collisions: ResMut<'w, Collisions>,
+    contact_status_bits: ResMut<'w, ContactStatusBits>,
+    contact_status_bits_thread_local: ResMut<'w, ContactStatusBitsThreadLocal>,
     pub config: Res<'w, NarrowPhaseConfig>,
     length_unit: Res<'w, PhysicsLengthUnit>,
     // These are scaled by the length unit.
     default_speculative_margin: Local<'s, Scalar>,
     contact_tolerance: Local<'s, Scalar>,
 }
+
+/// A bit vector for tracking contact status changes.
+/// Set bits correspond to contact pairs that were either added or removed.
+#[derive(Resource, Default, Deref, DerefMut)]
+pub(super) struct ContactStatusBits(pub BitVec);
+
+/// A thread-local bit vector for tracking contact status changes.
+/// Set bits correspond to contact pairs that were either added or removed.
+#[derive(Resource, Default, Deref, DerefMut)]
+pub(super) struct ContactStatusBitsThreadLocal(pub ThreadLocal<RefCell<BitVec>>);
 
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase.
@@ -65,9 +79,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             *self.contact_tolerance = self.length_unit.0 * self.config.contact_tolerance;
         }
 
-        // Update contacts for all contact pairs, returning a bit vector for contact state changes.
-        // Set bits correspond to contact pairs that were either added or removed.
-        let bit_vec = self.update_contacts::<H>(delta_secs, hooks, commands);
+        // Update contacts for all contact pairs.
+        self.update_contacts::<H>(delta_secs, hooks, commands);
 
         // Contact pairs that should be removed.
         // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
@@ -75,14 +88,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: Pre-allocate this with some reasonable capacity?
         let mut pairs_to_remove = Vec::<EdgeIndex>::new();
 
-        // Process contact state changes, iterating over set bits serially to maintain determinism.
+        // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
         // Iterating over set bits is done efficiently with the "count trailing zeros" method:
         // https://lemire.me/blog/2018/02/21/iterating-over-set-bits-quickly/
-        for (i, mut bits) in bit_vec.blocks().enumerate() {
+        for (i, mut bits) in self.contact_status_bits.blocks().enumerate() {
             while bits != 0 {
                 let trailing_zeros = bits.trailing_zeros();
-                let pair_index = EdgeIndex(i as u32 * 32 + trailing_zeros);
+                let pair_index = EdgeIndex(i as u32 * 64 + trailing_zeros);
 
                 let contact_pair = self
                     .collisions
@@ -232,7 +245,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
     /// Updates contacts for all contact pairs in [`Collisions`].
     ///
-    /// Returns a bit vector indicating state changes for each contact pair.
+    /// Also updates the [`ContactStatusBits`] resource to track status changes for each contact pair.
     /// Set bits correspond to contact pairs that were either added or removed,
     /// while unset bits correspond to contact pairs that were persisted.
     ///
@@ -242,218 +255,225 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         delta_secs: Scalar,
         hooks: &H::Item<'_, '_>,
         par_commands: &mut ParallelCommands,
-    ) -> BitVec
-    where
+    ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        // Initialize a bit vector to track state changes for each contact pair.
-        // Set bits correspond to contact pairs that were either added or removed.
-        let initial = BitVec::from_elem(self.collisions.graph.edge_count(), false);
+        let task_pool = ComputeTaskPool::get();
+        let contact_pair_count = self.collisions.graph.edge_count();
+
+        // Clear the bit vector used to track status changes for each contact pair.
+        self.contact_status_bits
+            .set_bit_count_and_clear(contact_pair_count);
+
+        self.contact_status_bits_thread_local
+            .iter_mut()
+            .for_each(|bit_vec| {
+                let mut bit_vec_mut = bit_vec.borrow_mut();
+                bit_vec_mut.set_bit_count_and_clear(contact_pair_count);
+            });
 
         // Compute contacts for all contact pairs in parallel.
-        // Each thread writes state changes to its own local bit vector.
-        // At the end, the results are combined using bit-wise OR.
-        // TODO: Store the per-thread bit vectors in some storage instead of reallocating every time.?
-        let state_change_bits = self
-            .collisions
-            .graph
-            .raw_edges_mut()
-            .par_iter_mut()
-            .enumerate()
-            .map_with(
-                initial.clone(),
-                |state_change_bits, (contact_id, contacts)| {
-                    let contacts = &mut contacts.weight;
+        //
+        // Each thread writes status changes to its own local bit vector,
+        // where set bits correspond to contact pairs that were added or removed.
+        // At the end, the bit vectors are combined using bit-wise OR.
+        //
+        // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
+        //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
+        let mut slice = self.collisions.graph.raw_edges_mut();
+        let chunk_size = (slice.len() / task_pool.thread_num()).max(1);
+        slice.par_chunk_map_mut(task_pool, chunk_size, |chunk_index, chunk| {
+            let index_offset = chunk_index * chunk_size;
+            for (i, contacts) in chunk.iter_mut().enumerate() {
+                // Get the index of the contact pair in the bit vector.
+                let contact_index = index_offset + i;
 
-                    let Ok([collider1, collider2]) = self
-                        .collider_query
-                        .get_many([contacts.entity1, contacts.entity2])
-                    else {
-                        return state_change_bits.clone();
+                // Get the thread-local bit vector for tracking status changes.
+                let mut state_change_bits = self
+                    .contact_status_bits_thread_local
+                    .get_or(|| RefCell::new(BitVec::new(contact_pair_count)))
+                    .borrow_mut();
+
+                let contacts = &mut contacts.weight;
+
+                let Ok([collider1, collider2]) = self
+                    .collider_query
+                    .get_many([contacts.entity1, contacts.entity2])
+                else {
+                    return;
+                };
+
+                // Check if the AABBs of the colliders still overlap and the contact pair is valid.
+                let overlap = collider1.aabb.intersects(&collider2.aabb);
+
+                if !overlap {
+                    // The AABBs no longer overlap. The contact pair should be removed.
+                    contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
+                    state_change_bits.set(contact_index);
+                } else {
+                    // The AABBs overlap. Compute contacts.
+
+                    let body1_bundle = collider1
+                        .parent
+                        .and_then(|p| self.body_query.get(p.get()).ok());
+                    let body2_bundle = collider2
+                        .parent
+                        .and_then(|p| self.body_query.get(p.get()).ok());
+
+                    // The rigid body's collision margin and speculative margin will be used
+                    // if the collider doesn't have them specified.
+                    let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
+                        .as_ref()
+                        .map(|(body, collision_margin, speculative_margin)| {
+                            (
+                                body.linear_velocity.0,
+                                *collision_margin,
+                                *speculative_margin,
+                            )
+                        })
+                        .unwrap_or_default();
+                    let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
+                        .as_ref()
+                        .map(|(body, collision_margin, speculative_margin)| {
+                            (
+                                body.linear_velocity.0,
+                                *collision_margin,
+                                *speculative_margin,
+                            )
+                        })
+                        .unwrap_or_default();
+
+                    // Use the collider's own collision margin if specified, and fall back to the body's
+                    // collision margin.
+                    //
+                    // The collision margin adds artificial thickness to colliders for performance
+                    // and stability. See the `CollisionMargin` documentation for more details.
+                    let collision_margin1 = collider1
+                        .collision_margin
+                        .or(rb_collision_margin1)
+                        .map_or(0.0, |margin| margin.0);
+                    let collision_margin2 = collider2
+                        .collision_margin
+                        .or(rb_collision_margin2)
+                        .map_or(0.0, |margin| margin.0);
+                    let collision_margin_sum = collision_margin1 + collision_margin2;
+
+                    // Use the collider's own speculative margin if specified, and fall back to the body's
+                    // speculative margin.
+                    //
+                    // The speculative margin is used to predict contacts that might happen during the frame.
+                    // This is used for speculative collision. See the CCD and `SpeculativeMargin` documentation
+                    // for more details.
+                    let speculative_margin1 = collider1
+                        .speculative_margin
+                        .map_or(rb_speculative_margin1.map(|margin| margin.0), |margin| {
+                            Some(margin.0)
+                        });
+                    let speculative_margin2 = collider2
+                        .speculative_margin
+                        .map_or(rb_speculative_margin2.map(|margin| margin.0), |margin| {
+                            Some(margin.0)
+                        });
+
+                    // Compute the effective speculative margin, clamping it based on velocities and the maximum bound.
+                    let effective_speculative_margin = {
+                        let speculative_margin1 =
+                            speculative_margin1.unwrap_or(*self.default_speculative_margin);
+                        let speculative_margin2 =
+                            speculative_margin2.unwrap_or(*self.default_speculative_margin);
+                        let inv_delta_secs = delta_secs.recip();
+
+                        // Clamp velocities to the maximum speculative margins.
+                        if speculative_margin1 < Scalar::MAX {
+                            lin_vel1 =
+                                lin_vel1.clamp_length_max(speculative_margin1 * inv_delta_secs);
+                        }
+                        if speculative_margin2 < Scalar::MAX {
+                            lin_vel2 =
+                                lin_vel2.clamp_length_max(speculative_margin2 * inv_delta_secs);
+                        }
+
+                        // Compute the effective margin based on how much the bodies
+                        // are expected to move relative to each other.
+                        delta_secs * (lin_vel1 - lin_vel2).length()
                     };
 
-                    // Check if the AABBs of the colliders still overlap and the contact pair is valid.
-                    let overlap = collider1.aabb.intersects(&collider2.aabb);
+                    // The maximum distance at which contacts are detected.
+                    // At least as large as the contact tolerance.
+                    let max_contact_distance = effective_speculative_margin
+                        .max(*self.contact_tolerance)
+                        + collision_margin_sum;
 
-                    if !overlap {
-                        // The AABBs no longer overlap. The contact pair should be removed.
-                        contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
-                        state_change_bits.set(contact_id, true);
-                    } else {
-                        // The AABBs overlap. Compute contacts.
+                    let position1 = collider1.current_position();
+                    let position2 = collider2.current_position();
 
-                        let body1_bundle = collider1
-                            .parent
-                            .and_then(|p| self.body_query.get(p.get()).ok());
-                        let body2_bundle = collider2
-                            .parent
-                            .and_then(|p| self.body_query.get(p.get()).ok());
+                    let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
 
-                        // The rigid body's collision margin and speculative margin will be used
-                        // if the collider doesn't have them specified.
-                        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) =
-                            body1_bundle
-                                .as_ref()
-                                .map(|(body, collision_margin, speculative_margin)| {
-                                    (
-                                        body.linear_velocity.0,
-                                        *collision_margin,
-                                        *speculative_margin,
-                                    )
-                                })
-                                .unwrap_or_default();
-                        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) =
-                            body2_bundle
-                                .as_ref()
-                                .map(|(body, collision_margin, speculative_margin)| {
-                                    (
-                                        body.linear_velocity.0,
-                                        *collision_margin,
-                                        *speculative_margin,
-                                    )
-                                })
-                                .unwrap_or_default();
+                    // Save the old manifolds for warm starting.
+                    let old_manifolds = contacts.manifolds.clone();
 
-                        // Use the collider's own collision margin if specified, and fall back to the body's
-                        // collision margin.
-                        //
-                        // The collision margin adds artificial thickness to colliders for performance
-                        // and stability. See the `CollisionMargin` documentation for more details.
-                        let collision_margin1 = collider1
-                            .collision_margin
-                            .or(rb_collision_margin1)
-                            .map_or(0.0, |margin| margin.0);
-                        let collision_margin2 = collider2
-                            .collision_margin
-                            .or(rb_collision_margin2)
-                            .map_or(0.0, |margin| margin.0);
-                        let collision_margin_sum = collision_margin1 + collision_margin2;
+                    // TODO: It'd be good to persist the manifolds and let Parry match contacts.
+                    //       This isn't currently done because it requires using Parry's contact manifold type.
+                    // Compute the contact manifolds using the effective speculative margin.
+                    collider1.shape.contact_manifolds(
+                        collider2.shape,
+                        position1,
+                        *collider1.rotation,
+                        position2,
+                        *collider2.rotation,
+                        max_contact_distance,
+                        &mut contacts.manifolds,
+                    );
 
-                        // Use the collider's own speculative margin if specified, and fall back to the body's
-                        // speculative margin.
-                        //
-                        // The speculative margin is used to predict contacts that might happen during the frame.
-                        // This is used for speculative collision. See the CCD and `SpeculativeMargin` documentation
-                        // for more details.
-                        let speculative_margin1 = collider1
-                            .speculative_margin
-                            .map_or(rb_speculative_margin1.map(|margin| margin.0), |margin| {
-                                Some(margin.0)
-                            });
-                        let speculative_margin2 = collider2
-                            .speculative_margin
-                            .map_or(rb_speculative_margin2.map(|margin| margin.0), |margin| {
-                                Some(margin.0)
-                            });
+                    // Check if the colliders are now touching.
+                    let mut touching = contacts.manifolds.iter().any(|m| !m.points.is_empty());
 
-                        // Compute the effective speculative margin, clamping it based on velocities and the maximum bound.
-                        let effective_speculative_margin = {
-                            let speculative_margin1 =
-                                speculative_margin1.unwrap_or(*self.default_speculative_margin);
-                            let speculative_margin2 =
-                                speculative_margin2.unwrap_or(*self.default_speculative_margin);
-                            let inv_delta_secs = delta_secs.recip();
+                    if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
+                        par_commands.command_scope(|mut commands| {
+                            touching = hooks.modify_contacts(contacts, &mut commands);
+                        });
+                        if !touching {
+                            contacts.manifolds.clear();
+                        }
+                    }
 
-                            // Clamp velocities to the maximum speculative margins.
-                            if speculative_margin1 < Scalar::MAX {
-                                lin_vel1 =
-                                    lin_vel1.clamp_length_max(speculative_margin1 * inv_delta_secs);
-                            }
-                            if speculative_margin2 < Scalar::MAX {
-                                lin_vel2 =
-                                    lin_vel2.clamp_length_max(speculative_margin2 * inv_delta_secs);
-                            }
+                    contacts.flags.set(ContactPairFlags::TOUCHING, touching);
 
-                            // TODO: Check if AABBs intersect?
+                    // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
+                    //       If we let Parry handle contact matching, this wouldn't be needed.
+                    if contacts.manifolds.len() <= 4 && self.config.match_contacts {
+                        // TODO: Cache this?
+                        let distance_threshold = 0.1 * self.length_unit.0;
 
-                            // Compute the effective margin based on how much the bodies
-                            // are expected to move relative to each other.
-                            delta_secs * (lin_vel1 - lin_vel2).length()
-                        };
-
-                        // The maximum distance at which contacts are detected.
-                        // At least as large as the contact tolerance.
-                        let max_contact_distance = effective_speculative_margin
-                            .max(*self.contact_tolerance)
-                            + collision_margin_sum;
-
-                        let position1 = collider1.current_position();
-                        let position2 = collider2.current_position();
-
-                        let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
-
-                        // Save the old manifolds for warm starting.
-                        let old_manifolds = contacts.manifolds.clone();
-
-                        // TODO: It'd be good to persist the manifolds and let Parry match contacts.
-                        //       This isn't currently done because it requires using Parry's contact manifold type.
-                        // Compute the contact manifolds using the effective speculative margin.
-                        collider1.shape.contact_manifolds(
-                            collider2.shape,
-                            position1,
-                            *collider1.rotation,
-                            position2,
-                            *collider2.rotation,
-                            max_contact_distance,
-                            &mut contacts.manifolds,
-                        );
-
-                        // Check if the colliders are now touching.
-                        let mut touching = contacts.manifolds.iter().any(|m| !m.points.is_empty());
-
-                        if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
-                            par_commands.command_scope(|mut commands| {
-                                touching = hooks.modify_contacts(contacts, &mut commands);
-                            });
-                            if !touching {
-                                contacts.manifolds.clear();
+                        for manifold in contacts.manifolds.iter_mut() {
+                            for previous_manifold in old_manifolds.iter() {
+                                manifold
+                                    .match_contacts(&previous_manifold.points, distance_threshold);
                             }
                         }
+                    }
 
-                        contacts.flags.set(ContactPairFlags::TOUCHING, touching);
+                    // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
 
-                        // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
-                        //       If we let Parry handle contact matching, this wouldn't be needed.
-                        if contacts.manifolds.len() <= 4 && self.config.match_contacts {
-                            // TODO: Cache this?
-                            let distance_threshold = 0.1 * self.length_unit.0;
+                    if touching && !was_touching {
+                        // The colliders started touching.
+                        contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
+                        state_change_bits.set(contact_index);
+                    } else if !touching && was_touching {
+                        // The colliders stopped touching.
+                        contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
+                        state_change_bits.set(contact_index);
+                    }
+                };
+            }
+        });
 
-                            for manifold in contacts.manifolds.iter_mut() {
-                                for previous_manifold in old_manifolds.iter() {
-                                    manifold.match_contacts(
-                                        &previous_manifold.points,
-                                        distance_threshold,
-                                    );
-                                }
-                            }
-                        }
-
-                        // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
-
-                        if touching && !was_touching {
-                            // The colliders started touching.
-                            contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
-                            state_change_bits.set(contact_id, true);
-                        } else if !touching && was_touching {
-                            // The colliders stopped touching.
-                            contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
-                            state_change_bits.set(contact_id, true);
-                        }
-                    };
-
-                    state_change_bits.clone()
-                },
-            )
-            .reduce(
-                || initial.clone(),
-                |mut a, b| {
-                    // Combine the state changes into a global bit vector using bit-wise OR.
-                    a.or(&b);
-                    a
-                },
-            );
-
-        state_change_bits
+        // Combine the thread-local bit vectors serially using bit-wise OR.
+        self.contact_status_bits_thread_local
+            .iter_mut()
+            .for_each(|bit_vec| {
+                self.contact_status_bits.or(bit_vec.get_mut());
+            });
     }
 
     /// Generates [`ContactConstraint`]s for the given bodies and their corresponding colliders

@@ -4,6 +4,7 @@
 
 mod system_param;
 pub use system_param::NarrowPhase;
+use system_param::{ContactStatusBits, ContactStatusBitsThreadLocal};
 
 use std::marker::PhantomData;
 
@@ -94,6 +95,8 @@ where
         app.init_resource::<NarrowPhaseInitialized>()
             .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
+            .init_resource::<ContactStatusBits>()
+            .init_resource::<ContactStatusBitsThreadLocal>()
             .init_resource::<DefaultFriction>()
             .init_resource::<DefaultRestitution>()
             .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();

@@ -85,8 +85,7 @@ arrayvec = "0.7"
 fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"
-bit-vec = "0.8"
-rayon = "1.10"
+thread_local = "1.1"
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
