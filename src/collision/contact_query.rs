@@ -195,22 +195,15 @@ pub fn contact_manifolds(
                     return vec![];
                 }
 
-                return vec![ContactManifold {
-                    normal,
-                    #[cfg(feature = "2d")]
-                    points: arrayvec::ArrayVec::from_iter([ContactPoint::new(
-                        contact.point1.into(),
-                        contact.point2.into(),
-                        -contact.dist,
-                    )]),
-                    #[cfg(feature = "3d")]
-                    points: vec![ContactPoint::new(
+                return vec![ContactManifold::new(
+                    [ContactPoint::new(
                         contact.point1.into(),
                         contact.point2.into(),
                         -contact.dist,
                     )],
-                    index: 0,
-                }];
+                    normal,
+                    0,
+                )];
             }
         }
     }
@@ -234,22 +227,18 @@ pub fn contact_manifolds(
                 return None;
             }
 
-            let manifold = ContactManifold {
+            let manifold = ContactManifold::new(
+                manifold.contacts().iter().map(|contact| {
+                    ContactPoint::new(
+                        subpos1.transform_point(&contact.local_p1).into(),
+                        subpos2.transform_point(&contact.local_p2).into(),
+                        -contact.dist,
+                    )
+                    .with_feature_ids(contact.fid1.into(), contact.fid2.into())
+                }),
                 normal,
-                points: manifold
-                    .contacts()
-                    .iter()
-                    .map(|contact| {
-                        ContactPoint::new(
-                            subpos1.transform_point(&contact.local_p1).into(),
-                            subpos2.transform_point(&contact.local_p2).into(),
-                            -contact.dist,
-                        )
-                        .with_feature_ids(contact.fid1.into(), contact.fid2.into())
-                    })
-                    .collect(),
-                index: manifold_index,
-            };
+                manifold_index,
+            );
 
             manifold_index += 1;
 

@@ -290,8 +290,6 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
-    default_friction: Res<DefaultFriction>,
-    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
     mut collision_diagnostics: ResMut<CollisionDiagnostics>,
     solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
@@ -340,33 +338,6 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
-            // Get combined friction and restitution coefficients of the colliders
-            // or the bodies they are attached to. Fall back to the global defaults.
-            let friction = collider1
-                .friction
-                .or(body1.friction)
-                .copied()
-                .unwrap_or(default_friction.0)
-                .combine(
-                    collider2
-                        .friction
-                        .or(body2.friction)
-                        .copied()
-                        .unwrap_or(default_friction.0),
-                );
-            let restitution = collider1
-                .restitution
-                .or(body1.restitution)
-                .copied()
-                .unwrap_or(default_restitution.0)
-                .combine(
-                    collider2
-                        .restitution
-                        .or(body2.restitution)
-                        .copied()
-                        .unwrap_or(default_restitution.0),
-                );
-
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -376,8 +347,6 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
-                friction,
-                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,
@@ -415,6 +384,8 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     pub collisions: ResMut<'w, Collisions>,
     /// Configuration options for the narrow phase.
     pub config: Res<'w, NarrowPhaseConfig>,
+    default_friction: Res<'w, DefaultFriction>,
+    default_restitution: Res<'w, DefaultRestitution>,
     length_unit: Res<'w, PhysicsLengthUnit>,
     // These are scaled by the length unit.
     default_speculative_margin: Local<'s, Scalar>,
@@ -517,26 +488,57 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
-        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
-        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
+        let (mut lin_vel1, rb_friction1, rb_collision_margin1, rb_speculative_margin1) =
+            body1_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+        let (mut lin_vel2, rb_friction2, rb_collision_margin2, rb_speculative_margin2) =
+            body2_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+
+        // Get combined friction and restitution coefficients of the colliders
+        // or the bodies they are attached to. Fall back to the global defaults.
+        let friction = collider1
+            .friction
+            .or(rb_friction1)
+            .copied()
+            .unwrap_or(self.default_friction.0)
+            .combine(
+                collider2
+                    .friction
+                    .or(rb_friction2)
+                    .copied()
+                    .unwrap_or(self.default_friction.0),
+            )
+            .dynamic_coefficient;
+        let restitution = collider1
+            .restitution
+            .copied()
+            .unwrap_or(self.default_restitution.0)
+            .combine(
+                collider2
+                    .restitution
+                    .copied()
+                    .unwrap_or(self.default_restitution.0),
+            )
+            .coefficient;
 
         // Use the collider's own collision margin if specified, and fall back to the body's
         // collision margin.
@@ -601,6 +603,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         self.compute_contact_pair::<H>(
             &collider1,
             &collider2,
+            friction,
+            restitution,
             max_contact_distance,
             hooks,
             commands,
@@ -618,6 +622,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &self,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Scalar,
+        restitution: Scalar,
         max_distance: Scalar,
         hooks: &H::Item<'_, '_>,
         commands: &mut Commands,
@@ -631,7 +637,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let manifolds = collider1.shape.contact_manifolds(
+        let mut manifolds = collider1.shape.contact_manifolds(
             collider2.shape,
             position1,
             *collider1.rotation,
@@ -643,6 +649,21 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         if manifolds.is_empty() {
             return None;
         }
+
+        // Set the initial surface properties.
+        // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
+        manifolds.iter_mut().for_each(|manifold| {
+            manifold.friction = friction;
+            manifold.restitution = restitution;
+            #[cfg(feature = "2d")]
+            {
+                manifold.tangent_speed = 0.0;
+            }
+            #[cfg(feature = "3d")]
+            {
+                manifold.tangent_velocity = Vector::ZERO;
+            }
+        });
 
         // Get the previous contacts if there are any.
         let previous_contacts = if collider1.entity < collider2.entity {
@@ -717,8 +738,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
-        friction: Friction,
-        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -764,8 +783,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction,
-                restitution,
+                contact_manifold.friction,
+                contact_manifold.restitution,
+                #[cfg(feature = "2d")]
+                contact_manifold.tangent_speed,
+                #[cfg(feature = "3d")]
+                contact_manifold.tangent_velocity,
                 contact_softness,
                 self.config.match_contacts,
                 delta_secs,
