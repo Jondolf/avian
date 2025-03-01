@@ -25,8 +25,8 @@ fn main() {
 #[derive(Component)]
 #[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
 struct ConveyorBelt {
-    local_direction: Vector,
-    speed: Scalar,
+    local_direction: Vec3,
+    speed: f32,
 }
 
 // Define a custom `SystemParam` for our collision hooks.
@@ -60,7 +60,8 @@ impl CollisionHooks for ConveyorHooks<'_, '_> {
         // Iterate over all contact surfaces between the conveyor belt and the other collider,
         // and apply a relative velocity to simulate the movement of the conveyor belt's surface.
         for manifold in contacts.manifolds.iter_mut() {
-            manifold.tangent_velocity = sign * conveyor_belt.speed * direction;
+            let tangent_velocity = sign * conveyor_belt.speed * direction;
+            manifold.tangent_velocity = tangent_velocity.adjust_precision();
         }
 
         // Return `true` to accept the contact pair.
