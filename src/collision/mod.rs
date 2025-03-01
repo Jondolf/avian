@@ -703,7 +703,7 @@ pub struct ContactManifold {
     /// The same normal is shared by all `points` in a manifold,
     pub normal: Vector,
     /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
-    pub dynamic_friction: Scalar,
+    pub friction: Scalar,
     /// The effective coefficient of [restitution](Restitution) used for the contact surface.
     pub restitution: Scalar,
     /// The desired relative linear speed of the bodies along the surface,
@@ -713,6 +713,8 @@ pub struct ContactManifold {
     /// such as conveyor belts.
     #[cfg(feature = "2d")]
     pub tangent_speed: Scalar,
+    // TODO: Jolt also supports a relative angular surface velocity, which can be used for making
+    //       objects rotate on platforms. Would that be useful enough to warrant the extra memory usage?
     /// The desired relative linear velocity of the bodies along the surface,
     /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
     ///
@@ -740,7 +742,7 @@ impl ContactManifold {
             #[cfg(feature = "3d")]
             points: points.into_iter().collect(),
             normal,
-            dynamic_friction: 0.0,
+            friction: 0.0,
             restitution: 0.0,
             #[cfg(feature = "2d")]
             tangent_speed: 0.0,

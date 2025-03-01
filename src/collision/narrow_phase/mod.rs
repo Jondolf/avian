@@ -285,8 +285,6 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
-    default_friction: Res<DefaultFriction>,
-    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
     mut collision_diagnostics: ResMut<CollisionDiagnostics>,
     solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
@@ -337,33 +335,6 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
-            // Get combined friction and restitution coefficients of the colliders
-            // or the bodies they are attached to. Fall back to the global defaults.
-            let friction = collider1
-                .friction
-                .or(body1.friction)
-                .copied()
-                .unwrap_or(default_friction.0)
-                .combine(
-                    collider2
-                        .friction
-                        .or(body2.friction)
-                        .copied()
-                        .unwrap_or(default_friction.0),
-                );
-            let restitution = collider1
-                .restitution
-                .or(body1.restitution)
-                .copied()
-                .unwrap_or(default_restitution.0)
-                .combine(
-                    collider2
-                        .restitution
-                        .or(body2.restitution)
-                        .copied()
-                        .unwrap_or(default_restitution.0),
-                );
-
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -374,8 +345,6 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
-                friction,
-                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,

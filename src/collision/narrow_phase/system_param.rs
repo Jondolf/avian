@@ -40,6 +40,8 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     contact_status_bits_thread_local: ResMut<'w, ContactStatusBitsThreadLocal>,
     pub config: Res<'w, NarrowPhaseConfig>,
+    default_friction: Res<'w, DefaultFriction>,
+    default_restitution: Res<'w, DefaultRestitution>,
     length_unit: Res<'w, PhysicsLengthUnit>,
     // These are scaled by the length unit.
     default_speculative_margin: Local<'s, Scalar>,
@@ -320,28 +322,59 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .parent
                         .and_then(|p| self.body_query.get(p.get()).ok());
 
-                    // The rigid body's collision margin and speculative margin will be used
-                    // if the collider doesn't have them specified.
-                    let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
-                        .as_ref()
-                        .map(|(body, collision_margin, speculative_margin)| {
-                            (
-                                body.linear_velocity.0,
-                                *collision_margin,
-                                *speculative_margin,
-                            )
-                        })
-                        .unwrap_or_default();
-                    let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
-                        .as_ref()
-                        .map(|(body, collision_margin, speculative_margin)| {
-                            (
-                                body.linear_velocity.0,
-                                *collision_margin,
-                                *speculative_margin,
-                            )
-                        })
-                        .unwrap_or_default();
+                    // The rigid body's friction, restitution, collision margin, and speculative margin
+                    // will be used if the collider doesn't have them specified.
+                    let (mut lin_vel1, rb_friction1, rb_collision_margin1, rb_speculative_margin1) =
+                        body1_bundle
+                            .as_ref()
+                            .map(|(body, collision_margin, speculative_margin)| {
+                                (
+                                    body.linear_velocity.0,
+                                    body.friction,
+                                    *collision_margin,
+                                    *speculative_margin,
+                                )
+                            })
+                            .unwrap_or_default();
+                    let (mut lin_vel2, rb_friction2, rb_collision_margin2, rb_speculative_margin2) =
+                        body2_bundle
+                            .as_ref()
+                            .map(|(body, collision_margin, speculative_margin)| {
+                                (
+                                    body.linear_velocity.0,
+                                    body.friction,
+                                    *collision_margin,
+                                    *speculative_margin,
+                                )
+                            })
+                            .unwrap_or_default();
+
+                    // Get combined friction and restitution coefficients of the colliders
+                    // or the bodies they are attached to. Fall back to the global defaults.
+                    let friction = collider1
+                        .friction
+                        .or(rb_friction1)
+                        .copied()
+                        .unwrap_or(self.default_friction.0)
+                        .combine(
+                            collider2
+                                .friction
+                                .or(rb_friction2)
+                                .copied()
+                                .unwrap_or(self.default_friction.0),
+                        )
+                        .dynamic_coefficient;
+                    let restitution = collider1
+                        .restitution
+                        .copied()
+                        .unwrap_or(self.default_restitution.0)
+                        .combine(
+                            collider2
+                                .restitution
+                                .copied()
+                                .unwrap_or(self.default_restitution.0),
+                        )
+                        .coefficient;
 
                     // Use the collider's own collision margin if specified, and fall back to the body's
                     // collision margin.
@@ -425,8 +458,23 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         &mut contacts.manifolds,
                     );
 
+                    // Set the initial surface properties.
+                    // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
+                    contacts.manifolds.iter_mut().for_each(|manifold| {
+                        manifold.friction = friction;
+                        manifold.restitution = restitution;
+                        #[cfg(feature = "2d")]
+                        {
+                            manifold.tangent_speed = 0.0;
+                        }
+                        #[cfg(feature = "3d")]
+                        {
+                            manifold.tangent_velocity = Vector::ZERO;
+                        }
+                    });
+
                     // Check if the colliders are now touching.
-                    let mut touching = contacts.manifolds.iter().any(|m| !m.points.is_empty());
+                    let mut touching = !contacts.manifolds.is_empty();
 
                     if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
                         par_commands.command_scope(|mut commands| {
@@ -494,8 +542,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
-        friction: Friction,
-        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -542,8 +588,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction.dynamic_coefficient,
-                restitution.coefficient,
+                contact_manifold.friction,
+                contact_manifold.restitution,
                 #[cfg(feature = "2d")]
                 contact_manifold.tangent_speed,
                 #[cfg(feature = "3d")]

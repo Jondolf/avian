@@ -92,14 +92,14 @@ impl AnyCollider for CircleCollider {
             let local_point1 = local_normal1 * self.radius;
             let local_point2 = local_normal2 * other.radius;
 
-            let points = [ContactPoint::new(
+            let point = ContactPoint::new(
                 local_point1,
                 local_point2,
                 sum_radius - distance_squared.sqrt(),
             )
-            .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0))];
+            .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0));
 
-            manifolds.push(ContactManifold::new(points, rotation1 * local_normal1, 0));
+            manifolds.push(ContactManifold::new([point], rotation1 * local_normal1, 0));
         }
     }
 }
