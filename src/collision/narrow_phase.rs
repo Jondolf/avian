@@ -267,6 +267,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
+    context: StaticSystemParam<C::Context>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -277,6 +278,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
         time.delta_seconds_adjusted(),
         &hooks.into_inner(),
         commands,
+        context,
     );
 
     diagnostics.narrow_phase = start.elapsed();
@@ -402,6 +404,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         hooks: &H::Item<'_, '_>,
         #[cfg(not(feature = "parallel"))] mut commands: Commands,
         #[cfg(feature = "parallel")] par_commands: ParallelCommands,
+        context: StaticSystemParam<C::Context>,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
@@ -427,6 +430,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     par_commands.command_scope(|mut commands| {
                         for &(entity1, entity2) in chunks {
                             if let Some(contacts) = self.handle_entity_pair::<H>(
+                                &context,
                                 entity1,
                                 entity2,
                                 delta_secs,
@@ -451,9 +455,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
-                {
+                if let Some(contacts) = self.handle_entity_pair::<H>(
+                    &context,
+                    entity1,
+                    entity2,
+                    delta_secs,
+                    hooks,
+                    &mut commands,
+                ) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -466,6 +475,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::too_many_arguments)]
     pub fn handle_entity_pair<H: CollisionHooks>(
         &self,
+        context: &<C::Context as SystemParam>::Item<'_, '_>,
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
@@ -601,6 +611,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
         self.compute_contact_pair::<H>(
+            context,
+            entity1,
+            entity2,
             &collider1,
             &collider2,
             friction,
@@ -620,6 +633,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
+        context: &<C::Context as SystemParam>::Item<'_, '_>,
+        entity1: Entity,
+        entity2: Entity,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         friction: Scalar,
@@ -637,10 +653,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let mut manifolds = collider1.shape.contact_manifolds(
+        let mut manifolds = collider1.shape.get_contact_manifolds(
             collider2.shape,
+            context,
+            entity1,
             position1,
             *collider1.rotation,
+            entity2,
             position2,
             *collider2.rotation,
             max_distance,

@@ -2,13 +2,18 @@
 //!
 //! See [`ColliderBackendPlugin`].
 
-use std::marker::PhantomData;
+use std::{any::type_name, marker::PhantomData};
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemId},
+    ecs::{
+        intern::Interned,
+        schedule::ScheduleLabel,
+        system::{StaticSystemParam, SystemId, SystemState},
+        world::WorldEntityFetch,
+    },
     prelude::*,
 };
 use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
@@ -83,6 +88,9 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
     }
 }
 
+#[derive(Resource)]
+struct ContextState<C: ScalableCollider>(SystemState<C::Context>);
+
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         // Register required components for the collider type.
@@ -97,10 +105,13 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
+        let context_state = SystemState::new(app.world_mut());
+        app.insert_resource(ContextState::<C>(context_state));
+
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
-        hooks.on_add(|mut world, entity, _| {
+        hooks.on_add(|world, entity, _| {
             let existing_global_transform = world
                 .entity(entity)
                 .get::<GlobalTransform>()
@@ -136,39 +147,63 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             #[cfg(feature = "2d")]
             let scale = scale.xy();
 
+            let cell = world.as_unsafe_world_cell_readonly();
+            let mut entity_mut = unsafe { entity.fetch_deferred_mut(cell).unwrap() };
+
             // Make sure the collider is initialized with the correct scale.
             // This overwrites the scale set by the constructor, but that one is
             // meant to be only changed after initialization.
-            world
-                .entity_mut(entity)
+            entity_mut
                 .get_mut::<C>()
                 .unwrap()
                 .set_scale(scale.adjust_precision(), 10);
 
-            let mut entity_ref = world.entity_mut(entity);
-            let collider = entity_ref.get::<C>().unwrap();
+            let collider = entity_mut.get::<C>().unwrap();
 
-            let aabb = entity_ref
-                .get::<ColliderAabb>()
-                .copied()
-                .unwrap_or(collider.aabb(Vector::ZERO, Rotation::default()));
-            let density = entity_ref
+            let aabb = {
+                let mut context_state = {
+                    // SAFETY: No other code takes a ref to this resource,
+                    //         and `ContextState` is not publicly visible,
+                    //         so `C::Context` is unable to borrow this resource.
+                    //         This does not perform any structural world changes,
+                    //         so reading mutably through a read-only cell is OK.
+                    //         (We can't get a non-readonly cell from a DeferredWorld)
+                    unsafe { cell.get_resource_mut::<ContextState<C>>() }
+                }
+                .unwrap_or_else(|| {
+                    panic!(
+                        "context state for `{}` was removed",
+                        type_name::<C::Context>()
+                    )
+                });
+                let context = context_state.0.get(&world);
+                entity_mut
+                    .get::<ColliderAabb>()
+                    .copied()
+                    .unwrap_or(collider.get_aabb(
+                        &context,
+                        entity,
+                        Vector::ZERO,
+                        Rotation::default(),
+                    ))
+            };
+            let density = entity_mut
                 .get::<ColliderDensity>()
                 .copied()
                 .unwrap_or_default();
 
-            let mass_properties = if entity_ref.get::<Sensor>().is_some() {
+            let mass_properties = if entity_mut.get::<Sensor>().is_some() {
                 MassProperties::ZERO
             } else {
                 collider.mass_properties(density.0)
             };
 
-            if let Some(mut collider_aabb) = entity_ref.get_mut::<ColliderAabb>() {
+            if let Some(mut collider_aabb) = entity_mut.get_mut::<ColliderAabb>() {
                 *collider_aabb = aabb;
             }
 
             if let Some(mut collider_mass_properties) =
-                entity_ref.get_mut::<ColliderMassProperties>()
+                entity_mut.get_mut::<ColliderMassProperties>()
             {
                 *collider_mass_properties = ColliderMassProperties::from(mass_properties);
             }
@@ -500,6 +535,7 @@ fn pretty_name(name: Option<&Name>, entity: Entity) -> String {
 fn update_aabb<C: AnyCollider>(
     mut colliders: Query<
         (
+            Entity,
             &C,
             &mut ColliderAabb,
             &Position,
@@ -531,12 +567,14 @@ fn update_aabb<C: AnyCollider>(
     narrow_phase_config: Res<NarrowPhaseConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
+    context: StaticSystemParam<C::Context>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
     let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
     let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
 
     for (
+        entity,
         collider,
         mut aabb,
         pos,
@@ -558,7 +596,7 @@ fn update_aabb<C: AnyCollider>(
 
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .aabb(pos.0, *rot)
+                .get_aabb(&context, entity, pos.0, *rot)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -614,7 +652,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot)
+            .get_swept_aabb(&context, entity, start_pos.0, start_rot, end_pos, end_rot)
             .grow(Vector::splat(collision_margin));
     }
 }
