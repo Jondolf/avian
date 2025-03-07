@@ -53,17 +53,30 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
+    // If your collider needs queries or resources to function, you can specify your
+    // SystemParam here
+    type Context = ();
+
+    fn get_aabb(
+        &self,
+        _: &(),
+        _: Entity,
+        position: Vector,
+        _rotation: impl Into<Rotation>,
+    ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
     // This is the actual collision detection part.
     // It computes all contacts between two colliders at the given positions.
-    fn contact_manifolds(
+    fn get_contact_manifolds(
         &self,
         other: &Self,
+        _: &(),
+        _: Entity,
         position1: Vector,
         rotation1: impl Into<Rotation>,
+        _: Entity,
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,

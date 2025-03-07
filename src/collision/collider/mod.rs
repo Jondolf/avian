@@ -2,7 +2,10 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::entity::{EntityMapper, MapEntities},
+    ecs::{
+        entity::{EntityMapper, MapEntities},
+        system::{ReadOnlySystemParam, SystemParam},
+    },
     prelude::*,
     utils::HashSet,
 };
@@ -45,13 +48,98 @@ pub trait IntoCollider<C: AnyCollider> {
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
 pub trait AnyCollider: Component + ComputeMassProperties {
+    /// A type providing additional context for collider operations.
+    ///
+    /// `Context` allows you to access an arbitrary [`ReadOnlySystemParam`] on
+    /// the world, for context-sensitive behavior in collider operations. You
+    /// can use this to query components on the collider entity, or get any
+    /// other necessary context from the world.
+    ///
+    /// # Example
+    ///
+    /// ```
+    #[cfg_attr(
+        feature = "2d",
+        doc = "# use avian2d::{prelude::*, math::{Vector, Scalar}};"
+    )]
+    #[cfg_attr(
+        feature = "3d",
+        doc = "# use avian3d::{prelude::*, math::{Vector, Scalar}};"
+    )]
+    /// # use bevy::prelude::*;
+    /// # use bevy::ecs::system::{SystemParam, lifetimeless::{SRes, SQuery}};
+    ///
+    /// #[derive(Component)]
+    /// pub struct VoxelData {
+    ///     // collider voxel data...
+    /// }
+    ///
+    /// #[derive(Component)]
+    /// pub struct VoxelCollider;
+    ///
+    /// # impl ComputeMassProperties2d for VoxelCollider {
+    /// #     fn mass(&self, density: f32) -> f32 {0.}
+    /// #     fn unit_angular_inertia(&self) -> f32 { 0.}
+    /// #     fn center_of_mass(&self) -> Vec2 { Vec2::ZERO }
+    /// # }
+    ///
+    /// # impl ComputeMassProperties3d for VoxelCollider {
+    /// #     fn mass(&self, density: f32) -> f32 {0.}
+    /// #     fn unit_principal_angular_inertia(&self) -> Vec3 { Vec3::ZERO }
+    /// #     fn center_of_mass(&self) -> Vec3 { Vec3::ZERO }
+    /// # }
+    ///
+    /// impl AnyCollider for VoxelCollider {
+    ///     type Context = (
+    ///         // you can query data here
+    ///         SQuery<&'static VoxelData>,
+    ///         // or put any read-only system param here
+    ///         SRes<Time>,
+    ///     );
+    ///
+    /// #   fn get_aabb(
+    /// #       &self,
+    /// #       _: &<Self::Context as SystemParam>::Item<'_, '_>,
+    /// #       _: Entity,
+    /// #       _: Vector,
+    /// #       _: impl Into<Rotation>,
+    /// #   ) -> ColliderAabb { unimplemented!() }
+    ///
+    ///     fn get_contact_manifolds(
+    ///         &self,
+    ///         other: &Self,
+    ///         (voxel_data, time): &<Self::Context as SystemParam>::Item<'_, '_>,
+    ///         entity1: Entity,
+    ///         position1: Vector,
+    ///         rotation1: impl Into<Rotation>,
+    ///         entity2: Entity,
+    ///         position2: Vector,
+    ///         rotation2: impl Into<Rotation>,
+    ///         prediction_distance: Scalar,
+    ///     ) -> Vec<ContactManifold> {
+    ///         let [voxels1, voxels2] = voxel_data.get_many([entity1, entity2])
+    ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
+    ///         let elapsed = time.elapsed();
+    ///         // do some computation...
+    /// #       unimplemented!()
+    ///     }
+    /// }
+    /// ```
+    type Context: for<'w, 's> ReadOnlySystemParam<Item<'w, 's>: Send + Sync>;
+
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
     #[cfg_attr(
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb;
+    fn get_aabb(
+        &self,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        entity: Entity,
+        position: Vector,
+        rotation: impl Into<Rotation>,
+    ) -> ColliderAabb;
 
     /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
     /// This corresponds to the space the shape would occupy if it moved from the given
@@ -60,31 +148,81 @@ pub trait AnyCollider: Component + ComputeMassProperties {
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn swept_aabb(
+    fn get_swept_aabb(
         &self,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        entity: Entity,
         start_position: Vector,
         start_rotation: impl Into<Rotation>,
         end_position: Vector,
         end_rotation: impl Into<Rotation>,
     ) -> ColliderAabb {
-        self.aabb(start_position, start_rotation)
-            .merged(self.aabb(end_position, end_rotation))
+        self.get_aabb(context, entity, start_position, start_rotation)
+            .merged(self.get_aabb(context, entity, end_position, end_rotation))
     }
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
     /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
     /// or if the given shapes are invalid.
-    fn contact_manifolds(
+    fn get_contact_manifolds(
         &self,
         other: &Self,
-        position1: Vector,
-        rotation1: impl Into<Rotation>,
-        position2: Vector,
-        rotation2: impl Into<Rotation>,
+        context: &<Self::Context as SystemParam>::Item<'_, '_>,
+        self_entity: Entity,
+        self_position: Vector,
+        self_rotation: impl Into<Rotation>,
+        other_entity: Entity,
+        other_position: Vector,
+        other_rotation: impl Into<Rotation>,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold>;
 }
+
+/// A simplified wrapper around [`AnyCollider`] that doesn't require passing in the context for
+/// implementations that don't need context
+pub trait SimpleCollider: AnyCollider<Context = ()> {
+    /// [`AnyCollider::get_aabb`] but without context
+    fn aabb(&self, p: Vector, r: impl Into<Rotation>) -> ColliderAabb {
+        self.get_aabb(&(), Entity::PLACEHOLDER, p, r)
+    }
+
+    /// [`AnyCollider::get_swept_aabb`] but without context
+    fn swept_aabb(
+        &self,
+        sp: Vector,
+        sr: impl Into<Rotation>,
+        ep: Vector,
+        er: impl Into<Rotation>,
+    ) -> ColliderAabb {
+        self.get_swept_aabb(&(), Entity::PLACEHOLDER, sp, sr, ep, er)
+    }
+
+    /// [`AnyCollider::get_contact_manifolds`] but without context
+    fn contact_manifolds(
+        &self,
+        o: &Self,
+        p1: Vector,
+        r1: impl Into<Rotation>,
+        p2: Vector,
+        r2: impl Into<Rotation>,
+        pd: Scalar,
+    ) -> Vec<ContactManifold> {
+        self.get_contact_manifolds(
+            o,
+            &(),
+            Entity::PLACEHOLDER,
+            p1,
+            r1,
+            Entity::PLACEHOLDER,
+            p2,
+            r2,
+            pd,
+        )
+    }
+}
+
+impl<C: AnyCollider<Context = ()>> SimpleCollider for C {}
 
 /// A trait for colliders that support scaling.
 pub trait ScalableCollider: AnyCollider {
