@@ -2,7 +2,7 @@
 //!
 //! See [`ColliderBackendPlugin`].
 
-use std::{any::type_name, marker::PhantomData};
+use core::{any::type_name, marker::PhantomData};
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]

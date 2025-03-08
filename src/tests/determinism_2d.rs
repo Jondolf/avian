@@ -15,7 +15,7 @@
 
 #![allow(clippy::doc_markdown)]
 
-use std::time::Duration;
+use core::time::Duration;
 
 use crate::{
     math::{Vector, PI},

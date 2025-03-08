@@ -28,3 +28,8 @@ bevy = { version = "0.15", default-features = false, features = [
 avian2d = { path = "../avian2d", default-features = false, features = [
     "diagnostic_ui",
 ] }
+
+[lints.clippy]
+alloc_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+std_instead_of_core = "warn"

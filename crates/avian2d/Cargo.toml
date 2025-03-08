@@ -95,6 +95,11 @@ bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { version = "0.12" }
 
+[lints.clippy]
+alloc_instead_of_core = "warn"
+std_instead_of_alloc = "warn"
+std_instead_of_core = "warn"
+
 [package.metadata.docs.rs]
 # Enable features when building the docs on docs.rs
 features = ["diagnostic_ui"]

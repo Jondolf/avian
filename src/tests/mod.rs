@@ -9,7 +9,7 @@ use bevy::{
     prelude::*,
     time::TimeUpdateStrategy,
 };
-use std::time::Duration;
+use core::time::Duration;
 
 #[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
 mod determinism_2d;
@@ -86,7 +86,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
 }
 
 #[test]
-fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
+fn it_loads_plugin_without_errors() -> Result<(), Box<dyn core::error::Error>> {
     let mut app = create_app();
 
     for _ in 0..500 {

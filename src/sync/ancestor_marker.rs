@@ -1,6 +1,6 @@
 //! Functionality for marking ancestors of entities with marker components.
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
