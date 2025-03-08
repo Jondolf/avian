@@ -3,8 +3,10 @@
 //! See [`NarrowPhasePlugin`].
 
 mod system_param;
+use system_param::ContactStatusBits;
+#[cfg(feature = "parallel")]
+use system_param::ContactStatusBitsThreadLocal;
 pub use system_param::NarrowPhase;
-use system_param::{ContactStatusBits, ContactStatusBitsThreadLocal};
 
 use std::marker::PhantomData;
 
@@ -96,10 +98,13 @@ where
             .init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
             .init_resource::<ContactStatusBits>()
-            .init_resource::<ContactStatusBitsThreadLocal>()
             .init_resource::<DefaultFriction>()
-            .init_resource::<DefaultRestitution>()
-            .register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
+            .init_resource::<DefaultRestitution>();
+
+        #[cfg(feature = "parallel")]
+        app.init_resource::<ContactStatusBitsThreadLocal>();
+
+        app.register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
         app.add_event::<CollisionStarted>()
             .add_event::<CollisionEnded>();

@@ -1,3 +1,4 @@
+#[cfg(feature = "parallel")]
 use std::cell::RefCell;
 
 use crate::{
@@ -8,8 +9,8 @@ use crate::{
 use bevy::{
     ecs::system::{SystemParam, SystemParamItem},
     prelude::*,
-    tasks::{ComputeTaskPool, ParallelSliceMut},
 };
+#[cfg(feature = "parallel")]
 use thread_local::ThreadLocal;
 
 /// A system parameter for managing the narrow phase.
@@ -38,6 +39,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     >,
     pub collisions: ResMut<'w, Collisions>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
+    #[cfg(feature = "parallel")]
     contact_status_bits_thread_local: ResMut<'w, ContactStatusBitsThreadLocal>,
     pub config: Res<'w, NarrowPhaseConfig>,
     default_friction: Res<'w, DefaultFriction>,
@@ -55,6 +57,7 @@ pub(super) struct ContactStatusBits(pub BitVec);
 
 /// A thread-local bit vector for tracking contact status changes.
 /// Set bits correspond to contact pairs that were either added or removed.
+#[cfg(feature = "parallel")]
 #[derive(Resource, Default, Deref, DerefMut)]
 pub(super) struct ContactStatusBitsThreadLocal(pub ThreadLocal<RefCell<BitVec>>);
 
@@ -260,13 +263,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        let task_pool = ComputeTaskPool::get();
         let contact_pair_count = self.collisions.graph.edge_count();
 
         // Clear the bit vector used to track status changes for each contact pair.
         self.contact_status_bits
             .set_bit_count_and_clear(contact_pair_count);
 
+        #[cfg(feature = "parallel")]
         self.contact_status_bits_thread_local
             .iter_mut()
             .for_each(|bit_vec| {
@@ -274,22 +277,25 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 bit_vec_mut.set_bit_count_and_clear(contact_pair_count);
             });
 
-        // Compute contacts for all contact pairs in parallel.
+        // Compute contacts for all contact pairs in parallel or serially
+        // based on the `parallel` feature.
         //
-        // Each thread writes status changes to its own local bit vector,
+        // If parallelism is used, status changes are written to thread-local bit vectors,
         // where set bits correspond to contact pairs that were added or removed.
         // At the end, the bit vectors are combined using bit-wise OR.
         //
+        // If parallelism is not used, status changes are instead written
+        // directly to the global bit vector.
+        //
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
-        let mut slice = self.collisions.graph.raw_edges_mut();
-        let chunk_size = (slice.len() / task_pool.thread_num()).max(1);
-        slice.par_chunk_map_mut(task_pool, chunk_size, |chunk_index, chunk| {
-            let index_offset = chunk_index * chunk_size;
-            for (i, contacts) in chunk.iter_mut().enumerate() {
-                // Get the index of the contact pair in the bit vector.
-                let contact_index = index_offset + i;
+        crate::utils::par_for_each!(
+            self.collisions.graph.raw_edges_mut(),
+            |contact_index, contacts| {
+                #[cfg(not(feature = "parallel"))]
+                let state_change_bits = &mut self.contact_status_bits;
 
+                #[cfg(feature = "parallel")]
                 // Get the thread-local bit vector for tracking status changes.
                 let mut state_change_bits = self
                     .contact_status_bits_thread_local
@@ -514,14 +520,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
                 };
             }
-        });
+        );
 
-        // Combine the thread-local bit vectors serially using bit-wise OR.
-        self.contact_status_bits_thread_local
-            .iter_mut()
-            .for_each(|bit_vec| {
-                self.contact_status_bits.or(bit_vec.get_mut());
-            });
+        #[cfg(feature = "parallel")]
+        {
+            // Combine the thread-local bit vectors serially using bit-wise OR.
+            self.contact_status_bits_thread_local
+                .iter_mut()
+                .for_each(|bit_vec| {
+                    self.contact_status_bits.or(bit_vec.get_mut());
+                });
+        }
     }
 
     /// Generates [`ContactConstraint`]s for the given bodies and their corresponding colliders
