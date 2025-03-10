@@ -429,6 +429,8 @@ impl From<Transform> for ColliderTransform {
 pub struct Sensor;
 
 /// The Axis-Aligned Bounding Box of a [collider](Collider).
+///
+/// The coordinates are in world space (global coordinates).
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]

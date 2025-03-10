@@ -67,10 +67,24 @@ pub struct ContactConstraint {
     pub collider_entity1: Entity,
     /// The entity of the first collider in the contact.
     pub collider_entity2: Entity,
-    /// The combined [`Friction`] of the bodies.
-    pub friction: Friction,
-    /// The combined [`Restitution`] of the bodies.
-    pub restitution: Restitution,
+    /// The combined coefficient of dynamic [friction](Friction) of the bodies.
+    pub friction: Scalar,
+    /// The combined coefficient of [restitution](Restitution) of the bodies.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
@@ -93,23 +107,16 @@ impl ContactConstraint {
         collider_transform2: Option<ColliderTransform>,
         collision_margin: impl Into<CollisionMargin>,
         speculative_margin: impl Into<SpeculativeMargin>,
-        friction: Friction,
-        restitution: Restitution,
+        friction: Scalar,
+        restitution: Scalar,
+        #[cfg(feature = "2d")] tangent_speed: Scalar,
+        #[cfg(feature = "3d")] tangent_velocity: Vector,
         softness: SoftnessCoefficients,
         warm_start: bool,
         delta_secs: Scalar,
     ) -> Self {
         let collision_margin: Scalar = collision_margin.into().0;
         let speculative_margin: Scalar = speculative_margin.into().0;
-
-        // Local-space outward contact normal on the first body.
-        // The normal is transformed from collider-space to body-space.
-        let local_normal1 = collider_transform1.map_or(manifold.normal1, |transform| {
-            transform.rotation * manifold.normal1
-        });
-
-        // The world-space normal used for the contact solve.
-        let normal = *body1.rotation * local_normal1;
 
         // TODO: Cache these?
         // TODO: How should we properly take the locked axes into account for the mass here?
@@ -124,29 +131,35 @@ impl ContactConstraint {
             collider_entity2,
             friction,
             restitution,
-            normal,
-            points: Vec::with_capacity(manifold.contacts.len()),
+            #[cfg(feature = "2d")]
+            tangent_speed,
+            #[cfg(feature = "3d")]
+            tangent_velocity,
+            normal: manifold.normal,
+            points: Vec::with_capacity(manifold.points.len()),
             manifold_index: manifold_id,
         };
 
         let tangents =
             constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-        for mut contact in manifold.contacts.iter().copied() {
+        for mut contact in manifold.points.iter().copied() {
             // Transform contact points from collider-space to body-space.
             if let Some(transform) = collider_transform1 {
-                contact.point1 = transform.rotation * contact.point1 + transform.translation;
+                contact.local_point1 =
+                    transform.rotation * contact.local_point1 + transform.translation;
             }
             if let Some(transform) = collider_transform2 {
-                contact.point2 = transform.rotation * contact.point2 + transform.translation;
+                contact.local_point2 =
+                    transform.rotation * contact.local_point2 + transform.translation;
             }
 
             contact.penetration += collision_margin;
 
             let effective_distance = -contact.penetration;
 
-            let local_anchor1 = contact.point1 - body1.center_of_mass.0;
-            let local_anchor2 = contact.point2 - body2.center_of_mass.0;
+            let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
+            let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
 
             // Store fixed world-space anchors.
             // This improves rolling behavior for shapes like balls and capsules.
@@ -158,8 +171,9 @@ impl ContactConstraint {
 
             // Keep the contact if (1) the separation distance is below the required threshold,
             // or if (2) the bodies are expected to come into contact within the next frame.
+            let normal_speed = relative_velocity.dot(constraint.normal);
             let keep_contact = effective_distance < speculative_margin || {
-                let delta_distance = relative_velocity.dot(normal) * delta_secs;
+                let delta_distance = normal_speed * delta_secs;
                 effective_distance + delta_distance < speculative_margin
             };
 
@@ -175,29 +189,27 @@ impl ContactConstraint {
                     i2,
                     r1,
                     r2,
-                    normal,
+                    constraint.normal,
                     warm_start.then_some(contact.normal_impulse),
                     softness,
                 ),
                 // There should only be a friction part if the coefficient of friction is non-negative.
-                tangent_part: (friction.dynamic_coefficient > 0.0).then_some(
-                    ContactTangentPart::generate(
-                        inverse_mass_sum,
-                        i1,
-                        i2,
-                        r1,
-                        r2,
-                        tangents,
-                        warm_start.then_some(contact.tangent_impulse),
-                    ),
-                ),
+                tangent_part: (friction > 0.0).then_some(ContactTangentPart::generate(
+                    inverse_mass_sum,
+                    i1,
+                    i2,
+                    r1,
+                    r2,
+                    tangents,
+                    warm_start.then_some(contact.tangent_impulse),
+                )),
                 max_normal_impulse: 0.0,
                 local_anchor1,
                 local_anchor2,
                 anchor1: r1,
                 anchor2: r2,
-                normal_speed: normal.dot(relative_velocity),
-                initial_separation: -contact.penetration - (r2 - r1).dot(normal),
+                normal_speed,
+                initial_separation: -contact.penetration - (r2 - r1).dot(constraint.normal),
             };
 
             constraint.points.push(point);
@@ -333,6 +345,10 @@ impl ContactConstraint {
             let impulse = friction_part.solve_impulse(
                 tangent_directions,
                 relative_velocity,
+                #[cfg(feature = "2d")]
+                self.tangent_speed,
+                #[cfg(feature = "3d")]
+                self.tangent_velocity,
                 friction,
                 point.normal_part.impulse,
             );
@@ -379,7 +395,7 @@ impl ContactConstraint {
 
             // Compute the incremental normal impulse to account for restitution.
             let mut impulse = -point.normal_part.effective_mass
-                * (normal_speed + self.restitution.coefficient * point.normal_speed);
+                * (normal_speed + self.restitution * point.normal_speed);
 
             // Clamp the accumulated impulse.
             let new_impulse = (point.normal_part.impulse + impulse).max(0.0);

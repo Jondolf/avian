@@ -56,6 +56,12 @@ serialize = [
     "bitflags/serde",
 ]
 
+# Enables writing timer and counter information to the `DiagnosticsStore` in `bevy_diagnostic`.
+bevy_diagnostic = []
+
+# Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
+diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
+
 [lib]
 name = "avian3d"
 path = "../../src/lib.rs"
@@ -75,6 +81,7 @@ nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "1"
 indexmap = "2.0.0"
+arrayvec = "0.7"
 fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"
@@ -92,6 +99,10 @@ approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { version = "0.12" }
 
+[package.metadata.docs.rs]
+# Enable features when building the docs on docs.rs
+features = ["diagnostic_ui"]
+
 [[example]]
 name = "dynamic_character_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
@@ -106,6 +117,14 @@ required-features = ["3d", "default-collider"]
 
 [[example]]
 name = "chain_3d"
+required-features = ["3d", "default-collider"]
+
+[[example]]
+name = "collider_constructors"
+required-features = ["3d", "default-collider", "bevy_scene"]
+
+[[example]]
+name = "conveyor_belt"
 required-features = ["3d", "default-collider"]
 
 [[example]]
@@ -145,8 +164,8 @@ name = "trimesh_shapes_3d"
 required-features = ["3d", "default-collider", "bevy_scene"]
 
 [[example]]
-name = "collider_constructors"
-required-features = ["3d", "default-collider", "bevy_scene"]
+name = "diagnostics"
+required-features = ["3d", "default-collider", "diagnostic_ui"]
 
 [[example]]
 name = "debugdump_3d"
