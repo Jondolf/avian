@@ -108,7 +108,7 @@ fn setup(
                 RigidBody::Dynamic,
                 Friction::new(0.1),
                 Controllable,
-                CustomGravity(glam::vec2(-x as f32 * 100.0, -y as f32 * 100.0)),
+                CustomGravity(glam::vec2(-x as f32 * 100.0, -y as f32 * 100.0).into()),
             ));
         }
     }
