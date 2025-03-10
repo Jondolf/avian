@@ -1,6 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use avian2d::{dynamics::integrator::CustomGravity, math::*, prelude::*};
+use avian2d::{math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
 
