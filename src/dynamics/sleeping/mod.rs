@@ -8,6 +8,8 @@ use bevy::{
     prelude::*,
 };
 
+use super::integrator::CustomGravity;
+
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
 /// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
@@ -40,6 +42,7 @@ impl Plugin for SleepingPlugin {
             (
                 wake_on_changed,
                 wake_all_sleeping_bodies.run_if(resource_changed::<Gravity>),
+                wake_custom_gravity_bodies,
                 mark_sleeping_bodies,
             )
                 .chain()
@@ -276,6 +279,29 @@ fn is_changed_after_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_r
 /// Triggered automatically when [`Gravity`] is changed.
 fn wake_all_sleeping_bodies(mut commands: Commands, bodies: Query<Entity, With<Sleeping>>) {
     for entity in &bodies {
+        commands.queue(WakeUpBody(entity));
+    }
+}
+
+/// Removes the [`Sleeping`] component from sleeping bodies with the [`CustomGravity`] component.
+/// Triggered automatically when [`CustomGravity`] is added, changed, or removed.
+fn wake_custom_gravity_bodies(
+    mut commands: Commands,
+    bodies: Query<
+        Entity,
+        (
+            Or<(Added<CustomGravity>, Changed<CustomGravity>)>,
+            With<Sleeping>,
+        ),
+    >,
+    mut bodies_removed_gravity: RemovedComponents<CustomGravity>,
+) {
+    for entity in &bodies {
+        commands.queue(WakeUpBody(entity));
+    }
+
+    for entity in bodies_removed_gravity.read() {
+        // Not guarenteed to be necessary, but it will likely be called in this context very rarely.
         commands.queue(WakeUpBody(entity));
     }
 }

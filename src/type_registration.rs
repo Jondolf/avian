@@ -19,6 +19,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
             .register_type::<Gravity>()
+            .register_type::<CustomGravity>()
             .register_type::<RigidBody>()
             .register_type::<RigidBodyDisabled>()
             .register_type::<Sleeping>()

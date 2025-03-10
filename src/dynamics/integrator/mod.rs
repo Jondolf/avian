@@ -96,6 +96,8 @@ pub enum IntegrationSet {
 /// acceleration near Earth's surface. Note that if you are using pixels as length units in 2D,
 /// this gravity will be tiny. You should modify the gravity to fit your application.
 ///
+/// To override this value for a specific [rigid body](RigidBody), you can use the [`CustomGravity`] component.
+///
 /// You can also control how gravity affects a specific [rigid body](RigidBody) using the [`GravityScale`]
 /// component. The magnitude of the gravity will be multiplied by this scaling factor.
 ///
@@ -142,6 +144,32 @@ impl Gravity {
     pub const ZERO: Gravity = Gravity(Vector::ZERO);
 }
 
+/// A component for overriding global gravitational acceleration for specific entities.
+///
+/// See [`Gravity`]
+#[derive(Reflect, Component, Debug)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component)]
+pub struct CustomGravity(pub Vector);
+
+impl Default for CustomGravity {
+    fn default() -> Self {
+        Gravity::default().into()
+    }
+}
+
+impl From<Gravity> for CustomGravity {
+    fn from(value: Gravity) -> Self {
+        Self(value.0)
+    }
+}
+
+impl CustomGravity {
+    /// Zero gravity.
+    pub const ZERO: CustomGravity = CustomGravity(Vector::ZERO);
+}
+
 #[derive(QueryData)]
 #[query_data(mutable)]
 struct VelocityIntegrationQuery {
@@ -168,7 +196,7 @@ struct VelocityIntegrationQuery {
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
-    mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
+    mut bodies: Query<(VelocityIntegrationQuery, Option<&CustomGravity>), RigidBodyActiveFilter>,
     gravity: Res<Gravity>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -177,80 +205,83 @@ fn integrate_velocities(
 
     let delta_secs = time.delta_seconds_adjusted();
 
-    bodies.par_iter_mut().for_each(|mut body| {
-        if let Some(mut previous_position) = body.prev_pos {
-            previous_position.0 = body.pos.0;
-        }
-
-        if body.rb.is_static() {
-            if *body.lin_vel != LinearVelocity::ZERO {
-                *body.lin_vel = LinearVelocity::ZERO;
+    bodies
+        .par_iter_mut()
+        .for_each(|(mut body, custom_gravity)| {
+            if let Some(mut previous_position) = body.prev_pos {
+                previous_position.0 = body.pos.0;
             }
-            if *body.ang_vel != AngularVelocity::ZERO {
-                *body.ang_vel = AngularVelocity::ZERO;
+
+            if body.rb.is_static() {
+                if *body.lin_vel != LinearVelocity::ZERO {
+                    *body.lin_vel = LinearVelocity::ZERO;
+                }
+                if *body.ang_vel != AngularVelocity::ZERO {
+                    *body.ang_vel = AngularVelocity::ZERO;
+                }
+                return;
             }
-            return;
-        }
 
-        if body.rb.is_dynamic() {
-            let locked_axes = body
-                .locked_axes
-                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+            if body.rb.is_dynamic() {
+                let locked_axes = body
+                    .locked_axes
+                    .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-            // Apply damping
-            if let Some(lin_damping) = body.lin_damping {
-                if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
-                    body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                // Apply damping
+                if let Some(lin_damping) = body.lin_damping {
+                    if body.lin_vel.0 != Vector::ZERO && lin_damping.0 != 0.0 {
+                        body.lin_vel.0 *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                    }
+                }
+                if let Some(ang_damping) = body.ang_damping {
+                    if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
+                        body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+                    }
+                }
+
+                let external_force = body.force.force();
+                let external_torque = body.torque.torque() + body.force.torque();
+                let gravity = custom_gravity.map_or(gravity.0, |custom_gravity| custom_gravity.0)
+                    * body.gravity_scale.map_or(1.0, |scale| scale.0);
+
+                semi_implicit_euler::integrate_velocity(
+                    &mut body.lin_vel.0,
+                    &mut body.ang_vel.0,
+                    external_force,
+                    external_torque,
+                    *body.mass,
+                    body.angular_inertia,
+                    #[cfg(feature = "3d")]
+                    body.global_angular_inertia,
+                    #[cfg(feature = "3d")]
+                    *body.rot,
+                    locked_axes,
+                    gravity,
+                    delta_secs,
+                );
+            }
+
+            // Clamp velocities
+            if let Some(max_linear_speed) = body.max_linear_speed {
+                let linear_speed_squared = body.lin_vel.0.length_squared();
+                if linear_speed_squared > max_linear_speed.0.powi(2) {
+                    body.lin_vel.0 *= max_linear_speed.0 / linear_speed_squared.sqrt();
                 }
             }
-            if let Some(ang_damping) = body.ang_damping {
-                if body.ang_vel.0 != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                    body.ang_vel.0 *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+            if let Some(max_angular_speed) = body.max_angular_speed {
+                #[cfg(feature = "2d")]
+                if body.ang_vel.abs() > max_angular_speed.0 {
+                    body.ang_vel.0 = max_angular_speed.copysign(body.ang_vel.0);
                 }
-            }
-
-            let external_force = body.force.force();
-            let external_torque = body.torque.torque() + body.force.torque();
-            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
-
-            semi_implicit_euler::integrate_velocity(
-                &mut body.lin_vel.0,
-                &mut body.ang_vel.0,
-                external_force,
-                external_torque,
-                *body.mass,
-                body.angular_inertia,
                 #[cfg(feature = "3d")]
-                body.global_angular_inertia,
-                #[cfg(feature = "3d")]
-                *body.rot,
-                locked_axes,
-                gravity,
-                delta_secs,
-            );
-        }
-
-        // Clamp velocities
-        if let Some(max_linear_speed) = body.max_linear_speed {
-            let linear_speed_squared = body.lin_vel.0.length_squared();
-            if linear_speed_squared > max_linear_speed.0.powi(2) {
-                body.lin_vel.0 *= max_linear_speed.0 / linear_speed_squared.sqrt();
-            }
-        }
-        if let Some(max_angular_speed) = body.max_angular_speed {
-            #[cfg(feature = "2d")]
-            if body.ang_vel.abs() > max_angular_speed.0 {
-                body.ang_vel.0 = max_angular_speed.copysign(body.ang_vel.0);
-            }
-            #[cfg(feature = "3d")]
-            {
-                let angular_speed_squared = body.ang_vel.0.length_squared();
-                if angular_speed_squared > max_angular_speed.0.powi(2) {
-                    body.ang_vel.0 *= max_angular_speed.0 / angular_speed_squared.sqrt();
+                {
+                    let angular_speed_squared = body.ang_vel.0.length_squared();
+                    if angular_speed_squared > max_angular_speed.0.powi(2) {
+                        body.ang_vel.0 *= max_angular_speed.0 / angular_speed_squared.sqrt();
+                    }
                 }
             }
-        }
-    });
+        });
 
     diagnostics.integrate_velocities += start.elapsed();
 }
