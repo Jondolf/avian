@@ -53,13 +53,15 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
+    // A `SystemParam` can be specified here to provide
+    // ECS access inside the collider implementation.
+    // For our simple collider, we don't need it.
     type Context = ();
 
-    fn aabb(
+    fn aabb_with_context(
         &self,
         position: Vector,
         _rotation: impl Into<Rotation>,
-        _entity: Entity,
         _context: &Self::Context,
     ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
@@ -67,15 +69,13 @@ impl AnyCollider for CircleCollider {
 
     // This is the actual collision detection part.
     // It computes all contacts between two colliders at the given positions.
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
-        _entity1: Entity,
-        _entity2: Entity,
         _context: &Self::Context,
         prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
