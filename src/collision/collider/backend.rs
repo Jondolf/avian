@@ -664,7 +664,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb(start_pos.0, start_rot, end_pos, end_rot, &context)
+            .swept_aabb_with_context(start_pos.0, start_rot, end_pos, end_rot, &context)
             .grow(Vector::splat(collision_margin));
     }
 }

@@ -132,7 +132,7 @@ pub trait AnyCollider: Component + ComputeMassProperties {
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
-    fn swept_aabb(
+    fn swept_aabb_with_context(
         &self,
         start_position: Vector,
         start_rotation: impl Into<Rotation>,
