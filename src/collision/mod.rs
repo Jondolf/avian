@@ -700,7 +700,7 @@ pub struct ContactManifold {
     pub points: Vec<ContactPoint>,
     /// The unit contact normal in world space, pointing from the first shape to the second.
     ///
-    /// The same normal is shared by all `points` in a manifold,
+    /// The same normal is shared by all `points` in a manifold.
     pub normal: Vector,
     /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
     pub friction: Scalar,
