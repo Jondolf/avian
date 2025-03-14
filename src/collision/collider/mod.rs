@@ -163,7 +163,7 @@ pub trait AnyCollider: Component + ComputeMassProperties {
     ///     type Context = (
     ///         // you can query data here
     ///         SQuery<&'static VoxelData>,
-    ///         // or put any read-only system param here
+    ///         // or put any other read-only system param here
     ///         SRes<Time>,
     ///     );
     ///
@@ -184,9 +184,9 @@ pub trait AnyCollider: Component + ComputeMassProperties {
     ///         rotation2: impl Into<Rotation>,
     ///         prediction_distance: Scalar,
     ///     ) -> Vec<ContactManifold> {
-    ///         let [voxels1, voxels2] = context.voxel_data.get_many([context.entity1, context.entity2])
+    ///         let [voxels1, voxels2] = context.0.get_many([context.entity1, context.entity2])
     ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
-    ///         let elapsed = context.time.elapsed();
+    ///         let elapsed = context.1.elapsed();
     ///         // do some computation...
     /// #       unimplemented!()
     ///     }
@@ -245,12 +245,12 @@ pub trait AnyCollider: Component + ComputeMassProperties {
 /// A simplified wrapper around [`AnyCollider`] that doesn't require passing in the context for
 /// implementations that don't need context
 pub trait SimpleCollider: AnyCollider<Context = ()> {
-    /// [`AnyCollider::get_aabb`] but without context
+    /// [`AnyCollider::aabb_with_context`] but without context
     fn aabb(&self, p: Vector, r: impl Into<Rotation>) -> ColliderAabb {
         self.aabb_with_context(AabbContext::fake(), p, r)
     }
 
-    /// [`AnyCollider::get_swept_aabb`] but without context
+    /// [`AnyCollider::swept_aabb_with_context`] but without context
     fn swept_aabb(
         &self,
         sp: Vector,
@@ -261,7 +261,7 @@ pub trait SimpleCollider: AnyCollider<Context = ()> {
         self.swept_aabb_with_context(AabbContext::fake(), sp, sr, ep, er)
     }
 
-    /// [`AnyCollider::get_contact_manifolds`] but without context
+    /// [`AnyCollider::contact_manifolds_with_context`] but without context
     fn contact_manifolds(
         &self,
         o: &Self,
