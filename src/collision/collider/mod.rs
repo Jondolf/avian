@@ -54,7 +54,7 @@ pub struct AabbContext<'a, 'w, 's, T: ReadOnlySystemParam> {
     item: &'a SystemParamItem<'w, 's, T>,
 }
 
-impl<'a, 'w, 's, T: ReadOnlySystemParam> Clone for AabbContext<'a, 'w, 's, T> {
+impl<T: ReadOnlySystemParam> Clone for AabbContext<'_, '_, '_, T> {
     fn clone(&self) -> Self {
         Self {
             entity: self.entity,
@@ -70,7 +70,7 @@ impl<'a, 'w, 's, T: ReadOnlySystemParam> AabbContext<'a, 'w, 's, T> {
     }
 }
 
-impl<'a, 'w, 's> AabbContext<'a, 'w, 's, ()> {
+impl AabbContext<'_, '_, '_, ()> {
     fn fake() -> Self {
         Self {
             entity: Entity::PLACEHOLDER,
@@ -105,7 +105,7 @@ impl<'a, 'w, 's, T: ReadOnlySystemParam> ContactManifoldContext<'a, 'w, 's, T> {
     }
 }
 
-impl<'a, 'w, 's> ContactManifoldContext<'a, 'w, 's, ()> {
+impl ContactManifoldContext<'_, '_, '_, ()> {
     fn fake() -> Self {
         Self {
             entity1: Entity::PLACEHOLDER,
