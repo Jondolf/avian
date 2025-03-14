@@ -27,13 +27,18 @@ f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
-parallel = ["parry2d?/parallel", "parry2d-f64?/parallel", "bevy/multi_threaded"]
+parallel = [
+    "dep:thread_local",
+    "bevy/multi_threaded",
+    "parry2d?/parallel",
+    "parry2d-f64?/parallel",
+]
 enhanced-determinism = [
     "dep:libm",
-    "parry2d?/enhanced-determinism",
-    "parry2d-f64?/enhanced-determinism",
     "bevy_math/libm",
     "bevy_heavy/libm",
+    "parry2d?/enhanced-determinism",
+    "parry2d-f64?/enhanced-determinism",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -78,12 +83,10 @@ parry2d-f64 = { version = "0.17", optional = true }
 nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "1"
-indexmap = "2.0.0"
 arrayvec = "0.7"
-fxhash = "0.2.1"
 itertools = "0.13"
 bitflags = "2.5.0"
-thread_local = "1.1"
+thread_local = { version = "1.1", optional = true }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
