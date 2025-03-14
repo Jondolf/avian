@@ -176,13 +176,13 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                         type_name::<C::Context>()
                     )
                 });
-                let context = context_state.0.get(&world);
+                let collider_context = context_state.0.get(&world);
+                let context = AabbContext::new(entity, &collider_context);
                 entity_mut
                     .get::<ColliderAabb>()
                     .copied()
-                    .unwrap_or(collider.get_aabb(
-                        &context,
-                        entity,
+                    .unwrap_or(collider.aabb_with_context(
+                        context,
                         Vector::ZERO,
                         Rotation::default(),
                     ))
@@ -567,7 +567,7 @@ fn update_aabb<C: AnyCollider>(
     narrow_phase_config: Res<NarrowPhaseConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
-    context: StaticSystemParam<C::Context>,
+    collider_context: StaticSystemParam<C::Context>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
     let default_speculative_margin = length_unit.0 * narrow_phase_config.default_speculative_margin;
@@ -594,9 +594,11 @@ fn update_aabb<C: AnyCollider>(
             speculative_margin.map_or(default_speculative_margin, |margin| margin.0)
         };
 
+        let context = AabbContext::new(entity, &*collider_context);
+
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .get_aabb(&context, entity, pos.0, *rot)
+                .aabb_with_context(context, pos.0, *rot)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -652,7 +654,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .get_swept_aabb(&context, entity, start_pos.0, start_rot, end_pos, end_rot)
+            .swept_aabb_with_context(context, start_pos.0, start_rot, end_pos, end_rot)
             .grow(Vector::splat(collision_margin));
     }
 }

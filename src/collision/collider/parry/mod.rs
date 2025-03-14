@@ -387,10 +387,9 @@ impl Default for Collider {
 impl AnyCollider for Collider {
     type Context = ();
 
-    fn get_aabb(
+    fn aabb_with_context(
         &self,
-        _: &(),
-        _: Entity,
+        _: AabbContext<Self::Context>,
         position: Vector,
         rotation: impl Into<Rotation>,
     ) -> ColliderAabb {
@@ -403,14 +402,12 @@ impl AnyCollider for Collider {
         }
     }
 
-    fn get_contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
-        _: &(),
-        _: Entity,
+        _: ContactManifoldContext<Self::Context>,
         position1: Vector,
         rotation1: impl Into<Rotation>,
-        _: Entity,
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,

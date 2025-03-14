@@ -633,7 +633,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
-        context: &<C::Context as SystemParam>::Item<'_, '_>,
+        collider_context: &<C::Context as SystemParam>::Item<'_, '_>,
         entity1: Entity,
         entity2: Entity,
         collider1: &ColliderQueryItem<C>,
@@ -650,16 +650,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
 
+        let context = ContactManifoldContext::new(entity1, entity2, collider_context);
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let mut manifolds = collider1.shape.get_contact_manifolds(
+        let mut manifolds = collider1.shape.contact_manifolds_with_context(
             collider2.shape,
             context,
-            entity1,
             position1,
             *collider1.rotation,
-            entity2,
             position2,
             *collider2.rotation,
             max_distance,
