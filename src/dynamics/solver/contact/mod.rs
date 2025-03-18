@@ -63,10 +63,6 @@ pub struct ContactConstraint {
     pub entity1: Entity,
     /// The second entity in the contact.
     pub entity2: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity1: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
     pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
@@ -104,8 +100,6 @@ impl ContactConstraint {
         manifold: &ContactManifold,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
-        collider_entity1: Entity,
-        collider_entity2: Entity,
         collider_transform1: Option<ColliderTransform>,
         collider_transform2: Option<ColliderTransform>,
         collision_margin: impl Into<CollisionMargin>,
@@ -130,8 +124,6 @@ impl ContactConstraint {
         let mut constraint = Self {
             entity1: body1.entity,
             entity2: body2.entity,
-            collider_entity1,
-            collider_entity2,
             friction,
             restitution,
             #[cfg(feature = "2d")]

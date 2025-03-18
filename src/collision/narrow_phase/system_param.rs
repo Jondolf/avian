@@ -590,8 +590,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 contact_manifold,
                 body1,
                 body2,
-                collider1.entity,
-                collider2.entity,
                 collider1.transform.copied(),
                 collider2.transform.copied(),
                 collision_margin,
