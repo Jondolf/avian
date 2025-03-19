@@ -82,9 +82,9 @@ impl AabbContext<'_, '_, '_, ()> {
 /// Context necessary to calculate [`ContactManifold`]s for a set of [`AnyCollider`]
 #[derive(Deref)]
 pub struct ContactManifoldContext<'a, 'w, 's, T: ReadOnlySystemParam> {
-    /// The first entity used in the contact manifold
+    /// The first collider entity involved in the contact.
     pub entity1: Entity,
-    /// The second entity used in the contact manifold
+    /// The second collider entity involved in the contact.
     pub entity2: Entity,
     #[deref]
     item: &'a SystemParamItem<'w, 's, T>,
@@ -138,30 +138,30 @@ pub trait AnyCollider: Component + ComputeMassProperties {
     )]
     /// # use bevy::prelude::*;
     /// # use bevy::ecs::system::{SystemParam, lifetimeless::{SRes, SQuery}};
+    /// #
+    /// #[derive(Component)]
+    /// pub struct VoxelCollider;
     ///
     /// #[derive(Component)]
     /// pub struct VoxelData {
     ///     // collider voxel data...
     /// }
     ///
-    /// #[derive(Component)]
-    /// pub struct VoxelCollider;
-    ///
     /// # impl ComputeMassProperties2d for VoxelCollider {
     /// #     fn mass(&self, density: f32) -> f32 {0.}
     /// #     fn unit_angular_inertia(&self) -> f32 { 0.}
     /// #     fn center_of_mass(&self) -> Vec2 { Vec2::ZERO }
     /// # }
-    ///
+    /// #
     /// # impl ComputeMassProperties3d for VoxelCollider {
     /// #     fn mass(&self, density: f32) -> f32 {0.}
     /// #     fn unit_principal_angular_inertia(&self) -> Vec3 { Vec3::ZERO }
     /// #     fn center_of_mass(&self) -> Vec3 { Vec3::ZERO }
     /// # }
-    ///
+    /// #
     /// impl AnyCollider for VoxelCollider {
     ///     type Context = (
-    ///         // you can query data here
+    ///         // you can query extra components here
     ///         SQuery<&'static VoxelData>,
     ///         // or put any other read-only system param here
     ///         SRes<Time>,
@@ -169,20 +169,20 @@ pub trait AnyCollider: Component + ComputeMassProperties {
     ///
     /// #   fn aabb_with_context(
     /// #       &self,
-    /// #       _: AabbContext<Self::Context>,
     /// #       _: Vector,
     /// #       _: impl Into<Rotation>,
+    /// #       _: AabbContext<Self::Context>,
     /// #   ) -> ColliderAabb { unimplemented!() }
-    ///
+    /// #
     ///     fn contact_manifolds_with_context(
     ///         &self,
     ///         other: &Self,
-    ///         context: ContactManifoldContext<Self::Context>,
     ///         position1: Vector,
     ///         rotation1: impl Into<Rotation>,
     ///         position2: Vector,
     ///         rotation2: impl Into<Rotation>,
     ///         prediction_distance: Scalar,
+    ///         context: ContactManifoldContext<Self::Context>,
     ///     ) -> Vec<ContactManifold> {
     ///         let [voxels1, voxels2] = context.0.get_many([context.entity1, context.entity2])
     ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
@@ -196,82 +196,114 @@ pub trait AnyCollider: Component + ComputeMassProperties {
 
     /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
     /// with the given position and rotation.
+    ///
+    /// See [`SimpleCollider::aabb`] for collider types with empty [`AnyCollider::Context`]
     #[cfg_attr(
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
     fn aabb_with_context(
         &self,
-        context: AabbContext<Self::Context>,
         position: Vector,
         rotation: impl Into<Rotation>,
+        context: AabbContext<Self::Context>,
     ) -> ColliderAabb;
 
     /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
     /// This corresponds to the space the shape would occupy if it moved from the given
     /// start position to the given end position.
+    ///
+    /// See [`SimpleCollider::swept_aabb`] for collider types with empty [`AnyCollider::Context`]
     #[cfg_attr(
         feature = "2d",
         doc = "\n\nThe rotation is counterclockwise and in radians."
     )]
     fn swept_aabb_with_context(
         &self,
-        context: AabbContext<Self::Context>,
         start_position: Vector,
         start_rotation: impl Into<Rotation>,
         end_position: Vector,
         end_rotation: impl Into<Rotation>,
+        context: AabbContext<Self::Context>,
     ) -> ColliderAabb {
-        self.aabb_with_context(context.clone(), start_position, start_rotation)
-            .merged(self.aabb_with_context(context, end_position, end_rotation))
+        self.aabb_with_context(start_position, start_rotation, context.clone())
+            .merged(self.aabb_with_context(end_position, end_rotation, context))
     }
 
     /// Computes all [`ContactManifold`]s between two colliders.
     ///
     /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
     /// or if the given shapes are invalid.
+    ///
+    /// See [`SimpleCollider::contact_manifolds`] for collider types with empty [`AnyCollider::Context`]
     fn contact_manifolds_with_context(
         &self,
         other: &Self,
-        context: ContactManifoldContext<Self::Context>,
         position1: Vector,
         rotation1: impl Into<Rotation>,
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        context: ContactManifoldContext<Self::Context>,
     ) -> Vec<ContactManifold>;
 }
 
 /// A simplified wrapper around [`AnyCollider`] that doesn't require passing in the context for
 /// implementations that don't need context
 pub trait SimpleCollider: AnyCollider<Context = ()> {
-    /// [`AnyCollider::aabb_with_context`] but without context
-    fn aabb(&self, p: Vector, r: impl Into<Rotation>) -> ColliderAabb {
-        self.aabb_with_context(AabbContext::fake(), p, r)
+    /// Computes the [Axis-Aligned Bounding Box](ColliderAabb) of the collider
+    /// with the given position and rotation.
+    ///
+    /// See [`AnyCollider::aabb_with_context`] for collider types with non-empty [`AnyCollider::Context`]
+    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
+        self.aabb_with_context(position, rotation, AabbContext::fake())
     }
 
-    /// [`AnyCollider::swept_aabb_with_context`] but without context
+    /// Computes the swept [Axis-Aligned Bounding Box](ColliderAabb) of the collider.
+    /// This corresponds to the space the shape would occupy if it moved from the given
+    /// start position to the given end position.
+    ///
+    /// See [`AnyCollider::swept_aabb_with_context`] for collider types with non-empty [`AnyCollider::Context`]
     fn swept_aabb(
         &self,
-        sp: Vector,
-        sr: impl Into<Rotation>,
-        ep: Vector,
-        er: impl Into<Rotation>,
+        start_position: Vector,
+        start_rotation: impl Into<Rotation>,
+        end_position: Vector,
+        end_rotation: impl Into<Rotation>,
     ) -> ColliderAabb {
-        self.swept_aabb_with_context(AabbContext::fake(), sp, sr, ep, er)
+        self.swept_aabb_with_context(
+            start_position,
+            start_rotation,
+            end_position,
+            end_rotation,
+            AabbContext::fake(),
+        )
     }
 
-    /// [`AnyCollider::contact_manifolds_with_context`] but without context
+    /// Computes all [`ContactManifold`]s between two colliders.
+    ///
+    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// or if the given shapes are invalid.
+    ///
+    /// See [`AnyCollider::contact_manifolds_with_context`] for collider types with non-empty [`AnyCollider::Context`]
     fn contact_manifolds(
         &self,
-        o: &Self,
-        p1: Vector,
-        r1: impl Into<Rotation>,
-        p2: Vector,
-        r2: impl Into<Rotation>,
-        pd: Scalar,
+        other: &Self,
+        position1: Vector,
+        rotation1: impl Into<Rotation>,
+        position2: Vector,
+        rotation2: impl Into<Rotation>,
+        prediction_distance: Scalar,
     ) -> Vec<ContactManifold> {
-        self.contact_manifolds_with_context(o, ContactManifoldContext::fake(), p1, r1, p2, r2, pd)
+        self.contact_manifolds_with_context(
+            other,
+            position1,
+            rotation1,
+            position2,
+            rotation2,
+            prediction_distance,
+            ContactManifoldContext::fake(),
+        )
     }
 }
 

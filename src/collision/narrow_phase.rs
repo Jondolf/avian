@@ -656,12 +656,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Compute the contact manifolds using the effective speculative margin.
         let mut manifolds = collider1.shape.contact_manifolds_with_context(
             collider2.shape,
-            context,
             position1,
             *collider1.rotation,
             position2,
             *collider2.rotation,
             max_distance,
+            context,
         );
 
         if manifolds.is_empty() {

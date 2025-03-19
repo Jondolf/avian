@@ -182,9 +182,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     .get::<ColliderAabb>()
                     .copied()
                     .unwrap_or(collider.aabb_with_context(
-                        context,
                         Vector::ZERO,
                         Rotation::default(),
+                        context,
                     ))
             };
             let density = entity_mut
@@ -598,7 +598,7 @@ fn update_aabb<C: AnyCollider>(
 
         if speculative_margin <= 0.0 {
             *aabb = collider
-                .aabb_with_context(context, pos.0, *rot)
+                .aabb_with_context(pos.0, *rot, context)
                 .grow(Vector::splat(contact_tolerance + collision_margin));
             continue;
         }
@@ -654,7 +654,7 @@ fn update_aabb<C: AnyCollider>(
         // Compute swept AABB, the space that the body would occupy if it was integrated for one frame
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
-            .swept_aabb_with_context(context, start_pos.0, start_rot, end_pos, end_rot)
+            .swept_aabb_with_context(start_pos.0, start_rot, end_pos, end_rot, context)
             .grow(Vector::splat(collision_margin));
     }
 }
