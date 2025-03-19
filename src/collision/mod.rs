@@ -657,6 +657,11 @@ impl Contacts {
         self.flags.contains(ContactPairFlags::CONTACT_EVENTS)
     }
 
+    /// Returns `true` if either of the colliders is a sensor.
+    pub fn is_sensor(&self) -> bool {
+        self.flags.contains(ContactPairFlags::SENSOR)
+    }
+
     /// Returns the contact with the largest penetration depth.
     ///
     /// If the objects are separated but there is still a speculative contact,

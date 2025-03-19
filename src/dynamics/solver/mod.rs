@@ -11,7 +11,7 @@ pub mod xpbd;
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
 
-use crate::{data_structures::graph::EdgeIndex, prelude::*};
+use crate::prelude::*;
 use bevy::prelude::*;
 use schedule::SubstepSolverSet;
 
@@ -530,10 +530,7 @@ fn store_contact_impulses(
     let start = bevy::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) = collisions
-            .graph
-            .edge_weight_mut(EdgeIndex(constraint.contact_pair_index as u32))
-        else {
+        let Some(contact_pair) = collisions.get_mut(constraint.entity1, constraint.entity2) else {
             unreachable!("Contact pair not found in collisions graph");
         };
 
