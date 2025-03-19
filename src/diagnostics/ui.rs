@@ -200,7 +200,6 @@ fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
     let collision_timers = vec![
         ("Broad Phase", Collision::BROAD_PHASE),
         ("Narrow Phase", Collision::NARROW_PHASE),
-        ("Generate Constraints", Collision::GENERATE_CONSTRAINTS),
     ];
     let solver_timers = vec![
         ("Integrate Velocities", Solver::INTEGRATE_VELOCITIES),
