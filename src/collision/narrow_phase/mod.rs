@@ -149,18 +149,6 @@ where
                 .ambiguous_with_all(),
         );
 
-        if self.generate_constraints {
-            // Generate contact constraints.
-            /*app.add_systems(
-                self.schedule,
-                generate_constraints::<C>
-                    .in_set(NarrowPhaseSet::GenerateConstraints)
-                    // Allowing ambiguities is required so that it's possible
-                    // to have multiple collision backends at the same time.
-                    .ambiguous_with_all(),
-            );*/
-        }
-
         if is_first_instance {
             app.add_systems(
                 self.schedule,
