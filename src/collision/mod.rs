@@ -34,6 +34,9 @@ pub use layers::*;
 mod feature_id;
 pub use feature_id::PackedFeatureId;
 
+mod diagnostics;
+pub use diagnostics::CollisionDiagnostics;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 use indexmap::IndexMap;
@@ -242,9 +245,9 @@ impl Collisions {
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct Contacts {
-    /// First entity in the contact.
+    /// The first collider entity in the contact.
     pub entity1: Entity,
-    /// Second entity in the contact.
+    /// The second collider entity in the contact.
     pub entity2: Entity,
     /// The entity of the first body involved in the contact.
     pub body_entity1: Option<Entity>,
@@ -260,51 +263,59 @@ pub struct Contacts {
     pub during_current_frame: bool,
     /// True if the bodies were in contact during the previous frame.
     pub during_previous_frame: bool,
-    /// The total normal impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    pub total_normal_impulse: Scalar,
-    /// The total tangent impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "2d")]
-    #[doc(alias = "total_friction_impulse")]
-    pub total_tangent_impulse: Scalar,
-    /// The total tangent impulse applied to the first body in a collision.
-    ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "3d")]
-    #[doc(alias = "total_friction_impulse")]
-    pub total_tangent_impulse: Vector2,
 }
 
 impl Contacts {
+    /// Computes the sum of all impulses applied along contact normals between the contact pair.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
+    pub fn total_normal_impulse(&self) -> Vector {
+        self.manifolds.iter().fold(Vector::ZERO, |acc, manifold| {
+            acc + manifold.normal * manifold.total_normal_impulse()
+        })
+    }
+
+    /// Computes the sum of the magnitudes of all impulses applied along contact normals between the contact pair.
+    ///
+    /// This is the sum of impulse magnitudes, *not* the magnitude of the [`total_normal_impulse`](Self::total_normal_impulse).
+    ///
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
+    pub fn total_normal_impulse_magnitude(&self) -> Scalar {
+        self.manifolds
+            .iter()
+            .fold(0.0, |acc, manifold| acc + manifold.total_normal_impulse())
+    }
+
+    // TODO: We could also return a reference to the whole manifold. Would that be useful?
+    /// Finds the largest impulse between the contact pair, and the associated world-space contact normal,
+    /// pointing from the first shape to the second.
+    ///
+    /// To get the corresponding force, divide the impulse by `Time::<Substeps>::delta_secs()`.
+    pub fn max_normal_impulse(&self) -> (Scalar, Vector) {
+        let mut magnitude: Scalar = 0.0;
+        let mut normal = Vector::ZERO;
+
+        for manifold in &self.manifolds {
+            let impulse = manifold.max_normal_impulse();
+            if impulse.abs() > magnitude.abs() {
+                magnitude = impulse;
+                normal = manifold.normal;
+            }
+        }
+
+        (magnitude, normal)
+    }
+
     /// The force corresponding to the total normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
+    #[deprecated(
+        note = "Use `total_normal_impulse` instead, and divide it by `Time<Substeps>::delta_secs()`",
+        since = "0.3.0"
+    )]
     pub fn total_normal_force(&self, delta_time: Scalar) -> Scalar {
-        self.total_normal_impulse / delta_time
-    }
-
-    /// The force corresponding to the total tangent impulse applied over `delta_time`.
-    ///
-    /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "2d")]
-    #[doc(alias = "total_friction_force")]
-    pub fn total_tangent_force(&self, delta_time: Scalar) -> Scalar {
-        self.total_tangent_impulse / delta_time
-    }
-
-    /// The force corresponding to the total tangent impulse applied over `delta_time`.
-    ///
-    /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
-    #[cfg(feature = "3d")]
-    #[doc(alias = "total_friction_force")]
-    pub fn total_tangent_force(&self, delta_time: Scalar) -> Vector2 {
-        self.total_tangent_impulse / delta_time
+        self.total_normal_impulse_magnitude() / delta_time
     }
 
     /// Returns `true` if a collision started during the current frame.
@@ -323,7 +334,7 @@ impl Contacts {
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
         self.manifolds
             .iter()
             .filter_map(|manifold| manifold.find_deepest_contact())
@@ -335,32 +346,97 @@ impl Contacts {
     }
 }
 
-/// A contact manifold between two colliders, containing a set of contact points.
-/// Each contact in a manifold shares the same contact normal.
+/// A contact manifold describing a contact surface between two colliders,
+/// represented by a set of [contact points](ContactPoint) and surface properties.
+///
+/// A manifold can typically be a single point, a line segment, or a polygon formed by its contact points.
+/// Each contact point in a manifold shares the same contact normal.
+#[cfg_attr(
+    feature = "2d",
+    doc = "
+In 2D, contact manifolds are limited to 2 points."
+)]
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactManifold {
-    /// The contacts in this manifold.
-    pub contacts: Vec<ContactData>,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal shared by all contacts in this manifold,
-    /// expressed in the local space of the second entity.
-    pub normal2: Vector,
+    /// The contact points in this manifold. Limited to 2 points in 2D.
+    ///
+    /// Each point in a manifold shares the same `normal`.
+    #[cfg(feature = "2d")]
+    pub points: arrayvec::ArrayVec<ContactPoint, 2>,
+    /// The contact points in this manifold.
+    ///
+    /// Each point in a manifold shares the same `normal`.
+    #[cfg(feature = "3d")]
+    pub points: Vec<ContactPoint>,
+    /// The unit contact normal in world space, pointing from the first shape to the second.
+    ///
+    /// The same normal is shared by all `points` in a manifold,
+    pub normal: Vector,
+    /// The effective coefficient of dynamic [friction](Friction) used for the contact surface.
+    pub friction: Scalar,
+    /// The effective coefficient of [restitution](Restitution) used for the contact surface.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    // TODO: Jolt also supports a relative angular surface velocity, which can be used for making
+    //       objects rotate on platforms. Would that be useful enough to warrant the extra memory usage?
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The index of the manifold in the collision.
     pub index: usize,
 }
 
 impl ContactManifold {
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
+    /// Creates a new [`ContactManifold`] with the given contact points and surface normals,
+    /// expressed in local space.
+    ///
+    /// `index` represents the index of the manifold in the collision.
+    pub fn new(
+        points: impl IntoIterator<Item = ContactPoint>,
+        normal: Vector,
+        index: usize,
+    ) -> Self {
+        Self {
+            #[cfg(feature = "2d")]
+            points: arrayvec::ArrayVec::from_iter(points),
+            #[cfg(feature = "3d")]
+            points: points.into_iter().collect(),
+            normal,
+            friction: 0.0,
+            restitution: 0.0,
+            #[cfg(feature = "2d")]
+            tangent_speed: 0.0,
+            #[cfg(feature = "3d")]
+            tangent_velocity: Vector::ZERO,
+            index,
+        }
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
+    /// The sum of the impulses applied at the contact points in the manifold along the contact normal.
+    fn total_normal_impulse(&self) -> Scalar {
+        self.points
+            .iter()
+            .fold(0.0, |acc, contact| acc + contact.normal_impulse)
+    }
+
+    /// The magnitude of the largest impulse applied at a contact point in the manifold along the contact normal.
+    fn max_normal_impulse(&self) -> Scalar {
+        self.points
+            .iter()
+            .map(|contact| contact.normal_impulse)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0)
     }
 
     /// Copies impulses from previous contacts to matching contacts in `self`.
@@ -370,13 +446,13 @@ impl ContactManifold {
     /// for determining if points are too far away from each other to be considered matching.
     pub fn match_contacts(
         &mut self,
-        previous_contacts: &[ContactData],
+        previous_contacts: &[ContactPoint],
         distance_threshold: Scalar,
     ) {
         // The squared maximum distance for two contact points to be considered matching.
         let distance_threshold_squared = distance_threshold.powi(2);
 
-        for contact in self.contacts.iter_mut() {
+        for contact in self.points.iter_mut() {
             for previous_contact in previous_contacts.iter() {
                 // If the feature IDs match, copy the contact impulses over for warm starting.
                 if (contact.feature_id1 == previous_contact.feature_id1
@@ -397,13 +473,21 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && (contact.point1.distance_squared(previous_contact.point1)
+                    && (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point1)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point2)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point2)
                             < distance_threshold_squared)
-                    || (contact.point1.distance_squared(previous_contact.point2)
+                    || (contact
+                        .local_point1
+                        .distance_squared(previous_contact.local_point2)
                         < distance_threshold_squared
-                        && contact.point2.distance_squared(previous_contact.point1)
+                        && contact
+                            .local_point2
+                            .distance_squared(previous_contact.local_point1)
                             < distance_threshold_squared)
                 {
                     contact.normal_impulse = previous_contact.normal_impulse;
@@ -414,14 +498,14 @@ impl ContactManifold {
         }
     }
 
-    /// Returns the contact with the largest penetration depth.
+    /// Returns the contact point with the largest penetration depth.
     ///
     /// If the objects are separated but there is still a speculative contact,
     /// the penetration depth will be negative.
     ///
     /// If there are no contacts, `None` is returned.
-    pub fn find_deepest_contact(&self) -> Option<&ContactData> {
-        self.contacts.iter().max_by(|a, b| {
+    pub fn find_deepest_contact(&self) -> Option<&ContactPoint> {
+        self.points.iter().max_by(|a, b| {
             a.penetration
                 .partial_cmp(&b.penetration)
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -432,18 +516,18 @@ impl ContactManifold {
 /// Data related to a single contact between two bodies.
 ///
 /// If you want a contact that belongs to a [contact manifold](ContactManifold) and has more data,
-/// see [`ContactData`].
+/// see [`ContactPoint`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct SingleContact {
-    /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
+    /// The contact point on the first shape in local space.
+    pub local_point1: Vector,
+    /// The contact point on the second shape in local space.
+    pub local_point2: Vector,
+    /// The contact normal expressed in the local space of the first shape.
+    pub local_normal1: Vector,
+    /// The contact normal expressed in the local space of the second shape.
+    pub local_normal2: Vector,
     /// Penetration depth.
     pub penetration: Scalar,
 }
@@ -451,88 +535,88 @@ pub struct SingleContact {
 impl SingleContact {
     /// Creates a new [`SingleContact`]. The contact points and normals should be given in local space.
     pub fn new(
-        point1: Vector,
-        point2: Vector,
-        normal1: Vector,
-        normal2: Vector,
+        local_point1: Vector,
+        local_point2: Vector,
+        local_normal1: Vector,
+        local_normal2: Vector,
         penetration: Scalar,
     ) -> Self {
         Self {
-            point1,
-            point2,
-            normal1,
-            normal2,
+            local_point1,
+            local_point2,
+            local_normal1,
+            local_normal2,
             penetration,
         }
     }
 
-    /// Returns the global contact point on the first entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the first shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point1
+        position.0 + rotation * self.local_point1
     }
 
-    /// Returns the global contact point on the second entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the second shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point2
+        position.0 + rotation * self.local_point2
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
+    /// Returns the world-space contact normal pointing from the first shape to the second.
     pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
+        rotation * self.local_normal1
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
+    /// Returns the world-space contact normal pointing from the second shape to the first.
     pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
+        rotation * self.local_normal2
     }
 
     /// Flips the contact data, swapping the points and normals.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.point1, &mut self.point2);
-        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
+        std::mem::swap(&mut self.local_normal1, &mut self.local_normal2);
     }
 
     /// Returns a flipped copy of the contact data, swapping the points and normals.
     pub fn flipped(&self) -> Self {
         Self {
-            point1: self.point2,
-            point2: self.point1,
-            normal1: self.normal2,
-            normal2: self.normal1,
+            local_point1: self.local_point2,
+            local_point2: self.local_point1,
+            local_normal1: self.local_normal2,
+            local_normal2: self.local_normal1,
             penetration: self.penetration,
         }
     }
 }
 
-/// Data related to a contact between two bodies.
+/// Data associated with a contact point in a [`ContactManifold`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct ContactData {
-    /// Contact point on the first entity in local coordinates.
-    pub point1: Vector,
-    /// Contact point on the second entity in local coordinates.
-    pub point2: Vector,
-    /// A contact normal expressed in the local space of the first entity.
-    pub normal1: Vector,
-    /// A contact normal expressed in the local space of the second entity.
-    pub normal2: Vector,
-    /// Penetration depth.
+pub struct ContactPoint {
+    /// The contact point on the first shape in local space.
+    pub local_point1: Vector,
+    /// The contact point on the second shape in local space.
+    pub local_point2: Vector,
+    /// The penetration depth.
+    ///
+    /// Can be negative if the objects are separated and [speculative collision] is enabled.
+    ///
+    /// [speculative collision]: crate::dynamics::ccd#speculative-collision
     pub penetration: Scalar,
-    /// The impulse applied to the first body along the normal.
+    /// The impulse applied to the first body along the contact normal.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     pub normal_impulse: Scalar,
-    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Scalar,
-    /// The impulse applied to the first body along the tangent. This corresponds to the impulse caused by friction.
+    /// The impulse applied to the first body along the contact tangent. This corresponds to the impulse caused by friction.
     ///
-    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_seconds()`.
+    /// To get the corresponding force, divide the impulse by `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_impulse")]
     pub tangent_impulse: Vector2,
@@ -544,23 +628,15 @@ pub struct ContactData {
     pub feature_id2: PackedFeatureId,
 }
 
-impl ContactData {
-    /// Creates a new [`ContactData`]. The contact points and normals should be given in local space.
+impl ContactPoint {
+    /// Creates a new [`ContactPoint`]. The points should be given in local space.
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        point1: Vector,
-        point2: Vector,
-        normal1: Vector,
-        normal2: Vector,
-        penetration: Scalar,
-    ) -> Self {
+    pub fn new(local_point1: Vector, local_point2: Vector, penetration: Scalar) -> Self {
         Self {
-            point1,
-            point2,
-            normal1,
-            normal2,
+            local_point1,
+            local_point2,
             penetration,
             normal_impulse: 0.0,
             tangent_impulse: default(),
@@ -579,7 +655,7 @@ impl ContactData {
     /// The force corresponding to the normal impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     pub fn normal_force(&self, delta_time: Scalar) -> Scalar {
         self.normal_impulse / delta_time
     }
@@ -587,7 +663,7 @@ impl ContactData {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "2d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Scalar {
@@ -597,53 +673,40 @@ impl ContactData {
     /// The force corresponding to the tangent impulse applied over `delta_time`.
     ///
     /// Because contacts are solved over several substeps, `delta_time` should
-    /// typically use `Time<Substeps>::delta_seconds()`.
+    /// typically use `Time<Substeps>::delta_secs()`.
     #[cfg(feature = "3d")]
     #[doc(alias = "friction_force")]
     pub fn tangent_force(&self, delta_time: Scalar) -> Vector2 {
         self.tangent_impulse / delta_time
     }
 
-    /// Returns the global contact point on the first entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the first shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point1
+        position.0 + rotation * self.local_point1
     }
 
-    /// Returns the global contact point on the second entity,
-    /// transforming the local point by the given entity position and rotation.
+    /// Returns the global contact point on the second shape,
+    /// transforming the local point by the given position and rotation.
     pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.point2
+        position.0 + rotation * self.local_point2
     }
 
-    /// Returns the world-space contact normal pointing towards the exterior of the first entity.
-    pub fn global_normal1(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal1
-    }
-
-    /// Returns the world-space contact normal pointing towards the exterior of the second entity.
-    pub fn global_normal2(&self, rotation: &Rotation) -> Vector {
-        rotation * self.normal2
-    }
-
-    /// Flips the contact data, swapping the points, normals, and feature IDs,
+    /// Flips the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.point1, &mut self.point2);
-        std::mem::swap(&mut self.normal1, &mut self.normal2);
+        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
         std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.tangent_impulse = -self.tangent_impulse;
     }
 
-    /// Returns a flipped copy of the contact data, swapping the points, normals, and feature IDs,
+    /// Returns a flipped copy of the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flipped(&self) -> Self {
         Self {
-            point1: self.point2,
-            point2: self.point1,
-            normal1: self.normal2,
-            normal2: self.normal1,
+            local_point1: self.local_point2,
+            local_point2: self.local_point1,
             penetration: self.penetration,
             normal_impulse: -self.normal_impulse,
             tangent_impulse: -self.tangent_impulse,

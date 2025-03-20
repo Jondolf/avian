@@ -114,7 +114,7 @@ pub struct ColliderConstructorHierarchy {
     pub default_constructor: Option<ColliderConstructor>,
     /// The default [`CollisionLayers`] used for colliders in the hierarchy.
     ///
-    /// [`CollisionLayers::ALL`] by default.
+    /// [`CollisionLayers::default()`] by default, with the first layer and all filters.
     pub default_layers: CollisionLayers,
     /// The default [`ColliderDensity`] used for colliders in the hierarchy.
     ///
@@ -140,7 +140,7 @@ impl ColliderConstructorHierarchy {
     pub fn new(default_constructor: impl Into<Option<ColliderConstructor>>) -> Self {
         Self {
             default_constructor: default_constructor.into(),
-            default_layers: CollisionLayers::ALL,
+            default_layers: CollisionLayers::default(),
             default_density: ColliderDensity(1.0),
             config: default(),
         }

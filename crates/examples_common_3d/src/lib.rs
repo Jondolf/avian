@@ -1,92 +1,85 @@
-use std::time::Duration;
-
 use avian3d::prelude::*;
 use bevy::{
-    color::palettes::css::TOMATO,
-    diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin},
+    diagnostic::FrameTimeDiagnosticsPlugin, input::common_conditions::input_just_pressed,
     prelude::*,
 };
 
+/// A plugin that adds common functionality used by examples,
+/// such as physics diagnostics UI and the ability to pause and step the simulation.
 pub struct ExampleCommonPlugin;
 
 impl Plugin for ExampleCommonPlugin {
     fn build(&self, app: &mut App) {
+        // Add diagnostics.
         app.add_plugins((
-            FrameTimeDiagnosticsPlugin::default(),
-            #[cfg(feature = "use-debug-plugin")]
-            PhysicsDebugPlugin::default(),
-        ))
-        .init_state::<AppState>()
-        .add_systems(Startup, setup)
-        .add_systems(
-            OnEnter(AppState::Paused),
-            |mut time: ResMut<Time<Physics>>| time.pause(),
-        )
-        .add_systems(
-            OnExit(AppState::Paused),
-            |mut time: ResMut<Time<Physics>>| time.unpause(),
-        )
-        .add_systems(Update, update_fps_text)
-        .add_systems(Update, pause_button)
-        .add_systems(Update, step_button.run_if(in_state(AppState::Paused)));
+            PhysicsDiagnosticsPlugin,
+            PhysicsDiagnosticsUiPlugin,
+            FrameTimeDiagnosticsPlugin,
+        ));
+
+        // Configure the default physics diagnostics UI.
+        app.insert_resource(PhysicsDiagnosticsUiSettings {
+            enabled: false,
+            ..default()
+        });
+
+        // Spawn text instructions for keybinds.
+        app.add_systems(Startup, setup_key_instructions);
+
+        // Add systems for toggling the diagnostics UI and pausing and stepping the simulation.
+        app.add_systems(
+            Update,
+            (
+                toggle_diagnostics_ui.run_if(input_just_pressed(KeyCode::KeyU)),
+                toggle_paused.run_if(input_just_pressed(KeyCode::KeyP)),
+                step.run_if(physics_paused.and(input_just_pressed(KeyCode::Enter))),
+            ),
+        );
+    }
+
+    #[cfg(feature = "use-debug-plugin")]
+    fn finish(&self, app: &mut App) {
+        // Add the physics debug plugin automatically if the `use-debug-plugin` feature is enabled
+        // and the plugin is not already added.
+        if !app.is_plugin_added::<PhysicsDebugPlugin>() {
+            app.add_plugins(PhysicsDebugPlugin::default());
+        }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, States, Default)]
-pub enum AppState {
-    Paused,
-    #[default]
-    Running,
+fn toggle_diagnostics_ui(mut settings: ResMut<PhysicsDiagnosticsUiSettings>) {
+    settings.enabled = !settings.enabled;
 }
 
-fn pause_button(
-    current_state: ResMut<State<AppState>>,
-    mut next_state: ResMut<NextState<AppState>>,
-    keys: Res<ButtonInput<KeyCode>>,
-) {
-    if keys.just_pressed(KeyCode::KeyP) {
-        let new_state = match current_state.get() {
-            AppState::Paused => AppState::Running,
-            AppState::Running => AppState::Paused,
-        };
-        next_state.set(new_state);
+fn physics_paused(time: Res<Time<Physics>>) -> bool {
+    time.is_paused()
+}
+
+fn toggle_paused(mut time: ResMut<Time<Physics>>) {
+    if time.is_paused() {
+        time.unpause();
+    } else {
+        time.pause();
     }
 }
 
-fn step_button(mut time: ResMut<Time<Physics>>, keys: Res<ButtonInput<KeyCode>>) {
-    if keys.just_pressed(KeyCode::Enter) {
-        time.advance_by(Duration::from_secs_f64(1.0 / 60.0));
-    }
+/// Advances the physics simulation by one `Time<Fixed>` time step.
+fn step(mut physics_time: ResMut<Time<Physics>>, fixed_time: Res<Time<Fixed>>) {
+    physics_time.advance_by(fixed_time.delta());
 }
 
-#[derive(Component)]
-struct FpsText;
-
-fn setup(mut commands: Commands) {
+fn setup_key_instructions(mut commands: Commands) {
     commands.spawn((
-        Text::new("FPS: "),
+        Text::new("U: Diagnostics UI | P: Pause/Unpause | Enter: Step"),
         TextFont {
-            font_size: 20.0,
+            font_size: 10.0,
             ..default()
         },
-        TextColor::from(TOMATO),
         Node {
             position_type: PositionType::Absolute,
             top: Val::Px(5.0),
-            left: Val::Px(5.0),
+            right: Val::Px(5.0),
             ..default()
         },
-        FpsText,
     ));
-}
-
-fn update_fps_text(diagnostics: Res<DiagnosticsStore>, mut query: Query<&mut Text, With<FpsText>>) {
-    for mut text in &mut query {
-        if let Some(fps) = diagnostics.get(&FrameTimeDiagnosticsPlugin::FPS) {
-            if let Some(value) = fps.smoothed() {
-                // Update the value of the second section
-                text.0 = format!("FPS: {value:.2}");
-            }
-        }
-    }
 }

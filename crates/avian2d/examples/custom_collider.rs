@@ -53,13 +53,22 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
+    // If your collider needs queries or resources to function, you can specify
+    // a custom `SystemParam` here. In this case, we don't need any.
+    type Context = ();
+
+    fn aabb_with_context(
+        &self,
+        position: Vector,
+        _: impl Into<Rotation>,
+        _: AabbContext<Self::Context>,
+    ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
     // This is the actual collision detection part.
     // It computes all contacts between two colliders at the given positions.
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
@@ -67,6 +76,7 @@ impl AnyCollider for CircleCollider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        _: ContactManifoldContext<Self::Context>,
     ) -> Vec<ContactManifold> {
         let rotation1: Rotation = rotation1.into();
         let rotation2: Rotation = rotation2.into();
@@ -79,32 +89,29 @@ impl AnyCollider for CircleCollider {
         let sum_radius = self.radius + other.radius;
 
         if distance_squared < (sum_radius + prediction_distance).powi(2) {
-            let normal1 = if distance_squared != 0.0 {
+            let local_normal1 = if distance_squared != 0.0 {
                 delta_pos.normalize_or_zero()
             } else {
                 Vector::X
             };
-            let normal2 = delta_rot.inverse() * (-normal1);
-            let point1 = normal1 * self.radius;
-            let point2 = normal2 * other.radius;
+            let local_normal2 = delta_rot.inverse() * (-local_normal1);
+            let local_point1 = local_normal1 * self.radius;
+            let local_point2 = local_normal2 * other.radius;
 
-            vec![ContactManifold {
-                index: 0,
-                normal1,
-                normal2,
-                contacts: vec![ContactData {
-                    feature_id1: PackedFeatureId::face(0),
-                    feature_id2: PackedFeatureId::face(0),
-                    point1,
-                    point2,
-                    normal1,
-                    normal2,
+            vec![ContactManifold::new(
+                [ContactPoint {
+                    local_point1,
+                    local_point2,
                     penetration: sum_radius - distance_squared.sqrt(),
-                    // Impulses are computed by the constraint solver
+                    // Impulses are computed by the constraint solver.
                     normal_impulse: 0.0,
                     tangent_impulse: 0.0,
+                    feature_id1: PackedFeatureId::face(0),
+                    feature_id2: PackedFeatureId::face(0),
                 }],
-            }]
+                rotation1 * local_normal1,
+                0,
+            )]
         } else {
             vec![]
         }

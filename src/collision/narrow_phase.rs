@@ -20,6 +20,7 @@ use bevy::{
     },
     prelude::*,
 };
+use dynamics::solver::SolverDiagnostics;
 
 /// Computes contacts between entities and generates contact constraints for them.
 ///
@@ -170,6 +171,11 @@ where
             );
         }
     }
+
+    fn finish(&self, app: &mut App) {
+        // Register timer and counter diagnostics for collision detection.
+        app.register_physics_diagnostics::<CollisionDiagnostics>();
+    }
 }
 
 #[derive(Resource, Default)]
@@ -258,17 +264,25 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
+    context: StaticSystemParam<C::Context>,
     #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
+    mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
+    let start = bevy::utils::Instant::now();
+
     narrow_phase.update::<H>(
         &broad_collision_pairs,
         time.delta_seconds_adjusted(),
-        &hooks.into_inner(),
+        &hooks,
+        &context,
         commands,
     );
+
+    diagnostics.narrow_phase = start.elapsed();
+    diagnostics.contact_count = narrow_phase.collisions.get_internal().len() as u32;
 }
 
 // TODO: It'd be nice to generate the constraint in the same parallel loop as `collect_collisions`
@@ -278,10 +292,12 @@ fn generate_constraints<C: AnyCollider>(
     narrow_phase: NarrowPhase<C>,
     mut constraints: ResMut<ContactConstraints>,
     contact_softness: Res<ContactSoftnessCoefficients>,
-    default_friction: Res<DefaultFriction>,
-    default_restitution: Res<DefaultRestitution>,
     time: Res<Time>,
+    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
+    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
+    let start = bevy::utils::Instant::now();
+
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
@@ -324,33 +340,6 @@ fn generate_constraints<C: AnyCollider>(
                 .map_or(0.0, |margin| margin.0);
             let collision_margin_sum = collision_margin1 + collision_margin2;
 
-            // Get combined friction and restitution coefficients of the colliders
-            // or the bodies they are attached to. Fall back to the global defaults.
-            let friction = collider1
-                .friction
-                .or(body1.friction)
-                .copied()
-                .unwrap_or(default_friction.0)
-                .combine(
-                    collider2
-                        .friction
-                        .or(body2.friction)
-                        .copied()
-                        .unwrap_or(default_friction.0),
-                );
-            let restitution = collider1
-                .restitution
-                .or(body1.restitution)
-                .copied()
-                .unwrap_or(default_restitution.0)
-                .combine(
-                    collider2
-                        .restitution
-                        .or(body2.restitution)
-                        .copied()
-                        .unwrap_or(default_restitution.0),
-                );
-
             // Generate contact constraints for the computed contacts
             // and add them to `constraints`.
             narrow_phase.generate_constraints(
@@ -360,13 +349,17 @@ fn generate_constraints<C: AnyCollider>(
                 &body2,
                 &collider1,
                 &collider2,
-                friction,
-                restitution,
                 collision_margin_sum,
                 *contact_softness,
                 delta_secs,
             );
         }
+    }
+
+    collision_diagnostics.generate_constraints = start.elapsed();
+
+    if let Some(mut solver_diagnostics) = solver_diagnostics {
+        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
     }
 }
 
@@ -393,6 +386,8 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     pub collisions: ResMut<'w, Collisions>,
     /// Configuration options for the narrow phase.
     pub config: Res<'w, NarrowPhaseConfig>,
+    default_friction: Res<'w, DefaultFriction>,
+    default_restitution: Res<'w, DefaultRestitution>,
     length_unit: Res<'w, PhysicsLengthUnit>,
     // These are scaled by the length unit.
     default_speculative_margin: Local<'s, Scalar>,
@@ -406,7 +401,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &mut self,
         broad_collision_pairs: &[(Entity, Entity)],
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         #[cfg(not(feature = "parallel"))] mut commands: Commands,
         #[cfg(feature = "parallel")] par_commands: ParallelCommands,
     ) where
@@ -438,6 +434,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 entity2,
                                 delta_secs,
                                 hooks,
+                                context,
                                 &mut commands,
                             ) {
                                 new_collisions.push(contacts);
@@ -458,9 +455,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
-                {
+                if let Some(contacts) = self.handle_entity_pair::<H>(
+                    entity1,
+                    entity2,
+                    delta_secs,
+                    hooks,
+                    context,
+                    &mut commands,
+                ) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -476,7 +478,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         commands: &mut Commands,
     ) -> Option<Contacts>
     where
@@ -495,26 +498,57 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
-        let (mut lin_vel1, rb_collision_margin1, rb_speculative_margin1) = body1_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
-        let (mut lin_vel2, rb_collision_margin2, rb_speculative_margin2) = body2_bundle
-            .as_ref()
-            .map(|(body, collision_margin, speculative_margin)| {
-                (
-                    body.linear_velocity.0,
-                    *collision_margin,
-                    *speculative_margin,
-                )
-            })
-            .unwrap_or_default();
+        let (mut lin_vel1, rb_friction1, rb_collision_margin1, rb_speculative_margin1) =
+            body1_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+        let (mut lin_vel2, rb_friction2, rb_collision_margin2, rb_speculative_margin2) =
+            body2_bundle
+                .as_ref()
+                .map(|(body, collision_margin, speculative_margin)| {
+                    (
+                        body.linear_velocity.0,
+                        body.friction,
+                        *collision_margin,
+                        *speculative_margin,
+                    )
+                })
+                .unwrap_or_default();
+
+        // Get combined friction and restitution coefficients of the colliders
+        // or the bodies they are attached to. Fall back to the global defaults.
+        let friction = collider1
+            .friction
+            .or(rb_friction1)
+            .copied()
+            .unwrap_or(self.default_friction.0)
+            .combine(
+                collider2
+                    .friction
+                    .or(rb_friction2)
+                    .copied()
+                    .unwrap_or(self.default_friction.0),
+            )
+            .dynamic_coefficient;
+        let restitution = collider1
+            .restitution
+            .copied()
+            .unwrap_or(self.default_restitution.0)
+            .combine(
+                collider2
+                    .restitution
+                    .copied()
+                    .unwrap_or(self.default_restitution.0),
+            )
+            .coefficient;
 
         // Use the collider's own collision margin if specified, and fall back to the body's
         // collision margin.
@@ -577,8 +611,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
         self.compute_contact_pair::<H>(
+            context,
+            entity1,
+            entity2,
             &collider1,
             &collider2,
+            friction,
+            restitution,
             max_contact_distance,
             hooks,
             commands,
@@ -594,8 +633,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
+        collider_context: &<C::Context as SystemParam>::Item<'_, '_>,
+        entity1: Entity,
+        entity2: Entity,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
+        friction: Scalar,
+        restitution: Scalar,
         max_distance: Scalar,
         hooks: &H::Item<'_, '_>,
         commands: &mut Commands,
@@ -606,21 +650,38 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
 
+        let context = ContactManifoldContext::new(entity1, entity2, collider_context);
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let manifolds = collider1.shape.contact_manifolds(
+        let mut manifolds = collider1.shape.contact_manifolds_with_context(
             collider2.shape,
             position1,
             *collider1.rotation,
             position2,
             *collider2.rotation,
             max_distance,
+            context,
         );
 
         if manifolds.is_empty() {
             return None;
         }
+
+        // Set the initial surface properties.
+        // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
+        manifolds.iter_mut().for_each(|manifold| {
+            manifold.friction = friction;
+            manifold.restitution = restitution;
+            #[cfg(feature = "2d")]
+            {
+                manifold.tangent_speed = 0.0;
+            }
+            #[cfg(feature = "3d")]
+            {
+                manifold.tangent_velocity = Vector::ZERO;
+            }
+        });
 
         // Get the previous contacts if there are any.
         let previous_contacts = if collider1.entity < collider2.entity {
@@ -645,8 +706,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 || collider2.is_sensor
                 || !collider1.is_rb
                 || !collider2.is_rb,
-            total_normal_impulse: 0.0,
-            total_tangent_impulse: default(),
         };
 
         let active_hooks = collider1.active_hooks().union(collider2.active_hooks());
@@ -671,13 +730,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 for manifold in contacts.manifolds.iter_mut() {
                     for previous_manifold in previous_contacts.manifolds.iter() {
-                        manifold.match_contacts(&previous_manifold.contacts, distance_threshold);
-
-                        // Add contact impulses to total impulses.
-                        for contact in manifold.contacts.iter() {
-                            contacts.total_normal_impulse += contact.normal_impulse;
-                            contacts.total_tangent_impulse += contact.tangent_impulse;
-                        }
+                        manifold.match_contacts(&previous_manifold.points, distance_threshold);
                     }
                 }
             }
@@ -703,8 +756,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         body2: &RigidBodyQueryReadOnlyItem,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
-        friction: Friction,
-        restitution: Restitution,
         collision_margin: impl Into<CollisionMargin> + Copy,
         contact_softness: ContactSoftnessCoefficients,
         delta_secs: Scalar,
@@ -750,8 +801,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 collision_margin,
                 // TODO: Shouldn't this be the effective speculative margin?
                 *self.default_speculative_margin,
-                friction,
-                restitution,
+                contact_manifold.friction,
+                contact_manifold.restitution,
+                #[cfg(feature = "2d")]
+                contact_manifold.tangent_speed,
+                #[cfg(feature = "3d")]
+                contact_manifold.tangent_velocity,
                 contact_softness,
                 self.config.match_contacts,
                 delta_secs,
@@ -776,9 +831,6 @@ pub fn reset_collision_states(
     query: Query<(Option<&RigidBody>, Has<Sleeping>)>,
 ) {
     for contacts in collisions.get_internal_mut().values_mut() {
-        contacts.total_normal_impulse = 0.0;
-        contacts.total_tangent_impulse = default();
-
         if let Ok([(rb1, sleeping1), (rb2, sleeping2)]) = query.get_many([
             contacts.body_entity1.unwrap_or(contacts.entity1),
             contacts.body_entity2.unwrap_or(contacts.entity2),

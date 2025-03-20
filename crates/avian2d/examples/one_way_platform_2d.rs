@@ -189,7 +189,7 @@ fn pass_through_one_way_platform(
 // It can have read-only access to queries, resources, and other system parameters.
 #[derive(SystemParam)]
 struct PlatformerCollisionHooks<'w, 's> {
-    one_way_platforms_query: Query<'w, 's, Read<OneWayPlatform>>,
+    one_way_platforms_query: Query<'w, 's, (Read<OneWayPlatform>, Read<GlobalTransform>)>,
     // NOTE: This precludes a `OneWayPlatform` passing through a `OneWayPlatform`.
     other_colliders_query: Query<
         'w,
@@ -257,19 +257,24 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
 
         // First, figure out which entity is the one-way platform, and which is the other.
         // Choose the appropriate normal for pass-through depending on which is which.
-        let (platform_entity, one_way_platform, other_entity, relevant_normal) =
-            if let Ok(one_way_platform) = self.one_way_platforms_query.get(contacts.entity1) {
+        let (platform_entity, one_way_platform, platform_transform, other_entity, relevant_normal) =
+            if let Ok((one_way_platform, platform_transform)) =
+                self.one_way_platforms_query.get(contacts.entity1)
+            {
                 (
                     contacts.entity1,
                     one_way_platform,
+                    platform_transform,
                     contacts.entity2,
                     RelevantNormal::Normal1,
                 )
-            } else if let Ok(one_way_platform) = self.one_way_platforms_query.get(contacts.entity2)
+            } else if let Ok((one_way_platform, platform_transform)) =
+                self.one_way_platforms_query.get(contacts.entity2)
             {
                 (
                     contacts.entity2,
                     one_way_platform,
+                    platform_transform,
                     contacts.entity1,
                     RelevantNormal::Normal2,
                 )
@@ -282,7 +287,7 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
         if one_way_platform.0.contains(&other_entity) {
             let any_penetrating = contacts.manifolds.iter().any(|manifold| {
                 manifold
-                    .contacts
+                    .points
                     .iter()
                     .any(|contact| contact.penetration > 0.0)
             });
@@ -316,13 +321,14 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
             Err(_) | Ok(None) | Ok(Some(PassThroughOneWayPlatform::ByNormal)) => {
                 // If all contact normals are in line with the local up vector of this platform,
                 // then this collision should occur: the entity is on top of the platform.
+                let platform_up = platform_transform.up().truncate().adjust_precision();
                 if contacts.manifolds.iter().all(|manifold| {
                     let normal = match relevant_normal {
-                        RelevantNormal::Normal1 => manifold.normal1,
-                        RelevantNormal::Normal2 => manifold.normal2,
+                        RelevantNormal::Normal1 => manifold.normal,
+                        RelevantNormal::Normal2 => -manifold.normal,
                     };
 
-                    normal.length() > Scalar::EPSILON && normal.dot(Vector::Y) >= 0.5
+                    normal.length() > Scalar::EPSILON && normal.dot(platform_up) >= 0.5
                 }) {
                     true
                 } else {
