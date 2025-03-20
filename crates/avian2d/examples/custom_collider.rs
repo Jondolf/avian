@@ -53,8 +53,8 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    // If your collider needs queries or resources to function, you can specify your
-    // SystemParam here
+    // If your collider needs queries or resources to function, you can specify
+    // a custom `SystemParam` here. In this case, we don't need any.
     type Context = ();
 
     fn aabb_with_context(
