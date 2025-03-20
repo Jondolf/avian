@@ -264,10 +264,10 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
+    context: StaticSystemParam<C::Context>,
     #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
-    context: StaticSystemParam<C::Context>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -276,9 +276,9 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     narrow_phase.update::<H>(
         &broad_collision_pairs,
         time.delta_seconds_adjusted(),
-        &hooks.into_inner(),
+        &hooks,
+        &context,
         commands,
-        context,
     );
 
     diagnostics.narrow_phase = start.elapsed();
@@ -401,10 +401,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &mut self,
         broad_collision_pairs: &[(Entity, Entity)],
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         #[cfg(not(feature = "parallel"))] mut commands: Commands,
         #[cfg(feature = "parallel")] par_commands: ParallelCommands,
-        context: StaticSystemParam<C::Context>,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
@@ -430,11 +430,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     par_commands.command_scope(|mut commands| {
                         for &(entity1, entity2) in chunks {
                             if let Some(contacts) = self.handle_entity_pair::<H>(
-                                &context,
                                 entity1,
                                 entity2,
                                 delta_secs,
                                 hooks,
+                                context,
                                 &mut commands,
                             ) {
                                 new_collisions.push(contacts);
@@ -456,11 +456,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
                 if let Some(contacts) = self.handle_entity_pair::<H>(
-                    &context,
                     entity1,
                     entity2,
                     delta_secs,
                     hooks,
+                    context,
                     &mut commands,
                 ) {
                     self.collisions.insert_collision_pair(contacts);
@@ -475,11 +475,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::too_many_arguments)]
     pub fn handle_entity_pair<H: CollisionHooks>(
         &self,
-        context: &<C::Context as SystemParam>::Item<'_, '_>,
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         commands: &mut Commands,
     ) -> Option<Contacts>
     where
