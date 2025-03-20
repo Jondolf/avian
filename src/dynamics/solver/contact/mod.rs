@@ -254,10 +254,12 @@ impl ContactConstraint {
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
                 body1.linear_velocity.0 -= p * inv_mass1;
                 body1.angular_velocity.0 -= inv_inertia1 * cross(r1, p);
+                body1.clamp_velocities();
             }
             if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
                 body2.linear_velocity.0 += p * inv_mass2;
                 body2.angular_velocity.0 += inv_inertia2 * cross(r2, p);
+                body2.clamp_velocities();
             }
         }
     }
@@ -317,10 +319,12 @@ impl ContactConstraint {
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
                 body1.linear_velocity.0 -= impulse * inv_mass1;
                 body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
+                body1.clamp_velocities();
             }
             if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
                 body2.linear_velocity.0 += impulse * inv_mass2;
                 body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
+                body2.clamp_velocities();
             }
         }
 
@@ -357,10 +361,12 @@ impl ContactConstraint {
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
                 body1.linear_velocity.0 -= impulse * inv_mass1;
                 body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
+                body1.clamp_velocities();
             }
             if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
                 body2.linear_velocity.0 += impulse * inv_mass2;
                 body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
+                body2.clamp_velocities();
             }
         }
     }
@@ -409,10 +415,12 @@ impl ContactConstraint {
             if body1.rb.is_dynamic() && body1.dominance() <= body2.dominance() {
                 body1.linear_velocity.0 -= impulse * inv_mass1;
                 body1.angular_velocity.0 -= inv_inertia1 * cross(r1, impulse);
+                body1.clamp_velocities();
             }
             if body2.rb.is_dynamic() && body2.dominance() <= body1.dominance() {
                 body2.linear_velocity.0 += impulse * inv_mass2;
                 body2.angular_velocity.0 += inv_inertia2 * cross(r2, impulse);
+                body2.clamp_velocities();
             }
         }
     }
