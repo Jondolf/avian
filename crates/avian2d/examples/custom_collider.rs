@@ -53,13 +53,22 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
+    // If your collider needs queries or resources to function, you can specify
+    // a custom `SystemParam` here. In this case, we don't need any.
+    type Context = ();
+
+    fn aabb_with_context(
+        &self,
+        position: Vector,
+        _: impl Into<Rotation>,
+        _: AabbContext<Self::Context>,
+    ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
     // This is the actual collision detection part.
     // It computes all contacts between two colliders at the given positions.
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
@@ -67,6 +76,7 @@ impl AnyCollider for CircleCollider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        _: ContactManifoldContext<Self::Context>,
     ) -> Vec<ContactManifold> {
         let rotation1: Rotation = rotation1.into();
         let rotation2: Rotation = rotation2.into();

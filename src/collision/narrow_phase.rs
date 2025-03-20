@@ -264,6 +264,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     broad_collision_pairs: Res<BroadCollisionPairs>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
+    context: StaticSystemParam<C::Context>,
     #[cfg(not(feature = "parallel"))] commands: Commands,
     #[cfg(feature = "parallel")] commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
@@ -275,7 +276,8 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
     narrow_phase.update::<H>(
         &broad_collision_pairs,
         time.delta_seconds_adjusted(),
-        &hooks.into_inner(),
+        &hooks,
+        &context,
         commands,
     );
 
@@ -399,7 +401,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         &mut self,
         broad_collision_pairs: &[(Entity, Entity)],
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         #[cfg(not(feature = "parallel"))] mut commands: Commands,
         #[cfg(feature = "parallel")] par_commands: ParallelCommands,
     ) where
@@ -431,6 +434,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 entity2,
                                 delta_secs,
                                 hooks,
+                                context,
                                 &mut commands,
                             ) {
                                 new_collisions.push(contacts);
@@ -451,9 +455,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             // Compute contacts for this intersection pair and generate
             // contact constraints for them.
             for &(entity1, entity2) in broad_collision_pairs {
-                if let Some(contacts) =
-                    self.handle_entity_pair::<H>(entity1, entity2, delta_secs, hooks, &mut commands)
-                {
+                if let Some(contacts) = self.handle_entity_pair::<H>(
+                    entity1,
+                    entity2,
+                    delta_secs,
+                    hooks,
+                    context,
+                    &mut commands,
+                ) {
                     self.collisions.insert_collision_pair(contacts);
                 }
             }
@@ -469,7 +478,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         entity1: Entity,
         entity2: Entity,
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         commands: &mut Commands,
     ) -> Option<Contacts>
     where
@@ -601,6 +611,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
             effective_speculative_margin.max(*self.contact_tolerance) + collision_margin_sum;
 
         self.compute_contact_pair::<H>(
+            context,
+            entity1,
+            entity2,
             &collider1,
             &collider2,
             friction,
@@ -620,6 +633,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     #[allow(clippy::type_complexity, clippy::too_many_arguments)]
     pub fn compute_contact_pair<H: CollisionHooks>(
         &self,
+        collider_context: &<C::Context as SystemParam>::Item<'_, '_>,
+        entity1: Entity,
+        entity2: Entity,
         collider1: &ColliderQueryItem<C>,
         collider2: &ColliderQueryItem<C>,
         friction: Scalar,
@@ -634,16 +650,18 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let position1 = collider1.current_position();
         let position2 = collider2.current_position();
 
+        let context = ContactManifoldContext::new(entity1, entity2, collider_context);
         // TODO: It'd be good to persist the manifolds and let Parry match contacts.
         //       This isn't currently done because it requires using Parry's contact manifold type.
         // Compute the contact manifolds using the effective speculative margin.
-        let mut manifolds = collider1.shape.contact_manifolds(
+        let mut manifolds = collider1.shape.contact_manifolds_with_context(
             collider2.shape,
             position1,
             *collider1.rotation,
             position2,
             *collider2.rotation,
             max_distance,
+            context,
         );
 
         if manifolds.is_empty() {
