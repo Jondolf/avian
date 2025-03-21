@@ -4,7 +4,3 @@ resolver = "2"
 
 [profile.dev]
 opt-level = 1 # Use slightly better optimization, so examples work
-
-[patch.crates-io]
-bevy = { path = "../bevy" }
-bevy_math = { path = "../bevy/crates/bevy_math" }
