@@ -7,3 +7,6 @@ edition = "2021"
 bevy = { version = "0.15", default-features = false }
 avian3d = { path = "../avian3d", default-features = false }
 criterion = "0.5"
+
+[lints]
+workspace = true

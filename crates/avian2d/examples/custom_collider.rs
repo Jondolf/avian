@@ -123,7 +123,7 @@ impl AnyCollider for CircleCollider {
 impl ComputeMassProperties2d for CircleCollider {
     fn mass(&self, density: f32) -> f32 {
         // In 2D, the Z length is assumed to be `1.0`, so volume == area.
-        let volume = std::f32::consts::PI * self.radius.powi(2) as f32;
+        let volume = core::f32::consts::PI * self.radius.powi(2) as f32;
         density * volume
     }
 
@@ -180,7 +180,7 @@ fn setup(
         .with_children(|c| {
             // Spawn obstacles along the perimeter of the rotating body, like the teeth of a cog.
             let count = 8;
-            let angle_step = std::f32::consts::TAU / count as f32;
+            let angle_step = core::f32::consts::TAU / count as f32;
             for i in 0..count {
                 let pos = Quat::from_rotation_z(i as f32 * angle_step) * Vec3::Y * center_radius;
                 c.spawn((

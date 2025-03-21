@@ -2,7 +2,7 @@
 //!
 //! See [`NarrowPhasePlugin`].
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
     dynamics::solver::{
