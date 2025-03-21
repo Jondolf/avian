@@ -2,7 +2,7 @@
 //!
 //! Add the [`PhysicsPickingPlugin`] to enable picking for [colliders](Collider).
 //! By default, all colliders are pickable. Picking can be disabled for individual entities
-//! by adding [`PickingBehavior::IGNORE`].
+//! by adding [`Pickable::IGNORE`].
 //!
 //! To make physics picking entirely opt-in, set [`PhysicsPickingSettings::require_markers`]
 //! to `true` and add a [`PhysicsPickable`] component to the desired camera and target entities.

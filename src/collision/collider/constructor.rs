@@ -8,7 +8,7 @@ use bevy::{platform_support::collections::HashMap, prelude::*};
 ///
 /// In contrast to [`ColliderConstructor`], this component will *not* generate a collider on its own entity.
 ///
-/// If this component is used on a scene, such as one spawned by a [`SceneBundle`], it will
+/// If this component is used on a scene, such as one spawned by a [`SceneRoot`], it will
 /// wait until the scene is loaded before generating colliders.
 ///
 /// The exact configuration for each descendant can be specified using the helper methods
