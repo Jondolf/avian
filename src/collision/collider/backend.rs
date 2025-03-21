@@ -111,7 +111,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
-        hooks.on_add(|mut world, ctx| {
+        hooks.on_add(|world, ctx| {
             let existing_global_transform = world
                 .entity(ctx.entity)
                 .get::<GlobalTransform>()
@@ -133,7 +133,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 let parent_global_transform = world
                     .entity(ctx.entity)
                     .get::<ChildOf>()
-                    .and_then(|parent| world.entity(parent.get()).get::<GlobalTransform>().copied())
+                    .and_then(|&ChildOf { parent }| {
+                        world.entity(parent).get::<GlobalTransform>().copied()
+                    })
                     .unwrap_or_default();
                 let transform = world
                     .entity(ctx.entity)
@@ -177,7 +179,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     )
                 });
                 let collider_context = context_state.0.get(&world);
-                let context = AabbContext::new(entity, &collider_context);
+                let context = AabbContext::new(ctx.entity, &collider_context);
                 entity_mut
                     .get::<ColliderAabb>()
                     .copied()
@@ -249,7 +251,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     }
 
                     // Queue the parent rigid body for a mass property update.
-                    if let Some(mut entity_commands) = commands.get_entity(parent.get()) {
+                    if let Ok(mut entity_commands) = commands.get_entity(parent.get()) {
                         entity_commands.insert(RecomputeMassProperties);
                     }
                 }
@@ -710,7 +712,7 @@ fn collider_removed(
 ) {
     let parent = parent.get();
 
-    let Some(mut entity_commands) = commands.get_entity(parent) else {
+    let Ok(mut entity_commands) = commands.get_entity(parent) else {
         return;
     };
 
@@ -776,7 +778,7 @@ mod tests {
         let child = app
             .world_mut()
             .spawn((collider, Transform::from_xyz(1.0, 0.0, 0.0)))
-            .insert(ChildOf(parent))
+            .insert(ChildOf { parent })
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);

@@ -156,7 +156,7 @@ pub fn update_hits(
     mut output_events: EventWriter<PointerHits>,
     mut diagnostics: ResMut<PhysicsPickingDiagnostics>,
 ) {
-    let start_time = bevy::utils::Instant::now();
+    let start_time = crate::utils::Instant::now();
 
     for (&ray_id, &ray) in ray_map.map().iter() {
         let Ok((camera, picking_filter, cam_pickable)) = picking_cameras.get(ray_id.camera) else {
@@ -196,7 +196,7 @@ pub fn update_hits(
                 },
             );
 
-            output_events.send(PointerHits::new(ray_id.pointer, hits, camera.order as f32));
+            output_events.write(PointerHits::new(ray_id.pointer, hits, camera.order as f32));
         }
         #[cfg(feature = "3d")]
         {
@@ -231,7 +231,7 @@ pub fn update_hits(
                     (ray_hit_data.entity, hit_data)
                 })
             {
-                output_events.send(PointerHits::new(
+                output_events.write(PointerHits::new(
                     ray_id.pointer,
                     vec![(entity, hit_data)],
                     camera.order as f32,

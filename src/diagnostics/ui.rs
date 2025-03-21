@@ -6,6 +6,7 @@
 use crate::{diagnostics::*, prelude::*};
 use bevy::color::palettes::tailwind::{GREEN_400, RED_400};
 use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
+use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
 use dynamics::solver::SolverDiagnostics;
 use entity_counters::PhysicsEntityDiagnosticsPlugin;
@@ -154,7 +155,7 @@ fn setup_diagnostics_ui(mut commands: Commands, settings: Res<PhysicsDiagnostics
         .with_children(build_diagnostic_texts);
 }
 
-fn build_diagnostic_texts(cmd: &mut ChildBuilder) {
+fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
     // Step counter
     cmd.diagnostic_group("Step Counter")
         .with_children(|cmd| cmd.counter_text("Step Number", PhysicsTotalDiagnostics::STEP_NUMBER));
@@ -292,7 +293,7 @@ trait CommandsExt {
     }
 }
 
-impl CommandsExt for ChildBuilder<'_> {
+impl CommandsExt for RelatedSpawnerCommands<'_, ChildOf> {
     fn diagnostic_group(&mut self, name: &str) -> EntityCommands {
         self.spawn((
             DiagnosticGroup,

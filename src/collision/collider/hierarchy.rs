@@ -211,12 +211,12 @@ pub(crate) fn propagate_collider_transforms(
 ) {
     root_query.par_iter_mut().for_each(
         |(entity, transform, children)| {
-            for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
+            for (child, child_transform, is_child_rb, child_of) in parent_query.iter_many(children) {
                 assert_eq!(
-                    parent.get(), entity,
+                    child_of.parent, entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
-                let changed = transform.is_changed() || parent.is_changed();
+                let changed = transform.is_changed() || child_of.is_changed();
                 let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
                 let scale = parent_transform.scale * child_transform.scale;
@@ -331,9 +331,9 @@ unsafe fn propagate_collider_transforms_recursive(
     };
 
     let Some(children) = children else { return };
-    for (child, child_transform, is_rb, parent) in parent_query.iter_many(children) {
+    for (child, child_transform, is_rb, child_of) in parent_query.iter_many(children) {
         assert_eq!(
-            parent.get(), entity,
+            child_of.parent, entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 
@@ -362,7 +362,7 @@ unsafe fn propagate_collider_transforms_recursive(
                 collider_query,
                 parent_query,
                 child,
-                changed || parent.is_changed(),
+                changed || child_of.is_changed(),
             );
         }
     }

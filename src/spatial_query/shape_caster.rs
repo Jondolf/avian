@@ -608,6 +608,6 @@ pub struct ShapeHitData {
 
 impl MapEntities for ShapeHitData {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity = entity_mapper.map_entity(self.entity);
+        self.entity = entity_mapper.get_mapped(self.entity);
     }
 }

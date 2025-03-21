@@ -957,7 +957,7 @@ pub struct NoAutoCenterOfMass;
 
 /// Triggers the recomputation of mass properties for rigid bodies when automatic computation is re-enabled.
 fn on_remove_no_auto_mass_property(mut world: DeferredWorld, ctx: HookContext) {
-    if let Some(mut entity_commands) = world.commands().get_entity(ctx.entity) {
+    if let Ok(mut entity_commands) = world.commands().get_entity(ctx.entity) {
         entity_commands.try_insert(RecomputeMassProperties);
     }
 }

@@ -524,7 +524,7 @@ fn solve_swept_ccd(
     narrow_phase_config: Res<NarrowPhaseConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 

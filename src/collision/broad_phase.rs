@@ -128,7 +128,7 @@ bitflags::bitflags! {
 impl MapEntities for AabbIntervals {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for interval in self.0.iter_mut() {
-            interval.0 = entity_mapper.map_entity(interval.0);
+            interval.0 = entity_mapper.get_mapped(interval.0);
         }
     }
 }
@@ -248,7 +248,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
         intersections.clear();
     }
 
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     sweep_and_prune::<H>(
         intervals,

@@ -114,7 +114,7 @@ fn add_ancestor_markers<C: Component>(
 
 /// Remove the component from entity, unless it is already despawned.
 fn remove_component<T: Bundle>(commands: &mut Commands, entity: Entity) {
-    if let Some(mut entity_commands) = commands.get_entity(entity) {
+    if let Ok(mut entity_commands) = commands.get_entity(entity) {
         entity_commands.remove::<T>();
     }
 }
@@ -199,14 +199,14 @@ mod tests {
 
         let an = app.world_mut().spawn_empty().id();
 
-        let bn = app.world_mut().spawn(ChildOf(an)).id();
-        let cy = app.world_mut().spawn((C, ChildOf(an))).id();
+        let bn = app.world_mut().spawn(ChildOf { parent: an }).id();
+        let cy = app.world_mut().spawn((C, ChildOf { parent: an })).id();
 
-        let dn = app.world_mut().spawn(ChildOf(cy)).id();
-        let en = app.world_mut().spawn(ChildOf(cy)).id();
+        let dn = app.world_mut().spawn(ChildOf { parent: cy }).id();
+        let en = app.world_mut().spawn(ChildOf { parent: cy }).id();
 
-        let fy = app.world_mut().spawn((C, ChildOf(dn))).id();
-        let gy = app.world_mut().spawn((C, ChildOf(dn))).id();
+        let fy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
+        let gy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
@@ -263,14 +263,14 @@ mod tests {
 
         let an = app.world_mut().spawn_empty().id();
 
-        let bn = app.world_mut().spawn(ChildOf(an)).id();
-        let cy = app.world_mut().spawn((C, ChildOf(an))).id();
+        let bn = app.world_mut().spawn(ChildOf { parent: an }).id();
+        let cy = app.world_mut().spawn((C, ChildOf { parent: an })).id();
 
-        let dn = app.world_mut().spawn(ChildOf(cy)).id();
-        let en = app.world_mut().spawn(ChildOf(cy)).id();
+        let dn = app.world_mut().spawn(ChildOf { parent: cy }).id();
+        let en = app.world_mut().spawn(ChildOf { parent: cy }).id();
 
-        let fy = app.world_mut().spawn((C, ChildOf(dn))).id();
-        let gy = app.world_mut().spawn((C, ChildOf(dn))).id();
+        let fy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
+        let gy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());
@@ -338,14 +338,14 @@ mod tests {
 
         let an = app.world_mut().spawn_empty().id();
 
-        let bn = app.world_mut().spawn(ChildOf(an)).id();
-        let cy = app.world_mut().spawn((C, ChildOf(an))).id();
+        let bn = app.world_mut().spawn(ChildOf { parent: an }).id();
+        let cy = app.world_mut().spawn((C, ChildOf { parent: an })).id();
 
-        let dn = app.world_mut().spawn(ChildOf(cy)).id();
-        let en = app.world_mut().spawn(ChildOf(cy)).id();
+        let dn = app.world_mut().spawn(ChildOf { parent: cy }).id();
+        let en = app.world_mut().spawn(ChildOf { parent: cy }).id();
 
-        let fy = app.world_mut().spawn((C, ChildOf(dn))).id();
-        let gy = app.world_mut().spawn((C, ChildOf(dn))).id();
+        let fy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
+        let gy = app.world_mut().spawn((C, ChildOf { parent: dn })).id();
 
         // Check that the correct entities have the `AncestorMarker<C>` component.
         assert!(app.world().entity(an).contains::<AncestorMarker<C>>());

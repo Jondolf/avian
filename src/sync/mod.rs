@@ -262,8 +262,8 @@ pub fn position_to_transform(
     parents: Query<ParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
-        if let Some(parent) = parent {
-            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
+        if let Some(&ChildOf { parent }) = parent {
+            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
                 let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| {
@@ -309,8 +309,8 @@ pub fn position_to_transform(
     parents: Query<ParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
-        if let Some(parent) = parent {
-            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(**parent) {
+        if let Some(&ChildOf { parent }) = parent {
+            if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
                 let parent_pos = parent_pos.map_or(parent_transform.translation, |pos| pos.f32());
@@ -477,9 +477,9 @@ pub fn propagate_transforms_physics(
                 *global_transform = GlobalTransform::from(*transform);
             }
 
-            let handle = |(child, actual_parent, is_parent_rb, is_parent_collider): (Entity, Ref<ChildOf>, bool, bool)| {
+            let handle = |(child, actual_child_of, is_parent_rb, is_parent_collider): (Entity, Ref<ChildOf>, bool, bool)| {
                 assert_eq!(
-                    actual_parent.get(), entity,
+                    actual_child_of.parent, entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
                 // SAFETY:
@@ -498,7 +498,7 @@ pub fn propagate_transforms_physics(
                         &parent_query_1,
                         &parent_query_2,
                         child,
-                        changed || actual_parent.is_changed(),
+                        changed || actual_child_of.is_changed(),
                         is_parent_rb || is_parent_collider,
                     );
                 }
@@ -587,11 +587,11 @@ unsafe fn propagate_transforms_physics_recursive(
     // If the entity has a physics entity ancestor, propagate down regardless of the child type.
     // Otherwise, only propagate to entities that are physics entities or physics entity ancestors.
     if any_ancestor_is_physics_entity {
-        for (child, actual_parent, is_parent_rb, is_parent_collider) in
+        for (child, actual_child_of, is_parent_rb, is_parent_collider) in
             parent_query_1.iter_many(children)
         {
             assert_eq!(
-                actual_parent.get(), entity,
+                actual_child_of.parent, entity,
                 "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
             );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched
@@ -606,17 +606,17 @@ unsafe fn propagate_transforms_physics_recursive(
                     parent_query_1,
                     parent_query_2,
                     child,
-                    changed || actual_parent.is_changed(),
+                    changed || actual_child_of.is_changed(),
                     any_ancestor_is_physics_entity || is_parent_rb || is_parent_collider,
                 );
             }
         }
     } else {
-        for (child, actual_parent, is_parent_rb, is_parent_collider) in
+        for (child, actual_child_of, is_parent_rb, is_parent_collider) in
             parent_query_2.iter_many(children)
         {
             assert_eq!(
-                actual_parent.get(), entity,
+                actual_child_of.parent, entity,
                 "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
             );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched
@@ -631,7 +631,7 @@ unsafe fn propagate_transforms_physics_recursive(
                     parent_query_1,
                     parent_query_2,
                     child,
-                    changed || actual_parent.is_changed(),
+                    changed || actual_child_of.is_changed(),
                     any_ancestor_is_physics_entity || is_parent_rb || is_parent_collider,
                 );
             }

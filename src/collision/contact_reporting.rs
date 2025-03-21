@@ -163,16 +163,16 @@ pub fn report_contacts(
     mut collision_ended_ev_writer: EventWriter<CollisionEnded>,
     mut diagnostics: ResMut<CollisionDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     // TODO: Would batching events be worth it?
     for ((entity1, entity2), contacts) in collisions.get_internal().iter() {
         if contacts.during_current_frame {
-            collision_ev_writer.send(Collision(contacts.clone()));
+            collision_ev_writer.write(Collision(contacts.clone()));
 
             // Collision started
             if !contacts.during_previous_frame {
-                collision_started_ev_writer.send(CollisionStarted(*entity1, *entity2));
+                collision_started_ev_writer.write(CollisionStarted(*entity1, *entity2));
 
                 if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
                     colliding_entities1.insert(*entity2);
@@ -185,7 +185,7 @@ pub fn report_contacts(
 
         // Collision ended
         if !contacts.during_current_frame && contacts.during_previous_frame {
-            collision_ended_ev_writer.send(CollisionEnded(*entity1, *entity2));
+            collision_ended_ev_writer.write(CollisionEnded(*entity1, *entity2));
 
             if let Ok(mut colliding_entities1) = colliders.get_mut(*entity1) {
                 colliding_entities1.remove(entity2);
