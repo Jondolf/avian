@@ -2,7 +2,7 @@
 //!
 //! See [`ColliderBackendPlugin`].
 
-use core::{any::type_name, marker::PhantomData};
+use core::marker::PhantomData;
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
@@ -11,8 +11,7 @@ use bevy::{
     ecs::{
         intern::Interned,
         schedule::ScheduleLabel,
-        system::{StaticSystemParam, SystemId, SystemState},
-        world::WorldEntityFetch,
+        system::{StaticSystemParam, SystemId},
     },
     prelude::*,
 };
@@ -88,9 +87,6 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
     }
 }
 
-#[derive(Resource)]
-struct ContextState<C: ScalableCollider>(SystemState<C::Context>);
-
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         // Register required components for the collider type.
@@ -105,13 +101,10 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
 
-        let context_state = SystemState::new(app.world_mut());
-        app.insert_resource(ContextState::<C>(context_state));
-
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
-        hooks.on_add(|world, entity, _| {
+        hooks.on_add(|mut world, entity, _| {
             let existing_global_transform = world
                 .entity(entity)
                 .get::<GlobalTransform>()
@@ -147,8 +140,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             #[cfg(feature = "2d")]
             let scale = scale.xy();
 
-            let cell = world.as_unsafe_world_cell_readonly();
-            let mut entity_mut = unsafe { entity.fetch_deferred_mut(cell).unwrap() };
+            let mut entity_mut = world.entity_mut(entity);
 
             // Make sure the collider is initialized with the correct scale.
             // This overwrites the scale set by the constructor, but that one is
@@ -160,33 +152,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
             let collider = entity_mut.get::<C>().unwrap();
 
-            let aabb = {
-                let mut context_state = {
-                    // SAFETY: No other code takes a ref to this resource,
-                    //         and `ContextState` is not publicly visible,
-                    //         so `C::Context` is unable to borrow this resource.
-                    //         This does not perform any structural world changes,
-                    //         so reading mutably through a read-only cell is OK.
-                    //         (We can't get a non-readonly cell from a DeferredWorld)
-                    unsafe { cell.get_resource_mut::<ContextState<C>>() }
-                }
-                .unwrap_or_else(|| {
-                    panic!(
-                        "context state for `{}` was removed",
-                        type_name::<C::Context>()
-                    )
-                });
-                let collider_context = context_state.0.get(&world);
-                let context = AabbContext::new(entity, &collider_context);
-                entity_mut
-                    .get::<ColliderAabb>()
-                    .copied()
-                    .unwrap_or(collider.aabb_with_context(
-                        Vector::ZERO,
-                        Rotation::default(),
-                        context,
-                    ))
-            };
             let density = entity_mut
                 .get::<ColliderDensity>()
                 .copied()
@@ -197,10 +162,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             } else {
                 collider.mass_properties(density.0)
             };
-
-            if let Some(mut collider_aabb) = entity_mut.get_mut::<ColliderAabb>() {
-                *collider_aabb = aabb;
-            }
 
             if let Some(mut collider_mass_properties) =
                 entity_mut.get_mut::<ColliderMassProperties>()
