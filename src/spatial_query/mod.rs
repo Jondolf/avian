@@ -218,6 +218,10 @@ impl Plugin for SpatialQueryPlugin {
 }
 
 /// Updates the [`SpatialQueryPipeline`].
+#[cfg(all(
+    feature = "default-collider",
+    any(feature = "parry-f32", feature = "parry-f64")
+))]
 pub fn update_spatial_query_pipeline(
     mut spatial_query: SpatialQuery,
     mut diagnostics: ResMut<SpatialQueryDiagnostics>,
