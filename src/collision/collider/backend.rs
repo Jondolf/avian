@@ -2,7 +2,7 @@
 //!
 //! See [`ColliderBackendPlugin`].
 
-use std::{any::type_name, marker::PhantomData};
+use std::marker::PhantomData;
 
 use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
@@ -12,7 +12,6 @@ use bevy::{
         intern::Interned,
         schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemId, SystemState},
-        world::WorldEntityFetch,
     },
     prelude::*,
 };
@@ -111,7 +110,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         let hooks = app.world_mut().register_component_hooks::<C>();
 
         // Initialize missing components for colliders.
-        hooks.on_add(|world, ctx| {
+        hooks.on_add(|mut world, ctx| {
             let existing_global_transform = world
                 .entity(ctx.entity)
                 .get::<GlobalTransform>()
@@ -149,8 +148,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             #[cfg(feature = "2d")]
             let scale = scale.xy();
 
-            let cell = world.as_unsafe_world_cell_readonly();
-            let mut entity_mut = unsafe { ctx.entity.fetch_deferred_mut(cell).unwrap() };
+            let mut entity_mut = world.entity_mut(ctx.entity);
 
             // Make sure the collider is initialized with the correct scale.
             // This overwrites the scale set by the constructor, but that one is
@@ -162,33 +160,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
             let collider = entity_mut.get::<C>().unwrap();
 
-            let aabb = {
-                let mut context_state = {
-                    // SAFETY: No other code takes a ref to this resource,
-                    //         and `ContextState` is not publicly visible,
-                    //         so `C::Context` is unable to borrow this resource.
-                    //         This does not perform any structural world changes,
-                    //         so reading mutably through a read-only cell is OK.
-                    //         (We can't get a non-readonly cell from a DeferredWorld)
-                    unsafe { cell.get_resource_mut::<ContextState<C>>() }
-                }
-                .unwrap_or_else(|| {
-                    panic!(
-                        "context state for `{}` was removed",
-                        type_name::<C::Context>()
-                    )
-                });
-                let collider_context = context_state.0.get(&world);
-                let context = AabbContext::new(ctx.entity, &collider_context);
-                entity_mut
-                    .get::<ColliderAabb>()
-                    .copied()
-                    .unwrap_or(collider.aabb_with_context(
-                        Vector::ZERO,
-                        Rotation::default(),
-                        context,
-                    ))
-            };
             let density = entity_mut
                 .get::<ColliderDensity>()
                 .copied()
@@ -199,10 +170,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             } else {
                 collider.mass_properties(density.0)
             };
-
-            if let Some(mut collider_aabb) = entity_mut.get_mut::<ColliderAabb>() {
-                *collider_aabb = aabb;
-            }
 
             if let Some(mut collider_mass_properties) =
                 entity_mut.get_mut::<ColliderMassProperties>()
@@ -777,8 +744,11 @@ mod tests {
 
         let child = app
             .world_mut()
-            .spawn((collider, Transform::from_xyz(1.0, 0.0, 0.0)))
-            .insert(ChildOf { parent })
+            .spawn((
+                collider,
+                Transform::from_xyz(1.0, 0.0, 0.0),
+                ChildOf { parent },
+            ))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
