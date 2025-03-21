@@ -3,7 +3,7 @@
 //!
 //! See [`BroadPhasePlugin`].
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::prelude::*;
 use bevy::{

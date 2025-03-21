@@ -6,7 +6,7 @@
 //!
 //! Cameras can further filter which entities are pickable with the [`PhysicsPickingFilter`] component.
 
-use std::f32::consts::PI;
+use core::f32::consts::PI;
 
 use avian3d::{math::Vector, prelude::*};
 use bevy::{color::palettes::tailwind::*, picking::pointer::PointerInteraction, prelude::*};

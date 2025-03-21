@@ -341,7 +341,7 @@ impl Contacts {
             .max_by(|a, b| {
                 a.penetration
                     .partial_cmp(&b.penetration)
-                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .unwrap_or(core::cmp::Ordering::Equal)
             })
     }
 }
@@ -435,7 +435,7 @@ impl ContactManifold {
         self.points
             .iter()
             .map(|contact| contact.normal_impulse)
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(core::cmp::Ordering::Equal))
             .unwrap_or(0.0)
     }
 
@@ -508,7 +508,7 @@ impl ContactManifold {
         self.points.iter().max_by(|a, b| {
             a.penetration
                 .partial_cmp(&b.penetration)
-                .unwrap_or(std::cmp::Ordering::Equal)
+                .unwrap_or(core::cmp::Ordering::Equal)
         })
     }
 }
@@ -574,8 +574,8 @@ impl SingleContact {
 
     /// Flips the contact data, swapping the points and normals.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
-        std::mem::swap(&mut self.local_normal1, &mut self.local_normal2);
+        core::mem::swap(&mut self.local_point1, &mut self.local_point2);
+        core::mem::swap(&mut self.local_normal1, &mut self.local_normal2);
     }
 
     /// Returns a flipped copy of the contact data, swapping the points and normals.
@@ -695,8 +695,8 @@ impl ContactPoint {
     /// Flips the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     pub fn flip(&mut self) {
-        std::mem::swap(&mut self.local_point1, &mut self.local_point2);
-        std::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
+        core::mem::swap(&mut self.local_point1, &mut self.local_point2);
+        core::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.tangent_impulse = -self.tangent_impulse;
     }

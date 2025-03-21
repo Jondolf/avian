@@ -472,6 +472,8 @@ compile_error!(
     "feature \"default-collider\" requires the feature \"parry-f64\" when \"f64\" is enabled"
 );
 
+extern crate alloc;
+
 #[cfg(all(feature = "2d", feature = "parry-f32"))]
 pub extern crate parry2d as parry;
 
@@ -745,7 +747,7 @@ impl PhysicsPlugins {
     {
         PhysicsPluginsWithHooks::<H> {
             plugins: self,
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 
@@ -831,7 +833,7 @@ impl PluginGroup for PhysicsPlugins {
 /// A [`PhysicsPlugins`] plugin group with [`CollisionHooks`] specified.
 pub struct PhysicsPluginsWithHooks<H: CollisionHooks> {
     plugins: PhysicsPlugins,
-    _phantom: std::marker::PhantomData<H>,
+    _phantom: core::marker::PhantomData<H>,
 }
 
 impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
@@ -842,7 +844,7 @@ impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             plugins: PhysicsPlugins::new(schedule),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 
@@ -860,7 +862,7 @@ impl<H: CollisionHooks> Default for PhysicsPluginsWithHooks<H> {
     fn default() -> Self {
         Self {
             plugins: PhysicsPlugins::default(),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 }

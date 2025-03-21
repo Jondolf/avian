@@ -101,6 +101,9 @@ criterion = { version = "0.5", features = ["html_reports"] }
 # TODO: Update to the latest version when it's available.
 # bevy_mod_debugdump = { version = "0.12" }
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 # Enable features when building the docs on docs.rs
 features = ["diagnostic_ui"]

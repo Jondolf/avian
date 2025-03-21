@@ -422,14 +422,14 @@ impl RayHits {
     /// Returns an iterator over the hits in arbitrary order.
     ///
     /// If you want to get them sorted by distance, use `iter_sorted`.
-    pub fn iter(&self) -> std::slice::Iter<RayHitData> {
+    pub fn iter(&self) -> core::slice::Iter<RayHitData> {
         self.as_slice().iter()
     }
 
     /// Returns an iterator over the hits, sorted in ascending order according to the distance.
     ///
     /// Note that this creates and sorts a new vector. If you don't need the hits in order, use `iter`.
-    pub fn iter_sorted(&self) -> std::vec::IntoIter<RayHitData> {
+    pub fn iter_sorted(&self) -> alloc::vec::IntoIter<RayHitData> {
         let mut vector = self.as_slice().to_vec();
         vector.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
         vector.into_iter()

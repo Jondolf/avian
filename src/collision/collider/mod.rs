@@ -523,9 +523,9 @@ impl From<Transform> for ColliderTransform {
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct Sensor;
 
-/// The Axis-Aligned Bounding Box of a [collider](Collider).
+/// The Axis-Aligned Bounding Box of a [collider](Collider) in world space.
 ///
-/// The coordinates are in world space (global coordinates).
+/// Note that the AABB will be [`ColliderAabb::INVALID`] until the first physics update.
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -537,7 +537,19 @@ pub struct ColliderAabb {
     pub max: Vector,
 }
 
+impl Default for ColliderAabb {
+    fn default() -> Self {
+        ColliderAabb::INVALID
+    }
+}
+
 impl ColliderAabb {
+    /// An invalid [`ColliderAabb`] that represents an empty AABB.
+    pub const INVALID: Self = Self {
+        min: Vector::INFINITY,
+        max: Vector::NEG_INFINITY,
+    };
+
     /// Creates a new [`ColliderAabb`] from the given `center` and `half_size`.
     pub fn new(center: Vector, half_size: Vector) -> Self {
         Self {
@@ -624,15 +636,6 @@ impl ColliderAabb {
         let y_overlaps = self.min.y <= other.max.y && self.max.y >= other.min.y;
         let z_overlaps = self.min.z <= other.max.z && self.max.z >= other.min.z;
         x_overlaps && y_overlaps && z_overlaps
-    }
-}
-
-impl Default for ColliderAabb {
-    fn default() -> Self {
-        ColliderAabb {
-            min: Vector::INFINITY,
-            max: Vector::NEG_INFINITY,
-        }
     }
 }
 
