@@ -271,7 +271,7 @@ fn collect_collisions<C: AnyCollider, H: CollisionHooks + 'static>(
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     narrow_phase.update::<H>(
         &broad_collision_pairs,
@@ -296,7 +296,7 @@ fn generate_constraints<C: AnyCollider>(
     mut collision_diagnostics: ResMut<CollisionDiagnostics>,
     solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 

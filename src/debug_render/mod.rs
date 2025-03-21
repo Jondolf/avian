@@ -101,11 +101,11 @@ impl Plugin for PhysicsDebugPlugin {
         let config = store.config_mut::<PhysicsGizmos>().0;
         #[cfg(feature = "2d")]
         {
-            config.line_width = 2.0;
+            config.line.width = 2.0;
         }
         #[cfg(feature = "3d")]
         {
-            config.line_width = 1.5;
+            config.line.width = 1.5;
         }
 
         app.register_type::<PhysicsGizmos>()

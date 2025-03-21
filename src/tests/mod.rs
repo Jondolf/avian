@@ -130,7 +130,7 @@ fn body_with_velocity_moves() {
 
     let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
-    let (transform, _body) = app_query.single(app.world());
+    let (transform, _body) = app_query.single(app.world()).unwrap();
 
     assert_relative_eq!(transform.translation.y, 0.);
     assert_relative_eq!(transform.translation.z, 0.);

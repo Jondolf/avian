@@ -3,11 +3,11 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        entity::{EntityMapper, MapEntities},
+        component::Mutable,
+        entity::{hash_set::EntityHashSet, EntityMapper, MapEntities},
         system::{ReadOnlySystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
-    utils::HashSet,
 };
 use derive_more::From;
 
@@ -117,7 +117,7 @@ impl ContactManifoldContext<'_, '_, '_, ()> {
 
 /// A trait that generalizes over colliders. Implementing this trait
 /// allows colliders to be used with the physics engine.
-pub trait AnyCollider: Component + ComputeMassProperties {
+pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
     /// A type providing additional context for collider operations.
     ///
     /// `Context` allows you to access an arbitrary [`ReadOnlySystemParam`] on
@@ -423,18 +423,12 @@ pub struct ColliderDisabled;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
-pub struct ColliderParent(pub(crate) Entity);
+pub struct ColliderParent(#[entities] pub(crate) Entity);
 
 impl ColliderParent {
     /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
     pub const fn get(&self) -> Entity {
         self.0
-    }
-}
-
-impl MapEntities for ColliderParent {
-    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.0 = entity_mapper.map_entity(self.0)
     }
 }
 
@@ -742,7 +736,7 @@ pub struct CollisionMargin(pub Scalar);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct CollidingEntities(pub HashSet<Entity>);
+pub struct CollidingEntities(pub EntityHashSet);
 
 impl MapEntities for CollidingEntities {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
@@ -750,7 +744,7 @@ impl MapEntities for CollidingEntities {
             .0
             .clone()
             .into_iter()
-            .map(|e| entity_mapper.map_entity(e))
+            .map(|e| entity_mapper.get_mapped(e))
             .collect()
     }
 }

@@ -18,7 +18,7 @@ use narrow_phase::NarrowPhaseSet;
 /// - Updates [`ColliderParent`].
 /// - Propagates [`ColliderTransform`].
 ///
-/// This plugin requires Bevy's `HierarchyPlugin` and that colliders have the `ColliderMarker` component,
+/// This plugin requires that colliders have the [`ColliderMarker`] component,
 /// which is added automatically for colliders if the [`ColliderBackendPlugin`] is enabled.
 pub struct ColliderHierarchyPlugin {
     schedule: Interned<dyn ScheduleLabel>,
@@ -43,23 +43,12 @@ impl Default for ColliderHierarchyPlugin {
     }
 }
 
-#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct MarkColliderAncestors;
-
 impl Plugin for ColliderHierarchyPlugin {
     fn build(&self, app: &mut App) {
         // Mark ancestors of colliders with `AncestorMarker<ColliderMarker>`.
         // This is used to speed up `ColliderTransform` propagation by skipping
         // trees that have no colliders.
-        app.add_plugins(
-            AncestorMarkerPlugin::<ColliderMarker>::new(self.schedule)
-                .add_markers_in_set(MarkColliderAncestors),
-        );
-
-        app.configure_sets(
-            self.schedule,
-            MarkColliderAncestors.before(PrepareSet::PropagateTransforms),
-        );
+        app.add_plugins(AncestorMarkerPlugin::<ColliderMarker>::default());
 
         // Update collider parents.
         app.add_systems(
@@ -106,12 +95,6 @@ impl Plugin for ColliderHierarchyPlugin {
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
-    }
-
-    fn finish(&self, app: &mut App) {
-        if !app.is_plugin_added::<HierarchyPlugin>() {
-            warn!("`ColliderHierarchyPlugin` requires Bevy's `HierarchyPlugin` to function. If you don't need collider hierarchies, consider disabling this plugin.",);
-        }
     }
 }
 
@@ -214,7 +197,7 @@ type ShouldPropagate = Or<(With<AncestorMarker<ColliderMarker>>, With<ColliderMa
 pub(crate) fn propagate_collider_transforms(
     mut root_query: Query<
         (Entity, Ref<Transform>, &Children),
-        (Without<Parent>, With<AncestorMarker<ColliderMarker>>),
+        (Without<ChildOf>, With<AncestorMarker<ColliderMarker>>),
     >,
     collider_query: Query<
         (
@@ -222,18 +205,18 @@ pub(crate) fn propagate_collider_transforms(
             Option<&mut ColliderTransform>,
             Option<&Children>,
         ),
-        (With<Parent>, ShouldPropagate),
+        (With<ChildOf>, ShouldPropagate),
     >,
-    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>), ShouldPropagate>,
+    parent_query: Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<ChildOf>), ShouldPropagate>,
 ) {
     root_query.par_iter_mut().for_each(
         |(entity, transform, children)| {
-            for (child, child_transform, is_child_rb, parent) in parent_query.iter_many(children) {
+            for (child, child_transform, is_child_rb, child_of) in parent_query.iter_many(children) {
                 assert_eq!(
-                    parent.get(), entity,
+                    child_of.parent, entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
-                let changed = transform.is_changed() || parent.is_changed();
+                let changed = transform.is_changed() || child_of.is_changed();
                 let parent_transform = ColliderTransform::from(*transform);
                 let child_transform = ColliderTransform::from(*child_transform);
                 let scale = parent_transform.scale * child_transform.scale;
@@ -296,9 +279,9 @@ unsafe fn propagate_collider_transforms_recursive(
             Option<&mut ColliderTransform>,
             Option<&Children>,
         ),
-        (With<Parent>, ShouldPropagate),
+        (With<ChildOf>, ShouldPropagate),
     >,
-    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<Parent>), ShouldPropagate>,
+    parent_query: &Query<(Entity, Ref<Transform>, Has<RigidBody>, Ref<ChildOf>), ShouldPropagate>,
     entity: Entity,
     mut changed: bool,
 ) {
@@ -316,7 +299,7 @@ unsafe fn propagate_collider_transforms_recursive(
         //   \   /
         //     D
         //
-        // D has two parents, B and C. If the propagation passes through C, but the Parent component on D points to B,
+        // D has two parents, B and C. If the propagation passes through C, but the ChildOf component on D points to B,
         // the above check will panic as the origin parent does match the recorded parent.
         //
         // Also consider the following case, where A and B are roots:
@@ -348,9 +331,9 @@ unsafe fn propagate_collider_transforms_recursive(
     };
 
     let Some(children) = children else { return };
-    for (child, child_transform, is_rb, parent) in parent_query.iter_many(children) {
+    for (child, child_transform, is_rb, child_of) in parent_query.iter_many(children) {
         assert_eq!(
-            parent.get(), entity,
+            child_of.parent, entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 
@@ -379,7 +362,7 @@ unsafe fn propagate_collider_transforms_recursive(
                 collider_query,
                 parent_query,
                 child,
-                changed || parent.is_changed(),
+                changed || child_of.is_changed(),
             );
         }
     }

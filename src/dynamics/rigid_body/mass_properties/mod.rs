@@ -392,7 +392,7 @@ fn queue_mass_recomputation_on_collider_mass_change(
     >,
 ) {
     for collider_parent in &mut query {
-        if let Some(mut entity_commands) = commands.get_entity(collider_parent.get()) {
+        if let Ok(mut entity_commands) = commands.get_entity(collider_parent.get()) {
             entity_commands.insert(RecomputeMassProperties);
         }
     }
@@ -468,12 +468,7 @@ mod tests {
 
     fn create_app() -> App {
         let mut app = App::new();
-        app.add_plugins((
-            MinimalPlugins,
-            PhysicsPlugins::default(),
-            TransformPlugin,
-            HierarchyPlugin,
-        ));
+        app.add_plugins((MinimalPlugins, PhysicsPlugins::default(), TransformPlugin));
         app
     }
 
@@ -737,9 +732,16 @@ mod tests {
         let child_collider = Collider::circle(2.0);
         let child_collider_mass_props = child_collider.mass_properties(1.0);
 
-        app.world_mut()
-            .entity_mut(body_entity)
-            .with_child((child_collider, ColliderDensity(1.0)));
+        let child_entity = app
+            .world_mut()
+            .spawn((
+                ChildOf {
+                    parent: body_entity,
+                },
+                child_collider,
+                ColliderDensity(1.0),
+            ))
+            .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -757,9 +759,7 @@ mod tests {
         assert_eq!(*center_of_mass, ComputedCenterOfMass::default());
 
         // Remove the child collider
-        app.world_mut()
-            .entity_mut(body_entity)
-            .despawn_descendants();
+        app.world_mut().entity_mut(child_entity).despawn();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -843,8 +843,14 @@ mod tests {
 
         let child_entity = app
             .world_mut()
-            .spawn((Collider::circle(1.0), Mass(5.0), Transform::default()))
-            .set_parent(body_entity)
+            .spawn((
+                ChildOf {
+                    parent: body_entity,
+                },
+                Collider::circle(1.0),
+                Mass(5.0),
+                Transform::default(),
+            ))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
