@@ -11,7 +11,7 @@ use bevy::{
     ecs::{
         intern::Interned,
         schedule::ScheduleLabel,
-        system::{StaticSystemParam, SystemId, SystemState},
+        system::{StaticSystemParam, SystemId},
     },
     prelude::*,
 };
@@ -87,9 +87,6 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
     }
 }
 
-#[derive(Resource)]
-struct ContextState<C: ScalableCollider>(SystemState<C::Context>);
-
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         // Register required components for the collider type.
@@ -103,9 +100,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             let collider_removed_id = app.world_mut().register_system(collider_removed);
             app.insert_resource(ColliderRemovalSystem(collider_removed_id));
         }
-
-        let context_state = SystemState::new(app.world_mut());
-        app.insert_resource(ContextState::<C>(context_state));
 
         let hooks = app.world_mut().register_component_hooks::<C>();
 
