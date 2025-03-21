@@ -22,7 +22,7 @@ impl<C: Component> Plugin for AncestorMarkerPlugin<C> {
         // Add `AncestorMarker<C>` for the ancestors of colliders that are inserted as children,
         // until an ancestor that has other `AncestorMarker<C>` entities as children is encountered.
         app.add_observer(
-            |trigger: Trigger<OnInsert, ChildOf>,
+            |trigger: Trigger<OnInsert, (ChildOf, C)>,
              mut commands: Commands,
              collider_query: Query<&C>,
              parent_query: Query<&ChildOf>,
@@ -102,6 +102,7 @@ fn add_ancestor_markers<C: Component>(
     // Traverse up the tree, marking entities with `AncestorMarker<C>`
     // until an entity that already has it is encountered.
     for parent_entity in parent_query.iter_ancestors(entity) {
+        println!("parent_entity: {:?}", parent_entity);
         if ancestor_query.contains(parent_entity) {
             break;
         } else {
