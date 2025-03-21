@@ -8,7 +8,5 @@ bevy = { version = "0.15", default-features = false }
 avian3d = { path = "../avian3d", default-features = false }
 criterion = "0.5"
 
-[lints.clippy]
-alloc_instead_of_core = "warn"
-std_instead_of_alloc = "warn"
-std_instead_of_core = "warn"
+[lints]
+workspace = true

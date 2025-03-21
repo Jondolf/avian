@@ -32,7 +32,5 @@ avian3d = { path = "../avian3d", default-features = false, features = [
     "diagnostic_ui",
 ] }
 
-[lints.clippy]
-alloc_instead_of_core = "warn"
-std_instead_of_alloc = "warn"
-std_instead_of_core = "warn"
+[lints]
+workspace = true
