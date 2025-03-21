@@ -102,7 +102,6 @@ fn add_ancestor_markers<C: Component>(
     // Traverse up the tree, marking entities with `AncestorMarker<C>`
     // until an entity that already has it is encountered.
     for parent_entity in parent_query.iter_ancestors(entity) {
-        println!("parent_entity: {:?}", parent_entity);
         if ancestor_query.contains(parent_entity) {
             break;
         } else {
