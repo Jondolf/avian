@@ -98,6 +98,7 @@ glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
+# TODO: Update to the latest version when it's available.
 # bevy_mod_debugdump = { version = "0.12" }
 
 [package.metadata.docs.rs]
