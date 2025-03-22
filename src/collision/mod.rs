@@ -38,7 +38,7 @@ mod diagnostics;
 pub use diagnostics::CollisionDiagnostics;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{platform_support::hash::FixedHasher, prelude::*};
 use indexmap::IndexMap;
 
 // TODO: Refactor this into a contact graph.
@@ -76,18 +76,16 @@ use indexmap::IndexMap;
 /// However, the public methods only use the current frame's collisions. To access the internal data structure,
 /// you can use [`get_internal`](Self::get_internal) or [`get_internal_mut`](Self::get_internal_mut).
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
-pub struct Collisions(IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher>);
+pub struct Collisions(IndexMap<(Entity, Entity), Contacts, FixedHasher>);
 
 impl Collisions {
     /// Returns a reference to the internal `IndexMap`.
-    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+    pub fn get_internal(&self) -> &IndexMap<(Entity, Entity), Contacts, FixedHasher> {
         &self.0
     }
 
     /// Returns a mutable reference to the internal `IndexMap`.
-    pub fn get_internal_mut(
-        &mut self,
-    ) -> &mut IndexMap<(Entity, Entity), Contacts, fxhash::FxBuildHasher> {
+    pub fn get_internal_mut(&mut self) -> &mut IndexMap<(Entity, Entity), Contacts, FixedHasher> {
         &mut self.0
     }
 

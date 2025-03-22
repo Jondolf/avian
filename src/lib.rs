@@ -441,6 +441,7 @@
     rustdoc::invalid_rust_codeblocks
 )]
 #![warn(clippy::doc_markdown, missing_docs)]
+#![no_std]
 
 #[cfg(all(not(feature = "f32"), not(feature = "f64")))]
 compile_error!("either feature \"f32\" or \"f64\" must be enabled");

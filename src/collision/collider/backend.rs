@@ -309,7 +309,7 @@ fn init_collider_constructors(
     for (entity, existing_collider, name, constructor) in constructors.iter() {
         let name = pretty_name(name, entity);
         if existing_collider.is_some() {
-            warn!(
+            log::warn!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but that entity already holds a collider. Skipping.",
             );
@@ -339,7 +339,7 @@ fn init_collider_constructors(
         if let Some(collider) = collider {
             commands.entity(entity).insert(collider);
         } else {
-            error!(
+            log::error!(
                 "Tried to add a collider to entity {name} via {constructor:#?}, \
                 but the collider could not be generated. Skipping.",
             );
@@ -400,7 +400,7 @@ fn init_collider_constructor_hierarchies(
                     .cloned()
                     .unwrap_or_else(default_collider)
             } else if existing_collider.is_some() {
-                warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                log::warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but that entity already holds a collider. Skipping. \
                         If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`.");
                 continue;
@@ -449,7 +449,7 @@ fn init_collider_constructor_hierarchies(
                         .unwrap_or(collider_constructor_hierarchy.default_density),
                 ));
             } else {
-                error!(
+                log::error!(
                         "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but the collider could not be generated. Skipping.",
                     );

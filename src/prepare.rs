@@ -358,7 +358,7 @@ mod tests {
                 position_to_transform,
                 transform_to_position,
             };
-            app.insert_resource(dbg!(config.clone()));
+            app.insert_resource(config.clone());
 
             // Spawn entities with `Position` and `Rotation`
             let (pos_0, rot_0) = {

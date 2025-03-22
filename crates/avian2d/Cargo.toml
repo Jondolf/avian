@@ -27,9 +27,9 @@ f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
-parallel = ["parry2d?/parallel", "parry2d-f64?/parallel"]
+parallel = ["std", "parry2d?/parallel", "parry2d-f64?/parallel"]
 enhanced-determinism = [
-    "dep:libm",
+    "libm",
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
     "bevy_math/libm",
@@ -60,6 +60,23 @@ bevy_diagnostic = []
 # Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
 diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
+# Enable the Rust standard library.
+std = [
+    "bevy/std",
+    "bevy_heavy/std",
+    "bevy_transform_interpolation/std",
+    "parry2d?/std",
+    "parry2d-f64?/std",
+]
+
+# Enable `libm` math operations for `no_std` environments and cross-platform determinism.
+libm = [
+    "dep:libm",
+    "bevy/libm",
+    "bevy_heavy/libm",
+    "bevy_transform_interpolation/libm",
+]
+
 [lib]
 name = "avian2d"
 path = "../../src/lib.rs"
@@ -68,24 +85,32 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16.0-rc.1", default-features = false, features = [
-    "std",
-    "bevy_log",
+bevy = { version = "0.16.0-rc.1", default-features = false }
+bevy_math = { version = "0.16.0-rc.1", default-features = false }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", default-features = false, features = [
+    "2d",
+    "3d",
 ] }
-bevy_math = { version = "0.16.0-rc.1" }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", default-features = false }
 libm = { version = "0.2", optional = true }
-parry2d = { version = "0.17", optional = true }
-parry2d-f64 = { version = "0.17", optional = true }
-nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
-serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "1"
-indexmap = "2.0.0"
-arrayvec = "0.7"
-fxhash = "0.2.1"
-itertools = "0.13"
-bitflags = "2.5.0"
+parry2d = { version = "0.17", optional = true, default-features = false, features = [
+    "required-features",
+] }
+parry2d-f64 = { version = "0.17", optional = true, default-features = false, features = [
+    "required-features",
+] }
+nalgebra = { version = "0.33", default-features = false, features = [
+    "convert-glam029",
+], optional = true }
+serde = { version = "1", default-features = false, features = [
+    "derive",
+], optional = true }
+derive_more = { version = "1", default-features = false }
+log = { version = "0.4", default-features = false }
+indexmap = { version = "2.0.0", default-features = false }
+arrayvec = { version = "0.7", default-features = false }
+itertools = { version = "0.13", default-features = false }
+bitflags = { version = "2.5.0", default-features = false }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
@@ -94,7 +119,6 @@ bevy_math = { version = "0.16.0-rc.1", features = ["approx"] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
     "approx",
 ] }
-glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }

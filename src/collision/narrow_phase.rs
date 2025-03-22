@@ -861,6 +861,6 @@ pub fn reset_collision_states(
 
 /// Runs the [`PostProcessCollisions`] schedule.
 fn run_post_process_collisions_schedule(world: &mut World) {
-    trace!("running PostProcessCollisions");
+    log::trace!("running PostProcessCollisions");
     world.run_schedule(PostProcessCollisions);
 }

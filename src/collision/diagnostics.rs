@@ -1,3 +1,4 @@
+use alloc::{vec, vec::Vec};
 use bevy::{
     diagnostic::DiagnosticPath,
     prelude::{ReflectResource, Resource},

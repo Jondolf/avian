@@ -1,6 +1,7 @@
 use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
 
 use super::{AsF32, Collider, IntoCollider};
+use alloc::boxed::Box;
 use bevy::prelude::{Deref, DerefMut};
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
@@ -46,10 +47,12 @@ impl SupportMap for EllipseColliderShape {
 }
 
 impl Shape for EllipseColliderShape {
+    #[cfg(feature = "std")]
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
 
+    #[cfg(feature = "std")]
     fn scale_dyn(
         &self,
         scale: &parry::math::Vector<Scalar>,
@@ -99,6 +102,7 @@ impl Shape for EllipseColliderShape {
         )
     }
 
+    #[cfg(feature = "std")]
     fn clone_box(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
@@ -324,10 +328,12 @@ impl PolygonalFeatureMap for RegularPolygonColliderShape {
 }
 
 impl Shape for RegularPolygonColliderShape {
+    #[cfg(feature = "std")]
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
 
+    #[cfg(feature = "std")]
     fn scale_dyn(
         &self,
         scale: &parry::math::Vector<Scalar>,
@@ -377,6 +383,7 @@ impl Shape for RegularPolygonColliderShape {
         )
     }
 
+    #[cfg(feature = "std")]
     fn clone_box(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }

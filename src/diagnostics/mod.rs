@@ -76,6 +76,7 @@ pub(crate) use path_macro::impl_diagnostic_paths;
 pub use total::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
 
 use crate::{schedule::PhysicsSchedule, PhysicsStepSet};
+use alloc::vec::Vec;
 use bevy::{
     app::{App, Plugin},
     diagnostic::{Diagnostic, DiagnosticPath, Diagnostics, RegisterDiagnostic},

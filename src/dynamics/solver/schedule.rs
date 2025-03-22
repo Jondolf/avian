@@ -191,7 +191,7 @@ fn run_substep_schedule(world: &mut World) {
 
     let _ = world.try_schedule_scope(SubstepSchedule, |world, schedule| {
         for i in 0..substeps {
-            trace!("running SubstepSchedule: {i}");
+            log::trace!("running SubstepSchedule: {i}");
             *world.resource_mut::<Time>() = world.resource::<Time<Substeps>>().as_generic();
             schedule.run(world);
         }

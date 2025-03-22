@@ -121,7 +121,7 @@ impl Relationship for ColliderOf {
                     .insert(RigidBodyColliders(vec![collider]));
             }
         } else {
-            warn!(
+            log::warn!(
                 "{}Tried to attach collider on entity {collider} to rigid body on entity {rigid_body}, but the rigid body does not exist.",
                 caller.map(|location| format!("{location}: ")).unwrap_or_default(),
             );

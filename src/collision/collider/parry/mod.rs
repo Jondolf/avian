@@ -1,9 +1,9 @@
 #![allow(clippy::unnecessary_cast)]
 
 use crate::{make_isometry, prelude::*};
+use bevy::prelude::*;
 #[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-use bevy::{log, prelude::*};
 use collision::contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::shape::{RoundShape, SharedShape, TypedShape};

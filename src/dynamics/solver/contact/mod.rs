@@ -7,6 +7,7 @@ pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
 use crate::{dynamics::solver::softness_parameters::SoftnessCoefficients, prelude::*};
+use alloc::vec::Vec;
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,

@@ -1,3 +1,4 @@
+use alloc::vec;
 use bevy_math::primitives::{
     BoxedPolyline3d, Capsule3d, Cone, Cuboid, Cylinder, Line3d, Plane3d, Polyline3d, Segment3d,
     Sphere,
