@@ -370,7 +370,6 @@ fn generate_constraints<C: AnyCollider>(
 /// and generates [`ContactConstraints`] for the contacts.
 #[derive(SystemParam)]
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
-    parallel_commands: ParallelCommands<'w, 's>,
     collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
     body_query: Query<
         'w,
@@ -775,15 +774,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         {
             return;
         }
-
-        // When an active body collides with a sleeping body, wake up the sleeping body.
-        self.parallel_commands.command_scope(|mut commands| {
-            if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
-            } else if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
-            }
-        });
 
         let contact_softness = if !body1.rb.is_dynamic() || !body2.rb.is_dynamic() {
             contact_softness.non_dynamic

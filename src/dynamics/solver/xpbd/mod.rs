@@ -287,7 +287,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
         }
 
         // tilde_a = a/h^2
-        let tilde_compliance = compliance / dt.powi(2);
+        let tilde_compliance = compliance / dt.squared();
 
         (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
     }
@@ -317,7 +317,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
         }
 
         // tilde_a = a/h^2
-        let tilde_compliance = compliance / dt.powi(2);
+        let tilde_compliance = compliance / dt.squared();
 
         (-c - tilde_compliance * lagrange) / (w_sum + tilde_compliance)
     }

@@ -1310,7 +1310,7 @@ fn scale_shape(
             #[cfg(feature = "2d")]
             {
                 if scale.x == scale.y {
-                    Ok(SharedShape::ball(b.radius * scale.x.abs()))
+                    Ok(SharedShape::ball(b.radius * ops::abs(scale.x)))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
                     Ok(SharedShape::new(EllipseColliderShape(Ellipse {
@@ -1472,7 +1472,7 @@ fn scale_shape(
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonColliderShape(
                             RegularPolygon::new(
-                                polygon.circumradius() * scale.x.abs() as f32,
+                                polygon.circumradius() * ops::abs(scale.x) as f32,
                                 polygon.sides,
                             ),
                         )));

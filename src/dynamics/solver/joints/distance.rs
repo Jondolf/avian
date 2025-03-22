@@ -144,7 +144,7 @@ impl DistanceJoint {
         );
 
         // Avoid division by zero and unnecessary computation
-        if distance.abs() < Scalar::EPSILON {
+        if ops::abs(distance) < Scalar::EPSILON {
             return Vector::ZERO;
         }
 

@@ -13,6 +13,7 @@ categories = ["game-development", "science", "simulation"]
 
 [features]
 default = [
+    "std",
     "2d",
     "f32",
     "parry-f32",
@@ -90,6 +91,7 @@ bevy_math = { version = "0.16.0-rc.1", default-features = false }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", default-features = false, features = [
     "2d",
     "3d",
+    "bevy_reflect",
 ] }
 bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", default-features = false }
 libm = { version = "0.2", optional = true }
