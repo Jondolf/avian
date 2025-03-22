@@ -254,36 +254,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             ),
         );
 
-        // Imsert `ColliderOf` for colliders that are on the same entity as the rigid body.
-        app.add_observer(
-            |trigger: Trigger<OnAdd, (RigidBody, C)>,
-             mut commands: Commands,
-             query: Query<(), (With<RigidBody>, With<C>)>| {
-                let entity = trigger.target();
-
-                // Make sure the collider is on the same entity as the rigid body.
-                if query.contains(entity) {
-                    commands
-                        .entity(entity)
-                        .insert(ColliderOf { rigid_body: entity });
-                }
-            },
-        );
-
-        // Remove `ColliderOf` when the rigid body or collider is removed.
-        app.add_observer(
-            |trigger: Trigger<OnRemove, (RigidBody, C)>,
-             mut commands: Commands,
-             query: Query<(), With<ColliderMarker>>| {
-                let entity = trigger.target();
-
-                // Make sure the collider is on the same entity as the rigid body.
-                if query.contains(entity) {
-                    commands.entity(entity).remove::<ColliderOf>();
-                }
-            },
-        );
-
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
@@ -721,8 +691,9 @@ mod tests {
         app.add_plugins((
             PreparePlugin::new(FixedPostUpdate),
             MassPropertyPlugin::new(FixedPostUpdate),
+            ColliderHierarchyPlugin,
+            ColliderTransformPlugin::default(),
             ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
-            ColliderHierarchyPlugin::new(FixedPostUpdate),
         ));
 
         let collider = Collider::capsule(0.5, 2.0);

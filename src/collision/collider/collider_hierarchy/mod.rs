@@ -1,3 +1,10 @@
+//! [`ColliderOf`] relationships for attaching colliders to rigid bodies
+//! based on the entity hierarchy.
+
+mod plugin;
+
+pub use plugin::ColliderHierarchyPlugin;
+
 use crate::prelude::*;
 use bevy::{
     ecs::{

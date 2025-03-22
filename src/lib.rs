@@ -530,7 +530,11 @@ pub mod prelude {
         collision::{
             self,
             broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
-            collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
+            collider::{
+                collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
+                collider_transform::{ColliderTransform, ColliderTransformPlugin},
+                ColliderBackendPlugin,
+            },
             contact_reporting::{
                 Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
             },
@@ -582,7 +586,8 @@ use prelude::*;
 /// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
-/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and manages connections between colliders and rigid bodies.                                                                  |
+/// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
+/// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
 /// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
 /// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
 /// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
@@ -804,7 +809,8 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsTypeRegistrationPlugin)
             .add(PreparePlugin::new(self.schedule))
             .add(MassPropertyPlugin::new(self.schedule))
-            .add(ColliderHierarchyPlugin::new(self.schedule));
+            .add(ColliderHierarchyPlugin)
+            .add(ColliderTransformPlugin::new(self.schedule));
 
         #[cfg(all(
             feature = "default-collider",

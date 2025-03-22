@@ -1,7 +1,3 @@
-//! Handles transform propagation, scale updates, and [`ColliderOf`] updates for colliders.
-//!
-//! See [`ColliderHierarchyPlugin`].
-
 use crate::{
     prelude::*,
     prepare::{match_any, PrepareSet},
@@ -13,19 +9,19 @@ use bevy::{
 };
 use narrow_phase::NarrowPhaseSet;
 
-/// A plugin for managing the collider hierarchy and related updates.
+/// A plugin for propagating and updating transforms for colliders.
 ///
-/// - Updates [`ColliderOf`].
-/// - Propagates [`ColliderTransform`].
+/// - Propagates [`Transform`] to [`GlobalTransform`] and [`ColliderTransform`].
+/// - Updates [`Position`] and [`Rotation`] for colliders.
 ///
 /// This plugin requires that colliders have the [`ColliderMarker`] component,
 /// which is added automatically for colliders if the [`ColliderBackendPlugin`] is enabled.
-pub struct ColliderHierarchyPlugin {
+pub struct ColliderTransformPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
 
-impl ColliderHierarchyPlugin {
-    /// Creates a [`ColliderHierarchyPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+impl ColliderTransformPlugin {
+    /// Creates a [`ColliderTransformPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
     /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
@@ -35,7 +31,7 @@ impl ColliderHierarchyPlugin {
     }
 }
 
-impl Default for ColliderHierarchyPlugin {
+impl Default for ColliderTransformPlugin {
     fn default() -> Self {
         Self {
             schedule: FixedPostUpdate.intern(),
@@ -43,19 +39,12 @@ impl Default for ColliderHierarchyPlugin {
     }
 }
 
-// TODO: Split into `ColliderHierarchyPlugin` and `ColliderTransformPlugin`.
-impl Plugin for ColliderHierarchyPlugin {
+impl Plugin for ColliderTransformPlugin {
     fn build(&self, app: &mut App) {
         // Mark ancestors of colliders with `AncestorMarker<ColliderMarker>`.
         // This is used to speed up `ColliderTransform` propagation by skipping
         // trees that have no colliders.
         app.add_plugins(AncestorMarkerPlugin::<ColliderMarker>::default());
-
-        // Update `ColliderOf` components for colliders when their ancestors change.
-        app.add_observer(on_collider_rigid_body_changed);
-
-        // Remove `ColliderOf` from colliders when their rigid bodies are removed.
-        app.add_observer(on_rigid_body_removed);
 
         // Run transform propagation if new colliders without rigid bodies have been added.
         // The `PreparePlugin` should handle transform propagation for new rigid bodies.
@@ -91,79 +80,6 @@ impl Plugin for ColliderHierarchyPlugin {
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
-    }
-}
-
-/// Updates [`ColliderOf`] components for colliders when their ancestors change.
-fn on_collider_rigid_body_changed(
-    trigger: Trigger<OnInsert, (ChildOf, AncestorMarker<ColliderMarker>)>,
-    mut commands: Commands,
-    query: Query<
-        Has<ColliderMarker>,
-        Or<(With<ColliderMarker>, With<AncestorMarker<ColliderMarker>>)>,
-    >,
-    child_query: Query<&Children>,
-    parent_query: Query<&ChildOf>,
-    rb_query: Query<(), With<RigidBody>>,
-    collider_query: Query<(), With<ColliderMarker>>,
-) {
-    let entity = trigger.target();
-
-    // Skip if the entity is not a collider or an ancestor of a collider.
-    let Ok(is_collider) = query.get(entity) else {
-        return;
-    };
-
-    // Find the closest rigid body ancestor.
-    let Some(rb_entity) = parent_query
-        .iter_ancestors(trigger.target())
-        .find(|&entity| rb_query.contains(entity))
-    else {
-        return;
-    };
-
-    // Insert `ColliderOf` for the new child entity.
-    if is_collider {
-        commands.entity(entity).insert(ColliderOf {
-            rigid_body: rb_entity,
-        });
-    }
-
-    // Iterate over all descendants starting from the new child entity,
-    // and update the `ColliderOf` component to point to the closest rigid body ancestor.
-    for child in child_query.iter_descendants(entity) {
-        // Stop traversal if we reach another rigid body.
-        if rb_query.contains(child) {
-            break;
-        }
-
-        // Update the `ColliderOf` component.
-        if collider_query.contains(child) {
-            commands.entity(child).insert(ColliderOf {
-                rigid_body: rb_entity,
-            });
-        }
-    }
-}
-
-/// Removes [`ColliderOf`] from colliders when their rigid bodies are removed.
-fn on_rigid_body_removed(
-    trigger: Trigger<OnRemove, RigidBody>,
-    mut commands: Commands,
-    rb_collider_query: Query<&RigidBodyColliders>,
-) {
-    // TODO: Here we assume that rigid bodies are not nested, so `ColliderOf` is simply removed
-    //       instead of being updated to point to a new rigid body in the hierarchy.
-
-    let rb_entity = trigger.target();
-
-    // Remove `ColliderOf` from all colliders attached to the rigid body.
-    if let Ok(colliders) = rb_collider_query.get(rb_entity) {
-        for collider_entity in colliders.iter() {
-            commands
-                .entity(collider_entity)
-                .remove::<(ColliderOf, ColliderTransform)>();
-        }
     }
 }
 
