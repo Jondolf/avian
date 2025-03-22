@@ -310,11 +310,11 @@ fn generate_constraints<C: AnyCollider>(
         };
 
         let body1_bundle = collider1
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
         let body2_bundle = collider2
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
         if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
             body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
             body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
@@ -490,11 +490,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         };
 
         let body1_bundle = collider1
-            .parent
-            .and_then(|p| self.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| self.body_query.get(rigid_body).ok());
         let body2_bundle = collider2
-            .parent
-            .and_then(|p| self.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| self.body_query.get(rigid_body).ok());
 
         // The rigid body's collision margin and speculative margin will be used
         // if the collider doesn't have them specified.
@@ -697,8 +697,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         let mut contacts = Contacts {
             entity1: collider1.entity,
             entity2: collider2.entity,
-            body_entity1: collider1.parent.map(|p| p.get()),
-            body_entity2: collider2.parent.map(|p| p.get()),
+            body_entity1: collider1
+                .rigid_body
+                .map(|&ColliderOf { rigid_body }| rigid_body),
+            body_entity2: collider2
+                .rigid_body
+                .map(|&ColliderOf { rigid_body }| rigid_body),
             during_current_frame: true,
             during_previous_frame: previous_contacts.is_some_and(|c| c.during_previous_frame),
             manifolds,

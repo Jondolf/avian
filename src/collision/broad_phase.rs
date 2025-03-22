@@ -105,7 +105,7 @@ pub struct AabbIntersections(pub Vec<Entity>);
 struct AabbIntervals(
     Vec<(
         Entity,
-        ColliderParent,
+        ColliderOf,
         ColliderAabb,
         CollisionLayers,
         AabbIntervalFlags,
@@ -139,7 +139,7 @@ fn update_aabb_intervals(
     aabbs: Query<
         (
             &ColliderAabb,
-            Option<&ColliderParent>,
+            Option<&ColliderOf>,
             Option<&CollisionLayers>,
             Option<&ActiveCollisionHooks>,
             Has<AabbIntersections>,
@@ -152,10 +152,10 @@ fn update_aabb_intervals(
 ) {
     intervals
         .0
-        .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
+        .retain_mut(|(collider_entity, collider_of, aabb, layers, flags)| {
             if let Ok((
                 new_aabb,
-                new_parent,
+                new_collider_of,
                 new_layers,
                 hooks,
                 new_store_intersections,
@@ -167,11 +167,18 @@ fn update_aabb_intervals(
                 }
 
                 *aabb = *new_aabb;
-                *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
+                *collider_of = new_collider_of.map_or(
+                    ColliderOf {
+                        rigid_body: *collider_entity,
+                    },
+                    |p| *p,
+                );
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
 
-                let is_static =
-                    new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
+                let is_static = new_collider_of.is_some_and(|collider_of| {
+                    rbs.get(collider_of.rigid_body)
+                        .is_ok_and(RigidBody::is_static)
+                });
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
                 flags.set(
@@ -192,7 +199,7 @@ fn update_aabb_intervals(
 
 type AabbIntervalQueryData = (
     Entity,
-    Option<Read<ColliderParent>>,
+    Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
     Option<Read<RigidBody>>,
     Option<Read<CollisionLayers>>,
@@ -210,7 +217,7 @@ fn add_new_aabb_intervals(
 ) {
     let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
-        |(entity, parent, aabb, rb, layers, hooks, store_intersections)| {
+        |(entity, collider_of, aabb, rb, layers, hooks, store_intersections)| {
             let mut flags = AabbIntervalFlags::empty();
             flags.set(AabbIntervalFlags::STORE_INTERSECTIONS, store_intersections);
             flags.set(
@@ -223,7 +230,7 @@ fn add_new_aabb_intervals(
             );
             (
                 entity,
-                parent.map_or(ColliderParent(entity), |p| *p),
+                collider_of.map_or(ColliderOf { rigid_body: entity }, |p| *p),
                 *aabb,
                 layers.map_or(CollisionLayers::default(), |layers| *layers),
                 flags,
@@ -280,20 +287,20 @@ fn sweep_and_prune<H: CollisionHooks>(
     broad_collision_pairs.clear();
 
     // Find potential collisions by checking for AABB intersections along all axes.
-    for (i, (entity1, parent1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
-        for (entity2, parent2, aabb2, layers2, flags2) in intervals.0.iter().skip(i + 1) {
+    for (i, (entity1, collider_of1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
+        for (entity2, collider_of2, aabb2, layers2, flags2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect; check this first so we can discard as soon as possible.
             if aabb2.min.x > aabb1.max.x {
                 break;
             }
 
             // No collisions between bodies that haven't moved or colliders with incompatible layers
-            // or colliders with the same parent.
+            // or colliders attached to the same rigid body.
             if flags1
                 .intersection(*flags2)
                 .contains(AabbIntervalFlags::IS_INACTIVE)
                 || !layers1.interacts_with(*layers2)
-                || parent1 == parent2
+                || collider_of1 == collider_of2
             {
                 continue;
             }

@@ -12,10 +12,11 @@ use bevy::{
 use derive_more::From;
 
 mod backend;
-mod hierarchy;
 
 pub use backend::{ColliderBackendPlugin, ColliderMarker};
-pub use hierarchy::ColliderHierarchyPlugin;
+
+pub mod collider_hierarchy;
+pub mod collider_transform;
 
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
@@ -380,113 +381,6 @@ pub trait ScalableCollider: AnyCollider {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default)]
 pub struct ColliderDisabled;
-
-/// A component that stores the `Entity` ID of the [`RigidBody`] that a [`Collider`] is attached to.
-///
-/// If the collider is a child of a rigid body, this points to the body's `Entity` ID.
-/// If the [`Collider`] component is instead on the same entity as the [`RigidBody`] component,
-/// this points to the collider's own `Entity` ID.
-///
-/// This component is added and updated automatically based on entity hierarchies and should not
-/// be modified directly.
-///
-/// # Example
-///
-/// ```
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// fn setup(mut commands: Commands) {
-///     // Spawn a rigid body with one collider on the same entity and two as children.
-///     // Each entity will have a ColliderParent component that has the same rigid body entity.
-///     commands
-#[cfg_attr(
-    feature = "2d",
-    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))
-        .with_children(|children| {
-            children.spawn((Collider::circle(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-            children.spawn((Collider::circle(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
-        });"
-)]
-#[cfg_attr(
-    feature = "3d",
-    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))
-        .with_children(|children| {
-            children.spawn((Collider::sphere(0.5), Transform::from_xyz(2.0, 0.0, 0.0)));
-            children.spawn((Collider::sphere(0.5), Transform::from_xyz(-2.0, 0.0, 0.0)));
-        });"
-)]
-/// }
-/// ```
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct ColliderParent(#[entities] pub(crate) Entity);
-
-impl ColliderParent {
-    /// Gets the `Entity` ID of the [`RigidBody`] that this [`Collider`] is attached to.
-    pub const fn get(&self) -> Entity {
-        self.0
-    }
-}
-
-/// The transform of a collider relative to the rigid body it's attached to.
-/// This is in the local space of the body, not the collider itself.
-///
-/// This is used for computing things like contact positions and a body's center of mass
-/// without having to traverse deeply nested hierarchies. It's updated automatically,
-/// so you shouldn't modify it manually.
-#[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct ColliderTransform {
-    /// The translation of a collider in a rigid body's frame of reference.
-    pub translation: Vector,
-    /// The rotation of a collider in a rigid body's frame of reference.
-    pub rotation: Rotation,
-    /// The global scale of a collider. Equivalent to the `GlobalTransform` scale.
-    pub scale: Vector,
-}
-
-impl ColliderTransform {
-    /// Transforms a given point by applying the translation, rotation and scale of
-    /// this [`ColliderTransform`].
-    pub fn transform_point(&self, mut point: Vector) -> Vector {
-        point *= self.scale;
-        point = self.rotation * point;
-        point += self.translation;
-        point
-    }
-}
-
-impl Default for ColliderTransform {
-    fn default() -> Self {
-        Self {
-            translation: Vector::ZERO,
-            rotation: Rotation::default(),
-            scale: Vector::ONE,
-        }
-    }
-}
-
-impl From<Transform> for ColliderTransform {
-    fn from(value: Transform) -> Self {
-        Self {
-            #[cfg(feature = "2d")]
-            translation: value.translation.truncate().adjust_precision(),
-            #[cfg(feature = "3d")]
-            translation: value.translation.adjust_precision(),
-            rotation: Rotation::from(value.rotation.adjust_precision()),
-            #[cfg(feature = "2d")]
-            scale: value.scale.truncate().adjust_precision(),
-            #[cfg(feature = "3d")]
-            scale: value.scale.adjust_precision(),
-        }
-    }
-}
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///

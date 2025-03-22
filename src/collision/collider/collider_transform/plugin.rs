@@ -1,7 +1,3 @@
-//! Handles transform propagation, scale updates, and [`ColliderParent`] updates for colliders.
-//!
-//! See [`ColliderHierarchyPlugin`].
-
 use crate::{
     prelude::*,
     prepare::{match_any, PrepareSet},
@@ -13,19 +9,19 @@ use bevy::{
 };
 use narrow_phase::NarrowPhaseSet;
 
-/// A plugin for managing the collider hierarchy and related updates.
+/// A plugin for propagating and updating transforms for colliders.
 ///
-/// - Updates [`ColliderParent`].
-/// - Propagates [`ColliderTransform`].
+/// - Propagates [`Transform`] to [`GlobalTransform`] and [`ColliderTransform`].
+/// - Updates [`Position`] and [`Rotation`] for colliders.
 ///
 /// This plugin requires that colliders have the [`ColliderMarker`] component,
 /// which is added automatically for colliders if the [`ColliderBackendPlugin`] is enabled.
-pub struct ColliderHierarchyPlugin {
+pub struct ColliderTransformPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
 
-impl ColliderHierarchyPlugin {
-    /// Creates a [`ColliderHierarchyPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+impl ColliderTransformPlugin {
+    /// Creates a [`ColliderTransformPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
     /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
@@ -35,7 +31,7 @@ impl ColliderHierarchyPlugin {
     }
 }
 
-impl Default for ColliderHierarchyPlugin {
+impl Default for ColliderTransformPlugin {
     fn default() -> Self {
         Self {
             schedule: FixedPostUpdate.intern(),
@@ -43,20 +39,12 @@ impl Default for ColliderHierarchyPlugin {
     }
 }
 
-impl Plugin for ColliderHierarchyPlugin {
+impl Plugin for ColliderTransformPlugin {
     fn build(&self, app: &mut App) {
         // Mark ancestors of colliders with `AncestorMarker<ColliderMarker>`.
         // This is used to speed up `ColliderTransform` propagation by skipping
         // trees that have no colliders.
         app.add_plugins(AncestorMarkerPlugin::<ColliderMarker>::default());
-
-        // Update collider parents.
-        app.add_systems(
-            self.schedule,
-            update_collider_parents
-                .after(PrepareSet::PropagateTransforms)
-                .before(PrepareSet::Finalize),
-        );
 
         // Run transform propagation if new colliders without rigid bodies have been added.
         // The `PreparePlugin` should handle transform propagation for new rigid bodies.
@@ -89,95 +77,38 @@ impl Plugin for ColliderHierarchyPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics_schedule
-            .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
-
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
     }
 }
 
-/// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
-///
-/// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
-/// on the same entity as the rigid body.
-#[allow(clippy::type_complexity)]
-fn update_collider_parents(
-    mut commands: Commands,
-    mut bodies: Query<Entity, (With<RigidBody>, With<AncestorMarker<ColliderMarker>>)>,
-    children: Query<&Children>,
-    mut child_colliders: Query<
-        Option<&mut ColliderParent>,
-        (With<ColliderMarker>, Without<RigidBody>),
-    >,
-) {
-    for entity in &mut bodies {
-        for child in children.iter_descendants(entity) {
-            if let Ok(collider_parent) = child_colliders.get_mut(child) {
-                if let Some(mut collider_parent) = collider_parent {
-                    collider_parent.0 = entity;
-                } else {
-                    commands.entity(child).insert((
-                        ColliderParent(entity),
-                        // TODO: This probably causes a one frame delay. Compute real value?
-                        ColliderTransform::default(),
-                    ));
-                }
-            }
-        }
-    }
-}
-
-/// Updates colliders when the rigid bodies they were attached to have been removed.
-fn handle_rigid_body_removals(
-    mut commands: Commands,
-    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
-    bodies: Query<(), With<RigidBody>>,
-    removals: RemovedComponents<RigidBody>,
-) {
-    // Return if no rigid bodies have been removed
-    if removals.is_empty() {
-        return;
-    }
-
-    for (collider_entity, collider_parent) in &colliders {
-        // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderTransform.
-        if !bodies.contains(collider_parent.get()) {
-            commands
-                .entity(collider_entity)
-                .remove::<(ColliderParent, ColliderTransform)>();
-        }
-    }
-}
-
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_child_collider_position(
-    mut colliders: Query<
+    mut collider_query: Query<
         (
             &ColliderTransform,
             &mut Position,
             &mut Rotation,
-            &ColliderParent,
+            &ColliderOf,
         ),
         Without<RigidBody>,
     >,
-    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
+    rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
-    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
-        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
+    for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {
+        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.rigid_body) else {
             continue;
         };
 
-        position.0 = parent_pos.0 + parent_rot * collider_transform.translation;
+        position.0 = rb_pos.0 + rb_rot * collider_transform.translation;
         #[cfg(feature = "2d")]
         {
-            *rotation = *parent_rot * collider_transform.rotation;
+            *rotation = *rb_rot * collider_transform.rotation;
         }
         #[cfg(feature = "3d")]
         {
-            *rotation = (parent_rot.0 * collider_transform.rotation.0)
+            *rotation = (rb_rot.0 * collider_transform.rotation.0)
                 .normalize()
                 .into();
         }

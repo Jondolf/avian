@@ -188,7 +188,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 let entity_ref = world.entity_mut(ctx.entity);
 
                 // Get the rigid body entity that the collider is attached to.
-                let Some(parent) = entity_ref.get::<ColliderParent>().copied() else {
+                let Some(collider_of) = entity_ref.get::<ColliderOf>().copied() else {
                     return;
                 };
 
@@ -197,22 +197,24 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     *world.resource::<ColliderRemovalSystem>().to_owned();
 
                 // Handle collider removal.
-                world.commands().run_system_with(system_id, parent);
+                world.commands().run_system_with(system_id, collider_of);
             });
 
         // When the `Sensor` component is added to a collider, queue its rigid body for a mass property update.
         app.add_observer(
             |trigger: Trigger<OnAdd, Sensor>,
              mut commands: Commands,
-             query: Query<(&ColliderMassProperties, &ColliderParent)>| {
-                if let Ok((collider_mass_properties, parent)) = query.get(trigger.target()) {
+             query: Query<(&ColliderMassProperties, &ColliderOf)>| {
+                if let Ok((collider_mass_properties, &ColliderOf { rigid_body })) =
+                    query.get(trigger.target())
+                {
                     // If the collider mass properties are zero, there is nothing to subtract.
                     if *collider_mass_properties == ColliderMassProperties::ZERO {
                         return;
                     }
 
-                    // Queue the parent rigid body for a mass property update.
-                    if let Ok(mut entity_commands) = commands.get_entity(parent.get()) {
+                    // Queue the rigid body for a mass property update.
+                    if let Ok(mut entity_commands) = commands.get_entity(rigid_body) {
                         entity_commands.insert(RecomputeMassProperties);
                     }
                 }
@@ -252,12 +254,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             ),
         );
 
-        // Update collider parents for colliders that are on the same entity as the rigid body.
-        app.add_systems(
-            self.schedule,
-            update_root_collider_parents::<C>.before(PrepareSet::Finalize),
-        );
-
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
@@ -289,29 +285,6 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 #[derive(Reflect, Component, Clone, Copy, Debug, Default)]
 #[reflect(Component, Debug, Default)]
 pub struct ColliderMarker;
-
-/// Updates [`ColliderParent`] for colliders that are on the same entity as the [`RigidBody`].
-///
-/// The [`ColliderHierarchyPlugin`] should be used to handle hierarchies.
-fn update_root_collider_parents<C: AnyCollider>(
-    mut commands: Commands,
-    mut bodies: Query<
-        (Entity, Option<&mut ColliderParent>),
-        (With<RigidBody>, With<C>, Or<(Added<RigidBody>, Added<C>)>),
-    >,
-) {
-    for (entity, collider_parent) in &mut bodies {
-        if let Some(mut collider_parent) = collider_parent {
-            collider_parent.0 = entity;
-        } else {
-            commands.entity(entity).try_insert((
-                ColliderParent(entity),
-                // TODO: This probably causes a one frame delay. Compute real value?
-                ColliderTransform::default(),
-            ));
-        }
-    }
-}
 
 /// Generates [`Collider`]s based on [`ColliderConstructor`]s.
 ///
@@ -505,7 +478,7 @@ fn update_aabb<C: AnyCollider>(
             &mut ColliderAabb,
             &Position,
             &Rotation,
-            Option<&ColliderParent>,
+            Option<&ColliderOf>,
             Option<&CollisionMargin>,
             Option<&SpeculativeMargin>,
             Has<SweptCcd>,
@@ -520,7 +493,7 @@ fn update_aabb<C: AnyCollider>(
             Changed<C>,
         )>,
     >,
-    parent_velocity: Query<
+    rb_velocities: Query<
         (
             &Position,
             &ComputedCenterOfMass,
@@ -544,7 +517,7 @@ fn update_aabb<C: AnyCollider>(
         mut aabb,
         pos,
         rot,
-        collider_parent,
+        collider_of,
         collision_margin,
         speculative_margin,
         has_swept_ccd,
@@ -571,8 +544,8 @@ fn update_aabb<C: AnyCollider>(
         // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Some(Ok((parent_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
-            collider_parent.map(|p| parent_velocity.get(p.get()))
+        } else if let Some(Ok((rb_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
+            collider_of.map(|&ColliderOf { rigid_body }| rb_velocities.get(rigid_body))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
             // which affects their linear velocities. We need to compute the linear velocity
@@ -580,7 +553,7 @@ fn update_aabb<C: AnyCollider>(
             // TODO: This assumes that the colliders would continue moving in the same direction,
             //       but because they are orbiting, the direction will change. We should take
             //       into account the uniform circular motion.
-            let offset = pos.0 - parent_pos.0 - center_of_mass.0;
+            let offset = pos.0 - rb_pos.0 - center_of_mass.0;
             #[cfg(feature = "2d")]
             let vel_at_offset =
                 lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
@@ -661,26 +634,24 @@ pub fn update_collider_scale<C: ScalableCollider>(
 
 /// A resource that stores the system ID for the system that reacts to collider removals.
 #[derive(Resource)]
-struct ColliderRemovalSystem(SystemId<In<ColliderParent>>);
+struct ColliderRemovalSystem(SystemId<In<ColliderOf>>);
 
 /// Updates the mass properties of bodies and wakes bodies up when an attached collider is removed.
 ///
-/// Takes the removed collider's entity, parent, mass properties, and transform as input.
+/// Takes the removed collider's entity, rigid body entity, mass properties, and transform as input.
 fn collider_removed(
-    In(parent): In<ColliderParent>,
+    In(ColliderOf { rigid_body }): In<ColliderOf>,
     mut commands: Commands,
     mut sleep_query: Query<&mut TimeSleeping>,
 ) {
-    let parent = parent.get();
-
-    let Ok(mut entity_commands) = commands.get_entity(parent) else {
+    let Ok(mut entity_commands) = commands.get_entity(rigid_body) else {
         return;
     };
 
-    // Queue the parent entity for mass property recomputation.
+    // Queue the rigid body for mass property recomputation.
     entity_commands.insert(RecomputeMassProperties);
 
-    if let Ok(mut time_sleeping) = sleep_query.get_mut(parent) {
+    if let Ok(mut time_sleeping) = sleep_query.get_mut(rigid_body) {
         // Wake up the rigid body since removing the collider could also remove active contacts.
         entity_commands.remove::<Sleeping>();
         time_sleeping.0 = 0.0;
@@ -720,8 +691,9 @@ mod tests {
         app.add_plugins((
             PreparePlugin::new(FixedPostUpdate),
             MassPropertyPlugin::new(FixedPostUpdate),
+            ColliderHierarchyPlugin,
+            ColliderTransformPlugin::default(),
             ColliderBackendPlugin::<Collider>::new(FixedPostUpdate),
-            ColliderHierarchyPlugin::new(FixedPostUpdate),
         ));
 
         let collider = Collider::capsule(0.5, 2.0);

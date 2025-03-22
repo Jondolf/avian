@@ -11,7 +11,7 @@ use bevy::{ecs::query::QueryData, prelude::*};
 #[derive(QueryData)]
 pub struct ColliderQuery<C: AnyCollider> {
     pub entity: Entity,
-    pub parent: Option<&'static ColliderParent>,
+    pub rigid_body: Option<&'static ColliderOf>,
     pub position: Ref<'static, Position>,
     pub rotation: Ref<'static, Rotation>,
     pub accumulated_translation: Option<Ref<'static, AccumulatedTranslation>>,

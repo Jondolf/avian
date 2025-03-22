@@ -360,7 +360,7 @@ pub type MassPropertyChanged = Or<(
 /// Queues mass property recomputation for rigid bodies when their [`Mass`], [`AngularInertia`],
 /// or [`CenterOfMass`] components are changed.
 ///
-/// Entities with a [`ColliderParent`] are excluded, as they are handled by
+/// Colliders attached to rigid bodies are excluded, as they are handled by
 /// [`queue_mass_recomputation_on_collider_mass_change`].
 fn queue_mass_recomputation_on_mass_change(
     mut commands: Commands,
@@ -368,7 +368,7 @@ fn queue_mass_recomputation_on_mass_change(
         Entity,
         (
             WithComputedMassProperty,
-            Without<ColliderParent>,
+            Without<ColliderOf>,
             MassPropertyChanged,
         ),
     >,
@@ -383,7 +383,7 @@ fn queue_mass_recomputation_on_mass_change(
 fn queue_mass_recomputation_on_collider_mass_change(
     mut commands: Commands,
     mut query: Query<
-        &ColliderParent,
+        &ColliderOf,
         Or<(
             Changed<ColliderMassProperties>,
             Changed<ColliderTransform>,
@@ -391,8 +391,8 @@ fn queue_mass_recomputation_on_collider_mass_change(
         )>,
     >,
 ) {
-    for collider_parent in &mut query {
-        if let Ok(mut entity_commands) = commands.get_entity(collider_parent.get()) {
+    for &ColliderOf { rigid_body } in &mut query {
+        if let Ok(mut entity_commands) = commands.get_entity(rigid_body) {
             entity_commands.insert(RecomputeMassProperties);
         }
     }
