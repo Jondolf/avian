@@ -45,6 +45,7 @@ use bevy::{
 ///
 /// [`Relationship`]: bevy::ecs::relationship::Relationship
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[component(immutable, on_insert = <ColliderOf as Relationship>::on_insert, on_replace = <ColliderOf as Relationship>::on_replace)]
 #[require(ColliderTransform)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -105,14 +106,11 @@ impl Relationship for ColliderOf {
             .unwrap()
             .rigid_body;
 
-        if let Ok(mut rigid_body_mut) = world.get_entity_mut(rigid_body) {
-            if !rigid_body_mut.contains::<RigidBody>() {
-                warn!("{}Tried to attach collider on entity {collider} to entity {rigid_body}, but the entity is not a rigid body. No `ColliderOf` component was added.",
-                    caller.map(|location| format!("{location}: ")).unwrap_or_default(),
-                );
-                return;
-            }
-
+        if let Some(mut rigid_body_mut) = world
+            .get_entity_mut(rigid_body)
+            .ok()
+            .filter(|e| e.contains::<RigidBody>())
+        {
             // Attach the collider to the rigid body.
             if let Some(mut colliders) = rigid_body_mut.get_mut::<RigidBodyColliders>() {
                 colliders.0.push(collider);
