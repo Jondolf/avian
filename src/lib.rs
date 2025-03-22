@@ -582,7 +582,7 @@ use prelude::*;
 /// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
-/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
+/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and manages connections between colliders and rigid bodies.                                                                  |
 /// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
 /// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
 /// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |

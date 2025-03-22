@@ -105,7 +105,7 @@ pub struct AabbIntersections(pub Vec<Entity>);
 struct AabbIntervals(
     Vec<(
         Entity,
-        ColliderParent,
+        ColliderOf,
         ColliderAabb,
         CollisionLayers,
         AabbIntervalFlags,
@@ -139,7 +139,7 @@ fn update_aabb_intervals(
     aabbs: Query<
         (
             &ColliderAabb,
-            Option<&ColliderParent>,
+            Option<&ColliderOf>,
             Option<&CollisionLayers>,
             Option<&ActiveCollisionHooks>,
             Has<AabbIntersections>,
@@ -152,10 +152,10 @@ fn update_aabb_intervals(
 ) {
     intervals
         .0
-        .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
+        .retain_mut(|(collider_entity, collider_of, aabb, layers, flags)| {
             if let Ok((
                 new_aabb,
-                new_parent,
+                new_collider_of,
                 new_layers,
                 hooks,
                 new_store_intersections,
@@ -167,11 +167,18 @@ fn update_aabb_intervals(
                 }
 
                 *aabb = *new_aabb;
-                *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
+                *collider_of = new_collider_of.map_or(
+                    ColliderOf {
+                        rigid_body: *collider_entity,
+                    },
+                    |p| *p,
+                );
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
 
-                let is_static =
-                    new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
+                let is_static = new_collider_of.is_some_and(|collider_of| {
+                    rbs.get(collider_of.rigid_body)
+                        .is_ok_and(RigidBody::is_static)
+                });
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
                 flags.set(
@@ -192,7 +199,7 @@ fn update_aabb_intervals(
 
 type AabbIntervalQueryData = (
     Entity,
-    Option<Read<ColliderParent>>,
+    Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
     Option<Read<RigidBody>>,
     Option<Read<CollisionLayers>>,
@@ -223,7 +230,7 @@ fn add_new_aabb_intervals(
             );
             (
                 entity,
-                parent.map_or(ColliderParent(entity), |p| *p),
+                parent.map_or(ColliderOf { rigid_body: entity }, |p| *p),
                 *aabb,
                 layers.map_or(CollisionLayers::default(), |layers| *layers),
                 flags,

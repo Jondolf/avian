@@ -314,7 +314,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders can be arbitrarily nested and transformed relative to the parent.
-/// The rigid body that a collider is attached to can be accessed using the [`ColliderParent`] component.
+/// The rigid body that a collider is attached to can be accessed using the [`ColliderOf`] component.
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),

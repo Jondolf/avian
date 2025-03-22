@@ -1,4 +1,4 @@
-//! Handles transform propagation, scale updates, and [`ColliderParent`] updates for colliders.
+//! Handles transform propagation, scale updates, and [`ColliderOf`] updates for colliders.
 //!
 //! See [`ColliderHierarchyPlugin`].
 
@@ -15,7 +15,7 @@ use narrow_phase::NarrowPhaseSet;
 
 /// A plugin for managing the collider hierarchy and related updates.
 ///
-/// - Updates [`ColliderParent`].
+/// - Updates [`ColliderOf`].
 /// - Propagates [`ColliderTransform`].
 ///
 /// This plugin requires that colliders have the [`ColliderMarker`] component,
@@ -43,6 +43,7 @@ impl Default for ColliderHierarchyPlugin {
     }
 }
 
+// TODO: Split into `ColliderHierarchyPlugin` and `ColliderTransformPlugin`.
 impl Plugin for ColliderHierarchyPlugin {
     fn build(&self, app: &mut App) {
         // Mark ancestors of colliders with `AncestorMarker<ColliderMarker>`.
@@ -50,13 +51,11 @@ impl Plugin for ColliderHierarchyPlugin {
         // trees that have no colliders.
         app.add_plugins(AncestorMarkerPlugin::<ColliderMarker>::default());
 
-        // Update collider parents.
-        app.add_systems(
-            self.schedule,
-            update_collider_parents
-                .after(PrepareSet::PropagateTransforms)
-                .before(PrepareSet::Finalize),
-        );
+        // Update `ColliderOf` components for colliders when their ancestors change.
+        app.add_observer(on_collider_rigid_body_changed);
+
+        // Remove `ColliderOf` from colliders when their rigid bodies are removed.
+        app.add_observer(on_rigid_body_removed);
 
         // Run transform propagation if new colliders without rigid bodies have been added.
         // The `PreparePlugin` should handle transform propagation for new rigid bodies.
@@ -89,84 +88,100 @@ impl Plugin for ColliderHierarchyPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics_schedule
-            .add_systems(handle_rigid_body_removals.after(PhysicsStepSet::SpatialQuery));
-
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
     }
 }
 
-/// Updates [`ColliderParent`] for descendant colliders of [`RigidBody`] entities.
-///
-/// The [`ColliderBackendPlugin`] handles collider parents for colliders that are
-/// on the same entity as the rigid body.
-#[allow(clippy::type_complexity)]
-fn update_collider_parents(
+/// Updates [`ColliderOf`] components for colliders when their ancestors change.
+fn on_collider_rigid_body_changed(
+    trigger: Trigger<OnInsert, (ChildOf, AncestorMarker<ColliderMarker>)>,
     mut commands: Commands,
-    mut bodies: Query<Entity, (With<RigidBody>, With<AncestorMarker<ColliderMarker>>)>,
-    children: Query<&Children>,
-    mut child_colliders: Query<
-        Option<&mut ColliderParent>,
-        (With<ColliderMarker>, Without<RigidBody>),
+    query: Query<
+        Has<ColliderMarker>,
+        Or<(With<ColliderMarker>, With<AncestorMarker<ColliderMarker>>)>,
     >,
+    child_query: Query<&Children>,
+    parent_query: Query<&ChildOf>,
+    rb_query: Query<(), With<RigidBody>>,
+    collider_query: Query<(), With<ColliderMarker>>,
 ) {
-    for entity in &mut bodies {
-        for child in children.iter_descendants(entity) {
-            if let Ok(collider_parent) = child_colliders.get_mut(child) {
-                if let Some(mut collider_parent) = collider_parent {
-                    collider_parent.0 = entity;
-                } else {
-                    commands.entity(child).insert((
-                        ColliderParent(entity),
-                        // TODO: This probably causes a one frame delay. Compute real value?
-                        ColliderTransform::default(),
-                    ));
-                }
-            }
+    let entity = trigger.target();
+
+    // Skip if the entity is not a collider or an ancestor of a collider.
+    let Ok(is_collider) = query.get(entity) else {
+        return;
+    };
+
+    // Find the closest rigid body ancestor.
+    let Some(rb_entity) = parent_query
+        .iter_ancestors(trigger.target())
+        .find(|&entity| rb_query.contains(entity))
+    else {
+        return;
+    };
+
+    // Insert `ColliderOf` for the new child entity.
+    if is_collider {
+        commands.entity(entity).insert(ColliderOf {
+            rigid_body: rb_entity,
+        });
+    }
+
+    // Iterate over all descendants starting from the new child entity,
+    // and update the `ColliderOf` component to point to the closest rigid body ancestor.
+    for child in child_query.iter_descendants(entity) {
+        // Stop traversal if we reach another rigid body.
+        if rb_query.contains(child) {
+            break;
+        }
+
+        // Update the `ColliderOf` component.
+        if collider_query.contains(child) {
+            commands.entity(child).insert(ColliderOf {
+                rigid_body: rb_entity,
+            });
         }
     }
 }
 
-/// Updates colliders when the rigid bodies they were attached to have been removed.
-fn handle_rigid_body_removals(
+/// Removes [`ColliderOf`] from colliders when their rigid bodies are removed.
+fn on_rigid_body_removed(
+    trigger: Trigger<OnRemove, RigidBody>,
     mut commands: Commands,
-    colliders: Query<(Entity, &ColliderParent), Without<RigidBody>>,
-    bodies: Query<(), With<RigidBody>>,
-    removals: RemovedComponents<RigidBody>,
+    rb_collider_query: Query<&RigidBodyColliders>,
 ) {
-    // Return if no rigid bodies have been removed
-    if removals.is_empty() {
-        return;
-    }
+    // TODO: Here we assume that rigid bodies are not nested, so `ColliderOf` is simply removed
+    //       instead of being updated to point to a new rigid body in the hierarchy.
 
-    for (collider_entity, collider_parent) in &colliders {
-        // If the body associated with the collider parent entity doesn't exist,
-        // remove ColliderParent and ColliderTransform.
-        if !bodies.contains(collider_parent.get()) {
+    let rb_entity = trigger.target();
+
+    // Remove `ColliderOf` from all colliders attached to the rigid body.
+    if let Ok(colliders) = rb_collider_query.get(rb_entity) {
+        for collider_entity in colliders.iter() {
             commands
                 .entity(collider_entity)
-                .remove::<(ColliderParent, ColliderTransform)>();
+                .remove::<(ColliderOf, ColliderTransform)>();
         }
     }
 }
 
 #[allow(clippy::type_complexity)]
 pub(crate) fn update_child_collider_position(
-    mut colliders: Query<
+    mut collider_query: Query<
         (
             &ColliderTransform,
             &mut Position,
             &mut Rotation,
-            &ColliderParent,
+            &ColliderOf,
         ),
         Without<RigidBody>,
     >,
-    parents: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
+    rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
-    for (collider_transform, mut position, mut rotation, parent) in &mut colliders {
-        let Ok((parent_pos, parent_rot)) = parents.get(parent.get()) else {
+    for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {
+        let Ok((parent_pos, parent_rot)) = rb_query.get(collider_of.rigid_body) else {
             continue;
         };
 

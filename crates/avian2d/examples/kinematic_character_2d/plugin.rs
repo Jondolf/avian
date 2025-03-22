@@ -267,7 +267,7 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 fn kinematic_controller_collisions(
     collisions: Res<Collisions>,
     bodies: Query<&RigidBody>,
-    collider_parents: Query<&ColliderParent, Without<Sensor>>,
+    collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<
         (&mut Position, &mut LinearVelocity, Option<&MaxSlopeAngle>),
         (With<RigidBody>, With<CharacterController>),
@@ -277,8 +277,8 @@ fn kinematic_controller_collisions(
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
         // Get the rigid body entities of the colliders (colliders could be children)
-        let Ok([collider_parent1, collider_parent2]) =
-            collider_parents.get_many([contacts.entity1, contacts.entity2])
+        let Ok([&ColliderOf { rigid_body: rb1 }, &ColliderOf { rigid_body: rb2 }]) =
+            collider_rbs.get_many([contacts.entity1, contacts.entity2])
         else {
             continue;
         };
@@ -291,19 +291,15 @@ fn kinematic_controller_collisions(
         let is_other_dynamic: bool;
 
         let (mut position, mut linear_velocity, max_slope_angle) =
-            if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
+            if let Ok(character) = character_controllers.get_mut(rb1) {
                 is_first = true;
-                character_rb = *bodies.get(collider_parent1.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent2.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb1).unwrap();
+                is_other_dynamic = bodies.get(rb2).is_ok_and(|rb| rb.is_dynamic());
                 character
-            } else if let Ok(character) = character_controllers.get_mut(collider_parent2.get()) {
+            } else if let Ok(character) = character_controllers.get_mut(rb2) {
                 is_first = false;
-                character_rb = *bodies.get(collider_parent2.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent1.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb2).unwrap();
+                is_other_dynamic = bodies.get(rb1).is_ok_and(|rb| rb.is_dynamic());
                 character
             } else {
                 continue;

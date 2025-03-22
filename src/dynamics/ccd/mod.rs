@@ -519,7 +519,7 @@ struct SweptCcdBodyQuery {
 fn solve_swept_ccd(
     ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
-    colliders: Query<(&Collider, &ColliderParent)>,
+    colliders: Query<(&Collider, &ColliderOf)>,
     time: Res<Time>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -557,18 +557,20 @@ fn solve_swept_ccd(
         let (mut min_toi, mut min_toi_entity) = (delta_secs, None);
 
         // Iterate through colliders intersecting the AABB of the CCD body.
-        for (collider2, collider_parent) in colliders.iter_many(intersections.iter()) {
-            debug_assert_ne!(
-                entity,
-                collider_parent.get(),
-                "collider AABB cannot intersect itself"
-            );
+        for (
+            collider2,
+            &ColliderOf {
+                rigid_body: entity2,
+            },
+        ) in colliders.iter_many(intersections.iter())
+        {
+            debug_assert_ne!(entity, entity2, "collider AABB cannot intersect itself");
 
             // Get the body associated with the collider.
             // Safety: `AabbIntersections` should never contain the entity of a collider
             //         with the same parent as the first body, and the entities
             //         are also ensured to be different above.
-            if let Ok(body2) = unsafe { bodies.get_unchecked(collider_parent.get()) } {
+            if let Ok(body2) = unsafe { bodies.get_unchecked(entity2) } {
                 if !ccd1.include_dynamic && body2.rb.is_dynamic() {
                     continue;
                 }
@@ -629,7 +631,7 @@ fn solve_swept_ccd(
                     narrow_phase_config.default_speculative_margin,
                 ) {
                     min_toi = toi;
-                    min_toi_entity = Some(collider_parent.get());
+                    min_toi_entity = Some(entity2);
                 }
             }
         }

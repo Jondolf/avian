@@ -291,11 +291,7 @@ fn wake_on_collision_ended(
             Without<Sleeping>,
         ),
     >,
-    colliders: Query<(
-        &ColliderParent,
-        Ref<ColliderTransform>,
-        Has<ColliderDisabled>,
-    )>,
+    colliders: Query<(&ColliderOf, Ref<ColliderTransform>, Has<ColliderDisabled>)>,
     collisions: Res<Collisions>,
     mut sleeping: Query<(Entity, &mut TimeSleeping, Has<Sleeping>)>,
 ) {
@@ -318,15 +314,15 @@ fn wake_on_collision_ended(
             }
         });
         if colliding_entities.any(|other_entity| {
-            colliders
-                .get(other_entity)
-                .is_ok_and(|(p, transform, is_collider_disabled)| {
+            colliders.get(other_entity).is_ok_and(
+                |(collider_of, transform, is_collider_disabled)| {
                     is_collider_disabled
                         || transform.is_changed()
                         || bodies
-                            .get(p.get())
+                            .get(collider_of.rigid_body)
                             .is_ok_and(|(pos, is_rb_disabled)| is_rb_disabled || pos.is_changed())
-                })
+                },
+            )
         }) {
             if is_sleeping {
                 commands.entity(entity).remove::<Sleeping>();
