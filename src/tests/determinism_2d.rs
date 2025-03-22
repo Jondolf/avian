@@ -37,10 +37,7 @@ fn cross_platform_determinism_2d() {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        PhysicsPlugins::default()
-            .with_length_unit(0.5)
-            .build()
-            .disable::<ColliderHierarchyPlugin>(),
+        PhysicsPlugins::default().with_length_unit(0.5),
         #[cfg(feature = "bevy_scene")]
         AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]

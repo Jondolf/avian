@@ -86,7 +86,7 @@ impl Relationship for ColliderOf {
             ..
         }: HookContext,
     ) {
-        // This is the same as the default implementation,
+        // This is largely the same as the default implementation,
         // but allows relationships to point to their own entity.
 
         match relationship_hook_mode {
