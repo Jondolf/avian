@@ -493,7 +493,7 @@ fn update_aabb<C: AnyCollider>(
             Changed<C>,
         )>,
     >,
-    parent_velocity: Query<
+    rb_velocities: Query<
         (
             &Position,
             &ComputedCenterOfMass,
@@ -517,7 +517,7 @@ fn update_aabb<C: AnyCollider>(
         mut aabb,
         pos,
         rot,
-        collider_parent,
+        collider_of,
         collision_margin,
         speculative_margin,
         has_swept_ccd,
@@ -544,8 +544,8 @@ fn update_aabb<C: AnyCollider>(
         // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Some(Ok((parent_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
-            collider_parent.map(|&ColliderOf { rigid_body }| parent_velocity.get(rigid_body))
+        } else if let Some(Ok((rb_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
+            collider_of.map(|&ColliderOf { rigid_body }| rb_velocities.get(rigid_body))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
             // which affects their linear velocities. We need to compute the linear velocity
@@ -553,7 +553,7 @@ fn update_aabb<C: AnyCollider>(
             // TODO: This assumes that the colliders would continue moving in the same direction,
             //       but because they are orbiting, the direction will change. We should take
             //       into account the uniform circular motion.
-            let offset = pos.0 - parent_pos.0 - center_of_mass.0;
+            let offset = pos.0 - rb_pos.0 - center_of_mass.0;
             #[cfg(feature = "2d")]
             let vel_at_offset =
                 lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;

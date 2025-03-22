@@ -568,8 +568,7 @@ fn solve_swept_ccd(
 
             // Get the body associated with the collider.
             // Safety: `AabbIntersections` should never contain the entity of a collider
-            //         with the same parent as the first body, and the entities
-            //         are also ensured to be different above.
+            //         attached to the first body, and the entities are also ensured to be different above.
             if let Ok(body2) = unsafe { bodies.get_unchecked(entity2) } {
                 if !ccd1.include_dynamic && body2.rb.is_dynamic() {
                     continue;

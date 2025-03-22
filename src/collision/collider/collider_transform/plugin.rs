@@ -97,18 +97,18 @@ pub(crate) fn update_child_collider_position(
     rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {
-        let Ok((parent_pos, parent_rot)) = rb_query.get(collider_of.rigid_body) else {
+        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.rigid_body) else {
             continue;
         };
 
-        position.0 = parent_pos.0 + parent_rot * collider_transform.translation;
+        position.0 = rb_pos.0 + rb_rot * collider_transform.translation;
         #[cfg(feature = "2d")]
         {
-            *rotation = *parent_rot * collider_transform.rotation;
+            *rotation = *rb_rot * collider_transform.rotation;
         }
         #[cfg(feature = "3d")]
         {
-            *rotation = (parent_rot.0 * collider_transform.rotation.0)
+            *rotation = (rb_rot.0 * collider_transform.rotation.0)
                 .normalize()
                 .into();
         }
