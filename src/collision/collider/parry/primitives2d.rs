@@ -308,7 +308,7 @@ impl PolygonalFeatureMap for RegularPolygonColliderShape {
         // How many rotations of `external_angle` correspond to the vertices.
         let n_unnormalized = angle_from_top / external_angle;
         let n1 = ops::floor(n_unnormalized) % self.sides as Scalar;
-        let n2 = n_unnormalized.ceil() % self.sides as Scalar;
+        let n2 = math::ceil(n_unnormalized) % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle1 = n1 * external_angle + FRAC_PI_2;

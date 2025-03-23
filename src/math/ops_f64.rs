@@ -510,6 +510,14 @@ mod libm_ops_for_no_std {
         libm::floor(x)
     }
 
+    /// Returns the smallest integer greater than or equal to `x`.
+    ///
+    /// Precision is specified when the `libm` feature is enabled.
+    #[inline(always)]
+    pub fn ceil(x: f64) -> f64 {
+        libm::ceil(x)
+    }
+
     /// Returns the fractional part of `x`.
     ///
     /// This function always returns the precise result.
@@ -579,6 +587,14 @@ mod std_ops_for_no_std {
     #[inline(always)]
     pub fn floor(x: f64) -> f64 {
         f64::floor(x)
+    }
+
+    /// Returns the smallest integer greater than or equal to `x`.
+    ///
+    /// This function always returns the precise result.
+    #[inline(always)]
+    pub fn ceil(x: f64) -> f64 {
+        f64::ceil(x)
     }
 
     /// Returns the fractional part of `x`.
