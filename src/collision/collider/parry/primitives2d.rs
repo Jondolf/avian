@@ -50,12 +50,10 @@ impl SupportMap for EllipseColliderShape {
 }
 
 impl Shape for EllipseColliderShape {
-    #[cfg(feature = "std")]
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
 
-    #[cfg(feature = "std")]
     fn scale_dyn(
         &self,
         scale: &parry::math::Vector<Scalar>,
@@ -331,12 +329,10 @@ impl PolygonalFeatureMap for RegularPolygonColliderShape {
 }
 
 impl Shape for RegularPolygonColliderShape {
-    #[cfg(feature = "std")]
     fn clone_dyn(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
 
-    #[cfg(feature = "std")]
     fn scale_dyn(
         &self,
         scale: &parry::math::Vector<Scalar>,
