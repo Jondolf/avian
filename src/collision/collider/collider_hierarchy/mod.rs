@@ -9,7 +9,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         component::HookContext,
-        relationship::{Relationship, RelationshipHookMode},
+        relationship::{Relationship, RelationshipHookMode, RelationshipSourceCollection},
         world::DeferredWorld,
     },
     prelude::*,
@@ -125,6 +125,57 @@ impl Relationship for ColliderOf {
                 "{}Tried to attach collider on entity {collider} to rigid body on entity {rigid_body}, but the rigid body does not exist.",
                 caller.map(|location| format!("{location}: ")).unwrap_or_default(),
             );
+        }
+    }
+
+    fn on_replace(
+        mut world: DeferredWorld,
+        HookContext {
+            entity,
+            relationship_hook_mode,
+            ..
+        }: HookContext,
+    ) {
+        // This is largely the same as the default implementation,
+        // but does not panic if the relationship target does not exist.
+
+        match relationship_hook_mode {
+            RelationshipHookMode::Run => {}
+            RelationshipHookMode::Skip => return,
+            RelationshipHookMode::RunIfNotLinked => {
+                if <Self::RelationshipTarget as RelationshipTarget>::LINKED_SPAWN {
+                    return;
+                }
+            }
+        }
+        let rigid_body = world.entity(entity).get::<Self>().unwrap().get();
+        if let Ok(mut rigid_body_mut) = world.get_entity_mut(rigid_body) {
+            if let Some(mut relationship_target) =
+                rigid_body_mut.get_mut::<Self::RelationshipTarget>()
+            {
+                RelationshipSourceCollection::remove(
+                    relationship_target.collection_mut_risky(),
+                    entity,
+                );
+                if relationship_target.len() == 0 {
+                    if let Ok(mut entity) = world.commands().get_entity(rigid_body) {
+                        // this "remove" operation must check emptiness because in the event that an identical
+                        // relationship is inserted on top, this despawn would result in the removal of that identical
+                        // relationship ... not what we want!
+                        entity.queue_handled(
+                            |mut entity: EntityWorldMut| {
+                                if entity
+                                    .get::<Self::RelationshipTarget>()
+                                    .is_some_and(RelationshipTarget::is_empty)
+                                {
+                                    entity.remove::<Self::RelationshipTarget>();
+                                }
+                            },
+                            |_, _| {},
+                        );
+                    }
+                }
+            }
         }
     }
 }

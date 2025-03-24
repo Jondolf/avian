@@ -36,7 +36,7 @@ impl Plugin for ColliderHierarchyPlugin {
 
                 // Make sure the collider is on the same entity as the rigid body.
                 if query.contains(entity) {
-                    commands.entity(entity).remove::<ColliderOf>();
+                    commands.entity(entity).try_remove::<ColliderOf>();
                 }
             },
         );
@@ -117,7 +117,7 @@ fn on_rigid_body_removed(
         for collider_entity in colliders.iter() {
             commands
                 .entity(collider_entity)
-                .remove::<(ColliderOf, ColliderTransform)>();
+                .try_remove::<(ColliderOf, ColliderTransform)>();
         }
     }
 }
