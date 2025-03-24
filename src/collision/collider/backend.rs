@@ -183,7 +183,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 world
                     .commands()
                     .entity(ctx.entity)
-                    .remove::<ColliderMarker>();
+                    .try_remove::<ColliderMarker>();
 
                 let entity_ref = world.entity_mut(ctx.entity);
 
