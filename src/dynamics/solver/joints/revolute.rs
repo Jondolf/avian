@@ -25,6 +25,12 @@ pub struct RevoluteJoint {
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// Rotation applied on the first body. This allows to orient the body relative to the `aligned_axis`.
+    #[cfg(feature = "3d")]
+    pub local_rotation1: Rotation,
+    /// Rotation applied on the second body.
+    #[cfg(feature = "3d")]
+    pub local_rotation2: Rotation,
     /// A unit vector that controls which axis should be aligned for both entities.
     ///
     /// In 2D this should always be the Z axis.
@@ -105,6 +111,10 @@ impl Joint for RevoluteJoint {
             entity2,
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
+            #[cfg(feature = "3d")]
+            local_rotation1: Rotation::default(),
+            #[cfg(feature = "3d")]
+            local_rotation2: Rotation::default(),
             aligned_axis: Vector3::Z,
             angle_limit: None,
             damping_linear: 1.0,
@@ -194,8 +204,8 @@ impl RevoluteJoint {
 
     #[cfg(feature = "3d")]
     fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector3 {
-        let a1 = rot1 * self.aligned_axis;
-        let a2 = rot2 * self.aligned_axis;
+        let a1 = *rot1 * self.local_rotation1 * self.aligned_axis;
+        let a2 = *rot2 * self.local_rotation2 * self.aligned_axis;
         a1.cross(a2)
     }
 
@@ -215,10 +225,14 @@ impl RevoluteJoint {
             #[cfg(feature = "3d")]
             {
                 // [n, n1, n2] = [a1, b1, b2], where [a, b, c] are perpendicular unit axes on the bodies.
-                let a1 = *body1.rotation * self.aligned_axis;
-                let b1 = *body1.rotation * self.aligned_axis.any_orthonormal_vector();
-                let b2 = *body2.rotation * self.aligned_axis.any_orthonormal_vector();
-                angle_limit.compute_correction(a1, b1, b2, PI)
+                let a1 = *body1.rotation * self.local_rotation1 * self.aligned_axis;
+                let b1 = *body1.rotation
+                    * self.local_rotation1
+                    * self.aligned_axis.any_orthonormal_vector();
+                let b2 = *body2.rotation
+                    * self.local_rotation2
+                    * self.aligned_axis.any_orthonormal_vector();
+                angle_limit.compute_correction(a1, b1, b2, dt)
             }
         }) else {
             return Torque::ZERO;
