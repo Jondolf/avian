@@ -8,6 +8,7 @@ use-debug-plugin = []
 
 [dependencies]
 bevy = { version = "0.16.0-rc.1", default-features = false, features = [
+    "bevy_animation",
     "bevy_core_pipeline",
     "bevy_state",
     "bevy_text",
