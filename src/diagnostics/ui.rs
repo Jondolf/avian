@@ -83,22 +83,22 @@ struct DiagnosticRow;
 
 /// A marker component for the name text node of a diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticName;
 
 /// A component with the [`DiagnosticPath`] of a diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticPath(&'static DiagnosticPath);
 
 /// A marker component for a counter diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticCounter;
 
 /// A marker component for a timer diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticTimer;
 
 fn diagnostic_font() -> TextFont {

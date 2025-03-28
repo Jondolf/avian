@@ -47,7 +47,7 @@ struct JumpImpulse(Scalar);
 // Enable contact modification for one-way platforms with the `ActiveCollisionHooks` component.
 // Here we use required components, but you could also add it manually.
 #[derive(Clone, Eq, PartialEq, Debug, Default, Component)]
-#[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
+#[require(ActiveCollisionHooks::MODIFY_CONTACTS)]
 pub struct OneWayPlatform(EntityHashSet);
 
 /// A component to control how an actor interacts with a one-way platform.
