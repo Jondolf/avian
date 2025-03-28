@@ -158,7 +158,7 @@ pub fn update_hits(
 ) {
     let start_time = crate::utils::Instant::now();
 
-    for (&ray_id, &ray) in ray_map.map().iter() {
+    for (&ray_id, &ray) in ray_map.map.iter() {
         let Ok((camera, picking_filter, cam_pickable)) = picking_cameras.get(ray_id.camera) else {
             continue;
         };
