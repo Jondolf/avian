@@ -17,7 +17,7 @@ use bevy::{
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 /// the number of potential contacts for the [narrow phase](crate::narrow_phase).
 ///
-/// A contact pair is created in the [`Collisions`] resource for each pair found.
+/// A contact pair is created in the [`ContactGraph`] resource for each pair found.
 /// Removing and updating these pairs is left to the [narrow phase](crate::narrow_phase).
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
@@ -80,7 +80,7 @@ pub enum BroadPhaseSet {
     /// Updates acceleration structures and other data needed for broad phase collision detection.
     UpdateStructures,
     /// Finds pairs of entities with overlapping [`ColliderAabb`]s
-    /// and creates contact pairs for them in [`Collisions`].
+    /// and creates contact pairs for them in the [`ContactGraph`].
     CollectCollisions,
     /// Runs at the end of the broad phase. Empty by default.
     Last,
@@ -241,10 +241,10 @@ fn add_new_aabb_intervals(
 }
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s
-/// and creates contact pairs for them in [`Collisions`].
+/// and creates contact pairs for them in the [`ContactGraph`].
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
-    mut collisions: ResMut<Collisions>,
+    mut contact_graph: ResMut<ContactGraph>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
@@ -255,7 +255,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 
     sweep_and_prune::<H>(
         intervals,
-        &mut collisions,
+        &mut contact_graph,
         &mut hooks.into_inner(),
         &mut commands,
     );
@@ -268,7 +268,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 /// Sweep and prune exploits temporal coherence, as bodies are unlikely to move significantly between two simulation steps. Insertion sort is used, as it is good at sorting nearly sorted lists efficiently.
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
-    collisions: &mut Collisions,
+    contact_graph: &mut ContactGraph,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
@@ -310,7 +310,7 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // Avoid duplicate pairs.
             let pair_key = PairKey::new(entity1.index(), entity2.index());
-            if collisions.contains_key(&pair_key) {
+            if contact_graph.contains_key(&pair_key) {
                 continue;
             }
 
@@ -350,7 +350,7 @@ fn sweep_and_prune<H: CollisionHooks>(
             );
 
             // Add the contact pair to the contact graph.
-            collisions.add_pair_with_key(contacts, pair_key);
+            contact_graph.add_pair_with_key(contacts, pair_key);
         }
     }
 }

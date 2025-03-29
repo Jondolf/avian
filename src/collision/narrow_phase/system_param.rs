@@ -17,9 +17,9 @@ use thread_local::ThreadLocal;
 ///
 /// Responsibilities:
 ///
-/// - Updates contacts for each contact pair in [`Collisions`].
+/// - Updates contacts for each contact pair in the [`ContactGraph`].
 /// - Sends collision events when colliders start or stop touching.
-/// - Removes contact pairs from the [`Collisions`] resource when AABBs stop overlapping.
+/// - Removes contact pairs from the [`ContactGraph`] when AABBs stop overlapping.
 /// - Generates contact constraints for each contact pair that is touching or expected to start touching.
 #[derive(SystemParam)]
 #[expect(missing_docs)]
@@ -37,7 +37,7 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
         ),
         Without<RigidBodyDisabled>,
     >,
-    pub collisions: ResMut<'w, Collisions>,
+    pub contact_graph: ResMut<'w, ContactGraph>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
     #[cfg(feature = "parallel")]
     contact_status_bits_thread_local: ResMut<'w, ContactStatusBitsThreadLocal>,
@@ -64,9 +64,9 @@ pub(super) struct ContactStatusBitsThreadLocal(pub ThreadLocal<RefCell<BitVec>>)
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase.
     ///
-    /// - Updates contacts for each contact pair in [`Collisions`].
+    /// - Updates contacts for each contact pair in the [`ContactGraph`].
     /// - Sends collision events when colliders start or stop touching.
-    /// - Removes pairs from [`Collisions`] when AABBs stop overlapping.
+    /// - Removes pairs from the [`ContactGraph`] when AABBs stop overlapping.
     pub fn update<H: CollisionHooks>(
         &mut self,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
@@ -104,8 +104,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 let pair_index = EdgeIndex(i as u32 * 64 + trailing_zeros);
 
                 let contact_pair = self
-                    .collisions
-                    .graph
+                    .contact_graph
+                    .internal
                     .edge_weight_mut(pair_index)
                     .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
 
@@ -142,11 +142,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     });
 
                     // Remove the contact pair from the pair set.
-                    // This is normally done by `Collisions::remove_pair`,
+                    // This is normally done by `ContactGraph::remove_pair`,
                     // but since we're removing edges manually, we need to do it here.
                     let pair_key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
-                    self.collisions.pair_set.remove(&pair_key);
+                    self.contact_graph.pair_set.remove(&pair_key);
 
                     // Queue the contact pair for removal.
                     pairs_to_remove.push(pair_index);
@@ -217,7 +217,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Remove the contact pairs that were marked for removal.
         for pair_index in pairs_to_remove.drain(..) {
-            self.collisions.graph.remove_edge(pair_index);
+            self.contact_graph.internal.remove_edge(pair_index);
         }
     }
 
@@ -249,7 +249,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
     }
 
-    /// Updates contacts for all contact pairs in [`Collisions`].
+    /// Updates contacts for all contact pairs in the [`ContactGraph`].
     ///
     /// Also updates the [`ContactStatusBits`] resource to track status changes for each contact pair.
     /// Set bits correspond to contact pairs that were either added or removed,
@@ -265,7 +265,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        let contact_pair_count = self.collisions.graph.edge_count();
+        let contact_pair_count = self.contact_graph.internal.edge_count();
 
         // Clear the bit vector used to track status changes for each contact pair.
         self.contact_status_bits
@@ -292,7 +292,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
         crate::utils::par_for_each!(
-            self.collisions.graph.raw_edges_mut(),
+            self.contact_graph.internal.raw_edges_mut(),
             |contact_index, contacts| {
                 #[cfg(not(feature = "parallel"))]
                 let state_change_bits = &mut self.contact_status_bits;

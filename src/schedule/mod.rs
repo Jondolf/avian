@@ -166,11 +166,11 @@ pub enum PhysicsStepSet {
     /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
     First,
     /// Responsible for finding pairs of entities with overlapping [`ColliderAabb`]
-    /// and creating contact pairs for them in [`Collisions`].
+    /// and creating contact pairs for them in the [`ContactGraph`].
     ///
     /// See [`BroadPhasePlugin`].
     BroadPhase,
-    /// Responsible for updating contacts in [`Collisions`] and processing contact state changes.
+    /// Responsible for updating contacts in the [`ContactGraph`] and processing contact state changes.
     ///
     /// See [`NarrowPhasePlugin`].
     NarrowPhase,

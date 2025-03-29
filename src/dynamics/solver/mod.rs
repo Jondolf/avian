@@ -520,18 +520,18 @@ fn solve_restitution(
     diagnostics.apply_restitution += start.elapsed();
 }
 
-/// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
+/// Copies contact impulses from [`ContactConstraints`] to the contacts in the [`ContactGraph`].
 /// They will be used for [warm starting](SubstepSolverSet::WarmStart).
 fn store_contact_impulses(
     constraints: Res<ContactConstraints>,
-    mut collisions: ResMut<Collisions>,
+    mut contact_graph: ResMut<ContactGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) = collisions
-            .graph
+        let Some(contact_pair) = contact_graph
+            .internal
             .edge_weight_mut(EdgeIndex(constraint.contact_pair_index as u32))
         else {
             unreachable!(

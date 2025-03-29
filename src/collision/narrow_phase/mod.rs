@@ -28,10 +28,10 @@ use dynamics::solver::SolverDiagnostics;
 ///
 /// # Overview
 ///
-/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`Collisions`]
+/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`ContactGraph`]
 /// resource for each pair of intersecting [`ColliderAabb`]s.
 ///
-/// The narrow phase then determines which contact pairs found in [`Collisions`] are touching,
+/// The narrow phase then determines which contact pairs found in the [`ContactGraph`] are touching,
 /// and computes updated contact points and normals in a parallel loop.
 ///
 /// Afterwards, the narrow phase removes contact pairs whose AABBs no longer overlap,
@@ -91,7 +91,7 @@ where
 {
     fn build(&self, app: &mut App) {
         app.init_resource::<NarrowPhaseConfig>()
-            .init_resource::<Collisions>()
+            .init_resource::<ContactGraph>()
             .init_resource::<ContactStatusBits>()
             .init_resource::<DefaultFriction>()
             .init_resource::<DefaultRestitution>();
@@ -218,7 +218,7 @@ impl Default for NarrowPhaseConfig {
 pub enum NarrowPhaseSet {
     /// Runs at the start of the narrow phase. Empty by default.
     First,
-    /// Updates contacts in [`Collisions`] and processes contact state changes.
+    /// Updates contacts in the [`ContactGraph`] and processes contact state changes.
     Update,
     /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
     ///
@@ -252,7 +252,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     );
 
     diagnostics.narrow_phase = start.elapsed();
-    diagnostics.contact_count = narrow_phase.collisions.graph.edge_count() as u32;
+    diagnostics.contact_count = narrow_phase.contact_graph.internal.edge_count() as u32;
 }
 
 fn generate_constraints<C: AnyCollider>(
@@ -270,7 +270,7 @@ fn generate_constraints<C: AnyCollider>(
     constraints.clear();
 
     // TODO: Parallelize.
-    for (i, contacts) in narrow_phase.collisions.iter().enumerate() {
+    for (i, contacts) in narrow_phase.contact_graph.iter().enumerate() {
         let Ok([collider1, collider2]) = narrow_phase
             .collider_query
             .get_many([contacts.entity1, contacts.entity2])
@@ -335,7 +335,7 @@ fn generate_constraints<C: AnyCollider>(
 
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
-    mut collisions: ResMut<Collisions>,
+    mut contact_graph: ResMut<ContactGraph>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
@@ -343,7 +343,7 @@ fn remove_collider_on<E: Event, C: Component>(
     let entity = trigger.target();
 
     // Remove the collider from the contact graph.
-    collisions.remove_collider_with(entity, |contact_pair| {
+    contact_graph.remove_collider_with(entity, |contact_pair| {
         // Send collision ended event.
         if contact_pair
             .flags

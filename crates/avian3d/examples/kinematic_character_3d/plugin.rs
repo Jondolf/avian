@@ -284,7 +284,7 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// and predict collisions using speculative contacts.
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     bodies: Query<&RigidBody>,
     collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<

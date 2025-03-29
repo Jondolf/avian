@@ -295,7 +295,7 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,

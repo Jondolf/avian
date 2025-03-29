@@ -334,7 +334,8 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 )]
 /// - [Get colliding entities](CollidingEntities)
 /// - [Collision events](collision#collision-events)
-/// - [Accessing, filtering and modifying collisions](Collisions)
+/// - [Accessing collision data](Collisions)
+/// - [Filtering and modifying contacts with hooks](CollisionHooks)
 /// - [Manual contact queries](contact_query)
 ///
 /// # Advanced Usage

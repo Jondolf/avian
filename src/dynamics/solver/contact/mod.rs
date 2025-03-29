@@ -85,7 +85,7 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the contact pair in [`Collisions`].
+    /// The index of the contact pair in the [`ContactGraph`].
     pub contact_pair_index: usize,
     /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
     pub manifold_index: usize,

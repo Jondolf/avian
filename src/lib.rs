@@ -529,6 +529,10 @@ pub mod prelude {
                 ColliderBackendPlugin,
             },
             collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
+            contact_types::{
+                Collisions, ContactGraph, ContactManifold, ContactPairFlags, ContactPoint,
+                Contacts, SingleContact,
+            },
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
             *,

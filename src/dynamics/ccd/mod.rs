@@ -520,7 +520,7 @@ fn solve_swept_ccd(
     bodies: Query<SweptCcdBodyQuery>,
     colliders: Query<(&Collider, &ColliderOf)>,
     time: Res<Time>,
-    collisions: Res<Collisions>,
+    contact_graph: Res<ContactGraph>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
@@ -557,7 +557,7 @@ fn solve_swept_ccd(
         let (mut min_toi, mut min_toi_entity) = (delta_secs, None);
 
         // Iterate through colliders intersecting the AABB of the CCD body.
-        let intersecting_entities = collisions.entities_colliding_with(entity);
+        let intersecting_entities = contact_graph.entities_colliding_with(entity);
         for (
             collider2,
             &ColliderOf {
