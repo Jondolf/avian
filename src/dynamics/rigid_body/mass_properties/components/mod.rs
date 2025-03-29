@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 use bevy::{
-    ecs::{component::ComponentId, world::DeferredWorld},
+    ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
 };
 #[cfg(feature = "3d")]
@@ -956,8 +956,8 @@ pub struct NoAutoAngularInertia;
 pub struct NoAutoCenterOfMass;
 
 /// Triggers the recomputation of mass properties for rigid bodies when automatic computation is re-enabled.
-fn on_remove_no_auto_mass_property(mut world: DeferredWorld, entity: Entity, _id: ComponentId) {
-    if let Some(mut entity_commands) = world.commands().get_entity(entity) {
+fn on_remove_no_auto_mass_property(mut world: DeferredWorld, ctx: HookContext) {
+    if let Ok(mut entity_commands) = world.commands().get_entity(ctx.entity) {
         entity_commands.try_insert(RecomputeMassProperties);
     }
 }

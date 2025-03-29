@@ -45,7 +45,7 @@ impl<T> EntityDataIndex<T> {
         let data = self.data.get_mut(index as usize)?;
         if gen == data.0 {
             data.0 = u32::MAX; // invalidate the generation number.
-            Some(std::mem::replace(&mut data.1, removed_value))
+            Some(core::mem::replace(&mut data.1, removed_value))
         } else {
             None
         }

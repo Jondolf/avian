@@ -8,7 +8,7 @@ use system_param::ContactStatusBits;
 use system_param::ContactStatusBitsThreadLocal;
 pub use system_param::NarrowPhase;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{
     dynamics::solver::{ContactConstraints, ContactSoftnessCoefficients},
@@ -267,18 +267,20 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
+    context: StaticSystemParam<C::Context>,
     mut commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     narrow_phase.update::<H>(
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
-        &mut hooks.into_inner(),
+        &hooks,
+        &context,
         &mut commands,
     );
 
@@ -294,7 +296,7 @@ fn generate_constraints<C: AnyCollider>(
     mut collision_diagnostics: ResMut<CollisionDiagnostics>,
     solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 
@@ -310,11 +312,11 @@ fn generate_constraints<C: AnyCollider>(
         };
 
         let body1_bundle = collider1
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
         let body2_bundle = collider2
-            .parent
-            .and_then(|p| narrow_phase.body_query.get(p.get()).ok());
+            .rigid_body
+            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
         if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
             body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
             body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
@@ -371,7 +373,7 @@ fn remove_collider_on<E: Event, C: Component>(
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
 ) {
-    let entity = trigger.entity();
+    let entity = trigger.target();
 
     // Remove the collider from the contact graph.
     collisions.remove_collider_with(entity, |contact_pair| {
@@ -380,7 +382,7 @@ fn remove_collider_on<E: Event, C: Component>(
             .flags
             .contains(ContactPairFlags::CONTACT_EVENTS)
         {
-            event_writer.send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+            event_writer.write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.

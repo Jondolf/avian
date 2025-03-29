@@ -2,8 +2,8 @@
 //!
 //! Only a very limited set of operations are supported.
 
+use core::ops::BitOrAssign;
 use core::slice;
-use std::ops::BitOrAssign;
 
 /// A dynamically sized compact bit vector with a fixed block size of 64 bits.
 #[derive(Clone, Debug, Default)]

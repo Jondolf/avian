@@ -4,8 +4,8 @@
 //! - Edge iteration order after serialization/deserialization is preserved.
 //! - Fewer iterators and helpers, and a few new ones.
 
-use std::cmp::max;
-use std::ops::{Index, IndexMut};
+use core::cmp::max;
+use core::ops::{Index, IndexMut};
 
 use derive_more::derive::From;
 
@@ -839,7 +839,7 @@ impl<'a, N: Copy, E> Iterator for EdgesMut<'a, N, E> {
             let weights = &mut self.graph[edge];
             return Some(EdgeMut {
                 index: edge,
-                weight: unsafe { std::mem::transmute::<&mut E, &'a mut E>(weights) },
+                weight: unsafe { core::mem::transmute::<&mut E, &'a mut E>(weights) },
             });
         }
 
@@ -848,7 +848,7 @@ impl<'a, N: Copy, E> Iterator for EdgesMut<'a, N, E> {
         let weights = &mut self.graph[edge];
         Some(EdgeMut {
             index: edge,
-            weight: unsafe { std::mem::transmute::<&mut E, &'a mut E>(weights) },
+            weight: unsafe { core::mem::transmute::<&mut E, &'a mut E>(weights) },
         })
     }
 }
@@ -941,19 +941,19 @@ impl<'a, N: Copy, E> Iterator for EdgeWeightsMut<'a, N, E> {
         if let Some(edge) = self.incoming_edge {
             self.incoming_edge = self.graph.next_edge(edge, EdgeDirection::Incoming);
             let weight = &mut self.graph[edge];
-            return Some(unsafe { std::mem::transmute::<&mut E, &'a mut E>(weight) });
+            return Some(unsafe { core::mem::transmute::<&mut E, &'a mut E>(weight) });
         }
 
         let edge = self.outgoing_edge?;
         self.outgoing_edge = self.graph.next_edge(edge, EdgeDirection::Outgoing);
         let weight = &mut self.graph[edge];
-        Some(unsafe { std::mem::transmute::<&mut E, &'a mut E>(weight) })
+        Some(unsafe { core::mem::transmute::<&mut E, &'a mut E>(weight) })
     }
 }
 
 /// An iterator yielding immutable access to all edge weights.
 pub struct AllEdgeWeights<'a, E: 'a> {
-    edges: std::slice::Iter<'a, Edge<E>>,
+    edges: core::slice::Iter<'a, Edge<E>>,
 }
 
 impl<'a, E> Iterator for AllEdgeWeights<'a, E> {
@@ -971,7 +971,7 @@ impl<'a, E> Iterator for AllEdgeWeights<'a, E> {
 /// An iterator yielding mutable access to all edge weights.
 #[derive(Debug)]
 pub struct AllEdgeWeightsMut<'a, E: 'a> {
-    edges: std::slice::IterMut<'a, Edge<E>>,
+    edges: core::slice::IterMut<'a, Edge<E>>,
 }
 
 impl<'a, E> Iterator for AllEdgeWeightsMut<'a, E> {

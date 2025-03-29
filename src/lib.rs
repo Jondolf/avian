@@ -472,6 +472,8 @@ compile_error!(
     "feature \"default-collider\" requires the feature \"parry-f64\" when \"f64\" is enabled"
 );
 
+extern crate alloc;
+
 #[cfg(all(feature = "2d", feature = "parry-f32"))]
 pub extern crate parry2d as parry;
 
@@ -522,7 +524,11 @@ pub mod prelude {
         collision::{
             self,
             broad_phase::BroadPhasePlugin,
-            collider::{ColliderBackendPlugin, ColliderHierarchyPlugin},
+            collider::{
+                collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
+                collider_transform::{ColliderTransform, ColliderTransformPlugin},
+                ColliderBackendPlugin,
+            },
             collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
@@ -572,7 +578,8 @@ use prelude::*;
 /// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
-/// | [`ColliderHierarchyPlugin`]       | Handles transform propagation and [`ColliderParent`] updates for colliders.                                                                                |
+/// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
+/// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
 /// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).            |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
@@ -736,7 +743,7 @@ impl PhysicsPlugins {
     {
         PhysicsPluginsWithHooks::<H> {
             plugins: self,
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 
@@ -793,7 +800,8 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsTypeRegistrationPlugin)
             .add(PreparePlugin::new(self.schedule))
             .add(MassPropertyPlugin::new(self.schedule))
-            .add(ColliderHierarchyPlugin::new(self.schedule));
+            .add(ColliderHierarchyPlugin)
+            .add(ColliderTransformPlugin::new(self.schedule));
 
         #[cfg(all(
             feature = "default-collider",
@@ -821,7 +829,7 @@ impl PluginGroup for PhysicsPlugins {
 /// A [`PhysicsPlugins`] plugin group with [`CollisionHooks`] specified.
 pub struct PhysicsPluginsWithHooks<H: CollisionHooks> {
     plugins: PhysicsPlugins,
-    _phantom: std::marker::PhantomData<H>,
+    _phantom: core::marker::PhantomData<H>,
 }
 
 impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
@@ -832,7 +840,7 @@ impl<H: CollisionHooks> PhysicsPluginsWithHooks<H> {
     pub fn new(schedule: impl ScheduleLabel) -> Self {
         Self {
             plugins: PhysicsPlugins::new(schedule),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 
@@ -850,7 +858,7 @@ impl<H: CollisionHooks> Default for PhysicsPluginsWithHooks<H> {
     fn default() -> Self {
         Self {
             plugins: PhysicsPlugins::default(),
-            _phantom: std::marker::PhantomData,
+            _phantom: core::marker::PhantomData,
         }
     }
 }

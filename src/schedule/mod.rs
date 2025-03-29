@@ -6,7 +6,7 @@ mod time;
 use dynamics::solver::schedule::SubstepCount;
 pub use time::*;
 
-use std::time::Duration;
+use core::time::Duration;
 
 // For doc links
 #[allow(unused_imports)]

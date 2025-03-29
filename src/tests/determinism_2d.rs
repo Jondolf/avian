@@ -15,7 +15,7 @@
 
 #![allow(clippy::doc_markdown)]
 
-use std::time::Duration;
+use core::time::Duration;
 
 use crate::{
     math::{Vector, PI},
@@ -37,10 +37,7 @@ fn cross_platform_determinism_2d() {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        PhysicsPlugins::default()
-            .with_length_unit(0.5)
-            .build()
-            .disable::<ColliderHierarchyPlugin>(),
+        PhysicsPlugins::default().with_length_unit(0.5),
         #[cfg(feature = "bevy_scene")]
         AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]

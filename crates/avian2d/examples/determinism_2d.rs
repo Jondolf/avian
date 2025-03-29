@@ -205,7 +205,7 @@ fn clear_scene(
 ) {
     step.0 = 0;
     for entity in &query {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 }
 

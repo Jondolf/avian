@@ -8,9 +8,11 @@
 
 use avian2d::{math::*, prelude::*};
 use bevy::{
-    ecs::system::{lifetimeless::Read, SystemParam},
+    ecs::{
+        entity::hash_set::EntityHashSet,
+        system::{lifetimeless::Read, SystemParam},
+    },
     prelude::*,
-    utils::HashSet,
 };
 use examples_common_2d::ExampleCommonPlugin;
 
@@ -45,8 +47,8 @@ struct JumpImpulse(Scalar);
 // Enable contact modification for one-way platforms with the `ActiveCollisionHooks` component.
 // Here we use required components, but you could also add it manually.
 #[derive(Clone, Eq, PartialEq, Debug, Default, Component)]
-#[require(ActiveCollisionHooks(|| ActiveCollisionHooks::MODIFY_CONTACTS))]
-pub struct OneWayPlatform(HashSet<Entity>);
+#[require(ActiveCollisionHooks::MODIFY_CONTACTS)]
+pub struct OneWayPlatform(EntityHashSet);
 
 /// A component to control how an actor interacts with a one-way platform.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Component, Reflect)]

@@ -3,7 +3,7 @@
 //!
 //! See [`BroadPhasePlugin`].
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{data_structures::pair_key::PairKey, prelude::*};
 use bevy::{
@@ -91,7 +91,7 @@ pub enum BroadPhaseSet {
 struct AabbIntervals(
     Vec<(
         Entity,
-        ColliderParent,
+        ColliderOf,
         ColliderAabb,
         CollisionLayers,
         AabbIntervalFlags,
@@ -118,7 +118,7 @@ bitflags::bitflags! {
 impl MapEntities for AabbIntervals {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         for interval in self.0.iter_mut() {
-            interval.0 = entity_mapper.map_entity(interval.0);
+            interval.0 = entity_mapper.get_mapped(interval.0);
         }
     }
 }
@@ -129,7 +129,7 @@ fn update_aabb_intervals(
     aabbs: Query<
         (
             &ColliderAabb,
-            Option<&ColliderParent>,
+            Option<&ColliderOf>,
             Option<&CollisionLayers>,
             Has<Sensor>,
             Has<CollisionEventsEnabled>,
@@ -143,10 +143,10 @@ fn update_aabb_intervals(
 ) {
     intervals
         .0
-        .retain_mut(|(collider_entity, collider_parent, aabb, layers, flags)| {
+        .retain_mut(|(collider_entity, collider_of, aabb, layers, flags)| {
             if let Ok((
                 new_aabb,
-                new_parent,
+                new_collider_of,
                 new_layers,
                 is_sensor,
                 events_enabled,
@@ -159,11 +159,18 @@ fn update_aabb_intervals(
                 }
 
                 *aabb = *new_aabb;
-                *collider_parent = new_parent.map_or(ColliderParent(*collider_entity), |p| *p);
+                *collider_of = new_collider_of.map_or(
+                    ColliderOf {
+                        rigid_body: *collider_entity,
+                    },
+                    |p| *p,
+                );
                 *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
 
-                let is_static =
-                    new_parent.is_some_and(|p| rbs.get(p.get()).is_ok_and(RigidBody::is_static));
+                let is_static = new_collider_of.is_some_and(|collider_of| {
+                    rbs.get(collider_of.rigid_body)
+                        .is_ok_and(RigidBody::is_static)
+                });
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
                 flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
@@ -186,7 +193,7 @@ fn update_aabb_intervals(
 
 type AabbIntervalQueryData = (
     Entity,
-    Option<Read<ColliderParent>>,
+    Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
     Option<Read<RigidBody>>,
     Option<Read<CollisionLayers>>,
@@ -205,7 +212,7 @@ fn add_new_aabb_intervals(
 ) {
     let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
-        |(entity, parent, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
+        |(entity, collider_of, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
             let mut flags = AabbIntervalFlags::empty();
             flags.set(
                 AabbIntervalFlags::IS_INACTIVE,
@@ -223,7 +230,7 @@ fn add_new_aabb_intervals(
             );
             (
                 entity,
-                parent.map_or(ColliderParent(entity), |p| *p),
+                collider_of.map_or(ColliderOf { rigid_body: entity }, |p| *p),
                 *aabb,
                 layers.map_or(CollisionLayers::default(), |layers| *layers),
                 flags,
@@ -244,7 +251,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     sweep_and_prune::<H>(
         intervals,
@@ -272,8 +279,8 @@ fn sweep_and_prune<H: CollisionHooks>(
 
     // Find potential collisions by checking for AABB intersections along all axes.
     // TODO: Find pairs in parallel, but create contact pairs serially for determinism.
-    for (i, (entity1, parent1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
-        for (entity2, parent2, aabb2, layers2, flags2) in intervals.0.iter().skip(i + 1) {
+    for (i, (entity1, collider_of1, aabb1, layers1, flags1)) in intervals.0.iter().enumerate() {
+        for (entity2, collider_of2, aabb2, layers2, flags2) in intervals.0.iter().skip(i + 1) {
             // x doesn't intersect; check this first so we can discard as soon as possible.
             if aabb2.min.x > aabb1.max.x {
                 break;
@@ -291,12 +298,12 @@ fn sweep_and_prune<H: CollisionHooks>(
             }
 
             // No collisions between bodies that haven't moved or colliders with incompatible layers
-            // or colliders with the same parent.
+            // or colliders attached to the same rigid body.
             if flags1
                 .intersection(*flags2)
                 .contains(AabbIntervalFlags::IS_INACTIVE)
                 || !layers1.interacts_with(*layers2)
-                || parent1 == parent2
+                || collider_of1 == collider_of2
             {
                 continue;
             }
@@ -323,8 +330,8 @@ fn sweep_and_prune<H: CollisionHooks>(
             let mut contacts = Contacts::new(*entity1, *entity2);
 
             // Initialize flags and other data for the contact pair.
-            contacts.body_entity1 = Some(parent1.get());
-            contacts.body_entity2 = Some(parent2.get());
+            contacts.body_entity1 = Some(collider_of1.rigid_body);
+            contacts.body_entity2 = Some(collider_of2.rigid_body);
             contacts.flags.set(
                 ContactPairFlags::SENSOR,
                 flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),

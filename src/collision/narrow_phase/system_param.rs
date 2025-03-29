@@ -1,5 +1,5 @@
 #[cfg(feature = "parallel")]
-use std::cell::RefCell;
+use core::cell::RefCell;
 
 use crate::{
     data_structures::{bit_vec::BitVec, graph::EdgeIndex, pair_key::PairKey},
@@ -72,7 +72,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
         collision_ended_event_writer: &mut EventWriter<CollisionEnded>,
         delta_secs: Scalar,
-        hooks: &mut H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        context: &SystemParamItem<C::Context>,
         commands: &mut ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -85,7 +86,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Update contacts for all contact pairs.
-        self.update_contacts::<H>(delta_secs, hooks, commands);
+        self.update_contacts::<H>(delta_secs, hooks, context, commands);
 
         // Contact pairs that should be removed.
         // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
@@ -119,7 +120,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .contains(ContactPairFlags::TOUCHING | ContactPairFlags::CONTACT_EVENTS);
                     if send_event {
                         collision_ended_event_writer
-                            .send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
                     }
 
                     // Remove from `CollidingEntities`.
@@ -153,7 +154,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
                         collision_started_event_writer
-                            .send(CollisionStarted(contact_pair.entity1, contact_pair.entity2));
+                            .write(CollisionStarted(contact_pair.entity1, contact_pair.entity2));
                     }
 
                     // Add to `CollidingEntities`.
@@ -178,7 +179,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Send collision ended event.
                     if contact_pair.events_enabled() {
                         collision_ended_event_writer
-                            .send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
                     }
 
                     // Remove from `CollidingEntities`.
@@ -258,7 +259,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     fn update_contacts<H: CollisionHooks>(
         &mut self,
         delta_secs: Scalar,
-        hooks: &H::Item<'_, '_>,
+        hooks: &SystemParamItem<H>,
+        collider_context: &SystemParamItem<C::Context>,
         par_commands: &mut ParallelCommands,
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
@@ -321,12 +323,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else {
                     // The AABBs overlap. Compute contacts.
 
-                    let body1_bundle = collider1
-                        .parent
-                        .and_then(|p| self.body_query.get(p.get()).ok());
-                    let body2_bundle = collider2
-                        .parent
-                        .and_then(|p| self.body_query.get(p.get()).ok());
+                    let body1_bundle =
+                        collider1.rigid_body.and_then(|&ColliderOf { rigid_body }| {
+                            self.body_query.get(rigid_body).ok()
+                        });
+                    let body2_bundle =
+                        collider2.rigid_body.and_then(|&ColliderOf { rigid_body }| {
+                            self.body_query.get(rigid_body).ok()
+                        });
 
                     // The rigid body's friction, restitution, collision margin, and speculative margin
                     // will be used if the collider doesn't have them specified.
@@ -454,7 +458,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // TODO: It'd be good to persist the manifolds and let Parry match contacts.
                     //       This isn't currently done because it requires using Parry's contact manifold type.
                     // Compute the contact manifolds using the effective speculative margin.
-                    collider1.shape.contact_manifolds(
+                    let context = ContactManifoldContext::new(
+                        collider1.entity,
+                        collider2.entity,
+                        collider_context,
+                    );
+                    collider1.shape.contact_manifolds_with_context(
                         collider2.shape,
                         position1,
                         *collider1.rotation,
@@ -462,6 +471,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         *collider2.rotation,
                         max_contact_distance,
                         &mut contacts.manifolds,
+                        context,
                     );
 
                     // Set the initial surface properties.
