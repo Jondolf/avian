@@ -131,7 +131,8 @@ pub fn contact(
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute contact manifolds a collision that should be penetrating
-/// let manifolds = contact_manifolds(
+/// let mut manifolds = Vec::new();
+/// contact_manifolds(
 ///     // First collider
 ///     &collider1,
 ///     Vec3::default(),
@@ -142,6 +143,8 @@ pub fn contact(
 ///     Quat::default(),
 ///     // Prediction distance
 ///     0.0,
+///     // Output manifolds
+///     &mut manifolds,
 /// );
 ///
 /// assert_eq!(manifolds.is_empty(), false);

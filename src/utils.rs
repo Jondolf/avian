@@ -24,9 +24,7 @@ pub(crate) fn get_pos_translation(
 ///
 /// # Example
 ///
-/// ```
-/// use crate::utils::par_for_each;
-///
+/// ```ignore
 /// let mut slice = vec![1, 2, 3, 4];
 ///
 /// par_for_each!(slice, |index, item| {

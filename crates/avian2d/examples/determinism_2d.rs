@@ -190,7 +190,7 @@ pub struct PhysicsHooks<'w, 's> {
 }
 
 impl CollisionHooks for PhysicsHooks<'_, '_> {
-    fn filter_pairs(&self, entity1: Entity, entity2: Entity, commands: &mut Commands) -> bool {
+    fn filter_pairs(&self, entity1: Entity, entity2: Entity, _commands: &mut Commands) -> bool {
         // Ignore the collision if the entities are connected by a joint.
         // TODO: This should be an optimized built-in feature for joints.
         self.joints

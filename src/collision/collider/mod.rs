@@ -185,7 +185,7 @@ pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
     ///         prediction_distance: Scalar,
     ///         manifolds: &mut Vec<ContactManifold>,
     ///         context: ContactManifoldContext<Self::Context>,
-    ///     ) -> Vec<ContactManifold> {
+    ///     ) {
     ///         let [voxels1, voxels2] = context.0.get_many([context.entity1, context.entity2])
     ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
     ///         let elapsed = context.1.elapsed();
