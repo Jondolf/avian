@@ -157,6 +157,10 @@ name = "prismatic_joint_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]
+name = "pyramid_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
 name = "ray_caster"
 required-features = ["2d", "default-collider"]
 
