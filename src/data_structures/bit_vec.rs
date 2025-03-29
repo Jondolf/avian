@@ -7,6 +7,7 @@ use core::slice;
 
 /// A dynamically sized compact bit vector with a fixed block size of 64 bits.
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct BitVec {
     blocks: Vec<u64>,
     block_capacity: usize,

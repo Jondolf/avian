@@ -6,8 +6,8 @@
 use bevy::prelude::Entity;
 
 /// A container for data associated with entities in a generational arena.
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct EntityDataIndex<T> {
     data: Vec<(u32, T)>,
 }
