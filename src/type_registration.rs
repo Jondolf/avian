@@ -3,7 +3,6 @@ use crate::{
     sync::{ancestor_marker::AncestorMarker, PreviousGlobalTransform, SyncConfig},
 };
 use bevy::prelude::*;
-use broad_phase::AabbIntersections;
 use dynamics::solver::{schedule::SubstepCount, SolverConfig};
 
 /// Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
@@ -14,8 +13,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
         app.register_type::<Time<Physics>>()
             .register_type::<Time<Substeps>>()
             .register_type::<SubstepCount>()
-            .register_type::<BroadCollisionPairs>()
-            .register_type::<AabbIntersections>()
             .register_type::<SleepingThreshold>()
             .register_type::<DeactivationTime>()
             .register_type::<Gravity>()

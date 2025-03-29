@@ -76,8 +76,12 @@ impl AnyCollider for CircleCollider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        manifolds: &mut Vec<ContactManifold>,
         _: ContactManifoldContext<Self::Context>,
-    ) -> Vec<ContactManifold> {
+    ) {
+        // Clear the previous manifolds.
+        manifolds.clear();
+
         let rotation1: Rotation = rotation1.into();
         let rotation2: Rotation = rotation2.into();
 
@@ -98,22 +102,14 @@ impl AnyCollider for CircleCollider {
             let local_point1 = local_normal1 * self.radius;
             let local_point2 = local_normal2 * other.radius;
 
-            vec![ContactManifold::new(
-                [ContactPoint {
-                    local_point1,
-                    local_point2,
-                    penetration: sum_radius - distance_squared.sqrt(),
-                    // Impulses are computed by the constraint solver.
-                    normal_impulse: 0.0,
-                    tangent_impulse: 0.0,
-                    feature_id1: PackedFeatureId::face(0),
-                    feature_id2: PackedFeatureId::face(0),
-                }],
-                rotation1 * local_normal1,
-                0,
-            )]
-        } else {
-            vec![]
+            let point = ContactPoint::new(
+                local_point1,
+                local_point2,
+                sum_radius - distance_squared.sqrt(),
+            )
+            .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0));
+
+            manifolds.push(ContactManifold::new([point], rotation1 * local_normal1, 0));
         }
     }
 }

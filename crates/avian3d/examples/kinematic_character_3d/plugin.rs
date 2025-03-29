@@ -1,4 +1,7 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{
+    math::*,
+    prelude::{narrow_phase::NarrowPhaseSet, *},
+};
 use bevy::{ecs::query::Has, prelude::*};
 
 pub struct CharacterControllerPlugin;
@@ -23,8 +26,8 @@ impl Plugin for CharacterControllerPlugin {
                 //
                 // NOTE: The collision implementation here is very basic and a bit buggy.
                 //       A collide-and-slide algorithm would likely work better.
-                PostProcessCollisions,
-                kinematic_controller_collisions,
+                PhysicsSchedule,
+                kinematic_controller_collisions.in_set(NarrowPhaseSet::Last),
             );
     }
 }

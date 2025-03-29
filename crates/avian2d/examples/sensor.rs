@@ -67,6 +67,8 @@ fn setup(
         Sensor,
         RigidBody::Static,
         Collider::rectangle(100.0, 100.0),
+        // Enable collision events for this entity.
+        CollisionEventsEnabled,
         // Read entities colliding with this entity.
         CollidingEntities::default(),
     ));

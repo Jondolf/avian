@@ -202,7 +202,6 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
         ("Broad Phase", Collision::BROAD_PHASE),
         ("Narrow Phase", Collision::NARROW_PHASE),
         ("Generate Constraints", Collision::GENERATE_CONSTRAINTS),
-        ("Collision Events", Collision::COLLISION_EVENTS),
     ];
     let solver_timers = vec![
         ("Integrate Velocities", Solver::INTEGRATE_VELOCITIES),

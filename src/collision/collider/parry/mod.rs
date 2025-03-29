@@ -234,7 +234,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders on their own only detect contacts and generate
-/// [collision events](ContactReportingPlugin#collision-events).
+/// [collision events](collision#collision-events).
 /// To make colliders apply contact forces, they have to be attached
 /// to [rigid bodies](RigidBody):
 ///
@@ -318,7 +318,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
-/// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
+/// and other configuration options, and they send separate [collision events](collision#collision-events).
 ///
 /// # See More
 ///
@@ -333,7 +333,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 /// - [Get colliding entities](CollidingEntities)
-/// - [Collision events](ContactReportingPlugin#collision-events)
+/// - [Collision events](collision#collision-events)
 /// - [Accessing, filtering and modifying collisions](Collisions)
 /// - [Manual contact queries](contact_query)
 ///
@@ -410,8 +410,9 @@ impl AnyCollider for Collider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        manifolds: &mut Vec<ContactManifold>,
         _: ContactManifoldContext<Self::Context>,
-    ) -> Vec<ContactManifold> {
+    ) {
         contact_query::contact_manifolds(
             self,
             position1,
@@ -420,6 +421,7 @@ impl AnyCollider for Collider {
             position2,
             rotation2,
             prediction_distance,
+            manifolds,
         )
     }
 }
