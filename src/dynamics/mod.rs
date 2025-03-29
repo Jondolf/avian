@@ -71,7 +71,7 @@ pub mod solver;
 pub mod prelude {
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
-        integrator::{Gravity, IntegratorPlugin},
+        integrator::{CustomGravity, Gravity, IntegratorPlugin},
         rigid_body::{
             mass_properties::{
                 bevy_heavy::{
