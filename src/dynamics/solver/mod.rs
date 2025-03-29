@@ -534,7 +534,10 @@ fn store_contact_impulses(
             .graph
             .edge_weight_mut(EdgeIndex(constraint.contact_pair_index as u32))
         else {
-            unreachable!("Contact pair not found in collisions graph");
+            unreachable!(
+                "Contact pair with index {} not found in contact graph",
+                constraint.contact_pair_index
+            );
         };
 
         let manifold = &mut contact_pair.manifolds[constraint.manifold_index];
