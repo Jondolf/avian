@@ -183,6 +183,7 @@ pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
     ///         position2: Vector,
     ///         rotation2: impl Into<Rotation>,
     ///         prediction_distance: Scalar,
+    ///         manifolds: &mut Vec<ContactManifold>,
     ///         context: ContactManifoldContext<Self::Context>,
     ///     ) -> Vec<ContactManifold> {
     ///         let [voxels1, voxels2] = context.0.get_many([context.entity1, context.entity2])
