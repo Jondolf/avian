@@ -99,3 +99,6 @@ pub use feature_id::PackedFeatureId;
 
 mod diagnostics;
 pub use diagnostics::CollisionDiagnostics;
+
+#[expect(unused_imports)]
+use crate::prelude::*;
