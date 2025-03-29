@@ -27,7 +27,7 @@ pub struct IntegratorPlugin {
 }
 
 impl IntegratorPlugin {
-    /// Creates a [`IntegratorPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    /// Creates an [`IntegratorPlugin`] with the schedule that the integration systems should run in.
     ///
     /// The default schedule is [`SubstepSchedule`].
     pub fn new(schedule: impl ScheduleLabel) -> Self {

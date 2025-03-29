@@ -205,7 +205,6 @@
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`]
 //!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet)
-//!     - [`PostProcessCollisions`] schedule
 //!     - [`PrepareSet`](prepare::PrepareSet)
 //!     - Many more internal system sets
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)

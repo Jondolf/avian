@@ -17,7 +17,7 @@ use crate::{
 use bevy::{
     ecs::{
         intern::Interned,
-        schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
+        schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemParamItem},
     },
     prelude::*,
@@ -90,12 +90,7 @@ where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
-        // For some systems, we only want one instance, even if there are multiple
-        // `NarrowPhasePlugin` instances with different collider types.
-        let is_first_instance = !app.world().is_resource_added::<NarrowPhaseInitialized>();
-
-        app.init_resource::<NarrowPhaseInitialized>()
-            .init_resource::<NarrowPhaseConfig>()
+        app.init_resource::<NarrowPhaseConfig>()
             .init_resource::<Collisions>()
             .init_resource::<ContactStatusBits>()
             .init_resource::<DefaultFriction>()
@@ -119,7 +114,6 @@ where
             (
                 NarrowPhaseSet::First,
                 NarrowPhaseSet::Update,
-                NarrowPhaseSet::PostProcess,
                 NarrowPhaseSet::GenerateConstraints,
                 NarrowPhaseSet::Last,
             )
@@ -130,17 +124,6 @@ where
         // Remove collision pairs when colliders are disabled or removed.
         app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
         app.add_observer(remove_collider_on::<OnRemove, Collider>);
-
-        // Set up the `PostProcessCollisions` schedule for user-defined systems
-        // that filter and modify collisions.
-        app.edit_schedule(PostProcessCollisions, |schedule| {
-            schedule
-                .set_executor_kind(ExecutorKind::SingleThreaded)
-                .set_build_settings(ScheduleBuildSettings {
-                    ambiguity_detection: LogLevel::Error,
-                    ..default()
-                });
-        });
 
         // Perform narrow phase collision detection.
         app.add_systems(
@@ -163,13 +146,6 @@ where
                     .ambiguous_with_all(),
             );
         }
-
-        if is_first_instance {
-            app.add_systems(
-                self.schedule,
-                run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
-            );
-        }
     }
 
     fn finish(&self, app: &mut App) {
@@ -177,9 +153,6 @@ where
         app.register_physics_diagnostics::<CollisionDiagnostics>();
     }
 }
-
-#[derive(Resource, Default)]
-struct NarrowPhaseInitialized;
 
 /// A resource for configuring the [narrow phase](NarrowPhasePlugin).
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
@@ -247,12 +220,6 @@ pub enum NarrowPhaseSet {
     First,
     /// Updates contacts in [`Collisions`] and processes contact state changes.
     Update,
-    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
-    /// to filter and modify collisions.
-    ///
-    /// If you want to modify or remove collisions after [`NarrowPhaseSet::CollectCollisions`], you can
-    /// add custom systems to this set, or to [`PostProcessCollisions`].
-    PostProcess,
     /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
     ///
     /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
@@ -398,10 +365,4 @@ fn remove_collider_on<E: Event, C: Component>(
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));
     });
-}
-
-/// Runs the [`PostProcessCollisions`] schedule.
-fn run_post_process_collisions_schedule(world: &mut World) {
-    trace!("running PostProcessCollisions");
-    world.run_schedule(PostProcessCollisions);
 }

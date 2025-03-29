@@ -119,43 +119,6 @@ impl Default for IsFirstRun {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 pub struct PhysicsSchedule;
 
-// TODO: Remove this in favor of collision hooks.
-/// A schedule where you can add systems to filter or modify collisions
-/// using the [`Collisions`] resource.
-///
-/// The schedule is empty by default and runs in
-/// [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
-///
-/// # Example
-///
-/// Below is an example of how you could add a system that filters collisions.
-///
-/// ```no_run
-#[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-/// use bevy::prelude::*;
-///
-/// #[derive(Component)]
-/// struct Invulnerable;
-///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         .add_systems(PostProcessCollisions, filter_collisions)
-///         .run();
-/// }
-///
-/// fn filter_collisions(mut collisions: ResMut<Collisions>, query: Query<(), With<Invulnerable>>) {
-///     // Remove collisions where one of the colliders has an `Invulnerable` component.
-///     // In a real project, this could be done more efficiently with collision layers.
-///     collisions.retain(|contacts| {
-///         !query.contains(contacts.entity1) && !query.contains(contacts.entity2)
-///     });
-/// }
-/// ```
-#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
-pub struct PostProcessCollisions;
-
 /// High-level system sets for the main phases of the physics engine.
 /// You can use these to schedule your own systems before or after physics is run without
 /// having to worry about implementation details.
@@ -172,9 +135,6 @@ pub struct PostProcessCollisions;
 /// - [`PhysicsStepSet`]: System sets for the steps of the actual physics simulation loop, like
 ///   the broad phase and the substepping loop.
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
-/// - [`PostProcessCollisions`]: Responsible for running the post-process collisions group in
-///   [`NarrowPhaseSet::PostProcess`](collision::narrow_phase::NarrowPhaseSet::PostProcess).
-///   Empty by default.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
     /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
