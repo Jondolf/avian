@@ -13,7 +13,7 @@ pub struct EntityDataIndex<T> {
 }
 
 impl<T> EntityDataIndex<T> {
-    /// Creates a new [`EntityIndex`] with estimated capacity.
+    /// Creates a new [`EntityDataIndex`] with estimated capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: Vec::with_capacity(capacity),
@@ -31,7 +31,7 @@ impl<T> EntityDataIndex<T> {
 
     /// Gets a specific element from the entity index without specifying its generation number.
     ///
-    /// It is strongly encouraged to use [`EntityIndex::get`] instead of this method because this method
+    /// It is strongly encouraged to use [`EntityDataIndex::get`] instead of this method because this method
     /// can suffer from the ABA problem.
     pub fn get_unknown_gen(&self, index: u32) -> Option<&T> {
         self.data.get(index as usize).map(|(_, t)| t)

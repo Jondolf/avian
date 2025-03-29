@@ -369,7 +369,7 @@ impl Collisions {
     /// If a pair with the same entities already exists, this will do nothing.
     ///
     /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
-    /// If the key is not available, consider using [`add_pair`] instead.
+    /// If the key is not available, consider using [`add_pair`](Self::add_pair) instead.
     ///
     /// # Warning
     ///
@@ -421,7 +421,7 @@ impl Collisions {
     /// If a pair with the same entities already exists, it will be overwritten.
     ///
     /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
-    /// If the key is not available, consider using [`insert_pair`] instead.
+    /// If the key is not available, consider using [`insert_pair`](Self::insert_pair) instead.
     ///
     /// # Warning
     ///

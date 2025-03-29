@@ -595,7 +595,7 @@ use prelude::*;
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsPickingPlugin`]          | Enables a physics picking backend for [`bevy_picking`](bevy::picking) (only with `bevy_picking` feature enabled).                                          |
-/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
+/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and contacts for debugging purposes (only with `debug-plugin` feature enabled).              |
 /// | [`PhysicsDiagnosticsPlugin`]      | Writes [physics diagnostics](diagnostics) to the [`DiagnosticsStore`] (only with `bevy_diagnostic` feature enabled).                                       |
 /// | [`PhysicsDiagnosticsUiPlugin`]    | Displays [physics diagnostics](diagnostics) with a debug UI overlay (only with `diagnostic_ui` feature enabled).                                           |
 ///
