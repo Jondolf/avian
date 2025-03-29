@@ -632,6 +632,11 @@ impl Contacts {
         self.total_normal_impulse_magnitude() / delta_time
     }
 
+    /// Returns `true` if at least one of the colliders is a [`Sensor`].
+    pub fn is_sensor(&self) -> bool {
+        self.flags.contains(ContactPairFlags::SENSOR)
+    }
+
     /// Returns `true` if the colliders are touching, including sensors.
     pub fn is_touching(&self) -> bool {
         self.flags.contains(ContactPairFlags::TOUCHING)
