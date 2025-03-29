@@ -21,7 +21,7 @@ use crate::{
     math::{Vector, PI},
     prelude::*,
 };
-use bevy::{prelude::*, time::TimeUpdateStrategy};
+use bevy::{ecs::system::SystemParam, prelude::*, time::TimeUpdateStrategy};
 use bytemuck::{Pod, Zeroable};
 
 // How many steps to record the hash for.
@@ -62,7 +62,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0xb9354ab8;
+    let expected = 0xeabb3d88;
 
     assert!(
         hash == expected,
