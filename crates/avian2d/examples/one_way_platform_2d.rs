@@ -244,7 +244,7 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
     /// Even if an entity is changed to [`PassThroughOneWayPlatform::Never`], it will be allowed to pass
     /// through a [`OneWayPlatform`] if it is already penetrating the platform. Once it exits the platform,
     /// it will no longer be allowed to pass through.
-    fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
+    fn modify_contacts(&self, contacts: &mut ContactPair, commands: &mut Commands) -> bool {
         // This is the contact modification hook, called after collision detection,
         // but before constraints are created for the solver. Mutable access to the ECS
         // is not allowed, but we can queue commands to perform deferred changes.

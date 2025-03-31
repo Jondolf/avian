@@ -87,7 +87,7 @@ pub struct ContactConstraint {
     pub points: Vec<ContactConstraintPoint>,
     /// The index of the contact pair in the [`ContactGraph`].
     pub contact_pair_index: usize,
-    /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
+    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
     pub manifold_index: usize,
 }
 

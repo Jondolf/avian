@@ -19,7 +19,7 @@ use bevy::prelude::*;
 /// are overlapping, even if the colliders themselves are not touching.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct Contacts {
+pub struct ContactPair {
     /// The first collider entity in the contact.
     pub entity1: Entity,
     /// The second collider entity in the contact.
@@ -36,7 +36,7 @@ pub struct Contacts {
     pub flags: ContactPairFlags,
 }
 
-/// Flags indicating the status and type of a [contact pair](Contacts).
+/// Flags indicating the status and type of a [contact pair](ContactPair).
 #[repr(transparent)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
@@ -62,8 +62,8 @@ bitflags::bitflags! {
     }
 }
 
-impl Contacts {
-    /// Creates a new [`Contacts`] with the given entities.
+impl ContactPair {
+    /// Creates a new [`ContactPair`] with the given entities.
     #[inline]
     pub fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {

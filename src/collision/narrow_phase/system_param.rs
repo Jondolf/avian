@@ -555,7 +555,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     pub fn generate_constraints(
         &self,
         contact_pair_index: usize,
-        contacts: &Contacts,
+        contacts: &ContactPair,
         constraints: &mut Vec<ContactConstraint>,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
