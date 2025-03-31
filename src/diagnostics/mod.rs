@@ -79,9 +79,9 @@ use crate::{schedule::PhysicsSchedule, PhysicsStepSet};
 use bevy::{
     app::{App, Plugin},
     diagnostic::{Diagnostic, DiagnosticPath, Diagnostics, RegisterDiagnostic},
-    prelude::{IntoSystemConfigs, IntoSystemSetConfigs, Res, ResMut, Resource, SystemSet},
-    utils::Duration,
+    prelude::{IntoScheduleConfigs, Res, ResMut, Resource, SystemSet},
 };
+use core::time::Duration;
 
 /// A plugin that enables writing [physics diagnostics](crate::diagnostics)
 /// to [`bevy::diagnostic::DiagnosticsStore`]. It is not enabled by default

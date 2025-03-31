@@ -27,7 +27,7 @@ pub struct IntegratorPlugin {
 }
 
 impl IntegratorPlugin {
-    /// Creates a [`IntegratorPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+    /// Creates an [`IntegratorPlugin`] with the schedule that the integration systems should run in.
     ///
     /// The default schedule is [`SubstepSchedule`].
     pub fn new(schedule: impl ScheduleLabel) -> Self {
@@ -173,7 +173,7 @@ fn integrate_velocities(
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 
@@ -273,7 +273,7 @@ fn integrate_positions(
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 

@@ -6,14 +6,14 @@
 use bevy::prelude::Entity;
 
 /// A container for data associated with entities in a generational arena.
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct EntityDataIndex<T> {
     data: Vec<(u32, T)>,
 }
 
 impl<T> EntityDataIndex<T> {
-    /// Creates a new [`EntityIndex`] with estimated capacity.
+    /// Creates a new [`EntityDataIndex`] with estimated capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             data: Vec::with_capacity(capacity),
@@ -31,7 +31,7 @@ impl<T> EntityDataIndex<T> {
 
     /// Gets a specific element from the entity index without specifying its generation number.
     ///
-    /// It is strongly encouraged to use [`EntityIndex::get`] instead of this method because this method
+    /// It is strongly encouraged to use [`EntityDataIndex::get`] instead of this method because this method
     /// can suffer from the ABA problem.
     pub fn get_unknown_gen(&self, index: u32) -> Option<&T> {
         self.data.get(index as usize).map(|(_, t)| t)
@@ -45,7 +45,7 @@ impl<T> EntityDataIndex<T> {
         let data = self.data.get_mut(index as usize)?;
         if gen == data.0 {
             data.0 = u32::MAX; // invalidate the generation number.
-            Some(std::mem::replace(&mut data.1, removed_value))
+            Some(core::mem::replace(&mut data.1, removed_value))
         } else {
             None
         }

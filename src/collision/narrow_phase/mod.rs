@@ -8,13 +8,13 @@ pub use system_param::NarrowPhase;
 #[cfg(feature = "parallel")]
 use system_param::NarrowPhaseThreadLocals;
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 use crate::{dynamics::solver::ContactConstraints, prelude::*};
 use bevy::{
     ecs::{
         intern::Interned,
-        schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
+        schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemParamItem},
     },
     prelude::*,
@@ -25,10 +25,10 @@ use dynamics::solver::SolverDiagnostics;
 ///
 /// # Overview
 ///
-/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`Collisions`]
+/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`ContactGraph`]
 /// resource for each pair of intersecting [`ColliderAabb`]s.
 ///
-/// The narrow phase then determines which contact pairs found in [`Collisions`] are touching,
+/// The narrow phase then determines which contact pairs found in the [`ContactGraph`] are touching,
 /// and computes updated contact points and normals in a parallel loop.
 ///
 /// Afterwards, the narrow phase removes contact pairs whose AABBs no longer overlap,
@@ -87,13 +87,8 @@ where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
-        // For some systems, we only want one instance, even if there are multiple
-        // `NarrowPhasePlugin` instances with different collider types.
-        let is_first_instance = !app.world().is_resource_added::<NarrowPhaseInitialized>();
-
-        app.init_resource::<NarrowPhaseInitialized>()
-            .init_resource::<NarrowPhaseConfig>()
-            .init_resource::<Collisions>()
+        app.init_resource::<NarrowPhaseConfig>()
+            .init_resource::<ContactGraph>()
             .init_resource::<ContactStatusBits>()
             .init_resource::<DefaultFriction>()
             .init_resource::<DefaultRestitution>();
@@ -116,7 +111,6 @@ where
             (
                 NarrowPhaseSet::First,
                 NarrowPhaseSet::Update,
-                NarrowPhaseSet::PostProcess,
                 NarrowPhaseSet::GenerateConstraints,
                 NarrowPhaseSet::Last,
             )
@@ -128,17 +122,6 @@ where
         app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
         app.add_observer(remove_collider_on::<OnRemove, Collider>);
 
-        // Set up the `PostProcessCollisions` schedule for user-defined systems
-        // that filter and modify collisions.
-        app.edit_schedule(PostProcessCollisions, |schedule| {
-            schedule
-                .set_executor_kind(ExecutorKind::SingleThreaded)
-                .set_build_settings(ScheduleBuildSettings {
-                    ambiguity_detection: LogLevel::Error,
-                    ..default()
-                });
-        });
-
         // Perform narrow phase collision detection.
         app.add_systems(
             self.schedule,
@@ -148,13 +131,6 @@ where
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
         );
-
-        if is_first_instance {
-            app.add_systems(
-                self.schedule,
-                run_post_process_collisions_schedule.in_set(NarrowPhaseSet::PostProcess),
-            );
-        }
     }
 
     fn finish(&self, app: &mut App) {
@@ -162,9 +138,6 @@ where
         app.register_physics_diagnostics::<CollisionDiagnostics>();
     }
 }
-
-#[derive(Resource, Default)]
-struct NarrowPhaseInitialized;
 
 /// A resource for configuring the [narrow phase](NarrowPhasePlugin).
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
@@ -230,14 +203,8 @@ impl Default for NarrowPhaseConfig {
 pub enum NarrowPhaseSet {
     /// Runs at the start of the narrow phase. Empty by default.
     First,
-    /// Updates contacts in [`Collisions`] and processes contact state changes.
+    /// Updates contacts in the [`ContactGraph`] and processes contact state changes.
     Update,
-    /// Responsible for running the [`PostProcessCollisions`] schedule to allow user-defined systems
-    /// to filter and modify collisions.
-    ///
-    /// If you want to modify or remove collisions after [`NarrowPhaseSet::CollectCollisions`], you can
-    /// add custom systems to this set, or to [`PostProcessCollisions`].
-    PostProcess,
     /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
     ///
     /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
@@ -252,24 +219,26 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     mut collision_ended_event_writer: EventWriter<CollisionEnded>,
     time: Res<Time>,
     hooks: StaticSystemParam<H>,
+    context: StaticSystemParam<C::Context>,
     mut commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
     solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     narrow_phase.update::<H>(
         &mut collision_started_event_writer,
         &mut collision_ended_event_writer,
         time.delta_seconds_adjusted(),
-        &mut hooks.into_inner(),
+        &hooks,
+        &context,
         &mut commands,
     );
 
     diagnostics.narrow_phase = start.elapsed();
-    diagnostics.contact_count = narrow_phase.collisions.graph.edge_count() as u32;
+    diagnostics.contact_count = narrow_phase.contact_graph.internal.edge_count() as u32;
 
     if let Some(mut solver_diagnostics) = solver_diagnostics {
         solver_diagnostics.contact_constraint_count = narrow_phase.contact_constraints.len() as u32;
@@ -278,21 +247,21 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
-    mut collisions: ResMut<Collisions>,
+    mut contact_graph: ResMut<ContactGraph>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
 ) {
-    let entity = trigger.entity();
+    let entity = trigger.target();
 
     // Remove the collider from the contact graph.
-    collisions.remove_collider_with(entity, |contact_pair| {
+    contact_graph.remove_collider_with(entity, |contact_pair| {
         // Send collision ended event.
         if contact_pair
             .flags
             .contains(ContactPairFlags::CONTACT_EVENTS)
         {
-            event_writer.send(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+            event_writer.write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.
@@ -308,10 +277,4 @@ fn remove_collider_on<E: Event, C: Component>(
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));
     });
-}
-
-/// Runs the [`PostProcessCollisions`] schedule.
-fn run_post_process_collisions_schedule(world: &mut World) {
-    trace!("running PostProcessCollisions");
-    world.run_schedule(PostProcessCollisions);
 }

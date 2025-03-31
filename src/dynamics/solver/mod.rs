@@ -393,7 +393,7 @@ fn warm_start(
     solver_config: Res<SolverConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
@@ -442,7 +442,7 @@ fn solve_contacts<const USE_BIAS: bool>(
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
@@ -486,7 +486,7 @@ fn solve_restitution(
     length_unit: Res<PhysicsLengthUnit>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
@@ -520,18 +520,22 @@ fn solve_restitution(
     diagnostics.apply_restitution += start.elapsed();
 }
 
-/// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
+/// Copies contact impulses from [`ContactConstraints`] to the contacts in the [`ContactGraph`].
 /// They will be used for [warm starting](SubstepSolverSet::WarmStart).
 fn store_contact_impulses(
     constraints: Res<ContactConstraints>,
-    mut collisions: ResMut<Collisions>,
+    mut contact_graph: ResMut<ContactGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) = collisions.get_mut(constraint.entity1, constraint.entity2) else {
-            unreachable!("Contact pair not found in collisions graph");
+        let Some(contact_pair) = contact_graph.get_mut(constraint.entity1, constraint.entity2)
+        else {
+            unreachable!(
+                "Contact pair between {} and {} not found in contact graph.",
+                constraint.entity1, constraint.entity2
+            );
         };
 
         let manifold = &mut contact_pair.manifolds[constraint.manifold_index];
@@ -565,7 +569,7 @@ fn apply_translation(
     >,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     for (rb, mut pos, rot, prev_rot, mut translation, center_of_mass) in &mut bodies {
         if rb.is_static() {

@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+pub(crate) use bevy::platform_support::time::Instant;
+
 /// Computes translation of `Position` based on center of mass rotation and translation
 pub(crate) fn get_pos_translation(
     com_translation: &AccumulatedTranslation,
@@ -22,7 +24,7 @@ pub(crate) fn get_pos_translation(
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// let mut slice = vec![1, 2, 3, 4];
 ///
 /// par_for_each!(slice, |index, item| {

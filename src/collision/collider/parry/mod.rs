@@ -314,7 +314,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders can be arbitrarily nested and transformed relative to the parent.
-/// The rigid body that a collider is attached to can be accessed using the [`ColliderParent`] component.
+/// The rigid body that a collider is attached to can be accessed using the [`ColliderOf`] component.
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
@@ -334,7 +334,8 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 )]
 /// - [Get colliding entities](CollidingEntities)
 /// - [Collision events](collision#collision-events)
-/// - [Accessing, filtering and modifying collisions](Collisions)
+/// - [Accessing collision data](Collisions)
+/// - [Filtering and modifying contacts with hooks](CollisionHooks)
 /// - [Manual contact queries](contact_query)
 ///
 /// # Advanced Usage
@@ -385,7 +386,14 @@ impl Default for Collider {
 }
 
 impl AnyCollider for Collider {
-    fn aabb(&self, position: Vector, rotation: impl Into<Rotation>) -> ColliderAabb {
+    type Context = ();
+
+    fn aabb_with_context(
+        &self,
+        position: Vector,
+        rotation: impl Into<Rotation>,
+        _: AabbContext<Self::Context>,
+    ) -> ColliderAabb {
         let aabb = self
             .shape_scaled()
             .compute_aabb(&make_isometry(position, rotation));
@@ -395,8 +403,7 @@ impl AnyCollider for Collider {
         }
     }
 
-    #[inline]
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
@@ -405,6 +412,7 @@ impl AnyCollider for Collider {
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
         manifolds: &mut Vec<ContactManifold>,
+        _: ContactManifoldContext<Self::Context>,
     ) {
         contact_query::contact_manifolds(
             self,
