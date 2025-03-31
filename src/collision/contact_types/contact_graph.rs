@@ -7,7 +7,7 @@ use crate::data_structures::{
 use crate::prelude::*;
 use bevy::{platform_support::collections::HashSet, prelude::*};
 
-use super::{ContactPairFlags, ContactPair};
+use super::{ContactPair, ContactPairFlags};
 
 /// A resource that stores all contact pairs in the physics world
 /// in an [undirected graph](UnGraph).
@@ -206,7 +206,10 @@ impl ContactGraph {
     ///
     /// Use [`ContactPair::is_touching`](ContactPair::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
-    pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut ContactPair> {
+    pub fn collisions_with_mut(
+        &mut self,
+        entity: Entity,
+    ) -> impl Iterator<Item = &mut ContactPair> {
         if let Some(&index) = self.entity_graph_index.get(entity) {
             self.internal.edge_weights_mut(index)
         } else {

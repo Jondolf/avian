@@ -1,7 +1,7 @@
 use crate::data_structures::pair_key::PairKey;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-use super::{ContactGraph, ContactPairFlags, ContactPair};
+use super::{ContactGraph, ContactPair, ContactPairFlags};
 
 /// A [`SystemParam`] for accessing and querying collision data.
 ///
