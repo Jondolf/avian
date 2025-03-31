@@ -188,7 +188,7 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
         // Other counters
         cmd.counter_text("Colliders", PhysicsEntityDiagnostics::COLLIDER_COUNT);
         cmd.counter_text("Joints", PhysicsEntityDiagnostics::JOINT_COUNT);
-        cmd.counter_text("Contacts", CollisionDiagnostics::CONTACT_COUNT);
+        cmd.counter_text("Contact Pairs", CollisionDiagnostics::CONTACT_COUNT);
         cmd.counter_text(
             "Contact Constraints",
             SolverDiagnostics::CONTACT_CONSTRAINT_COUNT,

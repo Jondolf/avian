@@ -7,7 +7,7 @@ use crate::data_structures::{
 use crate::prelude::*;
 use bevy::{platform_support::collections::HashSet, prelude::*};
 
-use super::{ContactPairFlags, Contacts};
+use super::{ContactPairFlags, ContactPair};
 
 /// A resource that stores all contact pairs in the physics world
 /// in an [undirected graph](UnGraph).
@@ -70,7 +70,7 @@ use super::{ContactPairFlags, Contacts};
 pub struct ContactGraph {
     // TODO: We could have a separate intersection graph for sensors.
     /// The internal undirected graph where nodes are entities and edges are contact pairs.
-    pub internal: UnGraph<Entity, Contacts>,
+    pub internal: UnGraph<Entity, ContactPair>,
 
     /// A set of all contact pairs for fast lookup.
     ///
@@ -89,9 +89,9 @@ impl ContactGraph {
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
-    /// Use [`Contacts::is_touching`] to determine if the actual collider shapes are touching.
+    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
-    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
+    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&ContactPair> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
             self.entity_graph_index.get(entity2),
@@ -108,9 +108,9 @@ impl ContactGraph {
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
-    /// Use [`Contacts::is_touching`] to determine if the actual collider shapes are touching.
+    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
-    pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut Contacts> {
+    pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut ContactPair> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
             self.entity_graph_index.get(entity2),
@@ -150,7 +150,7 @@ impl ContactGraph {
     ///
     /// If you only want touching contacts, use [`iter_touching`](Self::iter_touching) instead.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
+    pub fn iter(&self) -> impl Iterator<Item = &ContactPair> {
         self.internal.all_edge_weights()
     }
 
@@ -158,7 +158,7 @@ impl ContactGraph {
     ///
     /// This is a subset of [`iter`](Self::iter) that only includes pairs where the colliders are touching.
     #[inline]
-    pub fn iter_touching(&self) -> impl Iterator<Item = &Contacts> {
+    pub fn iter_touching(&self) -> impl Iterator<Item = &ContactPair> {
         self.internal
             .all_edge_weights()
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
@@ -171,7 +171,7 @@ impl ContactGraph {
     ///
     /// If you only want touching contacts, use [`iter_touching_mut`](Self::iter_touching_mut) instead.
     #[inline]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {
         self.internal.all_edge_weights_mut()
     }
 
@@ -179,7 +179,7 @@ impl ContactGraph {
     ///
     /// This is a subset of [`iter_mut`](Self::iter_mut) that only includes pairs where the colliders are touching.
     #[inline]
-    pub fn iter_touching_mut(&mut self) -> impl Iterator<Item = &mut Contacts> {
+    pub fn iter_touching_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {
         self.internal
             .all_edge_weights_mut()
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
@@ -190,9 +190,9 @@ impl ContactGraph {
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
     ///
-    /// Use [`Contacts::is_touching`](Contacts::is_touching) to determine if the actual collider shapes are touching.
+    /// Use [`ContactPair::is_touching`](ContactPair::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
-    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
+    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
         self.entity_graph_index
             .get(entity)
             .into_iter()
@@ -204,9 +204,9 @@ impl ContactGraph {
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
     ///
-    /// Use [`Contacts::is_touching`](Contacts::is_touching) to determine if the actual collider shapes are touching.
+    /// Use [`ContactPair::is_touching`](ContactPair::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
-    pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut Contacts> {
+    pub fn collisions_with_mut(&mut self, entity: Entity) -> impl Iterator<Item = &mut ContactPair> {
         if let Some(&index) = self.entity_graph_index.get(entity) {
             self.internal.edge_weights_mut(index)
         } else {
@@ -243,7 +243,7 @@ impl ContactGraph {
     /// Creating a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_pair(&mut self, contacts: Contacts) {
+    pub fn add_pair(&mut self, contacts: ContactPair) {
         let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
         self.add_pair_with_key(contacts, pair_key);
     }
@@ -262,7 +262,7 @@ impl ContactGraph {
     /// Creating a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+    pub fn add_pair_with_key(&mut self, contacts: ContactPair, pair_key: PairKey) {
         // Add the pair to the pair set for fast lookup.
         if !self.pair_set.insert(pair_key) {
             // The pair already exists.
@@ -295,7 +295,7 @@ impl ContactGraph {
     /// Inserting a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn insert_pair(&mut self, contacts: Contacts) {
+    pub fn insert_pair(&mut self, contacts: ContactPair) {
         let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
         self.insert_pair_with_key(contacts, pair_key);
     }
@@ -314,7 +314,7 @@ impl ContactGraph {
     /// Inserting a collision pair with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn insert_pair_with_key(&mut self, contacts: Contacts, pair_key: PairKey) {
+    pub fn insert_pair_with_key(&mut self, contacts: ContactPair, pair_key: PairKey) {
         // Add the pair to the pair set for fast lookup.
         self.pair_set.insert(pair_key);
 
@@ -344,7 +344,7 @@ impl ContactGraph {
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
-    pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<Contacts> {
+    pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<ContactPair> {
         let (Some(&index1), Some(&index2)) = (
             self.entity_graph_index.get(entity1),
             self.entity_graph_index.get(entity2),
@@ -372,7 +372,7 @@ impl ContactGraph {
     #[inline]
     pub fn remove_collider_with<F>(&mut self, entity: Entity, mut pair_callback: F)
     where
-        F: FnMut(Contacts),
+        F: FnMut(ContactPair),
     {
         let Some(&index) = self.entity_graph_index.get(entity) else {
             return;

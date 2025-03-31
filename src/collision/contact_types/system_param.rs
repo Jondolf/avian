@@ -1,7 +1,7 @@
 use crate::data_structures::pair_key::PairKey;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
-use super::{ContactGraph, ContactPairFlags, Contacts};
+use super::{ContactGraph, ContactPairFlags, ContactPair};
 
 /// A [`SystemParam`] for accessing and querying collision data.
 ///
@@ -68,7 +68,7 @@ impl Collisions<'_> {
     /// Returns a touching contact pair between two entities.
     /// If the pair does not exist, `None` is returned.
     #[inline]
-    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&Contacts> {
+    pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&ContactPair> {
         self.graph.get(entity1, entity2)
     }
 
@@ -91,7 +91,7 @@ impl Collisions<'_> {
 
     /// Returns an iterator yielding immutable access to all touching contact pairs.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &Contacts> {
+    pub fn iter(&self) -> impl Iterator<Item = &ContactPair> {
         self.graph
             .iter()
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
@@ -100,7 +100,7 @@ impl Collisions<'_> {
     /// Returns an iterator yielding immutable access to all touching contact pairs
     /// involving the given entity.
     #[inline]
-    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &Contacts> {
+    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
         self.graph
             .collisions_with(entity)
             .filter(|contacts| contacts.is_touching())

@@ -61,7 +61,7 @@ use bevy::{ecs::system::ReadOnlySystemParam, prelude::*};
 ///         group1.0 == group2.0
 ///     }
 ///
-///     fn modify_contacts(&self, contacts: &mut Contacts, _commands: &mut Commands) -> bool {
+///     fn modify_contacts(&self, contacts: &mut ContactPair, _commands: &mut Commands) -> bool {
 ///         // Allow entities to pass through the bottom and sides of one-way platforms.
 ///         // See the `one_way_platform_2d` example for a full implementation.
 ///         let (entity1, entity2) = (contacts.entity1, contacts.entity2);
@@ -73,7 +73,7 @@ use bevy::{ecs::system::ReadOnlySystemParam, prelude::*};
 /// #     entity1: Entity,
 /// #     entity2: Entity,
 /// #     platform_query: &Query<&Transform, With<OneWayPlatform>>,
-/// #     contacts: &Contacts,
+/// #     contacts: &ContactPair,
 /// # ) -> bool {
 /// #     todo!()
 /// # }
@@ -148,7 +148,7 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// A contact pair filtering hook that determines whether contacts should be computed
     /// between `entity1` and `entity2`. If `false` is returned, contacts will not be computed.
     ///
-    /// This is called in the broad phase, before [`Contacts`] have been computed for the pair.
+    /// This is called in the broad phase, before the [`ContactPair`] has been computed.
     ///
     /// The provided [`Commands`] can be used for deferred ECS operations that run after
     /// broad phase pairs have been found.
@@ -166,11 +166,11 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// A contact modification hook that allows modifying the contacts for a given contact pair.
     /// If `false` is returned, the contact pair will be removed.
     ///
-    /// This is called in the narrow phase, after [`Contacts`] have been computed for the pair,
+    /// This is called in the narrow phase, after the [`ContactPair`] has been computed for the pair,
     /// but before constraints have been generated for the contact solver.
     ///
     /// The provided [`Commands`] can be used for deferred ECS operations that run after
-    /// narrow phase [`Contacts`] have been computed and constraints have been generated.
+    /// the narrow phase has computed contact pairs and generated constraints.
     ///
     /// # Notes
     ///
@@ -180,7 +180,7 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// - Command execution order is unspecified if the `parallel` feature is enabled.
     /// - Access to the [`ContactGraph`] resource is not allowed in this method.
     ///   Trying to access it will result in a panic.
-    fn modify_contacts(&self, contacts: &mut Contacts, commands: &mut Commands) -> bool {
+    fn modify_contacts(&self, contacts: &mut ContactPair, commands: &mut Commands) -> bool {
         true
     }
 }

@@ -530,8 +530,8 @@ pub mod prelude {
             },
             collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
             contact_types::{
-                Collisions, ContactGraph, ContactManifold, ContactPairFlags, ContactPoint,
-                Contacts, SingleContact,
+                Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags,
+                ContactPoint, SingleContact,
             },
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
