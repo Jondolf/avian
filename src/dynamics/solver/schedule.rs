@@ -101,7 +101,7 @@ pub enum SolverSet {
     /// Constraints don't modify the positions of bodies directly and instead adds
     /// to this translation to improve numerical stability when bodies are far from the world origin.
     ApplyTranslation,
-    /// Copies contact impulses from [`ContactConstraints`] to the contacts in [`Collisions`].
+    /// Copies contact impulses from [`ContactConstraints`] to the contacts in the [`ContactGraph`].
     /// They will be used for [warm starting](SubstepSolverSet::WarmStart) the next frame or substep.
     ///
     /// [`ContactConstraints`]: super::ContactConstraints

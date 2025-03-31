@@ -63,10 +63,6 @@ pub struct ContactConstraint {
     pub entity1: Entity,
     /// The second entity in the contact.
     pub entity2: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity1: Entity,
-    /// The entity of the first collider in the contact.
-    pub collider_entity2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
     pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
@@ -89,6 +85,8 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
+    /// The index of the contact pair in the [`ContactGraph`].
+    pub contact_pair_index: usize,
     /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
     pub manifold_index: usize,
 }
@@ -97,12 +95,11 @@ impl ContactConstraint {
     /// Generates a new [`ContactConstraint`] for the given bodies based on a [`ContactManifold`].
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
-        manifold_id: usize,
+        contact_pair_index: usize,
+        manifold_index: usize,
         manifold: &ContactManifold,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
-        collider_entity1: Entity,
-        collider_entity2: Entity,
         collider_transform1: Option<ColliderTransform>,
         collider_transform2: Option<ColliderTransform>,
         collision_margin: impl Into<CollisionMargin>,
@@ -127,8 +124,6 @@ impl ContactConstraint {
         let mut constraint = Self {
             entity1: body1.entity,
             entity2: body2.entity,
-            collider_entity1,
-            collider_entity2,
             friction,
             restitution,
             #[cfg(feature = "2d")]
@@ -137,7 +132,8 @@ impl ContactConstraint {
             tangent_velocity,
             normal: manifold.normal,
             points: Vec::with_capacity(manifold.points.len()),
-            manifold_index: manifold_id,
+            contact_pair_index,
+            manifold_index,
         };
 
         let tangents =
@@ -324,7 +320,6 @@ impl ContactConstraint {
             }
         }
 
-        let friction = self.friction;
         let tangent_directions =
             self.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
@@ -349,7 +344,7 @@ impl ContactConstraint {
                 self.tangent_speed,
                 #[cfg(feature = "3d")]
                 self.tangent_velocity,
-                friction,
+                self.friction,
                 point.normal_part.impulse,
             );
 

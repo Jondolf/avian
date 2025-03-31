@@ -38,14 +38,14 @@ struct ConveyorHooks<'w, 's> {
 
 // Implement the `CollisionHooks` trait for our custom system parameter.
 impl CollisionHooks for ConveyorHooks<'_, '_> {
-    fn modify_contacts(&self, contacts: &mut Contacts, _commands: &mut Commands) -> bool {
+    fn modify_contacts(&self, contact_pair: &mut Contacts, _commands: &mut Commands) -> bool {
         // Get the conveyor belt and its global transform.
         // We don't know which entity is the conveyor belt, if any, so we need to check both.
         // This also affects the sign used for the conveyor belt's speed to apply it in the correct direction.
         let (Ok((conveyor_belt, global_transform)), sign) = self
             .conveyor_query
-            .get(contacts.entity1)
-            .map_or((self.conveyor_query.get(contacts.entity2), 1.0), |q| {
+            .get(contact_pair.entity1)
+            .map_or((self.conveyor_query.get(contact_pair.entity2), 1.0), |q| {
                 (Ok(q), -1.0)
             })
         else {
@@ -59,7 +59,7 @@ impl CollisionHooks for ConveyorHooks<'_, '_> {
 
         // Iterate over all contact surfaces between the conveyor belt and the other collider,
         // and apply a relative velocity to simulate the movement of the conveyor belt's surface.
-        for manifold in contacts.manifolds.iter_mut() {
+        for manifold in contact_pair.manifolds.iter_mut() {
             let tangent_velocity = sign * conveyor_belt.speed * direction;
             manifold.tangent_velocity = tangent_velocity.adjust_precision();
         }

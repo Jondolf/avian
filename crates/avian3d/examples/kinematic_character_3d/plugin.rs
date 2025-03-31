@@ -1,4 +1,7 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{
+    math::*,
+    prelude::{narrow_phase::NarrowPhaseSet, *},
+};
 use bevy::{ecs::query::Has, prelude::*};
 
 pub struct CharacterControllerPlugin;
@@ -23,8 +26,8 @@ impl Plugin for CharacterControllerPlugin {
                 //
                 // NOTE: The collision implementation here is very basic and a bit buggy.
                 //       A collide-and-slide algorithm would likely work better.
-                PostProcessCollisions,
-                kinematic_controller_collisions,
+                PhysicsSchedule,
+                kinematic_controller_collisions.in_set(NarrowPhaseSet::Last),
             );
     }
 }
@@ -281,7 +284,7 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// and predict collisions using speculative contacts.
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     bodies: Query<&RigidBody>,
     collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<

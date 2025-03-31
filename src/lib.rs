@@ -155,7 +155,7 @@
     doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 //! - [Get colliding entities](CollidingEntities)
-//! - [Collision events](ContactReportingPlugin#collision-events)
+//! - [Collision events](collision#collision-events)
 //! - [Accessing collision data](Collisions)
 //! - [Filtering and modifying contacts with hooks](CollisionHooks)
 //! - [Manual contact queries](contact_query)
@@ -205,7 +205,6 @@
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`]
 //!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet)
-//!     - [`PostProcessCollisions`] schedule
 //!     - [`PrepareSet`](prepare::PrepareSet)
 //!     - Many more internal system sets
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
@@ -501,13 +500,7 @@ pub mod schedule;
 pub mod spatial_query;
 pub mod sync;
 
-// TODO: Make this a proper module once we have more data structures, like an `UnGraph`.
-#[cfg(feature = "2d")]
-pub mod data_structures {
-    //! Special data structures used in Avian.
-
-    pub use arrayvec::ArrayVec;
-}
+pub mod data_structures;
 
 mod type_registration;
 pub use type_registration::PhysicsTypeRegistrationPlugin;
@@ -529,14 +522,16 @@ pub mod prelude {
     pub use crate::{
         collision::{
             self,
-            broad_phase::{BroadCollisionPairs, BroadPhasePlugin},
+            broad_phase::BroadPhasePlugin,
             collider::{
                 collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
                 collider_transform::{ColliderTransform, ColliderTransformPlugin},
                 ColliderBackendPlugin,
             },
-            contact_reporting::{
-                Collision, CollisionEnded, CollisionStarted, ContactReportingPlugin,
+            collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
+            contact_types::{
+                Collisions, ContactGraph, ContactManifold, ContactPairFlags, ContactPoint,
+                Contacts, SingleContact,
             },
             hooks::{ActiveCollisionHooks, CollisionHooks},
             narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
@@ -588,9 +583,8 @@ use prelude::*;
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
-/// | [`BroadPhasePlugin`]              | Collects pairs of potentially colliding entities into [`BroadCollisionPairs`] using [AABB](ColliderAabb) intersection checks.                              |
-/// | [`NarrowPhasePlugin`]             | Computes contacts between entities and sends collision events.                                                                                             |
-/// | [`ContactReportingPlugin`]        | Sends collision events and updates [`CollidingEntities`].                                                                                                  |
+/// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).            |
+/// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
@@ -605,7 +599,7 @@ use prelude::*;
 /// | Plugin                            | Description                                                                                                                                                |
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsPickingPlugin`]          | Enables a physics picking backend for [`bevy_picking`](bevy::picking) (only with `bevy_picking` feature enabled).                                          |
-/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and [contacts](Collision) for debugging purposes (only with `debug-plugin` feature enabled). |
+/// | [`PhysicsDebugPlugin`]            | Renders physics objects and events like [AABBs](ColliderAabb) and contacts for debugging purposes (only with `debug-plugin` feature enabled).              |
 /// | [`PhysicsDiagnosticsPlugin`]      | Writes [physics diagnostics](diagnostics) to the [`DiagnosticsStore`] (only with `bevy_diagnostic` feature enabled).                                       |
 /// | [`PhysicsDiagnosticsUiPlugin`]    | Displays [physics diagnostics](diagnostics) with a debug UI overlay (only with `diagnostic_ui` feature enabled).                                           |
 ///
@@ -822,7 +816,6 @@ impl PluginGroup for PhysicsPlugins {
 
         builder
             .add(BroadPhasePlugin::<()>::default())
-            .add(ContactReportingPlugin)
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SolverSchedulePlugin)

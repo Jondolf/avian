@@ -1,4 +1,4 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{data_structures::pair_key::PairKey, math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_3d::ExampleCommonPlugin;
 
@@ -7,7 +7,7 @@ fn main() {
 
     app.add_plugins((DefaultPlugins, ExampleCommonPlugin));
 
-    // Add PhysicsPlugins and replace the default broad phase with our custom broad phase.
+    // Add `PhysicsPlugins` and replace the default broad phase with our custom broad phase.
     app.add_plugins(
         PhysicsPlugins::default()
             .build()
@@ -56,37 +56,43 @@ fn setup(
     ));
 }
 
-// Collects pairs of potentially colliding entities into the BroadCollisionPairs resource provided by the physics engine.
+/// Finds pairs of entities with overlapping `ColliderAabb`s
+/// and creates contact pairs for them in the `ContactGraph`.
+///
 // A brute force algorithm is used for simplicity.
 pub struct BruteForceBroadPhasePlugin;
 
 impl Plugin for BruteForceBroadPhasePlugin {
     fn build(&self, app: &mut App) {
-        // Initialize the resource that the collision pairs are added to.
-        app.init_resource::<BroadCollisionPairs>();
-
-        // Make sure the PhysicsSchedule is available.
-        let physics_schedule = app
-            .get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first");
-
-        // Add the broad phase system into the broad phase set
-        physics_schedule.add_systems(collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase));
+        // Add the broad phase system into the broad phase set.
+        app.add_systems(
+            PhysicsSchedule,
+            collect_collision_pairs.in_set(PhysicsStepSet::BroadPhase),
+        );
     }
 }
 
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
-    mut broad_collision_pairs: ResMut<BroadCollisionPairs>,
+    mut collisions: ResMut<ContactGraph>,
 ) {
-    // Clear old collision pairs.
-    broad_collision_pairs.0.clear();
-
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
-    for [(ent_a, aabb_a, rb_a), (ent_b, aabb_b, rb_b)] in bodies.iter_combinations() {
-        // At least one of the bodies is dynamic and their AABBs intersect
-        if (rb_a.is_dynamic() || rb_b.is_dynamic()) && aabb_a.intersects(aabb_b) {
-            broad_collision_pairs.0.push((ent_a, ent_b));
+    for [(entity1, aabb1, rb1), (entity2, aabb2, rb2)] in bodies.iter_combinations() {
+        // At least one of the bodies is dynamic and their AABBs intersect.
+        if (rb1.is_dynamic() || rb2.is_dynamic()) && aabb1.intersects(aabb2) {
+            // Create a pair key from the entity indices.
+            let key = PairKey::new(entity1.index(), entity2.index());
+
+            // Avoid duplicate pairs.
+            if collisions.contains_key(&key) {
+                continue;
+            }
+
+            // Create a contact pair as non-touching.
+            // The narrow phase will determine if the entities are touching and compute contact data.
+            // NOTE: To handle sensors, collision hooks, and child colliders, you may need to configure
+            //       `flags` and other properties of the contact pair. This is not done here for simplicity.
+            collisions.add_pair_with_key(Contacts::new(entity1, entity2), key);
         }
     }
 }
