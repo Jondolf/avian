@@ -377,7 +377,9 @@ impl ContactGraph {
     where
         F: FnMut(ContactPair),
     {
-        let Some(&index) = self.entity_graph_index.get(entity) else {
+        // Remove the entity from the entity graph index,
+        // and get the index of the node in the graph.
+        let Some(index) = self.entity_graph_index.remove(entity, NodeIndex::END) else {
             return;
         };
 
