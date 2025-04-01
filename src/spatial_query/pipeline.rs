@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use crate::{data_structures::entity_data_index::entity_from_index_and_gen, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::entity::hash_map::EntityHashMap, platform_support::collections::HashMap, prelude::*,
 };
@@ -913,4 +913,9 @@ pub struct PointProjection {
     pub point: Vector,
     /// True if the point was inside of the collider.
     pub is_inside: bool,
+}
+
+/// Creates an entity from an index and a generation number.
+pub fn entity_from_index_and_gen(index: u32, generation: u32) -> Entity {
+    Entity::from_bits(((generation as u64) << 32) | index as u64)
 }
