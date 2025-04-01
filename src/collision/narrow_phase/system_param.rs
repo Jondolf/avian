@@ -301,7 +301,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Get the thread-local bit vector for tracking status changes.
                 let mut state_change_bits = self
                     .contact_status_bits_thread_local
-                    .get_or(|| RefCell::new(BitVec::new(contact_pair_count)))
+                    .get_or(|| {
+                        // No thread-local bit vector exists for this thread yet.
+                        // Create a new one with the same capacity as the global bit vector.
+                        let mut bit_vec = BitVec::new(contact_pair_count);
+                        bit_vec.set_bit_count_and_clear(contact_pair_count);
+                        RefCell::new(bit_vec)
+                    })
                     .borrow_mut();
 
                 let contacts = &mut contacts.weight;
