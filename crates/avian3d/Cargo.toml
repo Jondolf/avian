@@ -105,6 +105,10 @@ bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
 ] }
 approx = "0.5"
 criterion = { version = "0.5", features = ["html_reports"] }
+big_space = { git = "https://github.com/aevyrie/big_space", branch = "bevy-0.16.0", features = [
+    "debug",
+] }
+
 # TODO: Update to the latest version when it's available.
 # bevy_mod_debugdump = { version = "0.12" }
 
