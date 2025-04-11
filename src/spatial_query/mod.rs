@@ -274,7 +274,7 @@ fn update_ray_caster_positions(
         }
 
         if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
-            parent.map(|&ChildOf { parent }| parents.get(parent))
+            parent.map(|&ChildOf(parent)| parents.get(parent))
         {
             let parent_position = parent_position
                 .copied()
@@ -362,7 +362,7 @@ fn update_shape_caster_positions(
         }
 
         if let Some(Ok((parent_position, parent_rotation, parent_transform))) =
-            parent.map(|&ChildOf { parent }| parents.get(parent))
+            parent.map(|&ChildOf(parent)| parents.get(parent))
         {
             let parent_position = parent_position
                 .copied()
