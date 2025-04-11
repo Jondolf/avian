@@ -168,7 +168,7 @@ pub fn init_transforms<C: Component>(
     for (entity, transform, global_transform, pos, rot, previous_rot, parent, has_rigid_body) in
         &query
     {
-        let parent_transforms = parent.and_then(|&ChildOf { parent }| parents.get(parent).ok());
+        let parent_transforms = parent.and_then(|&ChildOf(parent)| parents.get(parent).ok());
         let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
         let parent_rot = parent_transforms.and_then(|(_, rot, _)| rot);
         let parent_global_trans = parent_transforms.and_then(|(_, _, trans)| trans);
