@@ -79,7 +79,7 @@ bevy = { version = "0.16.0-rc", default-features = false, features = [
 ] }
 bevy_math = { version = "0.16.0-rc" }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", branch = "smooth-teleports" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
