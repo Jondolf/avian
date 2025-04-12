@@ -2,7 +2,7 @@
 use core::cell::RefCell;
 
 use crate::{
-    data_structures::{bit_vec::BitVec, graph::EdgeIndex, pair_key::PairKey},
+    data_structures::{bit_vec::BitVec, graph::EdgeIndex},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -92,7 +92,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
         //       With a stable mapping between contact pair indices and bits, we could remove this.
         // TODO: Pre-allocate this with some reasonable capacity?
-        let mut pairs_to_remove = Vec::<EdgeIndex>::new();
+        let mut pairs_to_remove = Vec::<(Entity, Entity)>::new();
 
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
@@ -141,15 +141,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         ));
                     });
 
-                    // Remove the contact pair from the pair set.
-                    // This is normally done by `ContactGraph::remove_pair`,
-                    // but since we're removing edges manually, we need to do it here.
-                    let pair_key =
-                        PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
-                    self.contact_graph.pair_set.remove(&pair_key);
-
                     // Queue the contact pair for removal.
-                    pairs_to_remove.push(pair_index);
+                    pairs_to_remove.push((contact_pair.entity1, contact_pair.entity2));
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
@@ -217,7 +210,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Remove the contact pairs that were marked for removal.
         for pair_index in pairs_to_remove.drain(..) {
-            self.contact_graph.internal.remove_edge(pair_index);
+            self.contact_graph.remove_pair(pair_index.0, pair_index.1);
         }
     }
 
