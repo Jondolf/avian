@@ -315,7 +315,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Check if the AABBs of the colliders still overlap and the contact pair is valid.
                 let overlap = collider1.aabb.intersects(&collider2.aabb);
 
-                if !overlap {
+                // Also check if the collision layers are still compatible and the contact pair is valid.
+                // TODO: Ideally, we would have fine-grained change detection for `CollisionLayers`
+                //       rather than checking it for every pair here.
+                if !overlap || !collider1.layers.interacts_with(*collider2.layers) {
                     // The AABBs no longer overlap. The contact pair should be removed.
                     contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
                     state_change_bits.set(contact_index);
