@@ -16,6 +16,7 @@ use crate::{
 };
 use bevy::{
     ecs::{
+        entity_disabling::Disabled,
         intern::Interned,
         schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemParamItem},
@@ -122,6 +123,7 @@ where
         );
 
         // Remove collision pairs when colliders are disabled or removed.
+        app.add_observer(remove_collider_on::<OnAdd, Disabled>);
         app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
         app.add_observer(remove_collider_on::<OnRemove, Collider>);
 

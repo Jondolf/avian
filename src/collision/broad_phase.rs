@@ -8,7 +8,8 @@ use core::marker::PhantomData;
 use crate::{data_structures::pair_key::PairKey, prelude::*};
 use bevy::{
     ecs::{
-        entity::{EntityMapper, MapEntities},
+        entity::{EntityHashSet, EntityMapper, MapEntities},
+        entity_disabling::Disabled,
         system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
     },
     prelude::*,
@@ -202,15 +203,24 @@ type AabbIntervalQueryData = (
     Option<Read<ActiveCollisionHooks>>,
 );
 
+// TODO: This is pretty gross and inefficient. This should be done with observers or hooks
+//       once we rework the broad phase.
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    aabbs: Query<AabbIntervalQueryData>,
+    aabbs: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
     mut intervals: ResMut<AabbIntervals>,
     mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
+    mut re_enabled_entities: RemovedComponents<Disabled>,
 ) {
-    let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
+    // Collect re-enabled entities without duplicates.
+    let re_enabled = re_enabled_colliders
+        .read()
+        .chain(re_enabled_entities.read())
+        .collect::<EntityHashSet>();
+    let re_enabled_aabbs = aabbs.iter_many(re_enabled);
+
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
         |(entity, collider_of, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
             let mut flags = AabbIntervalFlags::empty();
