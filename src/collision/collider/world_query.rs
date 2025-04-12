@@ -25,6 +25,7 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,
+    pub layers: &'static CollisionLayers,
     pub active_hooks: Option<&'static ActiveCollisionHooks>,
 }
 

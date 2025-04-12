@@ -130,7 +130,7 @@ fn update_aabb_intervals(
         (
             &ColliderAabb,
             Option<&ColliderOf>,
-            Option<&CollisionLayers>,
+            &CollisionLayers,
             Has<Sensor>,
             Has<CollisionEventsEnabled>,
             Option<&ActiveCollisionHooks>,
@@ -165,7 +165,7 @@ fn update_aabb_intervals(
                     },
                     |p| *p,
                 );
-                *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
+                *layers = *new_layers;
 
                 let is_static = new_collider_of.is_some_and(|collider_of| {
                     rbs.get(collider_of.rigid_body)
@@ -196,7 +196,7 @@ type AabbIntervalQueryData = (
     Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
     Option<Read<RigidBody>>,
-    Option<Read<CollisionLayers>>,
+    Read<CollisionLayers>,
     Has<Sensor>,
     Has<CollisionEventsEnabled>,
     Option<Read<ActiveCollisionHooks>>,
@@ -232,7 +232,7 @@ fn add_new_aabb_intervals(
                 entity,
                 collider_of.map_or(ColliderOf { rigid_body: entity }, |p| *p),
                 *aabb,
-                layers.map_or(CollisionLayers::default(), |layers| *layers),
+                *layers,
                 flags,
             )
         },
