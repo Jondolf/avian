@@ -65,7 +65,7 @@ pub struct SpatialQuery<'w, 's> {
             &'static Position,
             &'static Rotation,
             &'static Collider,
-            Option<&'static CollisionLayers>,
+            &'static CollisionLayers,
         ),
         Without<ColliderDisabled>,
     >,

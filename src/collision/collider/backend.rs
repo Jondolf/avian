@@ -92,6 +92,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         // Register required components for the collider type.
         let _ = app.try_register_required_components::<C, ColliderMarker>();
         let _ = app.try_register_required_components::<C, ColliderAabb>();
+        let _ = app.try_register_required_components::<C, CollisionLayers>();
         let _ = app.try_register_required_components::<C, ColliderDensity>();
         let _ = app.try_register_required_components::<C, ColliderMassProperties>();
 
@@ -126,7 +127,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 let parent_global_transform = world
                     .entity(ctx.entity)
                     .get::<ChildOf>()
-                    .and_then(|&ChildOf { parent }| {
+                    .and_then(|&ChildOf(parent)| {
                         world.entity(parent).get::<GlobalTransform>().copied()
                     })
                     .unwrap_or_default();
@@ -713,7 +714,7 @@ mod tests {
             .spawn((
                 collider,
                 Transform::from_xyz(1.0, 0.0, 0.0),
-                ChildOf { parent },
+                ChildOf(parent),
             ))
             .id();
 

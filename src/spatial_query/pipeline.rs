@@ -84,7 +84,7 @@ impl SpatialQueryPipeline {
                 &'a Position,
                 &'a Rotation,
                 &'a Collider,
-                Option<&'a CollisionLayers>,
+                &'a CollisionLayers,
             ),
         >,
         added_colliders: impl Iterator<Item = Entity>,
@@ -96,7 +96,7 @@ impl SpatialQueryPipeline {
                     (
                         make_isometry(position.0, *rotation),
                         collider.clone(),
-                        layers.map_or(CollisionLayers::default(), |layers| *layers),
+                        *layers,
                     ),
                 )
             })

@@ -66,7 +66,9 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<DistanceJoint>()
             .register_type::<FixedJoint>()
             .register_type::<PrismaticJoint>()
-            .register_type::<RevoluteJoint>();
+            .register_type::<RevoluteJoint>()
+            .register_type::<PreSolveRotation>()
+            .register_type::<GlobalAngularInertia>();
 
         #[cfg(feature = "default-collider")]
         app.register_type::<ColliderConstructor>()
