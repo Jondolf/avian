@@ -282,13 +282,16 @@ impl RayCaster {
                 self.solid,
             );
 
-            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_index, hit))| RayHitData {
-                    entity: query_pipeline.entity_from_index(entity_index),
-                    distance: hit.time_of_impact,
-                    normal: hit.normal.into(),
-                },
-            ) {
+            if let Some(hit) =
+                query_pipeline
+                    .qbvh
+                    .traverse_best_first(&mut visitor)
+                    .map(|(_, (index, hit))| RayHitData {
+                        entity: query_pipeline.proxies[index as usize].entity,
+                        distance: hit.time_of_impact,
+                        normal: hit.normal.into(),
+                    })
+            {
                 if (hits.vector.len() as u32) < hits.count + 1 {
                     hits.vector.push(hit);
                 } else {
@@ -302,25 +305,24 @@ impl RayCaster {
                 self.global_direction().adjust_precision().into(),
             );
 
-            let mut leaf_callback = &mut |entity_index: &u32| {
-                let entity = query_pipeline.entity_from_index(*entity_index);
-                if let Some((iso, shape, layers)) = query_pipeline.colliders.get(&entity) {
-                    if self.query_filter.test(entity, *layers) {
-                        if let Some(hit) = shape.shape_scaled().cast_ray_and_get_normal(
-                            iso,
+            let mut leaf_callback = &mut |index: &u32| {
+                if let Some(proxy) = query_pipeline.proxies.get(*index as usize) {
+                    if self.query_filter.test(proxy.entity, proxy.layers) {
+                        if let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
+                            &proxy.isometry,
                             &ray,
                             self.max_distance,
                             self.solid,
                         ) {
                             if (hits.vector.len() as u32) < hits.count + 1 {
                                 hits.vector.push(RayHitData {
-                                    entity,
+                                    entity: proxy.entity,
                                     distance: hit.time_of_impact,
                                     normal: hit.normal.into(),
                                 });
                             } else {
                                 hits.vector[hits.count as usize] = RayHitData {
-                                    entity,
+                                    entity: proxy.entity,
                                     distance: hit.time_of_impact,
                                     normal: hit.normal.into(),
                                 };
