@@ -23,7 +23,7 @@ use parry::{
 // TODO: It'd be nice not to store so much duplicate data.
 //       Should we just query the ECS?
 #[derive(Clone)]
-pub(crate) struct QbvhProxy {
+pub(crate) struct QbvhProxyData {
     pub entity: Entity,
     pub isometry: Isometry<Scalar>,
     pub collider: Collider,
@@ -39,7 +39,7 @@ pub struct SpatialQueryPipeline {
     pub(crate) qbvh: Qbvh<u32>,
     pub(crate) dispatcher: Arc<dyn QueryDispatcher>,
     // TODO: Store the proxies as `Qbvh` leaf data.
-    pub(crate) proxies: Vec<QbvhProxy>,
+    pub(crate) proxies: Vec<QbvhProxyData>,
 }
 
 impl Default for SpatialQueryPipeline {
@@ -96,21 +96,23 @@ impl SpatialQueryPipeline {
         >,
     ) {
         self.update_internal(
-            colliders.map(|(entity, position, rotation, collider, layers)| QbvhProxy {
-                entity,
-                isometry: make_isometry(position.0, *rotation),
-                collider: collider.clone(),
-                layers: *layers,
-            }),
+            colliders.map(
+                |(entity, position, rotation, collider, layers)| QbvhProxyData {
+                    entity,
+                    isometry: make_isometry(position.0, *rotation),
+                    collider: collider.clone(),
+                    layers: *layers,
+                },
+            ),
         )
     }
 
     // TODO: Incremental updates.
-    fn update_internal(&mut self, proxies: impl Iterator<Item = QbvhProxy>) {
+    fn update_internal(&mut self, proxies: impl Iterator<Item = QbvhProxyData>) {
         self.proxies.clear();
         self.proxies.extend(proxies);
 
-        struct DataGenerator<'a>(&'a Vec<QbvhProxy>);
+        struct DataGenerator<'a>(&'a Vec<QbvhProxyData>);
 
         impl parry::partitioning::QbvhDataGenerator<u32> for DataGenerator<'_> {
             fn size_hint(&self) -> usize {
@@ -794,7 +796,7 @@ impl SpatialQueryPipeline {
 }
 
 pub(crate) struct QueryPipelineAsCompositeShape<'a> {
-    proxies: &'a Vec<QbvhProxy>,
+    proxies: &'a Vec<QbvhProxyData>,
     pipeline: &'a SpatialQueryPipeline,
     query_filter: &'a SpatialQueryFilter,
 }
@@ -838,7 +840,7 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'_> {
 }
 
 pub(crate) struct QueryPipelineAsCompositeShapeWithPredicate<'a, 'b> {
-    proxies: &'a Vec<QbvhProxy>,
+    proxies: &'a Vec<QbvhProxyData>,
     pipeline: &'a SpatialQueryPipeline,
     query_filter: &'a SpatialQueryFilter,
     predicate: &'b dyn Fn(Entity) -> bool,
