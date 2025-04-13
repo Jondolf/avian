@@ -273,22 +273,16 @@ impl ContactGraph {
         }
 
         // Get the indices of the entities in the graph.
-        let index1 = if let Some(index) = self.entity_to_node.get(contacts.entity1) {
-            *index
-        } else {
-            // The entity is not in the graph yet.
-            let index = self.internal.add_node(contacts.entity1);
-            self.entity_to_node.insert(contacts.entity1, index);
-            index
-        };
-        let index2 = if let Some(index) = self.entity_to_node.get(contacts.entity2) {
-            *index
-        } else {
-            // The entity is not in the graph yet.
-            let index = self.internal.add_node(contacts.entity2);
-            self.entity_to_node.insert(contacts.entity2, index);
-            index
-        };
+        let index1 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity1, || {
+                self.internal.add_node(contacts.entity1)
+            });
+        let index2 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity2, || {
+                self.internal.add_node(contacts.entity2)
+            });
 
         // Add the edge to the graph.
         self.internal.add_edge(index1, index2, contacts);
@@ -327,22 +321,16 @@ impl ContactGraph {
         self.pair_set.insert(pair_key);
 
         // Get the indices of the entities in the graph.
-        let index1 = if let Some(index) = self.entity_to_node.get(contacts.entity1) {
-            *index
-        } else {
-            // The entity is not in the graph yet.
-            let index = self.internal.add_node(contacts.entity1);
-            self.entity_to_node.insert(contacts.entity1, index);
-            index
-        };
-        let index2 = if let Some(index) = self.entity_to_node.get(contacts.entity2) {
-            *index
-        } else {
-            // The entity is not in the graph yet.
-            let index = self.internal.add_node(contacts.entity2);
-            self.entity_to_node.insert(contacts.entity2, index);
-            index
-        };
+        let index1 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity1, || {
+                self.internal.add_node(contacts.entity1)
+            });
+        let index2 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity2, || {
+                self.internal.add_node(contacts.entity2)
+            });
 
         // Update the edge in the graph.
         self.internal.update_edge(index1, index2, contacts);

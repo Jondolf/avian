@@ -32,6 +32,7 @@ pub struct SparseSecondaryEntityMap<V, S: hash::BuildHasher = RandomState> {
 
 impl<V> SparseSecondaryEntityMap<V, hash_map::RandomState> {
     /// Constructs a new, empty [`SparseSecondaryEntityMap`].
+    #[inline]
     pub fn new() -> Self {
         Self::with_capacity(0)
     }
@@ -40,6 +41,7 @@ impl<V> SparseSecondaryEntityMap<V, hash_map::RandomState> {
     ///
     /// The secondary map will not reallocate until it holds at least `capacity`
     /// slots.
+    #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             slots: HashMap::with_capacity(capacity),
@@ -60,6 +62,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// The secondary map will not reallocate until it holds at least `capacity`
     /// slots.
+    #[inline]
     pub fn with_hasher(hash_builder: S) -> Self {
         Self {
             slots: HashMap::with_hasher(hash_builder),
@@ -71,6 +74,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// The secondary map will not reallocate until it holds at least `capacity`
     /// slots.
+    #[inline]
     pub fn with_capacity_and_hasher(capacity: usize, hash_builder: S) -> Self {
         Self {
             slots: HashMap::with_capacity_and_hasher(capacity, hash_builder),
@@ -78,17 +82,20 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     }
 
     /// Returns the number of elements in the secondary map.
+    #[inline]
     pub fn len(&self) -> usize {
         self.slots.len()
     }
 
     /// Returns if the secondary map is empty.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.slots.is_empty()
     }
 
     /// Returns the number of elements the [`SparseSecondaryEntityMap`] can hold without
     /// reallocating.
+    #[inline]
     pub fn capacity(&self) -> usize {
         self.slots.capacity()
     }
@@ -100,6 +107,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     /// # Panics
     ///
     /// Panics if the new allocation size overflows [`usize`].
+    #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.slots.reserve(additional);
     }
@@ -107,11 +115,13 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     /// Tries to reserve capacity for at least `additional` more slots in the
     /// [`SparseSecondaryEntityMap`].  The collection may reserve more space to avoid
     /// frequent reallocations.
+    #[inline]
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.slots.try_reserve(additional)
     }
 
     /// Returns `true` if the secondary map contains the given `entity`.
+    #[inline]
     pub fn contains(&self, entity: Entity) -> bool {
         self.slots
             .get(&entity.index())
@@ -122,6 +132,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// Returns [`None`] if this entity was not present in the map,
     /// and the old value otherwise.
+    #[inline]
     pub fn insert(&mut self, entity: Entity, value: V) -> Option<V> {
         if entity == Entity::PLACEHOLDER {
             return None;
@@ -151,6 +162,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
 
     /// Removes a entity from the secondary map, returning the value at the entity if
     /// the entity was not previously removed.
+    #[inline]
     pub fn remove(&mut self, entity: Entity) -> Option<V> {
         if let hash_map::Entry::Occupied(entry) = self.slots.entry(entity.index()) {
             if entry.get().generation == entity.generation() {
@@ -162,11 +174,13 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     }
 
     /// Clears the secondary map. Keeps the allocated memory for reuse.
+    #[inline]
     pub fn clear(&mut self) {
         self.slots.clear();
     }
 
     /// Returns a reference to the value corresponding to the entity.
+    #[inline]
     pub fn get(&self, entity: Entity) -> Option<&V> {
         self.slots
             .get(&entity.index())
@@ -181,12 +195,14 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// This should only be used if `contains(entity)` is true. Otherwise it is
     /// potentially unsafe.
+    #[inline]
     pub unsafe fn get_unchecked(&self, entity: Entity) -> &V {
         debug_assert!(self.contains(entity));
         self.get(entity).unwrap_unchecked()
     }
 
     /// Returns a mutable reference to the value corresponding to the entity.
+    #[inline]
     pub fn get_mut(&mut self, entity: Entity) -> Option<&mut V> {
         self.slots
             .get_mut(&entity.index())
@@ -201,13 +217,36 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// This should only be used if `contains(entity)` is true. Otherwise it is
     /// potentially unsafe.
+    #[inline]
     pub unsafe fn get_unchecked_mut(&mut self, entity: Entity) -> &mut V {
         debug_assert!(self.contains(entity));
         self.get_mut(entity).unwrap_unchecked()
     }
 
+    /// Returns the value corresponding to the entity if it exists, otherwise inserts
+    /// the value returned by `f` and returns it.
+    #[inline]
+    pub fn get_or_insert_with<F>(&mut self, entity: Entity, f: F) -> V
+    where
+        F: FnOnce() -> V,
+        V: Clone + Copy,
+    {
+        if let Some(slot) = self
+            .slots
+            .get(&entity.index())
+            .filter(|s| s.generation == entity.generation())
+        {
+            slot.value
+        } else {
+            let value = f();
+            self.insert(entity, value);
+            value
+        }
+    }
+
     /// Returns mutable references to the values corresponding to the given
     /// keys. All keys must be valid and disjoint, otherwise `None` is returned.
+    #[inline]
     pub fn get_disjoint_mut<const N: usize>(
         &mut self,
         entities: [Entity; N],
@@ -262,6 +301,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     ///
     /// This should only be used if `contains(entity)` is true for every given
     /// entity and no two keys are equal. Otherwise it is potentially unsafe.
+    #[inline]
     pub unsafe fn get_disjoint_unchecked_mut<const N: usize>(
         &mut self,
         entities: [Entity; N],
