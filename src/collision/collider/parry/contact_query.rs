@@ -280,9 +280,9 @@ pub enum ClosestPoints {
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::{collision::collider::contact_query::*, prelude::};
+/// # use avian2d::{collision::collider::contact_query::*, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::{collision::collider::contact_query::*, prelude::};
+/// use avian3d::{collision::collider::contact_query::*, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
