@@ -39,7 +39,7 @@ use self::{
 ///
 /// Below are the main steps of the `SolverPlugin`.
 ///
-/// 1. [Generate and prepare constraints](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints)
+/// 1. [Generate and prepare constraints](crate::collision::narrow_phase::NarrowPhaseSet::GenerateConstraints)
 /// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times)
 ///     1. [Integrate velocities](super::integrator::IntegrationSet::Velocity)
 ///     2. [Warm start](SubstepSolverSet::WarmStart)

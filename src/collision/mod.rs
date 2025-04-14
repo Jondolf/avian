@@ -16,7 +16,7 @@
 //!
 //! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
 //!
-//! You can also find several utility methods for computing contacts in the [`contact_query`] module.
+//! You can also find several utility methods for computing contacts in the [`contact_query`](collider::contact_query) module.
 //!
 //! # Accessing Collisions
 //!
@@ -78,27 +78,34 @@
 //! See the documentation of [`CollisionHooks`] for more information and usage examples.
 
 pub mod broad_phase;
+pub mod collider;
 pub mod collision_events;
-#[cfg(all(
-    feature = "default-collider",
-    any(feature = "parry-f32", feature = "parry-f64")
-))]
-pub mod contact_query;
 pub mod contact_types;
 pub mod hooks;
 pub mod narrow_phase;
 
-pub mod collider;
-pub use collider::*;
-
-mod layers;
-pub use layers::*;
-
-mod feature_id;
-pub use feature_id::PackedFeatureId;
-
 mod diagnostics;
 pub use diagnostics::CollisionDiagnostics;
+
+/// Re-exports common types related to collision detection functionality.
+pub mod prelude {
+    pub use super::broad_phase::{BroadPhasePlugin, BroadPhaseSet};
+    pub use super::collider::{
+        collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
+        collider_transform::{ColliderTransform, ColliderTransformPlugin},
+        AabbContext, AnyCollider, Collider, ColliderAabb, ColliderBackendPlugin,
+        ColliderConstructor, ColliderConstructorHierarchy, ColliderDisabled, ColliderMarker,
+        CollidingEntities, CollisionLayers, CollisionMargin, ContactManifoldContext, FillMode,
+        IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
+        TrimeshFlags, VhacdParameters,
+    };
+    pub use super::collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted};
+    pub use super::contact_types::{
+        Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags, ContactPoint,
+    };
+    pub use super::hooks::{ActiveCollisionHooks, CollisionHooks};
+    pub use super::narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin, NarrowPhaseSet};
+}
 
 #[expect(unused_imports)]
 use crate::prelude::*;

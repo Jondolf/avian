@@ -1,5 +1,5 @@
 //! Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
-//! the number of potential contacts for the [narrow phase](crate::narrow_phase).
+//! the number of potential contacts for the [narrow phase](super::narrow_phase).
 //!
 //! See [`BroadPhasePlugin`].
 
@@ -8,17 +8,20 @@ use core::marker::PhantomData;
 use crate::{data_structures::pair_key::PairKey, prelude::*};
 use bevy::{
     ecs::{
-        entity::{EntityMapper, MapEntities},
+        entity::{EntityHashSet, EntityMapper, MapEntities},
+        entity_disabling::Disabled,
         system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
     },
     prelude::*,
 };
 
+use super::CollisionDiagnostics;
+
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
-/// the number of potential contacts for the [narrow phase](crate::narrow_phase).
+/// the number of potential contacts for the [narrow phase](super::narrow_phase).
 ///
 /// A contact pair is created in the [`ContactGraph`] resource for each pair found.
-/// Removing and updating these pairs is left to the [narrow phase](crate::narrow_phase).
+/// Removing and updating these pairs is left to the [narrow phase](super::narrow_phase).
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///
@@ -130,7 +133,7 @@ fn update_aabb_intervals(
         (
             &ColliderAabb,
             Option<&ColliderOf>,
-            Option<&CollisionLayers>,
+            &CollisionLayers,
             Has<Sensor>,
             Has<CollisionEventsEnabled>,
             Option<&ActiveCollisionHooks>,
@@ -165,7 +168,7 @@ fn update_aabb_intervals(
                     },
                     |p| *p,
                 );
-                *layers = new_layers.map_or(CollisionLayers::default(), |layers| *layers);
+                *layers = *new_layers;
 
                 let is_static = new_collider_of.is_some_and(|collider_of| {
                     rbs.get(collider_of.rigid_body)
@@ -196,21 +199,30 @@ type AabbIntervalQueryData = (
     Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
     Option<Read<RigidBody>>,
-    Option<Read<CollisionLayers>>,
+    Read<CollisionLayers>,
     Has<Sensor>,
     Has<CollisionEventsEnabled>,
     Option<Read<ActiveCollisionHooks>>,
 );
 
+// TODO: This is pretty gross and inefficient. This should be done with observers or hooks
+//       once we rework the broad phase.
 /// Adds new [`ColliderAabb`]s to [`AabbIntervals`].
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    aabbs: Query<AabbIntervalQueryData>,
+    aabbs: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
     mut intervals: ResMut<AabbIntervals>,
     mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
+    mut re_enabled_entities: RemovedComponents<Disabled>,
 ) {
-    let re_enabled_aabbs = aabbs.iter_many(re_enabled_colliders.read());
+    // Collect re-enabled entities without duplicates.
+    let re_enabled = re_enabled_colliders
+        .read()
+        .chain(re_enabled_entities.read())
+        .collect::<EntityHashSet>();
+    let re_enabled_aabbs = aabbs.iter_many(re_enabled);
+
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
         |(entity, collider_of, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
             let mut flags = AabbIntervalFlags::empty();
@@ -232,7 +244,7 @@ fn add_new_aabb_intervals(
                 entity,
                 collider_of.map_or(ColliderOf { rigid_body: entity }, |p| *p),
                 *aabb,
-                layers.map_or(CollisionLayers::default(), |layers| *layers),
+                *layers,
                 flags,
             )
         },

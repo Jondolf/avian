@@ -2,7 +2,8 @@
 use core::cell::RefCell;
 
 use crate::{
-    data_structures::{bit_vec::BitVec, graph::EdgeIndex, pair_key::PairKey},
+    collision::collider::ColliderQuery,
+    data_structures::{bit_vec::BitVec, graph::EdgeIndex},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -111,7 +112,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
         //       With a stable mapping between contact pair indices and bits, we could remove this.
         // TODO: Pre-allocate this with some reasonable capacity?
-        let mut pairs_to_remove = Vec::<EdgeIndex>::new();
+        let mut pairs_to_remove = Vec::<(Entity, Entity)>::new();
 
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
@@ -160,15 +161,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         ));
                     });
 
-                    // Remove the contact pair from the pair set.
-                    // This is normally done by `ContactGraph::remove_pair`,
-                    // but since we're removing edges manually, we need to do it here.
-                    let pair_key =
-                        PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
-                    self.contact_graph.pair_set.remove(&pair_key);
-
                     // Queue the contact pair for removal.
-                    pairs_to_remove.push(pair_index);
+                    pairs_to_remove.push((contact_pair.entity1, contact_pair.entity2));
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
@@ -236,7 +230,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
         // Remove the contact pairs that were marked for removal.
         for pair_index in pairs_to_remove.drain(..) {
-            self.contact_graph.internal.remove_edge(pair_index);
+            self.contact_graph.remove_pair(pair_index.0, pair_index.1);
         }
     }
 
@@ -327,6 +321,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 let mut thread_context = self
                     .thread_locals
                     .get_or(|| {
+                        // No thread-local bit vector exists for this thread yet.
+                        // Create a new one with the same capacity as the global bit vector.
+                        let mut contact_status_bits = BitVec::new(contact_pair_count);
+                        contact_status_bits.set_bit_count_and_clear(contact_pair_count);
                         RefCell::new(NarrowPhaseThreadContext {
                             contact_status_bits: BitVec::new(contact_pair_count),
                             contact_constraints: Vec::new(),
@@ -352,7 +350,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Check if the AABBs of the colliders still overlap and the contact pair is valid.
                 let overlap = collider1.aabb.intersects(&collider2.aabb);
 
-                if !overlap {
+                // Also check if the collision layers are still compatible and the contact pair is valid.
+                // TODO: Ideally, we would have fine-grained change detection for `CollisionLayers`
+                //       rather than checking it for every pair here.
+                if !overlap || !collider1.layers.interacts_with(*collider2.layers) {
                     // The AABBs no longer overlap. The contact pair should be removed.
                     contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
                     status_change_bits.set(contact_index);

@@ -13,6 +13,7 @@ use core::marker::PhantomData;
 use crate::{dynamics::solver::ContactConstraints, prelude::*};
 use bevy::{
     ecs::{
+        entity_disabling::Disabled,
         intern::Interned,
         schedule::ScheduleLabel,
         system::{StaticSystemParam, SystemParamItem},
@@ -21,12 +22,14 @@ use bevy::{
 };
 use dynamics::solver::SolverDiagnostics;
 
+use super::CollisionDiagnostics;
+
 /// Manages contacts and generates contact constraints.
 ///
 /// # Overview
 ///
-/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`ContactGraph`]
-/// resource for each pair of intersecting [`ColliderAabb`]s.
+/// Before the narrow phase, the [broad phase](super::broad_phase) creates a contact pair
+/// in the [`ContactGraph`] resource for each pair of intersecting [`ColliderAabb`]s.
 ///
 /// The narrow phase then determines which contact pairs found in the [`ContactGraph`] are touching,
 /// and computes updated contact points and normals in a parallel loop.
@@ -119,6 +122,7 @@ where
         );
 
         // Remove collision pairs when colliders are disabled or removed.
+        app.add_observer(remove_collider_on::<OnAdd, Disabled>);
         app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
         app.add_observer(remove_collider_on::<OnRemove, Collider>);
 
@@ -256,7 +260,12 @@ fn remove_collider_on<E: Event, C: Component>(
 
     // Remove the collider from the contact graph.
     contact_graph.remove_collider_with(entity, |contact_pair| {
-        // Send collision ended event.
+        // If the contact pair was not touching, we don't need to do anything.
+        if !contact_pair.flags.contains(ContactPairFlags::TOUCHING) {
+            return;
+        }
+
+        // Send a collision ended event.
         if contact_pair
             .flags
             .contains(ContactPairFlags::CONTACT_EVENTS)

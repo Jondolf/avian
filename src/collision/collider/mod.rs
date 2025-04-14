@@ -18,6 +18,9 @@ pub use backend::{ColliderBackendPlugin, ColliderMarker};
 pub mod collider_hierarchy;
 pub mod collider_transform;
 
+mod layers;
+pub use layers::*;
+
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
     feature = "default-collider",
@@ -388,7 +391,7 @@ pub struct ColliderDisabled;
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///
-/// Sensor colliders send [collision events](collision#collision-events) and register intersections,
+/// Sensor colliders send [collision events](crate::collision#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///

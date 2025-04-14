@@ -1,7 +1,7 @@
 use crate::data_structures::{
-    entity_data_index::EntityDataIndex,
     graph::{EdgeWeightsMut, NodeIndex, UnGraph},
     pair_key::PairKey,
+    sparse_secondary_map::SparseSecondaryEntityMap,
 };
 #[expect(unused_imports)]
 use crate::prelude::*;
@@ -81,7 +81,7 @@ pub struct ContactGraph {
     pub(crate) pair_set: HashSet<PairKey>,
 
     /// A map from entities to their corresponding node indices in the contact graph.
-    entity_graph_index: EntityDataIndex<NodeIndex>,
+    entity_to_node: SparseSecondaryEntityMap<NodeIndex>,
 }
 
 impl ContactGraph {
@@ -93,8 +93,8 @@ impl ContactGraph {
     #[inline]
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&ContactPair> {
         let (Some(&index1), Some(&index2)) = (
-            self.entity_graph_index.get(entity1),
-            self.entity_graph_index.get(entity2),
+            self.entity_to_node.get(entity1),
+            self.entity_to_node.get(entity2),
         ) else {
             return None;
         };
@@ -112,8 +112,8 @@ impl ContactGraph {
     #[inline]
     pub fn get_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut ContactPair> {
         let (Some(&index1), Some(&index2)) = (
-            self.entity_graph_index.get(entity1),
-            self.entity_graph_index.get(entity2),
+            self.entity_to_node.get(entity1),
+            self.entity_to_node.get(entity2),
         ) else {
             return None;
         };
@@ -193,7 +193,7 @@ impl ContactGraph {
     /// Use [`ContactPair::is_touching`](ContactPair::is_touching) to determine if the actual collider shapes are touching.
     #[inline]
     pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
-        self.entity_graph_index
+        self.entity_to_node
             .get(entity)
             .into_iter()
             .flat_map(move |&index| self.internal.edge_weights(index))
@@ -210,7 +210,7 @@ impl ContactGraph {
         &mut self,
         entity: Entity,
     ) -> impl Iterator<Item = &mut ContactPair> {
-        if let Some(&index) = self.entity_graph_index.get(entity) {
+        if let Some(&index) = self.entity_to_node.get(entity) {
             self.internal.edge_weights_mut(index)
         } else {
             EdgeWeightsMut {
@@ -227,7 +227,7 @@ impl ContactGraph {
     /// even if the shapes themselves are not yet touching.
     #[inline]
     pub fn entities_colliding_with(&self, entity: Entity) -> impl Iterator<Item = Entity> + '_ {
-        self.entity_graph_index
+        self.entity_to_node
             .get(entity)
             .into_iter()
             .flat_map(move |&index| {
@@ -272,21 +272,20 @@ impl ContactGraph {
             return;
         }
 
-        // Ensure that the pair exists in the entity graph index.
-        let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
-            contacts.entity1,
-            contacts.entity2,
-            NodeIndex::END,
-        );
+        // Get the indices of the entities in the graph.
+        let index1 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity1, || {
+                self.internal.add_node(contacts.entity1)
+            });
+        let index2 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity2, || {
+                self.internal.add_node(contacts.entity2)
+            });
 
-        // Add the nodes if they don't exist, and add the edge.
-        if index1.is_end() {
-            *index1 = self.internal.add_node(contacts.entity1);
-        }
-        if index2.is_end() {
-            *index2 = self.internal.add_node(contacts.entity2);
-        }
-        self.internal.add_edge(*index1, *index2, contacts);
+        // Add the edge to the graph.
+        self.internal.add_edge(index1, index2, contacts);
     }
 
     /// Inserts a contact pair between two entities.
@@ -321,21 +320,20 @@ impl ContactGraph {
         // Add the pair to the pair set for fast lookup.
         self.pair_set.insert(pair_key);
 
-        // Ensure that the pair exists in the entity graph index.
-        let (index1, index2) = self.entity_graph_index.ensure_pair_exists(
-            contacts.entity1,
-            contacts.entity2,
-            NodeIndex::END,
-        );
+        // Get the indices of the entities in the graph.
+        let index1 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity1, || {
+                self.internal.add_node(contacts.entity1)
+            });
+        let index2 = self
+            .entity_to_node
+            .get_or_insert_with(contacts.entity2, || {
+                self.internal.add_node(contacts.entity2)
+            });
 
-        // Add the nodes if they don't exist, and update the edge.
-        if index1.is_end() {
-            *index1 = self.internal.add_node(contacts.entity1);
-        }
-        if index2.is_end() {
-            *index2 = self.internal.add_node(contacts.entity2);
-        }
-        self.internal.update_edge(*index1, *index2, contacts);
+        // Update the edge in the graph.
+        self.internal.update_edge(index1, index2, contacts);
     }
 
     /// Removes a contact pair between two entites and returns its value.
@@ -349,8 +347,8 @@ impl ContactGraph {
     #[inline]
     pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<ContactPair> {
         let (Some(&index1), Some(&index2)) = (
-            self.entity_graph_index.get(entity1),
-            self.entity_graph_index.get(entity2),
+            self.entity_to_node.get(entity1),
+            self.entity_to_node.get(entity2),
         ) else {
             return None;
         };
@@ -377,7 +375,9 @@ impl ContactGraph {
     where
         F: FnMut(ContactPair),
     {
-        let Some(&index) = self.entity_graph_index.get(entity) else {
+        // Remove the entity from the entity-to-node mapping,
+        // and get the index of the node in the graph.
+        let Some(index) = self.entity_to_node.remove(entity) else {
             return;
         };
 
@@ -392,13 +392,13 @@ impl ContactGraph {
         });
 
         // Removing the node swapped the last node to its place,
-        // so we need to remap the entity graph index of the swapped node.
+        // so we need to remap the entity-to-node mapping of the swapped node.
         if let Some(swapped) = self.internal.node_weight(index).copied() {
             let swapped_index = self
-                .entity_graph_index
+                .entity_to_node
                 .get_mut(swapped)
                 // This should never panic.
-                .expect("swapped entity has no entity graph index mapping");
+                .expect("swapped entity has no entity-to-node mapping");
             *swapped_index = index;
         }
     }

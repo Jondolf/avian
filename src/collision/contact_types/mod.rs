@@ -1,9 +1,11 @@
 //! Contact types and data structures used in the collision pipeline.
 
 mod contact_graph;
+mod feature_id;
 mod system_param;
 
 pub use contact_graph::ContactGraph;
+pub use feature_id::PackedFeatureId;
 pub use system_param::Collisions;
 
 use crate::prelude::*;

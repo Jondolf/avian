@@ -262,7 +262,7 @@ pub fn position_to_transform(
     parents: Query<ParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
-        if let Some(&ChildOf { parent }) = parent {
+        if let Some(&ChildOf(parent)) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
@@ -309,7 +309,7 @@ pub fn position_to_transform(
     parents: Query<ParentComponents, With<Children>>,
 ) {
     for (mut transform, pos, rot, parent) in &mut query {
-        if let Some(&ChildOf { parent }) = parent {
+        if let Some(&ChildOf(parent)) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
                 let parent_transform = parent_transform.compute_transform();
@@ -479,13 +479,13 @@ pub fn propagate_transforms_physics(
 
             let handle = |(child, actual_child_of, is_parent_rb, is_parent_collider): (Entity, Ref<ChildOf>, bool, bool)| {
                 assert_eq!(
-                    actual_child_of.parent, entity,
+                    actual_child_of.parent(), entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
                 // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
-                // - We may operate as if all descendants are consistent, since `propagate_recursive` will panic before 
+                // - We may operate as if all descendants are consistent, since `propagate_recursive` will panic before
                 //   continuing to propagate if it encounters an entity with inconsistent parentage.
                 // - Since each root entity is unique and the hierarchy is consistent and forest-like,
                 //   other root entities' `propagate_recursive` calls will not conflict with this one.
@@ -591,7 +591,7 @@ unsafe fn propagate_transforms_physics_recursive(
             parent_query_1.iter_many(children)
         {
             assert_eq!(
-                actual_child_of.parent, entity,
+                actual_child_of.parent(), entity,
                 "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
             );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched
@@ -616,7 +616,7 @@ unsafe fn propagate_transforms_physics_recursive(
             parent_query_2.iter_many(children)
         {
             assert_eq!(
-                actual_child_of.parent, entity,
+                actual_child_of.parent(), entity,
                 "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
             );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched

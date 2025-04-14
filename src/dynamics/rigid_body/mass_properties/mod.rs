@@ -27,7 +27,7 @@
 //! This can be useful when full control over mass properties is desired.
 //!
 //! [rigid bodies]: crate::dynamics::rigid_body::RigidBody
-//! [colliders]: crate::dynamics::collider::Collider
+//! [colliders]: crate::collision::collider::Collider
 //! [mass]: components::Mass
 //! [angular inertia]: components::AngularInertia
 //! [center of mass]: components::CenterOfMass
@@ -734,13 +734,7 @@ mod tests {
 
         let child_entity = app
             .world_mut()
-            .spawn((
-                ChildOf {
-                    parent: body_entity,
-                },
-                child_collider,
-                ColliderDensity(1.0),
-            ))
+            .spawn((ChildOf(body_entity), child_collider, ColliderDensity(1.0)))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
@@ -844,9 +838,7 @@ mod tests {
         let child_entity = app
             .world_mut()
             .spawn((
-                ChildOf {
-                    parent: body_entity,
-                },
+                ChildOf(body_entity),
                 Collider::circle(1.0),
                 Mass(5.0),
                 Transform::default(),
