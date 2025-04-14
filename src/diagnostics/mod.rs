@@ -12,7 +12,7 @@
 //! If the `diagnostic_ui` feature is enabled and the [`PhysicsDiagnosticsUiPlugin`] is added to the app,
 //! a debug UI will also be available for displaying these diagnostics in real-time.
 //!
-//! [`NarrowPhasePlugin`]: crate::narrow_phase::NarrowPhasePlugin
+//! [`NarrowPhasePlugin`]: crate::collision::narrow_phase::NarrowPhasePlugin
 //! [`SolverPlugin`]: crate::dynamics::solver::SolverPlugin
 //! [`DiagnosticsStore`]: bevy::diagnostic::DiagnosticsStore
 //! [`PhysicsDiagnosticsUiPlugin`]: crate::diagnostics::ui::PhysicsDiagnosticsUiPlugin

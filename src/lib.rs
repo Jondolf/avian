@@ -158,7 +158,7 @@
 //! - [Collision events](collision#collision-events)
 //! - [Accessing collision data](Collisions)
 //! - [Filtering and modifying contacts with hooks](CollisionHooks)
-//! - [Manual contact queries](contact_query)
+//! - [Manual contact queries](collision::collider::contact_query)
 //! - [Temporarily disabling a collider](ColliderDisabled)
 //!
 //! See the [`collision`] module for more details about collision detection and colliders in Avian.
@@ -520,23 +520,7 @@ pub mod prelude {
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
     pub use crate::{
-        collision::{
-            self,
-            broad_phase::BroadPhasePlugin,
-            collider::{
-                collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
-                collider_transform::{ColliderTransform, ColliderTransformPlugin},
-                ColliderBackendPlugin,
-            },
-            collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted},
-            contact_types::{
-                Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags,
-                ContactPoint, SingleContact,
-            },
-            hooks::{ActiveCollisionHooks, CollisionHooks},
-            narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin},
-            *,
-        },
+        collision::prelude::*,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
         position::{Position, Rotation},
@@ -583,7 +567,7 @@ use prelude::*;
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
-/// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).            |
+/// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](collision::narrow_phase). |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |

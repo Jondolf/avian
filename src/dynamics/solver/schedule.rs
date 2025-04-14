@@ -81,7 +81,7 @@ pub struct SubstepSchedule;
 ///
 /// Below is the core solver loop.
 ///
-/// 1. Generate and prepare constraints ([`NarrowPhaseSet::GenerateConstraints`](collision::narrow_phase::NarrowPhaseSet::GenerateConstraints))
+/// 1. Generate and prepare constraints ([`NarrowPhaseSet::GenerateConstraints`])
 /// 2. Substepping loop (runs the [`SubstepSchedule`] [`SubstepCount`] times; see [`SolverSet::Substep`])
 /// 3. Apply restitution ([`SolverSet::Restitution`])
 /// 4. Finalize positions by applying [`AccumulatedTranslation`] ([`SolverSet::ApplyTranslation`])

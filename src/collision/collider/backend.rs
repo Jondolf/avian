@@ -4,7 +4,9 @@
 
 use core::marker::PhantomData;
 
-use crate::{broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig};
+use crate::{
+    collision::broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig,
+};
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
 use bevy::{
@@ -364,6 +366,8 @@ fn init_collider_constructor_hierarchies(
     children: Query<&Children>,
     child_query: Query<(Option<&Name>, Option<&Collider>)>,
 ) {
+    use super::ColliderConstructorHierarchyConfig;
+
     for (scene_entity, collider_constructor_hierarchy) in collider_constructors.iter() {
         #[cfg(feature = "bevy_scene")]
         {
