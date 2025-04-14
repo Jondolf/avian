@@ -27,7 +27,7 @@
 //! This can be useful when full control over mass properties is desired.
 //!
 //! [rigid bodies]: crate::dynamics::rigid_body::RigidBody
-//! [colliders]: crate::dynamics::collider::Collider
+//! [colliders]: crate::collision::collider::Collider
 //! [mass]: components::Mass
 //! [angular inertia]: components::AngularInertia
 //! [center of mass]: components::CenterOfMass

@@ -25,12 +25,14 @@ use bevy::{
 };
 use dynamics::solver::SolverDiagnostics;
 
+use super::CollisionDiagnostics;
+
 /// Manages contacts and generates contact constraints.
 ///
 /// # Overview
 ///
-/// Before the narrow phase, the [broad phase](broad_phase) creates a contact pair in the [`ContactGraph`]
-/// resource for each pair of intersecting [`ColliderAabb`]s.
+/// Before the narrow phase, the [broad phase](super::broad_phase) creates a contact pair
+/// in the [`ContactGraph`] resource for each pair of intersecting [`ColliderAabb`]s.
 ///
 /// The narrow phase then determines which contact pairs found in the [`ContactGraph`] are touching,
 /// and computes updated contact points and normals in a parallel loop.

@@ -1,6 +1,6 @@
 use avian3d::{
     math::*,
-    prelude::{narrow_phase::NarrowPhaseSet, *},
+    prelude::{NarrowPhaseSet, *},
 };
 use bevy::{ecs::query::Has, prelude::*};
 

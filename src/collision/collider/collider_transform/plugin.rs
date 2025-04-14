@@ -1,4 +1,5 @@
 use crate::{
+    collision::narrow_phase::NarrowPhaseSet,
     prelude::*,
     prepare::{match_any, PrepareSet},
     sync::ancestor_marker::{AncestorMarker, AncestorMarkerPlugin},
@@ -7,7 +8,6 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
-use narrow_phase::NarrowPhaseSet;
 
 /// A plugin for propagating and updating transforms for colliders.
 ///

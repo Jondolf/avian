@@ -2,6 +2,7 @@
 use core::cell::RefCell;
 
 use crate::{
+    collision::collider::{ColliderQuery, ColliderQueryItem},
     data_structures::{bit_vec::BitVec, graph::EdgeIndex},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,

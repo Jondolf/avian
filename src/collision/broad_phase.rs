@@ -1,5 +1,5 @@
 //! Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
-//! the number of potential contacts for the [narrow phase](crate::narrow_phase).
+//! the number of potential contacts for the [narrow phase](super::narrow_phase).
 //!
 //! See [`BroadPhasePlugin`].
 
@@ -15,11 +15,13 @@ use bevy::{
     prelude::*,
 };
 
+use super::CollisionDiagnostics;
+
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
-/// the number of potential contacts for the [narrow phase](crate::narrow_phase).
+/// the number of potential contacts for the [narrow phase](super::narrow_phase).
 ///
 /// A contact pair is created in the [`ContactGraph`] resource for each pair found.
-/// Removing and updating these pairs is left to the [narrow phase](crate::narrow_phase).
+/// Removing and updating these pairs is left to the [narrow phase](super::narrow_phase).
 ///
 /// Currently, the broad phase uses the [sweep and prune](https://en.wikipedia.org/wiki/Sweep_and_prune) algorithm.
 ///

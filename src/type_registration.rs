@@ -73,7 +73,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
         #[cfg(feature = "default-collider")]
         app.register_type::<ColliderConstructor>()
             .register_type::<ColliderConstructorHierarchy>()
-            .register_type::<ColliderConstructorHierarchyConfig>()
+            .register_type::<crate::collision::collider::ColliderConstructorHierarchyConfig>()
             .register_type::<ShapeCaster>();
 
         #[cfg(feature = "3d")]

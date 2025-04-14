@@ -3,12 +3,12 @@
 //!
 //! See [`PhysicsDiagnosticsPlugin`] for more information.
 
+use crate::{collision::CollisionDiagnostics, dynamics::solver::SolverDiagnostics};
 use crate::{diagnostics::*, prelude::*};
 use bevy::color::palettes::tailwind::{GREEN_400, RED_400};
 use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
-use dynamics::solver::SolverDiagnostics;
 use entity_counters::PhysicsEntityDiagnosticsPlugin;
 
 const FRAME_TIME_DIAGNOSTIC: &DiagnosticPath = &FrameTimeDiagnosticsPlugin::FRAME_TIME;
