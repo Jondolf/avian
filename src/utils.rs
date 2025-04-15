@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-pub(crate) use bevy::platform_support::time::Instant;
+pub(crate) use bevy::platform::time::Instant;
 
 /// Computes translation of `Position` based on center of mass rotation and translation
 pub(crate) fn get_pos_translation(
