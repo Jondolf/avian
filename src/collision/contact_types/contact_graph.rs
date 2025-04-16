@@ -5,7 +5,7 @@ use crate::data_structures::{
 };
 #[expect(unused_imports)]
 use crate::prelude::*;
-use bevy::{platform_support::collections::HashSet, prelude::*};
+use bevy::{platform::collections::HashSet, prelude::*};
 
 use super::{ContactPair, ContactPairFlags};
 
