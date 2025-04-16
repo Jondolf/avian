@@ -114,7 +114,6 @@ where
             (
                 NarrowPhaseSet::First,
                 NarrowPhaseSet::Update,
-                NarrowPhaseSet::GenerateConstraints,
                 NarrowPhaseSet::Last,
             )
                 .chain()
@@ -209,10 +208,6 @@ pub enum NarrowPhaseSet {
     First,
     /// Updates contacts in the [`ContactGraph`] and processes contact state changes.
     Update,
-    /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
-    ///
-    /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
-    GenerateConstraints,
     /// Runs at the end of the narrow phase. Empty by default.
     Last,
 }
