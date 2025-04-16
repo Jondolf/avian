@@ -326,7 +326,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         let mut contact_status_bits = BitVec::new(contact_pair_count);
                         contact_status_bits.set_bit_count_and_clear(contact_pair_count);
                         RefCell::new(NarrowPhaseThreadContext {
-                            contact_status_bits: BitVec::new(contact_pair_count),
+                            contact_status_bits,
                             contact_constraints: Vec::new(),
                         })
                     })
