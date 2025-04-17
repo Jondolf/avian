@@ -1,60 +1,78 @@
 name: CI
 
 on:
-    push:
-        branches:
-            - main
-    pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
 
 env:
-    CARGO_TERM_COLOR: always
+  CARGO_TERM_COLOR: always
 
 jobs:
-    check:
-        name: Check
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
-            - name: Run cargo check
-              run: cargo check
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo check
+        run: cargo check
 
-    docs:
-        name: Check Documentation
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
-            - name: Run cargo doc
-              run: cargo doc --workspace --no-deps --document-private-items --keep-going
-              env:
-                  RUSTDOCFLAGS: "-D warnings"
+  check-compiles-no-std:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - "x86_64-unknown-none"
+          - "wasm32v1-none"
+          - "thumbv6m-none-eabi"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo check
+        run: cargo check --no-default-features --features libm --target ${{ matrix.target }}
 
-    test:
-        name: Test Suite
-        strategy:
-            matrix:
-                # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
-                os: [windows-latest, macos-latest]
-        runs-on: ${{ matrix.os }}
-        timeout-minutes: 60
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
-            - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+  docs:
+    name: Check Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo doc
+        run: cargo doc --workspace --no-deps --document-private-items --keep-going
+        env:
+          RUSTDOCFLAGS: "-D warnings"
 
-    lints:
-        name: Lints
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: dtolnay/rust-toolchain@stable
-            - uses: Swatinem/rust-cache@v2
-            - name: Run cargo fmt
-              run: cargo fmt --all -- --check
-            - name: Run cargo clippy
-              run: cargo clippy -- -D warnings
+  test:
+    name: Test Suite
+    strategy:
+      matrix:
+        # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo test
+        run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run cargo fmt
+        run: cargo fmt --all -- --check
+      - name: Run cargo clippy
+        run: cargo clippy -- -D warnings
