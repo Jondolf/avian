@@ -99,6 +99,13 @@ use bevy::prelude::*;
 ///     }
 /// }
 /// ```
+///
+/// # Scheduling
+///
+/// The [`CollisionStarted`] event is sent in the [`NarrowPhaseSet::Update`] system set,
+/// but can be read at any time.
+///
+/// [`NarrowPhaseSet::Update`]: super::narrow_phase::NarrowPhaseSet::Update
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollisionStarted(pub Entity, pub Entity);
@@ -125,6 +132,19 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 ///     }
 /// }
 /// ```
+///
+/// # Scheduling
+///
+/// The [`CollisionEnded`] event is sent in the [`NarrowPhaseSet::Update`] system set,
+/// but can be read at any time.
+///
+/// Note that if one of the colliders was removed or the bounding boxes of the colliders stopped
+/// overlapping, the [`ContactPair`] between the entities was also removed, and the contact data
+/// will not be available through [`Collisions`].
+///
+/// [`NarrowPhaseSet::Update`]: super::narrow_phase::NarrowPhaseSet::Update
+/// [`ContactPair`]: super::ContactPair
+/// [`Collisions`]: super::Collisions
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollisionEnded(pub Entity, pub Entity);
@@ -168,6 +188,13 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 ///     });
 /// }
 /// ```
+///
+/// # Scheduling
+///
+/// The [`OnCollisionStart`] event is triggered after the physics step in the [`CollisionEventSystems`]
+/// system set. At this point, the solver has already run and contact impulses have been updated.
+///
+/// [`CollisionEventSystems`]: super::narrow_phase::CollisionEventSystems
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct OnCollisionStart(pub Entity);
@@ -211,6 +238,19 @@ pub struct OnCollisionStart(pub Entity);
 ///     });
 /// }
 /// ```
+///
+/// # Scheduling
+///
+/// The [`OnCollisionEnd`] event is triggered after the physics step in the [`CollisionEventSystems`]
+/// system set. At this point, the solver has already run and contact impulses have been updated.
+///
+/// Note that if one of the colliders was removed or the bounding boxes of the colliders stopped
+/// overlapping, the [`ContactPair`] between the entities was also removed, and the contact data
+/// will not be available through [`Collisions`].
+///
+/// [`CollisionEventSystems`]: super::narrow_phase::CollisionEventSystems
+/// [`ContactPair`]: super::ContactPair
+/// [`Collisions`]: super::Collisions
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct OnCollisionEnd(pub Entity);
