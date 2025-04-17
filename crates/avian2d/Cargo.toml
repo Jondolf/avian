@@ -99,11 +99,11 @@ bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", default-features =
 ] }
 bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", default-features = false }
 libm = { version = "0.2", optional = true }
-parry2d = { version = "0.18", optional = true, default-features = false, features = [
+parry2d = { version = "0.19", optional = true, default-features = false, features = [
     "required-features",
     "alloc",
 ] }
-parry2d-f64 = { version = "0.18", optional = true, default-features = false, features = [
+parry2d-f64 = { version = "0.19", optional = true, default-features = false, features = [
     "required-features",
     "alloc",
 ] }

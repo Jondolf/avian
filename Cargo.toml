@@ -11,8 +11,4 @@ std_instead_of_core = "warn"
 opt-level = 1 # Use slightly better optimization, so examples work
 
 [patch.crates-io]
-parry2d = { git = "https://github.com/Jondolf/barry", branch = "no-std" }
-parry2d-f64 = { git = "https://github.com/Jondolf/barry", branch = "no-std" }
-parry3d = { git = "https://github.com/Jondolf/barry", branch = "no-std" }
-parry3d-f64 = { git = "https://github.com/Jondolf/barry", branch = "no-std" }
 nalgebra = { git = "https://github.com/Jondolf/nalgebra", branch = "glam-no-default-features" }
