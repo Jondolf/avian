@@ -93,11 +93,15 @@ pub mod prelude {
     pub use super::collider::{
         collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
         collider_transform::{ColliderTransform, ColliderTransformPlugin},
-        AabbContext, AnyCollider, Collider, ColliderAabb, ColliderBackendPlugin,
-        ColliderConstructor, ColliderConstructorHierarchy, ColliderDisabled, ColliderMarker,
-        CollidingEntities, CollisionLayers, CollisionMargin, ContactManifoldContext, FillMode,
-        IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
-        TrimeshFlags, VhacdParameters,
+        AabbContext, AnyCollider, ColliderAabb, ColliderBackendPlugin, ColliderDisabled,
+        ColliderMarker, CollidingEntities, CollisionLayers, CollisionMargin,
+        ContactManifoldContext, IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor,
+        SimpleCollider,
+    };
+    #[cfg(feature = "default-collider")]
+    pub use super::collider::{
+        Collider, ColliderConstructor, ColliderConstructorHierarchy, FillMode, TrimeshFlags,
+        VhacdParameters,
     };
     pub use super::collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted};
     pub use super::contact_types::{
