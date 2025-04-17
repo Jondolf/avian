@@ -300,7 +300,7 @@ impl AngleLimit {
         // [limit_axis, axis1, axis2] = [n, n1, n2] in XPBD rigid body paper.
 
         // Angle between axis1 and axis2 with respect to limit_axis.
-        let mut phi = ops::asin(axis1.cross(axis2).dot(limit_axis));
+        let mut phi = math_ops::asin(axis1.cross(axis2).dot(limit_axis));
 
         // `asin` returns the angle in the [-pi/2, pi/2] range.
         // This is correct if the angle between n1 and n2 is acute,

@@ -28,7 +28,7 @@ impl CoefficientCombine {
     pub fn mix(&self, a: Scalar, b: Scalar) -> Scalar {
         match self {
             CoefficientCombine::Average => (a + b) * 0.5,
-            CoefficientCombine::GeometricMean => ops::sqrt(a * b),
+            CoefficientCombine::GeometricMean => math_ops::sqrt(a * b),
             CoefficientCombine::Min => a.min(b),
             CoefficientCombine::Multiply => a * b,
             CoefficientCombine::Max => a.max(b),

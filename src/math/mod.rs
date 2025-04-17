@@ -13,41 +13,14 @@ mod double;
 pub use double::*;
 
 #[cfg(feature = "f64")]
-mod ops_f64;
+pub mod ops_f64;
 
 #[cfg(feature = "f32")]
-pub use bevy_math::ops;
+pub use bevy_math::ops as math_ops;
 #[cfg(feature = "f64")]
-pub use ops_f64 as ops;
+pub use ops_f64 as math_ops;
 
-#[cfg(feature = "f32")]
-pub(crate) use ops::FloatPow;
-#[cfg(feature = "f64")]
-pub(crate) use ops_f64::FloatPow;
-
-// bevy_math doesn't have these yet.
-
-/// Returns the smallest integer greater than or equal to `x`.
-///
-/// Precision is specified when the `libm` feature is enabled.
-#[inline(always)]
-#[cfg(all(feature = "f32", feature = "libm", not(feature = "std")))]
-pub fn ceil(x: f32) -> f32 {
-    libm::ceilf(x)
-}
-
-/// Returns the smallest integer greater than or equal to `x`.
-///     
-/// Precision is specified when the `std` feature is enabled.
-#[inline(always)]
-#[cfg(all(feature = "f32", feature = "std"))]
-pub fn ceil(x: f32) -> f32 {
-    #[allow(clippy::disallowed_methods)]
-    x.ceil()
-}
-
-#[cfg(feature = "f64")]
-pub use ops_f64::ceil;
+pub(crate) use math_ops::FloatPow;
 
 use bevy_math::{prelude::*, *};
 

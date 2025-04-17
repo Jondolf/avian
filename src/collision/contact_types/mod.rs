@@ -109,7 +109,7 @@ impl ContactPair {
 
         for manifold in &self.manifolds {
             let impulse = manifold.max_normal_impulse();
-            if ops::abs(impulse) > ops::abs(magnitude) {
+            if math_ops::abs(impulse) > math_ops::abs(magnitude) {
                 magnitude = impulse;
                 normal = manifold.normal;
             }

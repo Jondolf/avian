@@ -14,7 +14,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         body2: &mut RigidBodyQueryItem,
         delta_lagrange: Scalar,
     ) -> Scalar {
-        if ops::abs(delta_lagrange) <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -60,7 +60,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
-        if ops::abs(delta_lagrange) <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
@@ -116,7 +116,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         compliance: Scalar,
         dt: Scalar,
     ) -> Torque {
-        if ops::abs(angle) <= Scalar::EPSILON {
+        if math_ops::abs(angle) <= Scalar::EPSILON {
             return Torque::ZERO;
         }
 
@@ -185,7 +185,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector3,
     ) -> Scalar {
-        if ops::abs(delta_lagrange) <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -220,7 +220,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
-        if ops::abs(delta_lagrange) <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 

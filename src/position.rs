@@ -212,7 +212,7 @@ impl Rotation {
     /// Creates a [`Rotation`] from a counterclockwise angle in radians.
     #[inline]
     pub fn radians(radians: Scalar) -> Self {
-        let (sin, cos) = ops::sin_cos(radians);
+        let (sin, cos) = math_ops::sin_cos(radians);
         Self::from_sin_cos(sin, cos)
     }
 
@@ -254,7 +254,7 @@ impl Rotation {
     /// Returns the rotation in radians in the `(-pi, pi]` range.
     #[inline]
     pub fn as_radians(self) -> Scalar {
-        ops::atan2(self.sin, self.cos)
+        math_ops::atan2(self.sin, self.cos)
     }
 
     /// Returns the rotation in degrees in the `(-180, 180]` range.
@@ -378,7 +378,7 @@ impl Rotation {
         // The allowed length is 1 +/- 1e-4, so the largest allowed
         // squared length is (1 + 1e-4)^2 = 1.00020001, which makes
         // the threshold for the squared length approximately 2e-4.
-        ops::abs(self.length_squared() - 1.0) <= 2e-4
+        math_ops::abs(self.length_squared() - 1.0) <= 2e-4
     }
 
     /// Returns `true` if the rotation is near [`Rotation::IDENTITY`].
@@ -386,7 +386,7 @@ impl Rotation {
     pub fn is_near_identity(self) -> bool {
         // Same as `Quat::is_near_identity`, but using sine and cosine
         let threshold_angle_sin = 0.000_049_692_047; // let threshold_angle = 0.002_847_144_6;
-        self.cos > 0.0 && ops::abs(self.sin) < threshold_angle_sin
+        self.cos > 0.0 && math_ops::abs(self.sin) < threshold_angle_sin
     }
 
     /// Returns the angle in radians needed to make `self` and `other` coincide.
@@ -415,7 +415,7 @@ impl Rotation {
         let (sin, cos) = (self.sin + radians * self.cos, self.cos - radians * self.sin);
         let magnitude_squared = sin * sin + cos * cos;
         let magnitude_recip = if magnitude_squared > 0.0 {
-            ops::sqrt(magnitude_squared).recip()
+            math_ops::sqrt(magnitude_squared).recip()
         } else {
             0.0
         };
@@ -894,8 +894,8 @@ impl From<Rotation> for Scalar {
 #[cfg(feature = "2d")]
 impl From<Rotation> for Quaternion {
     fn from(rot: Rotation) -> Self {
-        let z = rot.sin.signum() * ops::sqrt(ops::abs((1.0 - rot.cos) / 2.0));
-        let w = ops::sqrt(ops::abs((1.0 + rot.cos) / 2.0));
+        let z = rot.sin.signum() * math_ops::sqrt(math_ops::abs((1.0 - rot.cos) / 2.0));
+        let w = math_ops::sqrt(math_ops::abs((1.0 + rot.cos) / 2.0));
         Quaternion::from_xyzw(0.0, 0.0, z, w)
     }
 }

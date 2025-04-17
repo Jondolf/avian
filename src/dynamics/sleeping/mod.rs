@@ -180,8 +180,9 @@ pub fn mark_sleeping_bodies(
 
         // Negative thresholds indicate that sleeping is disabled.
         let lin_sleeping_threshold_sq =
-            length_unit_sq * sleep_threshold.linear * ops::abs(sleep_threshold.linear);
-        let ang_sleeping_threshold_sq = sleep_threshold.angular * ops::abs(sleep_threshold.angular);
+            length_unit_sq * sleep_threshold.linear * math_ops::abs(sleep_threshold.linear);
+        let ang_sleeping_threshold_sq =
+            sleep_threshold.angular * math_ops::abs(sleep_threshold.angular);
 
         // If linear and angular velocity are below the sleeping threshold,
         // add delta time to the time sleeping, i.e. the time that the body has remained still.

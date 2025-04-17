@@ -234,19 +234,19 @@ fn integrate_velocities(
         if let Some(max_linear_speed) = body.max_linear_speed {
             let linear_speed_squared = body.lin_vel.0.length_squared();
             if linear_speed_squared > max_linear_speed.0.squared() {
-                body.lin_vel.0 *= max_linear_speed.0 / ops::sqrt(linear_speed_squared);
+                body.lin_vel.0 *= max_linear_speed.0 / math_ops::sqrt(linear_speed_squared);
             }
         }
         if let Some(max_angular_speed) = body.max_angular_speed {
             #[cfg(feature = "2d")]
-            if ops::abs(body.ang_vel.0) > max_angular_speed.0 {
-                body.ang_vel.0 = ops::copysign(max_angular_speed.0, body.ang_vel.0);
+            if math_ops::abs(body.ang_vel.0) > max_angular_speed.0 {
+                body.ang_vel.0 = math_ops::copysign(max_angular_speed.0, body.ang_vel.0);
             }
             #[cfg(feature = "3d")]
             {
                 let angular_speed_squared = body.ang_vel.0.length_squared();
                 if angular_speed_squared > max_angular_speed.0.squared() {
-                    body.ang_vel.0 *= max_angular_speed.0 / ops::sqrt(angular_speed_squared);
+                    body.ang_vel.0 *= max_angular_speed.0 / math_ops::sqrt(angular_speed_squared);
                 }
             }
         }

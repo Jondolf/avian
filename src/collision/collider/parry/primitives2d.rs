@@ -1,5 +1,5 @@
 use crate::{
-    math::{self, FloatPow},
+    math::{self, math_ops, FloatPow},
     AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU,
 };
 
@@ -44,7 +44,7 @@ impl SupportMap for EllipseColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         let [a, b] = self.half_size.adjust_precision().to_array();
-        let denom = ops::sqrt(direction.x.squared() * a * a + direction.y.squared() * b * b);
+        let denom = math_ops::sqrt(direction.x.squared() * a * a + direction.y.squared() * b * b);
         Point2::new(a * a * direction.x / denom, b * b * direction.y / denom)
     }
 }
@@ -276,7 +276,7 @@ impl SupportMap for RegularPolygonColliderShape {
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
-        let n = ops::round(angle_from_top / external_angle) % self.sides as Scalar;
+        let n = math_ops::round(angle_from_top / external_angle) % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle = n * external_angle + FRAC_PI_2;
@@ -305,8 +305,8 @@ impl PolygonalFeatureMap for RegularPolygonColliderShape {
 
         // How many rotations of `external_angle` correspond to the vertices.
         let n_unnormalized = angle_from_top / external_angle;
-        let n1 = ops::floor(n_unnormalized) % self.sides as Scalar;
-        let n2 = math::ceil(n_unnormalized) % self.sides as Scalar;
+        let n1 = math_ops::floor(n_unnormalized) % self.sides as Scalar;
+        let n2 = math_ops::ceil(n_unnormalized) % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle1 = n1 * external_angle + FRAC_PI_2;
@@ -393,7 +393,7 @@ impl Shape for RegularPolygonColliderShape {
 
         let half_external_angle = PI / self.sides as Scalar;
         let angular_inertia = mass * self.circumradius().adjust_precision().squared() / 6.0
-            * (1.0 + 2.0 * ops::cos(half_external_angle).squared());
+            * (1.0 + 2.0 * math_ops::cos(half_external_angle).squared());
 
         MassProperties::new(Point2::origin(), mass, angular_inertia)
     }
