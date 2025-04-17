@@ -584,6 +584,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         return;
                     }
 
+                    // When an active body collides with a sleeping body, wake up the sleeping body.
+                    par_commands.command_scope(|mut commands| {
+                        if body1.is_sleeping {
+                            commands.queue(WakeUpBody(body1.entity));
+                        } else if body2.is_sleeping {
+                            commands.queue(WakeUpBody(body2.entity));
+                        }
+                    });
+
                     // TODO: How should we properly take the locked axes into account for the mass here?
                     let inverse_mass_sum = body1.mass().inverse() + body2.mass().inverse();
                     let i1 = body1.effective_global_angular_inertia();
@@ -600,6 +609,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         let mut constraint = ContactConstraint {
                             entity1: body1.entity,
                             entity2: body2.entity,
+                            collider_entity1: collider1.entity,
+                            collider_entity2: collider2.entity,
                             friction: manifold.friction,
                             restitution: manifold.restitution,
                             #[cfg(feature = "2d")]
