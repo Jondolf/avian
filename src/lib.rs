@@ -520,6 +520,8 @@ pub mod prelude {
     };
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
+    #[cfg(not(feature = "std"))]
+    pub(crate) use crate::utils::ParallelCommands;
     pub use crate::{
         collision::prelude::*,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
