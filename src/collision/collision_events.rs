@@ -1,59 +1,101 @@
-//! [`CollisionStarted`] and [`CollisionEnded`] events.
+//! Collision events for detecting when colliders start or stop touching.
 //!
-//! Collision events are only sent if one of the entities has the [`CollisionEventsEnabled`] component.
+//! Depending on your use case, you may want to use either buffered events read
+//! using an [`EventReader`] or observable events triggered for specific entities.
+//! Avian provides both options using separate event types.
 //!
-//! You can listen to these events with normal event readers:
+//! Note that collision events are only sent or triggered for entities that have
+//! the [`CollisionEventsEnabled`] component.
 //!
-//! ```no_run
+//! # Buffered Events
+//!
+//! Avian provides two different buffered collision event types:
+//!
+//! - [`CollisionStarted`]
+//! - [`CollisionEnded`]
+//!
+//! These events are sent when two colliders start or stop touching, and can be read
+//! using an [`EventReader`]. This can be useful for efficiently processing large numbers
+//! of collision events between pairs of entities, such as for detecting bullet hits
+//! or playing impact sounds when two objects collide.
+//!
+//! The events are only sent if one of the entities has the [`CollisionEventsEnabled`] component.
+//!
+//! ```
 #![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 //! use bevy::prelude::*;
 //!
-//! fn main() {
-//!     App::new()
-//!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-//!         // ...
-//!         .add_systems(Update, print_collisions)
-//!         .run();
-//! }
-//!
-//! fn print_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
+//! fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
 //!     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
-//!         println!("Entities {entity1} and {entity2} are colliding");
+//!         println!("{entity1} and {entity2} started colliding");
 //!     }
 //! }
 //! ```
 //!
-//! Collision events that use observers are not yet supported.
+//! # Observable Events
+//!
+//! Avian provides two observable collision event types:
+//!
+//! - [`OnCollisionStart`]
+//! - [`OnCollisionEnd`]
+//!
+//! These events are triggered for [observers](Observer) when two colliders start or stop touching.
+//! This makes them good for entity-specific collision scenarios, such as for detecting when a player
+//! steps on a pressure plate or enters a trigger volume.
+//!
+//! The events are only triggered if the target entity has the [`CollisionEventsEnabled`] component.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
+#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
+//! use bevy::prelude::*;
+//!
+//! #[derive(Component)]
+//! struct Player;
+//!
+//! #[derive(Component)]
+//! struct PressurePlate;
+//!
+//! fn setup_pressure_plates(mut commands: Commands) {
+//!     commands.spawn((
+//!         PressurePlate,
+#![cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
+#![cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
+//!         Sensor,
+//!         // Enable collision events for this entity.
+//!         CollisionEventsEnabled,
+//!     ))
+//!     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
+//!         let pressure_plate = trigger.entity();
+//!         if player_query.contains(trigger.0) {
+//!             println!("Player {trigger.0} stepped on pressure plate {pressure_plate}");
+//!         }
+//!     });
+//! }
+//! ```
 
 use bevy::prelude::*;
 
-/// A [collision event](super#collision-events) that is sent when two colliders start touching.
+/// A buffered [collision event](super#collision-events) that is sent when two colliders start touching.
 ///
 /// The event is only sent if one of the entities has the [`CollisionEventsEnabled`] component.
 ///
+/// Unlike [`OnCollisionStart`], this event is *not* triggered for observers.
+/// Instead, you must use an [`EventReader`] to read the event in a system.
+/// This makes it good for efficiently processing large numbers of collision events
+/// between pairs of entities.
+///
 /// # Example
 ///
-/// ```no_run
+/// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // ...
-///         .add_systems(Update, print_started_collisions)
-///         .run();
-/// }
-///
 /// fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
 ///     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
-///         println!(
-///             "Entities {} and {} started colliding",
-///             entity1,
-///             entity2,
-///         );
+///         println!("{entity1} and {entity2} started colliding");
 ///     }
 /// }
 /// ```
@@ -61,32 +103,25 @@ use bevy::prelude::*;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollisionStarted(pub Entity, pub Entity);
 
-/// A [collision event](super#collision-events) that is sent when two colliders stop touching.
+/// A buffered [collision event](super#collision-events) that is sent when two colliders stop touching.
 ///
 /// The event is only sent if one of the entities has the [`CollisionEventsEnabled`] component.
 ///
+/// Unlike [`OnCollisionEnd`], this event is *not* triggered for observers.
+/// Instead, you must use an [`EventReader`] to read the event in a system.
+/// This makes it good for efficiently processing large numbers of collision events
+/// between pairs of entities.
+///
 /// # Example
 ///
-/// ```no_run
+/// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // ...
-///         .add_systems(Update, print_ended_collisions)
-///         .run();
-/// }
-///
 /// fn print_ended_collisions(mut collision_event_reader: EventReader<CollisionEnded>) {
 ///     for CollisionEnded(entity1, entity2) in collision_event_reader.read() {
-///         println!(
-///             "Entities {} and {} stopped colliding",
-///             entity1,
-///             entity2,
-///         );
+///         println!("{entity1} and {entity2} stopped colliding");
 ///     }
 /// }
 /// ```
@@ -94,75 +129,96 @@ pub struct CollisionStarted(pub Entity, pub Entity);
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct CollisionEnded(pub Entity, pub Entity);
 
-/// A [collision event](super#collision-events) that is triggered for observers
+/// A [collision event](super#collision-events) that is triggered for [observers](Observer)
 /// when two colliders start touching.
 ///
-/// The event is only sent if one of the entities has the [`CollisionEventsEnabled`] component.
+/// The event is only triggered if the target entity has the [`CollisionEventsEnabled`] component.
+///
+/// Unlike [`CollisionStarted`], this event can *not* be read using an [`EventReader`].
+/// Instead, you must use an [observer](Observer). This makes it good for entity-specific
+/// collision listeners.
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // ...
-///         .add_systems(Update, print_started_collisions)
-///         .run();
-/// }
+/// #[derive(Component)]
+/// struct Player;
 ///
-/// fn print_started_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
-///     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
-///         println!(
-///             "Entities {} and {} started colliding",
-///             entity1,
-///             entity2,
-///         );
-///     }
+/// #[derive(Component)]
+/// struct PressurePlate;
+///
+/// fn setup_pressure_plates(mut commands: Commands) {
+///     commands.spawn((
+///         PressurePlate,
+#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
+///         Sensor,
+///         // Enable collision events for this entity.
+///         CollisionEventsEnabled,
+///     ))
+///     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
+///         let pressure_plate = trigger.entity();
+///         if player_query.contains(trigger.0) {
+///             println!("Player {trigger.0} stepped on pressure plate {pressure_plate}");
+///         }
+///     });
 /// }
 /// ```
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct OnCollisionStart(pub Entity);
 
-/// A [collision event](super#collision-events) that is triggered for observers
+/// A [collision event](super#collision-events) that is triggered for [observers](Observer)
 /// when two colliders stop touching.
 ///
-/// The event is only sent if one of the entities has the [`CollisionEventsEnabled`] component.
+/// The event is only triggered if the target entity has the [`CollisionEventsEnabled`] component.
+///
+/// Unlike [`CollisionEnded`], this event can *not* be read using an [`EventReader`].
+/// Instead, you must use an [observer](Observer). This makes it good for entity-specific
+/// collision listeners.
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// fn main() {
-///     App::new()
-///         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-///         // ...
-///         .add_systems(Update, print_ended_collisions)
-///         .run();
-/// }
+/// #[derive(Component)]
+/// struct Player;
 ///
-/// fn print_ended_collisions(mut collision_event_reader: EventReader<CollisionEnded>) {
-///     for CollisionEnded(entity1, entity2) in collision_event_reader.read() {
-///         println!(
-///             "Entities {} and {} stopped colliding",
-///             entity1,
-///             entity2,
-///         );
-///     }
+/// #[derive(Component)]
+/// struct PressurePlate;
+///
+/// fn setup_pressure_plates(mut commands: Commands) {
+///     commands.spawn((
+///         PressurePlate,
+#[cfg_attr(feature = "2d", doc = "        Collider::rectangle(1.0, 1.0),")]
+#[cfg_attr(feature = "3d", doc = "        Collider::cuboid(1.0, 0.1, 1.0),")]
+///         Sensor,
+///         // Enable collision events for this entity.
+///         CollisionEventsEnabled,
+///     ))
+///     .observe(|trigger: Trigger<OnCollisionEnd>, player_query: Query<&Player>| {
+///         let pressure_plate = trigger.entity();
+///         if player_query.contains(trigger.0) {
+///             println!("Player {trigger.0} stepped off of pressure plate {pressure_plate}");
+///         }
+///     });
 /// }
 /// ```
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct OnCollisionEnd(pub Entity);
 
-/// A marker component that enables [`CollisionStarted`], and [`CollisionEnded`] events for an entity.
+/// A marker component that enables [collision events](self) for an entity.
+///
+/// This enables both the buffered [`CollisionStarted`] and [`CollisionEnded`] events,
+/// as well as the observable [`OnCollisionStart`] and [`OnCollisionEnd`] events.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
