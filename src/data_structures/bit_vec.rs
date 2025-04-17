@@ -5,6 +5,8 @@
 use core::ops::BitOrAssign;
 use core::slice;
 
+use alloc::{vec, vec::Vec};
+
 /// A dynamically sized compact bit vector with a fixed block size of 64 bits.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]

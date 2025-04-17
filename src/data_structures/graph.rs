@@ -7,6 +7,7 @@
 use core::cmp::max;
 use core::ops::{Index, IndexMut};
 
+use alloc::vec::Vec;
 use derive_more::derive::From;
 
 /// A node identifier for a graph structure.
