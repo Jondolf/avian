@@ -91,6 +91,7 @@ impl Plugin for PhysicsSchedulePlugin {
                     PhysicsStepSet::Solver,
                     PhysicsStepSet::Sleeping,
                     PhysicsStepSet::SpatialQuery,
+                    PhysicsStepSet::Finalize,
                     PhysicsStepSet::Last,
                 )
                     .chain(),
@@ -186,6 +187,8 @@ pub enum PhysicsStepSet {
     ///
     /// See [`SpatialQueryPlugin`].
     SpatialQuery,
+    /// Responsible for logic that runs after the core physics step and prepares for the next one.
+    Finalize,
     /// Runs at the end of the [`PhysicsSchedule`]. Empty by default.
     Last,
 }

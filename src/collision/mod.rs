@@ -99,7 +99,9 @@ pub mod prelude {
         IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
         TrimeshFlags, VhacdParameters,
     };
-    pub use super::collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted};
+    pub use super::collision_events::{
+        CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,
+    };
     pub use super::contact_types::{
         Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags, ContactPoint,
     };

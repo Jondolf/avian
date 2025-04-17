@@ -16,7 +16,7 @@ use bevy::{
         entity_disabling::Disabled,
         intern::Interned,
         schedule::ScheduleLabel,
-        system::{StaticSystemParam, SystemParamItem},
+        system::{StaticSystemParam, SystemParam, SystemParamItem, SystemState},
     },
     prelude::*,
 };
@@ -119,6 +119,10 @@ where
                 .chain()
                 .in_set(PhysicsStepSet::NarrowPhase),
         );
+        app.configure_sets(
+            self.schedule,
+            CollisionEventSystems.in_set(PhysicsStepSet::Finalize),
+        );
 
         // Remove collision pairs when colliders are disabled or removed.
         app.add_observer(remove_collider_on::<OnAdd, Disabled>);
@@ -134,6 +138,11 @@ where
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
         );
+
+        app.add_systems(
+            PhysicsSchedule,
+            trigger_collision_events.in_set(CollisionEventSystems),
+        );
     }
 
     fn finish(&self, app: &mut App) {
@@ -141,6 +150,13 @@ where
         app.register_physics_diagnostics::<CollisionDiagnostics>();
     }
 }
+
+/// A system set for triggering the [`OnCollisionStart`] and [`OnCollisionEnd`] events.
+///
+/// Runs in [`PhysicsStepSet::Finalize`], after the solver has run and contact impulses
+/// have been computed and applied.
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct CollisionEventSystems;
 
 /// A resource for configuring the [narrow phase](NarrowPhasePlugin).
 #[derive(Resource, Reflect, Clone, Debug, PartialEq)]
@@ -244,6 +260,57 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     }
 }
 
+#[derive(SystemParam)]
+struct TriggerCollisionEventsContext<'w, 's> {
+    query: Query<'w, 's, (), With<CollisionEventsEnabled>>,
+    started: EventReader<'w, 's, CollisionStarted>,
+    ended: EventReader<'w, 's, CollisionEnded>,
+}
+
+/// Triggers [`OnCollisionStart`] and [`OnCollisionEnd`] events for colliders
+/// that started or stopped touching and have the [`CollisionEventsEnabled`] component.
+fn trigger_collision_events(
+    // We use exclusive access here to avoid queuing a new command for each event.
+    world: &mut World,
+    state: &mut SystemState<TriggerCollisionEventsContext>,
+    // Cache pairs in buffers to avoid reallocating every time.
+    mut started_pairs: Local<Vec<(Entity, OnCollisionStart)>>,
+    mut ended_pairs: Local<Vec<(Entity, OnCollisionEnd)>>,
+) {
+    let mut state = state.get_mut(world);
+
+    // Collect `OnCollisionStart` and `OnCollisionEnd` events
+    // for entities that have events enabled.
+    for event in state.started.read() {
+        if state.query.contains(event.0) {
+            started_pairs.push((event.0, OnCollisionStart(event.1)));
+        }
+        if state.query.contains(event.1) {
+            started_pairs.push((event.1, OnCollisionStart(event.0)));
+        }
+    }
+    for event in state.ended.read() {
+        if state.query.contains(event.0) {
+            ended_pairs.push((event.0, OnCollisionEnd(event.1)));
+        }
+        if state.query.contains(event.1) {
+            ended_pairs.push((event.1, OnCollisionEnd(event.0)));
+        }
+    }
+
+    // Trigger the events, draining the buffers in the process.
+    started_pairs.drain(..).for_each(|(entity, event)| {
+        world.trigger_targets(event, entity);
+    });
+    ended_pairs.drain(..).for_each(|(entity, event)| {
+        world.trigger_targets(event, entity);
+    });
+}
+
+/// Removes colliders from the [`ContactGraph`] when the given trigger is activated.
+///
+/// Also removes the collider from the [`CollidingEntities`] of the other entity,
+/// wakes up the other body, and sends a [`CollisionEnded`] event.
 fn remove_collider_on<E: Event, C: Component>(
     trigger: Trigger<E, C>,
     mut contact_graph: ResMut<ContactGraph>,
