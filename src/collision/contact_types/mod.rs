@@ -109,7 +109,7 @@ impl ContactPair {
 
         for manifold in &self.manifolds {
             let impulse = manifold.max_normal_impulse();
-            if impulse.abs() > magnitude.abs() {
+            if ops::abs(impulse) > ops::abs(magnitude) {
                 magnitude = impulse;
                 normal = manifold.normal;
             }
@@ -282,7 +282,7 @@ impl ContactManifold {
         distance_threshold: Scalar,
     ) {
         // The squared maximum distance for two contact points to be considered matching.
-        let distance_threshold_squared = distance_threshold.powi(2);
+        let distance_threshold_squared = distance_threshold.squared();
 
         for contact in self.points.iter_mut() {
             for previous_contact in previous_contacts.iter() {
