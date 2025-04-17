@@ -4,16 +4,13 @@
 
 mod system_param;
 use system_param::ContactStatusBits;
-#[cfg(feature = "parallel")]
-use system_param::ContactStatusBitsThreadLocal;
 pub use system_param::NarrowPhase;
+#[cfg(feature = "parallel")]
+use system_param::NarrowPhaseThreadLocals;
 
 use core::marker::PhantomData;
 
-use crate::{
-    dynamics::solver::{ContactConstraints, ContactSoftnessCoefficients},
-    prelude::*,
-};
+use crate::{dynamics::solver::ContactConstraints, prelude::*};
 use bevy::{
     ecs::{
         entity_disabling::Disabled,
@@ -100,7 +97,7 @@ where
             .init_resource::<DefaultRestitution>();
 
         #[cfg(feature = "parallel")]
-        app.init_resource::<ContactStatusBitsThreadLocal>();
+        app.init_resource::<NarrowPhaseThreadLocals>();
 
         app.register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
@@ -117,7 +114,6 @@ where
             (
                 NarrowPhaseSet::First,
                 NarrowPhaseSet::Update,
-                NarrowPhaseSet::GenerateConstraints,
                 NarrowPhaseSet::Last,
             )
                 .chain()
@@ -138,18 +134,6 @@ where
                 // to have multiple collision backends at the same time.
                 .ambiguous_with_all(),
         );
-
-        if self.generate_constraints {
-            // Generate contact constraints.
-            app.add_systems(
-                self.schedule,
-                generate_constraints::<C>
-                    .in_set(NarrowPhaseSet::GenerateConstraints)
-                    // Allowing ambiguities is required so that it's possible
-                    // to have multiple collision backends at the same time.
-                    .ambiguous_with_all(),
-            );
-        }
     }
 
     fn finish(&self, app: &mut App) {
@@ -224,10 +208,6 @@ pub enum NarrowPhaseSet {
     First,
     /// Updates contacts in the [`ContactGraph`] and processes contact state changes.
     Update,
-    /// Generates [`ContactConstraint`]s and adds them to [`ContactConstraints`].
-    ///
-    /// [`ContactConstraint`]: dynamics::solver::contact::ContactConstraint
-    GenerateConstraints,
     /// Runs at the end of the narrow phase. Empty by default.
     Last,
 }
@@ -241,6 +221,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     context: StaticSystemParam<C::Context>,
     mut commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
+    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -257,83 +238,9 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
     diagnostics.narrow_phase = start.elapsed();
     diagnostics.contact_count = narrow_phase.contact_graph.internal.edge_count() as u32;
-}
-
-fn generate_constraints<C: AnyCollider>(
-    narrow_phase: NarrowPhase<C>,
-    mut constraints: ResMut<ContactConstraints>,
-    contact_softness: Res<ContactSoftnessCoefficients>,
-    time: Res<Time>,
-    mut collision_diagnostics: ResMut<CollisionDiagnostics>,
-    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
-) {
-    let start = crate::utils::Instant::now();
-
-    let delta_secs = time.delta_seconds_adjusted();
-
-    constraints.clear();
-
-    // TODO: Parallelize.
-    for (i, contacts) in narrow_phase.contact_graph.iter().enumerate() {
-        let Ok([collider1, collider2]) = narrow_phase
-            .collider_query
-            .get_many([contacts.entity1, contacts.entity2])
-        else {
-            continue;
-        };
-
-        let body1_bundle = collider1
-            .rigid_body
-            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
-        let body2_bundle = collider2
-            .rigid_body
-            .and_then(|&ColliderOf { rigid_body }| narrow_phase.body_query.get(rigid_body).ok());
-        if let (Some((body1, rb_collision_margin1)), Some((body2, rb_collision_margin2))) = (
-            body1_bundle.map(|(body, rb_collision_margin1, _)| (body, rb_collision_margin1)),
-            body2_bundle.map(|(body, rb_collision_margin2, _)| (body, rb_collision_margin2)),
-        ) {
-            // At least one of the bodies must be dynamic for contact constraints
-            // to be generated.
-            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
-                continue;
-            }
-
-            // Use the collider's own collision margin if specified, and fall back to the body's
-            // collision margin.
-            //
-            // The collision margin adds artificial thickness to colliders for performance
-            // and stability. See the `CollisionMargin` documentation for more details.
-            let collision_margin1 = collider1
-                .collision_margin
-                .or(rb_collision_margin1)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin2 = collider2
-                .collision_margin
-                .or(rb_collision_margin2)
-                .map_or(0.0, |margin| margin.0);
-            let collision_margin_sum = collision_margin1 + collision_margin2;
-
-            // Generate contact constraints for the computed contacts
-            // and add them to `constraints`.
-            narrow_phase.generate_constraints(
-                i,
-                contacts,
-                &mut constraints,
-                &body1,
-                &body2,
-                &collider1,
-                &collider2,
-                collision_margin_sum,
-                *contact_softness,
-                delta_secs,
-            );
-        }
-    }
-
-    collision_diagnostics.generate_constraints = start.elapsed();
 
     if let Some(mut solver_diagnostics) = solver_diagnostics {
-        solver_diagnostics.contact_constraint_count = constraints.len() as u32;
+        solver_diagnostics.contact_constraint_count = narrow_phase.contact_constraints.len() as u32;
     }
 }
 
