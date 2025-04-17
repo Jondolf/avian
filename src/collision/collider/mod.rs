@@ -18,6 +18,9 @@ pub use backend::{ColliderBackendPlugin, ColliderMarker};
 pub mod collider_hierarchy;
 pub mod collider_transform;
 
+mod layers;
+pub use layers::*;
+
 /// The default [`Collider`] that uses Parry.
 #[cfg(all(
     feature = "default-collider",
@@ -183,8 +186,9 @@ pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
     ///         position2: Vector,
     ///         rotation2: impl Into<Rotation>,
     ///         prediction_distance: Scalar,
+    ///         manifolds: &mut Vec<ContactManifold>,
     ///         context: ContactManifoldContext<Self::Context>,
-    ///     ) -> Vec<ContactManifold> {
+    ///     ) {
     ///         let [voxels1, voxels2] = context.0.get_many([context.entity1, context.entity2])
     ///             .expect("our own `VoxelCollider` entities should have `VoxelData`");
     ///         let elapsed = context.1.elapsed();
@@ -245,8 +249,9 @@ pub trait AnyCollider: Component<Mutability = Mutable> + ComputeMassProperties {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        manifolds: &mut Vec<ContactManifold>,
         context: ContactManifoldContext<Self::Context>,
-    ) -> Vec<ContactManifold>;
+    );
 }
 
 /// A simplified wrapper around [`AnyCollider`] that doesn't require passing in the context for
@@ -281,9 +286,9 @@ pub trait SimpleCollider: AnyCollider<Context = ()> {
         )
     }
 
-    /// Computes all [`ContactManifold`]s between two colliders.
+    /// Computes all [`ContactManifold`]s between two colliders, writing the results into `manifolds`.
     ///
-    /// Returns an empty vector if the colliders are separated by a distance greater than `prediction_distance`
+    /// `manifolds` is cleared if the colliders are separated by a distance greater than `prediction_distance`
     /// or if the given shapes are invalid.
     ///
     /// See [`AnyCollider::contact_manifolds_with_context`] for collider types with non-empty [`AnyCollider::Context`]
@@ -295,7 +300,8 @@ pub trait SimpleCollider: AnyCollider<Context = ()> {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
-    ) -> Vec<ContactManifold> {
+        manifolds: &mut Vec<ContactManifold>,
+    ) {
         self.contact_manifolds_with_context(
             other,
             position1,
@@ -303,6 +309,7 @@ pub trait SimpleCollider: AnyCollider<Context = ()> {
             position2,
             rotation2,
             prediction_distance,
+            manifolds,
             ContactManifoldContext::fake(),
         )
     }
@@ -384,7 +391,7 @@ pub struct ColliderDisabled;
 
 /// A component that marks a [`Collider`] as a sensor, also known as a trigger.
 ///
-/// Sensor colliders send [collision events](ContactReportingPlugin#collision-events) and register intersections,
+/// Sensor colliders send [collision events](crate::collision#collision-events) and register intersections,
 /// but allow other bodies to pass through them. This is often used to detect when something enters
 /// or leaves an area or is intersecting some shape.
 ///
@@ -596,9 +603,6 @@ pub struct CollisionMargin(pub Scalar);
 
 /// A component for reading which entities are colliding with a collider entity.
 /// Must be added manually for desired colliders.
-///
-/// Requires the [`ContactReportingPlugin`] (included in [`PhysicsPlugins`])
-/// to be enabled for this component to be updated.
 ///
 /// # Example
 ///

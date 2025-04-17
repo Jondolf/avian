@@ -28,13 +28,17 @@ f64 = []
 
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
-parallel = ["std", "parry2d?/parallel", "parry2d-f64?/parallel"]
+parallel = [
+    "std",
+    "dep:thread_local",
+    "bevy/multi_threaded",
+    "parry2d?/parallel",
+    "parry2d-f64?/parallel",
+]
 enhanced-determinism = [
     "libm",
     "parry2d?/enhanced-determinism",
     "parry2d-f64?/enhanced-determinism",
-    "bevy_math/libm",
-    "bevy_heavy/libm",
 ]
 
 default-collider = ["dep:nalgebra"]
@@ -86,8 +90,8 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16.0-rc.1", default-features = false }
-bevy_math = { version = "0.16.0-rc.1", default-features = false }
+bevy = { version = "0.16.0-rc", default-features = false }
+bevy_math = { version = "0.16.0-rc", default-features = false }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", default-features = false, features = [
     "2d",
     "3d",
@@ -111,15 +115,15 @@ serde = { version = "1", default-features = false, features = [
 ], optional = true }
 derive_more = { version = "1", default-features = false }
 log = { version = "0.4", default-features = false }
-indexmap = { version = "2.0.0", default-features = false }
 arrayvec = { version = "0.7", default-features = false }
 itertools = { version = "0.13", default-features = false }
 bitflags = { version = "2.5.0", default-features = false }
+thread_local = { version = "1.1", optional = true, default-features = false }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
-bevy_math = { version = "0.16.0-rc.1", features = ["approx"] }
+bevy_math = { version = "0.16.0-rc", features = ["approx"] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
     "approx",
 ] }
@@ -178,6 +182,10 @@ required-features = ["2d", "default-collider"]
 
 [[example]]
 name = "prismatic_joint_2d"
+required-features = ["2d", "default-collider"]
+
+[[example]]
+name = "pyramid_2d"
 required-features = ["2d", "default-collider"]
 
 [[example]]

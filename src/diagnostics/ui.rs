@@ -3,12 +3,12 @@
 //!
 //! See [`PhysicsDiagnosticsPlugin`] for more information.
 
+use crate::{collision::CollisionDiagnostics, dynamics::solver::SolverDiagnostics};
 use crate::{diagnostics::*, prelude::*};
 use bevy::color::palettes::tailwind::{GREEN_400, RED_400};
 use bevy::diagnostic::{DiagnosticPath, DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use bevy::ecs::relationship::RelatedSpawnerCommands;
 use bevy::prelude::*;
-use dynamics::solver::SolverDiagnostics;
 use entity_counters::PhysicsEntityDiagnosticsPlugin;
 
 const FRAME_TIME_DIAGNOSTIC: &DiagnosticPath = &FrameTimeDiagnosticsPlugin::FRAME_TIME;
@@ -83,22 +83,22 @@ struct DiagnosticRow;
 
 /// A marker component for the name text node of a diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticName;
 
 /// A component with the [`DiagnosticPath`] of a diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticPath(&'static DiagnosticPath);
 
 /// A marker component for a counter diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticCounter;
 
 /// A marker component for a timer diagnostic.
 #[derive(Component)]
-#[require(TextFont(diagnostic_font))]
+#[require(TextFont = diagnostic_font())]
 struct PhysicsDiagnosticTimer;
 
 fn diagnostic_font() -> TextFont {
@@ -188,7 +188,7 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
         // Other counters
         cmd.counter_text("Colliders", PhysicsEntityDiagnostics::COLLIDER_COUNT);
         cmd.counter_text("Joints", PhysicsEntityDiagnostics::JOINT_COUNT);
-        cmd.counter_text("Contacts", CollisionDiagnostics::CONTACT_COUNT);
+        cmd.counter_text("Contact Pairs", CollisionDiagnostics::CONTACT_COUNT);
         cmd.counter_text(
             "Contact Constraints",
             SolverDiagnostics::CONTACT_CONSTRAINT_COUNT,
@@ -201,8 +201,6 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
     let collision_timers = vec![
         ("Broad Phase", Collision::BROAD_PHASE),
         ("Narrow Phase", Collision::NARROW_PHASE),
-        ("Generate Constraints", Collision::GENERATE_CONSTRAINTS),
-        ("Collision Events", Collision::COLLISION_EVENTS),
     ];
     let solver_timers = vec![
         ("Integrate Velocities", Solver::INTEGRATE_VELOCITIES),

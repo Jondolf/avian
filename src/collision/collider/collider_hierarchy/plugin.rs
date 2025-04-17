@@ -36,7 +36,7 @@ impl Plugin for ColliderHierarchyPlugin {
 
                 // Make sure the collider is on the same entity as the rigid body.
                 if query.contains(entity) {
-                    commands.entity(entity).remove::<ColliderOf>();
+                    commands.entity(entity).try_remove::<ColliderOf>();
                 }
             },
         );
@@ -49,9 +49,10 @@ impl Plugin for ColliderHierarchyPlugin {
     }
 }
 
-/// Updates [`ColliderOf`] components for colliders when their ancestors change.
+/// Updates [`ColliderOf`] components for colliders when their ancestors change
+/// or when a rigid body is added to the hierarchy.
 fn on_collider_rigid_body_changed(
-    trigger: Trigger<OnInsert, (ChildOf, AncestorMarker<ColliderMarker>)>,
+    trigger: Trigger<OnInsert, (ChildOf, RigidBody, AncestorMarker<ColliderMarker>)>,
     mut commands: Commands,
     query: Query<
         Has<ColliderMarker>,
@@ -59,7 +60,7 @@ fn on_collider_rigid_body_changed(
     >,
     child_query: Query<&Children>,
     parent_query: Query<&ChildOf>,
-    rb_query: Query<(), With<RigidBody>>,
+    rb_query: Query<Entity, With<RigidBody>>,
     collider_query: Query<(), With<ColliderMarker>>,
 ) {
     let entity = trigger.target();
@@ -70,10 +71,14 @@ fn on_collider_rigid_body_changed(
     };
 
     // Find the closest rigid body ancestor.
-    let Some(rb_entity) = parent_query
-        .iter_ancestors(trigger.target())
-        .find(|&entity| rb_query.contains(entity))
-    else {
+    let Some(rb_entity) = rb_query.get(entity).ok().map_or_else(
+        || {
+            parent_query
+                .iter_ancestors(trigger.target())
+                .find(|&entity| rb_query.contains(entity))
+        },
+        Some,
+    ) else {
         return;
     };
 
@@ -117,7 +122,7 @@ fn on_rigid_body_removed(
         for collider_entity in colliders.iter() {
             commands
                 .entity(collider_entity)
-                .remove::<(ColliderOf, ColliderTransform)>();
+                .try_remove::<(ColliderOf, ColliderTransform)>();
         }
     }
 }

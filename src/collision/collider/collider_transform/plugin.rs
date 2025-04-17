@@ -1,4 +1,5 @@
 use crate::{
+    collision::narrow_phase::NarrowPhaseSet,
     prelude::*,
     prepare::{match_any, PrepareSet},
     sync::ancestor_marker::{AncestorMarker, AncestorMarkerPlugin},
@@ -7,7 +8,6 @@ use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
-use narrow_phase::NarrowPhaseSet;
 
 /// A plugin for propagating and updating transforms for colliders.
 ///
@@ -144,7 +144,7 @@ pub(crate) fn propagate_collider_transforms(
         |(entity, transform, children)| {
             for (child, child_transform, is_child_rb, child_of) in parent_query.iter_many(children) {
                 assert_eq!(
-                    child_of.parent, entity,
+                    child_of.parent(), entity,
                     "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
                 );
                 let changed = transform.is_changed() || child_of.is_changed();
@@ -155,7 +155,7 @@ pub(crate) fn propagate_collider_transforms(
                 // SAFETY:
                 // - `child` must have consistent parentage, or the above assertion would panic.
                 // Since `child` is parented to a root entity, the entire hierarchy leading to it is consistent.
-                // - We may operate as if all descendants are consistent, since `propagate_collider_transform_recursive` will panic before 
+                // - We may operate as if all descendants are consistent, since `propagate_collider_transform_recursive` will panic before
                 //   continuing to propagate if it encounters an entity with inconsistent parentage.
                 // - Since each root entity is unique and the hierarchy is consistent and forest-like,
                 //   other root entities' `propagate_collider_transform_recursive` calls will not conflict with this one.
@@ -264,7 +264,7 @@ unsafe fn propagate_collider_transforms_recursive(
     let Some(children) = children else { return };
     for (child, child_transform, is_rb, child_of) in parent_query.iter_many(children) {
         assert_eq!(
-            child_of.parent, entity,
+            child_of.parent(), entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 

@@ -1,12 +1,6 @@
 #![allow(clippy::unnecessary_cast)]
 
-use crate::{make_isometry, prelude::*};
-use bevy::prelude::*;
-#[cfg(feature = "collider-from-mesh")]
-use bevy::render::mesh::{Indices, VertexAttributeValues};
-use collision::contact_query::UnsupportedShape;
-use itertools::Either;
-use parry::shape::{RoundShape, SharedShape, TypedShape};
+pub mod contact_query;
 
 #[cfg(feature = "2d")]
 mod primitives2d;
@@ -15,6 +9,14 @@ mod primitives3d;
 
 #[cfg(feature = "2d")]
 pub use primitives2d::{EllipseColliderShape, RegularPolygonColliderShape};
+
+use crate::{make_isometry, prelude::*};
+#[cfg(feature = "collider-from-mesh")]
+use bevy::render::mesh::{Indices, VertexAttributeValues};
+use bevy::{log, prelude::*};
+use contact_query::UnsupportedShape;
+use itertools::Either;
+use parry::shape::{RoundShape, SharedShape, TypedShape};
 
 impl<T: IntoCollider<Collider>> From<T> for Collider {
     fn from(value: T) -> Self {
@@ -234,7 +236,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// ```
 ///
 /// Colliders on their own only detect contacts and generate
-/// [collision events](ContactReportingPlugin#collision-events).
+/// [collision events](crate::collision#collision-events).
 /// To make colliders apply contact forces, they have to be attached
 /// to [rigid bodies](RigidBody):
 ///
@@ -318,7 +320,7 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 ///
 /// The benefit of using separate entities for the colliders is that each collider can have its own
 /// [friction](Friction), [restitution](Restitution), [collision layers](CollisionLayers),
-/// and other configuration options, and they send separate [collision events](ContactReportingPlugin#collision-events).
+/// and other configuration options, and they send separate [collision events](crate::collision#collision-events).
 ///
 /// # See More
 ///
@@ -333,8 +335,9 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
     doc = "- Generating colliders for meshes and scenes with [`ColliderConstructor`] and [`ColliderConstructorHierarchy`]"
 )]
 /// - [Get colliding entities](CollidingEntities)
-/// - [Collision events](ContactReportingPlugin#collision-events)
-/// - [Accessing, filtering and modifying collisions](Collisions)
+/// - [Collision events](crate::collision#collision-events)
+/// - [Accessing collision data](Collisions)
+/// - [Filtering and modifying contacts with hooks](CollisionHooks)
 /// - [Manual contact queries](contact_query)
 ///
 /// # Advanced Usage
@@ -348,7 +351,13 @@ impl From<TrimeshFlags> for parry::shape::TriMeshFlags {
 /// `Collider` is currently not `Reflect`. If you need to reflect it, you can use [`ColliderConstructor`] as a workaround.
 #[derive(Clone, Component, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[require(ColliderMarker, ColliderAabb, ColliderDensity, ColliderMassProperties)]
+#[require(
+    ColliderMarker,
+    ColliderAabb,
+    CollisionLayers,
+    ColliderDensity,
+    ColliderMassProperties
+)]
 pub struct Collider {
     /// The raw unscaled collider shape.
     shape: SharedShape,
@@ -410,8 +419,9 @@ impl AnyCollider for Collider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
+        manifolds: &mut Vec<ContactManifold>,
         _: ContactManifoldContext<Self::Context>,
-    ) -> Vec<ContactManifold> {
+    ) {
         contact_query::contact_manifolds(
             self,
             position1,
@@ -420,6 +430,7 @@ impl AnyCollider for Collider {
             position2,
             rotation2,
             prediction_distance,
+            manifolds,
         )
     }
 }

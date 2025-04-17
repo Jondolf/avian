@@ -14,11 +14,11 @@
 //! For geometric queries that query the entire world for intersections, like raycasting, shapecasting
 //! and point projection, see [spatial queries](spatial_query).
 
-use crate::prelude::*;
+use crate::{collision::contact_types::SingleContact, prelude::*};
 use bevy::prelude::*;
 use parry::query::{PersistentQueryDispatcher, ShapeCastOptions, Unsupported};
 
-/// An error indicating that a [contact query](contact_query) is not supported for one of the [`Collider`] shapes.
+/// An error indicating that a [contact query](self) is not supported for one of the [`Collider`] shapes.
 pub type UnsupportedShape = Unsupported;
 
 /// Computes one pair of contact points between two [`Collider`]s.
@@ -30,9 +30,9 @@ pub type UnsupportedShape = Unsupported;
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::contact, *};
+/// # use avian2d::{collision::collider::contact_query::contact, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::contact, *};
+/// use avian3d::{collision::collider::contact_query::contact, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
@@ -90,7 +90,7 @@ pub fn contact(
             let normal1: Vector = (rotation1.inverse() * Vector::from(contact.normal1)).normalize();
             let normal2: Vector = (rotation2.inverse() * Vector::from(contact.normal2)).normalize();
 
-            // Make sure the normal is valid
+            // Make sure the normals are valid
             if !normal1.is_normalized() || !normal2.is_normalized() {
                 return None;
             }
@@ -120,9 +120,9 @@ pub fn contact(
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::contact_manifolds, *};
+/// # use avian2d::{collision::collider::contact_query::contact_manifolds, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::contact_manifolds, *};
+/// use avian3d::{collision::collider::contact_query::contact_manifolds, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
@@ -131,7 +131,8 @@ pub fn contact(
 /// let collider2 = Collider::cuboid(1.0, 1.0, 1.0);
 ///
 /// // Compute contact manifolds a collision that should be penetrating
-/// let manifolds = contact_manifolds(
+/// let mut manifolds = Vec::new();
+/// contact_manifolds(
 ///     // First collider
 ///     &collider1,
 ///     Vec3::default(),
@@ -142,6 +143,8 @@ pub fn contact(
 ///     Quat::default(),
 ///     // Prediction distance
 ///     0.0,
+///     // Output manifolds
+///     &mut manifolds,
 /// );
 ///
 /// assert_eq!(manifolds.is_empty(), false);
@@ -155,7 +158,8 @@ pub fn contact_manifolds(
     position2: impl Into<Position>,
     rotation2: impl Into<Rotation>,
     prediction_distance: Scalar,
-) -> Vec<ContactManifold> {
+    manifolds: &mut Vec<ContactManifold>,
+) {
     let position1: Position = position1.into();
     let position2: Position = position2.into();
     let rotation1: Rotation = rotation1.into();
@@ -165,16 +169,19 @@ pub fn contact_manifolds(
     let isometry12 = isometry1.inv_mul(&isometry2);
 
     // TODO: Reuse manifolds from previous frame to improve performance
-    let mut manifolds: Vec<parry::query::ContactManifold<(), ()>> = vec![];
-
+    let mut new_manifolds =
+        Vec::<parry::query::ContactManifold<(), ()>>::with_capacity(manifolds.len());
     let result = parry::query::DefaultQueryDispatcher.contact_manifolds(
         &isometry12,
         collider1.shape_scaled().0.as_ref(),
         collider2.shape_scaled().0.as_ref(),
         prediction_distance,
-        &mut manifolds,
+        &mut new_manifolds,
         &mut None,
     );
+
+    // Clear the old manifolds.
+    manifolds.clear();
 
     // Fall back to support map contacts for unsupported (custom) shapes.
     if result.is_err() {
@@ -192,59 +199,57 @@ pub fn contact_manifolds(
 
                 // Make sure the normal is valid
                 if !normal.is_normalized() {
-                    return vec![];
+                    return;
                 }
 
-                return vec![ContactManifold::new(
-                    [ContactPoint::new(
-                        contact.point1.into(),
-                        contact.point2.into(),
-                        -contact.dist,
-                    )],
-                    normal,
-                    0,
+                let points = [ContactPoint::new(
+                    contact.point1.into(),
+                    contact.point2.into(),
+                    -contact.dist,
                 )];
+
+                manifolds.push(ContactManifold::new(points, normal, 0));
             }
         }
     }
 
     let mut manifold_index = 0;
 
-    manifolds
-        .iter()
-        .filter_map(|manifold| {
-            let subpos1 = manifold.subshape_pos1.unwrap_or_default();
-            let subpos2 = manifold.subshape_pos2.unwrap_or_default();
-            let local_normal: Vector = subpos1
-                .rotation
-                .transform_vector(&manifold.local_n1)
-                .normalize()
-                .into();
-            let normal = rotation1 * local_normal;
+    manifolds.extend(new_manifolds.iter().filter_map(|manifold| {
+        // Skip empty manifolds.
+        if manifold.contacts().is_empty() {
+            return None;
+        }
 
-            // Make sure the normal is valid
-            if !normal.is_normalized() {
-                return None;
-            }
+        let subpos1 = manifold.subshape_pos1.unwrap_or_default();
+        let subpos2 = manifold.subshape_pos2.unwrap_or_default();
+        let local_normal: Vector = subpos1
+            .rotation
+            .transform_vector(&manifold.local_n1)
+            .normalize()
+            .into();
+        let normal = rotation1 * local_normal;
 
-            let manifold = ContactManifold::new(
-                manifold.contacts().iter().map(|contact| {
-                    ContactPoint::new(
-                        subpos1.transform_point(&contact.local_p1).into(),
-                        subpos2.transform_point(&contact.local_p2).into(),
-                        -contact.dist,
-                    )
-                    .with_feature_ids(contact.fid1.into(), contact.fid2.into())
-                }),
-                normal,
-                manifold_index,
-            );
+        // Make sure the normal is valid
+        if !normal.is_normalized() {
+            return None;
+        }
 
-            manifold_index += 1;
+        let points = manifold.contacts().iter().map(|contact| {
+            ContactPoint::new(
+                subpos1.transform_point(&contact.local_p1).into(),
+                subpos2.transform_point(&contact.local_p2).into(),
+                -contact.dist,
+            )
+            .with_feature_ids(contact.fid1.into(), contact.fid2.into())
+        });
 
-            Some(manifold)
-        })
-        .collect()
+        let manifold = ContactManifold::new(points, normal, manifold_index);
+
+        manifold_index += 1;
+
+        Some(manifold)
+    }));
 }
 
 /// Information about the closest points between two [`Collider`]s.
@@ -275,9 +280,9 @@ pub enum ClosestPoints {
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::*, *};
+/// # use avian2d::{collision::collider::contact_query::*, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::*, *};
+/// use avian3d::{collision::collider::contact_query::*, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
@@ -370,9 +375,9 @@ pub fn closest_points(
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::distance, *};
+/// # use avian2d::{collision::collider::contact_query::distance, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::distance, *};
+/// use avian3d::{collision::collider::contact_query::distance, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
@@ -438,9 +443,9 @@ pub fn distance(
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::intersection_test, *};
+/// # use avian2d::{collision::collider::contact_query::intersection_test, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::intersection_test, *};
+/// use avian3d::{collision::collider::contact_query::intersection_test, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]
@@ -531,9 +536,9 @@ pub struct TimeOfImpact {
 ///
 /// ```
 /// # #[cfg(feature = "2d")]
-/// # use avian2d::prelude::{contact_query::time_of_impact, *};
+/// # use avian2d::{collision::collider::contact_query::time_of_impact, prelude::*};
 /// # #[cfg(feature = "3d")]
-/// use avian3d::prelude::{contact_query::time_of_impact, *};
+/// use avian3d::{collision::collider::contact_query::time_of_impact, prelude::*};
 /// use bevy::prelude::*;
 ///
 /// # #[cfg(all(feature = "3d", feature = "f32"))]

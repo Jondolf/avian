@@ -383,16 +383,19 @@ impl ShapeCaster {
                 },
             );
 
-            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_index, hit))| ShapeHitData {
-                    entity: query_pipeline.entity_from_index(entity_index),
-                    distance: hit.time_of_impact,
-                    point1: hit.witness1.into(),
-                    point2: hit.witness2.into(),
-                    normal1: hit.normal1.into(),
-                    normal2: hit.normal2.into(),
-                },
-            ) {
+            if let Some(hit) =
+                query_pipeline
+                    .qbvh
+                    .traverse_best_first(&mut visitor)
+                    .map(|(_, (index, hit))| ShapeHitData {
+                        entity: query_pipeline.proxies[index as usize].entity,
+                        distance: hit.time_of_impact,
+                        point1: hit.witness1.into(),
+                        point2: hit.witness2.into(),
+                        normal1: hit.normal1.into(),
+                        normal2: hit.normal2.into(),
+                    })
+            {
                 if (hits.vector.len() as u32) < hits.count + 1 {
                     hits.vector.push(hit);
                 } else {

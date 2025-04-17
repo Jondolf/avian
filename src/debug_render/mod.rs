@@ -25,13 +25,13 @@ use bevy::{
 /// - [AABBs](ColliderAabb)
 /// - [Collider] wireframes
 /// - Using different colors for [sleeping](Sleeping) bodies
-/// - [Contacts]
+/// - [Contacts](ContactPair)
 /// - [Joints](dynamics::solver::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
-/// By default, [AABBs](ColliderAabb) and [contacts](Contacts) are not debug rendered.
+/// By default, [AABBs](ColliderAabb) and [contacts](ContactPair) are not debug rendered.
 /// You can configure the [`PhysicsGizmos`] retrieved from `GizmoConfigStore` for the global configuration
 /// and the [`DebugRender`] component for entity-level configuration.
 ///
@@ -295,7 +295,7 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,
