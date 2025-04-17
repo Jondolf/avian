@@ -67,9 +67,10 @@
 //!         CollisionEventsEnabled,
 //!     ))
 //!     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
-//!         let pressure_plate = trigger.entity();
-//!         if player_query.contains(trigger.0) {
-//!             println!("Player {trigger.0} stepped on pressure plate {pressure_plate}");
+//!         let pressure_plate = trigger.target();
+//!         let other_entity = trigger.0;
+//!         if player_query.contains(other_entity) {
+//!             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
 //!         }
 //!     });
 //! }
@@ -181,9 +182,10 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 ///         CollisionEventsEnabled,
 ///     ))
 ///     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
-///         let pressure_plate = trigger.entity();
-///         if player_query.contains(trigger.0) {
-///             println!("Player {trigger.0} stepped on pressure plate {pressure_plate}");
+///         let pressure_plate = trigger.target();
+///         let other_entity = trigger.0;
+///         if player_query.contains(other_entity) {
+///             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
 ///         }
 ///     });
 /// }
@@ -231,9 +233,10 @@ pub struct OnCollisionStart(pub Entity);
 ///         CollisionEventsEnabled,
 ///     ))
 ///     .observe(|trigger: Trigger<OnCollisionEnd>, player_query: Query<&Player>| {
-///         let pressure_plate = trigger.entity();
-///         if player_query.contains(trigger.0) {
-///             println!("Player {trigger.0} stepped off of pressure plate {pressure_plate}");
+///         let pressure_plate = trigger.target();
+///         let other_entity = trigger.0;
+///         if player_query.contains(other_entity) {
+///             println!("Player {other_entity} stepped off of pressure plate {pressure_plate}");
 ///         }
 ///     });
 /// }
