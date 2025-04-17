@@ -29,6 +29,9 @@ jobs:
           - "x86_64-unknown-none"
           - "wasm32v1-none"
           - "thumbv6m-none-eabi"
+        dimensions:
+          - "2d"
+          - "3d"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -36,7 +39,7 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - name: Run cargo check
-        run: cargo check --no-default-features --features libm --target ${{ matrix.target }}
+        run: cargo check -p avian${{ matrix.dimensions }} --no-default-features --features "${{ matrix.dimensions }} f32 parry-f32 libm" --target ${{ matrix.target }}
 
   docs:
     name: Check Documentation
