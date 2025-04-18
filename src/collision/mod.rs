@@ -32,36 +32,28 @@
 //!
 //! # Collision Events
 //!
-//! The following events are sent whenever two colliders start or stop touching:
+//! Collision events can be used for detecting when colliders start or stop touching.
+//!
+//! Avian provides two buffered collision event types that can be read using an [`EventReader`](bevy::ecs::event::EventReader):
 //!
 //! - [`CollisionStarted`]
 //! - [`CollisionEnded`]
 //!
-//! Collision events are only sent if one of the entities has the [`CollisionEventsEnabled`] component.
+//! These events are good for efficiently processing large numbers of collision events between pairs of entities,
+//! such as for detecting bullet hits or playing impact sounds when two objects collide.
 //!
-//! You can listen to these events with normal event readers:
+//! Avian also provides two collision event types that are triggered for observers:
 //!
-//! ```no_run
-#![cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
-//! use bevy::prelude::*;
+//! - [`OnCollisionStart`]
+//! - [`OnCollisionEnd`]
 //!
-//! fn main() {
-//!     App::new()
-//!         .add_plugins((DefaultPlugins, PhysicsPlugins::default()))
-//!         // ...
-//!         .add_systems(Update, print_collisions)
-//!         .run();
-//! }
+//! These events are good for entity-specific collision scenarios, such as for detecting when a player
+//! steps on a pressure plate or enters a trigger volume.
 //!
-//! fn print_collisions(mut collision_event_reader: EventReader<CollisionStarted>) {
-//!     for CollisionStarted(entity1, entity2) in collision_event_reader.read() {
-//!         println!("Entities {entity1} and {entity2} are colliding");
-//!     }
-//! }
-//! ```
+//! Collision events are only sent or triggered for entities that have the [`CollisionEventsEnabled`] component.
 //!
-//! Collision events that use observers are not yet supported.
+//! See the documentation of the event types and the [`collision_events`] module
+//! for more information and usage examples.
 //!
 //! # Contact Filtering and Modification
 //!
@@ -99,7 +91,9 @@ pub mod prelude {
         IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
         TrimeshFlags, VhacdParameters,
     };
-    pub use super::collision_events::{CollisionEnded, CollisionEventsEnabled, CollisionStarted};
+    pub use super::collision_events::{
+        CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,
+    };
     pub use super::contact_types::{
         Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags, ContactPoint,
     };
