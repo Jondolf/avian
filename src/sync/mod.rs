@@ -77,6 +77,12 @@ impl Plugin for SyncPlugin {
         // trees that have no rigid bodies.
         app.add_plugins(AncestorMarkerPlugin::<RigidBody>::default());
 
+        // Initialize PreviousPhysicsPosition for delta-based transforms
+        app.add_systems(
+            self.schedule,
+            init_previous_physics_position.in_set(SyncSet::First),
+        );
+
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
         // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
@@ -88,6 +94,7 @@ impl Plugin for SyncPlugin {
                 transform_to_position,
                 // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
                 update_previous_global_transforms,
+                update_previous_physics_position,
             )
                 .chain()
                 .after(PhysicsSet::Prepare)
@@ -183,6 +190,30 @@ pub enum SyncSet {
 #[reflect(Component)]
 pub struct PreviousGlobalTransform(pub GlobalTransform);
 
+/// Stores the previous physics position for delta-based movement
+#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct PreviousPosition(pub Vector);
+
+/// Initialize the previous position component for delta-based movement
+pub fn init_previous_physics_position(
+    mut commands: Commands,
+    query: Query<(Entity, &Position), Added<Position>>,
+) {
+    for (entity, position) in &query {
+        commands
+            .entity(entity)
+            .try_insert(PreviousPosition(position.adjust_precision()));
+    }
+}
+
+/// Update the previous position after physics step for delta-based movement
+pub fn update_previous_physics_position(mut query: Query<(&Position, &mut PreviousPosition)>) {
+    for (position, mut prev_position) in &mut query {
+        prev_position.0 = position.adjust_precision();
+    }
+}
+
 #[allow(clippy::type_complexity)]
 pub(crate) fn init_previous_global_transform(
     mut commands: Commands,
@@ -204,24 +235,30 @@ pub fn transform_to_position(
     mut query: Query<(
         &GlobalTransform,
         &PreviousGlobalTransform,
+        &mut PreviousPosition,
         &mut Position,
         &mut Rotation,
     )>,
 ) {
-    for (global_transform, previous_transform, mut position, mut rotation) in &mut query {
+    for (global_transform, previous_transform, mut previous_position, mut position, mut rotation) in
+        &mut query
+    {
         // Skip entity if the global transform value hasn't changed
         if *global_transform == previous_transform.0 {
             continue;
         }
-
         let global_transform = global_transform.compute_transform();
+        let previous_transform = previous_transform.0.compute_transform();
+        let delta = global_transform.translation - previous_transform.translation;
 
         #[cfg(feature = "2d")]
         {
+            previous_position.0 += delta.truncate().adjust_precision();
             position.0 = global_transform.translation.truncate().adjust_precision();
         }
         #[cfg(feature = "3d")]
         {
+            previous_position.0 += delta.adjust_precision();
             position.0 = global_transform.translation.adjust_precision();
         }
 
@@ -239,6 +276,7 @@ pub fn transform_to_position(
 type PosToTransformComponents = (
     &'static mut Transform,
     &'static Position,
+    &'static PreviousPosition,
     &'static Rotation,
     Option<&'static ChildOf>,
 );
@@ -251,8 +289,9 @@ type ParentComponents = (
     Option<&'static Rotation>,
 );
 
-/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
-/// This allows users and the engine to use these components for moving and positioning bodies.
+/// Copies [`Position`] and [`Rotation`] changes to `Transform` using delta-based updates.
+/// This allows users and the engine to use these components for moving and positioning bodies,
+/// and is compatible with floating origin systems.
 ///
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
@@ -261,7 +300,7 @@ pub fn position_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {
-    for (mut transform, pos, rot, parent) in &mut query {
+    for (mut transform, pos, prev_pos, rot, parent) in &mut query {
         if let Some(&ChildOf(parent)) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
@@ -288,18 +327,23 @@ pub fn position_to_transform(
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
 
-                transform.translation = new_transform.translation;
+                // Apply position as delta
+                let delta = pos.adjust_precision() - prev_pos.0;
+                transform.translation += delta.extend(0.0);
                 transform.rotation = new_transform.rotation;
             }
         } else {
-            transform.translation = pos.f32().extend(transform.translation.z);
+            // For root entities, apply position change as a delta
+            let delta = pos.adjust_precision() - prev_pos.0;
+            transform.translation += delta.extend(0.0);
             transform.rotation = Quaternion::from(*rot).f32();
         }
     }
 }
 
-/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
-/// This allows users and the engine to use these components for moving and positioning bodies.
+/// Copies [`Position`] and [`Rotation`] changes to `Transform` using delta-based updates.
+/// This allows users and the engine to use these components for moving and positioning bodies,
+/// and is compatible with floating origin systems.
 ///
 /// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
@@ -308,7 +352,7 @@ pub fn position_to_transform(
     mut query: Query<PosToTransformComponents, PosToTransformFilter>,
     parents: Query<ParentComponents, With<Children>>,
 ) {
-    for (mut transform, pos, rot, parent) in &mut query {
+    for (mut transform, pos, prev_pos, rot, parent) in &mut query {
         if let Some(&ChildOf(parent)) = parent {
             if let Ok((parent_transform, parent_pos, parent_rot)) = parents.get(parent) {
                 // Compute the global transform of the parent using its Position and Rotation
@@ -327,11 +371,15 @@ pub fn position_to_transform(
                 )
                 .reparented_to(&GlobalTransform::from(parent_transform));
 
-                transform.translation = new_transform.translation;
+                // Apply position change as a delta
+                let delta = pos.adjust_precision() - prev_pos.0;
+                transform.translation += delta.f32();
                 transform.rotation = new_transform.rotation;
             }
         } else {
-            transform.translation = pos.f32();
+            // For root entities, apply position change as a delta
+            let delta = pos.adjust_precision() - prev_pos.0;
+            transform.translation += delta.f32();
             transform.rotation = rot.f32();
         }
     }
