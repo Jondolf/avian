@@ -13,7 +13,10 @@ use bevy::{
     utils::default,
 };
 
-use super::{solver_body::SolverBody, SolverBodyIndex};
+use super::{
+    solver_body::{SolverBody, SolverBodyInertia},
+    SolverBodyIndex,
+};
 
 // TODO: One-body constraint version
 /// Data and logic for solving a single contact point for a [`ContactConstraint`].
@@ -63,22 +66,6 @@ pub struct ContactConstraint {
     pub collider_entity1: Entity,
     /// The second collider entity in the contact.
     pub collider_entity2: Entity,
-    /// The inverse mass of the first body.
-    pub inverse_mass1: Scalar,
-    /// The inverse mass of the second body.
-    pub inverse_mass2: Scalar,
-    /// The inverse inertia of the first body.
-    #[cfg(feature = "2d")]
-    pub inverse_inertia1: Scalar,
-    /// The inverse inertia of the second body.
-    #[cfg(feature = "2d")]
-    pub inverse_inertia2: Scalar,
-    /// The inverse inertia of the first body.
-    #[cfg(feature = "3d")]
-    pub inverse_inertia1: Matrix,
-    /// The inverse inertia of the second body.
-    #[cfg(feature = "3d")]
-    pub inverse_inertia2: Matrix,
     /// The relative dominance of the bodies.
     ///
     /// If the relative dominance is positive, the first body is dominant
@@ -116,10 +103,17 @@ impl ContactConstraint {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         normal: Vector,
         tangent_directions: [Vector; DIM - 1],
         warm_start_coefficient: Scalar,
     ) {
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+
         for point in self.points.iter() {
             // Fixed anchors
             let r1 = point.anchor1;
@@ -139,11 +133,11 @@ impl ContactConstraint {
                     + tangent_impulse.x * tangent_directions[0]
                     + tangent_impulse.y * tangent_directions[1]);
 
-            body1.linear_velocity -= p * self.inverse_mass1;
-            body1.angular_velocity -= self.inverse_inertia1 * cross(r1, p);
+            body1.linear_velocity -= p * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, p);
 
-            body2.linear_velocity += p * self.inverse_mass2;
-            body2.angular_velocity += self.inverse_inertia2 * cross(r2, p);
+            body2.linear_velocity += p * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, p);
         }
     }
 
@@ -152,10 +146,17 @@ impl ContactConstraint {
         &mut self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         delta_secs: Scalar,
         use_bias: bool,
         max_overlap_solve_speed: Scalar,
     ) {
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+
         let delta_translation = body2.delta_position - body1.delta_position;
 
         // Normal impulses
@@ -193,11 +194,11 @@ impl ContactConstraint {
             let impulse = impulse_magnitude * self.normal;
 
             // Apply the impulse.
-            body1.linear_velocity -= impulse * self.inverse_mass1;
-            body1.angular_velocity -= self.inverse_inertia1 * cross(r1, impulse);
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
 
-            body2.linear_velocity += impulse * self.inverse_mass2;
-            body2.angular_velocity += self.inverse_inertia2 * cross(r2, impulse);
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
 
         let tangent_directions =
@@ -229,11 +230,11 @@ impl ContactConstraint {
             );
 
             // Apply the impulse.
-            body1.linear_velocity -= impulse * self.inverse_mass1;
-            body1.angular_velocity -= self.inverse_inertia1 * cross(r1, impulse);
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
 
-            body2.linear_velocity += impulse * self.inverse_mass2;
-            body2.angular_velocity += self.inverse_inertia2 * cross(r2, impulse);
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
     }
 
@@ -243,8 +244,15 @@ impl ContactConstraint {
         &mut self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         threshold: Scalar,
     ) {
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+
         for point in self.points.iter_mut() {
             // Skip restitution for speeds below the threshold.
             // We also skip contacts that don't apply an impulse to account for speculative contacts.
@@ -268,16 +276,16 @@ impl ContactConstraint {
             let new_impulse = (point.normal_part.impulse + impulse).max(0.0);
             impulse = new_impulse - point.normal_part.impulse;
             point.normal_part.impulse = new_impulse;
-            point.max_normal_impulse = impulse.max(point.max_normal_impulse);
+            point.max_normal_impulse += impulse;
 
             // Apply the impulse.
             let impulse = impulse * self.normal;
 
-            body1.linear_velocity -= impulse * self.inverse_mass1;
-            body1.angular_velocity -= self.inverse_inertia1 * cross(r1, impulse);
+            body1.linear_velocity -= impulse * inv_mass1;
+            body1.angular_velocity -= inv_angular_inertia1 * cross(r1, impulse);
 
-            body2.linear_velocity += impulse * self.inverse_mass2;
-            body2.angular_velocity += self.inverse_inertia2 * cross(r2, impulse);
+            body2.linear_velocity += impulse * inv_mass2;
+            body2.angular_velocity += inv_angular_inertia2 * cross(r2, impulse);
         }
     }
 

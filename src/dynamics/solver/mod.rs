@@ -11,7 +11,7 @@ pub mod xpbd;
 
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
-use solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyPlugin};
+use solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia, SolverBodyPlugin};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -406,6 +406,7 @@ fn warm_start(
 
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
 
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
@@ -414,9 +415,17 @@ fn warm_start(
         let (body1, body2) =
             unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
-        // If the body is `None`, it is a static or kinematic body.
-        let body1 = body1.unwrap_or(&mut dummy_body1);
-        let body2 = body2.unwrap_or(&mut dummy_body2);
+        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
+        let (body1, inertia1) = if constraint.relative_dominance > 0 {
+            (&mut dummy_body1, &dummy_inertia)
+        } else {
+            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
+        };
+        let (body2, inertia2) = if constraint.relative_dominance < 0 {
+            (&mut dummy_body2, &dummy_inertia)
+        } else {
+            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
+        };
 
         let normal = constraint.normal;
         let tangent_directions =
@@ -425,6 +434,8 @@ fn warm_start(
         constraint.warm_start(
             body1,
             body2,
+            inertia1,
+            inertia2,
             normal,
             tangent_directions,
             solver_config.warm_start_coefficient,
@@ -463,17 +474,34 @@ fn solve_contacts<const USE_BIAS: bool>(
 
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
 
     for constraint in &mut constraints.0 {
         // Get the solver bodies for the two colliding entities.
         let (body1, body2) =
             unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
-        // If the body is `None`, it is a static or kinematic body.
-        let body1 = body1.unwrap_or(&mut dummy_body1);
-        let body2 = body2.unwrap_or(&mut dummy_body2);
+        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
+        let (body1, inertia1) = if constraint.relative_dominance > 0 {
+            (&mut dummy_body1, &dummy_inertia)
+        } else {
+            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
+        };
+        let (body2, inertia2) = if constraint.relative_dominance < 0 {
+            (&mut dummy_body2, &dummy_inertia)
+        } else {
+            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
+        };
 
-        constraint.solve(body1, body2, delta_secs, USE_BIAS, max_overlap_solve_speed);
+        constraint.solve(
+            body1,
+            body2,
+            inertia1,
+            inertia2,
+            delta_secs,
+            USE_BIAS,
+            max_overlap_solve_speed,
+        );
     }
 
     if USE_BIAS {
@@ -506,6 +534,7 @@ fn solve_restitution(
 
     let mut dummy_body1 = SolverBody::default();
     let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
 
     for constraint in constraints.iter_mut() {
         let restitution = constraint.restitution;
@@ -518,9 +547,17 @@ fn solve_restitution(
         let (body1, body2) =
             unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
 
-        // If the body is `None`, it is a static or kinematic body.
-        let body1 = body1.unwrap_or(&mut dummy_body1);
-        let body2 = body2.unwrap_or(&mut dummy_body2);
+        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
+        let (body1, inertia1) = if constraint.relative_dominance > 0 {
+            (&mut dummy_body1, &dummy_inertia)
+        } else {
+            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
+        };
+        let (body2, inertia2) = if constraint.relative_dominance < 0 {
+            (&mut dummy_body2, &dummy_inertia)
+        } else {
+            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
+        };
 
         // Performing multiple iterations can result in more accurate restitution,
         // but only if there are more than one contact point.
@@ -531,7 +568,7 @@ fn solve_restitution(
         };
 
         for _ in 0..restitution_iterations {
-            constraint.apply_restitution(body1, body2, threshold);
+            constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);
         }
     }
 

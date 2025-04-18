@@ -1,12 +1,16 @@
-use bevy::{ecs::query::QueryFilter, prelude::*};
-
-use crate::{
-    dynamics::solver::SolverDiagnostics, AngularVelocity, LinearVelocity, PhysicsSchedule,
-    Position, RigidBody, RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet,
-    Vector,
+use bevy::{
+    ecs::{entity_disabling::Disabled, query::QueryFilter},
+    prelude::*,
 };
 
-use super::{SolverBodies, SolverBody, SolverBodyIndex};
+use crate::{
+    dynamics::solver::SolverDiagnostics,
+    prelude::{ComputedMass, LockedAxes},
+    AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule, Position, RigidBody,
+    RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+};
+
+use super::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia};
 
 /// A plugin for managing [`SolverBodies`].
 ///
@@ -47,7 +51,7 @@ impl Plugin for SolverBodyPlugin {
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBodyDisabled>,
+            |trigger: Trigger<OnRemove, (RigidBodyDisabled, Disabled)>,
              rb_query: Query<(&RigidBody, &mut SolverBodyIndex), Without<Sleeping>>,
              solver_bodies: ResMut<SolverBodies>| {
                 add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, solver_bodies);
@@ -77,7 +81,7 @@ impl Plugin for SolverBodyPlugin {
 
         // Remove-swap solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
-            |trigger: Trigger<OnAdd, (RigidBodyDisabled, Sleeping)>,
+            |trigger: Trigger<OnAdd, (RigidBodyDisabled, Disabled, Sleeping)>,
              rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
              index_query: Query<&mut SolverBodyIndex>,
              solver_bodies: ResMut<SolverBodies>| {
@@ -103,12 +107,12 @@ impl Plugin for SolverBodyPlugin {
 
 fn on_change_rigid_body_type(
     mut solver_bodies: ResMut<SolverBodies>,
-    rb_query: Query<(Entity, Ref<RigidBody>), (With<SolverBodyIndex>, Changed<RigidBody>)>,
+    rb_query: Query<(Entity, Ref<RigidBody>), With<SolverBodyIndex>>,
     mut index_query: Query<&mut SolverBodyIndex>,
 ) {
     for (entity, rb) in &rb_query {
         // Only handle modifications to the rigid body type here.
-        if rb.is_added() {
+        if !rb.is_changed() || rb.is_added() {
             continue;
         }
 
@@ -130,7 +134,7 @@ fn on_change_rigid_body_type(
             }
         } else if !solver_bodies.contains_index(*index) {
             // Create a new solver body if the rigid body is dynamic or kinematic.
-            solver_bodies.push(entity, SolverBody::default());
+            solver_bodies.push(entity, SolverBody::default(), SolverBodyInertia::default());
         }
     }
 }
@@ -147,7 +151,7 @@ fn add_solver_body<F: QueryFilter>(
 
         // Create a new solver body if the rigid body is dynamic or kinematic.
         index.0 = solver_bodies.len();
-        solver_bodies.push(entity, SolverBody::default());
+        solver_bodies.push(entity, SolverBody::default(), SolverBodyInertia::default());
     }
 }
 
@@ -180,9 +184,18 @@ fn remove_solver_body(
 
 fn prepare_solver_bodies(
     mut bodies: ResMut<SolverBodies>,
-    query: Query<(&SolverBodyIndex, &LinearVelocity, &AngularVelocity)>,
+    query: Query<(
+        &SolverBodyIndex,
+        &LinearVelocity,
+        &AngularVelocity,
+        &ComputedMass,
+        &GlobalAngularInertia,
+        Option<&LockedAxes>,
+    )>,
 ) {
-    for (index, linear_velocity, angular_velocity) in &query {
+    // TODO: Parallelize this by iterating over the solver bodies instead of the rigid bodies.
+    //       This would also prevent unnecessary iteration over static or sleeping bodies.
+    for (index, linear_velocity, angular_velocity, mass, angular_inertia, locked_axes) in &query {
         if !index.is_valid() {
             continue;
         }
@@ -192,6 +205,17 @@ fn prepare_solver_bodies(
             solver_body.angular_velocity = angular_velocity.0;
             solver_body.delta_position = Vector::ZERO;
             solver_body.delta_rotation = Rotation::IDENTITY;
+
+            // SAFETY: The `SolverBody` is guaranteed to exist at this index,
+            //         and there are no other mutable references to the inertial properties.
+            let inertial_properties =
+                unsafe { bodies.get_inertial_properties_unchecked_mut(*index) };
+
+            *inertial_properties = SolverBodyInertia::new(
+                mass.inverse(),
+                angular_inertia.inverse(),
+                locked_axes.copied().unwrap_or_default(),
+            );
         }
     }
 }
@@ -199,7 +223,7 @@ fn prepare_solver_bodies(
 /// Writes back solver body data to rigid bodies.
 #[allow(clippy::type_complexity)]
 fn writeback_solver_bodies(
-    mut bodies: ResMut<SolverBodies>,
+    bodies: Res<SolverBodies>,
     mut query: Query<(
         &mut Position,
         &mut Rotation,
@@ -211,12 +235,13 @@ fn writeback_solver_bodies(
 ) {
     let start = bevy::platform::time::Instant::now();
 
+    // TODO: Parallelize this.
     for (mut pos, mut rot, mut lin_vel, mut ang_vel, index) in &mut query {
         if !index.is_valid() {
             continue;
         }
 
-        if let Some(solver_body) = bodies.get_mut(*index) {
+        if let Some(solver_body) = bodies.get(*index) {
             // TODO: Make sure rotation about the center of mass is handled correctly.
             pos.0 += solver_body.delta_position;
             *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
