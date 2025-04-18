@@ -283,7 +283,7 @@ impl AngularConstraint for SphericalJoint {}
 
 impl MapEntities for SphericalJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.entity1 = entity_mapper.get_mapped(self.entity1);
+        self.entity2 = entity_mapper.get_mapped(self.entity2);
     }
 }

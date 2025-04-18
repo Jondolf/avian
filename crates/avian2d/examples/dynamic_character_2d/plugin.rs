@@ -136,11 +136,11 @@ fn keyboard_input(
     let direction = horizontal as Scalar;
 
     if direction != 0.0 {
-        movement_event_writer.send(MovementAction::Move(direction));
+        movement_event_writer.write(MovementAction::Move(direction));
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_event_writer.send(MovementAction::Jump);
+        movement_event_writer.write(MovementAction::Jump);
     }
 }
 
@@ -151,11 +151,11 @@ fn gamepad_input(
 ) {
     for gamepad in gamepads.iter() {
         if let Some(x) = gamepad.get(GamepadAxis::LeftStickX) {
-            movement_event_writer.send(MovementAction::Move(x as Scalar));
+            movement_event_writer.write(MovementAction::Move(x as Scalar));
         }
 
         if gamepad.just_pressed(GamepadButton::South) {
-            movement_event_writer.send(MovementAction::Jump);
+            movement_event_writer.write(MovementAction::Jump);
         }
     }
 }

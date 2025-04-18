@@ -15,13 +15,13 @@
 
 #![allow(clippy::doc_markdown)]
 
-use std::time::Duration;
+use core::time::Duration;
 
 use crate::{
     math::{Vector, PI},
     prelude::*,
 };
-use bevy::{prelude::*, time::TimeUpdateStrategy};
+use bevy::{ecs::system::SystemParam, prelude::*, time::TimeUpdateStrategy};
 use bytemuck::{Pod, Zeroable};
 
 // How many steps to record the hash for.
@@ -39,8 +39,7 @@ fn cross_platform_determinism_2d() {
         TransformPlugin,
         PhysicsPlugins::default()
             .with_length_unit(0.5)
-            .build()
-            .disable::<ColliderHierarchyPlugin>(),
+            .with_collision_hooks::<PhysicsHooks>(),
         #[cfg(feature = "bevy_scene")]
         AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
@@ -49,8 +48,7 @@ fn cross_platform_determinism_2d() {
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
         1.0 / 64.0,
     )))
-    .add_systems(Startup, setup_scene)
-    .add_systems(PostProcessCollisions, ignore_joint_collisions);
+    .add_systems(Startup, setup_scene);
 
     app.finish();
 
@@ -64,7 +62,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0x7ab740db;
+    let expected = 0x333a3655;
 
     assert!(
         hash == expected,
@@ -154,9 +152,21 @@ fn setup_scene(mut commands: Commands) {
     }
 }
 
-// TODO: This should be an optimized built-in feature for joints.
-fn ignore_joint_collisions(joints: Query<&RevoluteJoint>, mut collisions: ResMut<Collisions>) {
-    for joint in &joints {
-        collisions.remove_collision_pair(joint.entity1, joint.entity2);
+#[derive(SystemParam)]
+pub struct PhysicsHooks<'w, 's> {
+    joints: Query<'w, 's, &'static RevoluteJoint>,
+}
+
+impl CollisionHooks for PhysicsHooks<'_, '_> {
+    fn filter_pairs(&self, entity1: Entity, entity2: Entity, _commands: &mut Commands) -> bool {
+        // Ignore the collision if the entities are connected by a joint.
+        // TODO: This should be an optimized built-in feature for joints.
+        self.joints
+            .iter()
+            .find(|joint| {
+                (joint.entity1 == entity1 && joint.entity2 == entity2)
+                    || (joint.entity1 == entity2 && joint.entity2 == entity1)
+            })
+            .is_some()
     }
 }

@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::ComponentId,
+        component::HookContext,
         entity::{EntityMapper, MapEntities},
         world::DeferredWorld,
     },
@@ -383,16 +383,19 @@ impl ShapeCaster {
                 },
             );
 
-            if let Some(hit) = query_pipeline.qbvh.traverse_best_first(&mut visitor).map(
-                |(_, (entity_index, hit))| ShapeHitData {
-                    entity: query_pipeline.entity_from_index(entity_index),
-                    distance: hit.time_of_impact,
-                    point1: hit.witness1.into(),
-                    point2: hit.witness2.into(),
-                    normal1: hit.normal1.into(),
-                    normal2: hit.normal2.into(),
-                },
-            ) {
+            if let Some(hit) =
+                query_pipeline
+                    .qbvh
+                    .traverse_best_first(&mut visitor)
+                    .map(|(_, (index, hit))| ShapeHitData {
+                        entity: query_pipeline.proxies[index as usize].entity,
+                        distance: hit.time_of_impact,
+                        point1: hit.witness1.into(),
+                        point2: hit.witness2.into(),
+                        normal1: hit.normal1.into(),
+                        normal2: hit.normal2.into(),
+                    })
+            {
                 if (hits.vector.len() as u32) < hits.count + 1 {
                     hits.vector.push(hit);
                 } else {
@@ -408,8 +411,8 @@ impl ShapeCaster {
     }
 }
 
-fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: ComponentId) {
-    let shape_caster = world.get::<ShapeCaster>(entity).unwrap();
+fn on_add_shape_caster(mut world: DeferredWorld, ctx: HookContext) {
+    let shape_caster = world.get::<ShapeCaster>(ctx.entity).unwrap();
     let max_hits = if shape_caster.max_hits == u32::MAX {
         10
     } else {
@@ -417,7 +420,7 @@ fn on_add_shape_caster(mut world: DeferredWorld, entity: Entity, _component_id: 
     };
 
     // Initialize capacity for hits
-    world.get_mut::<ShapeHits>(entity).unwrap().vector = Vec::with_capacity(max_hits);
+    world.get_mut::<ShapeHits>(ctx.entity).unwrap().vector = Vec::with_capacity(max_hits);
 }
 
 /// Configuration for a shape cast.
@@ -561,7 +564,7 @@ impl ShapeHits {
     }
 
     /// Returns an iterator over the hits in the order of distance.
-    pub fn iter(&self) -> std::slice::Iter<ShapeHitData> {
+    pub fn iter(&self) -> core::slice::Iter<ShapeHitData> {
         self.as_slice().iter()
     }
 }
@@ -608,6 +611,6 @@ pub struct ShapeHitData {
 
 impl MapEntities for ShapeHitData {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity = entity_mapper.map_entity(self.entity);
+        self.entity = entity_mapper.get_mapped(self.entity);
     }
 }

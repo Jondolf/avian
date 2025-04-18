@@ -11,18 +11,21 @@ use bevy::{ecs::query::QueryData, prelude::*};
 #[derive(QueryData)]
 pub struct ColliderQuery<C: AnyCollider> {
     pub entity: Entity,
-    pub parent: Option<&'static ColliderParent>,
+    pub rigid_body: Option<&'static ColliderOf>,
     pub position: Ref<'static, Position>,
     pub rotation: Ref<'static, Rotation>,
     pub accumulated_translation: Option<Ref<'static, AccumulatedTranslation>>,
     pub transform: Option<&'static ColliderTransform>,
+    pub aabb: Ref<'static, ColliderAabb>,
     pub collision_margin: Option<&'static CollisionMargin>,
     pub speculative_margin: Option<&'static SpeculativeMargin>,
     pub is_rb: Has<RigidBody>,
     pub is_sensor: Has<Sensor>,
+    pub collision_events_enabled: Has<CollisionEventsEnabled>,
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub shape: &'static C,
+    pub layers: &'static CollisionLayers,
     pub active_hooks: Option<&'static ActiveCollisionHooks>,
 }
 

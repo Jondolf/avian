@@ -2,7 +2,7 @@
 
 #![allow(clippy::unnecessary_cast)]
 
-use avian2d::{math::*, prelude::*};
+use avian2d::{collision::contact_types::PackedFeatureId, math::*, prelude::*};
 use bevy::prelude::*;
 use examples_common_2d::ExampleCommonPlugin;
 
@@ -53,13 +53,22 @@ impl CircleCollider {
 }
 
 impl AnyCollider for CircleCollider {
-    fn aabb(&self, position: Vector, _rotation: impl Into<Rotation>) -> ColliderAabb {
+    // If your collider needs queries or resources to function, you can specify
+    // a custom `SystemParam` here. In this case, we don't need any.
+    type Context = ();
+
+    fn aabb_with_context(
+        &self,
+        position: Vector,
+        _: impl Into<Rotation>,
+        _: AabbContext<Self::Context>,
+    ) -> ColliderAabb {
         ColliderAabb::new(position, Vector::splat(self.radius))
     }
 
     // This is the actual collision detection part.
     // It computes all contacts between two colliders at the given positions.
-    fn contact_manifolds(
+    fn contact_manifolds_with_context(
         &self,
         other: &Self,
         position1: Vector,
@@ -67,7 +76,12 @@ impl AnyCollider for CircleCollider {
         position2: Vector,
         rotation2: impl Into<Rotation>,
         prediction_distance: Scalar,
-    ) -> Vec<ContactManifold> {
+        manifolds: &mut Vec<ContactManifold>,
+        _: ContactManifoldContext<Self::Context>,
+    ) {
+        // Clear the previous manifolds.
+        manifolds.clear();
+
         let rotation1: Rotation = rotation1.into();
         let rotation2: Rotation = rotation2.into();
 
@@ -88,22 +102,14 @@ impl AnyCollider for CircleCollider {
             let local_point1 = local_normal1 * self.radius;
             let local_point2 = local_normal2 * other.radius;
 
-            vec![ContactManifold {
-                index: 0,
-                normal: rotation1 * local_normal1,
-                points: avian2d::data_structures::ArrayVec::from_iter([ContactPoint {
-                    local_point1,
-                    local_point2,
-                    penetration: sum_radius - distance_squared.sqrt(),
-                    // Impulses are computed by the constraint solver.
-                    normal_impulse: 0.0,
-                    tangent_impulse: 0.0,
-                    feature_id1: PackedFeatureId::face(0),
-                    feature_id2: PackedFeatureId::face(0),
-                }]),
-            }]
-        } else {
-            vec![]
+            let point = ContactPoint::new(
+                local_point1,
+                local_point2,
+                sum_radius - distance_squared.sqrt(),
+            )
+            .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0));
+
+            manifolds.push(ContactManifold::new([point], rotation1 * local_normal1, 0));
         }
     }
 }
@@ -113,7 +119,7 @@ impl AnyCollider for CircleCollider {
 impl ComputeMassProperties2d for CircleCollider {
     fn mass(&self, density: f32) -> f32 {
         // In 2D, the Z length is assumed to be `1.0`, so volume == area.
-        let volume = std::f32::consts::PI * self.radius.powi(2) as f32;
+        let volume = core::f32::consts::PI * self.radius.powi(2) as f32;
         density * volume
     }
 
@@ -170,7 +176,7 @@ fn setup(
         .with_children(|c| {
             // Spawn obstacles along the perimeter of the rotating body, like the teeth of a cog.
             let count = 8;
-            let angle_step = std::f32::consts::TAU / count as f32;
+            let angle_step = core::f32::consts::TAU / count as f32;
             for i in 0..count {
                 let pos = Quat::from_rotation_z(i as f32 * angle_step) * Vec3::Y * center_radius;
                 c.spawn((

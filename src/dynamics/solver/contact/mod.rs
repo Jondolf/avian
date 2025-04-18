@@ -6,10 +6,14 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 
 use crate::{dynamics::solver::softness_parameters::SoftnessCoefficients, prelude::*};
-use bevy::{ecs::entity::Entity, reflect::Reflect, utils::default};
+use bevy::{
+    ecs::entity::{Entity, EntityMapper, MapEntities},
+    reflect::Reflect,
+    utils::default,
+};
 
 use super::{solver_body::SolverBody, SolverBodyIndex};
 
@@ -59,7 +63,7 @@ pub struct ContactConstraint {
     // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
     /// The entity of the first collider in the contact.
     pub collider_entity1: Entity,
-    /// The entity of the first collider in the contact.
+    /// The second collider entity in the contact.
     pub collider_entity2: Entity,
     /// The inverse mass of the first body.
     pub inverse_mass1: Scalar,
@@ -82,15 +86,29 @@ pub struct ContactConstraint {
     /// If the relative dominance is positive, the first body is dominant
     /// and is considered to have infinite mass.
     pub relative_dominance: i16,
-    /// The combined [`Friction`] of the bodies.
-    pub friction: Friction,
-    /// The combined [`Restitution`] of the bodies.
-    pub restitution: Restitution,
+    /// The combined coefficient of dynamic [friction](Friction) of the bodies.
+    pub friction: Scalar,
+    /// The combined coefficient of [restitution](Restitution) of the bodies.
+    pub restitution: Scalar,
+    /// The desired relative linear speed of the bodies along the surface,
+    /// expressed in world space as `tangent_speed2 - tangent_speed1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "2d")]
+    pub tangent_speed: Scalar,
+    /// The desired relative linear velocity of the bodies along the surface,
+    /// expressed in world space as `tangent_velocity2 - tangent_velocity1`.
+    ///
+    /// Defaults to zero. If set to a non-zero value, this can be used to simulate effects
+    /// such as conveyor belts.
+    #[cfg(feature = "3d")]
+    pub tangent_velocity: Vector,
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactManifold`] in the [`Contacts`] stored for the two bodies.
+    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
     pub manifold_index: usize,
 }
 
@@ -329,7 +347,6 @@ impl ContactConstraint {
             body2.angular_velocity += self.inverse_inertia2 * cross(r2, impulse);
         }
 
-        let friction = self.friction;
         let tangent_directions =
             self.tangent_directions(body1.linear_velocity, body2.linear_velocity);
 
@@ -350,7 +367,11 @@ impl ContactConstraint {
             let impulse = friction_part.solve_impulse(
                 tangent_directions,
                 relative_velocity,
-                friction,
+                #[cfg(feature = "2d")]
+                self.tangent_speed,
+                #[cfg(feature = "3d")]
+                self.tangent_velocity,
+                self.friction,
                 point.normal_part.impulse,
             );
 
@@ -388,7 +409,7 @@ impl ContactConstraint {
 
             // Compute the incremental normal impulse to account for restitution.
             let mut impulse = -point.normal_part.effective_mass
-                * (normal_speed + self.restitution.coefficient * point.normal_speed);
+                * (normal_speed + self.restitution * point.normal_speed);
 
             // Clamp the accumulated impulse.
             let new_impulse = (point.normal_part.impulse + impulse).max(0.0);
@@ -427,5 +448,12 @@ impl ContactConstraint {
             let bitangent = force_direction.cross(tangent);
             [tangent, bitangent]
         }
+    }
+}
+
+impl MapEntities for ContactConstraint {
+    fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
+        self.collider_entity1 = entity_mapper.get_mapped(self.collider_entity1);
+        self.collider_entity2 = entity_mapper.get_mapped(self.collider_entity2);
     }
 }
