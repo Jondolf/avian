@@ -183,6 +183,9 @@ fn integrate_velocities(
 
     // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
     //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
+    // TODO: Is it faster to iterate over solver bodies in parallel and then query for rigid body data?
+    //       We could use flags to determine whether we need to query for ECS data or not.
+    //       Querying is needed for: damping, max speed, gyroscopic torque
     bodies.iter_mut().for_each(|body| {
         if let Some(mut previous_position) = body.prev_pos {
             previous_position.0 = body.pos.0;
