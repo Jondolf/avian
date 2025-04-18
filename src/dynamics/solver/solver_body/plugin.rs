@@ -40,7 +40,7 @@ impl Plugin for SolverBodyPlugin {
             |trigger: Trigger<OnAdd, RigidBody>,
              rb_query: Query<(&RigidBody, &mut SolverBodyIndex), RigidBodyActiveFilter>,
              solver_bodies: ResMut<SolverBodies>| {
-                add_solver_body(In(trigger.entity()), rb_query, solver_bodies);
+                add_solver_body(In(trigger.target()), rb_query, solver_bodies);
             },
         );
 
@@ -50,7 +50,7 @@ impl Plugin for SolverBodyPlugin {
             |trigger: Trigger<OnRemove, RigidBodyDisabled>,
              rb_query: Query<(&RigidBody, &mut SolverBodyIndex), Without<Sleeping>>,
              solver_bodies: ResMut<SolverBodies>| {
-                add_solver_body::<Without<Sleeping>>(In(trigger.entity()), rb_query, solver_bodies);
+                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, solver_bodies);
             },
         );
         app.add_observer(
@@ -58,7 +58,7 @@ impl Plugin for SolverBodyPlugin {
              rb_query: Query<(&RigidBody, &mut SolverBodyIndex), Without<RigidBodyDisabled>>,
              solver_bodies: ResMut<SolverBodies>| {
                 add_solver_body::<Without<RigidBodyDisabled>>(
-                    In(trigger.entity()),
+                    In(trigger.target()),
                     rb_query,
                     solver_bodies,
                 );
@@ -71,7 +71,7 @@ impl Plugin for SolverBodyPlugin {
              rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
              index_query: Query<&mut SolverBodyIndex>,
              solver_bodies: ResMut<SolverBodies>| {
-                remove_solver_body(In(trigger.entity()), rb_query, index_query, solver_bodies);
+                remove_solver_body(In(trigger.target()), rb_query, index_query, solver_bodies);
             },
         );
 
@@ -81,7 +81,7 @@ impl Plugin for SolverBodyPlugin {
              rb_query: Query<&RigidBody, With<SolverBodyIndex>>,
              index_query: Query<&mut SolverBodyIndex>,
              solver_bodies: ResMut<SolverBodies>| {
-                remove_solver_body(In(trigger.entity()), rb_query, index_query, solver_bodies);
+                remove_solver_body(In(trigger.target()), rb_query, index_query, solver_bodies);
             },
         );
 
@@ -209,7 +209,7 @@ fn writeback_solver_bodies(
     )>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = bevy::platform::time::Instant::now();
 
     for (mut pos, mut rot, mut lin_vel, mut ang_vel, index) in &mut query {
         if !index.is_valid() {
