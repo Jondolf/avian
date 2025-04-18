@@ -322,32 +322,33 @@ impl SolverBodyInertia {
     /// taking into account any locked axes.
     #[inline]
     #[cfg(feature = "2d")]
-    pub fn effective_inv_angular_inertia(&self, _delta_rotation: &Rotation) -> Tensor {
+    pub fn effective_inv_angular_inertia(&self) -> Tensor {
         self.effective_inv_inertia
     }
 
     /// Returns the effective inverse angular inertia of the body in world space,
     /// taking into account any locked axes.
+    ///
+    /// Note that this is the world-space value from before the substepping loop,
+    /// which may have changed if the body has rotated. For most cases,
+    /// the difference should be acceptable.
     #[inline]
     #[cfg(feature = "3d")]
-    pub fn effective_inv_angular_inertia(&self, delta_rotation: &Rotation) -> Tensor {
-        use crate::prelude::ComputedAngularInertia;
+    pub fn effective_inv_angular_inertia(&self) -> Tensor {
+        let mut inv_inertia = self.inv_inertia;
 
-        let mut world_inv_inertia = ComputedAngularInertia::from_inverse_tensor(self.inv_inertia)
-            .rotated(delta_rotation.0)
-            .inverse();
-
+        // TODO: Should we just store the effective version directly rather than computing it here?
         if self.flags.contains(InertiaFlags::ROTATION_X_LOCKED) {
-            world_inv_inertia.x_axis = Vector::ZERO;
+            inv_inertia.x_axis = Vector::ZERO;
         }
         if self.flags.contains(InertiaFlags::ROTATION_Y_LOCKED) {
-            world_inv_inertia.y_axis = Vector::ZERO;
+            inv_inertia.y_axis = Vector::ZERO;
         }
         if self.flags.contains(InertiaFlags::ROTATION_Z_LOCKED) {
-            world_inv_inertia.z_axis = Vector::ZERO;
+            inv_inertia.z_axis = Vector::ZERO;
         }
 
-        world_inv_inertia
+        inv_inertia
     }
 
     /// Returns the [`InertiaFlags`] of the body.

@@ -111,8 +111,8 @@ impl ContactConstraint {
     ) {
         let inv_mass1 = inertia1.effective_inv_mass();
         let inv_mass2 = inertia2.effective_inv_mass();
-        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
-        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
 
         for point in self.points.iter() {
             // Fixed anchors
@@ -154,8 +154,8 @@ impl ContactConstraint {
     ) {
         let inv_mass1 = inertia1.effective_inv_mass();
         let inv_mass2 = inertia2.effective_inv_mass();
-        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
-        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
 
         let delta_translation = body2.delta_position - body1.delta_position;
 
@@ -250,8 +250,8 @@ impl ContactConstraint {
     ) {
         let inv_mass1 = inertia1.effective_inv_mass();
         let inv_mass2 = inertia2.effective_inv_mass();
-        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia(&body1.delta_rotation);
-        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia(&body2.delta_rotation);
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
 
         for point in self.points.iter_mut() {
             // Skip restitution for speeds below the threshold.
