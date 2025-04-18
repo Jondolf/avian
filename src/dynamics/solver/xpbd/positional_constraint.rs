@@ -17,7 +17,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         r1: Vector,
         r2: Vector,
     ) -> Vector {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
@@ -92,7 +92,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
         n: Vector,
     ) -> Scalar {
         if body.rb.is_dynamic() {
-            body.mass.inverse() + body.angular_inertia.inverse() * r.perp_dot(n).powi(2)
+            body.mass.inverse() + body.angular_inertia.inverse() * r.perp_dot(n).squared()
         } else {
             // Static and kinematic bodies are a special case, where 0.0 can be thought of as infinite mass.
             0.0
@@ -138,6 +138,6 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
     /// Computes the force acting along the constraint using the equation f = lambda * n / h^2
     fn compute_force(&self, lagrange: Scalar, direction: Vector, dt: Scalar) -> Vector {
-        lagrange * direction / dt.powi(2)
+        lagrange * direction / dt.squared()
     }
 }

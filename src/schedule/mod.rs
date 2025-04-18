@@ -221,7 +221,7 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
 
         // Advance the simulation.
         if !world.resource::<Time>().delta().is_zero() {
-            trace!("running PhysicsSchedule");
+            log::trace!("running PhysicsSchedule");
             schedule.run(world);
         }
 

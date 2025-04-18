@@ -12,6 +12,16 @@ mod double;
 #[cfg(feature = "f64")]
 pub use double::*;
 
+#[cfg(feature = "f64")]
+pub mod ops_f64;
+
+#[cfg(feature = "f32")]
+pub use bevy_math::ops as math_ops;
+#[cfg(feature = "f64")]
+pub use ops_f64 as math_ops;
+
+pub(crate) use math_ops::FloatPow;
+
 use bevy_math::{prelude::*, *};
 
 /// The active dimension.

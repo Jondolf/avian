@@ -146,7 +146,7 @@ pub fn mark_sleeping_bodies(
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
 ) {
-    let length_unit_sq = length_unit.powi(2);
+    let length_unit_sq = length_unit.squared();
     let delta_secs = time.delta_seconds_adjusted();
 
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
@@ -174,14 +174,15 @@ pub fn mark_sleeping_bodies(
         let lin_vel_sq = lin_vel.length_squared();
 
         #[cfg(feature = "2d")]
-        let ang_vel_sq = ang_vel.0.powi(2);
+        let ang_vel_sq = ang_vel.0.squared();
         #[cfg(feature = "3d")]
         let ang_vel_sq = ang_vel.0.dot(ang_vel.0);
 
         // Negative thresholds indicate that sleeping is disabled.
         let lin_sleeping_threshold_sq =
-            length_unit_sq * sleep_threshold.linear * sleep_threshold.linear.abs();
-        let ang_sleeping_threshold_sq = sleep_threshold.angular * sleep_threshold.angular.abs();
+            length_unit_sq * sleep_threshold.linear * math_ops::abs(sleep_threshold.linear);
+        let ang_sleeping_threshold_sq =
+            sleep_threshold.angular * math_ops::abs(sleep_threshold.angular);
 
         // If linear and angular velocity are below the sleeping threshold,
         // add delta time to the time sleeping, i.e. the time that the body has remained still.

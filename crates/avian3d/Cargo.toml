@@ -13,14 +13,15 @@ categories = ["game-development", "science", "simulation"]
 
 [features]
 default = [
+    "std",
     "3d",
     "f32",
     "parry-f32",
     "collider-from-mesh",
-    "bevy_scene",
-    "bevy_picking",
     "debug-plugin",
     "parallel",
+    "bevy_scene",
+    "bevy_picking",
 ]
 3d = []
 f32 = []
@@ -29,15 +30,14 @@ f64 = []
 debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry3d?/simd-stable", "parry3d-f64?/simd-stable"]
 parallel = [
+    "std",
     "dep:thread_local",
     "bevy/multi_threaded",
     "parry3d?/parallel",
     "parry3d-f64?/parallel",
 ]
 enhanced-determinism = [
-    "dep:libm",
-    "bevy_math/libm",
-    "bevy_heavy/libm",
+    "libm",
     "parry3d?/enhanced-determinism",
     "parry3d-f64?/enhanced-determinism",
 ]
@@ -67,6 +67,24 @@ bevy_diagnostic = []
 # Enables the `PhysicsDiagnosticsUiPlugin` for visualizing physics diagnostics data with a debug UI.
 diagnostic_ui = ["bevy_diagnostic", "bevy/bevy_ui"]
 
+# Enable the Rust standard library.
+std = [
+    "bevy/std",
+    "bevy_heavy/std",
+    "bevy_transform_interpolation/std",
+    "parry3d?/std",
+    "parry3d-f64?/std",
+]
+
+# Enable `libm` math operations for `no_std` environments and cross-platform determinism.
+libm = [
+    "dep:libm",
+    "bevy/libm",
+    "bevy_math/libm",
+    "bevy_heavy/libm",
+    "bevy_transform_interpolation/libm",
+]
+
 [lib]
 name = "avian3d"
 path = "../../src/lib.rs"
@@ -75,22 +93,35 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16.0-rc", default-features = false, features = [
-    "std",
-    "bevy_log",
+bevy = { version = "0.16.0-rc", default-features = false }
+bevy_math = { version = "0.16.0-rc", default-features = false }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", default-features = false, features = [
+    "2d",
+    "3d",
+    "bevy_reflect",
 ] }
-bevy_math = { version = "0.16.0-rc" }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
+bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation", default-features = false }
 libm = { version = "0.2", optional = true }
-parry3d = { version = "0.17", optional = true }
-parry3d-f64 = { version = "0.17", optional = true }
-nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
-serde = { version = "1", features = ["derive"], optional = true }
-derive_more = "1"
-itertools = "0.13"
-bitflags = "2.5.0"
-thread_local = { version = "1.1", optional = true }
+parry3d = { version = "0.19", optional = true, default-features = false, features = [
+    "required-features",
+    "alloc",
+] }
+parry3d-f64 = { version = "0.19", optional = true, default-features = false, features = [
+    "required-features",
+    "alloc",
+] }
+nalgebra = { version = "0.33", default-features = false, features = [
+    "convert-glam029",
+], optional = true }
+serde = { version = "1", default-features = false, features = [
+    "derive",
+], optional = true }
+derive_more = { version = "1", default-features = false }
+log = { version = "0.4", default-features = false }
+hashbrown = { version = "0.15", default-features = false }
+itertools = { version = "0.13", default-features = false }
+bitflags = { version = "2.5.0", default-features = false }
+thread_local = { version = "1.1", default-features = false, optional = true }
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }

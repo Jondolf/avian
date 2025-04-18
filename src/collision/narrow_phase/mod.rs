@@ -127,7 +127,7 @@ where
         // Remove collision pairs when colliders are disabled or removed.
         app.add_observer(remove_collider_on::<OnAdd, Disabled>);
         app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
-        app.add_observer(remove_collider_on::<OnRemove, Collider>);
+        app.add_observer(remove_collider_on::<OnRemove, C>);
 
         // Perform narrow phase collision detection.
         app.add_systems(

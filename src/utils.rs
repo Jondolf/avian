@@ -2,6 +2,8 @@
 
 use crate::prelude::*;
 
+#[cfg(not(feature = "std"))]
+use bevy::ecs::system::{Commands, SystemParam};
 pub(crate) use bevy::platform::time::Instant;
 
 /// Computes translation of `Position` based on center of mass rotation and translation
@@ -12,6 +14,22 @@ pub(crate) fn get_pos_translation(
     center_of_mass: &ComputedCenterOfMass,
 ) -> Vector {
     com_translation.0 + (previous_rotation * center_of_mass.0) - (rotation * center_of_mass.0)
+}
+
+/// A wrapper around [`Commands`] to allow using the `ParallelCommands` API
+/// in both `std` and `no_std` environments.
+#[cfg(not(feature = "std"))]
+#[derive(SystemParam)]
+pub(crate) struct ParallelCommands<'w, 's> {
+    commands: Commands<'w, 's>,
+}
+
+#[cfg(not(feature = "std"))]
+impl ParallelCommands<'_, '_> {
+    /// Provides access to [`Commands`].
+    pub fn command_scope<R>(&mut self, f: impl FnOnce(Commands) -> R) -> R {
+        f(self.commands.reborrow())
+    }
 }
 
 /// A helper macro for iterating over a slice in parallel or serially

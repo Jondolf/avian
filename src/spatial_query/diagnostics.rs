@@ -1,10 +1,10 @@
-use core::time::Duration;
-
+use alloc::{vec, vec::Vec};
 use bevy::{
     diagnostic::DiagnosticPath,
     prelude::{ReflectResource, Resource},
     reflect::Reflect,
 };
+use core::time::Duration;
 
 use crate::diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics};
 

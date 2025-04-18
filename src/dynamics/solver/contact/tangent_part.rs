@@ -208,8 +208,8 @@ impl ContactTangentPart {
             // Solve the two tangent directions simultaneously.
             // Based on Rapier's two-body constraint.
             // https://github.com/dimforge/rapier/blob/af1ac9baa26b1199ae2728e91adf5345bcd1c693/src/dynamics/solver/contact_constraint/two_body_constraint_element.rs#L127-L133
-            let t11 = tangent_speed1.powi(2);
-            let t22 = tangent_speed2.powi(2);
+            let t11 = tangent_speed1.squared();
+            let t22 = tangent_speed2.squared();
             let t12 = tangent_speed1 * tangent_speed2;
             let inv = t11 * self.effective_inverse_mass[0]
                 + t22 * self.effective_inverse_mass[1]

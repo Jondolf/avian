@@ -11,9 +11,9 @@ mod primitives3d;
 pub use primitives2d::{EllipseColliderShape, RegularPolygonColliderShape};
 
 use crate::{make_isometry, prelude::*};
+use bevy::prelude::*;
 #[cfg(feature = "collider-from-mesh")]
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-use bevy::{log, prelude::*};
 use contact_query::UnsupportedShape;
 use itertools::Either;
 use parry::shape::{RoundShape, SharedShape, TypedShape};
@@ -863,7 +863,7 @@ impl Collider {
     /// For thin shapes like triangle meshes, it can help improve collision stability and performance.
     pub fn trimesh(vertices: Vec<Vector>, indices: Vec<[u32; 3]>) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        SharedShape::trimesh(vertices, indices).into()
+        SharedShape::trimesh(vertices, indices).unwrap().into()
     }
 
     /// Creates a collider with a triangle mesh shape defined by its vertex and index buffers
@@ -879,7 +879,9 @@ impl Collider {
         flags: TrimeshFlags,
     ) -> Self {
         let vertices = vertices.into_iter().map(|v| v.into()).collect();
-        SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
+        SharedShape::trimesh_with_flags(vertices, indices, flags.into())
+            .unwrap()
+            .into()
     }
 
     /// Creates a collider shape with a compound shape obtained from the decomposition of a given polyline
@@ -1007,6 +1009,7 @@ impl Collider {
                 indices,
                 TrimeshFlags::MERGE_DUPLICATE_VERTICES.into(),
             )
+            .unwrap()
             .into()
         })
     }
@@ -1036,7 +1039,9 @@ impl Collider {
     #[cfg(feature = "collider-from-mesh")]
     pub fn trimesh_from_mesh_with_config(mesh: &Mesh, flags: TrimeshFlags) -> Option<Self> {
         extract_mesh_vertices_indices(mesh).map(|(vertices, indices)| {
-            SharedShape::trimesh_with_flags(vertices, indices, flags.into()).into()
+            SharedShape::trimesh_with_flags(vertices, indices, flags.into())
+                .unwrap()
+                .into()
         })
     }
 
@@ -1321,7 +1326,7 @@ fn scale_shape(
             #[cfg(feature = "2d")]
             {
                 if scale.x == scale.y {
-                    Ok(SharedShape::ball(b.radius * scale.x.abs()))
+                    Ok(SharedShape::ball(b.radius * math_ops::abs(scale.x)))
                 } else {
                     // A 2D circle becomes an ellipse when scaled non-uniformly.
                     Ok(SharedShape::new(EllipseColliderShape(Ellipse {
@@ -1483,7 +1488,7 @@ fn scale_shape(
                     if scale.x == scale.y {
                         return Ok(SharedShape::new(RegularPolygonColliderShape(
                             RegularPolygon::new(
-                                polygon.circumradius() * scale.x.abs() as f32,
+                                polygon.circumradius() * math_ops::abs(scale.x) as f32,
                                 polygon.sides,
                             ),
                         )));

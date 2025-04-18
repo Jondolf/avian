@@ -14,7 +14,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         body2: &mut RigidBodyQueryItem,
         delta_lagrange: Scalar,
     ) -> Scalar {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -60,7 +60,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
@@ -116,7 +116,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         compliance: Scalar,
         dt: Scalar,
     ) -> Torque {
-        if angle.abs() <= Scalar::EPSILON {
+        if math_ops::abs(angle) <= Scalar::EPSILON {
             return Torque::ZERO;
         }
 
@@ -185,7 +185,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector3,
     ) -> Scalar {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return 0.0;
         }
 
@@ -220,7 +220,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
-        if delta_lagrange.abs() <= Scalar::EPSILON {
+        if math_ops::abs(delta_lagrange) <= Scalar::EPSILON {
             return Vector::ZERO;
         }
 
@@ -296,13 +296,13 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     #[cfg(feature = "2d")]
     fn compute_torque(&self, lagrange: Scalar, dt: Scalar) -> Torque {
         // Eq (17)
-        lagrange / dt.powi(2)
+        lagrange / dt.squared()
     }
 
     /// Computes the torque acting along the constraint using the equation `tau = lambda * n / h^2`
     #[cfg(feature = "3d")]
     fn compute_torque(&self, lagrange: Scalar, axis: Vector, dt: Scalar) -> Torque {
         // Eq (17)
-        lagrange * axis / dt.powi(2)
+        lagrange * axis / dt.squared()
     }
 }

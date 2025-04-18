@@ -440,6 +440,7 @@
     rustdoc::invalid_rust_codeblocks
 )]
 #![warn(clippy::doc_markdown, missing_docs)]
+#![no_std]
 
 #[cfg(all(not(feature = "f32"), not(feature = "f64")))]
 compile_error!("either feature \"f32\" or \"f64\" must be enabled");
@@ -519,6 +520,8 @@ pub mod prelude {
     };
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
+    #[cfg(not(feature = "std"))]
+    pub(crate) use crate::utils::ParallelCommands;
     pub use crate::{
         collision::prelude::*,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},

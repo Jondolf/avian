@@ -1,6 +1,10 @@
-use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
+use crate::{
+    math::{self, math_ops, FloatPow},
+    AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU,
+};
 
 use super::{AsF32, Collider, IntoCollider};
+use alloc::boxed::Box;
 use bevy::prelude::{Deref, DerefMut};
 use bevy_math::{bounding::Bounded2d, prelude::*};
 use nalgebra::{Point2, UnitVector2, Vector2};
@@ -40,7 +44,7 @@ impl SupportMap for EllipseColliderShape {
     #[inline]
     fn local_support_point(&self, direction: &Vector2<Scalar>) -> Point2<Scalar> {
         let [a, b] = self.half_size.adjust_precision().to_array();
-        let denom = (direction.x.powi(2) * a * a + direction.y.powi(2) * b * b).sqrt();
+        let denom = math_ops::sqrt(direction.x.squared() * a * a + direction.y.squared() * b * b);
         Point2::new(a * a * direction.x / denom, b * b * direction.y / denom)
     }
 }
@@ -99,6 +103,7 @@ impl Shape for EllipseColliderShape {
         )
     }
 
+    #[cfg(feature = "std")]
     fn clone_box(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
@@ -271,7 +276,7 @@ impl SupportMap for RegularPolygonColliderShape {
         };
 
         // How many rotations of `external_angle` correspond to the vertex closest to the support direction.
-        let n = (angle_from_top / external_angle).round() % self.sides as Scalar;
+        let n = math_ops::round(angle_from_top / external_angle) % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle = n * external_angle + FRAC_PI_2;
@@ -300,8 +305,8 @@ impl PolygonalFeatureMap for RegularPolygonColliderShape {
 
         // How many rotations of `external_angle` correspond to the vertices.
         let n_unnormalized = angle_from_top / external_angle;
-        let n1 = n_unnormalized.floor() % self.sides as Scalar;
-        let n2 = n_unnormalized.ceil() % self.sides as Scalar;
+        let n1 = math_ops::floor(n_unnormalized) % self.sides as Scalar;
+        let n2 = math_ops::ceil(n_unnormalized) % self.sides as Scalar;
 
         // Rotate by an additional 90 degrees so that the first vertex is always at the top.
         let target_angle1 = n1 * external_angle + FRAC_PI_2;
@@ -377,6 +382,7 @@ impl Shape for RegularPolygonColliderShape {
         )
     }
 
+    #[cfg(feature = "std")]
     fn clone_box(&self) -> Box<dyn Shape> {
         Box::new(*self)
     }
@@ -386,8 +392,8 @@ impl Shape for RegularPolygonColliderShape {
         let mass = volume * density;
 
         let half_external_angle = PI / self.sides as Scalar;
-        let angular_inertia = mass * self.circumradius().adjust_precision().powi(2) / 6.0
-            * (1.0 + 2.0 * half_external_angle.cos().powi(2));
+        let angular_inertia = mass * self.circumradius().adjust_precision().squared() / 6.0
+            * (1.0 + 2.0 * math_ops::cos(half_external_angle).squared());
 
         MassProperties::new(Point2::origin(), mass, angular_inertia)
     }

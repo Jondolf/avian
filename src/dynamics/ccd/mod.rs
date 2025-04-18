@@ -580,15 +580,15 @@ fn solve_swept_ccd(
 
                 #[cfg(feature = "2d")]
                 let ang_vel_below_threshold =
-                    (ang_vel1.0 - ang_vel2).abs() < ccd1.angular_threshold;
+                    math_ops::abs(ang_vel1.0 - ang_vel2) < ccd1.angular_threshold;
                 #[cfg(feature = "3d")]
                 let ang_vel_below_threshold =
-                    (ang_vel1.0 - ang_vel2).length_squared() < ccd1.angular_threshold.powi(2);
+                    (ang_vel1.0 - ang_vel2).length_squared() < ccd1.angular_threshold.squared();
 
                 // If both the relative linear and relative angular velocity
                 // are below the defined thresholds, skip this body.
                 if ang_vel_below_threshold
-                    && (lin_vel1.0 - lin_vel2).length_squared() < ccd1.linear_threshold.powi(2)
+                    && (lin_vel1.0 - lin_vel2).length_squared() < ccd1.linear_threshold.squared()
                 {
                     continue;
                 }

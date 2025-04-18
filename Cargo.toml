@@ -9,3 +9,6 @@ std_instead_of_core = "warn"
 
 [profile.dev]
 opt-level = 1 # Use slightly better optimization, so examples work
+
+[patch.crates-io]
+nalgebra = { git = "https://github.com/Jondolf/nalgebra", branch = "glam-no-default-features" }

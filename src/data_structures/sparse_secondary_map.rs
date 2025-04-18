@@ -9,11 +9,12 @@
 //!
 //! [`slotmap::SparseSecondaryMap`]: https://docs.rs/slotmap/1.0.7/slotmap/struct.SparseSecondaryMap.html
 
-use alloc::collections::TryReserveError;
-use bevy::platform::hash::RandomState;
-use core::mem::MaybeUninit;
-use std::collections::hash_map::{self, HashMap};
-use std::hash;
+use bevy::platform::{
+    collections::{hash_map::Entry, HashMap},
+    hash::FixedHasher,
+};
+use core::{hash::BuildHasher, mem::MaybeUninit};
+use hashbrown::TryReserveError;
 
 use bevy::ecs::entity::Entity;
 
@@ -26,11 +27,11 @@ struct Slot<T> {
 /// Sparse secondary map for associating data with previously stored entities
 /// in a generational arena.
 #[derive(Debug, Clone)]
-pub struct SparseSecondaryEntityMap<V, S: hash::BuildHasher = RandomState> {
+pub struct SparseSecondaryEntityMap<V, S: BuildHasher = FixedHasher> {
     slots: HashMap<u32, Slot<V>, S>,
 }
 
-impl<V> SparseSecondaryEntityMap<V, hash_map::RandomState> {
+impl<V> SparseSecondaryEntityMap<V, FixedHasher> {
     /// Constructs a new, empty [`SparseSecondaryEntityMap`].
     #[inline]
     pub fn new() -> Self {
@@ -56,7 +57,7 @@ fn is_older_generation(a: u32, b: u32) -> bool {
     diff >= (1 << 31)
 }
 
-impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
+impl<V, S: BuildHasher> SparseSecondaryEntityMap<V, S> {
     /// Creates an empty [`SparseSecondaryEntityMap`] which will use the given hash
     /// builder to hash keys.
     ///
@@ -164,7 +165,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     /// the entity was not previously removed.
     #[inline]
     pub fn remove(&mut self, entity: Entity) -> Option<V> {
-        if let hash_map::Entry::Occupied(entry) = self.slots.entry(entity.index()) {
+        if let Entry::Occupied(entry) = self.slots.entry(entity.index()) {
             if entry.get().generation == entity.generation() {
                 return Some(entry.remove_entry().1.value);
             }
@@ -317,7 +318,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
 
 impl<V, S> Default for SparseSecondaryEntityMap<V, S>
 where
-    S: hash::BuildHasher + Default,
+    S: BuildHasher + Default,
 {
     fn default() -> Self {
         Self::with_hasher(Default::default())
