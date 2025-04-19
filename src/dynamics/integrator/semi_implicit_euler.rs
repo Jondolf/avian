@@ -60,7 +60,7 @@ pub fn integrate_velocity(
 
     // Compute angular velocity delta.
     // Δω = α * Δt
-    *ang_vel = ang_acc * delta_seconds;
+    *ang_vel += ang_acc * delta_seconds;
 
     #[cfg(feature = "3d")]
     {
