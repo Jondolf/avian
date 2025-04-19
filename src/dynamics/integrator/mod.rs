@@ -185,77 +185,85 @@ fn integrate_velocities(
     // TODO: Is it faster to iterate over solver bodies in parallel and then query for rigid body data?
     //       We could use flags to determine whether we need to query for ECS data or not.
     //       Querying is needed for: damping, max speed, gyroscopic torque
-    bodies.iter_mut().for_each(|body| {
-        // TODO: This wouldn't be necessary if we filter out static bodies in the query.
-        if !body.solver_index.is_valid() {
-            return;
-        }
+    solver_bodies.par_for_each(
+        ComputeTaskPool::get(),
+        None,
+        |index, solver_body, entities, _| {
+            // SAFETY: The indices of solver bodies match the entity indices,
+            //         so the index is guaranteed to be in bounds.
+            //         The `SolverBodyPlugin` is responsible for ensuring that valid indices are in bounds.
+            let entity = unsafe { *entities.get_unchecked(index) };
+            let body = bodies.get(entity).unwrap_or_else(|_| {
+                panic!(
+                    "Solver body index {} is out of bounds for the rigid body query.",
+                    index
+                )
+            });
 
-        // SAFETY: The index is checked to be valid above.
-        //         The `SolverBodyPlugin` is responsible for ensuring that valid indices are in bounds.
-        let solver_body = unsafe { solver_bodies.get_unchecked_mut(body.solver_index.0) };
+            if body.rb.is_dynamic() {
+                let locked_axes = body
+                    .locked_axes
+                    .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-        if body.rb.is_dynamic() {
-            let locked_axes = body
-                .locked_axes
-                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+                // Apply damping
+                if let Some(lin_damping) = body.lin_damping {
+                    if solver_body.linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
+                        solver_body.linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                    }
+                }
+                if let Some(ang_damping) = body.ang_damping {
+                    if solver_body.angular_velocity != AngularVelocity::ZERO.0
+                        && ang_damping.0 != 0.0
+                    {
+                        solver_body.angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+                    }
+                }
 
-            // Apply damping
-            if let Some(lin_damping) = body.lin_damping {
-                if solver_body.linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
-                    solver_body.linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
+                let external_force = body.force.force();
+                let external_torque = body.torque.torque() + body.force.torque();
+                let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
+
+                semi_implicit_euler::integrate_velocity(
+                    &mut solver_body.linear_velocity,
+                    &mut solver_body.angular_velocity,
+                    external_force,
+                    external_torque,
+                    *body.mass,
+                    body.angular_inertia,
+                    #[cfg(feature = "3d")]
+                    body.global_angular_inertia,
+                    #[cfg(feature = "3d")]
+                    *body.rot,
+                    locked_axes,
+                    gravity,
+                    delta_secs,
+                );
+            }
+
+            // Clamp velocities
+            if let Some(max_linear_speed) = body.max_linear_speed {
+                let linear_speed_squared = solver_body.linear_velocity.length_squared();
+                if linear_speed_squared > max_linear_speed.0.powi(2) {
+                    solver_body.linear_velocity *= max_linear_speed.0 / linear_speed_squared.sqrt();
                 }
             }
-            if let Some(ang_damping) = body.ang_damping {
-                if solver_body.angular_velocity != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                    solver_body.angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
+            if let Some(max_angular_speed) = body.max_angular_speed {
+                #[cfg(feature = "2d")]
+                if solver_body.angular_velocity.abs() > max_angular_speed.0 {
+                    solver_body.angular_velocity =
+                        max_angular_speed.copysign(solver_body.angular_velocity);
                 }
-            }
-
-            let external_force = body.force.force();
-            let external_torque = body.torque.torque() + body.force.torque();
-            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
-
-            semi_implicit_euler::integrate_velocity(
-                &mut solver_body.linear_velocity,
-                &mut solver_body.angular_velocity,
-                external_force,
-                external_torque,
-                *body.mass,
-                body.angular_inertia,
                 #[cfg(feature = "3d")]
-                body.global_angular_inertia,
-                #[cfg(feature = "3d")]
-                *body.rot,
-                locked_axes,
-                gravity,
-                delta_secs,
-            );
-        }
-
-        // Clamp velocities
-        if let Some(max_linear_speed) = body.max_linear_speed {
-            let linear_speed_squared = solver_body.linear_velocity.length_squared();
-            if linear_speed_squared > max_linear_speed.0.powi(2) {
-                solver_body.linear_velocity *= max_linear_speed.0 / linear_speed_squared.sqrt();
-            }
-        }
-        if let Some(max_angular_speed) = body.max_angular_speed {
-            #[cfg(feature = "2d")]
-            if solver_body.angular_velocity.abs() > max_angular_speed.0 {
-                solver_body.angular_velocity =
-                    max_angular_speed.copysign(solver_body.angular_velocity);
-            }
-            #[cfg(feature = "3d")]
-            {
-                let angular_speed_squared = solver_body.angular_velocity.length_squared();
-                if angular_speed_squared > max_angular_speed.0.powi(2) {
-                    solver_body.angular_velocity *=
-                        max_angular_speed.0 / angular_speed_squared.sqrt();
+                {
+                    let angular_speed_squared = solver_body.angular_velocity.length_squared();
+                    if angular_speed_squared > max_angular_speed.0.powi(2) {
+                        solver_body.angular_velocity *=
+                            max_angular_speed.0 / angular_speed_squared.sqrt();
+                    }
                 }
             }
-        }
-    });
+        },
+    );
 
     diagnostics.integrate_velocities += start.elapsed();
 }
@@ -270,21 +278,19 @@ fn integrate_positions(
 
     let delta_secs = time.delta_seconds_adjusted();
 
-    solver_bodies.par_splat_map_mut(ComputeTaskPool::get(), None, |_i, chunk| {
-        chunk.iter_mut().for_each(|body| {
-            body.delta_position += body.linear_velocity * delta_secs;
-            #[cfg(feature = "2d")]
-            {
-                body.delta_rotation = body
-                    .delta_rotation
-                    .add_angle_fast(body.angular_velocity * delta_secs);
-            }
-            #[cfg(feature = "3d")]
-            {
-                body.delta_rotation.0 *=
-                    Quaternion::from_scaled_axis(body.angular_velocity * delta_secs);
-            }
-        })
+    solver_bodies.par_for_each(ComputeTaskPool::get(), None, |_i, solver_body, _, _| {
+        solver_body.delta_position += solver_body.linear_velocity * delta_secs;
+        #[cfg(feature = "2d")]
+        {
+            solver_body.delta_rotation = solver_body
+                .delta_rotation
+                .add_angle_fast(solver_body.angular_velocity * delta_secs);
+        }
+        #[cfg(feature = "3d")]
+        {
+            solver_body.delta_rotation.0 *=
+                Quaternion::from_scaled_axis(solver_body.angular_velocity * delta_secs);
+        }
     });
 
     diagnostics.integrate_positions += start.elapsed();

@@ -414,22 +414,53 @@ impl SolverBodies {
         self.bodies.iter_mut()
     }
 
-    /// Splits the slice into a maximum of `max_tasks` chunks, and maps the chunks in parallel
-    /// across the provided `task_pool`. One task is spawned in the task pool for every chunk.
-    ///
-    /// See [`ParallelSliceMut::par_splat_map_mut`] for more information.
+    /// Calls the given closure on each solver body in parallel
+    /// using the given task pool and maximum number of tasks.
     #[inline]
-    pub fn par_splat_map_mut<F, R>(
-        &mut self,
-        task_pool: &TaskPool,
-        max_tasks: Option<usize>,
-        f: F,
-    ) -> Vec<R>
+    pub fn par_for_each<F>(&mut self, task_pool: &TaskPool, max_tasks: Option<usize>, f: F)
     where
-        F: Fn(usize, &mut [SolverBody]) -> R + Send + Sync,
-        R: Send + 'static,
+        F: Fn(usize, &mut SolverBody, &[Entity], &[SolverBodyInertia]) + Sync,
     {
-        self.bodies.par_splat_map_mut(task_pool, max_tasks, f)
+        #[cfg(not(feature = "parallel"))]
+        self.bodies
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, body)| f(index, body, &self.entities, &self.inertial_properties));
+
+        #[cfg(feature = "parallel")]
+        {
+            let task_pool_ = bevy::tasks::ComputeTaskPool::get();
+
+            if task_pool_.thread_num() == 1 {
+                self.bodies
+                    .iter_mut()
+                    .enumerate()
+                    .for_each(|(index, body)| {
+                        f(index, body, &self.entities, &self.inertial_properties)
+                    });
+            } else {
+                let chunk_size = core::cmp::max(
+                    1,
+                    core::cmp::max(
+                        self.bodies.len() / task_pool.thread_num(),
+                        self.bodies.len() / max_tasks.unwrap_or(usize::MAX),
+                    ),
+                );
+                // TODO: Is there a better approach than `par_chunk_map_mut`?
+                bevy::tasks::ParallelSliceMut::par_chunk_map_mut(
+                    &mut self.bodies,
+                    task_pool,
+                    chunk_size,
+                    |chunk_index, chunk| {
+                        let index_offset = chunk_index * chunk_size;
+                        chunk.iter_mut().enumerate().for_each(|(index, body)| {
+                            let index = index_offset + index;
+                            f(index, body, &self.entities, &self.inertial_properties);
+                        });
+                    },
+                );
+            }
+        }
     }
 
     /// Returns the number of solver bodies.
