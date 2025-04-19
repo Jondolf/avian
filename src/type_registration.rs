@@ -23,7 +23,8 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<TimeSleeping>()
             .register_type::<Position>()
             .register_type::<Rotation>()
-            .register_type::<PreSolveAccumulatedTranslation>()
+            .register_type::<PreSolveDeltaPosition>()
+            .register_type::<PreSolveDeltaRotation>()
             .register_type::<PreviousRotation>()
             .register_type::<PreviousGlobalTransform>()
             .register_type::<AccumulatedTranslation>()
@@ -67,7 +68,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<FixedJoint>()
             .register_type::<PrismaticJoint>()
             .register_type::<RevoluteJoint>()
-            .register_type::<PreSolveRotation>()
             .register_type::<GlobalAngularInertia>();
 
         #[cfg(feature = "default-collider")]

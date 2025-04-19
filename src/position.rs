@@ -105,14 +105,14 @@ impl From<&GlobalTransform> for Position {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct PreSolveAccumulatedTranslation(pub Vector);
+pub struct PreSolveDeltaPosition(pub Vector);
 
 /// The rotation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-pub struct PreSolveRotation(pub Rotation);
+pub struct PreSolveDeltaRotation(pub Rotation);
 
 /// Radians
 #[cfg(all(feature = "2d", feature = "default-collider"))]

@@ -152,7 +152,6 @@ struct VelocityIntegrationQuery {
     rb: &'static RigidBody,
     solver_index: &'static SolverBodyIndex,
     pos: &'static Position,
-    prev_pos: Option<&'static mut PreSolveAccumulatedTranslation>,
     #[cfg(feature = "3d")]
     rot: &'static Rotation,
     force: &'static ExternalForce,
@@ -187,10 +186,6 @@ fn integrate_velocities(
     //       We could use flags to determine whether we need to query for ECS data or not.
     //       Querying is needed for: damping, max speed, gyroscopic torque
     bodies.iter_mut().for_each(|body| {
-        if let Some(mut previous_position) = body.prev_pos {
-            previous_position.0 = body.pos.0;
-        }
-
         // TODO: This wouldn't be necessary if we filter out static bodies in the query.
         if !body.solver_index.is_valid() {
             return;

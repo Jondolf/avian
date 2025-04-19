@@ -231,10 +231,18 @@ use bevy::{
     prelude::*,
 };
 
-/// A trait for all XPBD [constraints](self#constraints).
-pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
+use super::solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia};
+
+/// A trait for constraints between entities.
+pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {
     /// The entities participating in the constraint.
     fn entities(&self) -> [Entity; ENTITY_COUNT];
+}
+
+/// A trait for all XPBD [constraints](self#constraints).
+pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
+    /// Prepares the constraint for solving.
+    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; ENTITY_COUNT], dt: Scalar);
 
     /// Solves the constraint.
     ///
@@ -254,7 +262,12 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     ///
     /// You can find a working example of a custom constraint
     /// [here](https://github.com/Jondolf/avian/blob/main/crates/avian3d/examples/custom_constraint.rs).
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; ENTITY_COUNT], dt: Scalar);
+    fn solve(
+        &mut self,
+        bodies: [&mut SolverBody; ENTITY_COUNT],
+        inertias: [&SolverBodyInertia; ENTITY_COUNT],
+        dt: Scalar,
+    );
 
     /// Computes how much a constraint's [Lagrange multiplier](self#lagrange-multipliers) changes when projecting
     /// the constraint for all participating particles.
@@ -323,40 +336,33 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
     }
 
     /// Sets the constraint's [Lagrange multipliers](self#lagrange-multipliers) to 0.
-    fn clear_lagrange_multipliers(&mut self);
+    fn clear_lagrange_multipliers(&mut self) {}
 }
 
-// TODO: Make a joint-optimized version
-/// Iterates through the XPBD constraints of a given type and solves them. Sleeping bodies are woken up when
-/// active bodies interact with them in a constraint.
-///
-/// Note that this system only works for constraints that are modeled as entities.
-/// If you store constraints in a resource, you must create your own system for solving them.
-///
-/// # User Constraints
-///
-/// To create a new constraint, implement [`XpbdConstraint`] for a component, get the [`SubstepSchedule`] and add this system into
-/// the [`SubstepSolverSet::SolveUserConstraints`](super::SubstepSolverSet::SolveUserConstraints) set.
-/// You must provide the number of entities in the constraint using generics.
-///
-/// It should look something like this:
-///
-/// ```ignore
-/// let substeps = app
-///     .get_schedule_mut(SubstepSchedule)
-///     .expect("add SubstepSchedule first");
-///
-/// substeps.add_systems(
-///     solve_constraint::<YourConstraint, ENTITY_COUNT>
-///         .in_set(SubstepSolverSet::SolveUserConstraints),
-/// );
-/// ```
-pub fn solve_constraint<
-    C: XpbdConstraint<ENTITY_COUNT> + Component<Mutability = Mutable>,
-    const ENTITY_COUNT: usize,
+/// Iterates through the XPBD constraints of a given type and solves them.
+pub fn prepare_xpbd_constraint<
+    C: EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
 >(
-    mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
+    bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
+    mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
+    time: Res<Time>,
+) {
+    let delta_secs = time.delta_seconds_adjusted();
+
+    for mut constraint in &mut constraints {
+        // Get components for entities
+        if let Ok([body1, body2]) = bodies.get_many(constraint.entities()) {
+            constraint.prepare([&body1, &body2], delta_secs);
+        }
+    }
+}
+
+/// Iterates through the XPBD constraints of a given type and solves them.
+pub fn solve_xpbd_constraint<
+    C: EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
+>(
+    bodies: Query<&SolverBodyIndex, Without<RigidBodyDisabled>>,
+    mut solver_bodies: ResMut<SolverBodies>,
     mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
@@ -367,72 +373,43 @@ pub fn solve_constraint<
         .iter_mut()
         .for_each(|mut c| c.clear_lagrange_multipliers());
 
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
+
     for mut constraint in &mut constraints {
         // Get components for entities
-        if let Ok(mut bodies) = bodies.get_many_mut(constraint.entities()) {
-            let none_dynamic = bodies.iter().all(|body| !body.rb.is_dynamic());
-            let all_inactive = bodies
-                .iter()
-                .all(|body| body.rb.is_static() || body.is_sleeping);
+        if let Ok([index1, index2]) = bodies.get_many(constraint.entities()) {
+            // Get the solver bodies for the two colliding entities.
+            let (body1, body2) = unsafe { solver_bodies.get_pair_unchecked_mut(*index1, *index2) };
 
-            // No constraint solving if none of the bodies is dynamic,
-            // or if all of the bodies are either static or sleeping
-            if none_dynamic || all_inactive {
-                continue;
-            }
+            // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
+            // TODO: Handle dominance properly.
+            let (body1, inertia1) = body1.unwrap_or((&mut dummy_body1, &dummy_inertia));
+            let (body2, inertia2) = body2.unwrap_or((&mut dummy_body2, &dummy_inertia));
 
-            // At least one of the participating bodies is active, so wake up any sleeping bodies
-            for body in &mut bodies {
-                // Reset the sleep timer
-                if let Some(time_sleeping) = body.time_sleeping.as_mut() {
-                    time_sleeping.0 = 0.0;
-                }
-
-                if body.is_sleeping {
-                    commands.queue(WakeUpBody(body.entity));
-                }
-            }
-
-            // Get the bodies as an array and solve the constraint
-            if let Ok(bodies) = bodies
-                .iter_mut()
-                .collect::<Vec<&mut RigidBodyQueryItem>>()
-                .try_into()
-            {
-                constraint.solve(bodies, delta_secs);
-            }
+            constraint.solve([body1, body2], [inertia1, inertia2], delta_secs);
         }
     }
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the XPBD solver.
 pub(super) fn project_linear_velocity(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &PreSolveAccumulatedTranslation,
-            &AccumulatedTranslation,
-            &mut LinearVelocity,
-        ),
-        RigidBodyActiveFilter,
-    >,
+    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaPosition), RigidBodyActiveFilter>,
+    mut solver_bodies: ResMut<SolverBodies>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (rb, prev_pos, translation, mut lin_vel) in &mut bodies {
-        // Static bodies have no velocity
-        if rb.is_static() && lin_vel.0 != Vector::ZERO {
-            lin_vel.0 = Vector::ZERO;
+    for (index, pre_solve_delta_pos) in &bodies {
+        if !index.is_valid() {
+            continue;
         }
 
-        if rb.is_dynamic() {
+        if let Some(body) = solver_bodies.get_mut(*index) {
             // v = (x - x_prev) / h
-            let new_lin_vel = (translation.0 - prev_pos.0) / delta_secs;
-            // Avoid triggering bevy's change detection unnecessarily.
-            if new_lin_vel != Vector::ZERO && new_lin_vel.is_finite() {
-                lin_vel.0 += new_lin_vel;
-            }
+            let new_lin_vel = (body.delta_position - pre_solve_delta_pos.0) / delta_secs;
+            body.linear_velocity += new_lin_vel;
         }
     }
 }
@@ -440,31 +417,20 @@ pub(super) fn project_linear_velocity(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
 #[cfg(feature = "2d")]
 pub(super) fn project_angular_velocity(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &Rotation,
-            &PreSolveRotation,
-            &mut AngularVelocity,
-        ),
-        RigidBodyActiveFilter,
-    >,
+    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
+    mut solver_bodies: ResMut<SolverBodies>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (rb, rot, prev_rot, mut ang_vel) in &mut bodies {
-        // Static bodies have no velocity
-        if rb.is_static() && ang_vel.0 != 0.0 {
-            ang_vel.0 = 0.0;
+    for (index, pre_solve_delta_rot) in &bodies {
+        if !index.is_valid() {
+            continue;
         }
 
-        if rb.is_dynamic() {
-            let new_ang_vel = prev_rot.angle_between(*rot) / delta_secs;
-            // Avoid triggering bevy's change detection unnecessarily.
-            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
-                ang_vel.0 += new_ang_vel;
-            }
+        if let Some(body) = solver_bodies.get_mut(*index) {
+            let new_ang_vel = pre_solve_delta_rot.angle_between(body.delta_rotation) / delta_secs;
+            body.angular_velocity += new_ang_vel;
         }
     }
 }
@@ -472,35 +438,29 @@ pub(super) fn project_angular_velocity(
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
 #[cfg(feature = "3d")]
 pub(super) fn project_angular_velocity(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &Rotation,
-            &PreSolveRotation,
-            &mut AngularVelocity,
-        ),
-        RigidBodyActiveFilter,
-    >,
+    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
+    mut solver_bodies: ResMut<SolverBodies>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (rb, rot, prev_rot, mut ang_vel) in &mut bodies {
-        // Static bodies have no velocity
-        if rb.is_static() && ang_vel.0 != Vector::ZERO {
-            ang_vel.0 = Vector::ZERO;
+    for (index, pre_solve_delta_rot) in &bodies {
+        if !index.is_valid() {
+            continue;
         }
 
-        if rb.is_dynamic() {
-            let delta_rot = rot.mul_quat(prev_rot.inverse().0);
+        if let Some(body) = solver_bodies.get_mut(*index) {
+            let delta_rot = body
+                .delta_rotation
+                .mul_quat(pre_solve_delta_rot.inverse().0);
+
             let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
+
             if delta_rot.w < 0.0 {
                 new_ang_vel = -new_ang_vel;
             }
-            // Avoid triggering bevy's change detection unnecessarily.
-            if new_ang_vel != ang_vel.0 && new_ang_vel.is_finite() {
-                ang_vel.0 += new_ang_vel;
-            }
+
+            body.angular_velocity += new_ang_vel;
         }
     }
 }

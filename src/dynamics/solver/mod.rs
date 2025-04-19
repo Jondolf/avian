@@ -112,12 +112,21 @@ impl Plugin for SolverPlugin {
 
         // Update previous rotations before the substepping loop.
         physics.add_systems(
-            (|mut query: Query<(&Rotation, &mut PreviousRotation)>| {
-                for (rot, mut prev_rot) in &mut query {
-                    prev_rot.0 = *rot;
-                }
-            })
-            .in_set(SolverSet::PreSubstep),
+            (
+                |mut query: Query<(&Rotation, &mut PreviousRotation)>| {
+                    for (rot, mut prev_rot) in &mut query {
+                        prev_rot.0 = *rot;
+                    }
+                },
+                xpbd::prepare_xpbd_constraint::<FixedJoint>,
+                xpbd::prepare_xpbd_constraint::<RevoluteJoint>,
+                xpbd::prepare_xpbd_constraint::<PrismaticJoint>,
+                xpbd::prepare_xpbd_constraint::<DistanceJoint>,
+                #[cfg(feature = "3d")]
+                xpbd::prepare_xpbd_constraint::<SphericalJoint>,
+            )
+                .chain()
+                .in_set(SolverSet::PreSubstep),
         );
 
         // Apply restitution.
@@ -148,26 +157,29 @@ impl Plugin for SolverPlugin {
             (
                 |mut query: Query<
                     (
-                        &AccumulatedTranslation,
-                        &mut PreSolveAccumulatedTranslation,
-                        &Rotation,
-                        &mut PreSolveRotation,
+                        &SolverBodyIndex,
+                        &mut PreSolveDeltaPosition,
+                        &mut PreSolveDeltaRotation,
                     ),
                     Without<RigidBodyDisabled>,
-                >| {
-                    for (translation, mut pre_solve_translation, rotation, mut previous_rotation) in
+                >,
+                 solver_bodies: Res<SolverBodies>| {
+                    for (index, mut pre_solve_delta_position, mut pre_solve_delta_rotation) in
                         &mut query
                     {
-                        pre_solve_translation.0 = translation.0;
-                        previous_rotation.0 = *rotation;
+                        if let Some(body) = solver_bodies.get(*index) {
+                            // Store the previous delta translation and rotation for XPBD velocity updates.
+                            pre_solve_delta_position.0 = body.delta_position;
+                            pre_solve_delta_rotation.0 = body.delta_rotation;
+                        }
                     }
                 },
-                xpbd::solve_constraint::<FixedJoint, 2>,
-                xpbd::solve_constraint::<RevoluteJoint, 2>,
+                xpbd::solve_xpbd_constraint::<FixedJoint>,
+                xpbd::solve_xpbd_constraint::<RevoluteJoint>,
                 #[cfg(feature = "3d")]
-                xpbd::solve_constraint::<SphericalJoint, 2>,
-                xpbd::solve_constraint::<PrismaticJoint, 2>,
-                xpbd::solve_constraint::<DistanceJoint, 2>,
+                xpbd::solve_xpbd_constraint::<SphericalJoint>,
+                xpbd::solve_xpbd_constraint::<PrismaticJoint>,
+                xpbd::solve_xpbd_constraint::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SubstepSolverSet::SolveXpbdConstraints),
@@ -178,12 +190,12 @@ impl Plugin for SolverPlugin {
             (
                 xpbd::project_linear_velocity,
                 xpbd::project_angular_velocity,
-                joint_damping::<FixedJoint>,
+                /*joint_damping::<FixedJoint>,
                 joint_damping::<RevoluteJoint>,
                 #[cfg(feature = "3d")]
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
-                joint_damping::<DistanceJoint>,
+                joint_damping::<DistanceJoint>,*/
             )
                 .chain()
                 .in_set(SubstepSolverSet::XpbdVelocityProjection),
@@ -609,6 +621,7 @@ fn store_contact_impulses(
     diagnostics.store_impulses += start.elapsed();
 }
 
+/*
 /// Applies velocity corrections caused by joint damping.
 #[allow(clippy::type_complexity)]
 pub fn joint_damping<T: Joint>(
@@ -674,3 +687,4 @@ pub fn joint_damping<T: Joint>(
         }
     }
 }
+*/

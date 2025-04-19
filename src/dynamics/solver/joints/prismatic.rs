@@ -1,6 +1,12 @@
 //! [`PrismaticJoint`] component.
 
-use crate::{dynamics::solver::xpbd::*, prelude::*};
+use crate::{
+    dynamics::solver::{
+        solver_body::{SolverBody, SolverBodyInertia},
+        xpbd::*,
+    },
+    prelude::*,
+};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -21,6 +27,7 @@ pub struct PrismaticJoint {
     pub entity1: Entity,
     /// Second entity constrained by the joint.
     pub entity2: Entity,
+    pub angle_constraint: AngleConstraint,
     /// Attachment point on the first body.
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
@@ -35,39 +42,64 @@ pub struct PrismaticJoint {
     pub damping_angular: Scalar,
     /// Lagrange multiplier for the positional correction.
     pub position_lagrange: Scalar,
-    /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
-    pub align_lagrange: Scalar,
-    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
-    pub compliance: Scalar,
+    /// The joint's compliance for aligning the positions of the bodies to the `free_axis`. The inverse of stiffness.
+    pub axis_compliance: Scalar,
+    /// The joint's compliance for the distance limit. The inverse of stiffness.
+    pub limit_compliance: Scalar,
     /// The force exerted by the joint.
     pub force: Vector,
-    /// The torque exerted by the joint when aligning the bodies.
-    pub align_torque: Torque,
+    pre_step: PrismaticJointPreStepData,
 }
 
-impl XpbdConstraint<2> for PrismaticJoint {
+#[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct PrismaticJointPreStepData {
+    pub world_r1: Vector,
+    pub world_r2: Vector,
+    pub center_difference: Vector,
+    pub free_axis1: Vector,
+}
+
+impl EntityConstraint<2> for PrismaticJoint {
     fn entities(&self) -> [Entity; 2] {
         [self.entity1, self.entity2]
     }
+}
 
+impl XpbdConstraint<2> for PrismaticJoint {
     fn clear_lagrange_multipliers(&mut self) {
         self.position_lagrange = 0.0;
-        self.align_lagrange = 0.0;
+        self.angle_constraint.clear_lagrange_multipliers();
     }
 
-    fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: Scalar) {
+    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: Scalar) {
         let [body1, body2] = bodies;
-        let compliance = self.compliance;
 
-        // Align orientations
-        let difference = self.get_rotation_difference(&body1.rotation, &body2.rotation);
-        let mut lagrange = self.align_lagrange;
-        self.align_torque =
-            self.align_orientation(body1, body2, difference, &mut lagrange, compliance, dt);
-        self.align_lagrange = lagrange;
+        // Prepare the point-to-point constraint.
+        self.angle_constraint.prepare(bodies, dt);
 
-        // Constrain the relative positions of the bodies, only allowing translation along one free axis
-        self.force = self.constrain_positions(body1, body2, dt);
+        // Prepare the prismatic joint.
+        self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass.0);
+        self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass.0);
+        self.pre_step.center_difference = body2.position.0 - body1.position.0;
+        self.pre_step.free_axis1 = body1.rotation * self.free_axis;
+    }
+
+    fn solve(
+        &mut self,
+        bodies: [&mut SolverBody; 2],
+        inertias: [&SolverBodyInertia; 2],
+        dt: Scalar,
+    ) {
+        let [body1, body2] = bodies;
+
+        // Solve the angular constraint.
+        self.angle_constraint.solve([body1, body2], inertias, dt);
+
+        // Constrain the relative positions of the bodies, only allowing translation along one free axis.
+        self.force = self.constrain_positions(body1, body2, inertias[0], inertias[1], dt);
     }
 }
 
@@ -76,6 +108,7 @@ impl Joint for PrismaticJoint {
         Self {
             entity1,
             entity2,
+            angle_constraint: AngleConstraint::default(),
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
             free_axis: Vector::X,
@@ -83,87 +116,104 @@ impl Joint for PrismaticJoint {
             damping_linear: 1.0,
             damping_angular: 1.0,
             position_lagrange: 0.0,
-            align_lagrange: 0.0,
-            compliance: 0.0,
+            axis_compliance: 0.0,
+            limit_compliance: 0.0,
             force: Vector::ZERO,
-            #[cfg(feature = "2d")]
-            align_torque: 0.0,
-            #[cfg(feature = "3d")]
-            align_torque: Vector::ZERO,
+            pre_step: PrismaticJointPreStepData::default(),
         }
     }
 
-    fn with_compliance(self, compliance: Scalar) -> Self {
-        Self { compliance, ..self }
+    #[inline]
+    fn local_anchor_1(&self) -> Vector {
+        self.local_anchor1
     }
 
-    fn with_local_anchor_1(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor1: anchor,
-            ..self
-        }
+    #[inline]
+    fn local_anchor_2(&self) -> Vector {
+        self.local_anchor2
+    }
+}
+
+impl PrismaticJoint {
+    #[inline]
+    pub fn with_compliance(mut self, compliance: Scalar) -> Self {
+        self.angle_constraint.compliance = compliance;
+        self.axis_compliance = compliance;
+        self.limit_compliance = compliance;
+        self
     }
 
-    fn with_local_anchor_2(self, anchor: Vector) -> Self {
-        Self {
-            local_anchor2: anchor,
-            ..self
-        }
+    #[inline]
+    pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
+        self.local_anchor1 = anchor;
+        self
     }
 
-    fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
+    #[inline]
+    pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
+        self.local_anchor2 = anchor;
+        self
+    }
+
+    #[inline]
+    pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
             damping_linear: damping,
             ..self
         }
     }
 
-    fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
+    #[inline]
+    pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
             damping_angular: damping,
             ..self
         }
     }
 
-    fn local_anchor_1(&self) -> Vector {
-        self.local_anchor1
-    }
-
-    fn local_anchor_2(&self) -> Vector {
-        self.local_anchor2
-    }
-
-    fn damping_linear(&self) -> Scalar {
+    #[inline]
+    pub fn damping_linear(&self) -> Scalar {
         self.damping_linear
     }
 
-    fn damping_angular(&self) -> Scalar {
+    #[inline]
+    pub fn damping_angular(&self) -> Scalar {
         self.damping_angular
     }
-}
 
-impl PrismaticJoint {
+    #[inline]
+    pub fn force(&self) -> Vector {
+        self.force
+    }
+
     /// Constrains the relative positions of the bodies, only allowing translation along one free axis.
     ///
     /// Returns the force exerted by this constraint.
     fn constrain_positions(
         &mut self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        body2: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        inertia2: &SolverBodyInertia,
         dt: Scalar,
     ) -> Vector {
-        let world_r1 = *body1.rotation * self.local_anchor1;
-        let world_r2 = *body2.rotation * self.local_anchor2;
+        // Compute the effective inverse masses and angular inertias of the bodies.
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_angular_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_angular_inertia2 = inertia2.effective_inv_angular_inertia();
+
+        let world_r1 = body1.delta_rotation * self.pre_step.world_r1;
+        let world_r2 = body2.delta_rotation * self.pre_step.world_r2;
 
         let mut delta_x = Vector::ZERO;
 
-        let axis1 = *body1.rotation * self.free_axis;
+        let axis1 = body1.delta_rotation * self.pre_step.free_axis1;
         if let Some(limits) = self.free_axis_limits {
-            delta_x += limits.compute_correction_along_axis(
-                body1.current_position() + world_r1,
-                body2.current_position() + world_r2,
-                axis1,
-            );
+            let separation = (body2.delta_position - body1.delta_position)
+                + (world_r2 - world_r1)
+                + self.pre_step.center_difference;
+            delta_x += limits.compute_correction_along_axis(separation, axis1);
         }
 
         let zero_distance_limit = DistanceLimit::ZERO;
@@ -171,27 +221,26 @@ impl PrismaticJoint {
         #[cfg(feature = "2d")]
         {
             let axis2 = Vector::new(axis1.y, -axis1.x);
-            delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.current_position() + world_r1,
-                body2.current_position() + world_r2,
-                axis2,
-            );
+
+            let separation = (body2.delta_position - body1.delta_position)
+                + (world_r2 - world_r1)
+                + self.pre_step.center_difference;
+            delta_x += zero_distance_limit.compute_correction_along_axis(separation, axis2);
         }
         #[cfg(feature = "3d")]
         {
             let axis2 = axis1.any_orthogonal_vector();
             let axis3 = axis1.cross(axis2);
 
-            delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.current_position() + world_r1,
-                body2.current_position() + world_r2,
-                axis2,
-            );
-            delta_x += zero_distance_limit.compute_correction_along_axis(
-                body1.current_position() + world_r1,
-                body2.current_position() + world_r2,
-                axis3,
-            );
+            let separation = (body2.delta_position - body1.delta_position)
+                + (world_r2 - world_r1)
+                + self.pre_step.center_difference;
+            delta_x += zero_distance_limit.compute_correction_along_axis(separation, axis2);
+
+            let separation = (body2.delta_position - body1.delta_position)
+                + (world_r2 - world_r1)
+                + self.pre_step.center_difference;
+            delta_x += zero_distance_limit.compute_correction_along_axis(separation, axis3);
         }
 
         let magnitude = delta_x.length();
@@ -203,15 +252,27 @@ impl PrismaticJoint {
         let dir = delta_x / magnitude;
 
         // Compute generalized inverse masses
-        let w1 = PositionConstraint::compute_generalized_inverse_mass(self, body1, world_r1, dir);
-        let w2 = PositionConstraint::compute_generalized_inverse_mass(self, body2, world_r2, dir);
+        let w1 = PositionConstraint::compute_generalized_inverse_mass(
+            self,
+            inv_mass1.max_element(),
+            inv_angular_inertia1,
+            world_r1,
+            dir,
+        );
+        let w2 = PositionConstraint::compute_generalized_inverse_mass(
+            self,
+            inv_mass2.max_element(),
+            inv_angular_inertia2,
+            world_r2,
+            dir,
+        );
 
         // Compute Lagrange multiplier update
         let delta_lagrange = self.compute_lagrange_update(
             self.position_lagrange,
             magnitude,
             &[w1, w2],
-            self.compliance,
+            self.axis_compliance,
             dt,
         );
         self.position_lagrange += delta_lagrange;
@@ -220,6 +281,8 @@ impl PrismaticJoint {
         self.apply_positional_lagrange_update(
             body1,
             body2,
+            inertia1,
+            inertia2,
             delta_lagrange,
             dir,
             world_r1,
@@ -244,18 +307,6 @@ impl PrismaticJoint {
             free_axis_limits: Some(DistanceLimit::new(min, max)),
             ..self
         }
-    }
-
-    #[cfg(feature = "2d")]
-    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Scalar {
-        rot1.angle_between(*rot2)
-    }
-
-    #[cfg(feature = "3d")]
-    fn get_rotation_difference(&self, rot1: &Rotation, rot2: &Rotation) -> Vector {
-        // TODO: The XPBD paper doesn't have this minus sign, but it seems to be needed for stability.
-        //       The angular correction code might have a wrong sign elsewhere.
-        -2.0 * (rot1.0 * rot2.inverse().0).xyz()
     }
 }
 

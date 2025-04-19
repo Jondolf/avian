@@ -276,10 +276,10 @@ use derive_more::From;
     // Currently required for solver internals.
     // Some of these might be removed in the future.
     AccumulatedTranslation,
-    PreSolveAccumulatedTranslation,
+    PreSolveDeltaPosition,
+    PreSolveDeltaRotation,
     PreSolveLinearVelocity,
     PreSolveAngularVelocity,
-    PreSolveRotation,
     PreviousRotation,
 )]
 #[cfg_attr(feature = "3d", require(GlobalAngularInertia))]

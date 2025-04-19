@@ -534,7 +534,7 @@ pub mod prelude {
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
         math::*,
-        position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
+        position::{PreSolveDeltaPosition, PreSolveDeltaRotation, PreviousRotation},
     };
     pub use avian_derive::*;
 }

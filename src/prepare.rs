@@ -314,9 +314,9 @@ pub fn init_transforms<C: Component>(
                 cmds.try_insert((
                     Position(new_position),
                     new_rotation,
-                    PreSolveAccumulatedTranslation::default(),
+                    PreSolveDeltaPosition::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveRotation::default(),
+                    PreSolveDeltaRotation::default(),
                 ));
             }
             (true, Some(transform)) => {
@@ -324,9 +324,9 @@ pub fn init_transforms<C: Component>(
                     transform,
                     Position(new_position),
                     new_rotation,
-                    PreSolveAccumulatedTranslation::default(),
+                    PreSolveDeltaPosition::default(),
                     *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveRotation::default(),
+                    PreSolveDeltaRotation::default(),
                 ));
             }
             (false, None) => {

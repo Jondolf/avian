@@ -496,6 +496,7 @@ struct SweptCcdBodyQuery {
     entity: Entity,
     rb: &'static RigidBody,
     pos: &'static Position,
+    // TODO: Update this for solver bodies.
     translation: Option<&'static mut AccumulatedTranslation>,
     rot: &'static mut Rotation,
     prev_rot: Option<&'static mut PreviousRotation>,
