@@ -113,11 +113,6 @@ impl Plugin for SolverPlugin {
         // Update previous rotations before the substepping loop.
         physics.add_systems(
             (
-                |mut query: Query<(&Rotation, &mut PreviousRotation)>| {
-                    for (rot, mut prev_rot) in &mut query {
-                        prev_rot.0 = *rot;
-                    }
-                },
                 xpbd::prepare_xpbd_constraint::<FixedJoint>,
                 xpbd::prepare_xpbd_constraint::<RevoluteJoint>,
                 xpbd::prepare_xpbd_constraint::<PrismaticJoint>,

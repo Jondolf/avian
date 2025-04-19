@@ -997,10 +997,3 @@ impl From<DQuat> for Rotation {
         ))
     }
 }
-
-/// The previous rotation of a body. See [`Rotation`].
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, Default, PartialEq)]
-pub struct PreviousRotation(pub Rotation);

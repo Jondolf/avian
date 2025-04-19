@@ -488,9 +488,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .max(*self.contact_tolerance)
                         + collision_margin_sum;
 
-                    let position1 = collider1.current_position();
-                    let position2 = collider2.current_position();
-
                     let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
 
                     // Save the old manifolds for warm starting.
@@ -506,9 +503,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     );
                     collider1.shape.contact_manifolds_with_context(
                         collider2.shape,
-                        position1,
+                        collider1.position.0,
                         *collider1.rotation,
-                        position2,
+                        collider2.position.0,
                         *collider2.rotation,
                         max_contact_distance,
                         &mut contacts.manifolds,

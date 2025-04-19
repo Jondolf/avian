@@ -145,7 +145,6 @@ pub fn init_transforms<C: Component>(
             Option<&GlobalTransform>,
             Option<&Position>,
             Option<&Rotation>,
-            Option<&PreviousRotation>,
             Option<&ChildOf>,
             Has<RigidBody>,
         ),
@@ -165,9 +164,7 @@ pub fn init_transforms<C: Component>(
         return;
     }
 
-    for (entity, transform, global_transform, pos, rot, previous_rot, parent, has_rigid_body) in
-        &query
-    {
+    for (entity, transform, global_transform, pos, rot, parent, has_rigid_body) in &query {
         let parent_transforms = parent.and_then(|&ChildOf(parent)| parents.get(parent).ok());
         let parent_pos = parent_transforms.and_then(|(pos, _, _)| pos);
         let parent_rot = parent_transforms.and_then(|(_, rot, _)| rot);
@@ -305,29 +302,14 @@ pub fn init_transforms<C: Component>(
         let mut cmds = commands.entity(entity);
 
         // Insert the position and rotation.
-        // The values are either unchanged (Position and Rotation already exist)
+        // The values are either unchanged (`Position` and `Rotation` already exist)
         // or computed based on the GlobalTransform.
-        // If the entity isn't a rigid body, adding PreSolveAccumulatedTranslation and PreviousRotation
-        // is unnecessary.
         match (has_rigid_body, new_transform) {
             (true, None) => {
-                cmds.try_insert((
-                    Position(new_position),
-                    new_rotation,
-                    PreSolveDeltaPosition::default(),
-                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveDeltaRotation::default(),
-                ));
+                cmds.try_insert((Position(new_position), new_rotation));
             }
             (true, Some(transform)) => {
-                cmds.try_insert((
-                    transform,
-                    Position(new_position),
-                    new_rotation,
-                    PreSolveDeltaPosition::default(),
-                    *previous_rot.unwrap_or(&PreviousRotation(new_rotation)),
-                    PreSolveDeltaRotation::default(),
-                ));
+                cmds.try_insert((transform, Position(new_position), new_rotation));
             }
             (false, None) => {
                 cmds.try_insert((Position(new_position), new_rotation));

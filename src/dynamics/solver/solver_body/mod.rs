@@ -13,10 +13,7 @@ mod plugin;
 
 pub use plugin::SolverBodyPlugin;
 
-use bevy::{
-    prelude::*,
-    tasks::{ParallelSliceMut, TaskPool},
-};
+use bevy::{prelude::*, tasks::TaskPool};
 
 use super::{Rotation, Vector};
 use crate::{math::Scalar, prelude::LockedAxes, Tensor};
@@ -539,14 +536,24 @@ impl SolverBodies {
         self.bodies.get_mut(index.0)
     }
 
+    /// Returns a reference to the solver body with the given index without doing bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the index is in bounds.
+    #[inline]
+    pub unsafe fn get_unchecked(&self, index: SolverBodyIndex) -> &SolverBody {
+        self.bodies.get_unchecked(index.0)
+    }
+
     /// Returns a mutable reference to the solver body with the given index without doing bounds checking.
     ///
     /// # Safety
     ///
     /// The caller must ensure that the index is in bounds.
     #[inline]
-    pub unsafe fn get_unchecked_mut(&mut self, index: usize) -> &mut SolverBody {
-        self.bodies.get_unchecked_mut(index)
+    pub unsafe fn get_unchecked_mut(&mut self, index: SolverBodyIndex) -> &mut SolverBody {
+        self.bodies.get_unchecked_mut(index.0)
     }
 
     /// Returns mutable references to the two solver bodies with the given indices.

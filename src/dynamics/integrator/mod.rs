@@ -151,7 +151,6 @@ impl Gravity {
 struct VelocityIntegrationQuery {
     rb: &'static RigidBody,
     solver_index: &'static SolverBodyIndex,
-    pos: &'static Position,
     #[cfg(feature = "3d")]
     rot: &'static Rotation,
     force: &'static ExternalForce,
@@ -170,7 +169,7 @@ struct VelocityIntegrationQuery {
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
-    mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
+    bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
     mut solver_bodies: ResMut<SolverBodies>,
     gravity: Res<Gravity>,
     time: Res<Time>,
@@ -182,22 +181,15 @@ fn integrate_velocities(
 
     // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
     //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
-    // TODO: Is it faster to iterate over solver bodies in parallel and then query for rigid body data?
-    //       We could use flags to determine whether we need to query for ECS data or not.
-    //       Querying is needed for: damping, max speed, gyroscopic torque
     solver_bodies.par_for_each(
         ComputeTaskPool::get(),
         None,
         |index, solver_body, entities, _| {
-            // SAFETY: The indices of solver bodies match the entity indices,
-            //         so the index is guaranteed to be in bounds.
-            //         The `SolverBodyPlugin` is responsible for ensuring that valid indices are in bounds.
+            // SAFETY: The indices of solver bodies match the entity indices, so the index is guaranteed to be in bounds.
+            //         The `SolverBodyPlugin` is responsible for ensuring that indices are valid.
             let entity = unsafe { *entities.get_unchecked(index) };
             let body = bodies.get(entity).unwrap_or_else(|_| {
-                panic!(
-                    "Solver body index {} is out of bounds for the rigid body query.",
-                    index
-                )
+                panic!("Rigid body not found for solver body {index} with entity {entity}.")
             });
 
             if body.rb.is_dynamic() {
