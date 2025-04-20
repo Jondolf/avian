@@ -530,12 +530,15 @@ fn store_contact_impulses(
     let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) =
-            contact_graph.get_mut(constraint.collider_entity1, constraint.collider_entity2)
+        // TODO: If the constraint indices matched the contact pair indices,
+        //       we could use the index instead of the ID to avoid an extra lookup.
+        let Some(contact_pair) = contact_graph
+            .internal
+            .edge_weight_mut(constraint.contact_id)
         else {
             unreachable!(
-                "Contact pair between {} and {} not found in contact graph.",
-                constraint.collider_entity1, constraint.collider_entity2
+                "Contact pair {:?} not found in contact graph.",
+                constraint.contact_id,
             );
         };
 

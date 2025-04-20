@@ -1,5 +1,5 @@
 use crate::data_structures::{
-    graph::{EdgeWeightsMut, NodeIndex, UnGraph},
+    graph::{EdgeId, EdgeWeightsMut, NodeIndex, UnGraph},
     pair_key::PairKey,
     sparse_secondary_map::SparseSecondaryEntityMap,
 };
@@ -151,7 +151,7 @@ impl ContactGraph {
     /// If you only want touching contacts, use [`iter_touching`](Self::iter_touching) instead.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &ContactPair> {
-        self.internal.all_edge_weights()
+        self.internal.raw_edge_weights().iter()
     }
 
     /// Returns an iterator yielding immutable access to all contact pairs that are currently touching.
@@ -159,8 +159,7 @@ impl ContactGraph {
     /// This is a subset of [`iter`](Self::iter) that only includes pairs where the colliders are touching.
     #[inline]
     pub fn iter_touching(&self) -> impl Iterator<Item = &ContactPair> {
-        self.internal
-            .all_edge_weights()
+        self.iter()
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
     }
 
@@ -172,7 +171,7 @@ impl ContactGraph {
     /// If you only want touching contacts, use [`iter_touching_mut`](Self::iter_touching_mut) instead.
     #[inline]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {
-        self.internal.all_edge_weights_mut()
+        self.internal.raw_edge_weights_mut().iter_mut()
     }
 
     /// Returns a iterator yielding mutable access to all contact pairs that are currently touching.
@@ -180,8 +179,7 @@ impl ContactGraph {
     /// This is a subset of [`iter_mut`](Self::iter_mut) that only includes pairs where the colliders are touching.
     #[inline]
     pub fn iter_touching_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {
-        self.internal
-            .all_edge_weights_mut()
+        self.iter_mut()
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
     }
 
@@ -353,14 +351,28 @@ impl ContactGraph {
             return None;
         };
 
+        // Remove the edge from the graph.
+        self.internal.find_edge(index1, index2).and_then(|edge_id| {
+            let pair_key = PairKey::new(entity1.index(), entity2.index());
+            self.remove_pair_by_id(&pair_key, edge_id)
+        })
+    }
+
+    /// Removes a contact pair based on its pair key and ID and returns its value.
+    ///
+    /// # Warning
+    ///
+    /// Removing a collision pair with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    ///
+    /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
+    #[inline]
+    pub fn remove_pair_by_id(&mut self, pair_key: &PairKey, id: EdgeId) -> Option<ContactPair> {
         // Remove the pair from the pair set.
-        self.pair_set
-            .remove(&PairKey::new(entity1.index(), entity2.index()));
+        self.pair_set.remove(pair_key);
 
         // Remove the edge from the graph.
-        self.internal
-            .find_edge(index1, index2)
-            .and_then(|edge| self.internal.remove_edge(edge))
+        self.internal.remove_edge(id)
     }
 
     /// Removes the collider of the given entity from the contact graph,

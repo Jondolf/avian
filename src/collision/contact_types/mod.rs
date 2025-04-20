@@ -8,7 +8,10 @@ pub use contact_graph::ContactGraph;
 pub use feature_id::PackedFeatureId;
 pub use system_param::Collisions;
 
-use crate::prelude::*;
+use crate::{
+    data_structures::graph::{EdgeId, EdgeWeight},
+    prelude::*,
+};
 use bevy::prelude::*;
 
 /// A contact pair between two colliders.
@@ -22,6 +25,9 @@ use bevy::prelude::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPair {
+    // TODO: Add a `ContactId` newtype.
+    /// The stable identifier of the contact pair.
+    pub id: u32,
     /// The first collider entity in the contact.
     pub entity1: Entity,
     /// The second collider entity in the contact.
@@ -64,11 +70,24 @@ bitflags::bitflags! {
     }
 }
 
+impl EdgeWeight for ContactPair {
+    fn edge_id(&self) -> EdgeId {
+        EdgeId(self.id)
+    }
+
+    fn set_edge_id(&mut self, id: EdgeId) {
+        self.id = id.0;
+    }
+}
+
 impl ContactPair {
     /// Creates a new [`ContactPair`] with the given entities.
     #[inline]
     pub fn new(entity1: Entity, entity2: Entity) -> Self {
         Self {
+            // We use `u32::MAX` as a placeholder ID for the contact pair.
+            // It gets set to a valid ID when the contact pair is added to the `ContactGraph`.
+            id: u32::MAX,
             entity1,
             entity2,
             body_entity1: None,

@@ -6,7 +6,7 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::prelude::*;
+use crate::{data_structures::graph::EdgeId, prelude::*};
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
@@ -59,14 +59,15 @@ pub struct ContactConstraintPoint {
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
+    // TODO: `ContactId` newtype for `EdgeId`.
+    /// The stable identifier of the [`ContactPair`] in the [`ContactGraph`].
+    pub contact_id: EdgeId,
+    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
+    pub manifold_index: usize,
     /// The first rigid body entity in the contact.
     pub entity1: Entity,
     /// The second rigid body entity in the contact.
     pub entity2: Entity,
-    /// The first collider entity in the contact.
-    pub collider_entity1: Entity,
-    /// The second collider entity in the contact.
-    pub collider_entity2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
     pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
@@ -89,8 +90,6 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
-    pub manifold_index: usize,
 }
 
 impl ContactConstraint {
@@ -319,7 +318,5 @@ impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.entity1 = entity_mapper.get_mapped(self.entity1);
         self.entity2 = entity_mapper.get_mapped(self.entity2);
-        self.collider_entity1 = entity_mapper.get_mapped(self.collider_entity1);
-        self.collider_entity2 = entity_mapper.get_mapped(self.collider_entity2);
     }
 }
