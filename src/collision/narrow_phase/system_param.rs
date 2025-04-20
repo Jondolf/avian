@@ -3,7 +3,7 @@ use core::cell::RefCell;
 
 use crate::{
     collision::collider::ColliderQuery,
-    data_structures::{bit_vec::BitVec, graph::EdgeId, pair_key::PairKey},
+    data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -155,7 +155,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     });
 
                     // Remove the contact pair from the contact graph.
-                    // TODO: Swap constraint with the last one to make the indices match?
                     let pair_key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
                     self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
@@ -577,8 +576,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
 
                     // Now, we generate contact constraints for the contact pair.
-                    // TODO: Make sure the number of touching contacts matches the number of constraints.
-                    //       Store contact sims separately?
                     let Some(((body1, _, _), (body2, _, _))) = body1_bundle.zip(body2_bundle)
                     else {
                         return;
@@ -620,7 +617,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     for (manifold_index, manifold) in contact_pair.manifolds.iter_mut().enumerate()
                     {
                         let mut constraint = ContactConstraint {
-                            contact_id: EdgeId(contact_id as u32),
+                            contact_id: ContactId(contact_id as u32),
                             manifold_index,
                             entity1: body1.entity,
                             entity2: body2.entity,
@@ -682,7 +679,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                 };
 
                             if !keep_contact {
-                                // continue;
+                                continue;
                             }
 
                             let point = ContactConstraintPoint {
@@ -724,9 +721,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             constraint.points.push(point);
                         }
 
-                        // if !constraint.points.is_empty() {
-                        constraints.push(constraint);
-                        // }
+                        if !constraint.points.is_empty() {
+                            constraints.push(constraint);
+                        }
                     }
                 };
             }

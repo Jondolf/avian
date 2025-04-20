@@ -6,7 +6,7 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::{data_structures::graph::EdgeId, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
@@ -59,9 +59,8 @@ pub struct ContactConstraintPoint {
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
-    // TODO: `ContactId` newtype for `EdgeId`.
     /// The stable identifier of the [`ContactPair`] in the [`ContactGraph`].
-    pub contact_id: EdgeId,
+    pub contact_id: ContactId,
     /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
     pub manifold_index: usize,
     /// The first rigid body entity in the contact.

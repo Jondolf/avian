@@ -532,10 +532,7 @@ fn store_contact_impulses(
     for constraint in constraints.iter() {
         // TODO: If the constraint indices matched the contact pair indices,
         //       we could use the index instead of the ID to avoid an extra lookup.
-        let Some(contact_pair) = contact_graph
-            .internal
-            .edge_weight_mut(constraint.contact_id)
-        else {
+        let Some(contact_pair) = contact_graph.get_mut_by_id(constraint.contact_id) else {
             unreachable!(
                 "Contact pair {:?} not found in contact graph.",
                 constraint.contact_id,
