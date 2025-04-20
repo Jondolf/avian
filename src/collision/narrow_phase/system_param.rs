@@ -115,13 +115,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         for (i, mut bits) in self.contact_status_bits.blocks().enumerate() {
             while bits != 0 {
                 let trailing_zeros = bits.trailing_zeros();
-                let pair_id = EdgeId(i as u32 * 64 + trailing_zeros);
+                let contact_id = ContactId(i as u32 * 64 + trailing_zeros);
 
                 let contact_pair = self
                     .contact_graph
-                    .internal
-                    .edge_weight_mut(pair_id)
-                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_id));
+                    .get_mut_by_id(contact_id)
+                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", contact_id));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
@@ -159,7 +158,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // TODO: Swap constraint with the last one to make the indices match?
                     let pair_key =
                         PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
-                    self.contact_graph.remove_pair_by_id(&pair_key, pair_id);
+                    self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
@@ -301,12 +300,14 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // If parallelism is not used, status changes are instead written
         // directly to the global bit vector.
         //
+        // TODO: Right now this iterates over *all* contact pairs, including sleeping bodies.
+        //       Eventually, we might want separate lists for active and inactive contact pairs.
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
         crate::utils::par_for_each!(
             self.contact_graph.internal.raw_edge_weights_mut(),
             |_i, contact_pair| {
-                let contact_id = contact_pair.id as usize;
+                let contact_id = contact_pair.id.0 as usize;
 
                 #[cfg(not(feature = "parallel"))]
                 let status_change_bits = &mut self.contact_status_bits;
@@ -588,8 +589,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                     // No collision response if both bodies are static or sleeping
                     // or if either of the colliders is a sensor collider.
-                    // TODO: Remove this. Sensors shouldn't have contact pair computation,
-                    //       and pairs with both bodies static or sleeping shouldn't get here.
+                    // TODO: Check this earlier?
+                    // TODO: Sensors shouldn't have contact pair computation,
+                    //       and pairs with both bodies as static or sleeping shouldn't get here.
                     if (inactive1 && inactive2) || contact_pair.is_sensor() {
                         return;
                     }

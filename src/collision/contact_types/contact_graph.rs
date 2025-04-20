@@ -1,13 +1,10 @@
 use crate::data_structures::{
-    graph::{EdgeId, EdgeWeightsMut, NodeIndex, UnGraph},
+    graph::{EdgeWeightsMut, NodeIndex, UnGraph},
     pair_key::PairKey,
     sparse_secondary_map::SparseSecondaryEntityMap,
 };
-#[expect(unused_imports)]
 use crate::prelude::*;
 use bevy::{platform::collections::HashSet, prelude::*};
-
-use super::{ContactPair, ContactPairFlags};
 
 /// A resource that stores all contact pairs in the physics world
 /// in an [undirected graph](UnGraph).
@@ -101,7 +98,17 @@ impl ContactGraph {
 
         self.internal
             .find_edge(index1, index2)
-            .and_then(|edge| self.internal.edge_weight(edge))
+            .and_then(|edge| self.get_by_id(edge.into()))
+    }
+
+    /// Returns the contact pair between two entities based on the contact ID.
+    /// If the pair does not exist, `None` is returned.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
+    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
+    #[inline]
+    pub fn get_by_id(&self, id: ContactId) -> Option<&ContactPair> {
+        self.internal.edge_weight(id.into())
     }
 
     /// Returns a mutable reference to the contact pair between two entities.
@@ -120,7 +127,17 @@ impl ContactGraph {
 
         self.internal
             .find_edge(index1, index2)
-            .and_then(|edge| self.internal.edge_weight_mut(edge))
+            .and_then(|edge| self.get_mut_by_id(edge.into()))
+    }
+
+    /// Returns a mutable reference to the contact pair between two entities based on the contact ID.
+    /// If the pair does not exist, `None` is returned.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
+    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
+    #[inline]
+    pub fn get_mut_by_id(&mut self, id: ContactId) -> Option<&mut ContactPair> {
+        self.internal.edge_weight_mut(id.into())
     }
 
     /// Returns `true` if the given entities have a contact pair.
@@ -354,7 +371,7 @@ impl ContactGraph {
         // Remove the edge from the graph.
         self.internal.find_edge(index1, index2).and_then(|edge_id| {
             let pair_key = PairKey::new(entity1.index(), entity2.index());
-            self.remove_pair_by_id(&pair_key, edge_id)
+            self.remove_pair_by_id(&pair_key, edge_id.into())
         })
     }
 
@@ -367,12 +384,12 @@ impl ContactGraph {
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
-    pub fn remove_pair_by_id(&mut self, pair_key: &PairKey, id: EdgeId) -> Option<ContactPair> {
+    pub fn remove_pair_by_id(&mut self, pair_key: &PairKey, id: ContactId) -> Option<ContactPair> {
         // Remove the pair from the pair set.
         self.pair_set.remove(pair_key);
 
         // Remove the edge from the graph.
-        self.internal.remove_edge(id)
+        self.internal.remove_edge(id.into())
     }
 
     /// Removes the collider of the given entity from the contact graph,
