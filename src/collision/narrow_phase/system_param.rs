@@ -268,19 +268,18 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        // Contact bit sets must be sized based on the full contact capacity,
+        // Contact bit vecs must be sized based on the full contact capacity
         // not the number of active contact pairs, because pair indices
         // are unstable and can be invalidated when pairs are removed.
-        let contact_pair_count = self.contact_graph.internal.raw_edges().len();
+        let bit_count = self.contact_graph.internal.raw_edges().len();
 
         // Clear the bit vector used to track status changes for each contact pair.
-        self.contact_status_bits
-            .set_bit_count_and_clear(contact_pair_count);
+        self.contact_status_bits.set_bit_count_and_clear(bit_count);
 
         #[cfg(feature = "parallel")]
         self.thread_locals.iter_mut().for_each(|context| {
             let bit_vec_mut = &mut context.borrow_mut().contact_status_bits;
-            bit_vec_mut.set_bit_count_and_clear(contact_pair_count);
+            bit_vec_mut.set_bit_count_and_clear(bit_count);
         });
 
         // Clear the contact constraints.
@@ -320,8 +319,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .get_or(|| {
                         // No thread-local bit vector exists for this thread yet.
                         // Create a new one with the same capacity as the global bit vector.
-                        let mut contact_status_bits = BitVec::new(contact_pair_count);
-                        contact_status_bits.set_bit_count_and_clear(contact_pair_count);
+                        let mut contact_status_bits = BitVec::new(bit_count);
+                        contact_status_bits.set_bit_count_and_clear(bit_count);
                         RefCell::new(NarrowPhaseThreadContext {
                             contact_status_bits,
                             contact_constraints: Vec::new(),
