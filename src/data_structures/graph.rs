@@ -440,7 +440,7 @@ impl<N, E: EdgeWeight> UnGraph<N, E> {
     /// Removes an edge and returns its edge weight, or `None` if it didn't exist.
     ///
     /// Invalidates the edge `e` and its edge weight, and the index of the last edge weight
-    /// (that edge weight will adopt the removed edge weight'S index).
+    /// (that edge weight will adopt the removed edge weight's index).
     ///
     /// Computes in **O(e')** time, where **e'** is the size of four particular edge lists, for
     /// the vertices of `e` and the vertices of another affected edge.
