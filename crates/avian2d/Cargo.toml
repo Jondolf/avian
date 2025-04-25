@@ -73,7 +73,7 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16.0-rc", default-features = false, features = [
+bevy = { version = "0.16.0", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
