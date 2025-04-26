@@ -75,11 +75,11 @@ bench = false
 
 [dependencies]
 avian_derive = { path = "../avian_derive", version = "0.2" }
-bevy = { version = "0.16.0-rc", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
-bevy_math = { version = "0.16.0-rc" }
+bevy_math = { version = "0.16" }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
 bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
 libm = { version = "0.2", optional = true }
@@ -95,11 +95,11 @@ thread_local = { version = "1.1", optional = true }
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
 benches_common_3d = { path = "../benches_common_3d" }
-bevy = { version = "0.16.0-rc", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "bevy_gltf",
     "animation",
 ] }
-bevy_math = { version = "0.16.0-rc", features = ["approx"] }
+bevy_math = { version = "0.16", features = ["approx"] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
     "approx",
 ] }

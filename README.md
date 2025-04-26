@@ -161,7 +161,7 @@ cargo run --example cubes --no-default-features --features "3d f64 parry-f64"
 
 | Bevy    | Avian |
 | ------- | ----- |
-| 0.16 RC | main  |
+| 0.16    | main  |
 | 0.15    | 0.2   |
 | 0.14    | 0.1   |
 
