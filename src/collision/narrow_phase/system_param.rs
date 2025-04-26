@@ -316,6 +316,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 #[cfg(not(feature = "parallel"))]
                 let constraints = &mut self.contact_constraints;
 
+                // TODO: Move this out of the chunk iteration? Requires refactoring `par_for_each!`.
                 #[cfg(feature = "parallel")]
                 // Get the thread-local narrow phase context.
                 let mut thread_context = self
