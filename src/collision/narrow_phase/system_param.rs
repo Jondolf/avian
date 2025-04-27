@@ -304,7 +304,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
         crate::utils::par_for_each!(
             self.contact_graph.internal.raw_edge_weights_mut(),
-            |_i, contact_pair| {
+            |pair_index, contact_pair| {
                 let contact_id = contact_pair.id.0 as usize;
 
                 #[cfg(not(feature = "parallel"))]
@@ -312,6 +312,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 #[cfg(not(feature = "parallel"))]
                 let constraints = &mut self.contact_constraints;
 
+                // TODO: Move this out of the chunk iteration? Requires refactoring `par_for_each!`.
                 #[cfg(feature = "parallel")]
                 // Get the thread-local narrow phase context.
                 let mut thread_context = self
@@ -617,6 +618,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     {
                         let mut constraint = ContactConstraint {
                             contact_id: ContactId(contact_id as u32),
+                            #[cfg(feature = "parallel")]
+                            pair_index,
                             manifold_index,
                             entity1: body1.entity,
                             entity2: body2.entity,
@@ -739,6 +742,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 self.contact_constraints
                     .extend(context_mut.contact_constraints.drain(..));
             });
+
+            // Sort the contact constraints by pair index to maintain determinism.
+            // NOTE: `sort_by_key` is faster than `sort_unstable_by_key` here,
+            //       because the constraints within chunks are already sorted.
+            // TODO: We should figure out an approach that doesn't require sorting.
+            self.contact_constraints
+                .sort_by_key(|constraint| constraint.pair_index);
         }
     }
 }

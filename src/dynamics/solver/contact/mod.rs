@@ -61,6 +61,13 @@ pub struct ContactConstraintPoint {
 pub struct ContactConstraint {
     /// The stable identifier of the [`ContactPair`] in the [`ContactGraph`].
     pub contact_id: ContactId,
+    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    ///
+    /// This is primarily used for ordering contact constraints deterministically
+    /// when parallelism is enabled. The index may be invalidated by contact removal.
+    // TODO: We should figure out a better way to handle deterministic constraint generation.
+    #[cfg(feature = "parallel")]
+    pub pair_index: usize,
     /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
     pub manifold_index: usize,
     /// The first rigid body entity in the contact.
