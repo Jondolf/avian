@@ -316,6 +316,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 #[cfg(not(feature = "parallel"))]
                 let constraints = &mut self.contact_constraints;
 
+                // TODO: Move this out of the chunk iteration? Requires refactoring `par_for_each!`.
                 #[cfg(feature = "parallel")]
                 // Get the thread-local narrow phase context.
                 let mut thread_context = self
@@ -619,6 +620,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             tangent_velocity: manifold.tangent_velocity,
                             normal: manifold.normal,
                             points: Vec::with_capacity(manifold.points.len()),
+                            #[cfg(feature = "parallel")]
+                            pair_index: contact_index,
                             manifold_index,
                         };
 
@@ -731,6 +734,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 self.contact_constraints
                     .extend(context_mut.contact_constraints.drain(..));
             });
+
+            // Sort the contact constraints by pair index to maintain determinism.
+            // NOTE: `sort_by_key` is faster than `sort_unstable_by_key` here,
+            //       because the constraints within chunks are already sorted.
+            // TODO: We should figure out an approach that doesn't require sorting.
+            self.contact_constraints
+                .sort_by_key(|constraint| constraint.pair_index);
         }
     }
 }

@@ -45,7 +45,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
             - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+              run: cargo test --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
 
     lints:
         name: Lints
