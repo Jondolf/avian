@@ -115,7 +115,7 @@ fn add_ancestor_markers<C: Component>(
 /// Remove the component from entity, unless it is already despawned.
 fn remove_component<T: Bundle>(commands: &mut Commands, entity: Entity) {
     if let Ok(mut entity_commands) = commands.get_entity(entity) {
-        entity_commands.remove::<T>();
+        entity_commands.try_remove::<T>();
     }
 }
 
