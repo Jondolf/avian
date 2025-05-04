@@ -943,7 +943,7 @@ impl Collider {
     }
 
     /// Creates a collider with a [convex polygon](https://en.wikipedia.org/wiki/Convex_polygon) shape **without** computing 
-    /// the the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of the given points: convexity of the input is
+    /// the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of the given points: convexity of the input is
     /// assumed and not checked.
     #[cfg(feature = "2d")]
     pub fn convex_polyline(points: Vec<Vector>) -> Option<Self> {
