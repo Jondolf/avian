@@ -68,7 +68,7 @@
 //!     ))
 //!     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
 //!         let pressure_plate = trigger.target();
-//!         let other_entity = trigger.0;
+//!         let other_entity = trigger.collider;
 //!         if player_query.contains(other_entity) {
 //!             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
 //!         }
@@ -183,7 +183,7 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 ///     ))
 ///     .observe(|trigger: Trigger<OnCollisionStart>, player_query: Query<&Player>| {
 ///         let pressure_plate = trigger.target();
-///         let other_entity = trigger.0;
+///         let other_entity = trigger.collider;
 ///         if player_query.contains(other_entity) {
 ///             println!("Player {other_entity} stepped on pressure plate {pressure_plate}");
 ///         }
@@ -199,7 +199,14 @@ pub struct CollisionEnded(pub Entity, pub Entity);
 /// [`CollisionEventSystems`]: super::narrow_phase::CollisionEventSystems
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct OnCollisionStart(pub Entity);
+pub struct OnCollisionStart {
+    /// The entity of the collider that started colliding with the [`Trigger::target`].
+    pub collider: Entity,
+    /// The entity of the rigid body that started colliding with the [`Trigger::target`].
+    ///
+    /// If the collider is not attached to a rigid body, this will be `None`.
+    pub rigid_body: Option<Entity>,
+}
 
 /// A [collision event](super#collision-events) that is triggered for [observers](Observer)
 /// when two colliders stop touching.
@@ -234,7 +241,7 @@ pub struct OnCollisionStart(pub Entity);
 ///     ))
 ///     .observe(|trigger: Trigger<OnCollisionEnd>, player_query: Query<&Player>| {
 ///         let pressure_plate = trigger.target();
-///         let other_entity = trigger.0;
+///         let other_entity = trigger.collider;
 ///         if player_query.contains(other_entity) {
 ///             println!("Player {other_entity} stepped off of pressure plate {pressure_plate}");
 ///         }
@@ -256,7 +263,14 @@ pub struct OnCollisionStart(pub Entity);
 /// [`Collisions`]: super::Collisions
 #[derive(Event, Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-pub struct OnCollisionEnd(pub Entity);
+pub struct OnCollisionEnd {
+    /// The entity of the collider that stopped colliding with the [`Trigger::target`].
+    pub collider: Entity,
+    /// The entity of the rigid body that stopped colliding with the [`Trigger::target`].
+    ///
+    /// If the collider is not attached to a rigid body, this will be `None`.
+    pub rigid_body: Option<Entity>,
+}
 
 /// A marker component that enables [collision events](self) for an entity.
 ///

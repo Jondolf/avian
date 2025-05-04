@@ -262,7 +262,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
 #[derive(SystemParam)]
 struct TriggerCollisionEventsContext<'w, 's> {
-    query: Query<'w, 's, (), With<CollisionEventsEnabled>>,
+    query: Query<'w, 's, Option<&'static ColliderOf>, With<CollisionEventsEnabled>>,
     started: EventReader<'w, 's, CollisionStarted>,
     ended: EventReader<'w, 's, CollisionEnded>,
 }
@@ -282,19 +282,51 @@ fn trigger_collision_events(
     // Collect `OnCollisionStart` and `OnCollisionEnd` events
     // for entities that have events enabled.
     for event in state.started.read() {
-        if state.query.contains(event.0) {
-            started_pairs.push((event.0, OnCollisionStart(event.1)));
+        if let Ok(collider_of) = state.query.get(event.0) {
+            let collider = event.1;
+            let rigid_body = collider_of.map(|c| c.rigid_body);
+            started_pairs.push((
+                event.0,
+                OnCollisionStart {
+                    collider,
+                    rigid_body,
+                },
+            ));
         }
-        if state.query.contains(event.1) {
-            started_pairs.push((event.1, OnCollisionStart(event.0)));
+        if let Ok(collider_of) = state.query.get(event.1) {
+            let collider = event.0;
+            let rigid_body = collider_of.map(|c| c.rigid_body);
+            started_pairs.push((
+                event.1,
+                OnCollisionStart {
+                    collider,
+                    rigid_body,
+                },
+            ));
         }
     }
     for event in state.ended.read() {
-        if state.query.contains(event.0) {
-            ended_pairs.push((event.0, OnCollisionEnd(event.1)));
+        if let Ok(collider_of) = state.query.get(event.0) {
+            let collider = event.1;
+            let rigid_body = collider_of.map(|c| c.rigid_body);
+            ended_pairs.push((
+                event.0,
+                OnCollisionEnd {
+                    collider,
+                    rigid_body,
+                },
+            ));
         }
-        if state.query.contains(event.1) {
-            ended_pairs.push((event.1, OnCollisionEnd(event.0)));
+        if let Ok(collider_of) = state.query.get(event.1) {
+            let collider = event.0;
+            let rigid_body = collider_of.map(|c| c.rigid_body);
+            ended_pairs.push((
+                event.1,
+                OnCollisionEnd {
+                    collider,
+                    rigid_body,
+                },
+            ));
         }
     }
 
