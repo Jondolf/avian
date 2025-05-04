@@ -11,18 +11,30 @@ pub struct ColliderHierarchyPlugin;
 
 impl Plugin for ColliderHierarchyPlugin {
     fn build(&self, app: &mut App) {
-        // Imsert `ColliderOf` for colliders that are on the same entity as the rigid body.
+        // Imsert `ColliderOf` for colliders that are added to a rigid body.
         app.add_observer(
             |trigger: Trigger<OnAdd, (RigidBody, ColliderMarker)>,
              mut commands: Commands,
-             query: Query<(), (With<RigidBody>, With<ColliderMarker>)>| {
+             query: Query<(), With<ColliderMarker>>,
+             rb_query: Query<Entity, With<RigidBody>>,
+             parent_query: Query<&ChildOf>| {
                 let entity = trigger.target();
 
-                // Make sure the collider is on the same entity as the rigid body.
-                if query.contains(entity) {
-                    commands
-                        .entity(entity)
-                        .insert(ColliderOf { rigid_body: entity });
+                // Make sure the entity is a collider.
+                if !query.contains(entity) {
+                    return;
+                }
+
+                // Find the closest rigid body ancestor.
+                if let Some(rigid_body) = rb_query.get(entity).ok().map_or_else(
+                    || {
+                        parent_query
+                            .iter_ancestors(trigger.target())
+                            .find(|&entity| rb_query.contains(entity))
+                    },
+                    Some,
+                ) {
+                    commands.entity(entity).insert(ColliderOf { rigid_body });
                 }
             },
         );
@@ -93,6 +105,7 @@ fn on_collider_rigid_body_changed(
     // and update the `ColliderOf` component to point to the closest rigid body ancestor.
     for child in child_query.iter_descendants(entity) {
         // Stop traversal if we reach another rigid body.
+        // FIXME: This might lead to siblings of the rigid body being skipped.
         if rb_query.contains(child) {
             break;
         }
