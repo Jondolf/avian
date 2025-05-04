@@ -74,7 +74,7 @@ pub struct MaxSlopeAngle(Scalar);
 #[derive(Bundle)]
 pub struct CharacterControllerBundle {
     character_controller: CharacterController,
-    rigid_body: RigidBody,
+    body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
     gravity: ControllerGravity,
@@ -120,7 +120,7 @@ impl CharacterControllerBundle {
 
         Self {
             character_controller: CharacterController,
-            rigid_body: RigidBody::Kinematic,
+            body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(caster_shape, Vector::ZERO, 0.0, Dir2::NEG_Y)
                 .with_max_distance(10.0),
@@ -280,7 +280,7 @@ fn kinematic_controller_collisions(
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
         // Get the rigid body entities of the colliders (colliders could be children)
-        let Ok([&ColliderOf { rigid_body: rb1 }, &ColliderOf { rigid_body: rb2 }]) =
+        let Ok([&ColliderOf { body: rb1 }, &ColliderOf { body: rb2 }]) =
             collider_rbs.get_many([contacts.entity1, contacts.entity2])
         else {
             continue;

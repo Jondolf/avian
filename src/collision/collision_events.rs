@@ -205,7 +205,7 @@ pub struct OnCollisionStart {
     /// The entity of the rigid body that started colliding with the [`Trigger::target`].
     ///
     /// If the collider is not attached to a rigid body, this will be `None`.
-    pub rigid_body: Option<Entity>,
+    pub body: Option<Entity>,
 }
 
 /// A [collision event](super#collision-events) that is triggered for [observers](Observer)
@@ -269,7 +269,7 @@ pub struct OnCollisionEnd {
     /// The entity of the rigid body that stopped colliding with the [`Trigger::target`].
     ///
     /// If the collider is not attached to a rigid body, this will be `None`.
-    pub rigid_body: Option<Entity>,
+    pub body: Option<Entity>,
 }
 
 /// A marker component that enables [collision events](self) for an entity.

@@ -361,14 +361,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else {
                     // The AABBs overlap. Compute contacts.
 
-                    let body1_bundle =
-                        collider1.rigid_body.and_then(|&ColliderOf { rigid_body }| {
-                            self.body_query.get(rigid_body).ok()
-                        });
-                    let body2_bundle =
-                        collider2.rigid_body.and_then(|&ColliderOf { rigid_body }| {
-                            self.body_query.get(rigid_body).ok()
-                        });
+                    let body1_bundle = collider1
+                        .body()
+                        .and_then(|body| self.body_query.get(body).ok());
+                    let body2_bundle = collider2
+                        .body()
+                        .and_then(|body| self.body_query.get(body).ok());
 
                     // The rigid body's friction, restitution, collision margin, and speculative margin
                     // will be used if the collider doesn't have them specified.
