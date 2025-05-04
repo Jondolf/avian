@@ -171,8 +171,7 @@ fn update_aabb_intervals(
                 *layers = *new_layers;
 
                 let is_static = new_collider_of.is_some_and(|collider_of| {
-                    rbs.get(collider_of.body)
-                        .is_ok_and(RigidBody::is_static)
+                    rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)
                 });
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
