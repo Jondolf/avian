@@ -139,42 +139,46 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .contains(ContactPairFlags::TOUCHING | ContactPairFlags::CONTACT_EVENTS);
                     if send_event {
-                        collision_ended_event_writer
-                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                        collision_ended_event_writer.write(CollisionEnded(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Remove from `CollidingEntities`.
                     Self::remove_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     // Wake up the bodies.
                     // TODO: When we have simulation islands, this will be more efficient.
                     commands.command_scope(|mut commands| {
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                            contact_pair.body1.unwrap_or(contact_pair.collider1),
                         ));
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                            contact_pair.body2.unwrap_or(contact_pair.collider2),
                         ));
                     });
 
                     // Queue the contact pair for removal.
-                    pairs_to_remove.push((contact_pair.entity1, contact_pair.entity2));
+                    pairs_to_remove.push((contact_pair.collider1, contact_pair.collider2));
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
-                        collision_started_event_writer
-                            .write(CollisionStarted(contact_pair.entity1, contact_pair.entity2));
+                        collision_started_event_writer.write(CollisionStarted(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Add to `CollidingEntities`.
                     Self::add_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     debug_assert!(
@@ -191,25 +195,27 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 {
                     // Send collision ended event.
                     if contact_pair.events_enabled() {
-                        collision_ended_event_writer
-                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                        collision_ended_event_writer.write(CollisionEnded(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Remove from `CollidingEntities`.
                     Self::remove_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     // Wake up the bodies.
                     // TODO: When we have simulation islands, this will be more efficient.
                     commands.command_scope(|mut commands| {
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                            contact_pair.body1.unwrap_or(contact_pair.collider1),
                         ));
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                            contact_pair.body2.unwrap_or(contact_pair.collider2),
                         ));
                     });
 
@@ -343,7 +349,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Get the colliders for the contact pair.
                 let Ok([collider1, collider2]) = self
                     .collider_query
-                    .get_many([contacts.entity1, contacts.entity2])
+                    .get_many([contacts.collider1, contacts.collider2])
                 else {
                     return;
                 };
@@ -606,10 +612,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Generate a contact constraint for each contact manifold.
                     for (manifold_index, manifold) in contacts.manifolds.iter_mut().enumerate() {
                         let mut constraint = ContactConstraint {
-                            entity1: body1.entity,
-                            entity2: body2.entity,
-                            collider_entity1: collider1.entity,
-                            collider_entity2: collider2.entity,
+                            body1: body1.entity,
+                            body2: body2.entity,
+                            collider1: collider1.entity,
+                            collider2: collider2.entity,
                             friction: manifold.friction,
                             restitution: manifold.restitution,
                             #[cfg(feature = "2d")]

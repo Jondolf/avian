@@ -44,8 +44,8 @@ impl CollisionHooks for ConveyorHooks<'_, '_> {
         // This also affects the sign used for the conveyor belt's speed to apply it in the correct direction.
         let (Ok((conveyor_belt, global_transform)), sign) = self
             .conveyor_query
-            .get(contacts.entity1)
-            .map_or((self.conveyor_query.get(contacts.entity2), 1.0), |q| {
+            .get(contacts.collider1)
+            .map_or((self.conveyor_query.get(contacts.collider2), 1.0), |q| {
                 (Ok(q), -1.0)
             })
         else {

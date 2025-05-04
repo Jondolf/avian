@@ -72,7 +72,7 @@ fn on_collider_body_changed(
     >,
     child_query: Query<&Children>,
     parent_query: Query<&ChildOf>,
-    rb_query: Query<Entity, With<RigidBody>>,
+    body_query: Query<Entity, With<RigidBody>>,
     collider_query: Query<(), With<ColliderMarker>>,
 ) {
     let entity = trigger.target();
@@ -83,11 +83,11 @@ fn on_collider_body_changed(
     };
 
     // Find the closest rigid body ancestor.
-    let Some(rb_entity) = rb_query.get(entity).ok().map_or_else(
+    let Some(body) = body_query.get(entity).ok().map_or_else(
         || {
             parent_query
                 .iter_ancestors(trigger.target())
-                .find(|&entity| rb_query.contains(entity))
+                .find(|&entity| body_query.contains(entity))
         },
         Some,
     ) else {
@@ -96,9 +96,7 @@ fn on_collider_body_changed(
 
     // Insert `ColliderOf` for the new child entity.
     if is_collider {
-        commands
-            .entity(entity)
-            .insert(ColliderOf { body: rb_entity });
+        commands.entity(entity).insert(ColliderOf { body });
     }
 
     // Iterate over all descendants starting from the new child entity,
@@ -106,15 +104,13 @@ fn on_collider_body_changed(
     for child in child_query.iter_descendants(entity) {
         // Stop traversal if we reach another rigid body.
         // FIXME: This might lead to siblings of the rigid body being skipped.
-        if rb_query.contains(child) {
+        if body_query.contains(child) {
             break;
         }
 
         // Update the `ColliderOf` component.
         if collider_query.contains(child) {
-            commands
-                .entity(child)
-                .insert(ColliderOf { body: rb_entity });
+            commands.entity(child).insert(ColliderOf { body });
         }
     }
 }
@@ -123,18 +119,18 @@ fn on_collider_body_changed(
 fn on_body_removed(
     trigger: Trigger<OnRemove, RigidBody>,
     mut commands: Commands,
-    rb_collider_query: Query<&RigidBodyColliders>,
+    body_collider_query: Query<&RigidBodyColliders>,
 ) {
     // TODO: Here we assume that rigid bodies are not nested, so `ColliderOf` is simply removed
     //       instead of being updated to point to a new rigid body in the hierarchy.
 
-    let rb_entity = trigger.target();
+    let body = trigger.target();
 
     // Remove `ColliderOf` from all colliders attached to the rigid body.
-    if let Ok(colliders) = rb_collider_query.get(rb_entity) {
-        for collider_entity in colliders.iter() {
+    if let Ok(colliders) = body_collider_query.get(body) {
+        for collider in colliders.iter() {
             commands
-                .entity(collider_entity)
+                .entity(collider)
                 .try_remove::<(ColliderOf, ColliderTransform)>();
         }
     }

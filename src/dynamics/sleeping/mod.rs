@@ -151,10 +151,10 @@ pub fn mark_sleeping_bodies(
 
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
         let colliding_entities = contact_graph.collisions_with(entity).map(|c| {
-            if entity == c.entity1 {
-                c.entity2
+            if entity == c.collider1 {
+                c.collider2
             } else {
-                c.entity1
+                c.collider1
             }
         });
 

@@ -398,8 +398,7 @@ fn warm_start(
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
+        let Ok([mut body1, mut body2]) = bodies.get_many_mut([constraint.body1, constraint.body2])
         else {
             continue;
         };
@@ -448,8 +447,7 @@ fn solve_contacts<const USE_BIAS: bool>(
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
     for constraint in &mut constraints.0 {
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
+        let Ok([mut body1, mut body2]) = bodies.get_many_mut([constraint.body1, constraint.body2])
         else {
             continue;
         };
@@ -498,8 +496,7 @@ fn solve_restitution(
             continue;
         }
 
-        let Ok([mut body1, mut body2]) =
-            bodies.get_many_mut([constraint.entity1, constraint.entity2])
+        let Ok([mut body1, mut body2]) = bodies.get_many_mut([constraint.body1, constraint.body2])
         else {
             continue;
         };
@@ -530,12 +527,11 @@ fn store_contact_impulses(
     let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) =
-            contact_graph.get_mut(constraint.collider_entity1, constraint.collider_entity2)
+        let Some(contact_pair) = contact_graph.get_mut(constraint.collider1, constraint.collider2)
         else {
             unreachable!(
                 "Contact pair between {} and {} not found in contact graph.",
-                constraint.collider_entity1, constraint.collider_entity2
+                constraint.collider1, constraint.collider2
             );
         };
 
