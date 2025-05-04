@@ -208,7 +208,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
             |trigger: Trigger<OnAdd, Sensor>,
              mut commands: Commands,
              query: Query<(&ColliderMassProperties, &ColliderOf)>| {
-                if let Ok((collider_mass_properties, &ColliderOf { rigid_body })) =
+                if let Ok((collider_mass_properties, &ColliderOf { body })) =
                     query.get(trigger.target())
                 {
                     // If the collider mass properties are zero, there is nothing to subtract.
@@ -217,7 +217,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                     }
 
                     // Queue the rigid body for a mass property update.
-                    if let Ok(mut entity_commands) = commands.get_entity(rigid_body) {
+                    if let Ok(mut entity_commands) = commands.get_entity(body) {
                         entity_commands.insert(RecomputeMassProperties);
                     }
                 }
@@ -550,7 +550,7 @@ fn update_aabb<C: AnyCollider>(
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
         } else if let Some(Ok((rb_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
-            collider_of.map(|&ColliderOf { rigid_body }| rb_velocities.get(rigid_body))
+            collider_of.map(|&ColliderOf { body }| rb_velocities.get(body))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
             // which affects their linear velocities. We need to compute the linear velocity
@@ -645,18 +645,18 @@ struct ColliderRemovalSystem(SystemId<In<ColliderOf>>);
 ///
 /// Takes the removed collider's entity, rigid body entity, mass properties, and transform as input.
 fn collider_removed(
-    In(ColliderOf { rigid_body }): In<ColliderOf>,
+    In(ColliderOf { body }): In<ColliderOf>,
     mut commands: Commands,
     mut sleep_query: Query<&mut TimeSleeping>,
 ) {
-    let Ok(mut entity_commands) = commands.get_entity(rigid_body) else {
+    let Ok(mut entity_commands) = commands.get_entity(body) else {
         return;
     };
 
     // Queue the rigid body for mass property recomputation.
     entity_commands.insert(RecomputeMassProperties);
 
-    if let Ok(mut time_sleeping) = sleep_query.get_mut(rigid_body) {
+    if let Ok(mut time_sleeping) = sleep_query.get_mut(body) {
         // Wake up the rigid body since removing the collider could also remove active contacts.
         entity_commands.remove::<Sleeping>();
         time_sleeping.0 = 0.0;

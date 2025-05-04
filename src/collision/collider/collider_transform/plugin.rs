@@ -97,7 +97,7 @@ pub(crate) fn update_child_collider_position(
     rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {
-        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.rigid_body) else {
+        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.body) else {
             continue;
         };
 

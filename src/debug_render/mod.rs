@@ -212,7 +212,7 @@ fn debug_render_aabbs(
     #[cfg(feature = "2d")]
     for (entity, aabb, collider_rb, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
-            let collider_rb = collider_rb.map_or(entity, |c| c.rigid_body);
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_rb) {
@@ -235,7 +235,7 @@ fn debug_render_aabbs(
     #[cfg(feature = "3d")]
     for (entity, aabb, collider_rb, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
-            let collider_rb = collider_rb.map_or(entity, |c| c.rigid_body);
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_rb) {
@@ -277,7 +277,7 @@ fn debug_render_colliders(
     let config = store.config::<PhysicsGizmos>().1;
     for (entity, collider, position, rotation, collider_rb, render_config) in &mut colliders {
         if let Some(mut color) = render_config.map_or(config.collider_color, |c| c.collider_color) {
-            let collider_rb = collider_rb.map_or(entity, |c| c.rigid_body);
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
             if sleeping.contains(collider_rb) {

@@ -284,49 +284,25 @@ fn trigger_collision_events(
     for event in state.started.read() {
         if let Ok(collider_of) = state.query.get(event.0) {
             let collider = event.1;
-            let rigid_body = collider_of.map(|c| c.rigid_body);
-            started_pairs.push((
-                event.0,
-                OnCollisionStart {
-                    collider,
-                    rigid_body,
-                },
-            ));
+            let body = collider_of.map(|c| c.body);
+            started_pairs.push((event.0, OnCollisionStart { collider, body }));
         }
         if let Ok(collider_of) = state.query.get(event.1) {
             let collider = event.0;
-            let rigid_body = collider_of.map(|c| c.rigid_body);
-            started_pairs.push((
-                event.1,
-                OnCollisionStart {
-                    collider,
-                    rigid_body,
-                },
-            ));
+            let body = collider_of.map(|c| c.body);
+            started_pairs.push((event.1, OnCollisionStart { collider, body }));
         }
     }
     for event in state.ended.read() {
         if let Ok(collider_of) = state.query.get(event.0) {
             let collider = event.1;
-            let rigid_body = collider_of.map(|c| c.rigid_body);
-            ended_pairs.push((
-                event.0,
-                OnCollisionEnd {
-                    collider,
-                    rigid_body,
-                },
-            ));
+            let body = collider_of.map(|c| c.body);
+            ended_pairs.push((event.0, OnCollisionEnd { collider, body }));
         }
         if let Ok(collider_of) = state.query.get(event.1) {
             let collider = event.0;
-            let rigid_body = collider_of.map(|c| c.rigid_body);
-            ended_pairs.push((
-                event.1,
-                OnCollisionEnd {
-                    collider,
-                    rigid_body,
-                },
-            ));
+            let body = collider_of.map(|c| c.body);
+            ended_pairs.push((event.1, OnCollisionEnd { collider, body }));
         }
     }
 

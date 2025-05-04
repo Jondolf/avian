@@ -561,7 +561,7 @@ fn solve_swept_ccd(
         for (
             collider2,
             &ColliderOf {
-                rigid_body: entity2,
+                body: entity2,
             },
         ) in colliders.iter_many(intersecting_entities)
         {

@@ -164,14 +164,14 @@ fn update_aabb_intervals(
                 *aabb = *new_aabb;
                 *collider_of = new_collider_of.map_or(
                     ColliderOf {
-                        rigid_body: *collider_entity,
+                        body: *collider_entity,
                     },
                     |p| *p,
                 );
                 *layers = *new_layers;
 
                 let is_static = new_collider_of.is_some_and(|collider_of| {
-                    rbs.get(collider_of.rigid_body)
+                    rbs.get(collider_of.body)
                         .is_ok_and(RigidBody::is_static)
                 });
 
@@ -242,7 +242,7 @@ fn add_new_aabb_intervals(
             );
             (
                 entity,
-                collider_of.map_or(ColliderOf { rigid_body: entity }, |p| *p),
+                collider_of.map_or(ColliderOf { body: entity }, |p| *p),
                 *aabb,
                 *layers,
                 flags,
@@ -342,8 +342,8 @@ fn sweep_and_prune<H: CollisionHooks>(
             let mut contacts = ContactPair::new(*entity1, *entity2);
 
             // Initialize flags and other data for the contact pair.
-            contacts.body_entity1 = Some(collider_of1.rigid_body);
-            contacts.body_entity2 = Some(collider_of2.rigid_body);
+            contacts.body_entity1 = Some(collider_of1.body);
+            contacts.body_entity2 = Some(collider_of2.body);
             contacts.flags.set(
                 ContactPairFlags::SENSOR,
                 flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),

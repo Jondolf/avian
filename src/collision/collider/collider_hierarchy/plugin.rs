@@ -26,7 +26,7 @@ impl Plugin for ColliderHierarchyPlugin {
                 }
 
                 // Find the closest rigid body ancestor.
-                if let Some(rigid_body) = rb_query.get(entity).ok().map_or_else(
+                if let Some(body) = rb_query.get(entity).ok().map_or_else(
                     || {
                         parent_query
                             .iter_ancestors(trigger.target())
@@ -34,7 +34,7 @@ impl Plugin for ColliderHierarchyPlugin {
                     },
                     Some,
                 ) {
-                    commands.entity(entity).insert(ColliderOf { rigid_body });
+                    commands.entity(entity).insert(ColliderOf { body });
                 }
             },
         );
@@ -54,16 +54,16 @@ impl Plugin for ColliderHierarchyPlugin {
         );
 
         // Update `ColliderOf` components for colliders when their ancestors change.
-        app.add_observer(on_collider_rigid_body_changed);
+        app.add_observer(on_collider_body_changed);
 
         // Remove `ColliderOf` from colliders when their rigid bodies are removed.
-        app.add_observer(on_rigid_body_removed);
+        app.add_observer(on_body_removed);
     }
 }
 
 /// Updates [`ColliderOf`] components for colliders when their ancestors change
 /// or when a rigid body is added to the hierarchy.
-fn on_collider_rigid_body_changed(
+fn on_collider_body_changed(
     trigger: Trigger<OnInsert, (ChildOf, RigidBody, AncestorMarker<ColliderMarker>)>,
     mut commands: Commands,
     query: Query<
@@ -96,9 +96,9 @@ fn on_collider_rigid_body_changed(
 
     // Insert `ColliderOf` for the new child entity.
     if is_collider {
-        commands.entity(entity).insert(ColliderOf {
-            rigid_body: rb_entity,
-        });
+        commands
+            .entity(entity)
+            .insert(ColliderOf { body: rb_entity });
     }
 
     // Iterate over all descendants starting from the new child entity,
@@ -112,15 +112,15 @@ fn on_collider_rigid_body_changed(
 
         // Update the `ColliderOf` component.
         if collider_query.contains(child) {
-            commands.entity(child).insert(ColliderOf {
-                rigid_body: rb_entity,
-            });
+            commands
+                .entity(child)
+                .insert(ColliderOf { body: rb_entity });
         }
     }
 }
 
 /// Removes [`ColliderOf`] from colliders when their rigid bodies are removed.
-fn on_rigid_body_removed(
+fn on_body_removed(
     trigger: Trigger<OnRemove, RigidBody>,
     mut commands: Commands,
     rb_collider_query: Query<&RigidBodyColliders>,
