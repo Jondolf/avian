@@ -59,14 +59,21 @@ pub struct ContactConstraintPoint {
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
+    /// The stable identifier of the [`ContactPair`] in the [`ContactGraph`].
+    pub contact_id: ContactId,
+    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    ///
+    /// This is primarily used for ordering contact constraints deterministically
+    /// when parallelism is enabled. The index may be invalidated by contact removal.
+    // TODO: We should figure out a better way to handle deterministic constraint generation.
+    #[cfg(feature = "parallel")]
+    pub pair_index: usize,
+    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
+    pub manifold_index: usize,
     /// The first rigid body entity in the contact.
     pub entity1: Entity,
     /// The second rigid body entity in the contact.
     pub entity2: Entity,
-    /// The first collider entity in the contact.
-    pub collider_entity1: Entity,
-    /// The second collider entity in the contact.
-    pub collider_entity2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
     pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
@@ -89,15 +96,6 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactPair`] in the [`ContactGraph`].
-    ///
-    /// This is primarily used for ordering contact constraints deterministically
-    /// when parallelism is enabled. The index may be invalidated by contact removal.
-    // TODO: We should figure out a better way to handle deterministic constraint generation.
-    #[cfg(feature = "parallel")]
-    pub pair_index: usize,
-    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
-    pub manifold_index: usize,
 }
 
 impl ContactConstraint {
@@ -326,7 +324,5 @@ impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
         self.entity1 = entity_mapper.get_mapped(self.entity1);
         self.entity2 = entity_mapper.get_mapped(self.entity2);
-        self.collider_entity1 = entity_mapper.get_mapped(self.collider_entity1);
-        self.collider_entity2 = entity_mapper.get_mapped(self.collider_entity2);
     }
 }

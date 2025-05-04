@@ -3,7 +3,7 @@ use core::cell::RefCell;
 
 use crate::{
     collision::collider::ColliderQuery,
-    data_structures::{bit_vec::BitVec, graph::EdgeIndex},
+    data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
     prelude::*,
 };
@@ -108,12 +108,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // Update contacts for all contact pairs.
         self.update_contacts::<H>(delta_secs, hooks, context, commands);
 
-        // Contact pairs that should be removed.
-        // TODO: This is needed because removing pairs while iterating over the bit vec can invalidate indices.
-        //       With a stable mapping between contact pair indices and bits, we could remove this.
-        // TODO: Pre-allocate this with some reasonable capacity?
-        let mut pairs_to_remove = Vec::<(Entity, Entity)>::new();
-
         // Process contact status changes, iterating over set bits serially to maintain determinism.
         //
         // Iterating over set bits is done efficiently with the "count trailing zeros" method:
@@ -121,13 +115,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         for (i, mut bits) in self.contact_status_bits.blocks().enumerate() {
             while bits != 0 {
                 let trailing_zeros = bits.trailing_zeros();
-                let pair_index = EdgeIndex(i as u32 * 64 + trailing_zeros);
+                let contact_id = ContactId(i as u32 * 64 + trailing_zeros);
 
                 let contact_pair = self
                     .contact_graph
-                    .internal
-                    .edge_weight_mut(pair_index)
-                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
+                    .get_mut_by_id(contact_id)
+                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", contact_id));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
@@ -161,8 +154,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         ));
                     });
 
-                    // Queue the contact pair for removal.
-                    pairs_to_remove.push((contact_pair.entity1, contact_pair.entity2));
+                    // Remove the contact pair from the contact graph.
+                    let pair_key =
+                        PairKey::new(contact_pair.entity1.index(), contact_pair.entity2.index());
+                    self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
@@ -227,11 +222,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 bits &= bits - 1;
             }
         }
-
-        // Remove the contact pairs that were marked for removal.
-        for pair_index in pairs_to_remove.drain(..) {
-            self.contact_graph.remove_pair(pair_index.0, pair_index.1);
-        }
     }
 
     /// Adds the colliding entities to their respective [`CollidingEntities`] components.
@@ -278,16 +268,18 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     ) where
         for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
     {
-        let contact_pair_count = self.contact_graph.internal.edge_count();
+        // Contact bit vecs must be sized based on the full contact capacity
+        // not the number of active contact pairs, because pair indices
+        // are unstable and can be invalidated when pairs are removed.
+        let bit_count = self.contact_graph.internal.raw_edges().len();
 
         // Clear the bit vector used to track status changes for each contact pair.
-        self.contact_status_bits
-            .set_bit_count_and_clear(contact_pair_count);
+        self.contact_status_bits.set_bit_count_and_clear(bit_count);
 
         #[cfg(feature = "parallel")]
         self.thread_locals.iter_mut().for_each(|context| {
             let bit_vec_mut = &mut context.borrow_mut().contact_status_bits;
-            bit_vec_mut.set_bit_count_and_clear(contact_pair_count);
+            bit_vec_mut.set_bit_count_and_clear(bit_count);
         });
 
         // Clear the contact constraints.
@@ -306,11 +298,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         // If parallelism is not used, status changes are instead written
         // directly to the global bit vector.
         //
+        // TODO: Right now this iterates over *all* contact pairs, including sleeping bodies.
+        //       Eventually, we might want separate lists for active and inactive contact pairs.
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
         crate::utils::par_for_each!(
-            self.contact_graph.internal.raw_edges_mut(),
-            |contact_index, contacts| {
+            self.contact_graph.internal.raw_edge_weights_mut(),
+            |pair_index, contact_pair| {
+                let contact_id = contact_pair.id.0 as usize;
+
                 #[cfg(not(feature = "parallel"))]
                 let status_change_bits = &mut self.contact_status_bits;
                 #[cfg(not(feature = "parallel"))]
@@ -324,8 +320,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .get_or(|| {
                         // No thread-local bit vector exists for this thread yet.
                         // Create a new one with the same capacity as the global bit vector.
-                        let mut contact_status_bits = BitVec::new(contact_pair_count);
-                        contact_status_bits.set_bit_count_and_clear(contact_pair_count);
+                        let mut contact_status_bits = BitVec::new(bit_count);
+                        contact_status_bits.set_bit_count_and_clear(bit_count);
                         RefCell::new(NarrowPhaseThreadContext {
                             contact_status_bits,
                             contact_constraints: Vec::new(),
@@ -338,12 +334,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     contact_constraints: constraints,
                 } = &mut *thread_context;
 
-                let contacts = &mut contacts.weight;
-
                 // Get the colliders for the contact pair.
                 let Ok([collider1, collider2]) = self
                     .collider_query
-                    .get_many([contacts.entity1, contacts.entity2])
+                    .get_many([contact_pair.entity1, contact_pair.entity2])
                 else {
                     return;
                 };
@@ -356,8 +350,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 //       rather than checking it for every pair here.
                 if !overlap || !collider1.layers.interacts_with(*collider2.layers) {
                     // The AABBs no longer overlap. The contact pair should be removed.
-                    contacts.flags.set(ContactPairFlags::DISJOINT_AABB, true);
-                    status_change_bits.set(contact_index);
+                    contact_pair
+                        .flags
+                        .set(ContactPairFlags::DISJOINT_AABB, true);
+                    status_change_bits.set(contact_id);
                 } else {
                     // The AABBs overlap. Compute contacts.
 
@@ -489,10 +485,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     let position1 = collider1.current_position();
                     let position2 = collider2.current_position();
 
-                    let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
+                    let was_touching = contact_pair.flags.contains(ContactPairFlags::TOUCHING);
 
                     // Save the old manifolds for warm starting.
-                    let old_manifolds = contacts.manifolds.clone();
+                    let old_manifolds = contact_pair.manifolds.clone();
 
                     // TODO: It'd be good to persist the manifolds and let Parry match contacts.
                     //       This isn't currently done because it requires using Parry's contact manifold type.
@@ -509,13 +505,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         position2,
                         *collider2.rotation,
                         max_contact_distance,
-                        &mut contacts.manifolds,
+                        &mut contact_pair.manifolds,
                         context,
                     );
 
                     // Set the initial surface properties.
                     // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
-                    contacts.manifolds.iter_mut().for_each(|manifold| {
+                    contact_pair.manifolds.iter_mut().for_each(|manifold| {
                         manifold.friction = friction;
                         manifold.restitution = restitution;
                         #[cfg(feature = "2d")]
@@ -529,26 +525,30 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     });
 
                     // Check if the colliders are now touching.
-                    let mut touching = !contacts.manifolds.is_empty();
+                    let mut touching = !contact_pair.manifolds.is_empty();
 
-                    if touching && contacts.flags.contains(ContactPairFlags::MODIFY_CONTACTS) {
+                    if touching
+                        && contact_pair
+                            .flags
+                            .contains(ContactPairFlags::MODIFY_CONTACTS)
+                    {
                         par_commands.command_scope(|mut commands| {
-                            touching = hooks.modify_contacts(contacts, &mut commands);
+                            touching = hooks.modify_contacts(contact_pair, &mut commands);
                         });
                         if !touching {
-                            contacts.manifolds.clear();
+                            contact_pair.manifolds.clear();
                         }
                     }
 
-                    contacts.flags.set(ContactPairFlags::TOUCHING, touching);
+                    contact_pair.flags.set(ContactPairFlags::TOUCHING, touching);
 
                     // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
                     //       If we let Parry handle contact matching, this wouldn't be needed.
-                    if contacts.manifolds.len() <= 4 && self.config.match_contacts {
+                    if contact_pair.manifolds.len() <= 4 && self.config.match_contacts {
                         // TODO: Cache this?
                         let distance_threshold = 0.1 * self.length_unit.0;
 
-                        for manifold in contacts.manifolds.iter_mut() {
+                        for manifold in contact_pair.manifolds.iter_mut() {
                             for previous_manifold in old_manifolds.iter() {
                                 manifold
                                     .match_contacts(&previous_manifold.points, distance_threshold);
@@ -558,14 +558,19 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                     // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
 
+                    // TODO: Move this after constraint generation?
                     if touching && !was_touching {
                         // The colliders started touching.
-                        contacts.flags.set(ContactPairFlags::STARTED_TOUCHING, true);
-                        status_change_bits.set(contact_index);
+                        contact_pair
+                            .flags
+                            .set(ContactPairFlags::STARTED_TOUCHING, true);
+                        status_change_bits.set(contact_id);
                     } else if !touching && was_touching {
                         // The colliders stopped touching.
-                        contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
-                        status_change_bits.set(contact_index);
+                        contact_pair
+                            .flags
+                            .set(ContactPairFlags::STOPPED_TOUCHING, true);
+                        status_change_bits.set(contact_id);
                     }
 
                     // Now, we generate contact constraints for the contact pair.
@@ -579,7 +584,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                     // No collision response if both bodies are static or sleeping
                     // or if either of the colliders is a sensor collider.
-                    if (inactive1 && inactive2) || contacts.is_sensor() {
+                    // TODO: Check this earlier?
+                    // TODO: Sensors shouldn't have contact pair computation,
+                    //       and pairs with both bodies as static or sleeping shouldn't get here.
+                    if (inactive1 && inactive2) || contact_pair.is_sensor() {
                         return;
                     }
 
@@ -604,12 +612,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     };
 
                     // Generate a contact constraint for each contact manifold.
-                    for (manifold_index, manifold) in contacts.manifolds.iter_mut().enumerate() {
+                    for (manifold_index, manifold) in contact_pair.manifolds.iter_mut().enumerate()
+                    {
                         let mut constraint = ContactConstraint {
+                            contact_id: ContactId(contact_id as u32),
+                            #[cfg(feature = "parallel")]
+                            pair_index,
+                            manifold_index,
                             entity1: body1.entity,
                             entity2: body2.entity,
-                            collider_entity1: collider1.entity,
-                            collider_entity2: collider2.entity,
                             friction: manifold.friction,
                             restitution: manifold.restitution,
                             #[cfg(feature = "2d")]
@@ -618,9 +629,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             tangent_velocity: manifold.tangent_velocity,
                             normal: manifold.normal,
                             points: Vec::with_capacity(manifold.points.len()),
-                            #[cfg(feature = "parallel")]
-                            pair_index: contact_index,
-                            manifold_index,
                         };
 
                         let tangents = constraint
