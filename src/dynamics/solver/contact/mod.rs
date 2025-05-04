@@ -60,13 +60,13 @@ pub struct ContactConstraintPoint {
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
     /// The first rigid body entity in the contact.
-    pub entity1: Entity,
+    pub body1: Entity,
     /// The second rigid body entity in the contact.
-    pub entity2: Entity,
+    pub body2: Entity,
     /// The first collider entity in the contact.
-    pub collider_entity1: Entity,
+    pub collider1: Entity,
     /// The second collider entity in the contact.
-    pub collider_entity2: Entity,
+    pub collider2: Entity,
     /// The combined coefficient of dynamic [friction](Friction) of the bodies.
     pub friction: Scalar,
     /// The combined coefficient of [restitution](Restitution) of the bodies.
@@ -324,9 +324,9 @@ impl ContactConstraint {
 
 impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.get_mapped(self.entity1);
-        self.entity2 = entity_mapper.get_mapped(self.entity2);
-        self.collider_entity1 = entity_mapper.get_mapped(self.collider_entity1);
-        self.collider_entity2 = entity_mapper.get_mapped(self.collider_entity2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
+        self.collider1 = entity_mapper.get_mapped(self.collider1);
+        self.collider2 = entity_mapper.get_mapped(self.collider2);
     }
 }

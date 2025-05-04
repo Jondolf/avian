@@ -308,10 +308,10 @@ fn debug_render_contacts(
     }
 
     for contacts in collisions.iter() {
-        let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
+        let Ok((position1, rotation1)) = colliders.get(contacts.collider1) else {
             continue;
         };
-        let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
+        let Ok((position2, rotation2)) = colliders.get(contacts.collider2) else {
             continue;
         };
 

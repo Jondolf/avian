@@ -297,7 +297,7 @@ fn kinematic_controller_collisions(
     for contacts in collisions.iter() {
         // Get the rigid body entities of the colliders (colliders could be children)
         let Ok([&ColliderOf { body: rb1 }, &ColliderOf { body: rb2 }]) =
-            collider_rbs.get_many([contacts.entity1, contacts.entity2])
+            collider_rbs.get_many([contacts.collider1, contacts.collider2])
         else {
             continue;
         };

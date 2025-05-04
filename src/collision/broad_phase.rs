@@ -341,8 +341,8 @@ fn sweep_and_prune<H: CollisionHooks>(
             let mut contacts = ContactPair::new(*entity1, *entity2);
 
             // Initialize flags and other data for the contact pair.
-            contacts.body_entity1 = Some(collider_of1.body);
-            contacts.body_entity2 = Some(collider_of2.body);
+            contacts.body1 = Some(collider_of1.body);
+            contacts.body2 = Some(collider_of2.body);
             contacts.flags.set(
                 ContactPairFlags::SENSOR,
                 flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),

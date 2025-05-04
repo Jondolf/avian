@@ -247,7 +247,7 @@ impl ContactGraph {
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
     pub fn add_pair(&mut self, contacts: ContactPair) {
-        let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+        let pair_key = PairKey::new(contacts.collider1.index(), contacts.collider2.index());
         self.add_pair_with_key(contacts, pair_key);
     }
 
@@ -275,13 +275,13 @@ impl ContactGraph {
         // Get the indices of the entities in the graph.
         let index1 = self
             .entity_to_node
-            .get_or_insert_with(contacts.entity1, || {
-                self.internal.add_node(contacts.entity1)
+            .get_or_insert_with(contacts.collider1, || {
+                self.internal.add_node(contacts.collider1)
             });
         let index2 = self
             .entity_to_node
-            .get_or_insert_with(contacts.entity2, || {
-                self.internal.add_node(contacts.entity2)
+            .get_or_insert_with(contacts.collider2, || {
+                self.internal.add_node(contacts.collider2)
             });
 
         // Add the edge to the graph.
@@ -298,7 +298,7 @@ impl ContactGraph {
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
     pub fn insert_pair(&mut self, contacts: ContactPair) {
-        let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+        let pair_key = PairKey::new(contacts.collider1.index(), contacts.collider2.index());
         self.insert_pair_with_key(contacts, pair_key);
     }
 
@@ -323,13 +323,13 @@ impl ContactGraph {
         // Get the indices of the entities in the graph.
         let index1 = self
             .entity_to_node
-            .get_or_insert_with(contacts.entity1, || {
-                self.internal.add_node(contacts.entity1)
+            .get_or_insert_with(contacts.collider1, || {
+                self.internal.add_node(contacts.collider1)
             });
         let index2 = self
             .entity_to_node
-            .get_or_insert_with(contacts.entity2, || {
-                self.internal.add_node(contacts.entity2)
+            .get_or_insert_with(contacts.collider2, || {
+                self.internal.add_node(contacts.collider2)
             });
 
         // Update the edge in the graph.
@@ -383,7 +383,7 @@ impl ContactGraph {
 
         // Remove the entity from the graph.
         self.internal.remove_node_with(index, |contacts| {
-            let pair_key = PairKey::new(contacts.entity1.index(), contacts.entity2.index());
+            let pair_key = PairKey::new(contacts.collider1.index(), contacts.collider2.index());
 
             pair_callback(contacts);
 

@@ -340,14 +340,17 @@ fn remove_collider_on<E: Event, C: Component>(
             .flags
             .contains(ContactPairFlags::CONTACT_EVENTS)
         {
-            event_writer.write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+            event_writer.write(CollisionEnded(
+                contact_pair.collider1,
+                contact_pair.collider2,
+            ));
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.
-        let other_entity = if contact_pair.entity1 == entity {
-            contact_pair.entity2
+        let other_entity = if contact_pair.collider1 == entity {
+            contact_pair.collider2
         } else {
-            contact_pair.entity1
+            contact_pair.collider1
         };
         if let Ok(mut colliding_entities) = query.get_mut(other_entity) {
             colliding_entities.remove(&entity);
