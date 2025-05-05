@@ -35,18 +35,15 @@ use super::*;
 pub fn integrate_velocity(
     lin_vel: &mut Vector,
     ang_vel: &mut AngularValue,
-    force: Vector,
-    torque: TorqueValue,
-    mass: ComputedMass,
-    angular_inertia: &ComputedAngularInertia,
-    #[cfg(feature = "3d")] global_angular_inertia: &GlobalAngularInertia,
+    lin_acc: Vector,
+    ang_acc: AngularValue,
+    #[cfg(feature = "3d")] angular_inertia: &ComputedAngularInertia,
     #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
-    gravity: Vector,
     delta_seconds: Scalar,
 ) {
     // Compute linear acceleration.
-    let lin_acc = linear_acceleration(force, mass, locked_axes, gravity);
+    let lin_acc = locked_axes.apply_to_vec(lin_acc);
 
     // Compute next linear velocity.
     // v = v_0 + a * Δt
@@ -56,10 +53,7 @@ pub fn integrate_velocity(
     }
 
     // Compute angular acceleration.
-    #[cfg(feature = "2d")]
-    let ang_acc = angular_acceleration(torque, angular_inertia, locked_axes);
-    #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(torque, global_angular_inertia, locked_axes);
+    let ang_acc = locked_axes.apply_to_angular_velocity(ang_acc);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -248,9 +242,6 @@ mod tests {
         #[cfg(feature = "3d")]
         let mut angular_velocity = Vector::Z * 2.0;
 
-        let mass = ComputedMass::new(1.0);
-        #[cfg(feature = "2d")]
-        let angular_inertia = ComputedAngularInertia::new(1.0);
         #[cfg(feature = "3d")]
         let angular_inertia = ComputedAngularInertia::new(Vector::ONE);
 
@@ -261,16 +252,13 @@ mod tests {
             integrate_velocity(
                 &mut linear_velocity,
                 &mut angular_velocity,
+                gravity,
                 default(),
-                default(),
-                mass,
-                &angular_inertia,
                 #[cfg(feature = "3d")]
                 &GlobalAngularInertia::new(angular_inertia, rotation),
                 #[cfg(feature = "3d")]
                 rotation,
                 default(),
-                gravity,
                 1.0 / 10.0,
             );
             integrate_position(

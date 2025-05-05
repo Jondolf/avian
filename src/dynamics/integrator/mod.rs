@@ -11,7 +11,10 @@ use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
 };
-use dynamics::solver::SolverDiagnostics;
+use dynamics::{
+    rigid_body::forces::{AccumulatedAngularAcceleration, AccumulatedLinearAcceleration},
+    solver::SolverDiagnostics,
+};
 
 /// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 ///
@@ -152,9 +155,9 @@ struct VelocityIntegrationQuery {
     rot: &'static Rotation,
     lin_vel: &'static mut LinearVelocity,
     ang_vel: &'static mut AngularVelocity,
-    force: &'static ExternalForce,
-    torque: &'static ExternalTorque,
-    mass: &'static ComputedMass,
+    lin_acc: &'static mut AccumulatedLinearAcceleration,
+    ang_acc: &'static mut AccumulatedAngularAcceleration,
+    #[cfg(feature = "3d")]
     angular_inertia: &'static ComputedAngularInertia,
     #[cfg(feature = "3d")]
     global_angular_inertia: &'static GlobalAngularInertia,
@@ -209,23 +212,18 @@ fn integrate_velocities(
                 }
             }
 
-            let external_force = body.force.force();
-            let external_torque = body.torque.torque() + body.force.torque();
             let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
 
             semi_implicit_euler::integrate_velocity(
                 &mut body.lin_vel.0,
                 &mut body.ang_vel.0,
-                external_force,
-                external_torque,
-                *body.mass,
-                body.angular_inertia,
+                body.lin_acc.0 + gravity,
+                body.ang_acc.0,
                 #[cfg(feature = "3d")]
                 body.global_angular_inertia,
                 #[cfg(feature = "3d")]
                 *body.rot,
                 locked_axes,
-                gravity,
                 delta_secs,
             );
         }

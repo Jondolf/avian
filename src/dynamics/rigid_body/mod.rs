@@ -8,6 +8,7 @@ mod locked_axes;
 mod physics_material;
 mod world_query;
 
+use forces::{AccumulatedAngularAcceleration, AccumulatedLinearAcceleration};
 pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
 pub use physics_material::{
@@ -265,11 +266,8 @@ use derive_more::From;
 #[require(
     LinearVelocity,
     AngularVelocity,
-    // TODO: Make these force components optional.
-    ExternalForce,
-    ExternalTorque,
-    ExternalImpulse,
-    ExternalAngularImpulse,
+    AccumulatedLinearAcceleration,
+    AccumulatedAngularAcceleration,
     ComputedMass,
     ComputedAngularInertia,
     ComputedCenterOfMass,

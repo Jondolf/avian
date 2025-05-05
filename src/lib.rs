@@ -787,6 +787,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(PhysicsTypeRegistrationPlugin)
             .add(PreparePlugin::new(self.schedule))
             .add(MassPropertyPlugin::new(self.schedule))
+            .add(ForcePlugin)
             .add(ColliderHierarchyPlugin)
             .add(ColliderTransformPlugin::new(self.schedule));
 
