@@ -778,8 +778,8 @@ impl SpatialQueryPipeline {
 
                     if dispatcher.intersection_test(
                         &isometry,
-                        proxy.collider.shape_scaled().as_ref(),
                         shape.shape_scaled().as_ref(),
+                        proxy.collider.shape_scaled().as_ref(),
                     ) == Ok(true)
                     {
                         return callback(proxy.entity);
