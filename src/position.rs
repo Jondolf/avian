@@ -247,7 +247,7 @@ impl Rotation {
     ///
     /// # Panics
     ///
-    /// Panics if `sin * sin + cos * cos != 1.0` when the `glam_assert` feature is enabled.
+    /// Panics if `sin * sin + cos * cos != 1.0` when `debug_assertions` are enabled.
     #[inline]
     pub fn from_sin_cos(sin: Scalar, cos: Scalar) -> Self {
         let rotation = Self { sin, cos };
