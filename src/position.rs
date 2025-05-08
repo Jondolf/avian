@@ -103,7 +103,7 @@ impl From<&GlobalTransform> for Position {
 impl Ease for Position {
     fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
         FunctionCurve::new(Interval::UNIT, move |t| {
-            Position(Vec2::lerp(start.0, end.0, t))
+            Position(Vector::lerp(start.0, end.0, t))
         })
     }
 }
