@@ -677,7 +677,9 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
 impl Ease for Rotation {
     fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
-        FunctionCurve::new(Interval::UNIT, move |t| Rotation::slerp(start, end, t as Scalar))
+        FunctionCurve::new(Interval::UNIT, move |t| {
+            Rotation::slerp(start, end, t as Scalar)
+        })
     }
 }
 
