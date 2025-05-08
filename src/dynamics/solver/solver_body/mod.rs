@@ -60,7 +60,7 @@ pub struct SolverBody {
     pub linear_velocity: Vector,
     /// The angular velocity of the body.
     ///
-    /// 4 bytes in 2D and 8 bytes in 3D with the `f32` feature.
+    /// 4 bytes in 2D and 12 bytes in 3D with the `f32` feature.
     #[cfg(feature = "2d")]
     pub angular_velocity: Scalar,
     /// The angular velocity of the body.
