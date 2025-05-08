@@ -103,7 +103,7 @@ impl From<&GlobalTransform> for Position {
 impl Ease for Position {
     fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
         FunctionCurve::new(Interval::UNIT, move |t| {
-            Position(Vector::lerp(start.0, end.0, t))
+            Position(Vector::lerp(start.0, end.0, t as Scalar))
         })
     }
 }
@@ -677,7 +677,7 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
 impl Ease for Rotation {
     fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
-        FunctionCurve::new(Interval::UNIT, move |t| Rotation::slerp(start, end, t))
+        FunctionCurve::new(Interval::UNIT, move |t| Rotation::slerp(start, end, t as Scalar))
     }
 }
 
