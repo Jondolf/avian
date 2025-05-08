@@ -100,6 +100,12 @@ impl From<&GlobalTransform> for Position {
     }
 }
 
+impl Ease for Position {
+    fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
+        FunctionCurve::new(Interval::UNIT, move |t| Position(Vec2::lerp(start.0, end.0, t)))
+    }
+}
+
 /// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -664,6 +670,12 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
     fn mul(self, rhs: &mut Vector3) -> Self::Output {
         *self * *rhs
+    }
+}
+
+impl Ease for Rotation {
+    fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
+        FunctionCurve::new(Interval::UNIT, move |t| Rotation::slerp(start, end, t))
     }
 }
 
