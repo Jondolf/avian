@@ -85,11 +85,20 @@ impl<C: AnyCollider, H: CollisionHooks> Default for NarrowPhasePlugin<C, H> {
     }
 }
 
+/// A resource that indicates that the narrow phase has been initialized.
+///
+/// This is used to ensure that some systems are only added once
+/// even with multiple collider types.
+#[derive(Resource, Default)]
+struct NarrowPhaseInitialized;
+
 impl<C: AnyCollider, H: CollisionHooks + 'static> Plugin for NarrowPhasePlugin<C, H>
 where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
+        let already_initialized = app.world().is_resource_added::<NarrowPhaseInitialized>();
+
         app.init_resource::<NarrowPhaseConfig>()
             .init_resource::<ContactGraph>()
             .init_resource::<ContactStatusBits>()
@@ -124,11 +133,6 @@ where
             CollisionEventSystems.in_set(PhysicsStepSet::Finalize),
         );
 
-        // Remove collision pairs when colliders are disabled or removed.
-        app.add_observer(remove_collider_on::<OnAdd, Disabled>);
-        app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
-        app.add_observer(remove_collider_on::<OnRemove, Collider>);
-
         // Perform narrow phase collision detection.
         app.add_systems(
             self.schedule,
@@ -139,10 +143,20 @@ where
                 .ambiguous_with_all(),
         );
 
-        app.add_systems(
-            PhysicsSchedule,
-            trigger_collision_events.in_set(CollisionEventSystems),
-        );
+        if !already_initialized {
+            // Remove collision pairs when colliders are disabled or removed.
+            app.add_observer(remove_collider_on::<OnAdd, Disabled>);
+            app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
+            app.add_observer(remove_collider_on::<OnRemove, ColliderMarker>);
+
+            // Trigger collision events for colliders that started or stopped touching.
+            app.add_systems(
+                PhysicsSchedule,
+                trigger_collision_events.in_set(CollisionEventSystems),
+            );
+        }
+
+        app.init_resource::<NarrowPhaseInitialized>();
     }
 
     fn finish(&self, app: &mut App) {

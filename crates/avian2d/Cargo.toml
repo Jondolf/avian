@@ -1,6 +1,6 @@
 [package]
 name = "avian2d"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
@@ -78,8 +78,8 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_log",
 ] }
 bevy_math = { version = "0.16" }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy" }
-bevy_transform_interpolation = { git = "https://github.com/Jondolf/bevy_transform_interpolation" }
+bevy_heavy = { version = "0.2" }
+bevy_transform_interpolation = { version = "0.2" }
 libm = { version = "0.2", optional = true }
 parry2d = { version = "0.17", optional = true }
 parry2d-f64 = { version = "0.17", optional = true }
@@ -95,15 +95,12 @@ thread_local = { version = "1.1", optional = true }
 examples_common_2d = { path = "../examples_common_2d" }
 benches_common_2d = { path = "../benches_common_2d" }
 bevy_math = { version = "0.16", features = ["approx"] }
-bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy", features = [
-    "approx",
-] }
+bevy_heavy = { version = "0.2", features = ["approx"] }
 glam = { version = "0.29", features = ["bytemuck"] }
 approx = "0.5"
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }
-# TODO: Update to the latest version when it's available.
-# bevy_mod_debugdump = { version = "0.12" }
+bevy_mod_debugdump = { version = "0.13" }
 
 [lints]
 workspace = true

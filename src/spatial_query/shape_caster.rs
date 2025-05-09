@@ -265,12 +265,6 @@ impl ShapeCaster {
         self
     }
 
-    /// Sets the maximum time of impact, i.e. the maximum distance that the shape is allowed to travel.
-    #[deprecated(since = "0.2.0", note = "Renamed to `with_max_distance`")]
-    pub fn with_max_time_of_impact(self, max_time_of_impact: Scalar) -> Self {
-        self.with_max_distance(max_time_of_impact)
-    }
-
     /// Sets the maximum number of allowed hits.
     pub fn with_max_hits(mut self, max_hits: u32) -> Self {
         self.max_hits = max_hits;
