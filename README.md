@@ -74,11 +74,11 @@ First, add `avian2d` or `avian3d` to your dependencies in `Cargo.toml`:
 ```toml
 # For 2D applications:
 [dependencies]
-avian2d = "0.2"
+avian2d = "0.3"
 
 # For 3D applications:
 [dependencies]
-avian3d = "0.2"
+avian3d = "0.3"
 
 # If you want to use the most up-to-date version, you can follow the main branch:
 [dependencies]
