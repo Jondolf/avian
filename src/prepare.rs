@@ -8,6 +8,7 @@ use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
     ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
     prelude::*,
+    transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
 
 /// Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody)
@@ -93,8 +94,9 @@ impl Plugin for PreparePlugin {
             self.schedule,
             // Run transform propagation if new bodies have been added
             (
-                crate::sync::sync_simple_transforms_physics,
-                crate::sync::propagate_transforms_physics,
+                mark_dirty_trees,
+                propagate_parent_transforms,
+                sync_simple_transforms,
             )
                 .chain()
                 .run_if(match_any::<Added<RigidBody>>)
