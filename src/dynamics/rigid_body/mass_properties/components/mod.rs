@@ -1026,17 +1026,6 @@ impl MassPropertiesBundle {
     pub fn from_shape<T: ComputeMassProperties>(shape: &T, density: f32) -> Self {
         shape.mass_properties(density).to_bundle()
     }
-
-    /// Computes the mass properties for a [`Collider`] based on its shape and a given density.
-    #[cfg(all(
-        feature = "default-collider",
-        any(feature = "parry-f32", feature = "parry-f64")
-    ))]
-    #[inline]
-    #[deprecated(since = "0.2.0", note = "Use `from_shape` instead")]
-    pub fn new_computed(collider: &Collider, density: f32) -> Self {
-        Self::from_shape(collider, density)
-    }
 }
 
 #[cfg(test)]
