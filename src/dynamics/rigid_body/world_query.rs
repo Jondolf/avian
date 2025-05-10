@@ -25,6 +25,8 @@ pub struct RigidBodyQuery {
     #[cfg(feature = "3d")]
     pub global_angular_inertia: &'static mut GlobalAngularInertia,
     pub center_of_mass: &'static mut ComputedCenterOfMass,
+    pub max_linear_speed: Option<&'static MaxLinearSpeed>,
+    pub max_angular_speed: Option<&'static MaxAngularSpeed>,
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
     pub locked_axes: Option<&'static LockedAxes>,
@@ -110,6 +112,30 @@ impl RigidBodyQueryItem<'_> {
             i8::MAX
         } else {
             self.dominance.map_or(0, |dominance| dominance.0)
+        }
+    }
+
+    /// Clamps both [`LinearVelocity`] as well as [`AngularVelocity`] to the
+    /// limits determined by [`MaxLinearSpeed`] and [`MaxAngularSpeed`], if present
+    pub fn clamp_velocities(&mut self) {
+        if let Some(max_linear_speed) = self.max_linear_speed {
+            let linear_speed_squared = self.linear_velocity.0.length_squared();
+            if linear_speed_squared > max_linear_speed.0.powi(2) {
+                self.linear_velocity.0 *= max_linear_speed.0 / linear_speed_squared.sqrt();
+            }
+        }
+        if let Some(max_angular_speed) = self.max_angular_speed {
+            #[cfg(feature = "2d")]
+            if self.angular_velocity.abs() > max_angular_speed.0 {
+                self.angular_velocity.0 = max_angular_speed.copysign(self.angular_velocity.0);
+            }
+            #[cfg(feature = "3d")]
+            {
+                let angular_speed_squared = self.angular_velocity.0.length_squared();
+                if angular_speed_squared > max_angular_speed.0.powi(2) {
+                    self.angular_velocity.0 *= max_angular_speed.0 / angular_speed_squared.sqrt();
+                }
+            }
         }
     }
 }
