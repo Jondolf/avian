@@ -112,10 +112,10 @@ impl Collisions<'_> {
     pub fn entities_colliding_with(&self, entity: Entity) -> impl Iterator<Item = Entity> + '_ {
         // TODO: Can we do this more efficiently?
         self.collisions_with(entity).map(move |contacts| {
-            if contacts.entity1 == entity {
-                contacts.entity2
+            if contacts.collider1 == entity {
+                contacts.collider2
             } else {
-                contacts.entity1
+                contacts.collider1
             }
         })
     }

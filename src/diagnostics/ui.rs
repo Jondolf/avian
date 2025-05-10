@@ -427,9 +427,10 @@ fn update_timers(
         };
 
         // Linearly interpolating between green and red, with `lower_bound` and `upper_bound`.
-        let t = (average as f32 - color_config.lower_bound)
-            / (color_config.upper_bound - color_config.lower_bound);
-        text_color.0 = Animatable::interpolate(&green, &red, t.min(1.0)).into();
+        let t = ((average as f32 - color_config.lower_bound)
+            / (color_config.upper_bound - color_config.lower_bound))
+            .min(1.0);
+        text_color.0 = (green * (1.0 - t) + red * t).into();
 
         // Make sure the node is visible.
         node.display = Display::Flex;

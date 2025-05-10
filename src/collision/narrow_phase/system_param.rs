@@ -140,42 +140,46 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .contains(ContactPairFlags::TOUCHING | ContactPairFlags::CONTACT_EVENTS);
                     if send_event {
-                        collision_ended_event_writer
-                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                        collision_ended_event_writer.write(CollisionEnded(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Remove from `CollidingEntities`.
                     Self::remove_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     // Wake up the bodies.
                     // TODO: When we have simulation islands, this will be more efficient.
                     commands.command_scope(|mut commands| {
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                            contact_pair.body1.unwrap_or(contact_pair.collider1),
                         ));
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                            contact_pair.body2.unwrap_or(contact_pair.collider2),
                         ));
                     });
 
                     // Queue the contact pair for removal.
-                    pairs_to_remove.push((contact_pair.entity1, contact_pair.entity2));
+                    pairs_to_remove.push((contact_pair.collider1, contact_pair.collider2));
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_pair.events_enabled() {
-                        collision_started_event_writer
-                            .write(CollisionStarted(contact_pair.entity1, contact_pair.entity2));
+                        collision_started_event_writer.write(CollisionStarted(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Add to `CollidingEntities`.
                     Self::add_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     debug_assert!(
@@ -192,25 +196,27 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 {
                     // Send collision ended event.
                     if contact_pair.events_enabled() {
-                        collision_ended_event_writer
-                            .write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+                        collision_ended_event_writer.write(CollisionEnded(
+                            contact_pair.collider1,
+                            contact_pair.collider2,
+                        ));
                     }
 
                     // Remove from `CollidingEntities`.
                     Self::remove_colliding_entities(
                         &mut self.colliding_entities_query,
-                        contact_pair.entity1,
-                        contact_pair.entity2,
+                        contact_pair.collider1,
+                        contact_pair.collider2,
                     );
 
                     // Wake up the bodies.
                     // TODO: When we have simulation islands, this will be more efficient.
                     commands.command_scope(|mut commands| {
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity1.unwrap_or(contact_pair.entity1),
+                            contact_pair.body1.unwrap_or(contact_pair.collider1),
                         ));
                         commands.queue(WakeUpBody(
-                            contact_pair.body_entity2.unwrap_or(contact_pair.entity2),
+                            contact_pair.body2.unwrap_or(contact_pair.collider2),
                         ));
                     });
 
@@ -317,6 +323,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 #[cfg(not(feature = "parallel"))]
                 let constraints = &mut self.contact_constraints;
 
+                // TODO: Move this out of the chunk iteration? Requires refactoring `par_for_each!`.
                 #[cfg(feature = "parallel")]
                 // Get the thread-local narrow phase context.
                 let mut thread_context = self
@@ -343,7 +350,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // Get the colliders for the contact pair.
                 let Ok([collider1, collider2]) = self
                     .collider_query
-                    .get_many([contacts.entity1, contacts.entity2])
+                    .get_many([contacts.collider1, contacts.collider2])
                 else {
                     return;
                 };
@@ -361,14 +368,12 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else {
                     // The AABBs overlap. Compute contacts.
 
-                    let body1_bundle =
-                        collider1.rigid_body.and_then(|&ColliderOf { rigid_body }| {
-                            self.body_query.get(rigid_body).ok()
-                        });
-                    let body2_bundle =
-                        collider2.rigid_body.and_then(|&ColliderOf { rigid_body }| {
-                            self.body_query.get(rigid_body).ok()
-                        });
+                    let body1_bundle = collider1
+                        .body()
+                        .and_then(|body| self.body_query.get(body).ok());
+                    let body2_bundle = collider2
+                        .body()
+                        .and_then(|body| self.body_query.get(body).ok());
 
                     // The rigid body's friction, restitution, collision margin, and speculative margin
                     // will be used if the collider doesn't have them specified.
@@ -630,8 +635,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         let mut constraint = ContactConstraint {
                             index1: *body1.solver_index,
                             index2: *body2.solver_index,
-                            collider_entity1: collider1.entity,
-                            collider_entity2: collider2.entity,
+                            collider1: collider1.entity,
+                            collider2: collider2.entity,
                             relative_dominance,
                             friction: manifold.friction,
                             restitution: manifold.restitution,
@@ -641,6 +646,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             tangent_velocity: manifold.tangent_velocity,
                             normal: manifold.normal,
                             points: Vec::with_capacity(manifold.points.len()),
+                            #[cfg(feature = "parallel")]
+                            pair_index: contact_index,
                             manifold_index,
                         };
 
@@ -751,6 +758,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 self.contact_constraints
                     .extend(context_mut.contact_constraints.drain(..));
             });
+
+            // Sort the contact constraints by pair index to maintain determinism.
+            // NOTE: `sort_by_key` is faster than `sort_unstable_by_key` here,
+            //       because the constraints within chunks are already sorted.
+            // TODO: We should figure out an approach that doesn't require sorting.
+            self.contact_constraints
+                .sort_by_key(|constraint| constraint.pair_index);
         }
     }
 }

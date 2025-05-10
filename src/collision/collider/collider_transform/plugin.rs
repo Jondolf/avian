@@ -7,6 +7,7 @@ use crate::{
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
+    transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
 
 /// A plugin for propagating and updating transforms for colliders.
@@ -51,8 +52,9 @@ impl Plugin for ColliderTransformPlugin {
         app.add_systems(
             self.schedule,
             (
-                crate::sync::sync_simple_transforms_physics,
-                crate::sync::propagate_transforms_physics,
+                mark_dirty_trees,
+                propagate_parent_transforms,
+                sync_simple_transforms,
             )
                 .chain()
                 .run_if(match_any::<(Added<ColliderMarker>, Without<RigidBody>)>)
@@ -97,7 +99,7 @@ pub(crate) fn update_child_collider_position(
     rb_query: Query<(&Position, &Rotation), (With<RigidBody>, With<Children>)>,
 ) {
     for (collider_transform, mut position, mut rotation, collider_of) in &mut collider_query {
-        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.rigid_body) else {
+        let Ok((rb_pos, rb_rot)) = rb_query.get(collider_of.body) else {
             continue;
         };
 

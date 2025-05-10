@@ -23,13 +23,13 @@ use bevy::prelude::*;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPair {
     /// The first collider entity in the contact.
-    pub entity1: Entity,
+    pub collider1: Entity,
     /// The second collider entity in the contact.
-    pub entity2: Entity,
+    pub collider2: Entity,
     /// The entity of the first body involved in the contact.
-    pub body_entity1: Option<Entity>,
+    pub body1: Option<Entity>,
     /// The entity of the second body involved in the contact.
-    pub body_entity2: Option<Entity>,
+    pub body2: Option<Entity>,
     /// A list of contact manifolds between two colliders.
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
@@ -67,12 +67,12 @@ bitflags::bitflags! {
 impl ContactPair {
     /// Creates a new [`ContactPair`] with the given entities.
     #[inline]
-    pub fn new(entity1: Entity, entity2: Entity) -> Self {
+    pub fn new(collider1: Entity, collider2: Entity) -> Self {
         Self {
-            entity1,
-            entity2,
-            body_entity1: None,
-            body_entity2: None,
+            collider1,
+            collider2,
+            body1: None,
+            body2: None,
             manifolds: Vec::new(),
             flags: ContactPairFlags::empty(),
         }

@@ -52,14 +52,14 @@ use bevy::{
 #[reflect(Debug, Component, PartialEq)]
 pub struct ColliderOf {
     /// The [`Entity`] ID of the [`RigidBody`] that this collider is attached to.
-    pub rigid_body: Entity,
+    pub body: Entity,
 }
 
 impl FromWorld for ColliderOf {
     #[inline(always)]
     fn from_world(_world: &mut World) -> Self {
         ColliderOf {
-            rigid_body: Entity::PLACEHOLDER,
+            body: Entity::PLACEHOLDER,
         }
     }
 }
@@ -70,11 +70,11 @@ impl Relationship for ColliderOf {
     type RelationshipTarget = RigidBodyColliders;
 
     fn get(&self) -> Entity {
-        self.rigid_body
+        self.body
     }
 
     fn from(entity: Entity) -> Self {
-        ColliderOf { rigid_body: entity }
+        ColliderOf { body: entity }
     }
 
     fn on_insert(
@@ -100,29 +100,25 @@ impl Relationship for ColliderOf {
         }
 
         let collider = entity;
-        let rigid_body = world
-            .entity(collider)
-            .get::<ColliderOf>()
-            .unwrap()
-            .rigid_body;
+        let body = world.entity(collider).get::<ColliderOf>().unwrap().body;
 
-        if let Some(mut rigid_body_mut) = world
-            .get_entity_mut(rigid_body)
+        if let Some(mut body_mut) = world
+            .get_entity_mut(body)
             .ok()
             .filter(|e| e.contains::<RigidBody>())
         {
             // Attach the collider to the rigid body.
-            if let Some(mut colliders) = rigid_body_mut.get_mut::<RigidBodyColliders>() {
+            if let Some(mut colliders) = body_mut.get_mut::<RigidBodyColliders>() {
                 colliders.0.push(collider);
             } else {
                 world
                     .commands()
-                    .entity(rigid_body)
+                    .entity(body)
                     .insert(RigidBodyColliders(vec![collider]));
             }
         } else {
             warn!(
-                "{}Tried to attach collider on entity {collider} to rigid body on entity {rigid_body}, but the rigid body does not exist.",
+                "{}Tried to attach collider on entity {collider} to rigid body on entity {body}, but the rigid body does not exist.",
                 caller.map(|location| format!("{location}: ")).unwrap_or_default(),
             );
         }
@@ -148,17 +144,15 @@ impl Relationship for ColliderOf {
                 }
             }
         }
-        let rigid_body = world.entity(entity).get::<Self>().unwrap().get();
-        if let Ok(mut rigid_body_mut) = world.get_entity_mut(rigid_body) {
-            if let Some(mut relationship_target) =
-                rigid_body_mut.get_mut::<Self::RelationshipTarget>()
-            {
+        let body = world.entity(entity).get::<Self>().unwrap().get();
+        if let Ok(mut body_mut) = world.get_entity_mut(body) {
+            if let Some(mut relationship_target) = body_mut.get_mut::<Self::RelationshipTarget>() {
                 RelationshipSourceCollection::remove(
                     relationship_target.collection_mut_risky(),
                     entity,
                 );
                 if relationship_target.len() == 0 {
-                    if let Ok(mut entity) = world.commands().get_entity(rigid_body) {
+                    if let Ok(mut entity) = world.commands().get_entity(body) {
                         // this "remove" operation must check emptiness because in the event that an identical
                         // relationship is inserted on top, this despawn would result in the removal of that identical
                         // relationship ... not what we want!

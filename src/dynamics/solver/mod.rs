@@ -592,12 +592,11 @@ fn store_contact_impulses(
     let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) =
-            contact_graph.get_mut(constraint.collider_entity1, constraint.collider_entity2)
+        let Some(contact_pair) = contact_graph.get_mut(constraint.collider1, constraint.collider2)
         else {
             unreachable!(
                 "Contact pair between {} and {} not found in contact graph.",
-                constraint.collider_entity1, constraint.collider_entity2
+                constraint.collider1, constraint.collider2
             );
         };
 

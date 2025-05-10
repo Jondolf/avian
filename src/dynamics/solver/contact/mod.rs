@@ -62,10 +62,10 @@ pub struct ContactConstraint {
     /// The second entity in the contact.
     pub index2: SolverBodyIndex,
     // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
-    /// The entity of the first collider in the contact.
-    pub collider_entity1: Entity,
+    /// The first collider entity in the contact.
+    pub collider1: Entity,
     /// The second collider entity in the contact.
-    pub collider_entity2: Entity,
+    pub collider2: Entity,
     /// The relative dominance of the bodies.
     ///
     /// If the relative dominance is positive, the first body is dominant
@@ -93,6 +93,13 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
+    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    ///
+    /// This is primarily used for ordering contact constraints deterministically
+    /// when parallelism is enabled. The index may be invalidated by contact removal.
+    // TODO: We should figure out a better way to handle deterministic constraint generation.
+    #[cfg(feature = "parallel")]
+    pub pair_index: usize,
     /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
     pub manifold_index: usize,
 }
@@ -314,7 +321,7 @@ impl ContactConstraint {
 
 impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.collider_entity1 = entity_mapper.get_mapped(self.collider_entity1);
-        self.collider_entity2 = entity_mapper.get_mapped(self.collider_entity2);
+        self.collider1 = entity_mapper.get_mapped(self.collider1);
+        self.collider2 = entity_mapper.get_mapped(self.collider2);
     }
 }

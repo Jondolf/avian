@@ -11,7 +11,7 @@ use bevy::{ecs::query::QueryData, prelude::*};
 #[derive(QueryData)]
 pub struct ColliderQuery<C: AnyCollider> {
     pub entity: Entity,
-    pub rigid_body: Option<&'static ColliderOf>,
+    pub of: Option<&'static ColliderOf>,
     pub position: Ref<'static, Position>,
     pub rotation: Ref<'static, Rotation>,
     pub transform: Option<&'static ColliderTransform>,
@@ -29,6 +29,14 @@ pub struct ColliderQuery<C: AnyCollider> {
 }
 
 impl<C: AnyCollider> ColliderQueryItem<'_, C> {
+    /// Returns the entity of the rigid body that the collider is attached to.
+    ///
+    /// If the collider is not attached to a rigid body, this will return `None`.
+    #[inline(always)]
+    pub fn body(&self) -> Option<Entity> {
+        self.of.map(|ColliderOf { body }| *body)
+    }
+
     /// Returns the [`ActiveCollisionHooks`] for the collider.
     pub fn active_hooks(&self) -> ActiveCollisionHooks {
         self.active_hooks
