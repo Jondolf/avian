@@ -58,9 +58,9 @@ pub struct ContactConstraintPoint {
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
     /// The first entity in the contact.
-    pub index1: SolverBodyIndex,
+    pub body_index1: SolverBodyIndex,
     /// The second entity in the contact.
-    pub index2: SolverBodyIndex,
+    pub body_index2: SolverBodyIndex,
     // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
     /// The first collider entity in the contact.
     pub collider1: Entity,

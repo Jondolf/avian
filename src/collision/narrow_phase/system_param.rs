@@ -633,8 +633,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Generate a contact constraint for each contact manifold.
                     for (manifold_index, manifold) in contacts.manifolds.iter_mut().enumerate() {
                         let mut constraint = ContactConstraint {
-                            index1: *body1.solver_index,
-                            index2: *body2.solver_index,
+                            body_index1: *body1.solver_index,
+                            body_index2: *body2.solver_index,
                             collider1: collider1.entity,
                             collider2: collider2.entity,
                             relative_dominance,

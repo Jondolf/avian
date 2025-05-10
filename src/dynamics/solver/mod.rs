@@ -419,8 +419,9 @@ fn warm_start(
         debug_assert!(!constraint.points.is_empty());
 
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
+        let (body1, body2) = unsafe {
+            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
+        };
 
         // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
         let (body1, inertia1) = if constraint.relative_dominance > 0 {
@@ -485,8 +486,9 @@ fn solve_contacts<const USE_BIAS: bool>(
 
     for constraint in &mut constraints.0 {
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
+        let (body1, body2) = unsafe {
+            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
+        };
 
         // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
         let (body1, inertia1) = if constraint.relative_dominance > 0 {
@@ -551,8 +553,9 @@ fn solve_restitution(
         }
 
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) =
-            unsafe { bodies.get_pair_unchecked_mut(constraint.index1, constraint.index2) };
+        let (body1, body2) = unsafe {
+            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
+        };
 
         // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
         let (body1, inertia1) = if constraint.relative_dominance > 0 {
