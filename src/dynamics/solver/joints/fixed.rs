@@ -31,7 +31,7 @@ pub struct FixedJoint {
     /// The point-to-point constraint that prevents relative translation of the attached bodies.
     pub point_constraint: PointConstraint,
     /// The angular constraint that prevents relative rotation of the attached bodies.
-    pub angle_constraint: AngleConstraint,
+    pub angle_constraint: FixedAngleConstraint,
     /// Linear damping applied by the joint.
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
@@ -80,7 +80,7 @@ impl Joint for FixedJoint {
             entity1,
             entity2,
             point_constraint: PointConstraint::default(),
-            angle_constraint: AngleConstraint::default(),
+            angle_constraint: FixedAngleConstraint::default(),
             damping_linear: 1.0,
             damping_angular: 1.0,
         }
@@ -94,6 +94,16 @@ impl Joint for FixedJoint {
     #[inline]
     fn local_anchor_2(&self) -> Vector {
         self.point_constraint.local_anchor2
+    }
+
+    #[inline]
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
+    }
+
+    #[inline]
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
     }
 }
 
@@ -131,16 +141,6 @@ impl FixedJoint {
             damping_angular: damping,
             ..self
         }
-    }
-
-    #[inline]
-    pub fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    #[inline]
-    pub fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 
     #[inline]

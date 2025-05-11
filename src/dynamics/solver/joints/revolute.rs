@@ -62,13 +62,13 @@ pub struct RevoluteJoint {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct RevoluteJointPreStepData {
+struct RevoluteJointPreStepData {
     #[cfg(feature = "2d")]
-    pub rotation_difference: Scalar,
+    rotation_difference: Scalar,
     #[cfg(feature = "3d")]
-    pub axis1: Vector,
+    axis1: Vector,
     #[cfg(feature = "3d")]
-    pub axis2: Vector,
+    axis2: Vector,
 }
 
 impl EntityConstraint<2> for RevoluteJoint {
@@ -180,6 +180,16 @@ impl Joint for RevoluteJoint {
     fn local_anchor_2(&self) -> Vector {
         self.point_constraint.local_anchor2
     }
+
+    #[inline]
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
+    }
+
+    #[inline]
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
+    }
 }
 
 impl RevoluteJoint {
@@ -217,16 +227,6 @@ impl RevoluteJoint {
             damping_angular: damping,
             ..self
         }
-    }
-
-    #[inline]
-    pub fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    #[inline]
-    pub fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 
     #[inline]

@@ -27,7 +27,8 @@ pub struct PrismaticJoint {
     pub entity1: Entity,
     /// Second entity constrained by the joint.
     pub entity2: Entity,
-    pub angle_constraint: AngleConstraint,
+    /// The angle constraint that prevents relative rotation of the attached bodies.
+    pub angle_constraint: FixedAngleConstraint,
     /// Attachment point on the first body.
     pub local_anchor1: Vector,
     /// Attachment point on the second body.
@@ -55,11 +56,11 @@ pub struct PrismaticJoint {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct PrismaticJointPreStepData {
-    pub world_r1: Vector,
-    pub world_r2: Vector,
-    pub center_difference: Vector,
-    pub free_axis1: Vector,
+struct PrismaticJointPreStepData {
+    world_r1: Vector,
+    world_r2: Vector,
+    center_difference: Vector,
+    free_axis1: Vector,
 }
 
 impl EntityConstraint<2> for PrismaticJoint {
@@ -108,7 +109,7 @@ impl Joint for PrismaticJoint {
         Self {
             entity1,
             entity2,
-            angle_constraint: AngleConstraint::default(),
+            angle_constraint: FixedAngleConstraint::default(),
             local_anchor1: Vector::ZERO,
             local_anchor2: Vector::ZERO,
             free_axis: Vector::X,
@@ -131,6 +132,16 @@ impl Joint for PrismaticJoint {
     #[inline]
     fn local_anchor_2(&self) -> Vector {
         self.local_anchor2
+    }
+
+    #[inline]
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
+    }
+
+    #[inline]
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
     }
 }
 
@@ -169,16 +180,6 @@ impl PrismaticJoint {
             damping_angular: damping,
             ..self
         }
-    }
-
-    #[inline]
-    pub fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    #[inline]
-    pub fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 
     #[inline]

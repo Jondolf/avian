@@ -53,10 +53,10 @@ pub struct DistanceJoint {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct DistanceJointPreStepData {
-    pub world_r1: Vector,
-    pub world_r2: Vector,
-    pub center_difference: Vector,
+struct DistanceJointPreStepData {
+    world_r1: Vector,
+    world_r2: Vector,
+    center_difference: Vector,
 }
 
 impl EntityConstraint<2> for DistanceJoint {
@@ -182,6 +182,16 @@ impl Joint for DistanceJoint {
     fn local_anchor_2(&self) -> Vector {
         self.local_anchor2
     }
+
+    #[inline]
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
+    }
+
+    #[inline]
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
+    }
 }
 
 impl DistanceJoint {
@@ -217,16 +227,6 @@ impl DistanceJoint {
             damping_angular: damping,
             ..self
         }
-    }
-
-    #[inline]
-    pub fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    #[inline]
-    pub fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 
     #[inline]

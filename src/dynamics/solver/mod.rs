@@ -12,6 +12,7 @@ pub mod xpbd;
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia, SolverBodyPlugin};
+use xpbd::EntityConstraint;
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -185,12 +186,12 @@ impl Plugin for SolverPlugin {
             (
                 xpbd::project_linear_velocity,
                 xpbd::project_angular_velocity,
-                /*joint_damping::<FixedJoint>,
+                joint_damping::<FixedJoint>,
                 joint_damping::<RevoluteJoint>,
                 #[cfg(feature = "3d")]
                 joint_damping::<SphericalJoint>,
                 joint_damping::<PrismaticJoint>,
-                joint_damping::<DistanceJoint>,*/
+                joint_damping::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SubstepSolverSet::XpbdVelocityProjection),
@@ -618,10 +619,9 @@ fn store_contact_impulses(
     diagnostics.store_impulses += start.elapsed();
 }
 
-/*
 /// Applies velocity corrections caused by joint damping.
 #[allow(clippy::type_complexity)]
-pub fn joint_damping<T: Joint>(
+pub fn joint_damping<T: Joint + EntityConstraint<2>>(
     mut bodies: Query<
         (
             &RigidBody,
@@ -684,4 +684,3 @@ pub fn joint_damping<T: Joint>(
         }
     }
 }
-*/

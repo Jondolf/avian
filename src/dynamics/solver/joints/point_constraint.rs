@@ -26,10 +26,10 @@ pub struct PointConstraint {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct PointConstraintPreStepData {
-    pub world_r1: Vector,
-    pub world_r2: Vector,
-    pub center_difference: Vector,
+pub(crate) struct PointConstraintPreStepData {
+    pub(crate) world_r1: Vector,
+    pub(crate) world_r2: Vector,
+    pub(crate) center_difference: Vector,
 }
 
 impl XpbdConstraint<2> for PointConstraint {

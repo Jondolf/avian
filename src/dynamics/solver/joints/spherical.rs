@@ -60,11 +60,11 @@ pub struct SphericalJoint {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct SphericalJointPreStepData {
-    pub swing_axis1: Vector,
-    pub swing_axis2: Vector,
-    pub twist_axis1: Vector,
-    pub twist_axis2: Vector,
+struct SphericalJointPreStepData {
+    swing_axis1: Vector,
+    swing_axis2: Vector,
+    twist_axis1: Vector,
+    twist_axis2: Vector,
 }
 
 impl EntityConstraint<2> for SphericalJoint {
@@ -156,6 +156,16 @@ impl Joint for SphericalJoint {
     fn local_anchor_2(&self) -> Vector {
         self.point_constraint.local_anchor2
     }
+
+    #[inline]
+    fn damping_linear(&self) -> Scalar {
+        self.damping_linear
+    }
+
+    #[inline]
+    fn damping_angular(&self) -> Scalar {
+        self.damping_angular
+    }
 }
 
 impl SphericalJoint {
@@ -193,16 +203,6 @@ impl SphericalJoint {
             damping_angular: damping,
             ..self
         }
-    }
-
-    #[inline]
-    pub fn damping_linear(&self) -> Scalar {
-        self.damping_linear
-    }
-
-    #[inline]
-    pub fn damping_angular(&self) -> Scalar {
-        self.damping_angular
     }
 
     #[inline]

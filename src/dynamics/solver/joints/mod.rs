@@ -83,7 +83,7 @@
 //! [See the code implementations](https://github.com/Jondolf/avian/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
-mod angle_constraint;
+mod fixed_angle_constraint;
 mod point_constraint;
 
 mod distance;
@@ -93,7 +93,7 @@ mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
 
-pub use angle_constraint::*;
+pub use fixed_angle_constraint::*;
 pub use point_constraint::*;
 
 pub use distance::*;
@@ -116,6 +116,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 
     /// Returns the local attachment point on the second body.
     fn local_anchor_2(&self) -> Vector;
+
+    /// Returns the linear velocity damping applied by the joint.
+    fn damping_linear(&self) -> Scalar;
+
+    /// Returns the angular velocity damping applied by the joint.
+    fn damping_angular(&self) -> Scalar;
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.

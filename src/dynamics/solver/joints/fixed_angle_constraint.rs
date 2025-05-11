@@ -8,32 +8,34 @@ use crate::{
 use bevy::prelude::*;
 
 // TODO: Support relative base rotation.
+/// A constraint that keeps the attached bodies at a fixed angle
+/// from each other while while allowing translation along all axes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct AngleConstraint {
+pub struct FixedAngleConstraint {
     /// The joint's compliance for aligning the bodies. The inverse of stiffness.
     pub compliance: Scalar,
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub lagrange: Scalar,
     /// The torque exerted by the joint when aligning the bodies.
     pub torque: Torque,
-    pre_step: AngleConstraintPreStepData,
+    pub(crate) pre_step: FixedAngleConstraintPreStepData,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
-pub struct AngleConstraintPreStepData {
+pub(crate) struct FixedAngleConstraintPreStepData {
     #[cfg(feature = "2d")]
-    pub rotation_difference: Scalar,
+    pub(crate) rotation_difference: Scalar,
     #[cfg(feature = "3d")]
-    pub rotation_difference: Quaternion,
+    pub(crate) rotation_difference: Quaternion,
 }
 
-impl XpbdConstraint<2> for AngleConstraint {
+impl XpbdConstraint<2> for FixedAngleConstraint {
     fn clear_lagrange_multipliers(&mut self) {
         self.lagrange = 0.0;
     }
@@ -92,4 +94,4 @@ impl XpbdConstraint<2> for AngleConstraint {
     }
 }
 
-impl AngularConstraint for AngleConstraint {}
+impl AngularConstraint for FixedAngleConstraint {}
