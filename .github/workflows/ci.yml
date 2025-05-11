@@ -16,6 +16,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
             - name: Run cargo check
               run: cargo check
 
@@ -25,6 +26,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
             - name: Run cargo doc
               run: cargo doc --workspace --no-deps --document-private-items --keep-going
               env:
@@ -41,8 +43,9 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
             - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+              run: cargo test --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
 
     lints:
         name: Lints
@@ -50,6 +53,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
+            - uses: Swatinem/rust-cache@v2
             - name: Run cargo fmt
               run: cargo fmt --all -- --check
             - name: Run cargo clippy

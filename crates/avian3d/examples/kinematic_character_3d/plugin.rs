@@ -1,4 +1,7 @@
-use avian3d::{math::*, prelude::*};
+use avian3d::{
+    math::*,
+    prelude::{NarrowPhaseSet, *},
+};
 use bevy::{ecs::query::Has, prelude::*};
 
 pub struct CharacterControllerPlugin;
@@ -23,8 +26,8 @@ impl Plugin for CharacterControllerPlugin {
                 //
                 // NOTE: The collision implementation here is very basic and a bit buggy.
                 //       A collide-and-slide algorithm would likely work better.
-                PostProcessCollisions,
-                kinematic_controller_collisions,
+                PhysicsSchedule,
+                kinematic_controller_collisions.in_set(NarrowPhaseSet::Last),
             );
     }
 }
@@ -72,7 +75,7 @@ pub struct MaxSlopeAngle(Scalar);
 #[derive(Bundle)]
 pub struct CharacterControllerBundle {
     character_controller: CharacterController,
-    rigid_body: RigidBody,
+    body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
     gravity: ControllerGravity,
@@ -118,7 +121,7 @@ impl CharacterControllerBundle {
 
         Self {
             character_controller: CharacterController,
-            rigid_body: RigidBody::Kinematic,
+            body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(
                 caster_shape,
@@ -159,11 +162,11 @@ fn keyboard_input(
     let direction = Vector2::new(horizontal as Scalar, vertical as Scalar).clamp_length_max(1.0);
 
     if direction != Vector2::ZERO {
-        movement_event_writer.send(MovementAction::Move(direction));
+        movement_event_writer.write(MovementAction::Move(direction));
     }
 
     if keyboard_input.just_pressed(KeyCode::Space) {
-        movement_event_writer.send(MovementAction::Jump);
+        movement_event_writer.write(MovementAction::Jump);
     }
 }
 
@@ -177,13 +180,13 @@ fn gamepad_input(
             gamepad.get(GamepadAxis::LeftStickX),
             gamepad.get(GamepadAxis::LeftStickY),
         ) {
-            movement_event_writer.send(MovementAction::Move(
+            movement_event_writer.write(MovementAction::Move(
                 Vector2::new(x as Scalar, y as Scalar).clamp_length_max(1.0),
             ));
         }
 
         if gamepad.just_pressed(GamepadButton::South) {
-            movement_event_writer.send(MovementAction::Jump);
+            movement_event_writer.write(MovementAction::Jump);
         }
     }
 }
@@ -281,16 +284,11 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 /// and predict collisions using speculative contacts.
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     bodies: Query<&RigidBody>,
-    collider_parents: Query<&ColliderParent, Without<Sensor>>,
+    collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<
-        (
-            &mut Position,
-            &Rotation,
-            &mut LinearVelocity,
-            Option<&MaxSlopeAngle>,
-        ),
+        (&mut Position, &mut LinearVelocity, Option<&MaxSlopeAngle>),
         (With<RigidBody>, With<CharacterController>),
     >,
     time: Res<Time>,
@@ -298,8 +296,8 @@ fn kinematic_controller_collisions(
     // Iterate through collisions and move the kinematic body to resolve penetration
     for contacts in collisions.iter() {
         // Get the rigid body entities of the colliders (colliders could be children)
-        let Ok([collider_parent1, collider_parent2]) =
-            collider_parents.get_many([contacts.entity1, contacts.entity2])
+        let Ok([&ColliderOf { body: rb1 }, &ColliderOf { body: rb2 }]) =
+            collider_rbs.get_many([contacts.collider1, contacts.collider2])
         else {
             continue;
         };
@@ -311,20 +309,16 @@ fn kinematic_controller_collisions(
         let character_rb: RigidBody;
         let is_other_dynamic: bool;
 
-        let (mut position, rotation, mut linear_velocity, max_slope_angle) =
-            if let Ok(character) = character_controllers.get_mut(collider_parent1.get()) {
+        let (mut position, mut linear_velocity, max_slope_angle) =
+            if let Ok(character) = character_controllers.get_mut(rb1) {
                 is_first = true;
-                character_rb = *bodies.get(collider_parent1.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent2.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb1).unwrap();
+                is_other_dynamic = bodies.get(rb2).is_ok_and(|rb| rb.is_dynamic());
                 character
-            } else if let Ok(character) = character_controllers.get_mut(collider_parent2.get()) {
+            } else if let Ok(character) = character_controllers.get_mut(rb2) {
                 is_first = false;
-                character_rb = *bodies.get(collider_parent2.get()).unwrap();
-                is_other_dynamic = bodies
-                    .get(collider_parent1.get())
-                    .is_ok_and(|rb| rb.is_dynamic());
+                character_rb = *bodies.get(rb2).unwrap();
+                is_other_dynamic = bodies.get(rb1).is_ok_and(|rb| rb.is_dynamic());
                 character
             } else {
                 continue;
@@ -339,15 +333,15 @@ fn kinematic_controller_collisions(
         // Each contact in a single manifold shares the same contact normal.
         for manifold in contacts.manifolds.iter() {
             let normal = if is_first {
-                -manifold.global_normal1(rotation)
+                -manifold.normal
             } else {
-                -manifold.global_normal2(rotation)
+                manifold.normal
             };
 
             let mut deepest_penetration: Scalar = Scalar::MIN;
 
             // Solve each penetrating contact in the manifold.
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 if contact.penetration > 0.0 {
                     position.0 += normal * contact.penetration;
                 }

@@ -25,13 +25,13 @@ use bevy::{
 /// - [AABBs](ColliderAabb)
 /// - [Collider] wireframes
 /// - Using different colors for [sleeping](Sleeping) bodies
-/// - [Contacts]
+/// - [Contacts](ContactPair)
 /// - [Joints](dynamics::solver::joints)
 /// - [`RayCaster`]
 /// - [`ShapeCaster`]
 /// - Changing the visibility of entities to only show debug rendering
 ///
-/// By default, [AABBs](ColliderAabb) and [contacts](Contacts) are not debug rendered.
+/// By default, [AABBs](ColliderAabb) and [contacts](ContactPair) are not debug rendered.
 /// You can configure the [`PhysicsGizmos`] retrieved from `GizmoConfigStore` for the global configuration
 /// and the [`DebugRender`] component for entity-level configuration.
 ///
@@ -101,11 +101,11 @@ impl Plugin for PhysicsDebugPlugin {
         let config = store.config_mut::<PhysicsGizmos>().0;
         #[cfg(feature = "2d")]
         {
-            config.line_width = 2.0;
+            config.line.width = 2.0;
         }
         #[cfg(feature = "3d")]
         {
-            config.line_width = 1.5;
+            config.line.width = 1.5;
         }
 
         app.register_type::<PhysicsGizmos>()
@@ -201,7 +201,7 @@ fn debug_render_aabbs(
     aabbs: Query<(
         Entity,
         &ColliderAabb,
-        Option<&ColliderParent>,
+        Option<&ColliderOf>,
         Option<&DebugRender>,
     )>,
     sleeping: Query<(), With<Sleeping>>,
@@ -210,12 +210,12 @@ fn debug_render_aabbs(
 ) {
     let config = store.config::<PhysicsGizmos>().1;
     #[cfg(feature = "2d")]
-    for (entity, aabb, collider_parent, render_config) in &aabbs {
+    for (entity, aabb, collider_rb, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
-            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping.contains(collider_parent) {
+            if sleeping.contains(collider_rb) {
                 let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -233,12 +233,12 @@ fn debug_render_aabbs(
     }
 
     #[cfg(feature = "3d")]
-    for (entity, aabb, collider_parent, render_config) in &aabbs {
+    for (entity, aabb, collider_rb, render_config) in &aabbs {
         if let Some(mut color) = render_config.map_or(config.aabb_color, |c| c.aabb_color) {
-            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping.contains(collider_parent) {
+            if sleeping.contains(collider_rb) {
                 let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -267,7 +267,7 @@ fn debug_render_colliders(
         &Collider,
         &Position,
         &Rotation,
-        Option<&ColliderParent>,
+        Option<&ColliderOf>,
         Option<&DebugRender>,
     )>,
     sleeping: Query<(), With<Sleeping>>,
@@ -275,12 +275,12 @@ fn debug_render_colliders(
     store: Res<GizmoConfigStore>,
 ) {
     let config = store.config::<PhysicsGizmos>().1;
-    for (entity, collider, position, rotation, collider_parent, render_config) in &mut colliders {
+    for (entity, collider, position, rotation, collider_rb, render_config) in &mut colliders {
         if let Some(mut color) = render_config.map_or(config.collider_color, |c| c.collider_color) {
-            let collider_parent = collider_parent.map_or(entity, |p| p.get());
+            let collider_rb = collider_rb.map_or(entity, |c| c.body);
 
             // If the body is sleeping, multiply the color by the sleeping color multiplier
-            if sleeping.contains(collider_parent) {
+            if sleeping.contains(collider_rb) {
                 let hsla = Hsla::from(color).to_vec4();
                 if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
                     c.sleeping_color_multiplier
@@ -295,7 +295,7 @@ fn debug_render_colliders(
 
 fn debug_render_contacts(
     colliders: Query<(&Position, &Rotation)>,
-    collisions: Res<Collisions>,
+    collisions: Collisions,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
     time: Res<Time<Substeps>>,
@@ -308,19 +308,17 @@ fn debug_render_contacts(
     }
 
     for contacts in collisions.iter() {
-        let Ok((position1, rotation1)) = colliders.get(contacts.entity1) else {
+        let Ok((position1, rotation1)) = colliders.get(contacts.collider1) else {
             continue;
         };
-        let Ok((position2, rotation2)) = colliders.get(contacts.entity2) else {
+        let Ok((position2, rotation2)) = colliders.get(contacts.collider2) else {
             continue;
         };
 
         for manifold in contacts.manifolds.iter() {
-            for contact in manifold.contacts.iter() {
+            for contact in manifold.points.iter() {
                 let p1 = contact.global_point1(position1, rotation1);
                 let p2 = contact.global_point2(position2, rotation2);
-                let normal1 = contact.global_normal1(rotation1);
-                let normal2 = contact.global_normal2(rotation2);
 
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {
@@ -351,13 +349,23 @@ fn debug_render_contacts(
                         * match config.contact_normal_scale {
                             ContactGizmoScale::Constant(length) => length,
                             ContactGizmoScale::Scaled(scale) => {
-                                scale * contacts.total_normal_impulse
+                                scale * contact.normal_impulse
                                     / time.delta_secs_f64().adjust_precision()
                             }
                         };
 
-                    gizmos.draw_arrow(p1, p1 + normal1 * length, 0.1 * length_unit.0, color);
-                    gizmos.draw_arrow(p2, p2 + normal2 * length, 0.1 * length_unit.0, color_dim);
+                    gizmos.draw_arrow(
+                        p1,
+                        p1 + manifold.normal * length,
+                        0.1 * length_unit.0,
+                        color,
+                    );
+                    gizmos.draw_arrow(
+                        p2,
+                        p2 - manifold.normal * length,
+                        0.1 * length_unit.0,
+                        color_dim,
+                    );
                 }
             }
         }

@@ -75,8 +75,8 @@
 //!
 //! impl MapEntities for CustomConstraint {
 //!     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-//!        self.entity1 = entity_mapper.map_entity(self.entity1);
-//!        self.entity2 = entity_mapper.map_entity(self.entity2);
+//!        self.entity1 = entity_mapper.get_mapped(self.entity1);
+//!        self.entity2 = entity_mapper.get_mapped(self.entity2);
 //!     }
 //! }
 //! ```
@@ -226,7 +226,10 @@ pub use angular_constraint::AngularConstraint;
 pub use positional_constraint::PositionConstraint;
 
 use crate::prelude::*;
-use bevy::{ecs::entity::MapEntities, prelude::*};
+use bevy::{
+    ecs::{component::Mutable, entity::MapEntities},
+    prelude::*,
+};
 
 /// A trait for all XPBD [constraints](self#constraints).
 pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
@@ -348,7 +351,10 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize>: MapEntities {
 ///         .in_set(SubstepSolverSet::SolveUserConstraints),
 /// );
 /// ```
-pub fn solve_constraint<C: XpbdConstraint<ENTITY_COUNT> + Component, const ENTITY_COUNT: usize>(
+pub fn solve_constraint<
+    C: XpbdConstraint<ENTITY_COUNT> + Component<Mutability = Mutable>,
+    const ENTITY_COUNT: usize,
+>(
     mut commands: Commands,
     mut bodies: Query<RigidBodyQuery, Without<RigidBodyDisabled>>,
     mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,

@@ -100,6 +100,14 @@ impl From<&GlobalTransform> for Position {
     }
 }
 
+impl Ease for Position {
+    fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
+        FunctionCurve::new(Interval::UNIT, move |t| {
+            Position(Vector::lerp(start.0, end.0, t as Scalar))
+        })
+    }
+}
+
 /// The translation accumulated before the XPBD position solve.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -247,7 +255,7 @@ impl Rotation {
     ///
     /// # Panics
     ///
-    /// Panics if `sin * sin + cos * cos != 1.0` when the `glam_assert` feature is enabled.
+    /// Panics if `sin * sin + cos * cos != 1.0` when `debug_assertions` are enabled.
     #[inline]
     pub fn from_sin_cos(sin: Scalar, cos: Scalar) -> Self {
         let rotation = Self { sin, cos };
@@ -551,7 +559,7 @@ impl From<Rotation> for Rot2 {
 }
 
 #[cfg(feature = "2d")]
-impl std::ops::Mul for Rotation {
+impl core::ops::Mul for Rotation {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
@@ -563,14 +571,14 @@ impl std::ops::Mul for Rotation {
 }
 
 #[cfg(feature = "2d")]
-impl std::ops::MulAssign for Rotation {
+impl core::ops::MulAssign for Rotation {
     fn mul_assign(&mut self, rhs: Self) {
         *self = *self * rhs;
     }
 }
 
 #[cfg(feature = "2d")]
-impl std::ops::Mul<Vector> for Rotation {
+impl core::ops::Mul<Vector> for Rotation {
     type Output = Vector;
 
     /// Rotates a [`Vector`] by a [`Rotation`].
@@ -664,6 +672,14 @@ impl core::ops::Mul<&mut Vector3> for &mut Rotation {
 
     fn mul(self, rhs: &mut Vector3) -> Self::Output {
         *self * *rhs
+    }
+}
+
+impl Ease for Rotation {
+    fn interpolating_curve_unbounded(start: Self, end: Self) -> impl Curve<Self> {
+        FunctionCurve::new(Interval::UNIT, move |t| {
+            Rotation::slerp(start, end, t as Scalar)
+        })
     }
 }
 

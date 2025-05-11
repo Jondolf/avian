@@ -230,7 +230,7 @@
 //! Finally, making the [physics timestep](Physics) smaller can also help.
 //! However, this comes at the cost of worse performance for the entire simulation.
 
-use crate::{collision::broad_phase::AabbIntersections, prelude::*};
+use crate::prelude::*;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
@@ -378,7 +378,6 @@ impl SpeculativeMargin {
 /// ```
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[reflect(Component)]
-#[require(AabbIntersections)]
 pub struct SweptCcd {
     /// The type of sweep used for swept CCD.
     ///
@@ -517,19 +516,20 @@ struct SweptCcdBodyQuery {
 #[allow(clippy::useless_conversion)]
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 fn solve_swept_ccd(
-    ccd_query: Query<(Entity, &AabbIntersections), With<SweptCcd>>,
+    ccd_query: Query<Entity, With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
-    colliders: Query<(&Collider, &ColliderParent)>,
+    colliders: Query<(&Collider, &ColliderOf)>,
     time: Res<Time>,
+    contact_graph: Res<ContactGraph>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
-    let start = bevy::utils::Instant::now();
+    let start = crate::utils::Instant::now();
 
     let delta_secs = time.delta_seconds_adjusted();
 
     // TODO: Parallelize.
-    for (entity, intersections) in &ccd_query {
+    for entity in &ccd_query {
         // Get the CCD body.
         let Ok(SweptCcdBodyQueryItem {
             pos: pos1,
@@ -557,18 +557,15 @@ fn solve_swept_ccd(
         let (mut min_toi, mut min_toi_entity) = (delta_secs, None);
 
         // Iterate through colliders intersecting the AABB of the CCD body.
-        for (collider2, collider_parent) in colliders.iter_many(intersections.iter()) {
-            debug_assert_ne!(
-                entity,
-                collider_parent.get(),
-                "collider AABB cannot intersect itself"
-            );
+        let intersecting_entities = contact_graph.entities_colliding_with(entity);
+        for (collider2, &ColliderOf { body: entity2 }) in colliders.iter_many(intersecting_entities)
+        {
+            debug_assert_ne!(entity, entity2, "collider AABB cannot intersect itself");
 
             // Get the body associated with the collider.
             // Safety: `AabbIntersections` should never contain the entity of a collider
-            //         with the same parent as the first body, and the entities
-            //         are also ensured to be different above.
-            if let Ok(body2) = unsafe { bodies.get_unchecked(collider_parent.get()) } {
+            //         attached to the first body, and the entities are also ensured to be different above.
+            if let Ok(body2) = unsafe { bodies.get_unchecked(entity2) } {
                 if !ccd1.include_dynamic && body2.rb.is_dynamic() {
                     continue;
                 }
@@ -629,7 +626,7 @@ fn solve_swept_ccd(
                     narrow_phase_config.default_speculative_margin,
                 ) {
                     min_toi = toi;
-                    min_toi_entity = Some(collider_parent.get());
+                    min_toi_entity = Some(entity2);
                 }
             }
         }
