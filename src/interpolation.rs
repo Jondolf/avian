@@ -7,9 +7,9 @@ use bevy_transform_interpolation::{prelude::*, VelocitySource};
 
 pub use bevy_transform_interpolation::prelude::{
     NoRotationEasing, NoScaleEasing, NoTransformEasing, NoTranslationEasing, RotationExtrapolation,
-    RotationHermiteEasing, RotationInterpolation, ScaleInterpolation, TransformExtrapolation,
-    TransformHermiteEasing, TransformInterpolation, TranslationExtrapolation,
-    TranslationHermiteEasing, TranslationInterpolation,
+    RotationHermiteEasing, RotationInterpolation, ScaleInterpolation, TransformEasingSet,
+    TransformExtrapolation, TransformHermiteEasing, TransformInterpolation,
+    TranslationExtrapolation, TranslationHermiteEasing, TranslationInterpolation,
 };
 
 use crate::prelude::*;
