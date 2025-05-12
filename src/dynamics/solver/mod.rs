@@ -420,22 +420,30 @@ fn warm_start(
     for constraint in constraints.iter_mut() {
         debug_assert!(!constraint.points.is_empty());
 
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) = unsafe {
+        let (first, second) = unsafe {
             bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
         };
 
-        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
-        let (body1, inertia1) = if constraint.relative_dominance > 0 {
-            (&mut dummy_body1, &dummy_inertia)
-        } else {
-            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
-        };
-        let (body2, inertia2) = if constraint.relative_dominance < 0 {
-            (&mut dummy_body2, &dummy_inertia)
-        } else {
-            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
-        };
+        if let Some((body, inertia)) = first {
+            body1 = body;
+            inertia1 = inertia;
+        }
+
+        if let Some((body, inertia)) = second {
+            body2 = body;
+            inertia2 = inertia;
+        }
+
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        if constraint.relative_dominance > 0 {
+            inertia1 = &dummy_inertia;
+        } else if constraint.relative_dominance < 0 {
+            inertia2 = &dummy_inertia;
+        }
 
         let normal = constraint.normal;
         let tangent_directions =
@@ -487,22 +495,30 @@ fn solve_contacts<const USE_BIAS: bool>(
     let dummy_inertia = SolverBodyInertia::default();
 
     for constraint in &mut constraints.0 {
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) = unsafe {
+        let (first, second) = unsafe {
             bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
         };
 
-        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
-        let (body1, inertia1) = if constraint.relative_dominance > 0 {
-            (&mut dummy_body1, &dummy_inertia)
-        } else {
-            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
-        };
-        let (body2, inertia2) = if constraint.relative_dominance < 0 {
-            (&mut dummy_body2, &dummy_inertia)
-        } else {
-            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
-        };
+        if let Some((body, inertia)) = first {
+            body1 = body;
+            inertia1 = inertia;
+        }
+
+        if let Some((body, inertia)) = second {
+            body2 = body;
+            inertia2 = inertia;
+        }
+
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        if constraint.relative_dominance > 0 {
+            inertia1 = &dummy_inertia;
+        } else if constraint.relative_dominance < 0 {
+            inertia2 = &dummy_inertia;
+        }
 
         constraint.solve(
             body1,
@@ -554,22 +570,30 @@ fn solve_restitution(
             continue;
         }
 
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+
         // Get the solver bodies for the two colliding entities.
-        let (body1, body2) = unsafe {
+        let (first, second) = unsafe {
             bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
         };
 
+        if let Some((body, inertia)) = first {
+            body1 = body;
+            inertia1 = inertia;
+        }
+
+        if let Some((body, inertia)) = second {
+            body2 = body;
+            inertia2 = inertia;
+        }
+
         // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
-        let (body1, inertia1) = if constraint.relative_dominance > 0 {
-            (&mut dummy_body1, &dummy_inertia)
-        } else {
-            body1.unwrap_or((&mut dummy_body1, &dummy_inertia))
-        };
-        let (body2, inertia2) = if constraint.relative_dominance < 0 {
-            (&mut dummy_body2, &dummy_inertia)
-        } else {
-            body2.unwrap_or((&mut dummy_body2, &dummy_inertia))
-        };
+        if constraint.relative_dominance > 0 {
+            inertia1 = &dummy_inertia;
+        } else if constraint.relative_dominance < 0 {
+            inertia2 = &dummy_inertia;
+        }
 
         // Performing multiple iterations can result in more accurate restitution,
         // but only if there are more than one contact point.
