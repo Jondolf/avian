@@ -747,30 +747,19 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
-        use bevy::{
-            asset::AssetPlugin, core_pipeline::CorePipelinePlugin, diagnostic::DiagnosticsPlugin,
-            gizmos::GizmoPlugin, pbr::PbrPlugin, render::RenderPlugin, sprite::SpritePlugin,
-            text::TextPlugin, ui::UiPlugin, winit::WinitPlugin,
-        };
+        use bevy::{asset::AssetPlugin, gltf::GltfPlugin, render::mesh::MeshPlugin};
 
         let mut app = App::new();
-        app.add_plugins(AssetPlugin::default())
-            .init_asset::<Mesh>()
-            .add_plugins((
-                DefaultPlugins
-                    .build()
-                    .disable::<WinitPlugin>()
-                    .disable::<DiagnosticsPlugin>()
-                    .disable::<AssetPlugin>()
-                    .disable::<CorePipelinePlugin>()
-                    .disable::<PbrPlugin>()
-                    .disable::<SpritePlugin>()
-                    .disable::<UiPlugin>()
-                    .disable::<GizmoPlugin>()
-                    .disable::<TextPlugin>()
-                    .disable::<RenderPlugin>(),
-                PhysicsPlugins::default(),
-            ));
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            ScenePlugin,
+            TransformPlugin,
+            MeshPlugin,
+            GltfPlugin::default(),
+            ImagePlugin::default(),
+            PhysicsPlugins::default(),
+        ));
         app.finish();
         app.cleanup();
         app
