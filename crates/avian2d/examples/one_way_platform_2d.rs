@@ -259,23 +259,23 @@ impl CollisionHooks for PlatformerCollisionHooks<'_, '_> {
         // Choose the appropriate normal for pass-through depending on which is which.
         let (platform_entity, one_way_platform, platform_transform, other_entity, relevant_normal) =
             if let Ok((one_way_platform, platform_transform)) =
-                self.one_way_platforms_query.get(contacts.entity1)
+                self.one_way_platforms_query.get(contacts.collider1)
             {
                 (
-                    contacts.entity1,
+                    contacts.collider1,
                     one_way_platform,
                     platform_transform,
-                    contacts.entity2,
+                    contacts.collider2,
                     RelevantNormal::Normal1,
                 )
             } else if let Ok((one_way_platform, platform_transform)) =
-                self.one_way_platforms_query.get(contacts.entity2)
+                self.one_way_platforms_query.get(contacts.collider2)
             {
                 (
-                    contacts.entity2,
+                    contacts.collider2,
                     one_way_platform,
                     platform_transform,
-                    contacts.entity1,
+                    contacts.collider1,
                     RelevantNormal::Normal2,
                 )
             } else {

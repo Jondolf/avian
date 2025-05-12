@@ -391,8 +391,8 @@ fn queue_mass_recomputation_on_collider_mass_change(
         )>,
     >,
 ) {
-    for &ColliderOf { rigid_body } in &mut query {
-        if let Ok(mut entity_commands) = commands.get_entity(rigid_body) {
+    for &ColliderOf { body } in &mut query {
+        if let Ok(mut entity_commands) = commands.get_entity(body) {
             entity_commands.insert(RecomputeMassProperties);
         }
     }

@@ -85,11 +85,20 @@ impl<C: AnyCollider, H: CollisionHooks> Default for NarrowPhasePlugin<C, H> {
     }
 }
 
+/// A resource that indicates that the narrow phase has been initialized.
+///
+/// This is used to ensure that some systems are only added once
+/// even with multiple collider types.
+#[derive(Resource, Default)]
+struct NarrowPhaseInitialized;
+
 impl<C: AnyCollider, H: CollisionHooks + 'static> Plugin for NarrowPhasePlugin<C, H>
 where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
     fn build(&self, app: &mut App) {
+        let already_initialized = app.world().is_resource_added::<NarrowPhaseInitialized>();
+
         app.init_resource::<NarrowPhaseConfig>()
             .init_resource::<ContactGraph>()
             .init_resource::<ContactStatusBits>()
@@ -124,11 +133,6 @@ where
             CollisionEventSystems.in_set(PhysicsStepSet::Finalize),
         );
 
-        // Remove collision pairs when colliders are disabled or removed.
-        app.add_observer(remove_collider_on::<OnAdd, Disabled>);
-        app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
-        app.add_observer(remove_collider_on::<OnRemove, Collider>);
-
         // Perform narrow phase collision detection.
         app.add_systems(
             self.schedule,
@@ -139,10 +143,20 @@ where
                 .ambiguous_with_all(),
         );
 
-        app.add_systems(
-            PhysicsSchedule,
-            trigger_collision_events.in_set(CollisionEventSystems),
-        );
+        if !already_initialized {
+            // Remove collision pairs when colliders are disabled or removed.
+            app.add_observer(remove_collider_on::<OnAdd, Disabled>);
+            app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
+            app.add_observer(remove_collider_on::<OnRemove, ColliderMarker>);
+
+            // Trigger collision events for colliders that started or stopped touching.
+            app.add_systems(
+                PhysicsSchedule,
+                trigger_collision_events.in_set(CollisionEventSystems),
+            );
+        }
+
+        app.init_resource::<NarrowPhaseInitialized>();
     }
 
     fn finish(&self, app: &mut App) {
@@ -262,7 +276,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
 
 #[derive(SystemParam)]
 struct TriggerCollisionEventsContext<'w, 's> {
-    query: Query<'w, 's, (), With<CollisionEventsEnabled>>,
+    query: Query<'w, 's, Option<&'static ColliderOf>, With<CollisionEventsEnabled>>,
     started: EventReader<'w, 's, CollisionStarted>,
     ended: EventReader<'w, 's, CollisionEnded>,
 }
@@ -282,19 +296,27 @@ fn trigger_collision_events(
     // Collect `OnCollisionStart` and `OnCollisionEnd` events
     // for entities that have events enabled.
     for event in state.started.read() {
-        if state.query.contains(event.0) {
-            started_pairs.push((event.0, OnCollisionStart(event.1)));
+        if let Ok(collider_of) = state.query.get(event.0) {
+            let collider = event.1;
+            let body = collider_of.map(|c| c.body);
+            started_pairs.push((event.0, OnCollisionStart { collider, body }));
         }
-        if state.query.contains(event.1) {
-            started_pairs.push((event.1, OnCollisionStart(event.0)));
+        if let Ok(collider_of) = state.query.get(event.1) {
+            let collider = event.0;
+            let body = collider_of.map(|c| c.body);
+            started_pairs.push((event.1, OnCollisionStart { collider, body }));
         }
     }
     for event in state.ended.read() {
-        if state.query.contains(event.0) {
-            ended_pairs.push((event.0, OnCollisionEnd(event.1)));
+        if let Ok(collider_of) = state.query.get(event.0) {
+            let collider = event.1;
+            let body = collider_of.map(|c| c.body);
+            ended_pairs.push((event.0, OnCollisionEnd { collider, body }));
         }
-        if state.query.contains(event.1) {
-            ended_pairs.push((event.1, OnCollisionEnd(event.0)));
+        if let Ok(collider_of) = state.query.get(event.1) {
+            let collider = event.0;
+            let body = collider_of.map(|c| c.body);
+            ended_pairs.push((event.1, OnCollisionEnd { collider, body }));
         }
     }
 
@@ -332,14 +354,17 @@ fn remove_collider_on<E: Event, C: Component>(
             .flags
             .contains(ContactPairFlags::CONTACT_EVENTS)
         {
-            event_writer.write(CollisionEnded(contact_pair.entity1, contact_pair.entity2));
+            event_writer.write(CollisionEnded(
+                contact_pair.collider1,
+                contact_pair.collider2,
+            ));
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.
-        let other_entity = if contact_pair.entity1 == entity {
-            contact_pair.entity2
+        let other_entity = if contact_pair.collider1 == entity {
+            contact_pair.collider2
         } else {
-            contact_pair.entity1
+            contact_pair.collider1
         };
         if let Ok(mut colliding_entities) = query.get_mut(other_entity) {
             colliding_entities.remove(&entity);
