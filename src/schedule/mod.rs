@@ -169,7 +169,7 @@ pub enum PhysicsStepSet {
     /// Responsible for finding pairs of entities with overlapping [`ColliderAabb`]
     /// and creating contact pairs for them in the [`ContactGraph`].
     ///
-    /// See [`BroadPhasePlugin`].
+    /// See [`BreadPhasePlugin`].
     BroadPhase,
     /// Responsible for updating contacts in the [`ContactGraph`] and processing contact state changes.
     ///

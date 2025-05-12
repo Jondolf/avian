@@ -1,7 +1,7 @@
 //! Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 //! the number of potential contacts for the [narrow phase](super::narrow_phase).
 //!
-//! See [`BroadPhasePlugin`].
+//! See [`BreadPhasePlugin`].
 
 use core::marker::PhantomData;
 
@@ -28,15 +28,15 @@ use super::CollisionDiagnostics;
 /// The broad phase systems run in [`PhysicsStepSet::BroadPhase`].
 ///
 /// [`CollisionHooks`] can be provided with generics to apply custom filtering for collision pairs.
-pub struct BroadPhasePlugin<H: CollisionHooks = ()>(PhantomData<H>);
+pub struct BreadPhasePlugin<H: CollisionHooks = ()>(PhantomData<H>);
 
-impl<H: CollisionHooks> Default for BroadPhasePlugin<H> {
+impl<H: CollisionHooks> Default for BreadPhasePlugin<H> {
     fn default() -> Self {
         Self(PhantomData)
     }
 }
 
-impl<H: CollisionHooks + 'static> Plugin for BroadPhasePlugin<H>
+impl<H: CollisionHooks + 'static> Plugin for BreadPhasePlugin<H>
 where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {

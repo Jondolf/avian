@@ -567,7 +567,7 @@ use prelude::*;
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
-/// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](collision::narrow_phase). |
+/// | [`BreadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](collision::narrow_phase). |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
@@ -647,16 +647,16 @@ use prelude::*;
 /// or the [`SubstepSchedule`]. Then you can add your systems to that schedule and control system ordering with system sets like
 /// [`PhysicsStepSet`], [`SolverSet`], or [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet).
 ///
-/// Here we will create a custom broad phase plugin that will replace the default [`BroadPhasePlugin`]:
+/// Here we will create a custom broad phase plugin that will replace the default [`BreadPhasePlugin`]:
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// pub struct CustomBroadPhasePlugin;
+/// pub struct CustomBreadPhasePlugin;
 ///
-/// impl Plugin for CustomBroadPhasePlugin {
+/// impl Plugin for CustomBreadPhasePlugin {
 ///     fn build(&self, app: &mut App) {
 ///         // Make sure the PhysicsSchedule is available
 ///         let physics_schedule = app
@@ -673,15 +673,15 @@ use prelude::*;
 /// }
 /// ```
 ///
-/// Next, when creating your app, simply disable the default [`BroadPhasePlugin`] and add your custom plugin:
+/// Next, when creating your app, simply disable the default [`BreadPhasePlugin`] and add your custom plugin:
 ///
 /// ```no_run
 #[cfg_attr(feature = "2d", doc = "use avian2d::prelude::*;")]
 #[cfg_attr(feature = "3d", doc = "use avian3d::prelude::*;")]
 /// use bevy::prelude::*;
 ///
-/// # struct CustomBroadPhasePlugin;
-/// # impl Plugin for CustomBroadPhasePlugin {
+/// # struct CustomBreadPhasePlugin;
+/// # impl Plugin for CustomBreadPhasePlugin {
 /// #     fn build(&self, app: &mut App) {}
 /// # }
 /// #
@@ -694,8 +694,8 @@ use prelude::*;
 ///     app.add_plugins(
 ///         PhysicsPlugins::default()
 ///             .build()
-///             .disable::<BroadPhasePlugin>()
-///             .add(CustomBroadPhasePlugin),
+///             .disable::<BreadPhasePlugin>()
+///             .add(CustomBreadPhasePlugin),
 ///     );
 ///
 ///     app.run();
@@ -799,7 +799,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(NarrowPhasePlugin::<Collider>::default());
 
         builder
-            .add(BroadPhasePlugin::<()>::default())
+            .add(BreadPhasePlugin::<()>::default())
             .add(IntegratorPlugin::default())
             .add(SolverPlugin::new_with_length_unit(self.length_unit))
             .add(SolverSchedulePlugin)
@@ -859,8 +859,8 @@ where
         let builder = self
             .plugins
             .build()
-            .disable::<BroadPhasePlugin>()
-            .add(BroadPhasePlugin::<H>::default());
+            .disable::<BreadPhasePlugin>()
+            .add(BreadPhasePlugin::<H>::default());
 
         #[cfg(all(
             feature = "default-collider",

@@ -11,7 +11,7 @@
 //!
 //! In Avian, collision detection is split into two plugins:
 //!
-//! - [`BroadPhasePlugin`]: Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).
+//! - [`BreadPhasePlugin`]: Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](narrow_phase).
 //! - [`NarrowPhasePlugin`]: Updates and manages contact pairs in the [`ContactGraph`], and generates [`ContactConstraint`]s for the solver.
 //!
 //! Spatial queries are handled separately by the [`SpatialQueryPlugin`].
@@ -81,7 +81,7 @@ pub use diagnostics::CollisionDiagnostics;
 
 /// Re-exports common types related to collision detection functionality.
 pub mod prelude {
-    pub use super::broad_phase::{BroadPhasePlugin, BroadPhaseSet};
+    pub use super::broad_phase::{BreadPhasePlugin, BroadPhaseSet};
     pub use super::collider::{
         collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
         collider_transform::{ColliderTransform, ColliderTransformPlugin},

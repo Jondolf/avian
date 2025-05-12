@@ -11,8 +11,8 @@ fn main() {
     app.add_plugins(
         PhysicsPlugins::default()
             .build()
-            .disable::<BroadPhasePlugin>()
-            .add(BruteForceBroadPhasePlugin),
+            .disable::<BreadPhasePlugin>()
+            .add(BruteForceBreadPhasePlugin),
     );
 
     app.add_systems(Startup, setup).run();
@@ -60,9 +60,9 @@ fn setup(
 /// and creates contact pairs for them in the `ContactGraph`.
 ///
 // A brute force algorithm is used for simplicity.
-pub struct BruteForceBroadPhasePlugin;
+pub struct BruteForceBreadPhasePlugin;
 
-impl Plugin for BruteForceBroadPhasePlugin {
+impl Plugin for BruteForceBreadPhasePlugin {
     fn build(&self, app: &mut App) {
         // Add the broad phase system into the broad phase set.
         app.add_systems(
