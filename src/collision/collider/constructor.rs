@@ -648,6 +648,10 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
+    #[cfg_attr(
+        target_os = "linux",
+        ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
+    )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
@@ -681,11 +685,16 @@ mod tests {
             ))
             .id();
 
-        for _ in 0..1000 {
+        let mut counter = 0;
+        loop {
             if app.world().contains_resource::<SceneReady>() {
                 break;
             }
             app.update();
+            counter += 1;
+            if counter > 1000 {
+                panic!("SceneInstanceReady was never triggered");
+            }
         }
         app.update();
 

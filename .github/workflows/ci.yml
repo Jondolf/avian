@@ -8,6 +8,8 @@ on:
 
 env:
     CARGO_TERM_COLOR: always
+    RUSTFLAGS: --deny warnings -C debuginfo=line-tables-only
+    RUSTDOCFLAGS: --deny warnings
 
 jobs:
     check:
@@ -17,6 +19,9 @@ jobs:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo check
               run: cargo check
 
@@ -27,25 +32,33 @@ jobs:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo doc
               run: cargo doc --workspace --no-deps --document-private-items --keep-going
-              env:
-                  RUSTDOCFLAGS: "-D warnings"
 
     test:
         name: Test Suite
         strategy:
             matrix:
-                # TODO: Add ubuntu-latest back. It had CI storage issues, so it's left out for now.
-                os: [windows-latest, macos-latest]
+                os: [windows-latest, macos-latest, ubuntu-latest]
         runs-on: ${{ matrix.os }}
         timeout-minutes: 60
         steps:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: test-${{ matrix.os }}
+            - uses: cargo-bins/cargo-binstall@main
+            - name: Install nextest
+              run: cargo binstall cargo-nextest --secure
             - name: Run cargo test
-              run: cargo test --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+              run: cargo nextest run --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+            - name: Run doc tests
+              run: cargo test --doc --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
 
     lints:
         name: Lints
@@ -54,7 +67,10 @@ jobs:
             - uses: actions/checkout@v4
             - uses: dtolnay/rust-toolchain@stable
             - uses: Swatinem/rust-cache@v2
+              with:
+                save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo fmt
               run: cargo fmt --all -- --check
             - name: Run cargo clippy
-              run: cargo clippy -- -D warnings
+              run: cargo clippy
