@@ -650,7 +650,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         target_os = "linux",
-        ignore = "This test fails on Linux for unknown reasons because SceneInstanceReady is never triggered"
+        ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
     )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
@@ -756,17 +756,14 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     fn create_gltf_test_app() -> App {
-        use bevy::{asset::AssetPlugin, gltf::GltfPlugin, render::mesh::MeshPlugin};
+        use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
 
         let mut app = App::new();
         app.add_plugins((
-            MinimalPlugins,
-            AssetPlugin::default(),
-            ScenePlugin,
-            TransformPlugin,
-            MeshPlugin,
-            GltfPlugin::default(),
-            ImagePlugin::default(),
+            DefaultPlugins
+                .build()
+                .disable::<WinitPlugin>()
+                .disable::<DiagnosticsPlugin>(),
             PhysicsPlugins::default(),
         ));
         app.finish();
