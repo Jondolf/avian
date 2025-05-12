@@ -650,7 +650,7 @@ mod tests {
     #[test]
     #[cfg_attr(
         target_os = "linux",
-        ignore = "This test fails on Unix for unknown reasons"
+        ignore = "This test fails on Linux for unknown reasons because SceneInstanceReady is never triggered"
     )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
