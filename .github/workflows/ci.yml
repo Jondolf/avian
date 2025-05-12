@@ -52,6 +52,9 @@ jobs:
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
                 shared-key: test-${{ matrix.os }}
+            - name: Run doc tests
+              run: cargo test --doc --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+  
             - uses: cargo-bins/cargo-binstall@main
             - name: Install nextest
               run: cargo binstall cargo-nextest --secure
