@@ -391,6 +391,9 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
     ConvexHull { points: Vec<Vector> },
+    /// Constructs a collider with [`Collider::convex_polyline`].
+    #[cfg(feature = "2d")]
+    ConvexPolyline { points: Vec<Vector> },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
     Heightfield { heights: Vec<Scalar>, scale: Vector },

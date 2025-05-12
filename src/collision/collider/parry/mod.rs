@@ -942,6 +942,15 @@ impl Collider {
         SharedShape::convex_hull(&points).map(Into::into)
     }
 
+    /// Creates a collider with a [convex polygon](https://en.wikipedia.org/wiki/Convex_polygon) shape **without** computing
+    /// the [convex hull](https://en.wikipedia.org/wiki/Convex_hull) of the given points: convexity of the input is
+    /// assumed and not checked.
+    #[cfg(feature = "2d")]
+    pub fn convex_polyline(points: Vec<Vector>) -> Option<Self> {
+        let points = points.iter().map(|v| (*v).into()).collect::<Vec<_>>();
+        SharedShape::convex_polyline(points).map(Into::into)
+    }
+
     /// Creates a collider with a heightfield shape.
     ///
     /// A 2D heightfield is a segment along the `X` axis, subdivided at regular intervals.
@@ -1236,6 +1245,8 @@ impl Collider {
             ColliderConstructor::ConvexHull { points } => Self::convex_hull(points),
             #[cfg(feature = "3d")]
             ColliderConstructor::ConvexHull { points } => Self::convex_hull(points),
+            #[cfg(feature = "2d")]
+            ColliderConstructor::ConvexPolyline { points } => Self::convex_polyline(points),
             #[cfg(feature = "2d")]
             ColliderConstructor::Heightfield { heights, scale } => {
                 Some(Self::heightfield(heights, scale))
