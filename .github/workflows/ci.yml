@@ -1,10 +1,10 @@
 name: CI
 
 on:
-    push:
-        branches:
-            - main
-    pull_request:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
     CARGO_TERM_COLOR: always
@@ -23,7 +23,7 @@ jobs:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
                 shared-key: lints
             - name: Run cargo check
-              run: cargo check
+              run: cargo check --locked --all-targets
 
     docs:
         name: Check Documentation
@@ -36,7 +36,7 @@ jobs:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
                 shared-key: lints
             - name: Run cargo doc
-              run: cargo doc --workspace --no-deps --document-private-items --keep-going
+              run: cargo doc --locked --workspace --no-deps --document-private-items --keep-going
 
     test:
         name: Test Suite
@@ -54,11 +54,11 @@ jobs:
                 shared-key: test-${{ matrix.os }}
             - uses: cargo-bins/cargo-binstall@main
             - name: Install nextest
-              run: cargo binstall cargo-nextest --secure
+              run: cargo binstall cargo-nextest --secure --force
             - name: Run cargo test
-              run: cargo nextest run --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+              run: cargo nextest run --locked --no-default-features --lib --bins --examples --no-fail-fast --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
             - name: Run doc tests
-              run: cargo test --doc --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
+              run: cargo test --locked --doc --no-default-features --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui
 
     lints:
         name: Lints
@@ -73,4 +73,4 @@ jobs:
             - name: Run cargo fmt
               run: cargo fmt --all -- --check
             - name: Run cargo clippy
-              run: cargo clippy
+              run: cargo clippy --locked --all-targets
