@@ -21,6 +21,7 @@ jobs:
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo check
               run: cargo check
 
@@ -33,6 +34,7 @@ jobs:
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo doc
               run: cargo doc --workspace --no-deps --document-private-items --keep-going
 
@@ -49,6 +51,7 @@ jobs:
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: test-${{ matrix.os }}
             - uses: cargo-bins/cargo-binstall@main
             - name: Install nextest
               run: cargo binstall cargo-nextest --secure
@@ -66,6 +69,7 @@ jobs:
             - uses: Swatinem/rust-cache@v2
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
+                shared-key: lints
             - name: Run cargo fmt
               run: cargo fmt --all -- --check
             - name: Run cargo clippy
