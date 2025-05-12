@@ -681,11 +681,16 @@ mod tests {
             ))
             .id();
 
-        for _ in 0..1000 {
+        let mut counter = 0;
+        loop {
             if app.world().contains_resource::<SceneReady>() {
                 break;
             }
             app.update();
+            counter += 1;
+            if counter > 1000 {
+                panic!("SceneInstanceReady was never triggered");
+            }
         }
         app.update();
 
