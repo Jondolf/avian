@@ -5,14 +5,12 @@ use bevy::{
     ecs::query::QueryData,
     prelude::{Entity, Has, Ref},
 };
-use dynamics::solver::solver_body::SolverBodyIndex;
 
 /// A `WorldQuery` to make querying and modifying rigid bodies more convenient.
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct RigidBodyQuery {
     pub entity: Entity,
-    pub solver_index: &'static mut SolverBodyIndex,
     pub rb: Ref<'static, RigidBody>,
     pub position: &'static mut Position,
     pub rotation: &'static mut Rotation,

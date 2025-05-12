@@ -10,12 +10,10 @@ use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
-    tasks::ComputeTaskPool,
 };
-use dynamics::solver::{
-    solver_body::{SolverBodies, SolverBodyIndex},
-    SolverDiagnostics,
-};
+use dynamics::solver::SolverDiagnostics;
+
+use super::solver::solver_body::SolverBody;
 
 /// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 ///
@@ -150,7 +148,7 @@ impl Gravity {
 #[query_data(mutable)]
 struct VelocityIntegrationQuery {
     rb: &'static RigidBody,
-    solver_index: &'static SolverBodyIndex,
+    solver_body: &'static mut SolverBody,
     #[cfg(feature = "3d")]
     rot: &'static Rotation,
     force: &'static ExternalForce,
@@ -169,8 +167,7 @@ struct VelocityIntegrationQuery {
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
-    bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
-    mut solver_bodies: ResMut<SolverBodies>,
+    mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
     gravity: Res<Gravity>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -181,88 +178,79 @@ fn integrate_velocities(
 
     // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
     //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
-    solver_bodies.par_for_each(
-        ComputeTaskPool::get(),
-        None,
-        |index, solver_body, entities, _| {
-            // SAFETY: The indices of solver bodies match the entity indices, so the index is guaranteed to be in bounds.
-            //         The `SolverBodyPlugin` is responsible for ensuring that indices are valid.
-            let entity = unsafe { *entities.get_unchecked(index) };
-            let body = bodies.get(entity).unwrap_or_else(|_| {
-                panic!("Rigid body not found for solver body {index} with entity {entity}.")
-            });
+    bodies.par_iter_mut().for_each(|body| {
+        let SolverBody {
+            linear_velocity,
+            angular_velocity,
+            ..
+        } = body.solver_body.into_inner();
 
-            if body.rb.is_dynamic() {
-                let locked_axes = body
-                    .locked_axes
-                    .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        if body.rb.is_dynamic() {
+            let locked_axes = body
+                .locked_axes
+                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
-                // Apply damping
-                if let Some(lin_damping) = body.lin_damping {
-                    if solver_body.linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
-                        solver_body.linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
-                    }
-                }
-                if let Some(ang_damping) = body.ang_damping {
-                    if solver_body.angular_velocity != AngularVelocity::ZERO.0
-                        && ang_damping.0 != 0.0
-                    {
-                        solver_body.angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
-                    }
-                }
-
-                let external_force = body.force.force();
-                let external_torque = body.torque.torque() + body.force.torque();
-                let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
-
-                semi_implicit_euler::integrate_velocity(
-                    &mut solver_body.linear_velocity,
-                    &mut solver_body.angular_velocity,
-                    external_force,
-                    external_torque,
-                    *body.mass,
-                    body.angular_inertia,
-                    #[cfg(feature = "3d")]
-                    body.global_angular_inertia,
-                    #[cfg(feature = "3d")]
-                    *body.rot,
-                    locked_axes,
-                    gravity,
-                    delta_secs,
-                );
-            }
-
-            // Clamp velocities
-            if let Some(max_linear_speed) = body.max_linear_speed {
-                let linear_speed_squared = solver_body.linear_velocity.length_squared();
-                if linear_speed_squared > max_linear_speed.0.powi(2) {
-                    solver_body.linear_velocity *= max_linear_speed.0 / linear_speed_squared.sqrt();
+            // Apply damping
+            if let Some(lin_damping) = body.lin_damping {
+                if *linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
+                    *linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
                 }
             }
-            if let Some(max_angular_speed) = body.max_angular_speed {
-                #[cfg(feature = "2d")]
-                if solver_body.angular_velocity.abs() > max_angular_speed.0 {
-                    solver_body.angular_velocity =
-                        max_angular_speed.copysign(solver_body.angular_velocity);
+            if let Some(ang_damping) = body.ang_damping {
+                if *angular_velocity != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
+                    *angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
                 }
+            }
+
+            let external_force = body.force.force();
+            let external_torque = body.torque.torque() + body.force.torque();
+            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
+
+            semi_implicit_euler::integrate_velocity(
+                linear_velocity,
+                angular_velocity,
+                external_force,
+                external_torque,
+                *body.mass,
+                body.angular_inertia,
                 #[cfg(feature = "3d")]
-                {
-                    let angular_speed_squared = solver_body.angular_velocity.length_squared();
-                    if angular_speed_squared > max_angular_speed.0.powi(2) {
-                        solver_body.angular_velocity *=
-                            max_angular_speed.0 / angular_speed_squared.sqrt();
-                    }
+                body.global_angular_inertia,
+                #[cfg(feature = "3d")]
+                *body.rot,
+                locked_axes,
+                gravity,
+                delta_secs,
+            );
+        }
+
+        // Clamp velocities
+        if let Some(max_linear_speed) = body.max_linear_speed {
+            let linear_speed_squared = linear_velocity.length_squared();
+            if linear_speed_squared > max_linear_speed.0.powi(2) {
+                *linear_velocity *= max_linear_speed.0 / linear_speed_squared.sqrt();
+            }
+        }
+        if let Some(max_angular_speed) = body.max_angular_speed {
+            #[cfg(feature = "2d")]
+            if angular_velocity.abs() > max_angular_speed.0 {
+                *angular_velocity = max_angular_speed.copysign(*angular_velocity);
+            }
+            #[cfg(feature = "3d")]
+            {
+                let angular_speed_squared = angular_velocity.length_squared();
+                if angular_speed_squared > max_angular_speed.0.powi(2) {
+                    *angular_velocity *= max_angular_speed.0 / angular_speed_squared.sqrt();
                 }
             }
-        },
-    );
+        }
+    });
 
     diagnostics.integrate_velocities += start.elapsed();
 }
 
 #[allow(clippy::type_complexity)]
 fn integrate_positions(
-    mut solver_bodies: ResMut<SolverBodies>,
+    mut solver_bodies: Query<&mut SolverBody>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
@@ -270,18 +258,23 @@ fn integrate_positions(
 
     let delta_secs = time.delta_seconds_adjusted();
 
-    solver_bodies.par_for_each(ComputeTaskPool::get(), None, |_i, solver_body, _, _| {
-        solver_body.delta_position += solver_body.linear_velocity * delta_secs;
+    solver_bodies.par_iter_mut().for_each(|body| {
+        let SolverBody {
+            linear_velocity,
+            angular_velocity,
+            delta_position,
+            delta_rotation,
+            ..
+        } = body.into_inner();
+
+        *delta_position += *linear_velocity * delta_secs;
         #[cfg(feature = "2d")]
         {
-            solver_body.delta_rotation = solver_body
-                .delta_rotation
-                .add_angle_fast(solver_body.angular_velocity * delta_secs);
+            *delta_rotation = delta_rotation.add_angle_fast(*angular_velocity * delta_secs);
         }
         #[cfg(feature = "3d")]
         {
-            solver_body.delta_rotation.0 *=
-                Quaternion::from_scaled_axis(solver_body.angular_velocity * delta_secs);
+            delta_rotation.0 *= Quaternion::from_scaled_axis(*angular_velocity * delta_secs);
         }
     });
 

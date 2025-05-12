@@ -92,9 +92,9 @@ pub struct SubstepSchedule;
 /// 7. Store contact impulses for next frame's warm starting ([`SolverSet::StoreContactImpulses`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SolverSet {
-    /// Prepares [`SolverBodies`] for the substepping loop.
+    /// Prepares [solver bodies] for the substepping loop.
     ///
-    /// [`SolverBodies`]: super::SolverBodies
+    /// [solver bodies]: super::SolverBody
     PrepareSolverBodies,
     /// Prepares joint constraints for the substepping loop.
     PrepareJoints,

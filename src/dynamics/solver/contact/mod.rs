@@ -13,10 +13,7 @@ use bevy::{
     utils::default,
 };
 
-use super::{
-    solver_body::{SolverBody, SolverBodyInertia},
-    SolverBodyIndex,
-};
+use super::solver_body::{SolverBody, SolverBodyInertia};
 
 // TODO: One-body constraint version
 /// Data and logic for solving a single contact point for a [`ContactConstraint`].
@@ -57,10 +54,10 @@ pub struct ContactConstraintPoint {
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
 pub struct ContactConstraint {
-    /// The first entity in the contact.
-    pub body_index1: SolverBodyIndex,
-    /// The second entity in the contact.
-    pub body_index2: SolverBodyIndex,
+    /// The first rigid body entity in the contact.
+    pub body1: Entity,
+    /// The second rigid body entity in the contact.
+    pub body2: Entity,
     // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
     /// The first collider entity in the contact.
     pub collider1: Entity,

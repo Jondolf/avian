@@ -11,7 +11,7 @@ pub mod xpbd;
 
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
-use solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia, SolverBodyPlugin};
+use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 use xpbd::EntityConstraint;
 
 use crate::prelude::*;
@@ -40,9 +40,9 @@ use self::{
 ///
 /// ## Solver Bodies
 ///
-/// The solver maintains a [`SolverBodies`] resource with a [`SolverBody`] for each awake dynamic
-/// and kinematic body. It stores the body data needed by the solver in a more optimized format
-/// with better memory locality and faster random access.
+/// The solver maintains a [`SolverBody`] for each awake dynamic and kinematic body.
+/// It stores the body data needed by the solver in a more optimized format
+/// with better memory locality.
 ///
 /// Only awake dynamic bodies and kinematic bodies have an associated solver body.
 /// Static bodies and sleeping dynamic bodies do not move and are not included in the solver.
@@ -154,21 +154,18 @@ impl Plugin for SolverPlugin {
             (
                 |mut query: Query<
                     (
-                        &SolverBodyIndex,
+                        &SolverBody,
                         &mut PreSolveDeltaPosition,
                         &mut PreSolveDeltaRotation,
                     ),
                     Without<RigidBodyDisabled>,
-                >,
-                 solver_bodies: Res<SolverBodies>| {
-                    for (index, mut pre_solve_delta_position, mut pre_solve_delta_rotation) in
+                >| {
+                    for (body, mut pre_solve_delta_position, mut pre_solve_delta_rotation) in
                         &mut query
                     {
-                        if let Some(body) = solver_bodies.get(*index) {
-                            // Store the previous delta translation and rotation for XPBD velocity updates.
-                            pre_solve_delta_position.0 = body.delta_position;
-                            pre_solve_delta_rotation.0 = body.delta_rotation;
-                        }
+                        // Store the previous delta translation and rotation for XPBD velocity updates.
+                        pre_solve_delta_position.0 = body.delta_position;
+                        pre_solve_delta_rotation.0 = body.delta_rotation;
                     }
                 },
                 xpbd::solve_xpbd_constraint::<FixedJoint>,
@@ -406,7 +403,7 @@ pub struct ContactConstraints(pub Vec<ContactConstraint>);
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start(
-    mut bodies: ResMut<SolverBodies>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -424,17 +421,12 @@ fn warm_start(
         let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
         // Get the solver bodies for the two colliding entities.
-        let (first, second) = unsafe {
-            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
-        };
-
-        if let Some((body, inertia)) = first {
-            body1 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+            body1 = body.into_inner();
             inertia1 = inertia;
         }
-
-        if let Some((body, inertia)) = second {
-            body2 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+            body2 = body.into_inner();
             inertia2 = inertia;
         }
 
@@ -478,7 +470,7 @@ fn warm_start(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_contacts<const USE_BIAS: bool>(
-    mut bodies: ResMut<SolverBodies>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -499,17 +491,12 @@ fn solve_contacts<const USE_BIAS: bool>(
         let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
         // Get the solver bodies for the two colliding entities.
-        let (first, second) = unsafe {
-            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
-        };
-
-        if let Some((body, inertia)) = first {
-            body1 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+            body1 = body.into_inner();
             inertia1 = inertia;
         }
-
-        if let Some((body, inertia)) = second {
-            body2 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+            body2 = body.into_inner();
             inertia2 = inertia;
         }
 
@@ -548,7 +535,7 @@ fn solve_contacts<const USE_BIAS: bool>(
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 fn solve_restitution(
-    mut bodies: ResMut<SolverBodies>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut constraints: ResMut<ContactConstraints>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -574,17 +561,12 @@ fn solve_restitution(
         let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
         // Get the solver bodies for the two colliding entities.
-        let (first, second) = unsafe {
-            bodies.get_pair_unchecked_mut(constraint.body_index1, constraint.body_index2)
-        };
-
-        if let Some((body, inertia)) = first {
-            body1 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+            body1 = body.into_inner();
             inertia1 = inertia;
         }
-
-        if let Some((body, inertia)) = second {
-            body2 = body;
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+            body2 = body.into_inner();
             inertia2 = inertia;
         }
 

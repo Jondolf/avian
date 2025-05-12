@@ -251,7 +251,7 @@ use bevy::{
     prelude::*,
 };
 
-use super::solver_body::{SolverBodies, SolverBody, SolverBodyIndex, SolverBodyInertia};
+use super::solver_body::{SolverBody, SolverBodyInertia};
 
 /// A trait for constraints between entities.
 pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {
@@ -381,8 +381,7 @@ pub fn prepare_xpbd_constraint<
 pub fn solve_xpbd_constraint<
     C: EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
 >(
-    bodies: Query<&SolverBodyIndex, Without<RigidBodyDisabled>>,
-    mut solver_bodies: ResMut<SolverBodies>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
     mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
@@ -398,89 +397,72 @@ pub fn solve_xpbd_constraint<
     let dummy_inertia = SolverBodyInertia::default();
 
     for mut constraint in &mut constraints {
-        // Get components for entities
-        if let Ok([index1, index2]) = bodies.get_many(constraint.entities()) {
-            // Get the solver bodies for the two colliding entities.
-            let (body1, body2) = unsafe { solver_bodies.get_pair_unchecked_mut(*index1, *index2) };
+        let [entity1, entity2] = constraint.entities();
 
-            // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
-            // TODO: Handle dominance properly.
-            let (body1, inertia1) = body1.unwrap_or((&mut dummy_body1, &dummy_inertia));
-            let (body2, inertia2) = body2.unwrap_or((&mut dummy_body2, &dummy_inertia));
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            constraint.solve([body1, body2], [inertia1, inertia2], delta_secs);
+        // Get the solver bodies for the two colliding entities.
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity1) } {
+            body1 = body.into_inner();
+            inertia1 = inertia;
         }
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity2) } {
+            body2 = body.into_inner();
+            inertia2 = inertia;
+        }
+
+        constraint.solve([body1, body2], [inertia1, inertia2], delta_secs);
     }
 }
 
 /// Updates the linear velocity of all dynamic bodies based on the change in position from the XPBD solver.
 pub(super) fn project_linear_velocity(
-    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaPosition), RigidBodyActiveFilter>,
-    mut solver_bodies: ResMut<SolverBodies>,
+    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaPosition), RigidBodyActiveFilter>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (index, pre_solve_delta_pos) in &bodies {
-        if !index.is_valid() {
-            continue;
-        }
-
-        if let Some(body) = solver_bodies.get_mut(*index) {
-            // v = (x - x_prev) / h
-            let new_lin_vel = (body.delta_position - pre_solve_delta_pos.0) / delta_secs;
-            body.linear_velocity += new_lin_vel;
-        }
+    for (mut body, pre_solve_delta_pos) in &mut bodies {
+        // v = (x - x_prev) / h
+        let new_lin_vel = (body.delta_position - pre_solve_delta_pos.0) / delta_secs;
+        body.linear_velocity += new_lin_vel;
     }
 }
 
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
 #[cfg(feature = "2d")]
 pub(super) fn project_angular_velocity(
-    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
-    mut solver_bodies: ResMut<SolverBodies>,
+    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (index, pre_solve_delta_rot) in &bodies {
-        if !index.is_valid() {
-            continue;
-        }
-
-        if let Some(body) = solver_bodies.get_mut(*index) {
-            let new_ang_vel = pre_solve_delta_rot.angle_between(body.delta_rotation) / delta_secs;
-            body.angular_velocity += new_ang_vel;
-        }
+    for (mut body, pre_solve_delta_rot) in &mut bodies {
+        let new_ang_vel = pre_solve_delta_rot.angle_between(body.delta_rotation) / delta_secs;
+        body.angular_velocity += new_ang_vel;
     }
 }
 
 /// Updates the angular velocity of all dynamic bodies based on the change in rotation from the XPBD solver.
 #[cfg(feature = "3d")]
 pub(super) fn project_angular_velocity(
-    bodies: Query<(&SolverBodyIndex, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
-    mut solver_bodies: ResMut<SolverBodies>,
+    mut bodies: Query<(&mut SolverBody, &PreSolveDeltaRotation), RigidBodyActiveFilter>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (index, pre_solve_delta_rot) in &bodies {
-        if !index.is_valid() {
-            continue;
+    for (mut body, pre_solve_delta_rot) in &mut bodies {
+        let delta_rot = body
+            .delta_rotation
+            .mul_quat(pre_solve_delta_rot.inverse().0);
+
+        let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
+
+        if delta_rot.w < 0.0 {
+            new_ang_vel = -new_ang_vel;
         }
 
-        if let Some(body) = solver_bodies.get_mut(*index) {
-            let delta_rot = body
-                .delta_rotation
-                .mul_quat(pre_solve_delta_rot.inverse().0);
-
-            let mut new_ang_vel = 2.0 * delta_rot.xyz() / delta_secs;
-
-            if delta_rot.w < 0.0 {
-                new_ang_vel = -new_ang_vel;
-            }
-
-            body.angular_velocity += new_ang_vel;
-        }
+        body.angular_velocity += new_ang_vel;
     }
 }

@@ -128,7 +128,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .contact_graph
                     .internal
                     .edge_weight_mut(pair_index)
-                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
+                    .unwrap_or_else(|| panic!("Contact pair not found for {pair_index:?}"));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
@@ -633,8 +633,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     // Generate a contact constraint for each contact manifold.
                     for (manifold_index, manifold) in contacts.manifolds.iter_mut().enumerate() {
                         let mut constraint = ContactConstraint {
-                            body_index1: *body1.solver_index,
-                            body_index2: *body2.solver_index,
+                            body1: body1.entity,
+                            body2: body2.entity,
                             collider1: collider1.entity,
                             collider2: collider2.entity,
                             relative_dominance,

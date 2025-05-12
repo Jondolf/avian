@@ -231,7 +231,7 @@
 //! However, this comes at the cost of worse performance for the entire simulation.
 
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
-use super::solver::solver_body::{SolverBodies, SolverBody, SolverBodyIndex};
+use super::solver::solver_body::SolverBody;
 use crate::prelude::*;
 #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
 use bevy::ecs::query::QueryData;
@@ -496,7 +496,7 @@ pub enum SweepMode {
 #[query_data(mutable)]
 struct SweptCcdBodyQuery {
     entity: Entity,
-    solver_index: &'static SolverBodyIndex,
+    solver_body: Option<&'static mut SolverBody>,
     rb: &'static RigidBody,
     pos: &'static Position,
     rot: &'static Rotation,
@@ -518,7 +518,6 @@ fn solve_swept_ccd(
     ccd_query: Query<Entity, With<SweptCcd>>,
     bodies: Query<SweptCcdBodyQuery>,
     colliders: Query<(&Collider, &ColliderOf)>,
-    mut solver_bodies: ResMut<SolverBodies>,
     time: Res<Time>,
     contact_graph: Res<ContactGraph>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
@@ -534,7 +533,7 @@ fn solve_swept_ccd(
     for entity in &ccd_query {
         // Get the CCD body.
         let Ok(SweptCcdBodyQueryItem {
-            solver_index: &solver_index1,
+            solver_body: Some(mut solver_body1),
             pos: &prev_pos1,
             rot: &prev_rot1,
             ccd: Some(ccd1),
@@ -550,9 +549,6 @@ fn solve_swept_ccd(
         else {
             continue;
         };
-
-        // Get the solver body associated with the CCD body.
-        let solver_body1 = unsafe { solver_bodies.get_unchecked(solver_index1) };
 
         let lin_vel1 = solver_body1.linear_velocity;
         let ang_vel1 = solver_body1.angular_velocity;
@@ -576,9 +572,9 @@ fn solve_swept_ccd(
                 }
 
                 // Get the solver body associated with the second body.
-                let solver_body2 = solver_bodies
-                    .get(*body2.solver_index)
-                    .unwrap_or(&dummy_body);
+                let solver_body2 = body2
+                    .solver_body
+                    .map_or(&dummy_body, |body| body.into_inner());
 
                 let prev_pos2 = *body2.pos;
                 let prev_rot2 = *body2.rot;
@@ -640,13 +636,13 @@ fn solve_swept_ccd(
         }
 
         // Advance the bodies from the previous poses to the first time of impact.
-        if let Some(Ok(body2)) = min_toi_entity.map(|entity| bodies.get(entity)) {
-            // Get the solver bodies for the two colliding entities.
-            let (solver_body1, solver_body2) =
-                unsafe { solver_bodies.get_pair_unchecked_mut(solver_index1, *body2.solver_index) };
-
-            let solver_body1 = solver_body1.unwrap().0;
-            let solver_body2 = solver_body2.map_or(&mut dummy_body, |(body, _)| body);
+        if let Some(Ok(body2)) =
+            min_toi_entity.map(|entity| unsafe { bodies.get_unchecked(entity) })
+        {
+            // Get the solver body for the entity that was hit.
+            let solver_body2 = body2
+                .solver_body
+                .map_or(&mut dummy_body, |body| body.into_inner());
 
             let lin_vel2 = solver_body2.linear_velocity;
             let ang_vel2 = solver_body2.angular_velocity;

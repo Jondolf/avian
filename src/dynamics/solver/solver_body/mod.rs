@@ -6,14 +6,12 @@
 //!
 //! - [`SolverBody`]: The body state used by the solver.
 //! - [`SolverBodyInertia`]: The inertial properties of a body used by the solver.
-//! - [`SolverBodyIndex`]: A component that stores the index of a [`SolverBody`] in the [`SolverBodies`] resource.
-//! - [`SolverBodies`]: A resource that stores [`SolverBody`]s for awake and active rigid bodies.
 
 mod plugin;
 
 pub use plugin::SolverBodyPlugin;
 
-use bevy::{prelude::*, tasks::TaskPool};
+use bevy::prelude::*;
 
 use super::{Rotation, Vector};
 use crate::{math::Scalar, prelude::LockedAxes, Tensor};
@@ -23,9 +21,9 @@ use crate::{math::Scalar, prelude::LockedAxes, Tensor};
 /// Optimized rigid body state that the solver operates on,
 /// designed to improve memory locality and performance.
 ///
-/// Only awake dynamic bodies and kinematic bodies have an associated solver body
-/// in the [`SolverBodies`] resource. Static bodies and sleeping dynamic bodies do not move,
-/// so they instead use a "dummy state" with [`SolverBody::default()`].
+/// Only awake dynamic bodies and kinematic bodies have an associated solver body,
+/// stored as a component on the body entity. Static bodies and sleeping dynamic bodies
+/// do not move, so they instead use a "dummy state" with [`SolverBody::default()`].
 ///
 /// # Representation
 ///
@@ -52,7 +50,10 @@ use crate::{math::Scalar, prelude::LockedAxes, Tensor};
 /// wide SIMD types via scatter/gather operations in the future when SIMD optimizations
 /// are implemented.
 // TODO: Is there a better layout for 3D?
-#[derive(Clone, Debug, Default)]
+#[derive(Component, Clone, Debug, Default, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug)]
 pub struct SolverBody {
     /// The linear velocity of the body.
     ///
@@ -141,7 +142,10 @@ The API abstracts over this difference in representation to reduce complexity.
 /// and flags indicating whether the body is static or has locked axes.
 ///
 /// 16 bytes in 2D and 32 bytes in 3D with the `f32` feature.
-#[derive(Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug)]
 pub struct SolverBodyInertia {
     /// The effective inverse mass of the body,
     /// taking into account any locked axes.
@@ -200,7 +204,10 @@ impl Default for SolverBodyInertia {
 
 /// Flags indicating the inertial properties of a body.
 #[repr(transparent)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct InertiaFlags(u32);
 
 bitflags::bitflags! {
@@ -352,279 +359,5 @@ impl SolverBodyInertia {
     #[inline]
     pub fn flags(&self) -> InertiaFlags {
         self.flags
-    }
-}
-
-// TODO: Should this be an immutable component? We could also only expose a read-only API.
-/// A component that stores the index of a [`SolverBody`] in the [`SolverBodies`] resource.
-#[derive(Component, Clone, Copy, Debug, Deref, PartialEq, Eq, Reflect)]
-#[reflect(Component, Debug, PartialEq)]
-pub struct SolverBodyIndex(pub usize);
-
-impl SolverBodyIndex {
-    /// An invalid index that can be used to indicate that the body is not an awake dynamic body.
-    pub const INVALID: Self = Self(usize::MAX);
-
-    /// Returns `true` if the index represents a valid awake dynamic body.
-    pub fn is_valid(&self) -> bool {
-        self.0 != usize::MAX
-    }
-}
-
-/// A resource that stores [solver bodies](SolverBody) for awake and active rigid bodies.
-///
-/// Each body stores an index into this vector in the [`SolverBodyIndex`] component.
-#[derive(Resource, Default)]
-pub struct SolverBodies {
-    // TODO: Use `UniqueEntityVec`.
-    entities: Vec<Entity>,
-    bodies: Vec<SolverBody>,
-    inertial_properties: Vec<SolverBodyInertia>,
-}
-
-impl SolverBodies {
-    /// Creates a new empty collection of solver bodies.
-    #[inline]
-    pub const fn new() -> Self {
-        Self {
-            entities: Vec::new(),
-            bodies: Vec::new(),
-            inertial_properties: Vec::new(),
-        }
-    }
-
-    /// Gets the [`Entity`] associated with the given solver body index.
-    #[inline]
-    pub fn get_entity(&self, index: SolverBodyIndex) -> Option<Entity> {
-        self.entities.get(index.0).copied()
-    }
-
-    /// Returns an iterator over the solver bodies.
-    #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &SolverBody> {
-        self.bodies.iter()
-    }
-
-    /// Returns an iterator over mutable references to the solver bodies.
-    #[inline]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut SolverBody> {
-        self.bodies.iter_mut()
-    }
-
-    /// Calls the given closure on each solver body in parallel
-    /// using the given task pool and maximum number of tasks.
-    #[inline]
-    pub fn par_for_each<F>(&mut self, task_pool: &TaskPool, max_tasks: Option<usize>, f: F)
-    where
-        F: Fn(usize, &mut SolverBody, &[Entity], &[SolverBodyInertia]) + Sync,
-    {
-        #[cfg(not(feature = "parallel"))]
-        self.bodies
-            .iter_mut()
-            .enumerate()
-            .for_each(|(index, body)| f(index, body, &self.entities, &self.inertial_properties));
-
-        #[cfg(feature = "parallel")]
-        {
-            let task_pool_ = bevy::tasks::ComputeTaskPool::get();
-
-            if task_pool_.thread_num() == 1 {
-                self.bodies
-                    .iter_mut()
-                    .enumerate()
-                    .for_each(|(index, body)| {
-                        f(index, body, &self.entities, &self.inertial_properties)
-                    });
-            } else {
-                let chunk_size = core::cmp::max(
-                    1,
-                    core::cmp::max(
-                        self.bodies.len() / task_pool.thread_num(),
-                        self.bodies.len() / max_tasks.unwrap_or(usize::MAX),
-                    ),
-                );
-                // TODO: Is there a better approach than `par_chunk_map_mut`?
-                bevy::tasks::ParallelSliceMut::par_chunk_map_mut(
-                    &mut self.bodies,
-                    task_pool,
-                    chunk_size,
-                    |chunk_index, chunk| {
-                        let index_offset = chunk_index * chunk_size;
-                        chunk.iter_mut().enumerate().for_each(|(index, body)| {
-                            let index = index_offset + index;
-                            f(index, body, &self.entities, &self.inertial_properties);
-                        });
-                    },
-                );
-            }
-        }
-    }
-
-    /// Returns the number of solver bodies.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.bodies.len()
-    }
-
-    /// Returns `true` if there are no solver bodies.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.bodies.is_empty()
-    }
-
-    /// Adds a new solver body for the given entity.
-    #[inline]
-    pub fn push(
-        &mut self,
-        entity: Entity,
-        body: SolverBody,
-        inertial_properties: SolverBodyInertia,
-    ) -> SolverBodyIndex {
-        let index = SolverBodyIndex(self.bodies.len());
-        self.entities.push(entity);
-        self.bodies.push(body);
-        self.inertial_properties.push(inertial_properties);
-        index
-    }
-
-    /// Removes a solver body and returns it along with its entity and inertial properties.
-    ///
-    /// The removed body is replaced by the last body in the vector.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the index is out of bounds.
-    #[inline]
-    pub fn swap_remove(
-        &mut self,
-        index: SolverBodyIndex,
-    ) -> (Entity, SolverBody, SolverBodyInertia) {
-        let entity = self.entities.swap_remove(index.0);
-        let body = self.bodies.swap_remove(index.0);
-        let inertial_properties = self.inertial_properties.swap_remove(index.0);
-        (entity, body, inertial_properties)
-    }
-
-    /// Clears all solver bodies.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.entities.clear();
-        self.bodies.clear();
-    }
-
-    /// Returns `true` if the collection contains the given entity.
-    #[inline]
-    pub fn contains_entity(&self, entity: Entity) -> bool {
-        self.entities.contains(&entity)
-    }
-
-    /// Returns `true` if the collection contains the given solver body index.
-    #[inline]
-    pub fn contains_index(&self, index: SolverBodyIndex) -> bool {
-        index.0 < self.bodies.len()
-    }
-
-    /// Returns a reference to the solver body with the given index.
-    #[inline]
-    pub fn get(&self, index: SolverBodyIndex) -> Option<&SolverBody> {
-        self.bodies.get(index.0)
-    }
-
-    /// Returns a mutable reference to the solver body with the given index.
-    #[inline]
-    pub fn get_mut(&mut self, index: SolverBodyIndex) -> Option<&mut SolverBody> {
-        self.bodies.get_mut(index.0)
-    }
-
-    /// Returns a reference to the solver body with the given index without doing bounds checking.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the index is in bounds.
-    #[inline]
-    pub unsafe fn get_unchecked(&self, index: SolverBodyIndex) -> &SolverBody {
-        self.bodies.get_unchecked(index.0)
-    }
-
-    /// Returns a mutable reference to the solver body with the given index without doing bounds checking.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the index is in bounds.
-    #[inline]
-    pub unsafe fn get_unchecked_mut(&mut self, index: SolverBodyIndex) -> &mut SolverBody {
-        self.bodies.get_unchecked_mut(index.0)
-    }
-
-    /// Returns mutable references to the two solver bodies with the given indices.
-    ///
-    /// If a given index is [`SolverBodyIndex::INVALID`], the corresponding body will be `None`.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `a != b` if the indices are not [`SolverBodyIndex::INVALID`].
-    #[inline]
-    pub unsafe fn get_pair_unchecked_mut(
-        &mut self,
-        a: SolverBodyIndex,
-        b: SolverBodyIndex,
-    ) -> (
-        Option<(&mut SolverBody, &SolverBodyInertia)>,
-        Option<(&mut SolverBody, &SolverBodyInertia)>,
-    ) {
-        let [min, max] = if a.0 < b.0 { [a.0, b.0] } else { [b.0, a.0] };
-        if max == SolverBodyIndex::INVALID.0 {
-            let body = self.bodies.get_unchecked_mut(min);
-            if a.0 == max {
-                (None, Some((body, &self.inertial_properties[min])))
-            } else {
-                (Some((body, &self.inertial_properties[min])), None)
-            }
-        } else {
-            let first = &mut *(self.bodies.get_unchecked_mut(min) as *mut _);
-            let second = &mut *(self.bodies.get_unchecked_mut(max) as *mut _);
-            if a.0 == max {
-                (
-                    Some((second, &self.inertial_properties[max])),
-                    Some((first, &self.inertial_properties[min])),
-                )
-            } else {
-                (
-                    Some((first, &self.inertial_properties[min])),
-                    Some((second, &self.inertial_properties[max])),
-                )
-            }
-        }
-    }
-
-    /// Returns a reference to the inertial properties of the body
-    /// with the given index.
-    #[inline]
-    pub fn get_inertial_properties(&self, index: SolverBodyIndex) -> Option<&SolverBodyInertia> {
-        self.inertial_properties.get(index.0)
-    }
-
-    /// Returns a mutable reference to the inertial properties of the body
-    /// with the given index.
-    #[inline]
-    pub fn get_inertial_properties_mut(
-        &mut self,
-        index: SolverBodyIndex,
-    ) -> Option<&mut SolverBodyInertia> {
-        self.inertial_properties.get_mut(index.0)
-    }
-
-    /// Returns a mutable reference to the inertial properties of the body
-    /// with the given index without doing bounds checking.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that the index is in bounds.
-    #[inline]
-    pub unsafe fn get_inertial_properties_unchecked_mut(
-        &mut self,
-        index: SolverBodyIndex,
-    ) -> &mut SolverBodyInertia {
-        self.inertial_properties.get_unchecked_mut(index.0)
     }
 }
