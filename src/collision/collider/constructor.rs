@@ -758,6 +758,9 @@ mod tests {
     fn create_gltf_test_app() -> App {
         use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
 
+        // Todo: it would be best to disable all rendering-related plugins,
+        // but we have so far not succeeded in finding the right plugin combination
+        // that still results in `SceneInstanceReady` being triggered.
         let mut app = App::new();
         app.add_plugins((
             DefaultPlugins
