@@ -39,12 +39,13 @@ pub struct DistanceJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
-    /// The joint's compliance, the inverse of stiffness, has the unit meters / Newton.
+    /// The joint's compliance, the inverse of stiffness (m / N).
     pub compliance: Scalar,
     /// Lagrange multiplier for the positional correction.
-    pub lagrange: Scalar,
+    lagrange: Scalar,
     /// The force exerted by the joint.
-    pub force: Vector,
+    force: Vector,
+    // Pre-step data for the solver.
     pre_step: DistanceJointPreStepData,
 }
 
@@ -195,24 +196,28 @@ impl Joint for DistanceJoint {
 }
 
 impl DistanceJoint {
+    /// Sets the joint's compliance (inverse of stiffness, m / N).
     #[inline]
     pub fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.compliance = compliance;
         self
     }
 
+    /// Sets the attachment point on the first body.
     #[inline]
     pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
         self.local_anchor1 = anchor;
         self
     }
 
+    /// Sets the attachment point on the second body.
     #[inline]
     pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.local_anchor2 = anchor;
         self
     }
 
+    /// Sets the linear velocity damping caused by the joint.
     #[inline]
     pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -221,6 +226,7 @@ impl DistanceJoint {
         }
     }
 
+    /// Sets the angular velocity damping caused by the joint.
     #[inline]
     pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -229,6 +235,13 @@ impl DistanceJoint {
         }
     }
 
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn lagrange(&self) -> Scalar {
+        self.lagrange
+    }
+
+    /// Returns the force exerted by the joint.
     #[inline]
     pub fn force(&self) -> Vector {
         self.force

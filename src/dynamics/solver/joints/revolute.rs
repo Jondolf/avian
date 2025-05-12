@@ -43,9 +43,9 @@ pub struct RevoluteJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
-    /// The joint's compliance for aligning the bodies along the `aligned_axis`. The inverse of stiffness.
+    /// The joint's compliance for aligning the bodies along the `aligned_axis`, the inverse of stiffness (N * m / rad).
     pub align_compliance: Scalar,
-    /// The joint's compliance for the angle limit. The inverse of stiffness.
+    /// The joint's compliance for the angle limit, the inverse of stiffness (N * m / rad).
     pub limit_compliance: Scalar,
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     pub align_lagrange: Scalar,
@@ -193,7 +193,12 @@ impl Joint for RevoluteJoint {
 }
 
 impl RevoluteJoint {
+    /// Sets the joint's compliance (inverse of stiffness, m / N).
     #[inline]
+    #[deprecated(
+        since = "0.4.0",
+        note = "Use `with_point_compliance`, `with_align_compliance`, and `with_limit_compliance` instead."
+    )]
     pub fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.point_constraint.compliance = compliance;
         self.align_compliance = compliance;
@@ -201,18 +206,42 @@ impl RevoluteJoint {
         self
     }
 
+    /// Sets the compliance of the point-to-point constraint (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_point_compliance(mut self, compliance: Scalar) -> Self {
+        self.point_constraint.compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the axis alignment constraint (inverse of stiffness, N * m / rad).
+    #[inline]
+    pub fn with_align_compliance(mut self, compliance: Scalar) -> Self {
+        self.align_compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the angle limit (inverse of stiffness, N * m / rad).
+    #[inline]
+    pub fn with_limit_compliance(mut self, compliance: Scalar) -> Self {
+        self.limit_compliance = compliance;
+        self
+    }
+
+    /// Sets the attachment point on the first body.
     #[inline]
     pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor1 = anchor;
         self
     }
 
+    /// Sets the attachment point on the second body.
     #[inline]
     pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor2 = anchor;
         self
     }
 
+    /// Sets the linear velocity damping caused by the joint.
     #[inline]
     pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -221,6 +250,7 @@ impl RevoluteJoint {
         }
     }
 
+    /// Sets the angular velocity damping caused by the joint.
     #[inline]
     pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -229,9 +259,28 @@ impl RevoluteJoint {
         }
     }
 
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn point_lagrange(&self) -> Scalar {
+        self.point_constraint.lagrange()
+    }
+
+    /// Returns the Lagrange multiplier used for the axis alignment correction.
+    #[inline]
+    pub fn align_lagrange(&self) -> Scalar {
+        self.align_lagrange
+    }
+
+    /// Returns the Lagrange multiplier used for the angle limit correction.
+    #[inline]
+    pub fn limit_lagrange(&self) -> Scalar {
+        self.limit_lagrange
+    }
+
+    /// Returns the force exerted by the joint.
     #[inline]
     pub fn force(&self) -> Vector {
-        self.point_constraint.force
+        self.point_constraint.force()
     }
 
     /// Sets the axis that the bodies should be aligned on.

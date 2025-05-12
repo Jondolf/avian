@@ -108,25 +108,47 @@ impl Joint for FixedJoint {
 }
 
 impl FixedJoint {
+    /// Sets the joint's compliance (inverse of stiffness).
     #[inline]
+    #[deprecated(
+        since = "0.4.0",
+        note = "Use `with_point_compliance` and `with_angle_compliance` instead."
+    )]
     pub fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.point_constraint.compliance = compliance;
         self.angle_constraint.compliance = compliance;
         self
     }
 
+    /// Sets the compliance of the point-to-point compliance (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_point_compliance(mut self, compliance: Scalar) -> Self {
+        self.point_constraint.compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the angular constraint (inverse of stiffness, (N * m / rad).
+    #[inline]
+    pub fn with_angle_compliance(mut self, compliance: Scalar) -> Self {
+        self.angle_constraint.compliance = compliance;
+        self
+    }
+
+    /// Sets the attachment point on the first body.
     #[inline]
     pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor1 = anchor;
         self
     }
 
+    /// Sets the attachment point on the second body.
     #[inline]
     pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor2 = anchor;
         self
     }
 
+    /// Sets the linear velocity damping caused by the joint.
     #[inline]
     pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -135,6 +157,7 @@ impl FixedJoint {
         }
     }
 
+    /// Sets the angular velocity damping caused by the joint.
     #[inline]
     pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -143,9 +166,22 @@ impl FixedJoint {
         }
     }
 
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn point_lagrange(&self) -> Scalar {
+        self.point_constraint.lagrange()
+    }
+
+    /// Returns the Lagrange multiplier used for the angular correction.
+    #[inline]
+    pub fn angle_lagrange(&self) -> Scalar {
+        self.angle_constraint.lagrange()
+    }
+
+    /// Returns the force exerted by the joint.
     #[inline]
     pub fn force(&self) -> Vector {
-        self.point_constraint.force
+        self.point_constraint.force()
     }
 }
 

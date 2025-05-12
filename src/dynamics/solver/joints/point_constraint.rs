@@ -13,11 +13,17 @@ use bevy::prelude::*;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct PointConstraint {
+    /// Attachment point on the first body.
     pub local_anchor1: Vector,
+    /// Attachment point on the second body.
     pub local_anchor2: Vector,
+    /// The joint's compliance, the inverse of stiffness (m / N).
     pub compliance: Scalar,
-    pub lagrange: Scalar,
-    pub force: Vector,
+    /// Lagrange multiplier for the positional correction.
+    lagrange: Scalar,
+    /// The force exerted by the joint.
+    force: Vector,
+    /// Pre-step data for the solver.
     pub(crate) pre_step: PointConstraintPreStepData,
 }
 
@@ -115,3 +121,38 @@ impl XpbdConstraint<2> for PointConstraint {
 }
 
 impl PositionConstraint for PointConstraint {}
+
+impl PointConstraint {
+    /// Sets the joint's compliance (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_compliance(mut self, compliance: Scalar) -> Self {
+        self.compliance = compliance;
+        self
+    }
+
+    /// Sets the attachment point on the first body.
+    #[inline]
+    pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
+        self.local_anchor1 = anchor;
+        self
+    }
+
+    /// Sets the attachment point on the second body.
+    #[inline]
+    pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
+        self.local_anchor2 = anchor;
+        self
+    }
+
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn lagrange(&self) -> Scalar {
+        self.lagrange
+    }
+
+    /// Returns the force exerted by the joint.
+    #[inline]
+    pub fn force(&self) -> Vector {
+        self.force
+    }
+}

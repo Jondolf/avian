@@ -41,9 +41,9 @@ pub struct SphericalJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
-    /// The joint's compliance for swing. The inverse of stiffness.
+    /// The joint's compliance for swing, the inverse of stiffness (N * m / rad).
     pub swing_compliance: Scalar,
-    /// The joint's compliance for twist. The inverse of stiffness.
+    /// The joint's compliance for twist, the inverse of stiffness (N * m / rad).
     pub twist_compliance: Scalar,
     /// Lagrange multiplier for the angular correction caused by the swing limits.
     pub swing_lagrange: Scalar,
@@ -169,7 +169,12 @@ impl Joint for SphericalJoint {
 }
 
 impl SphericalJoint {
+    /// Sets the joint's compliance (inverse of stiffness, m / N).
     #[inline]
+    #[deprecated(
+        since = "0.4.0",
+        note = "Use `with_point_compliance`, `with_swing_compliance`, and `with_twist_compliance` instead."
+    )]
     pub fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.point_constraint.compliance = compliance;
         self.swing_compliance = compliance;
@@ -177,18 +182,42 @@ impl SphericalJoint {
         self
     }
 
+    /// Sets the compliance of the axis alignment constraint (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_point_compliance(mut self, compliance: Scalar) -> Self {
+        self.point_constraint.compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the swing axis constraint (inverse of stiffness, N * m / rad).
+    #[inline]
+    pub fn with_swing_compliance(mut self, compliance: Scalar) -> Self {
+        self.swing_compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the twist axis constraint (inverse of stiffness, N * m / rad).
+    #[inline]
+    pub fn with_twist_compliance(mut self, compliance: Scalar) -> Self {
+        self.twist_compliance = compliance;
+        self
+    }
+
+    /// Sets the attachment point on the first body.
     #[inline]
     pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor1 = anchor;
         self
     }
 
+    /// Sets the attachment point on the second body.
     #[inline]
     pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.point_constraint.local_anchor2 = anchor;
         self
     }
 
+    /// Sets the linear velocity damping caused by the joint.
     #[inline]
     pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -197,6 +226,7 @@ impl SphericalJoint {
         }
     }
 
+    /// Sets the angular velocity damping caused by the joint.
     #[inline]
     pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -205,9 +235,28 @@ impl SphericalJoint {
         }
     }
 
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn point_lagrange(&self) -> Scalar {
+        self.point_constraint.lagrange()
+    }
+
+    /// Returns the Lagrange multiplier used for the swing limit angular correction.
+    #[inline]
+    pub fn swing_lagrange(&self) -> Scalar {
+        self.swing_lagrange
+    }
+
+    /// Returns the Lagrange multiplier used for the twist limit angular correction.
+    #[inline]
+    pub fn twist_lagrange(&self) -> Scalar {
+        self.twist_lagrange
+    }
+
+    /// Returns the force exerted by the joint.
     #[inline]
     pub fn force(&self) -> Vector {
-        self.point_constraint.force
+        self.point_constraint.force()
     }
 
     /// Sets the limits of the allowed relative rotation around the `swing_axis`.

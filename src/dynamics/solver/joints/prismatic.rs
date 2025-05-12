@@ -42,13 +42,14 @@ pub struct PrismaticJoint {
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
     /// Lagrange multiplier for the positional correction.
-    pub position_lagrange: Scalar,
-    /// The joint's compliance for aligning the positions of the bodies to the `free_axis`. The inverse of stiffness.
+    position_lagrange: Scalar,
+    /// The joint's compliance for aligning the positions of the bodies to the `free_axis`, the inverse of stiffness (m / N).
     pub axis_compliance: Scalar,
-    /// The joint's compliance for the distance limit. The inverse of stiffness.
+    /// The joint's compliance for the distance limit, the inverse of stiffness (m / N).
     pub limit_compliance: Scalar,
     /// The force exerted by the joint.
-    pub force: Vector,
+    force: Vector,
+    /// Pre-step data for the solver.
     pre_step: PrismaticJointPreStepData,
 }
 
@@ -146,7 +147,12 @@ impl Joint for PrismaticJoint {
 }
 
 impl PrismaticJoint {
+    /// Sets the joint's compliance (inverse of stiffness).
     #[inline]
+    #[deprecated(
+        since = "0.4.0",
+        note = "Use `with_axis_compliance`, `with_limit_compliance`, and `with_angle_compliance` instead."
+    )]
     pub fn with_compliance(mut self, compliance: Scalar) -> Self {
         self.angle_constraint.compliance = compliance;
         self.axis_compliance = compliance;
@@ -154,18 +160,42 @@ impl PrismaticJoint {
         self
     }
 
+    /// Sets the compliance of the axis alignment constraint (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_axis_compliance(mut self, compliance: Scalar) -> Self {
+        self.axis_compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the distance limit (inverse of stiffness, m / N).
+    #[inline]
+    pub fn with_limit_compliance(mut self, compliance: Scalar) -> Self {
+        self.limit_compliance = compliance;
+        self
+    }
+
+    /// Sets the compliance of the angular constraint (inverse of stiffness, N * m / rad).
+    #[inline]
+    pub fn with_angle_compliance(mut self, compliance: Scalar) -> Self {
+        self.angle_constraint.compliance = compliance;
+        self
+    }
+
+    /// Sets the attachment point on the first body.
     #[inline]
     pub fn with_local_anchor_1(mut self, anchor: Vector) -> Self {
         self.local_anchor1 = anchor;
         self
     }
 
+    /// Sets the attachment point on the second body.
     #[inline]
     pub fn with_local_anchor_2(mut self, anchor: Vector) -> Self {
         self.local_anchor2 = anchor;
         self
     }
 
+    /// Sets the linear velocity damping caused by the joint.
     #[inline]
     pub fn with_linear_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -174,6 +204,7 @@ impl PrismaticJoint {
         }
     }
 
+    /// Sets the angular velocity damping caused by the joint.
     #[inline]
     pub fn with_angular_velocity_damping(self, damping: Scalar) -> Self {
         Self {
@@ -182,6 +213,19 @@ impl PrismaticJoint {
         }
     }
 
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn position_lagrange(&self) -> Scalar {
+        self.position_lagrange
+    }
+
+    /// Returns the Lagrange multiplier used for the angular correction.
+    #[inline]
+    pub fn angle_lagrange(&self) -> Scalar {
+        self.angle_constraint.lagrange()
+    }
+
+    /// Returns the force exerted by the joint.
     #[inline]
     pub fn force(&self) -> Vector {
         self.force

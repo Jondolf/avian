@@ -15,12 +15,13 @@ use bevy::prelude::*;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct FixedAngleConstraint {
-    /// The joint's compliance for aligning the bodies. The inverse of stiffness.
+    /// The constraint's compliance, the inverse of stiffness (N * m / rad).
     pub compliance: Scalar,
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
-    pub lagrange: Scalar,
-    /// The torque exerted by the joint when aligning the bodies.
-    pub torque: Torque,
+    lagrange: Scalar,
+    /// The torque exerted by the constraint when aligning the bodies.
+    torque: Torque,
+    /// Pre-step data for the solver.
     pub(crate) pre_step: FixedAngleConstraintPreStepData,
 }
 
@@ -95,3 +96,24 @@ impl XpbdConstraint<2> for FixedAngleConstraint {
 }
 
 impl AngularConstraint for FixedAngleConstraint {}
+
+impl FixedAngleConstraint {
+    /// Sets the joint's compliance (inverse of stiffness, (N * m / rad).
+    #[inline]
+    pub fn with_compliance(mut self, compliance: Scalar) -> Self {
+        self.compliance = compliance;
+        self
+    }
+
+    /// Returns the Lagrange multiplier used for the positional correction.
+    #[inline]
+    pub fn lagrange(&self) -> Scalar {
+        self.lagrange
+    }
+
+    /// Returns the torque exerted by the joint.
+    #[inline]
+    pub fn torque(&self) -> Torque {
+        self.torque
+    }
+}
