@@ -40,8 +40,8 @@
 //!
 //! In Avian, you can easily create your own XPBD constraints using the same APIs that the engine uses for its own constraints.
 //!
-//! First, create a struct and implement the [`XpbdConstraint`] trait, giving the number of participating entities using generics.
-//! It should look similar to this:
+//! First, create a struct and implement the [`EntityConstraint`] and [`XpbdConstraint`] traits,
+//! giving the number of participating entities using generics. It should look similar to this:
 //!
 //! ```
 #![cfg_attr(
@@ -60,16 +60,33 @@
 //!     lagrange: f32,
 //! }
 //!
-//! #[cfg(feature = "f32")]
+//! // This tells the solver how to get the entities from the constraint.
+//! # #[cfg(feature = "f32")]
+//! impl EntityConstraint<2> for CustomConstraint {
+//!   fn entities(&self) -> [Entity; 2] {
+//!       [self.entity1, self.entity2]
+//!   }
+//!
+//! # #[cfg(feature = "f32")]
 //! impl XpbdConstraint<2> for CustomConstraint {
-//!     fn entities(&self) -> [Entity; 2] {
-//!         [self.entity1, self.entity2]
-//!     }
 //!     fn clear_lagrange_multipliers(&mut self) {
 //!         self.lagrange = 0.0;
 //!     }
-//!     fn solve(&mut self, bodies: [&mut RigidBodyQueryItem; 2], dt: f32) {
-//!         // Constraint solving logic goes here
+//!
+//!     fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: f32) {
+//!          // Prepare the constraint for `solve` (compute current anchor positions, offsets, and so on).
+//!          // This runs before the substepping loop.
+//!     }
+//!
+//!     fn solve(
+//!         &mut self,
+//!         bodies: [&mut SolverBody; 2],
+//!         inertias: [&SolverBodyInertia; 2],
+//!         dt: f32,
+//!     ) {
+//!         // Solve the constraint by applying corrections to the `delta_position`
+//!         // and `delta_rotation` of the participating bodies.
+//!         // This runs at each substep.
 //!     }
 //! }
 //!
@@ -92,14 +109,17 @@
 //! It should look like this:
 //!
 //! ```ignore
-//! // Get substep schedule
-//! let substeps = app
-//!     .get_schedule_mut(SubstepSchedule)
-//!     .expect("add SubstepSchedule first");
+//! // Prepare custom constraint
+//! app.add_systems(
+//!     PhysicsSchedule,
+//!     prepare_xpbd_constraint::<CustomConstraint>
+//!         .in_set(SolverSet::PrepareJoints),
+//! );
 //!
-//! // Add custom constraint
-//! substeps.add_systems(
-//!     solve_constraint::<CustomConstraint, 2>
+//! // Solve custom constraint
+//! app.add_systems(
+//!     SubstepSchedule,
+//!     solve_xpbd_constraint::<CustomConstraint>
 //!         .in_set(SubstepSolverSet::SolveUserConstraints),
 //! );
 //! ```
