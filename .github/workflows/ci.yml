@@ -23,7 +23,7 @@ jobs:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
                 shared-key: lints
             - name: Run cargo check
-              run: cargo check --locked
+              run: cargo check --locked --all-targets
 
     docs:
         name: Check Documentation
@@ -73,4 +73,4 @@ jobs:
             - name: Run cargo fmt
               run: cargo fmt --all -- --check
             - name: Run cargo clippy
-              run: cargo clippy --locked 
+              run: cargo clippy --locked --all-targets
