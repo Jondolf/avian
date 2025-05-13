@@ -46,9 +46,9 @@ impl Plugin for SolverBodyPlugin {
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
             |trigger: Trigger<OnRemove, (RigidBodyDisabled, Disabled)>,
-             rb_query: Query<&RigidBody, Without<Sleeping>>,
+             rb_query: Query<&RigidBody, RigidBodyActiveFilter>,
              commands: Commands| {
-                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, commands);
+                add_solver_body::<RigidBodyActiveFilter>(In(trigger.target()), rb_query, commands);
             },
         );
         app.add_observer(
@@ -63,19 +63,21 @@ impl Plugin for SolverBodyPlugin {
             },
         );
 
-        // Remove-swap solver bodies when their associated rigid body is removed.
+        // Remove solver bodies when their associated rigid body is removed.
         app.add_observer(
             |trigger: Trigger<OnRemove, RigidBody>,
-             rb_query: Query<&RigidBody>,
+             solver_body_query: Query<(), With<SolverBody>>,
              commands: Commands| {
-                remove_solver_body(In(trigger.target()), rb_query, commands);
+                remove_solver_body(In(trigger.target()), solver_body_query, commands);
             },
         );
 
-        // Remove-swap solver bodies when their associated rigid body is disabled or put to sleep.
+        // Remove solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
-            |trigger: Trigger<OnAdd, Sleeping>, rb_query: Query<&RigidBody>, commands: Commands| {
-                remove_solver_body(In(trigger.target()), rb_query, commands);
+            |trigger: Trigger<OnAdd, Sleeping>,
+             solver_body_query: Query<(), With<SolverBody>>,
+             commands: Commands| {
+                remove_solver_body(In(trigger.target()), solver_body_query, commands);
             },
         );
 
@@ -137,12 +139,12 @@ fn add_solver_body<F: QueryFilter>(
     }
 }
 
-fn remove_solver_body(In(entity): In<Entity>, rb_query: Query<&RigidBody>, mut commands: Commands) {
-    if let Ok(rb) = rb_query.get(entity) {
-        if rb.is_static() {
-            return;
-        }
-
+fn remove_solver_body(
+    In(entity): In<Entity>,
+    solver_body_query: Query<(), With<SolverBody>>,
+    mut commands: Commands,
+) {
+    if solver_body_query.contains(entity) {
         commands
             .entity(entity)
             .try_remove::<(SolverBody, SolverBodyInertia)>();
