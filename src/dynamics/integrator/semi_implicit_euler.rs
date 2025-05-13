@@ -198,7 +198,7 @@ pub fn solve_gyroscopic_torque(
     let f = delta_seconds * local_ang_vel.cross(angular_momentum);
 
     // Do one Newton-Raphson iteration
-    let delta_ang_vel = -jacobian.inverse() * f;
+    let delta_ang_vel = -jacobian.inverse_or_zero() * f;
 
     // Convert back to world coordinates
     rotation * delta_ang_vel
