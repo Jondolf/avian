@@ -94,6 +94,7 @@ pub mod prelude {
         solver::{
             joints::*,
             schedule::{SolverSchedulePlugin, SolverSet, SubstepCount, SubstepSchedule},
+            solver_body::SolverBodyPlugin,
             PhysicsLengthUnit, SolverPlugin,
         },
     };
