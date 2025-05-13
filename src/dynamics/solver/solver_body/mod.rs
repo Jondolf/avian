@@ -103,8 +103,6 @@ impl SolverBody {
     }
 }
 
-// TODO: Right now, the inertia tensor still stores 9 floats,
-//       but it should store only 6 floats (symmetric matrix).
 /*
 Box2D v3 stores mass and angular inertia in constraint data.
 For 2D, this is just 2 floats or 8 bytes for each body in each constraint.
@@ -128,10 +126,11 @@ for a total of 16 bytes.
 In 3D, we instead compute the effective versions on the fly:
 
 - Inverse mass (4 bytes)
-- Inverse angular inertia (24 bytes, symmetric matrix with 6 floats)
+- Inverse angular inertia (36 bytes, matrix with 9 floats)
 - Flags (4 bytes)
 
-for a total of 32 bytes.
+for a total of 44 bytes. This will be 32 bytes in the future
+if/when we switch to a symmetric 3x3 matrix representation.
 
 The API abstracts over this difference in representation to reduce complexity.
 */
@@ -141,7 +140,11 @@ The API abstracts over this difference in representation to reduce complexity.
 /// This includes the effective inverse mass and angular inertia,
 /// and flags indicating whether the body is static or has locked axes.
 ///
-/// 16 bytes in 2D and 32 bytes in 3D with the `f32` feature.
+/// 16 bytes in 2D and 44 bytes in 3D with the `f32` feature.
+///
+/// The 3D version will be 32 bytes in the future
+/// if/when we switch to a symmetric 3x3 matrix representation
+/// for the angular inertia tensor.
 #[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -173,7 +176,8 @@ pub struct SolverBodyInertia {
     /// Rotate by `delta_rotation` to get the current angular inertia
     /// during the substepping loop.
     ///
-    /// 24 bytes with the `f32` feature.
+    /// 36 bytes with the `f32` feature. This will be 32 bytes
+    /// in the future if/when we switch to a symmetric 3x3 matrix representation.
     #[cfg(feature = "3d")]
     inv_inertia: Tensor,
 
