@@ -64,7 +64,10 @@ jobs:
             - name: set LD_LIBRARY_PATH on unix
               id: ld-unix
               run: |
+                # Linux
                 echo "LD_LIBRARY_PATH=$(rustc --print target-libdir)" >> "$GITHUB_ENV"
+                # macOS
+                echo "DYLD_LIBRARY_PATH=$(rustc --print target-libdir)" >> "$GITHUB_ENV"
                 echo "libdir=$(rustc --print target-libdir)" >> "$GITHUB_OUTPUT"
               if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' }}
             - name: set LD_LIBRARY_PATH on Windows
@@ -74,7 +77,6 @@ jobs:
                 Add-Content -Path $env:GITHUB_ENV -Value "RUST_LIB_DIR=$libDir"
                 Add-Content -Path $env:GITHUB_PATH -Value "$libDir"
                 "libdir=$libDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-
               shell: pwsh
               if: ${{ matrix.os == 'windows-latest' }}
             - name: Restore Rust cache on Unix
