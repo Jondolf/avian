@@ -6,8 +6,9 @@ use bevy::{
 use crate::{
     dynamics::solver::SolverDiagnostics,
     prelude::{CenterOfMass, ComputedMass, LockedAxes},
-    AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule, Position, RigidBody,
-    RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    AdjustPrecision, AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule,
+    Position, RigidBody, RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet,
+    Vector,
 };
 
 use super::{SolverBody, SolverBodyInertia};
@@ -205,9 +206,9 @@ fn writeback_solver_bodies(
         |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
             // Write back the position and rotation deltas,
             // rotating the body around its center of mass.
-            let old_world_com = *rot * com.0;
+            let old_world_com = *rot * com.adjust_precision();
             *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
-            let new_world_com = *rot * com.0;
+            let new_world_com = *rot * com.adjust_precision();
             pos.0 += solver_body.delta_position + old_world_com - new_world_com;
 
             // Write back velocities.

@@ -101,10 +101,10 @@
 //! Take a look at [`XpbdConstraint::solve`] and the constraint [theory](#theory) to learn more about what to put in `solve`.
 //!
 //! Next, we need to add a system that solves the constraint during each run of the [solver](dynamics::solver).
-//! If your constraint is a component like Avian's joints, you can use the generic [`solve_constraint`]
+//! If your constraint is a component like Avian's joints, you can use the generic [`solve_xpbd_joint`]
 //! system that handles some of the background work for you.
 //!
-//! Add the `solve_constraint::<YourConstraint, ENTITY_COUNT>` system to the [substepping schedule's](SubstepSchedule)
+//! Add the `solve_xpbd_joint::<YourConstraint>` system to the [substepping schedule's](SubstepSchedule)
 //! [`SubstepSolverSet::SolveUserConstraints`](dynamics::solver::SubstepSolverSet::SolveUserConstraints) system set.
 //! It should look like this:
 //!
