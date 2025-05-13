@@ -20,9 +20,7 @@ fn create_app() -> App {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        PhysicsPlugins::default()
-            .build()
-            .disable::<ColliderHierarchyPlugin>(),
+        PhysicsPlugins::default(),
         bevy::asset::AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
         bevy::scene::ScenePlugin,
