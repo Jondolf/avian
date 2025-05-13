@@ -280,6 +280,8 @@ impl ContactConstraint {
             let new_impulse = (point.normal_part.impulse + impulse).max(0.0);
             impulse = new_impulse - point.normal_part.impulse;
             point.normal_part.impulse = new_impulse;
+
+            // Add the incremental impulse instead of the full impulse because this is not a substep.
             point.max_normal_impulse += impulse;
 
             // Apply the impulse.
