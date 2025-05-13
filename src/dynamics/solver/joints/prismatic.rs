@@ -41,6 +41,11 @@ pub struct PrismaticJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
     /// Lagrange multiplier for the positional correction.
     position_lagrange: Scalar,
     /// The joint's compliance for aligning the positions of the bodies to the `free_axis`, the inverse of stiffness (m / N).
@@ -87,6 +92,9 @@ impl XpbdConstraint<2> for PrismaticJoint {
         self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass.0);
         self.pre_step.center_difference = body2.position.0 - body1.position.0;
         self.pre_step.free_axis1 = body1.rotation * self.free_axis;
+
+        // Prepare the relative dominance.
+        self.relative_dominance = body1.dominance() - body2.dominance();
     }
 
     fn solve(
@@ -117,6 +125,7 @@ impl Joint for PrismaticJoint {
             free_axis_limits: None,
             damping_linear: 1.0,
             damping_angular: 1.0,
+            relative_dominance: 0,
             position_lagrange: 0.0,
             axis_compliance: 0.0,
             limit_compliance: 0.0,
@@ -143,6 +152,11 @@ impl Joint for PrismaticJoint {
     #[inline]
     fn damping_angular(&self) -> Scalar {
         self.damping_angular
+    }
+
+    #[inline]
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 

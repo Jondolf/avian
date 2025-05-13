@@ -39,6 +39,11 @@ pub struct DistanceJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
     /// The joint's compliance, the inverse of stiffness (m / N).
     pub compliance: Scalar,
     /// Lagrange multiplier for the positional correction.
@@ -78,6 +83,9 @@ impl XpbdConstraint<2> for DistanceJoint {
         self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass.0);
         self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass.0);
         self.pre_step.center_difference = body2.position.0 - body1.position.0;
+
+        // Prepare the relative dominance.
+        self.relative_dominance = body1.dominance() - body2.dominance();
     }
 
     fn solve(
@@ -167,6 +175,7 @@ impl Joint for DistanceJoint {
             length_limits: None,
             damping_linear: 0.0,
             damping_angular: 0.0,
+            relative_dominance: 0,
             lagrange: 0.0,
             compliance: 0.0,
             force: Vector::ZERO,
@@ -192,6 +201,11 @@ impl Joint for DistanceJoint {
     #[inline]
     fn damping_angular(&self) -> Scalar {
         self.damping_angular
+    }
+
+    #[inline]
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 

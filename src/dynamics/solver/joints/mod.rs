@@ -122,6 +122,12 @@ pub trait Joint: Component + PositionConstraint + AngularConstraint {
 
     /// Returns the angular velocity damping applied by the joint.
     fn damping_angular(&self) -> Scalar;
+
+    /// Returns the relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    fn relative_dominance(&self) -> i16;
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.

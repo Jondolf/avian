@@ -112,14 +112,14 @@
 //! // Prepare custom constraint
 //! app.add_systems(
 //!     PhysicsSchedule,
-//!     prepare_xpbd_constraint::<CustomConstraint>
+//!     prepare_xpbd_joint::<CustomConstraint>
 //!         .in_set(SolverSet::PrepareJoints),
 //! );
 //!
 //! // Solve custom constraint
 //! app.add_systems(
 //!     SubstepSchedule,
-//!     solve_xpbd_constraint::<CustomConstraint>
+//!     solve_xpbd_joint::<CustomConstraint>
 //!         .in_set(SubstepSolverSet::SolveUserConstraints),
 //! );
 //! ```
@@ -359,36 +359,46 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     fn clear_lagrange_multipliers(&mut self) {}
 }
 
-/// Iterates through the XPBD constraints of a given type and solves them.
-pub fn prepare_xpbd_constraint<
-    C: EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
+/// Iterates through the XPBD joints of a given type and solves them.
+pub fn prepare_xpbd_joint<
+    C: Joint + EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
 >(
     bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
-    mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
+    mut joints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
+    mut commands: Commands,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
-    for mut constraint in &mut constraints {
+    for mut joint in &mut joints {
         // Get components for entities
-        if let Ok([body1, body2]) = bodies.get_many(constraint.entities()) {
-            constraint.prepare([&body1, &body2], delta_secs);
+        if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
+            joint.prepare([&body1, &body2], delta_secs);
+
+            // Wake up the bodies if they are sleeping.
+            // TODO: Simulation islands will let us handle this better.
+            if body1.is_sleeping {
+                commands.queue(WakeUpBody(body1.entity));
+            }
+            if body2.is_sleeping {
+                commands.queue(WakeUpBody(body2.entity));
+            }
         }
     }
 }
 
-/// Iterates through the XPBD constraints of a given type and solves them.
-pub fn solve_xpbd_constraint<
-    C: EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
+/// Iterates through the XPBD joints of a given type and solves them.
+pub fn solve_xpbd_joint<
+    C: Joint + EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
 >(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia), Without<RigidBodyDisabled>>,
-    mut constraints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
+    mut joints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
 ) {
     let delta_secs = time.delta_seconds_adjusted();
 
     // Clear Lagrange multipliers
-    constraints
+    joints
         .iter_mut()
         .for_each(|mut c| c.clear_lagrange_multipliers());
 
@@ -396,8 +406,8 @@ pub fn solve_xpbd_constraint<
     let mut dummy_body2 = SolverBody::default();
     let dummy_inertia = SolverBodyInertia::default();
 
-    for mut constraint in &mut constraints {
-        let [entity1, entity2] = constraint.entities();
+    for mut joint in &mut joints {
+        let [entity1, entity2] = joint.entities();
 
         let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
         let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
@@ -412,7 +422,14 @@ pub fn solve_xpbd_constraint<
             inertia2 = inertia;
         }
 
-        constraint.solve([body1, body2], [inertia1, inertia2], delta_secs);
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        if joint.relative_dominance() > 0 {
+            inertia1 = &dummy_inertia;
+        } else if joint.relative_dominance() < 0 {
+            inertia2 = &dummy_inertia;
+        }
+
+        joint.solve([body1, body2], [inertia1, inertia2], delta_secs);
     }
 }
 

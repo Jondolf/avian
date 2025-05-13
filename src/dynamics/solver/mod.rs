@@ -112,15 +112,15 @@ impl Plugin for SolverPlugin {
 
         physics.add_systems(update_contact_softness.before(PhysicsStepSet::NarrowPhase));
 
-        // Update previous rotations before the substepping loop.
+        // Prepare joints before the substepping loop.
         physics.add_systems(
             (
-                xpbd::prepare_xpbd_constraint::<FixedJoint>,
-                xpbd::prepare_xpbd_constraint::<RevoluteJoint>,
-                xpbd::prepare_xpbd_constraint::<PrismaticJoint>,
-                xpbd::prepare_xpbd_constraint::<DistanceJoint>,
+                xpbd::prepare_xpbd_joint::<FixedJoint>,
+                xpbd::prepare_xpbd_joint::<RevoluteJoint>,
+                xpbd::prepare_xpbd_joint::<PrismaticJoint>,
+                xpbd::prepare_xpbd_joint::<DistanceJoint>,
                 #[cfg(feature = "3d")]
-                xpbd::prepare_xpbd_constraint::<SphericalJoint>,
+                xpbd::prepare_xpbd_joint::<SphericalJoint>,
             )
                 .chain()
                 .in_set(SolverSet::PrepareJoints),
@@ -168,12 +168,12 @@ impl Plugin for SolverPlugin {
                         pre_solve_delta_rotation.0 = body.delta_rotation;
                     }
                 },
-                xpbd::solve_xpbd_constraint::<FixedJoint>,
-                xpbd::solve_xpbd_constraint::<RevoluteJoint>,
+                xpbd::solve_xpbd_joint::<FixedJoint>,
+                xpbd::solve_xpbd_joint::<RevoluteJoint>,
                 #[cfg(feature = "3d")]
-                xpbd::solve_xpbd_constraint::<SphericalJoint>,
-                xpbd::solve_xpbd_constraint::<PrismaticJoint>,
-                xpbd::solve_xpbd_constraint::<DistanceJoint>,
+                xpbd::solve_xpbd_joint::<SphericalJoint>,
+                xpbd::solve_xpbd_joint::<PrismaticJoint>,
+                xpbd::solve_xpbd_joint::<DistanceJoint>,
             )
                 .chain()
                 .in_set(SubstepSolverSet::SolveXpbdConstraints),

@@ -36,6 +36,11 @@ pub struct FixedJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
 }
 
 impl EntityConstraint<2> for FixedJoint {
@@ -56,6 +61,9 @@ impl XpbdConstraint<2> for FixedJoint {
 
         // Prepare the angular constraint.
         self.angle_constraint.prepare(bodies, dt);
+
+        // Prepare the relative dominance.
+        self.relative_dominance = bodies[0].dominance() - bodies[1].dominance();
     }
 
     fn solve(
@@ -83,6 +91,7 @@ impl Joint for FixedJoint {
             angle_constraint: FixedAngleConstraint::default(),
             damping_linear: 1.0,
             damping_angular: 1.0,
+            relative_dominance: 0,
         }
     }
 
@@ -104,6 +113,11 @@ impl Joint for FixedJoint {
     #[inline]
     fn damping_angular(&self) -> Scalar {
         self.damping_angular
+    }
+
+    #[inline]
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 

@@ -41,6 +41,11 @@ pub struct SphericalJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
     /// The joint's compliance for swing, the inverse of stiffness (N * m / rad).
     pub swing_compliance: Scalar,
     /// The joint's compliance for twist, the inverse of stiffness (N * m / rad).
@@ -87,15 +92,21 @@ impl XpbdConstraint<2> for SphericalJoint {
         let rot1_mat = Matrix::from_quat(body1.rotation.0);
         let rot2_mat = Matrix::from_quat(body2.rotation.0);
 
+        // Prepare the point-to-point constraint.
         self.point_constraint.pre_step.world_r1 =
             rot1_mat * (self.point_constraint.local_anchor1 - body1.center_of_mass.0);
         self.point_constraint.pre_step.world_r2 =
             rot2_mat * (self.point_constraint.local_anchor2 - body2.center_of_mass.0);
         self.point_constraint.pre_step.center_difference = body2.position.0 - body1.position.0;
+
+        // Prepare the base swing and twist axes.
         self.pre_step.swing_axis1 = rot1_mat * self.swing_axis;
         self.pre_step.swing_axis2 = rot2_mat * self.swing_axis;
         self.pre_step.twist_axis1 = rot1_mat * self.twist_axis;
         self.pre_step.twist_axis2 = rot2_mat * self.twist_axis;
+
+        // Prepare the relative dominance.
+        self.relative_dominance = body1.dominance() - body2.dominance();
     }
 
     fn solve(
@@ -131,6 +142,7 @@ impl Joint for SphericalJoint {
             twist_limit: None,
             damping_linear: 1.0,
             damping_angular: 1.0,
+            relative_dominance: 0,
             swing_compliance: 0.0,
             twist_compliance: 0.0,
             swing_lagrange: 0.0,
@@ -165,6 +177,11 @@ impl Joint for SphericalJoint {
     #[inline]
     fn damping_angular(&self) -> Scalar {
         self.damping_angular
+    }
+
+    #[inline]
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 

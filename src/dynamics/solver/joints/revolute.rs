@@ -43,6 +43,11 @@ pub struct RevoluteJoint {
     pub damping_linear: Scalar,
     /// Angular damping applied by the joint.
     pub damping_angular: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
     /// The joint's compliance for aligning the bodies along the `aligned_axis`, the inverse of stiffness (N * m / rad).
     pub align_compliance: Scalar,
     /// The joint's compliance for the angle limit, the inverse of stiffness (N * m / rad).
@@ -100,6 +105,9 @@ impl XpbdConstraint<2> for RevoluteJoint {
             self.pre_step.axis1 = bodies[0].rotation * self.aligned_axis;
             self.pre_step.axis2 = bodies[1].rotation * self.aligned_axis;
         }
+
+        // Prepare the relative dominance.
+        self.relative_dominance = bodies[0].dominance() - bodies[1].dominance();
     }
 
     fn solve(
@@ -155,6 +163,7 @@ impl Joint for RevoluteJoint {
             angle_limit: None,
             damping_linear: 1.0,
             damping_angular: 1.0,
+            relative_dominance: 0,
             align_lagrange: 0.0,
             limit_lagrange: 0.0,
             align_compliance: 0.0,
@@ -189,6 +198,11 @@ impl Joint for RevoluteJoint {
     #[inline]
     fn damping_angular(&self) -> Scalar {
         self.damping_angular
+    }
+
+    #[inline]
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 

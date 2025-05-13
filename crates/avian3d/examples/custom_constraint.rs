@@ -26,7 +26,7 @@ fn main() {
 
     app.add_systems(
         PhysicsSchedule,
-        prepare_xpbd_constraint::<CenterDistanceConstraint>
+        prepare_xpbd_joint::<CenterDistanceConstraint>
             .in_set(SolverSet::PreSubstep)
             .ambiguous_with_all(),
     );
@@ -36,8 +36,7 @@ fn main() {
         .get_schedule_mut(SubstepSchedule)
         .expect("add SubstepSchedule first");
     substeps.add_systems(
-        solve_xpbd_constraint::<CenterDistanceConstraint>
-            .in_set(SubstepSolverSet::SolveUserConstraints),
+        solve_xpbd_joint::<CenterDistanceConstraint>.in_set(SubstepSolverSet::SolveUserConstraints),
     );
 
     // Run the app
@@ -50,6 +49,11 @@ struct CenterDistanceConstraint {
     entity1: Entity,
     entity2: Entity,
     rest_distance: Scalar,
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    relative_dominance: i16,
     compliance: Scalar,
     /// Data stored from before the solver step.
     pre_step: PreStepData,
@@ -71,6 +75,7 @@ impl CenterDistanceConstraint {
             entity1,
             entity2,
             rest_distance,
+            relative_dominance: 0,
             compliance: 0.0,
             pre_step: PreStepData::default(),
         }
@@ -78,6 +83,7 @@ impl CenterDistanceConstraint {
 }
 
 impl PositionConstraint for CenterDistanceConstraint {}
+impl AngularConstraint for CenterDistanceConstraint {}
 
 impl EntityConstraint<2> for CenterDistanceConstraint {
     fn entities(&self) -> [Entity; 2] {
@@ -92,6 +98,9 @@ impl XpbdConstraint<2> for CenterDistanceConstraint {
         // Prepare the base center difference.
         // The solver will compute the updated version based on the position deltas of the bodies.
         self.pre_step.center_difference = body2.position.0 - body1.position.0;
+
+        // Prepare the relative dominance.
+        self.relative_dominance = body1.dominance() - body2.dominance();
     }
 
     // This method is called by the solver to actually solve the constraint.
@@ -142,13 +151,15 @@ impl XpbdConstraint<2> for CenterDistanceConstraint {
 
         // Compute generalized inverse masses (method from PositionConstraint).
         // In this case, the offset from the center of mass is zero.
-        let w1 = self.compute_generalized_inverse_mass(
+        let w1 = PositionConstraint::compute_generalized_inverse_mass(
+            self,
             inv_mass1.max_element(),
             inv_angular_inertia1,
             r1,
             n,
         );
-        let w2 = self.compute_generalized_inverse_mass(
+        let w2 = PositionConstraint::compute_generalized_inverse_mass(
+            self,
             inv_mass2.max_element(),
             inv_angular_inertia2,
             r2,
@@ -171,6 +182,32 @@ impl XpbdConstraint<2> for CenterDistanceConstraint {
             r1,
             r2,
         );
+    }
+}
+
+impl Joint for CenterDistanceConstraint {
+    fn new(entity1: Entity, entity2: Entity) -> Self {
+        Self::new(entity1, entity2, 0.0)
+    }
+
+    fn local_anchor_1(&self) -> Vector {
+        Vector::ZERO
+    }
+
+    fn local_anchor_2(&self) -> Vector {
+        Vector::ZERO
+    }
+
+    fn damping_linear(&self) -> Scalar {
+        0.0
+    }
+
+    fn damping_angular(&self) -> Scalar {
+        0.0
+    }
+
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 
