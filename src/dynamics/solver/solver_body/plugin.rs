@@ -5,7 +5,7 @@ use bevy::{
 
 use crate::{
     dynamics::solver::SolverDiagnostics,
-    prelude::{ComputedMass, LockedAxes},
+    prelude::{CenterOfMass, ComputedMass, LockedAxes},
     AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule, Position, RigidBody,
     RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
 };
@@ -191,6 +191,7 @@ fn writeback_solver_bodies(
         &SolverBody,
         &mut Position,
         &mut Rotation,
+        &CenterOfMass,
         &mut LinearVelocity,
         &mut AngularVelocity,
     )>,
@@ -199,10 +200,15 @@ fn writeback_solver_bodies(
     let start = bevy::platform::time::Instant::now();
 
     query.par_iter_mut().for_each(
-        |(solver_body, mut pos, mut rot, mut lin_vel, mut ang_vel)| {
-            // TODO: Make sure rotation about the center of mass is handled correctly.
-            pos.0 += solver_body.delta_position;
+        |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
+            // Write back the position and rotation deltas,
+            // rotating the body around its center of mass.
+            let old_world_com = *rot * com.0;
             *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
+            let new_world_com = *rot * com.0;
+            pos.0 += solver_body.delta_position + old_world_com - new_world_com;
+
+            // Write back velocities.
             lin_vel.0 = solver_body.linear_velocity;
             ang_vel.0 = solver_body.angular_velocity;
         },
@@ -211,7 +217,6 @@ fn writeback_solver_bodies(
     diagnostics.finalize += start.elapsed();
 }
 
-// TODO: Change rigid body type to static and immediately despawn it.
 #[cfg(test)]
 mod tests {
     use super::*;
