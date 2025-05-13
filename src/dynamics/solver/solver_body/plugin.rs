@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{entity_disabling::Disabled, query::QueryFilter},
+    ecs::{entity_disabling::Disabled, query::QueryFilter, world::DeferredWorld},
     prelude::*,
 };
 
@@ -46,10 +46,30 @@ impl Plugin for SolverBodyPlugin {
         // Add a solver body for each dynamic and kinematic rigid body
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
-            |trigger: Trigger<OnRemove, (RigidBodyDisabled, Disabled)>,
-             rb_query: Query<&RigidBody, RigidBodyActiveFilter>,
+            |trigger: Trigger<OnRemove, RigidBodyDisabled>,
+             rb_query: Query<&RigidBody, Without<Sleeping>>,
              commands: Commands| {
-                add_solver_body::<RigidBodyActiveFilter>(In(trigger.target()), rb_query, commands);
+                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, commands);
+            },
+        );
+        app.add_observer(
+            |trigger: Trigger<OnRemove, Disabled>,
+             rb_query: Query<
+                &RigidBody,
+                (
+                    // The body still has `Disabled` at this point,
+                    // and we need to include in the query to match against the entity.
+                    With<Disabled>,
+                    Without<RigidBodyDisabled>,
+                    Without<Sleeping>,
+                ),
+            >,
+             commands: Commands| {
+                add_solver_body::<(
+                    With<Disabled>,
+                    Without<RigidBodyDisabled>,
+                    Without<Sleeping>,
+                )>(In(trigger.target()), rb_query, commands);
             },
         );
         app.add_observer(
@@ -66,19 +86,16 @@ impl Plugin for SolverBodyPlugin {
 
         // Remove solver bodies when their associated rigid body is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, RigidBody>,
-             solver_body_query: Query<(), With<SolverBody>>,
-             commands: Commands| {
-                remove_solver_body(In(trigger.target()), solver_body_query, commands);
+            |trigger: Trigger<OnRemove, RigidBody>, deferred_world: DeferredWorld| {
+                remove_solver_body(In(trigger.target()), deferred_world);
             },
         );
 
         // Remove solver bodies when their associated rigid body is disabled or put to sleep.
         app.add_observer(
-            |trigger: Trigger<OnAdd, Sleeping>,
-             solver_body_query: Query<(), With<SolverBody>>,
-             commands: Commands| {
-                remove_solver_body(In(trigger.target()), solver_body_query, commands);
+            |trigger: Trigger<OnAdd, (Disabled, RigidBodyDisabled, Sleeping)>,
+             deferred_world: DeferredWorld| {
+                remove_solver_body(In(trigger.target()), deferred_world);
             },
         );
 
@@ -140,13 +157,11 @@ fn add_solver_body<F: QueryFilter>(
     }
 }
 
-fn remove_solver_body(
-    In(entity): In<Entity>,
-    solver_body_query: Query<(), With<SolverBody>>,
-    mut commands: Commands,
-) {
-    if solver_body_query.contains(entity) {
-        commands
+fn remove_solver_body(In(entity): In<Entity>, mut deferred_world: DeferredWorld) {
+    let entity_ref = deferred_world.entity(entity);
+    if entity_ref.contains::<SolverBody>() {
+        deferred_world
+            .commands()
             .entity(entity)
             .try_remove::<(SolverBody, SolverBodyInertia)>();
     }
@@ -250,6 +265,8 @@ mod tests {
         let entity2 = app.world_mut().spawn(RigidBody::Kinematic).id();
         let entity3 = app.world_mut().spawn(RigidBody::Static).id();
 
+        app.update();
+
         // The dynamic and kinematic rigid bodies should have solver bodies.
         assert!(has_solver_body(&app, entity1));
         assert!(has_solver_body(&app, entity2));
@@ -260,6 +277,8 @@ mod tests {
             .entity_mut(entity1)
             .insert(RigidBodyDisabled);
 
+        app.update();
+
         // The entity should no longer have a solver body.
         assert!(!has_solver_body(&app, entity1));
 
@@ -267,6 +286,8 @@ mod tests {
         app.world_mut()
             .entity_mut(entity1)
             .remove::<RigidBodyDisabled>();
+
+        app.update();
 
         // The dynamic rigid body should have a solver body again.
         assert!(has_solver_body(&app, entity1));
