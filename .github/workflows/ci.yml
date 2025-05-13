@@ -47,6 +47,7 @@ jobs:
                 os: [windows-latest, macos-latest, ubuntu-latest]
         env:
             LD_LIBRARY_PATH: "$(rustc --print target-libdir)"
+            RUSTFLAGS: --deny warnings -C debuginfo=line-tables-only -Zthreads=0
         runs-on: ${{ matrix.os }}
         timeout-minutes: 60
         steps:
