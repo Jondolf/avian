@@ -63,9 +63,10 @@
 //! // This tells the solver how to get the entities from the constraint.
 //! # #[cfg(feature = "f32")]
 //! impl EntityConstraint<2> for CustomConstraint {
-//!   fn entities(&self) -> [Entity; 2] {
-//!       [self.entity1, self.entity2]
-//!   }
+//!     fn entities(&self) -> [Entity; 2] {
+//!         [self.entity1, self.entity2]
+//!     }
+//! }
 //!
 //! # #[cfg(feature = "f32")]
 //! impl XpbdConstraint<2> for CustomConstraint {
