@@ -5,10 +5,9 @@ use bevy::{
 
 use crate::{
     dynamics::solver::SolverDiagnostics,
-    prelude::{CenterOfMass, ComputedMass, LockedAxes},
-    AdjustPrecision, AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule,
-    Position, RigidBody, RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet,
-    Vector,
+    prelude::{ComputedCenterOfMass, ComputedMass, LockedAxes},
+    AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule, Position, RigidBody,
+    RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
 };
 
 use super::{SolverBody, SolverBodyInertia};
@@ -135,7 +134,7 @@ fn on_change_rigid_body_type(
             // Create a new solver body if the rigid body is dynamic or kinematic.
             commands
                 .entity(entity)
-                .insert((SolverBody::default(), SolverBodyInertia::default()));
+                .try_insert((SolverBody::default(), SolverBodyInertia::default()));
         }
     }
 }
@@ -153,7 +152,7 @@ fn add_solver_body<F: QueryFilter>(
         // Create a new solver body if the rigid body is dynamic or kinematic.
         commands
             .entity(entity)
-            .insert((SolverBody::default(), SolverBodyInertia::default()));
+            .try_insert((SolverBody::default(), SolverBodyInertia::default()));
     }
 }
 
@@ -209,7 +208,7 @@ fn writeback_solver_bodies(
         &SolverBody,
         &mut Position,
         &mut Rotation,
-        &CenterOfMass,
+        &ComputedCenterOfMass,
         &mut LinearVelocity,
         &mut AngularVelocity,
     )>,
@@ -221,9 +220,9 @@ fn writeback_solver_bodies(
         |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
             // Write back the position and rotation deltas,
             // rotating the body around its center of mass.
-            let old_world_com = *rot * com.adjust_precision();
+            let old_world_com = *rot * com.0;
             *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
-            let new_world_com = *rot * com.adjust_precision();
+            let new_world_com = *rot * com.0;
             pos.0 += solver_body.delta_position + old_world_com - new_world_com;
 
             // Write back velocities.
