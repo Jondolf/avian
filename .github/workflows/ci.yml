@@ -46,7 +46,6 @@ jobs:
             matrix:
                 os: [windows-latest, macos-latest, ubuntu-latest]
         env:
-            LD_LIBRARY_PATH: "$(rustc --print target-libdir)"
             RUSTFLAGS: --deny warnings -C debuginfo=line-tables-only -Zthreads=0
         runs-on: ${{ matrix.os }}
         timeout-minutes: 60
@@ -66,6 +65,13 @@ jobs:
               with:
                 save-if: ${{ github.ref == 'refs/heads/main' }}
                 cache-all-crates: true
+            - name: set LD_LIBRARY_PATH on unix
+              run: LD_LIBRARY_PATH=$(rustc --print target-libdir)
+              if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest' }}
+            - name: set LD_LIBRARY_PATH on windows
+              run: $env:PATH += ";" + (rustc --print target-libdir)
+              shell: pwsh
+              if: ${{ matrix.os == 'windows-latest' }}
             - name: Run cargo test
               run: cargo nextest run --locked --no-default-features --lib --bins --examples --no-fail-fast --features enhanced-determinism,parallel,collider-from-mesh,serialize,debug-plugin,avian2d/2d,avian3d/3d,avian2d/f64,avian3d/f64,default-collider,parry-f64,bevy_scene,bevy_picking,diagnostic_ui,bevy/dynamic_linking
             - name: Run doc tests
