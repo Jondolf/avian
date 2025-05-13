@@ -16,6 +16,7 @@ use xpbd::EntityConstraint;
 
 use crate::prelude::*;
 use bevy::prelude::*;
+use core::cmp::Ordering;
 use schedule::SubstepSolverSet;
 
 use self::{
@@ -431,10 +432,10 @@ fn warm_start(
         }
 
         // If a body has a higher dominance, it is treated as a static or kinematic body.
-        if constraint.relative_dominance > 0 {
-            inertia1 = &dummy_inertia;
-        } else if constraint.relative_dominance < 0 {
-            inertia2 = &dummy_inertia;
+        match constraint.relative_dominance.cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
         }
 
         let normal = constraint.normal;
@@ -501,10 +502,10 @@ fn solve_contacts<const USE_BIAS: bool>(
         }
 
         // If a body has a higher dominance, it is treated as a static or kinematic body.
-        if constraint.relative_dominance > 0 {
-            inertia1 = &dummy_inertia;
-        } else if constraint.relative_dominance < 0 {
-            inertia2 = &dummy_inertia;
+        match constraint.relative_dominance.cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
         }
 
         constraint.solve(
@@ -570,11 +571,11 @@ fn solve_restitution(
             inertia2 = inertia;
         }
 
-        // If the body is `None`, or it has a higher dominance, it is treated as a static or kinematic body.
-        if constraint.relative_dominance > 0 {
-            inertia1 = &dummy_inertia;
-        } else if constraint.relative_dominance < 0 {
-            inertia2 = &dummy_inertia;
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        match constraint.relative_dominance.cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
         }
 
         // Performing multiple iterations can result in more accurate restitution,

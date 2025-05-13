@@ -250,6 +250,7 @@ use bevy::{
     ecs::{component::Mutable, entity::MapEntities},
     prelude::*,
 };
+use core::cmp::Ordering;
 
 use super::solver_body::{SolverBody, SolverBodyInertia};
 
@@ -423,10 +424,10 @@ pub fn solve_xpbd_joint<
         }
 
         // If a body has a higher dominance, it is treated as a static or kinematic body.
-        if joint.relative_dominance() > 0 {
-            inertia1 = &dummy_inertia;
-        } else if joint.relative_dominance() < 0 {
-            inertia2 = &dummy_inertia;
+        match joint.relative_dominance().cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
         }
 
         joint.solve([body1, body2], [inertia1, inertia2], delta_secs);
