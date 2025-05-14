@@ -13,6 +13,7 @@
 
 use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
+use core::f32::consts::FRAC_PI_2;
 use examples_common_3d::ExampleCommonPlugin;
 
 fn main() {
@@ -114,7 +115,7 @@ fn log_racket_angular_momentum(
 ) {
     for (angular_velocity, global_transform, inertia) in &query {
         // Compute the up-to-date inertia tensor in world space.
-        let world_inertia = inertia.rotated(global_transform.rotation());
+        let world_inertia = inertia.rotated(global_transform.rotation().adjust_precision());
 
         // Compute the angular momentum.
         let angular_momentum = world_inertia.tensor() * angular_velocity.0;
