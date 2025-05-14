@@ -21,11 +21,11 @@
 //! ```toml
 //! # For 2D applications:
 //! [dependencies]
-//! avian2d = "0.2"
+//! avian2d = "0.3"
 //!
 //! # For 3D applications:
 //! [dependencies]
-//! avian3d = "0.2"
+//! avian3d = "0.3"
 //!
 //! # If you want to use the most up-to-date version, you can follow the main branch:
 //! [dependencies]
@@ -39,7 +39,7 @@
 //! [dependencies]
 //! # Add 3D Avian with double-precision floating point numbers.
 //! # `parry-f64` enables collision detection using Parry.
-//! avian3d = { version = "0.2", default-features = false, features = ["3d", "f64", "parry-f64"] }
+//! avian3d = { version = "0.3", default-features = false, features = ["3d", "f64", "parry-f64"] }
 //! ```
 //!
 //! ## Feature Flags
@@ -534,7 +534,7 @@ pub mod prelude {
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
         math::*,
-        position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
+        position::{PreSolveDeltaPosition, PreSolveDeltaRotation},
     };
     pub use avian_derive::*;
 }
@@ -571,6 +571,7 @@ use prelude::*;
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
+/// | [`SolverBodyPlugin`]              | Manages [solver bodies](dynamics::solver::solver_body::SolverBody).                                                                                        |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |

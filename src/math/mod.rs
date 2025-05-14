@@ -44,6 +44,19 @@ pub(crate) type Dir = Dir2;
 #[cfg(feature = "3d")]
 pub(crate) type Dir = Dir3;
 
+/// The tensor type chosen based on the dimension.
+/// Often used for angular inertia.
+///
+/// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
+#[cfg(feature = "2d")]
+pub(crate) type Tensor = Scalar;
+/// The tensor type chosen based on the dimension.
+/// Often used for angular inertia.
+///
+/// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
+#[cfg(feature = "3d")]
+pub(crate) type Tensor = Matrix3;
+
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
     /// A math construct type with the desired precision.

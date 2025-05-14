@@ -7,6 +7,7 @@ use crate::{
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
+    transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
 
 /// A plugin for propagating and updating transforms for colliders.
@@ -51,8 +52,9 @@ impl Plugin for ColliderTransformPlugin {
         app.add_systems(
             self.schedule,
             (
-                crate::sync::sync_simple_transforms_physics,
-                crate::sync::propagate_transforms_physics,
+                mark_dirty_trees,
+                propagate_parent_transforms,
+                sync_simple_transforms,
             )
                 .chain()
                 .run_if(match_any::<(Added<ColliderMarker>, Without<RigidBody>)>)

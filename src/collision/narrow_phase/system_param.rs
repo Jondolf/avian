@@ -1,5 +1,6 @@
 #[cfg(feature = "parallel")]
 use core::cell::RefCell;
+use core::cmp::Ordering;
 
 use crate::{
     collision::collider::ColliderQuery,
@@ -127,7 +128,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .contact_graph
                     .internal
                     .edge_weight_mut(pair_index)
-                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
+                    .unwrap_or_else(|| panic!("Contact pair not found for {pair_index:?}"));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
@@ -492,9 +493,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .max(*self.contact_tolerance)
                         + collision_margin_sum;
 
-                    let position1 = collider1.current_position();
-                    let position2 = collider2.current_position();
-
                     let was_touching = contacts.flags.contains(ContactPairFlags::TOUCHING);
 
                     // Save the old manifolds for warm starting.
@@ -510,9 +508,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     );
                     collider1.shape.contact_manifolds_with_context(
                         collider2.shape,
-                        position1,
+                        collider1.position.0,
                         *collider1.rotation,
-                        position2,
+                        collider2.position.0,
                         *collider2.rotation,
                         max_contact_distance,
                         &mut contacts.manifolds,
@@ -598,16 +596,39 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         }
                     });
 
-                    // TODO: How should we properly take the locked axes into account for the mass here?
-                    let inverse_mass_sum = body1.mass().inverse() + body2.mass().inverse();
-                    let i1 = body1.effective_global_angular_inertia();
-                    let i2 = body2.effective_global_angular_inertia();
+                    // Compute the relative dominance of the bodies.
+                    let relative_dominance = body1.dominance() - body2.dominance();
+
+                    // Compute the inverse mass and angular inertia, taking into account the relative dominance.
+                    // TODO: How should we properly take locked axes into account for mass?
+                    let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
+                        Ordering::Equal => (
+                            body1.mass().inverse(),
+                            body1.effective_global_angular_inertia(),
+                            body2.mass().inverse(),
+                            body2.effective_global_angular_inertia(),
+                        ),
+                        Ordering::Greater => (
+                            0.0,
+                            ComputedAngularInertia::INFINITY,
+                            body2.mass().inverse(),
+                            body2.effective_global_angular_inertia(),
+                        ),
+                        Ordering::Less => (
+                            body1.mass().inverse(),
+                            body1.effective_global_angular_inertia(),
+                            0.0,
+                            ComputedAngularInertia::INFINITY,
+                        ),
+                    };
 
                     let contact_softness = if inactive1 || inactive2 {
                         self.contact_softness.non_dynamic
                     } else {
                         self.contact_softness.dynamic
                     };
+
+                    let inverse_mass_sum = inv_mass1 + inv_mass2;
 
                     // Generate a contact constraint for each contact manifold.
                     for (manifold_index, manifold) in contacts.manifolds.iter_mut().enumerate() {
@@ -616,6 +637,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             body2: body2.entity,
                             collider1: collider1.entity,
                             collider2: collider2.entity,
+                            relative_dominance,
                             friction: manifold.friction,
                             restitution: manifold.restitution,
                             #[cfg(feature = "2d")]
@@ -707,8 +729,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                                     ),
                                 ),
                                 max_normal_impulse: 0.0,
-                                local_anchor1,
-                                local_anchor2,
                                 anchor1: r1,
                                 anchor2: r2,
                                 normal_speed,

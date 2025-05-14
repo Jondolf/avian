@@ -10,7 +10,7 @@ mod gizmos;
 pub use configuration::*;
 pub use gizmos::*;
 
-use crate::prelude::*;
+use crate::{dynamics::solver::xpbd::EntityConstraint, prelude::*};
 use bevy::{
     ecs::{intern::Interned, query::Has, schedule::ScheduleLabel},
     prelude::*,
@@ -372,7 +372,7 @@ fn debug_render_contacts(
     }
 }
 
-fn debug_render_joints<T: Joint>(
+fn debug_render_joints<T: Joint + EntityConstraint<2>>(
     bodies: Query<(&Position, &Rotation, Has<Sleeping>)>,
     joints: Query<(&T, Option<&DebugRender>)>,
     mut gizmos: Gizmos<PhysicsGizmos>,

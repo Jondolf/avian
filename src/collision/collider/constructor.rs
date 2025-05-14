@@ -391,6 +391,9 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull`].
     #[cfg(feature = "3d")]
     ConvexHull { points: Vec<Vector> },
+    /// Constructs a collider with [`Collider::convex_polyline`].
+    #[cfg(feature = "2d")]
+    ConvexPolyline { points: Vec<Vector> },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
     Heightfield { heights: Vec<Scalar>, scale: Vector },
@@ -645,6 +648,10 @@ mod tests {
 
     #[cfg(all(feature = "collider-from-mesh", feature = "bevy_scene"))]
     #[test]
+    #[cfg_attr(
+        target_os = "linux",
+        ignore = "The plugin setup requires access to the GPU, which is not available in the linux test environment"
+    )]
     fn collider_constructor_hierarchy_inserts_correct_configs_on_scene() {
         use parry::shape::ShapeType;
 
@@ -678,11 +685,16 @@ mod tests {
             ))
             .id();
 
-        for _ in 0..1000 {
+        let mut counter = 0;
+        loop {
             if app.world().contains_resource::<SceneReady>() {
                 break;
             }
             app.update();
+            counter += 1;
+            if counter > 1000 {
+                panic!("SceneInstanceReady was never triggered");
+            }
         }
         app.update();
 
@@ -746,6 +758,9 @@ mod tests {
     fn create_gltf_test_app() -> App {
         use bevy::{diagnostic::DiagnosticsPlugin, winit::WinitPlugin};
 
+        // Todo: it would be best to disable all rendering-related plugins,
+        // but we have so far not succeeded in finding the right plugin combination
+        // that still results in `SceneInstanceReady` being triggered.
         let mut app = App::new();
         app.add_plugins((
             DefaultPlugins
