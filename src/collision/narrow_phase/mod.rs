@@ -145,8 +145,7 @@ where
 
         if !already_initialized {
             // Remove collision pairs when colliders are disabled or removed.
-            app.add_observer(remove_collider_on::<OnAdd, Disabled>);
-            app.add_observer(remove_collider_on::<OnAdd, ColliderDisabled>);
+            app.add_observer(remove_collider_on::<OnAdd, (Disabled, ColliderDisabled)>);
             app.add_observer(remove_collider_on::<OnRemove, ColliderMarker>);
 
             // Trigger collision events for colliders that started or stopped touching.
@@ -333,8 +332,8 @@ fn trigger_collision_events(
 ///
 /// Also removes the collider from the [`CollidingEntities`] of the other entity,
 /// wakes up the other body, and sends a [`CollisionEnded`] event.
-fn remove_collider_on<E: Event, C: Component>(
-    trigger: Trigger<E, C>,
+fn remove_collider_on<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
     mut contact_graph: ResMut<ContactGraph>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,

@@ -14,7 +14,6 @@ pub struct ColliderQuery<C: AnyCollider> {
     pub of: Option<&'static ColliderOf>,
     pub position: Ref<'static, Position>,
     pub rotation: Ref<'static, Rotation>,
-    pub accumulated_translation: Option<Ref<'static, AccumulatedTranslation>>,
     pub transform: Option<&'static ColliderTransform>,
     pub aabb: Ref<'static, ColliderAabb>,
     pub collision_margin: Option<&'static CollisionMargin>,
@@ -36,16 +35,6 @@ impl<C: AnyCollider> ColliderQueryItem<'_, C> {
     #[inline(always)]
     pub fn body(&self) -> Option<Entity> {
         self.of.map(|ColliderOf { body }| *body)
-    }
-
-    /// Returns the current position of the body. This is a sum of the [`Position`] and
-    /// [`AccumulatedTranslation`] components.
-    pub fn current_position(&self) -> Vector {
-        self.position.0
-            + self
-                .accumulated_translation
-                .as_ref()
-                .map_or_else(default, |t| t.0)
     }
 
     /// Returns the [`ActiveCollisionHooks`] for the collider.

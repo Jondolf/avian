@@ -50,10 +50,7 @@ pub fn integrate_velocity(
 
     // Compute next linear velocity.
     // v = v_0 + a * Δt
-    let next_lin_vel = *lin_vel + lin_acc * delta_seconds;
-    if next_lin_vel != *lin_vel {
-        *lin_vel = next_lin_vel;
-    }
+    *lin_vel += lin_acc * delta_seconds;
 
     // Compute angular acceleration.
     #[cfg(feature = "2d")]
@@ -63,8 +60,7 @@ pub fn integrate_velocity(
 
     // Compute angular velocity delta.
     // Δω = α * Δt
-    #[allow(unused_mut)]
-    let mut delta_ang_vel = ang_acc * delta_seconds;
+    *ang_vel += ang_acc * delta_seconds;
 
     #[cfg(feature = "3d")]
     {
@@ -85,11 +81,7 @@ pub fn integrate_velocity(
             angular_inertia.tensor(),
             delta_seconds,
         );
-        delta_ang_vel += locked_axes.apply_to_angular_velocity(delta_ang_vel_gyro);
-    }
-
-    if delta_ang_vel != AngularVelocity::ZERO.0 && delta_ang_vel.is_finite() {
-        *ang_vel += delta_ang_vel;
+        *ang_vel += locked_axes.apply_to_angular_velocity(delta_ang_vel_gyro);
     }
 }
 
@@ -108,11 +100,7 @@ pub fn integrate_position(
     let lin_vel = locked_axes.apply_to_vec(lin_vel);
 
     // x = x_0 + v * Δt
-    let next_pos = *pos + lin_vel * delta_seconds;
-
-    if next_pos != *pos && next_pos.is_finite() {
-        *pos = next_pos;
-    }
+    *pos += lin_vel * delta_seconds;
 
     // Effective inverse inertia along each rotational axis
     let ang_vel = locked_axes.apply_to_angular_velocity(ang_vel);
@@ -121,25 +109,19 @@ pub fn integrate_position(
     #[cfg(feature = "2d")]
     {
         let delta_rot = Rotation::radians(ang_vel * delta_seconds);
-        if delta_rot != Rotation::IDENTITY && delta_rot.is_finite() {
-            *rot *= delta_rot;
-            *rot = rot.fast_renormalize();
-        }
+        *rot *= delta_rot;
+        *rot = rot.fast_renormalize();
     }
     #[cfg(feature = "3d")]
     {
-        // This is a bit more complicated because quaternions are weird.
-        // Maybe there's a simpler and more numerically stable way?
-        let scaled_axis = ang_vel * delta_seconds;
-        if scaled_axis != AngularVelocity::ZERO.0 && scaled_axis.is_finite() {
-            let delta_rot = Quaternion::from_scaled_axis(scaled_axis);
-            rot.0 = delta_rot * rot.0;
-            *rot = rot.fast_renormalize();
-        }
+        let delta_rot = Quaternion::from_scaled_axis(ang_vel * delta_seconds);
+        rot.0 = delta_rot * rot.0;
+        *rot = rot.fast_renormalize();
     }
 }
 
 /// Computes linear acceleration based on the given forces and mass.
+#[inline]
 pub fn linear_acceleration(
     force: Vector,
     mass: ComputedMass,
@@ -149,20 +131,16 @@ pub fn linear_acceleration(
     // Effective inverse mass along each axis
     let effective_inverse_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
 
-    if effective_inverse_mass != Vector::ZERO && effective_inverse_mass.is_finite() {
-        // Newton's 2nd law for translational movement:
-        //
-        // F = m * a
-        // a = F / m
-        //
-        // where a is the acceleration, F is the force, and m is the mass.
-        //
-        // `gravity` below is the gravitational acceleration,
-        // so it doesn't need to be divided by mass.
-        force * effective_inverse_mass + locked_axes.apply_to_vec(gravity)
-    } else {
-        Vector::ZERO
-    }
+    // Newton's 2nd law for translational movement:
+    //
+    // F = m * a
+    // a = F / m
+    //
+    // where a is the acceleration, F is the force, and m is the mass.
+    //
+    // `gravity` below is the gravitational acceleration,
+    // so it doesn't need to be divided by mass.
+    force * effective_inverse_mass + locked_axes.apply_to_vec(gravity)
 }
 
 /// Computes angular acceleration based on the current angular velocity, torque, and inertia.
@@ -172,6 +150,7 @@ pub fn linear_acceleration(
 Note that this does not account for gyroscopic motion. To compute the gyroscopic angular velocity
 correction, use `solve_gyroscopic_torque`."
 )]
+#[inline]
 pub fn angular_acceleration(
     torque: TorqueValue,
     global_angular_inertia: &ComputedAngularInertia,
@@ -180,20 +159,14 @@ pub fn angular_acceleration(
     // Effective inverse inertia along each axis
     let effective_angular_inertia = locked_axes.apply_to_angular_inertia(*global_angular_inertia);
 
-    if effective_angular_inertia != ComputedAngularInertia::INFINITY
-        && effective_angular_inertia.is_finite()
-    {
-        // Newton's 2nd law for rotational movement:
-        //
-        // τ = I * α
-        // α = τ / I
-        //
-        // where α (alpha) is the angular acceleration,
-        // τ (tau) is the torque, and I is the moment of inertia.
-        effective_angular_inertia.inverse() * torque
-    } else {
-        AngularValue::ZERO
-    }
+    // Newton's 2nd law for rotational movement:
+    //
+    // τ = I * α
+    // α = τ / I
+    //
+    // where α (alpha) is the angular acceleration,
+    // τ (tau) is the torque, and I is the moment of inertia.
+    effective_angular_inertia.inverse() * torque
 }
 
 /// Computes the angular correction caused by gyroscopic motion,
@@ -225,7 +198,7 @@ pub fn solve_gyroscopic_torque(
     let f = delta_seconds * local_ang_vel.cross(angular_momentum);
 
     // Do one Newton-Raphson iteration
-    let delta_ang_vel = -jacobian.inverse() * f;
+    let delta_ang_vel = -jacobian.inverse_or_zero() * f;
 
     // Convert back to world coordinates
     rotation * delta_ang_vel

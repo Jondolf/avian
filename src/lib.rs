@@ -534,7 +534,7 @@ pub mod prelude {
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
         math::*,
-        position::{PreSolveAccumulatedTranslation, PreSolveRotation, PreviousRotation},
+        position::{PreSolveDeltaPosition, PreSolveDeltaRotation},
     };
     pub use avian_derive::*;
 }
@@ -571,6 +571,7 @@ use prelude::*;
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
 /// | [`IntegratorPlugin`]              | Handles motion caused by velocity, and applies external forces and gravity.                                                                                |
+/// | [`SolverBodyPlugin`]              | Manages [solver bodies](dynamics::solver::solver_body::SolverBody).                                                                                        |
 /// | [`SolverPlugin`]                  | Manages and solves contacts, [joints](dynamics::solver::joints), and other constraints.                                                                    |
 /// | [`CcdPlugin`]                     | Performs sweep-based [Continuous Collision Detection](dynamics::ccd) for bodies with the [`SweptCcd`] component.                                           |
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
