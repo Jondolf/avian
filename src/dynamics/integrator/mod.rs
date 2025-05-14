@@ -179,6 +179,9 @@ fn integrate_velocities(
     // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
     //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
     bodies.par_iter_mut().for_each(|body| {
+        #[cfg(feature = "3d")]
+        let is_gyroscopic = body.solver_body.is_gyroscopic();
+
         let SolverBody {
             linear_velocity,
             angular_velocity,
@@ -224,6 +227,8 @@ fn integrate_velocities(
                 locked_axes,
                 gravity,
                 delta_secs,
+                #[cfg(feature = "3d")]
+                is_gyroscopic,
             );
         }
 

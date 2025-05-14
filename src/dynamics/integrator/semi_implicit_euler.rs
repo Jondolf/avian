@@ -44,6 +44,7 @@ pub fn integrate_velocity(
     locked_axes: LockedAxes,
     gravity: Vector,
     delta_seconds: Scalar,
+    #[cfg(feature = "3d")] is_gyroscopic: bool,
 ) {
     // Compute linear acceleration.
     let lin_acc = linear_acceleration(force, mass, locked_axes, gravity);
@@ -64,10 +65,12 @@ pub fn integrate_velocity(
 
     #[cfg(feature = "3d")]
     {
-        // In 3D, we should also handle gyroscopic motion, which accounts for
-        // non-spherical shapes that may wobble as they spin in the air.
-        solve_gyroscopic_torque(ang_vel, rotation.0, angular_inertia, delta_seconds);
-        *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
+        if is_gyroscopic {
+            // Handle gyroscopic motion, which accounts for non-spherical shapes
+            // that may wobble as they spin in the air.
+            solve_gyroscopic_torque(ang_vel, rotation.0, angular_inertia, delta_seconds);
+            *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
+        }
     }
 }
 
@@ -270,6 +273,8 @@ mod tests {
                 default(),
                 gravity,
                 1.0 / 10.0,
+                #[cfg(feature = "3d")]
+                true,
             );
             integrate_position(
                 &mut position,

@@ -44,7 +44,7 @@ use crate::{math::Scalar, prelude::LockedAxes, Tensor};
 ///   quite confusing and error-prone, and would possibly require more branching.
 ///
 /// In addition to the delta position and rotation, we also store the linear and angular velocities
-/// and some (currently unused) flags. This all fits in 32 bytes in 2D or 56 bytes in 3D with the `f32` feature.
+/// and some bitflags. This all fits in 32 bytes in 2D or 56 bytes in 3D with the `f32` feature.
 ///
 /// The 2D data layout has been designed to support fast conversion to and from
 /// wide SIMD types via scatter/gather operations in the future when SIMD optimizations
@@ -82,11 +82,10 @@ pub struct SolverBody {
     ///
     /// 8 bytes in 2D and 16 bytes in 3D with the `f32` feature.
     pub delta_rotation: Rotation,
-    // TODO: Flags indicating whether the body is kinematic and whether gyroscopic torque is enabled.
     /// Flags for the body.
     ///
     /// 4 bytes.
-    pub flags: u32,
+    pub flags: SolverBodyFlags,
 }
 
 impl SolverBody {
@@ -100,6 +99,26 @@ impl SolverBody {
         {
             self.linear_velocity + self.angular_velocity.cross(point)
         }
+    }
+
+    /// Returns `true` if gyroscopic motion is enabled for this body.
+    pub fn is_gyroscopic(&self) -> bool {
+        self.flags.contains(SolverBodyFlags::GYROSCOPIC_MOTION)
+    }
+}
+
+/// Flags for [`SolverBody`].
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct SolverBodyFlags(u32);
+
+bitflags::bitflags! {
+    impl SolverBodyFlags: u32 {
+        /// Set if gyroscopic motion is enabled.
+        const GYROSCOPIC_MOTION = 1 << 0;
     }
 }
 

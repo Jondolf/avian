@@ -3,14 +3,15 @@ use bevy::{
     prelude::*,
 };
 
+use super::{SolverBody, SolverBodyInertia};
+#[cfg(feature = "3d")]
+use crate::{dynamics::solver::solver_body::SolverBodyFlags, math::MatExt};
 use crate::{
     dynamics::solver::SolverDiagnostics,
-    prelude::{ComputedCenterOfMass, ComputedMass, LockedAxes},
-    AngularVelocity, GlobalAngularInertia, LinearVelocity, PhysicsSchedule, Position, RigidBody,
-    RigidBodyActiveFilter, RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
+    AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
+    RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
 };
-
-use super::{SolverBody, SolverBodyInertia};
 
 /// A plugin for managing solver bodies.
 ///
@@ -172,17 +173,20 @@ fn prepare_solver_bodies(
         &mut SolverBodyInertia,
         &LinearVelocity,
         &AngularVelocity,
+        &Rotation,
         &ComputedMass,
-        &GlobalAngularInertia,
+        &ComputedAngularInertia,
         Option<&LockedAxes>,
     )>,
 ) {
+    #[allow(unused_variables)]
     query.par_iter_mut().for_each(
         |(
             mut solver_body,
             mut inertial_properties,
             linear_velocity,
             angular_velocity,
+            rotation,
             mass,
             angular_inertia,
             locked_axes,
@@ -194,9 +198,26 @@ fn prepare_solver_bodies(
 
             *inertial_properties = SolverBodyInertia::new(
                 mass.inverse(),
+                #[cfg(feature = "2d")]
                 angular_inertia.inverse(),
+                #[cfg(feature = "3d")]
+                angular_inertia.rotated(rotation.0).inverse(),
                 locked_axes.copied().unwrap_or_default(),
             );
+
+            #[cfg(feature = "3d")]
+            {
+                // Check if the inertia tensor is isotropic, meaning that it is invariant
+                // under all rotations. If it is, we can skip computing gyroscopic motion.
+                // This applies to shapes like spheres and regular solids.
+                // TODO: Should we scale the epsilon based on the `PhysicsLengthUnit`?
+                // TODO: We should only do this when the body is added or the local inertia tensor is changed.
+                let epsilon = 1e-6;
+                let is_inertia_isotropic = angular_inertia.inverse().is_isotropic(epsilon);
+                solver_body
+                    .flags
+                    .set(SolverBodyFlags::GYROSCOPIC_MOTION, !is_inertia_isotropic);
+            }
         },
     );
 }
