@@ -217,7 +217,7 @@ pub fn solve_gyroscopic_torque(
         return;
     }
     new_local_momentum *=
-        ops::sqrt(local_momentum.length_squared() / new_local_momentum_length_squared);
+        (local_momentum.length_squared() / new_local_momentum_length_squared).sqrt();
 
     // Convert back to world-space angular velocity.
     let local_inverse_inertia = local_inertia.inverse();
