@@ -181,9 +181,14 @@ fn integrate_velocities(
     // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
     //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
     bodies.par_iter_mut().for_each(|body| {
+        #[cfg(feature = "3d")]
+        let is_gyroscopic = body.solver_body.is_gyroscopic();
+
         let SolverBody {
             linear_velocity,
             angular_velocity,
+            #[cfg(feature = "3d")]
+            delta_rotation,
             ..
         } = body.solver_body.into_inner();
 
@@ -205,6 +210,8 @@ fn integrate_velocities(
             }
 
             let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
+            #[cfg(feature = "3d")]
+            let rotation = *delta_rotation * *body.rot;
 
             semi_implicit_euler::integrate_velocity(
                 linear_velocity,
@@ -214,9 +221,11 @@ fn integrate_velocities(
                 #[cfg(feature = "3d")]
                 body.global_angular_inertia,
                 #[cfg(feature = "3d")]
-                *body.rot,
+                rotation,
                 locked_axes,
                 delta_secs,
+                #[cfg(feature = "3d")]
+                is_gyroscopic,
             );
         }
 
