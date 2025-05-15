@@ -101,16 +101,6 @@ impl Plugin for IntegratorPlugin {
                 .in_set(IntegrationSet::Position)
                 .after(integrate_positions),
         );
-
-        app.get_schedule_mut(PhysicsSchedule)
-            .expect("add PhysicsSchedule first")
-            .add_systems(
-                (
-                    apply_impulses.before(SolverSet::PrepareSolverBodies),
-                    clear_forces_and_impulses.after(SolverSet::Finalize),
-                )
-                    .in_set(PhysicsStepSet::Solver),
-        );
     }
 }
 
@@ -437,95 +427,4 @@ fn integrate_positions(
     });
 
     diagnostics.integrate_positions += start.elapsed();
-}
-
-#[cfg(feature = "2d")]
-type AngularValue = Scalar;
-#[cfg(feature = "3d")]
-type AngularValue = Vector;
-#[cfg(feature = "2d")]
-type TorqueValue = Scalar;
-#[cfg(feature = "3d")]
-type TorqueValue = Vector;
-
-type ImpulseQueryComponents = (
-    &'static RigidBody,
-    &'static mut ExternalImpulse,
-    &'static mut ExternalAngularImpulse,
-    &'static mut LinearVelocity,
-    &'static mut AngularVelocity,
-    &'static Rotation,
-    &'static ComputedMass,
-    &'static GlobalAngularInertia,
-    Option<&'static LockedAxes>,
-);
-
-fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, RigidBodyActiveFilter>) {
-    for (
-        rb,
-        impulse,
-        ang_impulse,
-        mut lin_vel,
-        mut ang_vel,
-        _rotation,
-        mass,
-        global_angular_inertia,
-        locked_axes,
-    ) in &mut bodies
-    {
-        if !rb.is_dynamic() {
-            continue;
-        }
-
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
-
-        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
-        let effective_angular_inertia =
-            locked_axes.apply_to_angular_inertia(*global_angular_inertia);
-
-        // Avoid triggering bevy's change detection unnecessarily.
-        let delta_lin_vel = impulse.impulse() * effective_inv_mass;
-        let delta_ang_vel = effective_angular_inertia.inverse()
-            * (ang_impulse.impulse() + impulse.angular_impulse());
-
-        if delta_lin_vel != Vector::ZERO {
-            lin_vel.0 += delta_lin_vel;
-        }
-        if delta_ang_vel != AngularVelocity::ZERO.0 {
-            ang_vel.0 += delta_ang_vel;
-        }
-    }
-}
-
-type ForceComponents = (
-    &'static mut ExternalForce,
-    &'static mut ExternalTorque,
-    &'static mut ExternalImpulse,
-    &'static mut ExternalAngularImpulse,
-);
-type ForceComponentsChanged = Or<(
-    Changed<ExternalForce>,
-    Changed<ExternalTorque>,
-    Changed<ExternalImpulse>,
-    Changed<ExternalAngularImpulse>,
-)>;
-
-/// Responsible for clearing forces and impulses on bodies.
-///
-/// Runs in [`PhysicsSchedule`], after [`PhysicsStepSet::SpatialQuery`].
-pub fn clear_forces_and_impulses(mut forces: Query<ForceComponents, ForceComponentsChanged>) {
-    for (mut force, mut torque, mut impulse, mut angular_ímpulse) in &mut forces {
-        if !force.persistent {
-            force.clear();
-        }
-        if !torque.persistent {
-            torque.clear();
-        }
-        if !impulse.persistent {
-            impulse.clear();
-        }
-        if !angular_ímpulse.persistent {
-            angular_ímpulse.clear();
-        }
-    }
 }
