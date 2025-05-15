@@ -3,11 +3,17 @@
 
 #![allow(missing_docs)]
 
-use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
+use crate::{
+    dynamics::{
+        integrator::VelocityIntegrationData,
+        solver::solver_body::{SolverBody, SolverBodyInertia},
+    },
+    prelude::*,
+};
 use bevy::{
-    ecs::system::{
-        lifetimeless::{Read, Write},
-        SystemParam,
+    ecs::{
+        query::QueryData,
+        system::lifetimeless::{Read, Write},
     },
     prelude::*,
 };
@@ -30,266 +36,131 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
-#[derive(SystemParam)]
-pub struct ForceHelper<'w, 's> {
-    physics_time: Res<'w, Time<Physics>>,
-    substep_time: Res<'w, Time<Substeps>>,
-    commands: Commands<'w, 's>,
-    pub velocity_query: Query<'w, 's, (Write<LinearVelocity>, Write<AngularVelocity>)>,
-    pub velocity_integration_query: Query<'w, 's, Write<VelocityIntegrationData>>,
-    pub constant_force_query: Query<'w, 's, Write<ConstantForce>>,
-    pub constant_torque_query: Query<'w, 's, Write<ConstantTorque>>,
-    pub mass_properties_query: Query<
-        'w,
-        's,
-        (
-            Read<ComputedMass>,
-            Read<GlobalAngularInertia>,
-            Read<ComputedCenterOfMass>,
-        ),
-    >,
+#[derive(QueryData)]
+#[query_data(mutable)]
+pub struct RigidBodyForces {
+    position: Read<Position>,
+    rotation: Read<Rotation>,
+    body: Write<SolverBody>,
+    mass_props: Read<SolverBodyInertia>,
+    locked_axes: Option<Read<LockedAxes>>,
+    integration: Write<VelocityIntegrationData>,
+    accumulated_forces: Write<AccumulatedForces>,
 }
 
-impl ForceHelper<'_, '_> {
-    /// Adds a world-space [`ConstantForce`] that is applied continuously at the given
-    /// point relative to the position of the entity until it is cleared.
+impl RigidBodyForcesItem<'_> {
+    /// Applies a linear impulse at the given point in world space.
     ///
-    /// If the point is not a zero vector (the center of mass), the force will also apply a torque.
-    ///
-    /// If the [`ConstantForce`] component already exists for the entity, the new force is added to the existing force.
-    /// Otherwise, the component is inserted. The same applies to the [`ConstantTorque`] component if torque is non-zero.
-    ///
-    /// The force is typically in Newtons, kg*m/s^2.
-    pub fn add_constant_force(&mut self, entity: Entity, force: Vector, point: Vector) {
-        let torque = cross(force, point);
-
-        self.add_constant_center_force(entity, force);
-
-        if torque != Torque::ZERO {
-            self.add_constant_torque(entity, torque);
-        }
-    }
-
-    /// Adds a world-space [`ConstantForce`] that is applied continuously at the center of mass until it is cleared.
-    ///
-    /// If the [`ConstantForce`] component already exists for the entity, the new force is added to the existing force.
-    /// Otherwise, the component is inserted.
-    ///
-    /// The force is typically in Newtons, kg*m/s^2.
-    pub fn add_constant_center_force(&mut self, entity: Entity, force: Vector) {
-        if let Ok(mut constant_force) = self.constant_force_query.get_mut(entity) {
-            constant_force.0 += force;
-        } else {
-            self.commands.entity(entity).insert(ConstantForce(force));
-        }
-    }
-
-    /// Sets the [`ConstantForce`] of the given entity to the given force applied continuously
-    /// at the given point relative to the position of the entity in world space.
-    ///
-    /// If the point is not a zero vector (the center of mass), the force will also apply a torque.
-    ///
-    /// If the [`ConstantForce`] component does not exist for the entity, it is inserted.
-    /// The same applies to the [`ConstantTorque`] component if torque is non-zero.
-    ///
-    /// The force is typically in Newtons, kg*m/s^2.
-    pub fn set_constant_force(&mut self, entity: Entity, force: Vector, point: Vector) {
-        let torque = cross(force, point);
-
-        self.set_constant_center_force(entity, force);
-
-        if torque != Torque::ZERO {
-            self.set_constant_torque(entity, torque);
-        }
-    }
-
-    /// Sets the [`ConstantForce`] of the given entity to the given force in world space.
-    ///
-    /// If the [`ConstantForce`] component does not exist for the entity, it is inserted.
-    ///
-    /// The force is typically in Newtons, kg*m/s^2.
-    pub fn set_constant_center_force(&mut self, entity: Entity, force: Vector) {
-        if let Ok(mut constant_force) = self.constant_force_query.get_mut(entity) {
-            constant_force.0 = force;
-        } else {
-            self.commands.entity(entity).insert(ConstantForce(force));
-        }
-    }
-
-    /// Sets the [`ConstantTorque`] of the given entity to the given torque in world space.
-    ///
-    /// If the [`ConstantTorque`] component does not exist for the entity, it is inserted.
-    ///
-    /// The torque is typically in Newton-meters, kg*m^2/s^2.
-    pub fn set_constant_torque(&mut self, entity: Entity, torque: Torque) {
-        if let Ok(mut constant_torque) = self.constant_torque_query.get_mut(entity) {
-            constant_torque.0 = torque;
-        } else {
-            self.commands.entity(entity).insert(ConstantTorque(torque));
-        }
-    }
-
-    /// Adds a world-space [`ConstantTorque`] that is applied continuously until it is cleared.
-    ///
-    /// If the [`ConstantTorque`] component already exists for the entity, the new torque is added to the existing torque.
-    /// Otherwise, the component is inserted.
-    ///
-    /// The torque is typically in Newton-meters, kg*m^2/s^2.
-    pub fn add_constant_torque(&mut self, entity: Entity, torque: Torque) {
-        if let Ok(mut constant_torque) = self.constant_torque_query.get_mut(entity) {
-            constant_torque.0 += torque;
-        } else {
-            self.commands.entity(entity).insert(ConstantTorque(torque));
-        }
-    }
-
-    /// Applies a linear impulse at the given point relative to the position of the entity in world space.
-    ///
-    /// If the point is not a zero vector (the center of mass), the impulse will also apply an angular impulse.
+    /// If the point is not at the center of mass, the impulse will also apply an angular impulse.
     ///
     /// The impulse is typically in Newton-seconds, kg*m/s.
-    pub fn apply_linear_impulse(&mut self, entity: Entity, impulse: Vector, point: Vector) {
-        let (mass, angular_inertia, _) = self.mass_properties_query.get(entity).unwrap();
-
-        let linear_velocity = mass.inverse() * impulse;
-        let angular_velocity = angular_inertia.inverse() * cross(point, impulse);
-
-        self.apply_linear_center_impulse(entity, linear_velocity);
-        self.apply_angular_impulse(entity, angular_velocity);
+    pub fn apply_linear_impulse(&mut self, impulse: Vector, global_point: Vector) {
+        self.apply_linear_center_impulse(impulse);
+        self.apply_angular_impulse(cross(global_point - self.position.0, impulse));
     }
 
     /// Applies a linear impulse at the center of mass of the given entity.
     ///
     /// The impulse is typically in Newton-seconds, kg*m/s.
-    pub fn apply_linear_center_impulse(&mut self, entity: Entity, impulse: Vector) {
-        let delta_secs = self.physics_time.delta_secs_f64().adjust_precision();
-        let (mut linear_velocity, _) = self.velocity_query.get_mut(entity).unwrap();
-        linear_velocity.0 += impulse / delta_secs;
+    pub fn apply_linear_center_impulse(&mut self, impulse: Vector) {
+        self.body.linear_velocity += self.mass_props.effective_inv_mass() * impulse;
     }
 
     /// Applies an angular impulse to the given entity.
     ///
     /// The impulse is typically in Newton-meter-seconds, kg*m^2/s.
-    pub fn apply_angular_impulse(&mut self, entity: Entity, impulse: Torque) {
-        let delta_secs = self.physics_time.delta_secs_f64().adjust_precision();
-        let (_, mut angular_velocity) = self.velocity_query.get_mut(entity).unwrap();
-        angular_velocity.0 += impulse / delta_secs;
+    pub fn apply_angular_impulse(&mut self, impulse: Torque) {
+        self.body.angular_velocity += self.mass_props.effective_inv_angular_inertia() * impulse;
     }
 
-    /// Applies a force at the given point relative to the position of the entity in world space.
+    /// Applies a force at the given point in world space.
     ///
-    /// If the point is not a zero vector (the center of mass), the force will also apply a torque.
+    /// If the point is not at the center of mass, the force will also apply a torque.
     ///
     /// The force is typically in Newtons, kg*m/s^2.
-    pub fn apply_force(&mut self, entity: Entity, force: Vector, point: Vector) {
-        let (mass, angular_inertia, _) = self.mass_properties_query.get(entity).unwrap();
-
-        let linear_acceleration = mass.inverse() * force;
-        let angular_acceleration = angular_inertia.inverse() * cross(point, force);
-
-        self.apply_linear_acceleration(entity, linear_acceleration);
-        self.apply_angular_acceleration(entity, angular_acceleration);
+    pub fn apply_force(&mut self, force: Vector, global_point: Vector) {
+        self.apply_center_force(force);
+        self.apply_torque(cross(global_point - self.position.0, force));
     }
 
     /// Applies a force at the center of mass of the given entity.
     ///
     /// The force is typically in Newtons, kg*m/s^2.
-    pub fn apply_center_force(&mut self, entity: Entity, force: Vector) {
-        let mass = self.mass_properties_query.get(entity).unwrap().0;
-        let acceleration = mass.inverse() * force;
-        self.apply_linear_acceleration(entity, acceleration);
+    pub fn apply_center_force(&mut self, force: Vector) {
+        self.accumulated_forces.force += force;
     }
 
     /// Applies a torque to the given entity.
     ///
     /// The torque is typically in Newton-meters, kg*m^2/s^2.
-    pub fn apply_torque(&mut self, entity: Entity, torque: Torque) {
-        let angular_inertia = self.mass_properties_query.get(entity).unwrap().1;
-        let angular_acceleration = angular_inertia.inverse() * torque;
-        self.apply_angular_acceleration(entity, angular_acceleration);
+    pub fn apply_torque(&mut self, torque: Torque) {
+        self.accumulated_forces.torque += torque;
     }
 
     /// Applies a linear acceleration to the given entity, ignoring mass.
     ///
     /// The acceleration is typically in m/s^2.
-    pub fn apply_linear_acceleration(&mut self, entity: Entity, acceleration: Vector) {
-        let delta_secs = self.substep_time.delta_secs_f64().adjust_precision();
-        if let Ok(mut integration) = self.velocity_integration_query.get_mut(entity) {
-            integration.apply_linear_acceleration(acceleration, delta_secs);
-        }
+    pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
+        // TODO: Technically we don't need to apply locked axes here since it's applied in the solver.
+        let locked_axes = self.locked_axes.copied().unwrap_or_default();
+        self.integration
+            .apply_linear_acceleration(locked_axes.apply_to_vec(acceleration));
     }
 
     /// Applies an angular acceleration to the given entity, ignoring angular inertia.
     ///
-    /// The acceleration is typically in rad/s^2.
+    /// The acceleration is in rad/s^2.
     pub fn apply_angular_acceleration(
         &mut self,
-        entity: Entity,
         #[cfg(feature = "2d")] acceleration: f32,
         #[cfg(feature = "3d")] acceleration: Vector,
     ) {
-        let delta_secs = self.substep_time.delta_secs_f64().adjust_precision();
-        if let Ok(mut integration) = self.velocity_integration_query.get_mut(entity) {
-            integration.apply_angular_acceleration(acceleration, delta_secs);
-        }
+        // TODO: Technically we don't need to apply locked axes here since it's applied in the solver.
+        let locked_axes = self.locked_axes.copied().unwrap_or_default();
+        self.integration
+            .apply_angular_acceleration(locked_axes.apply_to_angular_velocity(acceleration));
     }
 }
 
+// TODO: Should we insert this when a force is applied, and automatically
+//       remove it when forces are no longer applied?
+/// A component with the accumulated user-applied forces and torques of a rigid body.
 #[derive(Component, Debug, Default, PartialEq, Reflect)]
-pub struct ConstantForce(pub Vector);
-
-#[derive(Component, Debug, Default, PartialEq, Reflect)]
-pub struct ConstantTorque(pub Torque);
+pub struct AccumulatedForces {
+    pub force: Vector,
+    pub torque: Torque,
+}
 
 pub struct ForcePlugin;
 
 impl Plugin for ForcePlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(ConstantForce, ConstantTorque)>();
+        // Add `AccumulatedForces` to all `SolverBody`s.
+        app.register_required_components::<SolverBody, AccumulatedForces>();
+
+        app.register_type::<AccumulatedForces>();
+
         app.configure_sets(
             PhysicsSchedule,
-            (
-                PhysicsStepSet::NarrowPhase,
-                ConstantForceSet,
-                PhysicsStepSet::Solver,
-            )
-                .chain(),
+            ForceSet::Clear.in_set(SolverSet::PostSubstep),
         );
 
         app.add_systems(
             PhysicsSchedule,
-            (apply_constant_force, apply_constant_torque)
-                .chain()
-                .in_set(ConstantForceSet),
+            clear_accumulated_forces.in_set(ForceSet::Clear),
         );
     }
 }
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ConstantForceSet;
-
-fn apply_constant_force(
-    mut query: Query<(&ComputedMass, &ConstantForce, &mut VelocityIntegrationData)>,
-    substep_time: Res<Time<Substeps>>,
-) {
-    let delta_secs = substep_time.delta_secs_f64().adjust_precision();
-    for (mass, constant_force, mut integration) in &mut query {
-        integration.apply_linear_acceleration(mass.inverse() * constant_force.0, delta_secs);
-    }
+pub enum ForceSet {
+    Clear,
 }
 
-fn apply_constant_torque(
-    mut query: Query<(
-        &GlobalAngularInertia,
-        &ConstantTorque,
-        &mut VelocityIntegrationData,
-    )>,
-    substep_time: Res<Time<Substeps>>,
-) {
-    let delta_secs = substep_time.delta_secs_f64().adjust_precision();
-    for (angular_inertia, constant_torque, mut integration) in &mut query {
-        integration
-            .apply_angular_acceleration(angular_inertia.inverse() * constant_torque.0, delta_secs);
+fn clear_accumulated_forces(mut query: Query<&mut AccumulatedForces>) {
+    for mut forces in &mut query {
+        forces.force = Vector::ZERO;
+        forces.torque = Torque::ZERO;
     }
 }
 

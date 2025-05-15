@@ -13,7 +13,7 @@ use bevy::{
 };
 use dynamics::solver::SolverDiagnostics;
 
-use super::solver::solver_body::SolverBody;
+use super::solver::solver_body::{SolverBody, SolverBodyInertia};
 
 /// Integrates Newton's 2nd law of motion, applying forces and moving entities according to their velocities.
 ///
@@ -186,7 +186,7 @@ type TorqueValue = Vector;
 ///
 /// - Velocity increments for gravity.
 /// - Velocity increments for [`ConstantForce`] and [`ConstantTorque`].
-/// - Velocity increments for forces, torques, and accelerations applied using the [`ForceHelper`].
+/// - Velocity increments for forces, torques, and accelerations applied using [`RigidBodyForces`].
 /// - Cached operands for applying linear and angular velocity damping.
 ///
 /// The values are computed once per time step, and applied to the body at each substep
@@ -206,8 +206,14 @@ type TorqueValue = Vector;
 #[reflect(Component, Debug, Default, PartialEq)]
 pub struct VelocityIntegrationData {
     /// The linear velocity increment to be applied to the body at each substep.
+    ///
+    /// **Note:** This is treated as linear acceleration until [`IntegrationSet::UpdateVelocityIncrements`].
+    /// where it is multiplied by the time step to get the corresponding velocity increment.
     pub linear_increment: Vector,
     /// The angular velocity increment to be applied to the body at each substep.
+    ///
+    /// **Note:** This is treated as angular acceleration until [`IntegrationSet::UpdateVelocityIncrements`].
+    /// where it is multiplied by the time step to get the corresponding velocity increment.
     pub angular_increment: AngularValue,
     /// The right-hand side of the linear damping equation,
     /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
@@ -218,14 +224,14 @@ pub struct VelocityIntegrationData {
 }
 
 impl VelocityIntegrationData {
-    /// Applies a given linear acceleration to the body, taking into account locked axes.
-    pub fn apply_linear_acceleration(&mut self, acceleration: Vector, delta_secs: Scalar) {
-        self.linear_increment += acceleration * delta_secs;
+    /// Applies a given linear acceleration to the body.
+    pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
+        self.linear_increment += acceleration;
     }
 
-    /// Applies a given angular acceleration to the body, taking into account locked axes.
-    pub fn apply_angular_acceleration(&mut self, acceleration: AngularValue, delta_secs: Scalar) {
-        self.angular_increment += acceleration * delta_secs;
+    /// Applies a given angular acceleration to the body.
+    pub fn apply_angular_acceleration(&mut self, acceleration: AngularValue) {
+        self.angular_increment += acceleration;
     }
 
     /// Updates the cached right-hand side of the linear damping equation,
@@ -246,6 +252,8 @@ fn pre_process_velocity_increments(
     mut bodies: Query<
         (
             &mut VelocityIntegrationData,
+            &mut AccumulatedForces,
+            &SolverBodyInertia,
             Option<&LinearDamping>,
             Option<&AngularDamping>,
             Option<&GravityScale>,
@@ -263,7 +271,15 @@ fn pre_process_velocity_increments(
 
     // TODO: Do we want to skip kinematic bodies here?
     bodies.par_iter_mut().for_each(
-        |(mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
+        |(
+            mut integration,
+            forces,
+            mass_props,
+            lin_damping,
+            ang_damping,
+            gravity_scale,
+            locked_axes,
+        )| {
             let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
             // Update the cached right-hand side of the velocity damping equation,
@@ -273,14 +289,24 @@ fn pre_process_velocity_increments(
             integration.update_linear_damping_rhs(lin_damping, delta_secs);
             integration.update_angular_damping_rhs(ang_damping, delta_secs);
 
+            // NOTE: The velocity increments are treated as accelerations at this point.
+
             // Apply gravity.
-            integration.linear_increment +=
-                gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0) * delta_secs;
+            integration.linear_increment += gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
+
+            // Apply external forces and torques.
+            integration.linear_increment += mass_props.effective_inv_mass() * forces.force;
+            integration.angular_increment +=
+                mass_props.effective_inv_angular_inertia() * forces.torque;
 
             // Apply locked axes.
             integration.linear_increment = locked_axes.apply_to_vec(integration.linear_increment);
             integration.angular_increment =
                 locked_axes.apply_to_angular_velocity(integration.angular_increment);
+
+            // The velocity increments are treated as accelerations until this point.
+            // Multiply by the time step to get the final velocity increments.
+            integration.linear_increment *= delta_secs;
         },
     );
 

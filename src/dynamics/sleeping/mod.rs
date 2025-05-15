@@ -7,7 +7,6 @@ use bevy::{
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
 };
-use forces::{ConstantForce, ConstantTorque};
 
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
@@ -234,14 +233,7 @@ pub(crate) fn wake_on_changed(
         >,
         // These are not modified by the physics engine
         // and don't need special handling.
-        Query<
-            Entity,
-            Or<(
-                Changed<ConstantForce>,
-                Changed<ConstantTorque>,
-                Changed<GravityScale>,
-            )>,
-        >,
+        Query<Entity, Or<(Changed<AccumulatedForces>, Changed<GravityScale>)>>,
     )>,
     last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
