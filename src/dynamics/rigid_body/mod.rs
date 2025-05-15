@@ -264,9 +264,10 @@ use derive_more::From;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 #[require(
+    // TODO: Only dynamic and kinematic bodies need velocity,
+    //       and only dynamic bodies need mass and angular inertia.
     LinearVelocity,
     AngularVelocity,
-    VelocityIntegrationData,
     ComputedMass,
     ComputedAngularInertia,
     ComputedCenterOfMass,
