@@ -255,7 +255,7 @@ fn pre_process_velocity_increments(
     >,
     gravity: Res<Gravity>,
     time: Res<Time<Substeps>>,
-    mut solver_diagnostics: ResMut<SolverDiagnostics>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
@@ -284,12 +284,13 @@ fn pre_process_velocity_increments(
         },
     );
 
-    solver_diagnostics.update_velocity_increments += start.elapsed();
+    diagnostics.update_velocity_increments += start.elapsed();
 }
 
+/// Clears the velocity increments of bodies after the substepping loop.
 fn clear_velocity_increments(
     mut bodies: Query<&mut VelocityIntegrationData, With<SolverBody>>,
-    mut solver_diagnostics: ResMut<SolverDiagnostics>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
@@ -298,7 +299,7 @@ fn clear_velocity_increments(
         integration.angular_increment = AngularValue::ZERO;
     });
 
-    solver_diagnostics.update_velocity_increments += start.elapsed();
+    diagnostics.update_velocity_increments += start.elapsed();
 }
 
 #[derive(QueryData)]
@@ -307,7 +308,7 @@ struct VelocityIntegrationQuery {
     solver_body: &'static mut SolverBody,
     integration: &'static mut VelocityIntegrationData,
     #[cfg(feature = "3d")]
-    ang_inertia: &'static ComputedAngularInertia,
+    angular_inertia: &'static ComputedAngularInertia,
     #[cfg(feature = "3d")]
     rotation: &'static Rotation,
     #[cfg(feature = "3d")]
@@ -357,13 +358,14 @@ fn integrate_velocities(
                 // TODO: Should this be opt-in with a `GyroscopicMotion` component?
                 // TODO: It's a bit unfortunate that this has to run in the substepping loop
                 //       rather than pre-computing the velocity increments once per time step.
-                //       This needs to be done because the gyroscopic torque relies on up-to-date
-                //       rotations and world-space angular inertia tensors. Omitting the change
-                //       in orientaton would lead to angular momentum not being conserved.
+                //       This needs to be done because the gyroscopic torque relies on up-to-date rotations
+                //       and world-space angular inertia tensors. Omitting the change in orientaton would
+                //       lead to worse accuracy and angular momentum not being conserved.
+                let rotation = delta_rotation.0 * body.rotation.0;
                 semi_implicit_euler::solve_gyroscopic_torque(
                     ang_vel,
-                    delta_rotation.0 * body.rotation.0,
-                    body.ang_inertia,
+                    rotation,
+                    body.angular_inertia,
                     delta_secs,
                 );
                 *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
@@ -371,7 +373,6 @@ fn integrate_velocities(
         }
 
         // Clamp velocities.
-        // TODO: Should we do this in a separate system?
         if let Some(max_linear_speed) = body.max_linear_speed {
             let linear_speed_squared = lin_vel.length_squared();
             if linear_speed_squared > max_linear_speed.0.powi(2) {
