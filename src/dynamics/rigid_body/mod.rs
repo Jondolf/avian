@@ -19,7 +19,6 @@ pub use world_query::*;
 pub(crate) use forces::FloatZero;
 pub(crate) use forces::Torque;
 
-use super::integrator::VelocityIntegrationData;
 use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
