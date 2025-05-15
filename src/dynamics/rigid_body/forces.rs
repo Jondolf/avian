@@ -36,9 +36,12 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
+// TODO: Docs
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct RigidBodyForces {
+    // These components are mostly internal and not too user-facing,
+    // so they are unlikely to conflict with typical user queries.
     position: Read<Position>,
     rotation: Read<Rotation>,
     body: Write<SolverBody>,
@@ -48,6 +51,11 @@ pub struct RigidBodyForces {
     accumulated_forces: Write<AccumulatedForces>,
 }
 
+// TODO
+// - Local forces, torques, impulses, and acceleration.
+// - Getters for the accumulated forces, torques, and accelerations.
+// - Setters for the accumulated forces, torques, and accelerations.
+// - Methods to clear the accumulated forces, torques, and accelerations.
 impl RigidBodyForcesItem<'_> {
     /// Applies a linear impulse at the given point in world space.
     ///
