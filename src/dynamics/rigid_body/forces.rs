@@ -3,7 +3,7 @@
 
 #![allow(missing_docs)]
 
-use crate::prelude::*;
+use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
 use bevy::{
     ecs::system::{
         lifetimeless::{Read, Write},
@@ -32,13 +32,13 @@ impl FloatZero for Scalar {
 
 #[derive(SystemParam)]
 pub struct ForceHelper<'w, 's> {
-    time: Res<'w, Time>,
+    physics_time: Res<'w, Time<Physics>>,
+    substep_time: Res<'w, Time<Substeps>>,
     commands: Commands<'w, 's>,
     pub velocity_query: Query<'w, 's, (Write<LinearVelocity>, Write<AngularVelocity>)>,
+    pub velocity_integration_query: Query<'w, 's, Write<VelocityIntegrationData>>,
     pub constant_force_query: Query<'w, 's, Write<ConstantForce>>,
     pub constant_torque_query: Query<'w, 's, Write<ConstantTorque>>,
-    pub linear_acceleration_query: Query<'w, 's, Write<AccumulatedLinearAcceleration>>,
-    pub angular_acceleration_query: Query<'w, 's, Write<AccumulatedAngularAcceleration>>,
     pub mass_properties_query: Query<
         'w,
         's,
@@ -162,18 +162,18 @@ impl ForceHelper<'_, '_> {
     ///
     /// The impulse is typically in Newton-seconds, kg*m/s.
     pub fn apply_linear_center_impulse(&mut self, entity: Entity, impulse: Vector) {
-        let delta_time = self.time.delta_secs_f64().adjust_precision();
+        let delta_secs = self.physics_time.delta_secs_f64().adjust_precision();
         let (mut linear_velocity, _) = self.velocity_query.get_mut(entity).unwrap();
-        linear_velocity.0 += impulse / delta_time;
+        linear_velocity.0 += impulse / delta_secs;
     }
 
     /// Applies an angular impulse to the given entity.
     ///
     /// The impulse is typically in Newton-meter-seconds, kg*m^2/s.
     pub fn apply_angular_impulse(&mut self, entity: Entity, impulse: Torque) {
-        let delta_time = self.time.delta_secs_f64().adjust_precision();
+        let delta_secs = self.physics_time.delta_secs_f64().adjust_precision();
         let (_, mut angular_velocity) = self.velocity_query.get_mut(entity).unwrap();
-        angular_velocity.0 += impulse / delta_time;
+        angular_velocity.0 += impulse / delta_secs;
     }
 
     /// Applies a force at the given point relative to the position of the entity in world space.
@@ -213,63 +213,39 @@ impl ForceHelper<'_, '_> {
     ///
     /// The acceleration is typically in m/s^2.
     pub fn apply_linear_acceleration(&mut self, entity: Entity, acceleration: Vector) {
-        if let Ok(mut accumulated_acceleration) = self.linear_acceleration_query.get_mut(entity) {
-            accumulated_acceleration.0 += acceleration;
-        } else {
-            self.commands
-                .entity(entity)
-                .insert(AccumulatedLinearAcceleration(acceleration));
+        let delta_secs = self.substep_time.delta_secs_f64().adjust_precision();
+        if let Ok(mut integration) = self.velocity_integration_query.get_mut(entity) {
+            integration.apply_linear_acceleration(acceleration, delta_secs);
         }
     }
 
     /// Applies an angular acceleration to the given entity, ignoring angular inertia.
     ///
     /// The acceleration is typically in rad/s^2.
-    pub fn apply_angular_acceleration(&mut self, entity: Entity, acceleration: Torque) {
-        if let Ok(mut accumulated_acceleration) = self.linear_acceleration_query.get_mut(entity) {
-            accumulated_acceleration.0 += acceleration;
-        } else {
-            self.commands
-                .entity(entity)
-                .insert(AccumulatedAngularAcceleration(acceleration));
+    pub fn apply_angular_acceleration(
+        &mut self,
+        entity: Entity,
+        #[cfg(feature = "2d")] acceleration: f32,
+        #[cfg(feature = "3d")] acceleration: Vector,
+    ) {
+        let delta_secs = self.substep_time.delta_secs_f64().adjust_precision();
+        if let Ok(mut integration) = self.velocity_integration_query.get_mut(entity) {
+            integration.apply_angular_acceleration(acceleration, delta_secs);
         }
     }
 }
 
 #[derive(Component, Debug, Default, PartialEq, Reflect)]
-#[require(AccumulatedLinearAcceleration)]
 pub struct ConstantForce(pub Vector);
 
 #[derive(Component, Debug, Default, PartialEq, Reflect)]
-#[require(AccumulatedAngularAcceleration)]
 pub struct ConstantTorque(pub Torque);
-
-#[derive(Component, Debug, Default, PartialEq, Reflect)]
-pub struct AccumulatedLinearAcceleration(pub Vector);
-
-impl AccumulatedLinearAcceleration {
-    /// Zero accumulated linear acceleration.
-    pub const ZERO: Self = Self(Vector::ZERO);
-}
-
-#[derive(Component, Debug, Default, PartialEq, Reflect)]
-pub struct AccumulatedAngularAcceleration(pub Torque);
-
-impl AccumulatedAngularAcceleration {
-    /// Zero accumulated angular acceleration.
-    pub const ZERO: Self = Self(Torque::ZERO);
-}
 
 pub struct ForcePlugin;
 
 impl Plugin for ForcePlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<(
-            ConstantForce,
-            ConstantTorque,
-            AccumulatedLinearAcceleration,
-            AccumulatedAngularAcceleration,
-        )>();
+        app.register_type::<(ConstantForce, ConstantTorque)>();
         app.configure_sets(
             PhysicsSchedule,
             (
@@ -282,12 +258,9 @@ impl Plugin for ForcePlugin {
 
         app.add_systems(
             PhysicsSchedule,
-            (apply_constant_force, apply_constant_torque).in_set(ConstantForceSet),
-        );
-
-        app.add_systems(
-            PhysicsSchedule,
-            (clear_linear_acceleration, clear_angular_acceleration).after(PhysicsStepSet::Solver),
+            (apply_constant_force, apply_constant_torque)
+                .chain()
+                .in_set(ConstantForceSet),
         );
     }
 }
@@ -296,14 +269,12 @@ impl Plugin for ForcePlugin {
 pub struct ConstantForceSet;
 
 fn apply_constant_force(
-    mut query: Query<(
-        &ComputedMass,
-        &ConstantForce,
-        &mut AccumulatedLinearAcceleration,
-    )>,
+    mut query: Query<(&ComputedMass, &ConstantForce, &mut VelocityIntegrationData)>,
+    substep_time: Res<Time<Substeps>>,
 ) {
-    for (mass, constant_force, mut accumulated_acceleration) in &mut query {
-        accumulated_acceleration.0 += mass.inverse() * constant_force.0;
+    let delta_secs = substep_time.delta_secs_f64().adjust_precision();
+    for (mass, constant_force, mut integration) in &mut query {
+        integration.apply_linear_acceleration(mass.inverse() * constant_force.0, delta_secs);
     }
 }
 
@@ -311,23 +282,14 @@ fn apply_constant_torque(
     mut query: Query<(
         &GlobalAngularInertia,
         &ConstantTorque,
-        &mut AccumulatedAngularAcceleration,
+        &mut VelocityIntegrationData,
     )>,
+    substep_time: Res<Time<Substeps>>,
 ) {
-    for (angular_inertia, constant_torque, mut accumulated_acceleration) in &mut query {
-        accumulated_acceleration.0 += angular_inertia.inverse() * constant_torque.0;
-    }
-}
-
-fn clear_linear_acceleration(mut query: Query<&mut AccumulatedLinearAcceleration>) {
-    for mut accumulated_acceleration in &mut query {
-        accumulated_acceleration.0 = Vector::ZERO;
-    }
-}
-
-fn clear_angular_acceleration(mut query: Query<&mut AccumulatedAngularAcceleration>) {
-    for mut accumulated_acceleration in &mut query {
-        accumulated_acceleration.0 = Torque::ZERO;
+    let delta_secs = substep_time.delta_secs_f64().adjust_precision();
+    for (angular_inertia, constant_torque, mut integration) in &mut query {
+        integration
+            .apply_angular_acceleration(angular_inertia.inverse() * constant_torque.0, delta_secs);
     }
 }
 

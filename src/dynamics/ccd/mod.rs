@@ -256,7 +256,11 @@ impl Plugin for CcdPlugin {
             .get_schedule_mut(PhysicsSchedule)
             .expect("add PhysicsSchedule first");
 
-        physics.configure_sets(SweptCcdSet.in_set(SolverSet::PostSubstep));
+        physics.configure_sets(
+            SweptCcdSet
+                .after(SolverSet::PostSubstep)
+                .before(SolverSet::Restitution),
+        );
 
         #[cfg(any(feature = "parry-f32", feature = "parry-f64"))]
         physics.add_systems(solve_swept_ccd.in_set(SweptCcdSet));

@@ -11,10 +11,7 @@ use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
 };
-use dynamics::{
-    rigid_body::forces::{AccumulatedAngularAcceleration, AccumulatedLinearAcceleration},
-    solver::SolverDiagnostics,
-};
+use dynamics::solver::SolverDiagnostics;
 
 use super::solver::solver_body::SolverBody;
 
@@ -53,6 +50,26 @@ impl Plugin for IntegratorPlugin {
         app.init_resource::<Gravity>();
 
         app.configure_sets(
+            PhysicsSchedule,
+            (
+                IntegrationSet::UpdateVelocityIncrements
+                    .in_set(SolverSet::PreSubstep)
+                    .before(IntegrationSet::Velocity),
+                IntegrationSet::ClearVelocityIncrements
+                    .in_set(SolverSet::PostSubstep)
+                    .after(IntegrationSet::Velocity),
+            ),
+        );
+
+        app.add_systems(
+            PhysicsSchedule,
+            (
+                pre_process_velocity_increments.in_set(IntegrationSet::UpdateVelocityIncrements),
+                clear_velocity_increments.in_set(IntegrationSet::ClearVelocityIncrements),
+            ),
+        );
+
+        app.configure_sets(
             self.schedule.intern(),
             (IntegrationSet::Velocity, IntegrationSet::Position).chain(),
         );
@@ -81,7 +98,7 @@ impl Plugin for IntegratorPlugin {
                     clear_forces_and_impulses.after(SolverSet::Finalize),
                 )
                     .in_set(PhysicsStepSet::Solver),
-            );
+        );
     }
 }
 
@@ -89,10 +106,15 @@ impl Plugin for IntegratorPlugin {
 /// applying forces and moving bodies based on velocity.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IntegrationSet {
-    /// Applies gravity and external forces to bodies, updating their velocities.
+    /// Applies gravity and locked axes to the linear and angular velocity increments of bodies,
+    /// and multiplies them by the substep delta time to get the final per-substep increments.
+    UpdateVelocityIncrements,
+    /// Applies velocity increments to the linear and angular velocities of bodies.
     Velocity,
     /// Moves bodies based on their current velocities and the physics time step.
     Position,
+    /// Clears the velocity increments of bodies after the substepping loop.
+    ClearVelocityIncrements,
 }
 
 /// A resource for the global gravitational acceleration.
@@ -147,105 +169,223 @@ impl Gravity {
     pub const ZERO: Gravity = Gravity(Vector::ZERO);
 }
 
+#[cfg(feature = "2d")]
+type AngularValue = Scalar;
+#[cfg(feature = "3d")]
+type AngularValue = Vector;
+#[cfg(feature = "2d")]
+type TorqueValue = Scalar;
+#[cfg(feature = "3d")]
+type TorqueValue = Vector;
+
+/// Pre-computed data for speeding up velocity integration.
+///
+/// This includes:
+///
+/// - Velocity increments for gravity.
+/// - Velocity increments for [`ConstantForce`] and [`ConstantTorque`].
+/// - Velocity increments for forces, torques, and accelerations applied using the [`ForceHelper`].
+/// - Cached operands for applying linear and angular velocity damping.
+///
+/// The values are computed once per time step, and applied to the body at each substep
+/// with basic addition and multiplication. This moves the more expensive operations
+/// and branching out of the substepping loop.
+// -----------------------
+// 18 bytes in 2D with f32
+// 32 bytes in 3D with f32
+// TODO: We could make the 2D version 16 bytes if we stored the damping rhs values
+//       in a separate `VelocityDampingRhs` component. Not sure if it's worth it though.
+// TODO: We could technically make the semantics such that the increments are actually
+//       acceleration until `IntegrationSet::UpdateVelocityIncrements`. This way,
+//       we would multiply by `delta_time` only once, rather than for each acceleration.
+#[derive(Component, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+pub struct VelocityIntegrationData {
+    /// The linear velocity increment to be applied to the body at each substep.
+    pub linear_increment: Vector,
+    /// The angular velocity increment to be applied to the body at each substep.
+    pub angular_increment: AngularValue,
+    /// The right-hand side of the linear damping equation,
+    /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
+    pub linear_damping_rhs: f32,
+    /// The right-hand side of the angular damping equation,
+    /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
+    pub angular_damping_rhs: f32,
+}
+
+impl VelocityIntegrationData {
+    /// Applies a given linear acceleration to the body, taking into account locked axes.
+    pub fn apply_linear_acceleration(&mut self, acceleration: Vector, delta_secs: Scalar) {
+        self.linear_increment += acceleration * delta_secs;
+    }
+
+    /// Applies a given angular acceleration to the body, taking into account locked axes.
+    pub fn apply_angular_acceleration(&mut self, acceleration: AngularValue, delta_secs: Scalar) {
+        self.angular_increment += acceleration * delta_secs;
+    }
+
+    /// Updates the cached right-hand side of the linear damping equation,
+    /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
+    pub fn update_linear_damping_rhs(&mut self, damping_coefficient: f32, delta_secs: Scalar) {
+        self.linear_damping_rhs = 1.0 / (1.0 + delta_secs * damping_coefficient);
+    }
+
+    /// Updates the cached right-hand side of the angular damping equation,
+    /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
+    pub fn update_angular_damping_rhs(&mut self, damping_coefficient: f32, delta_secs: Scalar) {
+        self.angular_damping_rhs = 1.0 / (1.0 + delta_secs * damping_coefficient);
+    }
+}
+
+/// Applies gravity and locked axes to the linear and angular velocity increments of bodies.
+fn pre_process_velocity_increments(
+    mut bodies: Query<
+        (
+            &mut VelocityIntegrationData,
+            Option<&LinearDamping>,
+            Option<&AngularDamping>,
+            Option<&GravityScale>,
+            Option<&LockedAxes>,
+        ),
+        With<SolverBody>,
+    >,
+    gravity: Res<Gravity>,
+    time: Res<Time<Substeps>>,
+    mut solver_diagnostics: ResMut<SolverDiagnostics>,
+) {
+    let start = crate::utils::Instant::now();
+
+    let delta_secs = time.delta_secs_f64() as Scalar;
+
+    // TODO: Do we want to skip kinematic bodies here?
+    bodies.par_iter_mut().for_each(
+        |(mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
+            let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
+            // Update the cached right-hand side of the velocity damping equation,
+            // `1 / (1 + dt * c)`, where `c` is the damping coefficient.
+            let lin_damping = lin_damping.map_or(0.0, |damping| damping.0);
+            let ang_damping = ang_damping.map_or(0.0, |damping| damping.0);
+            integration.update_linear_damping_rhs(lin_damping, delta_secs);
+            integration.update_angular_damping_rhs(ang_damping, delta_secs);
+
+            // Apply gravity.
+            integration.linear_increment +=
+                gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0) * delta_secs;
+
+            // Apply locked axes.
+            integration.linear_increment = locked_axes.apply_to_vec(integration.linear_increment);
+            integration.angular_increment =
+                locked_axes.apply_to_angular_velocity(integration.angular_increment);
+        },
+    );
+
+    solver_diagnostics.update_velocity_increments += start.elapsed();
+}
+
+fn clear_velocity_increments(
+    mut bodies: Query<&mut VelocityIntegrationData, With<SolverBody>>,
+    mut solver_diagnostics: ResMut<SolverDiagnostics>,
+) {
+    let start = crate::utils::Instant::now();
+
+    bodies.par_iter_mut().for_each(|mut integration| {
+        integration.linear_increment = Vector::ZERO;
+        integration.angular_increment = AngularValue::ZERO;
+    });
+
+    solver_diagnostics.update_velocity_increments += start.elapsed();
+}
+
 #[derive(QueryData)]
 #[query_data(mutable)]
 struct VelocityIntegrationQuery {
-    rb: &'static RigidBody,
     solver_body: &'static mut SolverBody,
+    integration: &'static mut VelocityIntegrationData,
     #[cfg(feature = "3d")]
-    rot: &'static Rotation,
-    lin_acc: &'static mut AccumulatedLinearAcceleration,
-    ang_acc: &'static mut AccumulatedAngularAcceleration,
-    angular_inertia: &'static ComputedAngularInertia,
+    ang_inertia: &'static ComputedAngularInertia,
     #[cfg(feature = "3d")]
-    global_angular_inertia: &'static GlobalAngularInertia,
-    lin_damping: Option<&'static LinearDamping>,
-    ang_damping: Option<&'static AngularDamping>,
+    rotation: &'static Rotation,
+    #[cfg(feature = "3d")]
+    locked_axes: Option<&'static LockedAxes>,
     max_linear_speed: Option<&'static MaxLinearSpeed>,
     max_angular_speed: Option<&'static MaxAngularSpeed>,
-    gravity_scale: Option<&'static GravityScale>,
-    locked_axes: Option<&'static LockedAxes>,
 }
 
 #[allow(clippy::type_complexity)]
 fn integrate_velocities(
     mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
-    gravity: Res<Gravity>,
-    time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
+    #[cfg(feature = "3d")] time: Res<Time>,
 ) {
     let start = crate::utils::Instant::now();
 
-    let delta_secs = time.delta_seconds_adjusted();
+    #[cfg(feature = "3d")]
+    let delta_secs = time.delta_secs_f64() as Scalar;
 
-    // TODO: Only compute velocity increments once per time step (except for fast bodies in 3D?).
-    //       This way, we can only iterate over solver bodies, and avoid branching and change detection.
     bodies.par_iter_mut().for_each(|body| {
         #[cfg(feature = "3d")]
         let is_gyroscopic = body.solver_body.is_gyroscopic();
 
         let SolverBody {
-            linear_velocity,
-            angular_velocity,
+            linear_velocity: lin_vel,
+            angular_velocity: ang_vel,
             #[cfg(feature = "3d")]
             delta_rotation,
             ..
         } = body.solver_body.into_inner();
 
-        if body.rb.is_dynamic() {
-            let locked_axes = body
-                .locked_axes
-                .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+        // Apply velocity damping.
+        *lin_vel *= body.integration.linear_damping_rhs;
+        *ang_vel *= body.integration.angular_damping_rhs;
 
-            // Apply damping
-            if let Some(lin_damping) = body.lin_damping {
-                if *linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
-                    *linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
-                }
+        // Apply velocity increments.
+        *lin_vel += body.integration.linear_increment;
+        *ang_vel += body.integration.angular_increment;
+
+        #[cfg(feature = "3d")]
+        {
+            if is_gyroscopic {
+                let locked_axes = body
+                    .locked_axes
+                    .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+
+                // TODO: Should this be opt-in with a `GyroscopicMotion` component?
+                // TODO: It's a bit unfortunate that this has to run in the substepping loop
+                //       rather than pre-computing the velocity increments once per time step.
+                //       This needs to be done because the gyroscopic torque relies on up-to-date
+                //       rotations and world-space angular inertia tensors. Omitting the change
+                //       in orientaton would lead to angular momentum not being conserved.
+                semi_implicit_euler::solve_gyroscopic_torque(
+                    ang_vel,
+                    delta_rotation.0 * body.rotation.0,
+                    body.ang_inertia,
+                    delta_secs,
+                );
+                *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
             }
-            if let Some(ang_damping) = body.ang_damping {
-                if *angular_velocity != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                    *angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
-                }
-            }
-
-            let gravity = gravity.0 * body.gravity_scale.map_or(1.0, |scale| scale.0);
-            #[cfg(feature = "3d")]
-            let rotation = *delta_rotation * *body.rot;
-
-            semi_implicit_euler::integrate_velocity(
-                linear_velocity,
-                angular_velocity,
-                body.lin_acc.0 + gravity,
-                body.ang_acc.0,
-                #[cfg(feature = "3d")]
-                body.global_angular_inertia,
-                #[cfg(feature = "3d")]
-                rotation,
-                locked_axes,
-                delta_secs,
-                #[cfg(feature = "3d")]
-                is_gyroscopic,
-            );
         }
 
-        // Clamp velocities
+        // Clamp velocities.
+        // TODO: Should we do this in a separate system?
         if let Some(max_linear_speed) = body.max_linear_speed {
-            let linear_speed_squared = linear_velocity.length_squared();
+            let linear_speed_squared = lin_vel.length_squared();
             if linear_speed_squared > max_linear_speed.0.powi(2) {
-                *linear_velocity *= max_linear_speed.0 / linear_speed_squared.sqrt();
+                *lin_vel *= max_linear_speed.0 / linear_speed_squared.sqrt();
             }
         }
         if let Some(max_angular_speed) = body.max_angular_speed {
             #[cfg(feature = "2d")]
-            if angular_velocity.abs() > max_angular_speed.0 {
-                *angular_velocity = max_angular_speed.copysign(*angular_velocity);
+            if ang_vel.abs() > max_angular_speed.0 {
+                *ang_vel = max_angular_speed.copysign(*ang_vel);
             }
             #[cfg(feature = "3d")]
             {
-                let angular_speed_squared = angular_velocity.length_squared();
+                let angular_speed_squared = ang_vel.length_squared();
                 if angular_speed_squared > max_angular_speed.0.powi(2) {
-                    *angular_velocity *= max_angular_speed.0 / angular_speed_squared.sqrt();
+                    *ang_vel *= max_angular_speed.0 / angular_speed_squared.sqrt();
                 }
             }
         }

@@ -8,7 +8,6 @@ mod locked_axes;
 mod physics_material;
 mod world_query;
 
-use forces::{AccumulatedAngularAcceleration, AccumulatedLinearAcceleration};
 pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
 pub use physics_material::{
@@ -20,6 +19,7 @@ pub use world_query::*;
 pub(crate) use forces::FloatZero;
 pub(crate) use forces::Torque;
 
+use super::integrator::VelocityIntegrationData;
 use crate::prelude::*;
 use bevy::prelude::*;
 use derive_more::From;
@@ -266,8 +266,7 @@ use derive_more::From;
 #[require(
     LinearVelocity,
     AngularVelocity,
-    AccumulatedLinearAcceleration,
-    AccumulatedAngularAcceleration,
+    VelocityIntegrationData,
     ComputedMass,
     ComputedAngularInertia,
     ComputedCenterOfMass,
