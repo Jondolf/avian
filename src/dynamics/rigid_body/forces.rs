@@ -38,11 +38,10 @@ impl FloatZero for Scalar {
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct RigidBodyForces {
-    // These components are mostly internal and not too user-facing,
-    // so they are unlikely to conflict with typical user queries.
     position: Read<Position>,
     rotation: Read<Rotation>,
-    body: Write<SolverBody>,
+    linear_velocity: Write<LinearVelocity>,
+    angular_velocity: Write<AngularVelocity>,
     mass_props: Read<SolverBodyInertia>,
     center_of_mass: Read<ComputedCenterOfMass>,
     locked_axes: Option<Read<LockedAxes>>,
@@ -50,61 +49,62 @@ pub struct RigidBodyForces {
     accumulated_forces: Write<AccumulatedForces>,
 }
 
+// TODO: Helpers for velocity
 impl RigidBodyForcesItem<'_> {
-    /// Applies a linear impulse in the local space of the body.
+    /// Applies a linear impulse in local space. The unit is typically N⋅s or kg⋅m/s.
     ///
-    /// The impulse is typically in Newton-seconds, kg*m/s.
+    /// The impulse modifies the [`LinearVelocity`] of the body immediately.
     pub fn apply_local_linear_impulse(&mut self, impulse: Vector) {
         let world_impulse = *self.rotation * impulse;
         self.apply_linear_impulse(world_impulse);
     }
 
-    /// Applies a linear impulse at the center of mass in world space.
+    /// Applies a linear impulse at the center of mass in world space. The unit is typically N⋅s or kg⋅m/s.
     ///
-    /// The impulse is typically in Newton-seconds, kg*m/s.
+    /// The impulse modifies the [`LinearVelocity`] of the body immediately.
     pub fn apply_linear_impulse(&mut self, impulse: Vector) {
-        self.body.linear_velocity += self.mass_props.effective_inv_mass() * impulse;
+        self.linear_velocity.0 += self.mass_props.effective_inv_mass() * impulse;
     }
 
-    /// Applies a linear impulse at the given point in world space.
+    /// Applies a linear impulse at the given point in world space. The unit is typically N⋅s or kg⋅m/s.
     ///
-    /// If the point is not at the center of mass, the impulse will also apply an angular impulse.
+    /// If the point is not at the center of mass, the impulse will also generate an angular impulse.
     ///
-    /// The impulse is typically in Newton-seconds, kg*m/s.
+    /// The impulse modifies the [`LinearVelocity`] and [`AngularVelocity`] of the body immediately.
     pub fn apply_linear_impulse_at_point(&mut self, impulse: Vector, world_point: Vector) {
         let world_center_of_mass = self.position.0 + *self.rotation * self.center_of_mass.0;
         self.apply_linear_impulse(impulse);
         self.apply_angular_impulse(cross(world_point - world_center_of_mass, impulse));
     }
 
-    /// Applies an angular impulse in world space.
+    /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m^2/s.
     ///
-    /// The impulse is typically in Newton-meter-seconds, kg*m^2/s.
+    /// The impulse modifies the [`AngularVelocity`] of the body immediately.
     pub fn apply_angular_impulse(&mut self, impulse: Torque) {
-        self.body.angular_velocity += self.mass_props.effective_inv_angular_inertia() * impulse;
+        self.angular_velocity.0 += self.mass_props.effective_inv_angular_inertia() * impulse;
     }
 
-    /// Applies a force at the center of mass in the local space of the body.
+    /// Applies a force at the center of mass in local space. The unit is typically N or kg⋅m/s^2.
     ///
-    /// The force is typically in Newtons, kg*m/s^2.
+    /// The force is applied continuously over the physics step and cleared afterwards.
     // TODO: Do we also want `apply_local_force`? It's not clear what the point should be relative to.
     pub fn apply_local_force(&mut self, force: Vector) {
         let world_force = *self.rotation * force;
         self.apply_force(world_force);
     }
 
-    /// Applies a force at the center of mass in world space.
+    /// Applies a force at the center of mass in world space. The unit is typically N or kg⋅m/s^2.
     ///
-    /// The force is typically in Newtons, kg*m/s^2.
+    /// The force is applied continuously over the physics step and cleared afterwards.
     pub fn apply_force(&mut self, force: Vector) {
         self.accumulated_forces.force += force;
     }
 
-    /// Applies a force at the given point in world space.
+    /// Applies a force at the given point in world space. The unit is typically N or kg⋅m/s^2.
     ///
-    /// If the point is not at the center of mass, the force will also apply a torque.
+    /// If the point is not at the center of mass, the force will also generate a torque.
     ///
-    /// The force is typically in Newtons, kg*m/s^2.
+    /// The force is applied continuously over the physics step and cleared afterwards.
     pub fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {
         // Note: This does not consider the rotation of the body during substeps,
         //       so the torque may not be accurate if the body is rotating quickly.
@@ -113,9 +113,9 @@ impl RigidBodyForcesItem<'_> {
         self.apply_torque(cross(world_point - world_center_of_mass, force));
     }
 
-    /// Applies a torque in the local space of the body.
+    /// Applies a torque in local space. The unit is typically N⋅m or kg⋅m^2/s^2.
     ///
-    /// The torque is typically in Newton-meters, kg*m^2/s^2.
+    /// The torque is applied continuously over the physics step and cleared afterwards.
     ///
     /// **Note:** This does not consider the rotation of the body during substeps,
     ///           so the torque may not be accurate if the body is rotating quickly.
@@ -127,16 +127,16 @@ impl RigidBodyForcesItem<'_> {
         self.apply_torque(world_torque);
     }
 
-    /// Applies a torque to the given entity.
+    /// Applies a torque in world space. The unit is typically N⋅m or kg⋅m^2/s^2.
     ///
-    /// The torque is typically in Newton-meters, kg*m^2/s^2.
+    /// The torque is applied continuously over the physics step and cleared afterwards.
     pub fn apply_torque(&mut self, torque: Torque) {
         self.accumulated_forces.torque += torque;
     }
 
-    /// Applies a linear acceleration in the local space of the body, ignoring mass.
+    /// Applies a linear acceleration in local space, ignoring mass. The unit is typically m/s^2.
     ///
-    /// The acceleration is typically in m/s^2.
+    /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_local_linear_acceleration(&mut self, acceleration: Vector) {
         // NOTE: This does not consider the rotation of the body during substeps,
         //       so the torque may not be accurate if the body is rotating quickly.
@@ -144,9 +144,9 @@ impl RigidBodyForcesItem<'_> {
         self.apply_linear_acceleration(world_acceleration);
     }
 
-    /// Applies a linear acceleration, ignoring mass.
+    /// Applies a linear acceleration, ignoring mass. The unit is typically m/s^2.
     ///
-    /// The acceleration is typically in m/s^2.
+    /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
         // TODO: Technically we don't need to apply locked axes here since it's applied in the solver.
         let locked_axes = self.locked_axes.copied().unwrap_or_default();
@@ -154,9 +154,9 @@ impl RigidBodyForcesItem<'_> {
             .apply_linear_acceleration(locked_axes.apply_to_vec(acceleration));
     }
 
-    /// Applies an angular acceleration in the local space of the body, ignoring angular inertia.
+    /// Applies an angular acceleration in local space, ignoring angular inertia. The unit is rad/s^2.
     ///
-    /// The acceleration is in rad/s^2.
+    /// The acceleration is applied continuously over the physics step and cleared afterwards.
     #[cfg(feature = "3d")]
     pub fn apply_local_angular_acceleration(
         &mut self,
@@ -168,9 +168,9 @@ impl RigidBodyForcesItem<'_> {
         self.apply_angular_acceleration(world_acceleration);
     }
 
-    /// Applies an angular acceleration, ignoring angular inertia.
+    /// Applies an angular acceleration, ignoring angular inertia. The unit is rad/s^2.
     ///
-    /// The acceleration is in rad/s^2.
+    /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_angular_acceleration(
         &mut self,
         #[cfg(feature = "2d")] acceleration: f32,

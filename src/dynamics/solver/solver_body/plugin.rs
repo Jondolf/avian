@@ -191,11 +191,8 @@ fn prepare_solver_bodies(
             angular_inertia,
             locked_axes,
         )| {
-            // NOTE: The velocity is cleared in `writeback_solver_bodies`.
-            //       Any exising velocity here is from external impulses applied via `RigidBodyForces`,
-            //       which we don't want to overwrite, so we instead add to it.
-            solver_body.linear_velocity += linear_velocity.0;
-            solver_body.angular_velocity += angular_velocity.0;
+            solver_body.linear_velocity = linear_velocity.0;
+            solver_body.angular_velocity = angular_velocity.0;
             solver_body.delta_position = Vector::ZERO;
             solver_body.delta_rotation = Rotation::IDENTITY;
 
@@ -242,7 +239,7 @@ fn prepare_solver_bodies(
 #[allow(clippy::type_complexity)]
 fn writeback_solver_bodies(
     mut query: Query<(
-        &mut SolverBody,
+        &SolverBody,
         &mut Position,
         &mut Rotation,
         &ComputedCenterOfMass,
@@ -254,7 +251,7 @@ fn writeback_solver_bodies(
     let start = bevy::platform::time::Instant::now();
 
     query.par_iter_mut().for_each(
-        |(mut solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
+        |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
             // Write back the position and rotation deltas,
             // rotating the body around its center of mass.
             let old_world_com = *rot * com.0;
@@ -265,10 +262,6 @@ fn writeback_solver_bodies(
             // Write back velocities.
             lin_vel.0 = solver_body.linear_velocity;
             ang_vel.0 = solver_body.angular_velocity;
-
-            // Clear the solver body velocities.
-            solver_body.linear_velocity = Vector::ZERO;
-            solver_body.angular_velocity = AngularVelocity::ZERO.0;
         },
     );
 
