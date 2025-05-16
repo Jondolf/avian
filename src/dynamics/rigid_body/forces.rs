@@ -44,39 +44,60 @@ pub struct RigidBodyForces {
     rotation: Read<Rotation>,
     body: Write<SolverBody>,
     mass_props: Read<SolverBodyInertia>,
+    center_of_mass: Read<ComputedCenterOfMass>,
     locked_axes: Option<Read<LockedAxes>>,
     integration: Write<VelocityIntegrationData>,
     accumulated_forces: Write<AccumulatedForces>,
 }
 
-// TODO
-// - Local forces, torques, impulses, and acceleration.
-// - Getters for the accumulated forces, torques, and accelerations.
-// - Setters for the accumulated forces, torques, and accelerations.
-// - Methods to clear the accumulated forces, torques, and accelerations.
 impl RigidBodyForcesItem<'_> {
+    /// Applies a linear impulse in the local space of the body.
+    ///
+    /// The impulse is typically in Newton-seconds, kg*m/s.
+    pub fn apply_local_linear_impulse(&mut self, impulse: Vector) {
+        let world_impulse = *self.rotation * impulse;
+        self.apply_linear_impulse(world_impulse);
+    }
+
+    /// Applies a linear impulse at the center of mass in world space.
+    ///
+    /// The impulse is typically in Newton-seconds, kg*m/s.
+    pub fn apply_linear_impulse(&mut self, impulse: Vector) {
+        self.body.linear_velocity += self.mass_props.effective_inv_mass() * impulse;
+    }
+
     /// Applies a linear impulse at the given point in world space.
     ///
     /// If the point is not at the center of mass, the impulse will also apply an angular impulse.
     ///
     /// The impulse is typically in Newton-seconds, kg*m/s.
-    pub fn apply_linear_impulse(&mut self, impulse: Vector, global_point: Vector) {
-        self.apply_linear_center_impulse(impulse);
-        self.apply_angular_impulse(cross(global_point - self.position.0, impulse));
+    pub fn apply_linear_impulse_at_point(&mut self, impulse: Vector, world_point: Vector) {
+        let world_center_of_mass = self.position.0 + *self.rotation * self.center_of_mass.0;
+        self.apply_linear_impulse(impulse);
+        self.apply_angular_impulse(cross(world_point - world_center_of_mass, impulse));
     }
 
-    /// Applies a linear impulse at the center of mass of the given entity.
-    ///
-    /// The impulse is typically in Newton-seconds, kg*m/s.
-    pub fn apply_linear_center_impulse(&mut self, impulse: Vector) {
-        self.body.linear_velocity += self.mass_props.effective_inv_mass() * impulse;
-    }
-
-    /// Applies an angular impulse to the given entity.
+    /// Applies an angular impulse in world space.
     ///
     /// The impulse is typically in Newton-meter-seconds, kg*m^2/s.
     pub fn apply_angular_impulse(&mut self, impulse: Torque) {
         self.body.angular_velocity += self.mass_props.effective_inv_angular_inertia() * impulse;
+    }
+
+    /// Applies a force at the center of mass in the local space of the body.
+    ///
+    /// The force is typically in Newtons, kg*m/s^2.
+    // TODO: Do we also want `apply_local_force`? It's not clear what the point should be relative to.
+    pub fn apply_local_force(&mut self, force: Vector) {
+        let world_force = *self.rotation * force;
+        self.apply_force(world_force);
+    }
+
+    /// Applies a force at the center of mass in world space.
+    ///
+    /// The force is typically in Newtons, kg*m/s^2.
+    pub fn apply_force(&mut self, force: Vector) {
+        self.accumulated_forces.force += force;
     }
 
     /// Applies a force at the given point in world space.
@@ -84,16 +105,26 @@ impl RigidBodyForcesItem<'_> {
     /// If the point is not at the center of mass, the force will also apply a torque.
     ///
     /// The force is typically in Newtons, kg*m/s^2.
-    pub fn apply_force(&mut self, force: Vector, global_point: Vector) {
-        self.apply_center_force(force);
-        self.apply_torque(cross(global_point - self.position.0, force));
+    pub fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {
+        // Note: This does not consider the rotation of the body during substeps,
+        //       so the torque may not be accurate if the body is rotating quickly.
+        let world_center_of_mass = self.position.0 + *self.rotation * self.center_of_mass.0;
+        self.apply_force(force);
+        self.apply_torque(cross(world_point - world_center_of_mass, force));
     }
 
-    /// Applies a force at the center of mass of the given entity.
+    /// Applies a torque in the local space of the body.
     ///
-    /// The force is typically in Newtons, kg*m/s^2.
-    pub fn apply_center_force(&mut self, force: Vector) {
-        self.accumulated_forces.force += force;
+    /// The torque is typically in Newton-meters, kg*m^2/s^2.
+    ///
+    /// **Note:** This does not consider the rotation of the body during substeps,
+    ///           so the torque may not be accurate if the body is rotating quickly.
+    #[cfg(feature = "3d")]
+    pub fn apply_local_torque(&mut self, torque: Torque) {
+        // NOTE: This does not consider the rotation of the body during substeps,
+        //       so the torque may not be accurate if the body is rotating quickly.
+        let world_torque = self.rotation.0 * torque;
+        self.apply_torque(world_torque);
     }
 
     /// Applies a torque to the given entity.
@@ -103,7 +134,17 @@ impl RigidBodyForcesItem<'_> {
         self.accumulated_forces.torque += torque;
     }
 
-    /// Applies a linear acceleration to the given entity, ignoring mass.
+    /// Applies a linear acceleration in the local space of the body, ignoring mass.
+    ///
+    /// The acceleration is typically in m/s^2.
+    pub fn apply_local_linear_acceleration(&mut self, acceleration: Vector) {
+        // NOTE: This does not consider the rotation of the body during substeps,
+        //       so the torque may not be accurate if the body is rotating quickly.
+        let world_acceleration = *self.rotation * acceleration;
+        self.apply_linear_acceleration(world_acceleration);
+    }
+
+    /// Applies a linear acceleration, ignoring mass.
     ///
     /// The acceleration is typically in m/s^2.
     pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
@@ -113,7 +154,21 @@ impl RigidBodyForcesItem<'_> {
             .apply_linear_acceleration(locked_axes.apply_to_vec(acceleration));
     }
 
-    /// Applies an angular acceleration to the given entity, ignoring angular inertia.
+    /// Applies an angular acceleration in the local space of the body, ignoring angular inertia.
+    ///
+    /// The acceleration is in rad/s^2.
+    #[cfg(feature = "3d")]
+    pub fn apply_local_angular_acceleration(
+        &mut self,
+        #[cfg(feature = "2d")] acceleration: f32,
+        #[cfg(feature = "3d")] acceleration: Vector,
+    ) {
+        // NOTE: This doesn't consider rotation changes during substeps.
+        let world_acceleration = *self.rotation * acceleration;
+        self.apply_angular_acceleration(world_acceleration);
+    }
+
+    /// Applies an angular acceleration, ignoring angular inertia.
     ///
     /// The acceleration is in rad/s^2.
     pub fn apply_angular_acceleration(
@@ -125,6 +180,60 @@ impl RigidBodyForcesItem<'_> {
         let locked_axes = self.locked_axes.copied().unwrap_or_default();
         self.integration
             .apply_angular_acceleration(locked_axes.apply_to_angular_velocity(acceleration));
+    }
+
+    /// Returns the external forces that the body has accumulated before the physics step.
+    ///
+    /// This does not include gravity, contact forces, or joint forces.
+    /// Only forces applied through [`RigidBodyForces`] are included.
+    pub fn accumulated_force(&self) -> Vector {
+        self.accumulated_forces.force
+    }
+
+    /// Returns the external torque that the body has accumulated before the physics step.
+    ///
+    /// This does not include gravity, contact forces, or joint forces.
+    /// Only torques applied through [`RigidBodyForces`] are included.
+    pub fn accumulated_torque(&self) -> Torque {
+        self.accumulated_forces.torque
+    }
+
+    /// Returns the linear acceleration that the body has accumulated before the physics step.
+    ///
+    /// This does not include gravity, contact forces, or joint forces.
+    /// Only accelerations applied through [`RigidBodyForces`] are included.
+    pub fn accumulated_linear_acceleration(&self) -> Vector {
+        // The linear increment is treated as linear acceleration until the integration step.
+        self.integration.linear_increment
+    }
+
+    /// Returns the angular acceleration that the body has accumulated before the physics step.
+    ///
+    /// This does not include gravity, contact forces, or joint forces.
+    /// Only accelerations applied through [`RigidBodyForces`] are included.
+    pub fn accumulated_angular_acceleration(&self) -> Torque {
+        // The angular increment is treated as angular acceleration until the integration step.
+        self.integration.angular_increment
+    }
+
+    /// Resets the accumulated forces to zero.
+    pub fn reset_accumulated_force(&mut self) {
+        self.accumulated_forces.force = Vector::ZERO;
+    }
+
+    /// Resets the accumulated torque to zero.
+    pub fn reset_accumulated_torque(&mut self) {
+        self.accumulated_forces.torque = Torque::ZERO;
+    }
+
+    /// Resets the accumulated linear acceleration to zero.
+    pub fn reset_accumulated_linear_acceleration(&mut self) {
+        self.integration.linear_increment = Vector::ZERO;
+    }
+
+    /// Resets the accumulated angular acceleration to zero.
+    pub fn reset_accumulated_angular_acceleration(&mut self) {
+        self.integration.angular_increment = Torque::ZERO;
     }
 }
 
