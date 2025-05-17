@@ -25,7 +25,8 @@ impl Plugin for ForcePlugin {
         app.configure_sets(
             PhysicsSchedule,
             (
-                ForceSet::ApplyWorldForces
+                (ForceSet::ApplyConstantForces, ForceSet::ApplyWorldForces)
+                    .chain()
                     .in_set(IntegrationSet::UpdateVelocityIncrements)
                     .before(integrator::pre_process_velocity_increments),
                 ForceSet::Clear.in_set(SolverSet::PostSubstep),
@@ -41,11 +42,23 @@ impl Plugin for ForcePlugin {
 
         app.add_systems(
             PhysicsSchedule,
+            (apply_constant_forces, apply_constant_torques)
+                .chain()
+                .in_set(ForceSet::ApplyConstantForces),
+        );
+
+        app.add_systems(
+            PhysicsSchedule,
             apply_world_forces.in_set(ForceSet::ApplyWorldForces),
         );
         app.add_systems(
             SubstepSchedule,
-            (apply_local_forces, apply_local_acceleration)
+            (
+                apply_local_forces,
+                apply_local_acceleration,
+                apply_constant_local_forces,
+                apply_constant_local_torques,
+            )
                 .chain()
                 .in_set(ForceSet::ApplyLocalForces),
         );
@@ -64,9 +77,44 @@ impl Plugin for ForcePlugin {
 
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ForceSet {
+    /// Adds [`ConstantForce`] and [`ConstantTorque`] to [`AccumulatedWorldForces`]
+    /// and [`ConstantLocalForce`] and [`ConstantLocalTorque`] to [`AccumulatedLocalForces`].
+    ApplyConstantForces,
     ApplyWorldForces,
     ApplyLocalForces,
     Clear,
+}
+
+/// Applies [`ConstantForce`] to the accumulated forces.
+fn apply_constant_forces(mut bodies: Query<(&mut AccumulatedWorldForces, &ConstantForce)>) {
+    for (mut forces, constant_force) in &mut bodies {
+        forces.force += constant_force.0;
+    }
+}
+
+/// Applies [`ConstantTorque`] to the accumulated torques.
+fn apply_constant_torques(mut bodies: Query<(&mut AccumulatedWorldForces, &ConstantTorque)>) {
+    for (mut forces, constant_torque) in &mut bodies {
+        forces.torque += constant_torque.0;
+    }
+}
+
+/// Applies [`ConstantLocalForce`] to the accumulated forces.
+fn apply_constant_local_forces(
+    mut bodies: Query<(&mut AccumulatedLocalForces, &ConstantLocalForce)>,
+) {
+    for (mut forces, constant_force) in &mut bodies {
+        forces.force += constant_force.0;
+    }
+}
+
+/// Applies [`ConstantLocalTorque`] to the accumulated torques.
+fn apply_constant_local_torques(
+    mut bodies: Query<(&mut AccumulatedLocalForces, &ConstantLocalTorque)>,
+) {
+    for (mut forces, constant_torque) in &mut bodies {
+        forces.torque += constant_torque.0;
+    }
 }
 
 /// Applies [`AccumulatedWorldForces`] to the linear and angular velocity of bodies.

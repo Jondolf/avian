@@ -26,6 +26,52 @@ impl FloatZero for Scalar {
     const ZERO: Self = 0.0;
 }
 
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedWorldForces)]
+pub struct ConstantForce(pub Vector);
+
+#[cfg(feature = "2d")]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedWorldForces)]
+pub struct ConstantTorque(pub Scalar);
+
+#[cfg(feature = "3d")]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedWorldForces)]
+pub struct ConstantTorque(pub Vector);
+
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedLocalForces)]
+pub struct ConstantLocalForce(pub Vector);
+
+#[cfg(feature = "2d")]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedLocalForces)]
+pub struct ConstantLocalTorque(pub Scalar);
+
+#[cfg(feature = "3d")]
+#[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Component, Debug, Default, PartialEq)]
+#[require(AccumulatedLocalForces)]
+pub struct ConstantLocalTorque(pub Vector);
+
 // TODO: Should accumulated forces and accelerations be `SparseSet` components?
 
 /// A component with the user-applied world forces and torques
