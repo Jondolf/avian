@@ -322,8 +322,6 @@ pub struct VelocityIntegrationQuery {
     angular_inertia: &'static ComputedAngularInertia,
     #[cfg(feature = "3d")]
     rotation: &'static Rotation,
-    #[cfg(feature = "3d")]
-    locked_axes: Option<&'static LockedAxes>,
     max_linear_speed: Option<&'static MaxLinearSpeed>,
     max_angular_speed: Option<&'static MaxAngularSpeed>,
 }
@@ -347,6 +345,8 @@ pub fn integrate_velocities(
             angular_velocity: ang_vel,
             #[cfg(feature = "3d")]
             delta_rotation,
+            #[cfg(feature = "3d")]
+            flags,
             ..
         } = body.solver_body.into_inner();
 
@@ -361,15 +361,15 @@ pub fn integrate_velocities(
         #[cfg(feature = "3d")]
         {
             if is_gyroscopic {
-                let locked_axes = body
-                    .locked_axes
-                    .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+                let locked_axes = flags.locked_axes();
+
+                println!("locked_axes: {locked_axes:?}");
 
                 // TODO: Should this be opt-in with a `GyroscopicMotion` component?
                 // TODO: It's a bit unfortunate that this has to run in the substepping loop
                 //       rather than pre-computing the velocity increments once per time step.
                 //       This needs to be done because the gyroscopic torque relies on up-to-date rotations
-                //       and world-space angular inertia tensors. Omitting the change in orientaton would
+                //       and world-space angular inertia tensors. Omitting the change in orientation would
                 //       lead to worse accuracy and angular momentum not being conserved.
                 let rotation = delta_rotation.0 * body.rotation.0;
                 semi_implicit_euler::solve_gyroscopic_torque(

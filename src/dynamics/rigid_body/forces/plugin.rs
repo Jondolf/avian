@@ -156,7 +156,6 @@ fn apply_local_forces(
             &AccumulatedLocalForces,
             &Rotation,
             &SolverBodyInertia,
-            Option<&LockedAxes>,
         ),
         With<SolverBody>,
     >,
@@ -169,9 +168,9 @@ fn apply_local_forces(
 
     bodies
         .par_iter_mut()
-        .for_each(|(mut body, forces, rotation, mass_props, locked_axes)| {
+        .for_each(|(mut body, forces, rotation, mass_props)| {
             let rotation = body.delta_rotation * *rotation;
-            let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
+            let locked_axes = body.flags.locked_axes();
 
             // NOTE:
             //
@@ -250,18 +249,23 @@ fn apply_local_acceleration(
 /// are removed from the entities.
 fn clear_accumulated_world_forces(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut AccumulatedWorldForces)>,
+    mut query: Query<(
+        Entity,
+        &mut AccumulatedWorldForces,
+        Has<ConstantForce>,
+        Has<ConstantTorque>,
+    )>,
 ) {
     // Initialize a buffer for entities to remove the component from.
     let mut entity_buffer = Vec::new();
 
-    for (entity, mut forces) in &mut query {
+    for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
         if forces.force != Vector::ZERO || forces.torque != Torque::ZERO {
             // The force or torque was not zero, so these may be continuously applied forces.
             // Just reset the forces and keep the component.
             forces.force = Vector::ZERO;
             forces.torque = Torque::ZERO;
-        } else {
+        } else if !has_constant_force && !has_constant_torque {
             // No forces or torques were applied for an entire time step, so we can remove the component.
             entity_buffer.push(entity);
         }
@@ -286,18 +290,23 @@ fn clear_accumulated_world_forces(
 /// are removed from the entities.
 fn clear_accumulated_local_forces(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut AccumulatedLocalForces)>,
+    mut query: Query<(
+        Entity,
+        &mut AccumulatedLocalForces,
+        Has<ConstantLocalForce>,
+        Has<ConstantLocalTorque>,
+    )>,
 ) {
     // Initialize a buffer for entities to remove the component from.
     let mut entity_buffer = Vec::new();
 
-    for (entity, mut forces) in &mut query {
+    for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
         if forces.force != Vector::ZERO || forces.torque != Torque::ZERO {
             // The force or torque was not zero, so these may be continuously applied forces.
             // Just reset the forces and keep the component.
             forces.force = Vector::ZERO;
             forces.torque = Torque::ZERO;
-        } else {
+        } else if !has_constant_force && !has_constant_torque {
             // No forces or torques were applied for an entire time step, so we can remove the component.
             entity_buffer.push(entity);
         }

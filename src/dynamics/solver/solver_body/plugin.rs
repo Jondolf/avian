@@ -222,6 +222,7 @@ fn prepare_solver_bodies(
                 // crossing at the center of gravity is sufficient to produce an isotropic tensor of inertia.
                 // The MI around any axis passing by the center of gravity are then identical."
 
+                // TODO: Kinematic bodies should not have gyroscopic motion.
                 // TODO: Should we scale the epsilon based on the `PhysicsLengthUnit`?
                 // TODO: We should only do this when the body is added or the local inertia tensor is changed.
                 let epsilon = 1e-6;
