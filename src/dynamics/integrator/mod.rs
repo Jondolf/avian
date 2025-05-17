@@ -248,19 +248,14 @@ impl VelocityIntegrationData {
 }
 
 /// Applies gravity and locked axes to the linear and angular velocity increments of bodies.
-fn pre_process_velocity_increments(
-    mut bodies: Query<
-        (
-            &mut VelocityIntegrationData,
-            &mut AccumulatedForces,
-            &SolverBodyInertia,
-            Option<&LinearDamping>,
-            Option<&AngularDamping>,
-            Option<&GravityScale>,
-            Option<&LockedAxes>,
-        ),
-        With<SolverBody>,
-    >,
+pub fn pre_process_velocity_increments(
+    mut bodies: Query<(
+        &mut VelocityIntegrationData,
+        Option<&LinearDamping>,
+        Option<&AngularDamping>,
+        Option<&GravityScale>,
+        Option<&LockedAxes>,
+    )>,
     gravity: Res<Gravity>,
     time: Res<Time<Substeps>>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -271,15 +266,7 @@ fn pre_process_velocity_increments(
 
     // TODO: Do we want to skip kinematic bodies here?
     bodies.par_iter_mut().for_each(
-        |(
-            mut integration,
-            forces,
-            mass_props,
-            lin_damping,
-            ang_damping,
-            gravity_scale,
-            locked_axes,
-        )| {
+        |(mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
             let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
             // Update the cached right-hand side of the velocity damping equation,
@@ -289,15 +276,11 @@ fn pre_process_velocity_increments(
             integration.update_linear_damping_rhs(lin_damping, delta_secs);
             integration.update_angular_damping_rhs(ang_damping, delta_secs);
 
+            // NOTE: The `ForcePlugin` handles the application of external forces and torques.
             // NOTE: The velocity increments are treated as accelerations at this point.
 
             // Apply gravity.
             integration.linear_increment += gravity.0 * gravity_scale.map_or(1.0, |scale| scale.0);
-
-            // Apply external forces and torques.
-            integration.linear_increment += mass_props.effective_inv_mass() * forces.force;
-            integration.angular_increment +=
-                mass_props.effective_inv_angular_inertia() * forces.torque;
 
             // Apply locked axes.
             integration.linear_increment = locked_axes.apply_to_vec(integration.linear_increment);
@@ -307,6 +290,7 @@ fn pre_process_velocity_increments(
             // The velocity increments are treated as accelerations until this point.
             // Multiply by the time step to get the final velocity increments.
             integration.linear_increment *= delta_secs;
+            integration.angular_increment *= delta_secs;
         },
     );
 
@@ -314,7 +298,7 @@ fn pre_process_velocity_increments(
 }
 
 /// Clears the velocity increments of bodies after the substepping loop.
-fn clear_velocity_increments(
+pub fn clear_velocity_increments(
     mut bodies: Query<&mut VelocityIntegrationData, With<SolverBody>>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
@@ -330,7 +314,8 @@ fn clear_velocity_increments(
 
 #[derive(QueryData)]
 #[query_data(mutable)]
-struct VelocityIntegrationQuery {
+#[doc(hidden)]
+pub struct VelocityIntegrationQuery {
     solver_body: &'static mut SolverBody,
     integration: &'static mut VelocityIntegrationData,
     #[cfg(feature = "3d")]
@@ -343,8 +328,7 @@ struct VelocityIntegrationQuery {
     max_angular_speed: Option<&'static MaxAngularSpeed>,
 }
 
-#[allow(clippy::type_complexity)]
-fn integrate_velocities(
+pub fn integrate_velocities(
     mut bodies: Query<VelocityIntegrationQuery, RigidBodyActiveFilter>,
     mut diagnostics: ResMut<SolverDiagnostics>,
     #[cfg(feature = "3d")] time: Res<Time>,
@@ -387,14 +371,14 @@ fn integrate_velocities(
                 //       This needs to be done because the gyroscopic torque relies on up-to-date rotations
                 //       and world-space angular inertia tensors. Omitting the change in orientaton would
                 //       lead to worse accuracy and angular momentum not being conserved.
-                let rotation = delta_rotation.0 * body.rotation.0;
+                /*let rotation = delta_rotation.0 * body.rotation.0;
                 semi_implicit_euler::solve_gyroscopic_torque(
                     ang_vel,
                     rotation,
                     body.angular_inertia,
                     delta_secs,
                 );
-                *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
+                *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);*/
             }
         }
 
@@ -423,8 +407,7 @@ fn integrate_velocities(
     diagnostics.integrate_velocities += start.elapsed();
 }
 
-#[allow(clippy::type_complexity)]
-fn integrate_positions(
+pub fn integrate_positions(
     mut solver_bodies: Query<&mut SolverBody>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,

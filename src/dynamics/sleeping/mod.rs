@@ -8,6 +8,8 @@ use bevy::{
     prelude::*,
 };
 
+use super::prelude::forces::{AccumulatedLocalAcceleration, AccumulatedLocalForces};
+
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
 /// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
@@ -233,7 +235,15 @@ pub(crate) fn wake_on_changed(
         >,
         // These are not modified by the physics engine
         // and don't need special handling.
-        Query<Entity, Or<(Changed<AccumulatedForces>, Changed<GravityScale>)>>,
+        Query<
+            Entity,
+            Or<(
+                Changed<AccumulatedWorldForces>,
+                Changed<AccumulatedLocalForces>,
+                Changed<AccumulatedLocalAcceleration>,
+                Changed<GravityScale>,
+            )>,
+        >,
     )>,
     last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
