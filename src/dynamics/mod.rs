@@ -76,7 +76,7 @@ pub mod prelude {
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
-            forces::{AccumulatedWorldForces, ForceHelper, ForcePlugin, ForceSet},
+            forces::{ForceHelper, ForcePlugin, ForceSet},
             mass_properties::{
                 bevy_heavy::{
                     AngularInertiaTensor, AngularInertiaTensorError, ComputeMassProperties2d,

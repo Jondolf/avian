@@ -7,8 +7,9 @@ use bevy::{
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
 };
-
-use super::prelude::forces::{AccumulatedLocalAcceleration, AccumulatedLocalForces};
+use dynamics::rigid_body::forces::{
+    AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWorldForces,
+};
 
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
