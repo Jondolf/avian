@@ -371,14 +371,14 @@ pub fn integrate_velocities(
                 //       This needs to be done because the gyroscopic torque relies on up-to-date rotations
                 //       and world-space angular inertia tensors. Omitting the change in orientaton would
                 //       lead to worse accuracy and angular momentum not being conserved.
-                /*let rotation = delta_rotation.0 * body.rotation.0;
+                let rotation = delta_rotation.0 * body.rotation.0;
                 semi_implicit_euler::solve_gyroscopic_torque(
                     ang_vel,
                     rotation,
                     body.angular_inertia,
                     delta_secs,
                 );
-                *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);*/
+                *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
             }
         }
 
