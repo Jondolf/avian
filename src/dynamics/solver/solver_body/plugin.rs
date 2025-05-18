@@ -242,13 +242,21 @@ fn writeback_solver_bodies(
             // Write back the position and rotation deltas,
             // rotating the body around its center of mass.
             let old_world_com = *rot * com.0;
-            *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
+            if solver_body.delta_rotation.is_finite() {
+                *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
+            }
             let new_world_com = *rot * com.0;
-            pos.0 += solver_body.delta_position + old_world_com - new_world_com;
+            if solver_body.delta_position.is_finite() {
+                pos.0 += solver_body.delta_position + old_world_com - new_world_com;
+            }
 
             // Write back velocities.
-            lin_vel.0 = solver_body.linear_velocity;
-            ang_vel.0 = solver_body.angular_velocity;
+            if solver_body.linear_velocity.is_finite() {
+                lin_vel.0 = solver_body.linear_velocity;
+            }
+            if solver_body.angular_velocity.is_finite() {
+                ang_vel.0 = solver_body.angular_velocity;
+            }
         },
     );
 

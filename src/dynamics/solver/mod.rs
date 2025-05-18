@@ -509,25 +509,21 @@ fn solve_contacts<const USE_BIAS: bool>(
 
 fn prepare_joints<Joint: Component<Mutability = Mutable> + ImpulseJoint + EntityConstraint<2>>(
     bodies: Query<RigidBodyQueryReadOnly>,
-    mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
+    mut joints: Query<(&mut Joint, &mut Joint::SolverData), Without<RigidBody>>,
     time: Res<Time<Substeps>>,
+    mut commands: Commands,
 ) where
     Joint::SolverData: Component<Mutability = Mutable>,
 {
     let delta_secs = time.delta_secs_f64() as Scalar;
-    for (joint, mut solver_data) in joints.iter_mut() {
+    for (mut joint, mut solver_data) in joints.iter_mut() {
         if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
-            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
-            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
-                && (body2.is_sleeping || body2.rb.is_static());
-
-            // No constraint solving if none of the bodies is dynamic,
-            // or if all of the bodies are either static or sleeping
-            if none_dynamic || all_inactive {
-                continue;
-            }
-
             joint.prepare(&body1, &body2, &mut solver_data, delta_secs);
+
+            // Wake up the bodies if they are sleeping.
+            // TODO: Simulation islands will let us handle this better.
+            commands.queue(WakeUpBody(body1.entity));
+            commands.queue(WakeUpBody(body2.entity));
         }
     }
 }
@@ -536,33 +532,38 @@ fn prepare_joints<Joint: Component<Mutability = Mutable> + ImpulseJoint + Entity
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
-    mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut joints: Query<(&Joint, &Joint::SolverData), Without<RigidBody>>,
 ) where
     Joint::SolverData: Component,
 {
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
+
     for (joint, solver_data) in joints.iter_mut() {
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
-            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
-            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
-                && (body2.is_sleeping || body2.rb.is_static());
+        let [entity1, entity2] = joint.entities();
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            // No constraint solving if none of the bodies is dynamic,
-            // or if all of the bodies are either static or sleeping
-            if none_dynamic || all_inactive {
-                continue;
-            }
-
-            if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
-            }
-            if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
-            }
-
-            joint.warm_start(&mut body1, &mut body2, solver_data);
+        // Get the solver bodies for the two colliding entities.
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity1) } {
+            body1 = body.into_inner();
+            inertia1 = inertia;
         }
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity2) } {
+            body2 = body.into_inner();
+            inertia2 = inertia;
+        }
+
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        match joint.relative_dominance().cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
+        }
+
+        joint.warm_start(body1, inertia1, body2, inertia2, solver_data);
     }
 }
 
@@ -571,42 +572,49 @@ pub fn solve_joints<
     Joint: Component<Mutability = Mutable> + ImpulseJoint + EntityConstraint<2>,
     const USE_BIAS: bool,
 >(
-    mut commands: Commands,
-    mut bodies: Query<RigidBodyQuery>,
+    bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
     time: Res<Time>,
 ) where
     Joint::SolverData: Component<Mutability = Mutable>,
 {
-    let delta_secs = time.delta_seconds_adjusted();
+    let delta_secs = time.delta_secs_f64() as Scalar;
 
-    for (joint, mut solver_data) in &mut joints {
-        if let Ok([mut body1, mut body2]) = bodies.get_many_mut(joint.entities()) {
-            let none_dynamic = !body1.rb.is_dynamic() && !body2.rb.is_dynamic();
-            let all_inactive = (body1.is_sleeping || body1.rb.is_static())
-                && (body2.is_sleeping || body2.rb.is_static());
+    let mut dummy_body1 = SolverBody::default();
+    let mut dummy_body2 = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
 
-            // No constraint solving if none of the bodies is dynamic,
-            // or if all of the bodies are either static or sleeping
-            if none_dynamic || all_inactive {
-                continue;
-            }
+    for (joint, solver_data) in joints.iter_mut() {
+        let [entity1, entity2] = joint.entities();
+        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
-            }
-            if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
-            }
-
-            joint.solve(
-                &mut body1,
-                &mut body2,
-                &mut solver_data,
-                delta_secs,
-                USE_BIAS,
-            );
+        // Get the solver bodies for the two colliding entities.
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity1) } {
+            body1 = body.into_inner();
+            inertia1 = inertia;
         }
+        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(entity2) } {
+            body2 = body.into_inner();
+            inertia2 = inertia;
+        }
+
+        // If a body has a higher dominance, it is treated as a static or kinematic body.
+        match joint.relative_dominance().cmp(&0) {
+            Ordering::Greater => inertia1 = &dummy_inertia,
+            Ordering::Less => inertia2 = &dummy_inertia,
+            _ => {}
+        }
+
+        joint.solve(
+            body1,
+            inertia1,
+            body2,
+            inertia2,
+            solver_data.into_inner(),
+            delta_secs,
+            USE_BIAS,
+        );
     }
 }
 

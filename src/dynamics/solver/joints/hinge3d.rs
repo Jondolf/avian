@@ -1,6 +1,9 @@
 //! [`HingeJoint`] component.
 
-use crate::prelude::*;
+use crate::{
+    dynamics::solver::solver_body::{SolverBody, SolverBodyInertia},
+    prelude::*,
+};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -41,6 +44,12 @@ pub struct HingeJoint {
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
+
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
 }
 
 /// Cached data required by the impulse-based solver for [`HingeJoint`].
@@ -49,6 +58,10 @@ pub struct HingeJoint {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 pub struct HingeJointSolverData {
+    pub r1: Vector,
+    pub r2: Vector,
+    pub axis1: Vector,
+    pub axis2: Vector,
     pub coefficients: SoftnessCoefficients,
     pub point_constraint: PointConstraintPart,
     pub rotation_difference: Quaternion,
@@ -69,7 +82,7 @@ impl ImpulseJoint for HingeJoint {
     type SolverData = HingeJointSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
         solver_data: &mut HingeJointSolverData,
@@ -77,10 +90,13 @@ impl ImpulseJoint for HingeJoint {
     ) {
         let local_r1 = self.local_anchor1 - body1.center_of_mass.0;
         let local_r2 = self.local_anchor2 - body2.center_of_mass.0;
-        let r1 = *body1.rotation * local_r1;
-        let r2 = *body2.rotation * local_r2;
+        let r1 = body1.rotation * local_r1;
+        let r2 = body2.rotation * local_r2;
         solver_data.point_constraint.r1 = r1;
         solver_data.point_constraint.r2 = r2;
+
+        solver_data.axis1 = body1.rotation * self.aligned_axis;
+        solver_data.axis2 = body2.rotation * self.aligned_axis;
 
         // TODO: Support frames.
         solver_data.point_constraint.center_difference =
@@ -140,10 +156,13 @@ impl ImpulseJoint for HingeJoint {
         let mut effective_inverse_mass = SymmetricMatrix5::IDENTITY;
 
         // Point-to-point constraint (upper left 3x3 block)
-        effective_inverse_mass.a =
-            solver_data
-                .point_constraint
-                .effective_inverse_mass(inverse_mass_sum, &i1, &i2);
+        effective_inverse_mass.a = solver_data.point_constraint.effective_inverse_mass(
+            solver_data.point_constraint.r1,
+            solver_data.point_constraint.r2,
+            inverse_mass_sum,
+            &i1,
+            &i2,
+        );
 
         let (axis1, mut axis2) = self.aligned_axis.any_orthonormal_pair();
 
@@ -173,76 +192,60 @@ impl ImpulseJoint for HingeJoint {
 
     fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &HingeJointSolverData,
     ) {
-        let local_r1 = self.local_anchor1 - body1.center_of_mass.0;
-        let local_r2 = self.local_anchor2 - body2.center_of_mass.0;
-        let r1 = *body1.rotation * local_r1;
-        let r2 = *body2.rotation * local_r2;
+        let r1 = body1.delta_rotation * solver_data.r1;
+        let r2 = body2.delta_rotation * solver_data.r2;
 
-        let inv_mass1 = body1.effective_inverse_mass();
-        let inv_mass2 = body2.effective_inverse_mass();
-        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
-        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
-        #[cfg(feature = "2d")]
-        {
-            let axial_impulse = solver_data.lower_impulse - solver_data.upper_impulse;
+        let ball_socket_angular_impulse1 = r1.cross(solver_data.point_constraint.impulse);
+        let hinge_angular_impulse1 = solver_data.angular_impulse * solver_data.hinge_jacobian;
+        let angular_impulse1 = ball_socket_angular_impulse1 + hinge_angular_impulse1;
 
-            if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 -= solver_data.point_constraint.impulse * inv_mass1;
-                body1.angular_velocity.0 -= inv_inertia1
-                    * (cross(r1, solver_data.point_constraint.impulse) + axial_impulse);
-            }
-            if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 += solver_data.point_constraint.impulse * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2
-                    * (cross(r2, solver_data.point_constraint.impulse) + axial_impulse);
-            }
-        }
+        let ball_socket_angular_impulse2 = solver_data.point_constraint.impulse.cross(r2);
+        let angular_impulse2 = ball_socket_angular_impulse2 - hinge_angular_impulse1;
 
-        #[cfg(feature = "3d")]
-        {
-            let ball_socket_angular_impulse1 = r1.cross(solver_data.point_constraint.impulse);
-            let hinge_angular_impulse1 = solver_data.angular_impulse * solver_data.hinge_jacobian;
-            let angular_impulse1 = ball_socket_angular_impulse1 + hinge_angular_impulse1;
+        body1.linear_velocity += solver_data.point_constraint.impulse * inv_mass1;
+        body1.angular_velocity += inv_inertia1 * angular_impulse1;
 
-            let ball_socket_angular_impulse2 = solver_data.point_constraint.impulse.cross(r2);
-            let angular_impulse2 = ball_socket_angular_impulse2 - hinge_angular_impulse1;
-
-            if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += solver_data.point_constraint.impulse * inv_mass1;
-                body1.angular_velocity.0 += inv_inertia1 * angular_impulse1;
-            }
-            if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 += solver_data.point_constraint.impulse * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * angular_impulse2;
-            }
-        }
+        body2.linear_velocity += solver_data.point_constraint.impulse * inv_mass2;
+        body2.angular_velocity += inv_inertia2 * angular_impulse2;
     }
 
     fn solve(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &mut HingeJointSolverData,
         _delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let inv_mass1 = body1.effective_inverse_mass();
-        let inv_mass2 = body2.effective_inverse_mass();
-        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
-        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
+        let inv_mass1 = inertia1.effective_inv_mass();
+        let inv_mass2 = inertia2.effective_inv_mass();
+        let inv_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
         // Solve point-to-point constraint.
 
-        // TODO: Cache these.
-        let local_r1 = self.local_anchor1 - body1.center_of_mass.0;
-        let local_r2 = self.local_anchor2 - body2.center_of_mass.0;
-        let r1 = *body1.rotation * local_r1;
-        let r2 = *body2.rotation * local_r2;
+        let mut r1 = solver_data.point_constraint.r1;
+        let mut r2 = solver_data.point_constraint.r2;
+
+        // Solving without bias is done after position integration, which can change rotation.
+        // Recompute the anchor points and effective mass.
+        if !use_bias {
+            r1 = body1.delta_rotation * r1;
+            r2 = body2.delta_rotation * r2;
+        }
 
         let effective_mass = &solver_data.effective_mass;
 
@@ -250,8 +253,8 @@ impl ImpulseJoint for HingeJoint {
         let mut point_constraint_velocity_error =
             PointConstraintPart::velocity_error(body1, body2, r1, r2);
         let mut hinge_velocity_error = AngularHinge::velocity_error(
-            body1.angular_velocity.0,
-            body2.angular_velocity.0,
+            body1.angular_velocity,
+            body2.angular_velocity,
             solver_data.hinge_jacobian,
         );
         let mut point_constraint_velocity_bias = Vector::ZERO;
@@ -270,8 +273,8 @@ impl ImpulseJoint for HingeJoint {
             );
             point_constraint_velocity_bias = solver_data.coefficients.bias * separation;
 
-            let axis1 = *body1.rotation * self.aligned_axis;
-            let axis2 = *body2.rotation * self.aligned_axis;
+            let axis1 = body1.delta_rotation * solver_data.axis1;
+            let axis2 = body2.delta_rotation * solver_data.axis2;
             let error_angles =
                 AngularHinge::get_error_angles(axis1, axis2, solver_data.hinge_jacobian);
             println!("Error angles: {:?}", error_angles);
@@ -312,15 +315,17 @@ impl ImpulseJoint for HingeJoint {
         {
             println!("Point constraint csi: {:?}", point_constraint_csi);
             println!("Angular impulse: {:?}", hinge_velocity_error);
-            if body1.rb.is_dynamic() {
-                body1.linear_velocity.0 += point_constraint_csi * inv_mass1;
-                body1.angular_velocity.0 += inv_inertia1 * angular_impulse1;
-            }
-            if body2.rb.is_dynamic() {
-                body2.linear_velocity.0 += point_constraint_csi * inv_mass2;
-                body2.angular_velocity.0 += inv_inertia2 * angular_impulse2;
-            }
+
+            body1.linear_velocity += point_constraint_csi * inv_mass1;
+            body1.angular_velocity += inv_inertia1 * angular_impulse1;
+
+            body2.linear_velocity += point_constraint_csi * inv_mass2;
+            body2.angular_velocity += inv_inertia2 * angular_impulse2;
         }
+    }
+
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 
@@ -334,6 +339,7 @@ impl HingeJoint {
             aligned_axis: Vector3::Z,
             angle_limit: None,
             stiffness: SoftnessParameters::new(1.0, 10.0),
+            relative_dominance: 0,
         }
     }
 

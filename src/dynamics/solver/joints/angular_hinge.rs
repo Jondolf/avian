@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use crate::{
+    dynamics::solver::solver_body::{SolverBody, SolverBodyInertia},
+    prelude::*,
+};
 use bevy::{
     ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
@@ -38,6 +41,12 @@ pub struct AngularHinge {
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
+
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
 }
 
 /// Cached data required by the impulse-based solver for [`AngularHinge`].
@@ -46,6 +55,8 @@ pub struct AngularHinge {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 pub struct AngularHingeSolverData {
+    pub axis1: Vector,
+    pub axis2: Vector,
     pub coefficients: SoftnessCoefficients,
     #[cfg(feature = "2d")]
     pub rotation_difference: Scalar,
@@ -75,7 +86,7 @@ impl ImpulseJoint for AngularHinge {
     type SolverData = AngularHingeSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
         solver_data: &mut AngularHingeSolverData,
@@ -105,6 +116,9 @@ impl ImpulseJoint for AngularHinge {
 
         #[cfg(feature = "3d")]
         {
+            solver_data.axis1 = body1.rotation * self.local_axis1;
+            solver_data.axis2 = body2.rotation * self.local_axis2;
+
             let (axis1, mut axis2) = self.local_axis1.any_orthonormal_pair();
 
             // Our implementation expects this to be flipped.
@@ -128,65 +142,64 @@ impl ImpulseJoint for AngularHinge {
             self.swing_limit
                 .prepare(body1, body2, &mut solver_data.swing_limit, delta_secs);
         }
+
+        // Prepare the relative dominance.
+        self.relative_dominance = body1.dominance() - body2.dominance();
     }
 
     fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &AngularHingeSolverData,
     ) {
-        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
-        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
+        let inv_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
         #[cfg(feature = "3d")]
         {
             self.swing_limit
-                .warm_start(body1, body2, &solver_data.swing_limit);
+                .warm_start(body1, inertia1, body2, inertia2, &solver_data.swing_limit);
         }
 
         #[cfg(feature = "2d")]
         {
             let axial_impulse = solver_data.lower_impulse - solver_data.upper_impulse;
-
-            if body1.rb.is_dynamic() {
-                body1.angular_velocity.0 -= inv_inertia1 * axial_impulse;
-            }
-            if body2.rb.is_dynamic() {
-                body2.angular_velocity.0 += inv_inertia2 * axial_impulse;
-            }
+            body1.angular_velocity -= inv_inertia1 * axial_impulse;
+            body2.angular_velocity += inv_inertia2 * axial_impulse;
         }
 
         #[cfg(feature = "3d")]
         {
             let impulse_to_velocity1 = solver_data.jacobian * inv_inertia1;
             let neg_impulse_to_velocity2 = solver_data.jacobian * inv_inertia2;
-
-            if body1.rb.is_dynamic() {
-                body1.angular_velocity.0 += impulse_to_velocity1 * solver_data.impulse;
-            }
-            if body2.rb.is_dynamic() {
-                body2.angular_velocity.0 -= neg_impulse_to_velocity2 * solver_data.impulse;
-            }
+            body1.angular_velocity += impulse_to_velocity1 * solver_data.impulse;
+            body2.angular_velocity -= neg_impulse_to_velocity2 * solver_data.impulse;
         }
     }
 
     fn solve(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &mut AngularHingeSolverData,
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let inv_inertia1 = body1.effective_global_angular_inertia().inverse();
-        let inv_inertia2 = body2.effective_global_angular_inertia().inverse();
+        let inv_inertia1 = inertia1.effective_inv_angular_inertia();
+        let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
         #[cfg(feature = "3d")]
         {
             self.swing_limit.solve(
                 body1,
+                inertia1,
                 body2,
+                inertia2,
                 &mut solver_data.swing_limit,
                 delta_secs,
                 use_bias,
@@ -217,7 +230,7 @@ impl ImpulseJoint for AngularHinge {
             }
 
             // Angular velocity constraint. Satisfied when C' = 0.
-            let c_vel = body2.angular_velocity.0 - body1.angular_velocity.0;
+            let c_vel = body2.angular_velocity - body1.angular_velocity;
 
             let mut impulse = -solver_data.effective_mass * mass_scale * (c_vel + bias)
                 - impulse_scale * solver_data.lower_impulse;
@@ -225,12 +238,8 @@ impl ImpulseJoint for AngularHinge {
             solver_data.lower_impulse = (solver_data.lower_impulse + impulse).max(0.0);
             impulse = solver_data.lower_impulse - old_impulse;
 
-            if body1.rb.is_dynamic() {
-                body1.angular_velocity.0 -= inv_inertia1 * impulse;
-            }
-            if body2.rb.is_dynamic() {
-                body2.angular_velocity.0 += inv_inertia2 * impulse;
-            }
+            body1.angular_velocity -= inv_inertia1 * impulse;
+            body2.angular_velocity += inv_inertia2 * impulse;
 
             // Upper limit
 
@@ -251,7 +260,7 @@ impl ImpulseJoint for AngularHinge {
             }
 
             // Angular velocity constraint. Satisfied when C' = 0.
-            let c_vel = body1.angular_velocity.0 - body2.angular_velocity.0;
+            let c_vel = body1.angular_velocity - body2.angular_velocity;
 
             let mut impulse = -solver_data.effective_mass * mass_scale * (c_vel + bias)
                 - impulse_scale * solver_data.upper_impulse;
@@ -259,12 +268,8 @@ impl ImpulseJoint for AngularHinge {
             solver_data.upper_impulse = (solver_data.upper_impulse + impulse).max(0.0);
             impulse = solver_data.upper_impulse - old_impulse;
 
-            if body1.rb.is_dynamic() {
-                body1.angular_velocity.0 += inv_inertia1 * impulse;
-            }
-            if body2.rb.is_dynamic() {
-                body2.angular_velocity.0 -= inv_inertia2 * impulse;
-            }
+            body1.angular_velocity += inv_inertia1 * impulse;
+            body2.angular_velocity -= inv_inertia2 * impulse;
         }
 
         #[cfg(feature = "3d")]
@@ -273,8 +278,8 @@ impl ImpulseJoint for AngularHinge {
 
             // 1. Compute biased velocity errors
             let hinge_velocity_error = AngularHinge::velocity_error(
-                body1.angular_velocity.0,
-                body2.angular_velocity.0,
+                body1.angular_velocity,
+                body2.angular_velocity,
                 solver_data.jacobian,
             );
             let mut hinge_bias = Vector2::ZERO;
@@ -283,8 +288,8 @@ impl ImpulseJoint for AngularHinge {
             let mut impulse_scale = 0.0;
 
             if use_bias {
-                let axis1 = *body1.rotation * self.local_axis1;
-                let axis2 = *body2.rotation * self.local_axis2;
+                let axis1 = body1.delta_rotation * solver_data.axis1;
+                let axis2 = body2.delta_rotation * solver_data.axis2;
                 let error_angles = Self::get_error_angles(axis1, axis2, solver_data.jacobian);
                 // Negation: We want to oppose the error.
                 hinge_bias = error_angles * -solver_data.coefficients.bias;
@@ -303,13 +308,13 @@ impl ImpulseJoint for AngularHinge {
             let impulse_to_velocity1 = solver_data.jacobian * inv_inertia1;
             let neg_impulse_to_velocity2 = solver_data.jacobian * inv_inertia2;
 
-            if body1.rb.is_dynamic() {
-                body1.angular_velocity.0 += impulse_to_velocity1 * csi;
-            }
-            if body2.rb.is_dynamic() {
-                body2.angular_velocity.0 -= neg_impulse_to_velocity2 * csi;
-            }
+            body1.angular_velocity += impulse_to_velocity1 * csi;
+            body2.angular_velocity -= neg_impulse_to_velocity2 * csi;
         }
+    }
+
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 
@@ -376,6 +381,7 @@ impl AngularHinge {
             #[cfg(feature = "3d")]
             swing_limit: SwingLimit::new(0.5),
             stiffness: SoftnessParameters::new(1.0, 0.125 / (1.0 / 60.0)),
+            relative_dominance: 0,
         }
     }
 }

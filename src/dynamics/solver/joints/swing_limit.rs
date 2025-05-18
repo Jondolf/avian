@@ -1,4 +1,7 @@
-use crate::prelude::*;
+use crate::{
+    dynamics::solver::solver_body::{SolverBody, SolverBodyInertia},
+    prelude::*,
+};
 use bevy::prelude::*;
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
 
@@ -23,6 +26,12 @@ pub struct SwingLimit {
 
     /// Spring parameters for tuning the stiffness and damping of the constraint.
     pub stiffness: SoftnessParameters,
+
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
 }
 
 /// Cached data required by the impulse-based solver for [`SwingLimit`].
@@ -31,6 +40,12 @@ pub struct SwingLimit {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, PartialEq)]
 pub struct SwingLimitSolverData {
+    /// The axis attached to the first body in world space.
+    pub axis1: Vector,
+
+    /// The axis attached to the second body in world space.
+    pub axis2: Vector,
+
     /// The minimum dot product between the two axes that the constraint tries to maintain.
     pub min_dot: Scalar,
 
@@ -94,7 +109,7 @@ impl ImpulseJoint for SwingLimit {
     type SolverData = SwingLimitSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
         solver_data: &mut SwingLimitSolverData,
@@ -105,9 +120,9 @@ impl ImpulseJoint for SwingLimit {
 
         // Update the Jacobian for the axis attached to the first body.
         // Note that J1 == -J2, so we only need to compute J1.
-        let axis1 = body1.rotation * self.local_axis1;
-        let axis2 = body2.rotation * self.local_axis2;
-        solver_data.jacobian1 = SwingLimit::jacobian1(axis1, axis2);
+        solver_data.axis1 = body1.rotation * self.local_axis1;
+        solver_data.axis2 = body2.rotation * self.local_axis2;
+        solver_data.jacobian1 = SwingLimit::jacobian1(solver_data.axis1, solver_data.axis2);
 
         // Update the effective mass and intermediary impulse-to-velocity values.
         self.update_effective_mass(i1, i2, solver_data);
@@ -127,34 +142,37 @@ impl ImpulseJoint for SwingLimit {
 
     fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        _inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        _inertia2: &SolverBodyInertia,
         solver_data: &SwingLimitSolverData,
     ) {
-        if body1.rb.is_dynamic() {
-            body1.angular_velocity.0 += solver_data.impulse_to_velocity1 * solver_data.impulse;
-        }
-        if body2.rb.is_dynamic() {
-            body2.angular_velocity.0 -= solver_data.neg_impulse_to_velocity2 * solver_data.impulse;
-        }
+        body1.angular_velocity += solver_data.impulse_to_velocity1 * solver_data.impulse;
+        body2.angular_velocity -= solver_data.neg_impulse_to_velocity2 * solver_data.impulse;
     }
 
     fn solve(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &mut SwingLimitSolverData,
         delta_secs: Scalar,
         use_bias: bool,
     ) {
-        let i1 = body1.effective_global_angular_inertia().inverse();
-        let i2 = body2.effective_global_angular_inertia().inverse();
+        let i1 = inertia1.effective_inv_angular_inertia();
+        let i2 = inertia2.effective_inv_angular_inertia();
+
+        let mut axis1 = solver_data.axis1;
+        let mut axis2 = solver_data.axis2;
 
         // Solving without bias is done after position integration, which can change rotation.
         // Recompute the Jacobian, effective mass, and impulse-to-velocity values with the new axes.
         if !use_bias {
-            let axis1 = body1.rotation.0 * self.local_axis1;
-            let axis2 = body2.rotation.0 * self.local_axis2;
+            axis1 = body1.delta_rotation * axis1;
+            axis2 = body2.delta_rotation * axis2;
             solver_data.jacobian1 = SwingLimit::jacobian1(axis1, axis2);
 
             self.update_effective_mass(i1, i2, solver_data);
@@ -165,8 +183,6 @@ impl ImpulseJoint for SwingLimit {
         // Compute the rotation error.
         //
         // C = dot(axis1, axis2) - min_dot
-        let axis1 = *body1.rotation * self.local_axis1;
-        let axis2 = *body2.rotation * self.local_axis2;
         let axis_dot = axis1.dot(axis2);
         let rotation_error = axis_dot - solver_data.min_dot;
 
@@ -176,7 +192,7 @@ impl ImpulseJoint for SwingLimit {
         //    = dot(J1, ω1) + dot(ω2, -J1)
         //    = dot(ω1 - ω2, J1)
         let velocity_error =
-            (body1.angular_velocity.0 - body2.angular_velocity.0).dot(solver_data.jacobian1);
+            (body1.angular_velocity - body2.angular_velocity).dot(solver_data.jacobian1);
 
         // Compute the incremental impulse in constraint space.
         let mut csi = if rotation_error > 0.0 {
@@ -200,12 +216,12 @@ impl ImpulseJoint for SwingLimit {
         solver_data.impulse = new_impulse;
 
         // Apply the clamped incremental impulse.
-        if body1.rb.is_dynamic() {
-            body1.angular_velocity.0 += solver_data.impulse_to_velocity1 * csi;
-        }
-        if body2.rb.is_dynamic() {
-            body2.angular_velocity.0 -= solver_data.neg_impulse_to_velocity2 * csi;
-        }
+        body1.angular_velocity += solver_data.impulse_to_velocity1 * csi;
+        body2.angular_velocity -= solver_data.neg_impulse_to_velocity2 * csi;
+    }
+
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 
@@ -269,6 +285,7 @@ impl SwingLimit {
             max_angle,
             // TODO: Tune these values
             stiffness: SoftnessParameters::new(1.0, 10.0),
+            relative_dominance: 0,
         }
     }
 

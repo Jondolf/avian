@@ -1,6 +1,9 @@
 //! [`SphericalJoint`] component.
 
-use crate::prelude::*;
+use crate::{
+    dynamics::solver::solver_body::{SolverBody, SolverBodyInertia},
+    prelude::*,
+};
 use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
@@ -26,6 +29,12 @@ pub struct SphericalJoint {
 
     /// The swing limit of the joint.
     pub swing_limit: Option<SwingLimit>,
+
+    /// The relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    pub relative_dominance: i16,
 }
 
 /// Cached data required by the impulse-based solver for [`SphericalJoint`].
@@ -57,7 +66,7 @@ impl ImpulseJoint for SphericalJoint {
     type SolverData = SphericalJointSolverData;
 
     fn prepare(
-        &self,
+        &mut self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
         solver_data: &mut SphericalJointSolverData,
@@ -68,31 +77,40 @@ impl ImpulseJoint for SphericalJoint {
             .prepare(body1, body2, &mut solver_data.point_constraint, delta_secs);
 
         // Prepare the swing limit constraint.
-        if let Some(swing_limit) = &self.swing_limit {
+        if let Some(swing_limit) = &mut self.swing_limit {
             swing_limit.prepare(body1, body2, &mut solver_data.swing_limit, delta_secs);
         }
     }
 
     fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &SphericalJointSolverData,
     ) {
         // Warm start the point-to-point constraint.
-        self.point_constraint
-            .warm_start(body1, body2, &solver_data.point_constraint);
+        self.point_constraint.warm_start(
+            body1,
+            inertia1,
+            body2,
+            inertia2,
+            &solver_data.point_constraint,
+        );
 
         // Warm start the swing limit constraint.
         if let Some(swing_limit) = &self.swing_limit {
-            swing_limit.warm_start(body1, body2, &solver_data.swing_limit);
+            swing_limit.warm_start(body1, inertia1, body2, inertia2, &solver_data.swing_limit);
         }
     }
 
     fn solve(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &mut SphericalJointSolverData,
         delta_secs: Scalar,
         use_bias: bool,
@@ -100,7 +118,9 @@ impl ImpulseJoint for SphericalJoint {
         // Solve the point-to-point constraint.
         self.point_constraint.solve(
             body1,
+            inertia1,
             body2,
+            inertia2,
             &mut solver_data.point_constraint,
             delta_secs,
             use_bias,
@@ -110,12 +130,18 @@ impl ImpulseJoint for SphericalJoint {
         if let Some(swing_limit) = &self.swing_limit {
             swing_limit.solve(
                 body1,
+                inertia1,
                 body2,
+                inertia2,
                 &mut solver_data.swing_limit,
                 delta_secs,
                 use_bias,
             );
         }
+    }
+
+    fn relative_dominance(&self) -> i16 {
+        self.relative_dominance
     }
 }
 
@@ -125,6 +151,7 @@ impl SphericalJoint {
         Self {
             point_constraint: PointConstraint::new(entity1, entity2),
             swing_limit: None,
+            relative_dominance: 0,
         }
     }
 

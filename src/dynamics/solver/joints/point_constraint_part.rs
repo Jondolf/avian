@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{dynamics::solver::solver_body::SolverBody, prelude::*};
 use bevy::prelude::*;
 use dynamics::solver::softness_parameters::SoftnessCoefficients;
 
@@ -21,8 +21,10 @@ type EffectiveMass = SymmetricMatrix3;
 impl PointConstraintPart {
     pub fn compute_incremental_impulse(
         &self,
-        body1: &RigidBodyQueryItem,
-        body2: &RigidBodyQueryItem,
+        body1: &SolverBody,
+        body2: &SolverBody,
+        r1: Vector,
+        r2: Vector,
         effective_mass: &EffectiveMass,
         softness: &SoftnessCoefficients,
         use_bias: bool,
@@ -32,14 +34,13 @@ impl PointConstraintPart {
         let mut impulse_scale = 0.0;
 
         if use_bias {
-            let separation =
-                Self::position_error(body1, body2, self.r1, self.r2, self.center_difference);
+            let separation = Self::position_error(body1, body2, r1, r2, self.center_difference);
             bias = softness.bias * separation;
             mass_scale = softness.mass_scale;
             impulse_scale = softness.impulse_scale;
         }
 
-        let velocity_error = Self::velocity_error(body1, body2, self.r1, self.r2);
+        let velocity_error = Self::velocity_error(body1, body2, r1, r2);
 
         // Compute the impulse.
         -effective_mass.mul_scalar(mass_scale) * (velocity_error + bias)
@@ -47,20 +48,19 @@ impl PointConstraintPart {
     }
 
     pub fn position_error(
-        body1: &RigidBodyQueryItem,
-        body2: &RigidBodyQueryItem,
+        body1: &SolverBody,
+        body2: &SolverBody,
         r1: Vector,
         r2: Vector,
         center_difference: Vector,
     ) -> Vector {
-        let delta_separation =
-            (body2.solver_body.delta_position - body1.solver_body.delta_position) + (r2 - r1);
+        let delta_separation = (body2.delta_position - body1.delta_position) + (r2 - r1);
         delta_separation + center_difference
     }
 
     pub fn velocity_error(
-        body1: &RigidBodyQueryItem,
-        body2: &RigidBodyQueryItem,
+        body1: &SolverBody,
+        body2: &SolverBody,
         r1: Vector,
         r2: Vector,
     ) -> Vector {
@@ -74,19 +74,20 @@ impl PointConstraintPart {
     #[inline]
     pub fn effective_inverse_mass(
         &self,
+        r1: Vector,
+        r2: Vector,
         inverse_mass_sum: Scalar,
         inverse_angular_inertia1: &Scalar,
         inverse_angular_inertia2: &Scalar,
     ) -> Matrix2 {
         let k00 = inverse_mass_sum
-            + self.r1.y.powi(2) * inverse_angular_inertia1
-            + self.r2.y.powi(2) * inverse_angular_inertia2;
-        let k10 = -self.r1.y * self.r1.x * inverse_angular_inertia1
-            - self.r2.y * self.r2.x * inverse_angular_inertia2;
+            + r1.y.powi(2) * inverse_angular_inertia1
+            + r2.y.powi(2) * inverse_angular_inertia2;
+        let k10 = -r1.y * r1.x * inverse_angular_inertia1 - r2.y * r2.x * inverse_angular_inertia2;
         let k01 = k10;
         let k11 = inverse_mass_sum
-            + self.r1.x.powi(2) * inverse_angular_inertia1
-            + self.r2.x.powi(2) * inverse_angular_inertia2;
+            + r1.x.powi(2) * inverse_angular_inertia1
+            + r2.x.powi(2) * inverse_angular_inertia2;
         Matrix2::from_cols_array(&[k00, k10, k01, k11])
     }
 
@@ -94,13 +95,15 @@ impl PointConstraintPart {
     #[inline]
     pub fn effective_inverse_mass(
         &self,
+        r1: Vector,
+        r2: Vector,
         inverse_mass_sum: Scalar,
         inverse_angular_inertia1: &SymmetricMatrix3,
         inverse_angular_inertia2: &SymmetricMatrix3,
     ) -> SymmetricMatrix3 {
         let mut effective_inverse_mass;
-        let angular_contribution1 = inverse_angular_inertia1.skew(self.r1);
-        let angular_contribution2 = inverse_angular_inertia2.skew(self.r2);
+        let angular_contribution1 = inverse_angular_inertia1.skew(r1);
+        let angular_contribution2 = inverse_angular_inertia2.skew(r2);
         effective_inverse_mass = angular_contribution1 + angular_contribution2;
         effective_inverse_mass.m00 += inverse_mass_sum;
         effective_inverse_mass.m11 += inverse_mass_sum;

@@ -113,6 +113,8 @@ pub use swing_limit::SwingLimit;
 use crate::prelude::*;
 use bevy::{ecs::entity::MapEntities, prelude::*};
 
+use super::solver_body::{SolverBody, SolverBodyInertia};
+
 /// A trait for constraints between entities.
 pub trait EntityConstraint<const N: usize>: MapEntities {
     /// Returns the entities participating in the constraint.
@@ -126,7 +128,7 @@ pub trait ImpulseJoint {
 
     /// Prepares the joint for the solver by caching necessary data.
     fn prepare(
-        &self,
+        &mut self,
         body1: &RigidBodyQueryReadOnlyItem,
         body2: &RigidBodyQueryReadOnlyItem,
         solver_data: &mut Self::SolverData,
@@ -136,20 +138,30 @@ pub trait ImpulseJoint {
     /// Warm starts the joint impulses.
     fn warm_start(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &Self::SolverData,
     );
 
     /// Solves the joint constraint.
     fn solve(
         &self,
-        body1: &mut RigidBodyQueryItem,
-        body2: &mut RigidBodyQueryItem,
+        body1: &mut SolverBody,
+        inertia1: &SolverBodyInertia,
+        body2: &mut SolverBody,
+        inertia2: &SolverBodyInertia,
         solver_data: &mut Self::SolverData,
         delta_secs: Scalar,
         use_bias: bool,
     );
+
+    /// Returns the relative dominance of the bodies.
+    ///
+    /// If the relative dominance is positive, the first body is dominant
+    /// and is considered to have infinite mass.
+    fn relative_dominance(&self) -> i16;
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.
