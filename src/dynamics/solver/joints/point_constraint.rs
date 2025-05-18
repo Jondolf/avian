@@ -18,6 +18,7 @@ use super::point_constraint_part::PointConstraintPart;
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
+#[require(PointConstraintSolverData)]
 pub struct PointConstraint {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -33,19 +34,6 @@ pub struct PointConstraint {
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
-}
-
-impl Component for PointConstraint {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            world
-                .commands()
-                .entity(entity)
-                .insert(PointConstraintSolverData::default());
-        });
-    }
 }
 
 /// Cached data required by the impulse-based solver for [`PointConstraint`].

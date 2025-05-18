@@ -9,7 +9,7 @@ use bevy::{
     prelude::*,
     time::TimeUpdateStrategy,
 };
-use std::time::Duration;
+use core::time::Duration;
 
 #[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
 mod determinism_2d;
@@ -20,9 +20,7 @@ fn create_app() -> App {
     app.add_plugins((
         MinimalPlugins,
         TransformPlugin,
-        PhysicsPlugins::default()
-            .build()
-            .disable::<ColliderHierarchyPlugin>(),
+        PhysicsPlugins::default(),
         bevy::asset::AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
         bevy::scene::ScenePlugin,
@@ -86,7 +84,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
 }
 
 #[test]
-fn it_loads_plugin_without_errors() -> Result<(), Box<dyn std::error::Error>> {
+fn it_loads_plugin_without_errors() -> Result<(), Box<dyn core::error::Error>> {
     let mut app = create_app();
 
     for _ in 0..500 {
@@ -130,7 +128,7 @@ fn body_with_velocity_moves() {
 
     let mut app_query = app.world_mut().query::<(&Transform, &RigidBody)>();
 
-    let (transform, _body) = app_query.single(app.world());
+    let (transform, _body) = app_query.single(app.world()).unwrap();
 
     assert_relative_eq!(transform.translation.y, 0.);
     assert_relative_eq!(transform.translation.z, 0.);

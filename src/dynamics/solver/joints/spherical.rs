@@ -20,6 +20,7 @@ use super::{point_constraint::PointConstraintSolverData, swing_limit::SwingLimit
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
+#[require(SphericalJointSolverData)]
 pub struct SphericalJoint {
     /// The point-to-point constraint of the joint.
     pub point_constraint: PointConstraint,
@@ -45,19 +46,6 @@ pub struct SphericalJointSolverData {
 
     /// Coefficients computed for the spring parameters of the constraint.
     pub coefficients: SoftnessCoefficients,
-}
-
-impl Component for SphericalJoint {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            world
-                .commands()
-                .entity(entity)
-                .insert(SphericalJointSolverData::default());
-        });
-    }
 }
 
 impl EntityConstraint<2> for SphericalJoint {
