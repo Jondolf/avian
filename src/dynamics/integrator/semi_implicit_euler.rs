@@ -225,9 +225,9 @@ pub fn solve_gyroscopic_torque(
     // Convert back to world-space angular velocity.
     let local_inverse_inertia = local_inertia.inverse();
     let inv_inertia_diagonal = Vector::new(
-        local_inverse_inertia.x_axis.x,
-        local_inverse_inertia.y_axis.y,
-        local_inverse_inertia.z_axis.z,
+        local_inverse_inertia.m00,
+        local_inverse_inertia.m11,
+        local_inverse_inertia.m22,
     );
     *ang_vel = rotation * (inv_inertia_diagonal * new_local_momentum);
 }

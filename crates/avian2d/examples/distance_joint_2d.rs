@@ -38,7 +38,8 @@ fn setup(mut commands: Commands) {
         ))
         .id();
 
-    commands.spawn(
+    todo!();
+    /*commands.spawn(
         DistanceJoint::new(anchor, object)
             .with_local_anchor_1(Vector::ZERO)
             .with_local_anchor_2(Vector::ZERO)
@@ -46,5 +47,5 @@ fn setup(mut commands: Commands) {
             .with_linear_velocity_damping(0.1)
             .with_angular_velocity_damping(1.0)
             .with_compliance(0.00000001),
-    );
+    );*/
 }

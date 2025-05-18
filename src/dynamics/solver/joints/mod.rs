@@ -83,17 +83,10 @@
 //! [See the code implementations](https://github.com/Jondolf/avian/tree/main/src/constraints/joints)
 //! of the implemented joints to get a better idea of how to create joints.
 
-mod fixed_angle_constraint;
-mod point_constraint;
-
-mod distance;
-mod fixed;
 #[cfg(feature = "2d")]
 mod hinge2d;
 #[cfg(feature = "3d")]
 mod hinge3d;
-mod prismatic;
-mod revolute;
 #[cfg(feature = "3d")]
 mod spherical;
 #[cfg(feature = "3d")]
@@ -107,26 +100,22 @@ mod point_constraint_part;
 pub use debug_render::ConstraintDebugRender;
 
 pub use angular_hinge::AngularHinge;
-pub use distance::*;
-pub use fixed::*;
 #[cfg(feature = "2d")]
 pub use hinge2d::*;
 #[cfg(feature = "3d")]
 pub use hinge3d::*;
 pub use point_constraint::PointConstraint;
-pub use prismatic::*;
-pub use revolute::*;
 #[cfg(feature = "3d")]
 pub use spherical::*;
 #[cfg(feature = "3d")]
 pub use swing_limit::SwingLimit;
 
-use crate::{dynamics::solver::xpbd::*, prelude::*};
-use bevy::prelude::*;
+use crate::prelude::*;
+use bevy::{ecs::entity::MapEntities, prelude::*};
 
 /// A trait for constraints between entities.
-pub trait EntityConstraint<const N: usize>: Component {
-    /// Returns the entities connected by the constraint.
+pub trait EntityConstraint<const N: usize>: MapEntities {
+    /// Returns the entities participating in the constraint.
     fn entities(&self) -> [Entity; N];
 }
 
@@ -161,30 +150,6 @@ pub trait ImpulseJoint {
         delta_secs: Scalar,
         use_bias: bool,
     );
-}
-
-/// A trait for [joints](self).
-pub trait Joint: Component + PositionConstraint + AngularConstraint {
-    /// Creates a new joint between two entities.
-    fn new(entity1: Entity, entity2: Entity) -> Self;
-
-    /// Returns the local attachment point on the first body.
-    fn local_anchor_1(&self) -> Vector;
-
-    /// Returns the local attachment point on the second body.
-    fn local_anchor_2(&self) -> Vector;
-
-    /// Returns the linear velocity damping applied by the joint.
-    fn damping_linear(&self) -> Scalar;
-
-    /// Returns the angular velocity damping applied by the joint.
-    fn damping_angular(&self) -> Scalar;
-
-    /// Returns the relative dominance of the bodies.
-    ///
-    /// If the relative dominance is positive, the first body is dominant
-    /// and is considered to have infinite mass.
-    fn relative_dominance(&self) -> i16;
 }
 
 /// A limit that indicates that the distance between two points should be between `min` and `max`.

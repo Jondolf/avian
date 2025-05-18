@@ -7,15 +7,13 @@ pub mod joints;
 pub mod schedule;
 pub mod softness_parameters;
 pub mod solver_body;
-pub mod xpbd;
 
 mod diagnostics;
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
-use xpbd::EntityConstraint;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::component::Mutable, prelude::*};
 use core::cmp::Ordering;
 use schedule::SubstepSolverSet;
 
@@ -63,9 +61,6 @@ use self::{
 ///     3. [Solve constraints with bias](SubstepSolverSet::SolveConstraints)
 ///     4. [Integrate positions](super::integrator::IntegrationSet::Position)
 ///     5. [Solve constraints without bias to relax velocities](SubstepSolverSet::Relax)
-///     6. [Solve XPBD constraints (joints)](SubstepSolverSet::SolveXpbdConstraints)
-///     7. [Solve user-defined constraints](SubstepSolverSet::SolveUserConstraints)
-///     8. [Update velocities after XPBD constraint solving.](SubstepSolverSet::XpbdVelocityProjection)
 /// 5. [Apply restitution](SolverSet::Restitution)
 /// 6. [Write back solver body data to rigid bodies](SolverSet::Finalize)
 /// 7. [Store contact impulses for next frame's warm starting](SolverSet::StoreContactImpulses)
@@ -116,11 +111,6 @@ impl Plugin for SolverPlugin {
         // Prepare joints before the substepping loop.
         physics.add_systems(
             (
-                |mut query: Query<(&Rotation, &mut PreviousRotation)>| {
-                    for (rot, mut prev_rot) in &mut query {
-                        prev_rot.0 = *rot;
-                    }
-                },
                 #[cfg(feature = "3d")]
                 prepare_joints::<SphericalJoint>.ambiguous_with_all(),
                 prepare_joints::<HingeJoint>.ambiguous_with_all(),
@@ -186,52 +176,6 @@ impl Plugin for SolverPlugin {
                 .chain()
                 .in_set(SubstepSolverSet::Relax),
         );
-
-        // Solve joints with XPBD.
-        substeps.add_systems(
-            (
-                |mut query: Query<
-                    (
-                        &SolverBody,
-                        &mut PreSolveDeltaPosition,
-                        &mut PreSolveDeltaRotation,
-                    ),
-                    Without<RigidBodyDisabled>,
-                >| {
-                    for (body, mut pre_solve_delta_position, mut pre_solve_delta_rotation) in
-                        &mut query
-                    {
-                        // Store the previous delta translation and rotation for XPBD velocity updates.
-                        pre_solve_delta_position.0 = body.delta_position;
-                        pre_solve_delta_rotation.0 = body.delta_rotation;
-                    }
-                },
-                /*xpbd::solve_constraint::<FixedJoint, 2>,
-                xpbd::solve_constraint::<RevoluteJoint, 2>,
-                #[cfg(feature = "3d")]
-                xpbd::solve_constraint::<SphericalJoint, 2>,
-                xpbd::solve_constraint::<PrismaticJoint, 2>,
-                xpbd::solve_constraint::<DistanceJoint, 2>,*/
-            )
-                .chain()
-                .in_set(SubstepSolverSet::SolveXpbdConstraints),
-        );
-
-        // Perform XPBD velocity updates after constraint solving.
-        /*substeps.add_systems(
-            (
-                xpbd::project_linear_velocity,
-                xpbd::project_angular_velocity,
-                joint_damping::<FixedJoint>,
-                joint_damping::<RevoluteJoint>,
-                #[cfg(feature = "3d")]
-                joint_damping::<SphericalJoint>,
-                joint_damping::<PrismaticJoint>,
-                joint_damping::<DistanceJoint>,
-            )
-                .chain()
-                .in_set(SubstepSolverSet::XpbdVelocityProjection),
-        );*/
     }
 
     fn finish(&self, app: &mut App) {
@@ -563,12 +507,12 @@ fn solve_contacts<const USE_BIAS: bool>(
     }
 }
 
-fn prepare_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
+fn prepare_joints<Joint: Component<Mutability = Mutable> + ImpulseJoint + EntityConstraint<2>>(
     bodies: Query<RigidBodyQueryReadOnly>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
     time: Res<Time<Substeps>>,
 ) where
-    Joint::SolverData: Component,
+    Joint::SolverData: Component<Mutability = Mutable>,
 {
     let delta_secs = time.delta_secs_f64() as Scalar;
     for (joint, mut solver_data) in joints.iter_mut() {
@@ -623,13 +567,16 @@ fn warm_start_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component>(
 }
 
 /// Solves impulse-based joint constraints.
-pub fn solve_joints<Joint: ImpulseJoint + EntityConstraint<2> + Component, const USE_BIAS: bool>(
+pub fn solve_joints<
+    Joint: Component<Mutability = Mutable> + ImpulseJoint + EntityConstraint<2>,
+    const USE_BIAS: bool,
+>(
     mut commands: Commands,
     mut bodies: Query<RigidBodyQuery>,
     mut joints: Query<(&Joint, &mut Joint::SolverData), Without<RigidBody>>,
     time: Res<Time>,
 ) where
-    Joint::SolverData: Component,
+    Joint::SolverData: Component<Mutability = Mutable>,
 {
     let delta_secs = time.delta_seconds_adjusted();
 
@@ -762,70 +709,4 @@ fn store_contact_impulses(
     }
 
     diagnostics.store_impulses += start.elapsed();
-}
-
-/// Applies velocity corrections caused by joint damping.
-#[allow(clippy::type_complexity)]
-pub fn joint_damping<T: Joint + EntityConstraint<2>>(
-    mut bodies: Query<
-        (
-            &RigidBody,
-            &mut LinearVelocity,
-            &mut AngularVelocity,
-            &ComputedMass,
-            Option<&Dominance>,
-        ),
-        RigidBodyActiveFilter,
-    >,
-    joints: Query<&T, Without<RigidBody>>,
-    time: Res<Time>,
-) {
-    let delta_secs = time.delta_seconds_adjusted();
-
-    for joint in &joints {
-        if let Ok(
-            [(rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2)],
-        ) = bodies.get_many_mut(joint.entities())
-        {
-            let delta_omega =
-                (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * delta_secs).min(1.0);
-
-            if rb1.is_dynamic() {
-                ang_vel1.0 += delta_omega;
-            }
-            if rb2.is_dynamic() {
-                ang_vel2.0 -= delta_omega;
-            }
-
-            let delta_v =
-                (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
-
-            let w1 = if rb1.is_dynamic() {
-                mass1.inverse()
-            } else {
-                0.0
-            };
-            let w2 = if rb2.is_dynamic() {
-                mass2.inverse()
-            } else {
-                0.0
-            };
-
-            if w1 + w2 <= Scalar::EPSILON {
-                continue;
-            }
-
-            let p = delta_v / (w1 + w2);
-
-            let dominance1 = dominance1.map_or(0, |dominance| dominance.0);
-            let dominance2 = dominance2.map_or(0, |dominance| dominance.0);
-
-            if rb1.is_dynamic() && (!rb2.is_dynamic() || dominance1 <= dominance2) {
-                lin_vel1.0 += p * mass1.inverse();
-            }
-            if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
-                lin_vel2.0 -= p * mass2.inverse();
-            }
-        }
-    }
 }

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::prelude::*;
+use crate::{dynamics::solver::solver_body::SolverBody, prelude::*};
 use bevy::{
     ecs::query::QueryData,
     prelude::{Entity, Has, Ref},
@@ -11,6 +11,7 @@ use bevy::{
 #[query_data(mutable)]
 pub struct RigidBodyQuery {
     pub entity: Entity,
+    pub solver_body: &'static mut SolverBody,
     pub rb: Ref<'static, RigidBody>,
     pub position: &'static mut Position,
     pub rotation: &'static mut Rotation,
@@ -31,6 +32,16 @@ pub struct RigidBodyQuery {
 }
 
 impl RigidBodyQueryItem<'_> {
+    /// Returns the current position of the rigid body.
+    pub fn current_position(&self) -> Vector {
+        self.position.0 + self.solver_body.delta_position
+    }
+
+    /// Returns the current rotation of the rigid body.
+    pub fn current_rotation(&self) -> Rotation {
+        self.solver_body.delta_rotation * *self.rotation
+    }
+
     /// Computes the velocity at the given `point` relative to the center of the body.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]
@@ -85,6 +96,11 @@ impl RigidBodyQueryItem<'_> {
         angular_inertia
     }
 
+    /// Returns the center of mass of the rigid body in world space.
+    pub fn global_center_of_mass(&self) -> Vector {
+        self.current_position() + self.current_rotation() * self.center_of_mass.0
+    }
+
     /// Returns the [dominance](Dominance) of the body.
     ///
     /// If it isn't specified, the default of `0` is returned for dynamic bodies.
@@ -99,6 +115,16 @@ impl RigidBodyQueryItem<'_> {
 }
 
 impl RigidBodyQueryReadOnlyItem<'_> {
+    /// Returns the current position of the rigid body.
+    pub fn current_position(&self) -> Vector {
+        self.position.0 + self.solver_body.delta_position
+    }
+
+    /// Returns the current rotation of the rigid body.
+    pub fn current_rotation(&self) -> Rotation {
+        self.solver_body.delta_rotation * *self.rotation
+    }
+
     /// Computes the velocity at the given `point` relative to the center of mass.
     pub fn velocity_at_point(&self, point: Vector) -> Vector {
         #[cfg(feature = "2d")]
@@ -160,6 +186,11 @@ impl RigidBodyQueryReadOnlyItem<'_> {
         }
 
         angular_inertia
+    }
+
+    /// Returns the center of mass of the rigid body in world space.
+    pub fn global_center_of_mass(&self) -> Vector {
+        self.current_position() + self.current_rotation() * self.center_of_mass.0
     }
 
     /// Returns the [dominance](Dominance) of the body.

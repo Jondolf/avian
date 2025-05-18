@@ -364,15 +364,20 @@ impl SolverBodyInertia {
     pub fn effective_inv_angular_inertia(&self) -> Tensor {
         let mut inv_inertia = self.inv_inertia;
 
-        // TODO: Should we just store the effective version directly rather than computing it here?
         if self.flags.contains(InertiaFlags::ROTATION_X_LOCKED) {
-            inv_inertia.x_axis = Vector::ZERO;
+            inv_inertia.m00 = 0.0;
+            inv_inertia.m01 = 0.0;
+            inv_inertia.m02 = 0.0;
         }
         if self.flags.contains(InertiaFlags::ROTATION_Y_LOCKED) {
-            inv_inertia.y_axis = Vector::ZERO;
+            inv_inertia.m11 = 0.0;
+            inv_inertia.m01 = 0.0;
+            inv_inertia.m12 = 0.0;
         }
         if self.flags.contains(InertiaFlags::ROTATION_Z_LOCKED) {
-            inv_inertia.z_axis = Vector::ZERO;
+            inv_inertia.m22 = 0.0;
+            inv_inertia.m02 = 0.0;
+            inv_inertia.m12 = 0.0;
         }
 
         inv_inertia

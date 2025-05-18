@@ -42,5 +42,6 @@ fn setup(mut commands: Commands) {
         ))
         .id();
 
-    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 100.0));
+    todo!();
+    // commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 100.0));
 }

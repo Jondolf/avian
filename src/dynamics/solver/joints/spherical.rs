@@ -3,7 +3,6 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
         reflect::ReflectMapEntities,
     },
@@ -16,7 +15,7 @@ use super::{point_constraint::PointConstraintSolverData, swing_limit::SwingLimit
 /// A spherical joint prevents relative translation of the attached bodies while allowing rotation around all axes.
 ///
 /// Spherical joints can be useful for things like pendula, chains, ragdolls etc.
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
@@ -178,8 +177,8 @@ impl SphericalJoint {
 
 impl MapEntities for SphericalJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.point_constraint.entity1 = entity_mapper.map_entity(self.point_constraint.entity1);
-        self.point_constraint.entity2 = entity_mapper.map_entity(self.point_constraint.entity2);
+        self.point_constraint.entity1 = entity_mapper.get_mapped(self.point_constraint.entity1);
+        self.point_constraint.entity2 = entity_mapper.get_mapped(self.point_constraint.entity2);
     }
 }
 

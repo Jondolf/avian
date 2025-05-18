@@ -64,10 +64,6 @@ impl_diagnostic_paths! {
 fn diagnostic_entity_counts(
     rigid_bodies_query: Query<&RigidBody>,
     colliders_query: Query<&ColliderMarker>,
-    fixed_joint_query: Query<&FixedJoint>,
-    prismatic_joint_query: Query<&PrismaticJoint>,
-    distance_joint_query: Query<&DistanceJoint>,
-    revolute_joint_query: Query<&RevoluteJoint>,
     #[cfg(feature = "3d")] spherical_joint_query: Query<&SphericalJoint>,
     mut diagnostics: ResMut<PhysicsEntityDiagnostics>,
 ) {
@@ -84,10 +80,6 @@ fn diagnostic_entity_counts(
         .filter(|rb| rb.is_static())
         .count() as u32;
     diagnostics.collider_count = colliders_query.iter().count() as u32;
-    diagnostics.joint_count = fixed_joint_query.iter().count() as u32
-        + prismatic_joint_query.iter().count() as u32
-        + distance_joint_query.iter().count() as u32
-        + revolute_joint_query.iter().count() as u32;
     #[cfg(feature = "3d")]
     {
         diagnostics.joint_count += spherical_joint_query.iter().count() as u32;

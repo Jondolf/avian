@@ -59,7 +59,7 @@ pub(crate) type Tensor = Scalar;
 ///
 /// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
 #[cfg(feature = "3d")]
-pub(crate) type Tensor = Matrix3;
+pub(crate) type Tensor = SymmetricMatrix3;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
@@ -385,6 +385,8 @@ impl MatExt for DMat3 {
 }
 
 impl MatExt for SymmetricMatrix3 {
+    type Scalar = f32;
+
     #[inline]
     fn inverse_or_zero(self) -> Self {
         if self.determinant() == 0.0 {
@@ -392,6 +394,25 @@ impl MatExt for SymmetricMatrix3 {
         } else {
             self.inverse()
         }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec3::new(self.m00, self.m11, self.m22);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.m01, self.m02, self.m12];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
     }
 }
 

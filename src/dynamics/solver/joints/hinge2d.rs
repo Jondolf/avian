@@ -3,7 +3,6 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
         reflect::ReflectMapEntities,
     },
@@ -16,10 +15,11 @@ use super::point_constraint_part::PointConstraintPart;
 /// A hinge joint prevents relative translation of the attached bodies, but allows rotation.
 ///
 /// Hinges can be useful for things like wheels, fans, revolving doors etc.
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
+#[require(HingeJointSolverData)]
 pub struct HingeJoint {
     /// The first entity constrained by the joint.
     pub entity1: Entity,
@@ -38,19 +38,6 @@ pub struct HingeJoint {
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
-}
-
-impl Component for HingeJoint {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            world
-                .commands()
-                .entity(entity)
-                .insert(HingeJointSolverData::default());
-        });
-    }
 }
 
 /// Cached data required by the impulse-based solver for [`HingeJoint`].
@@ -326,7 +313,7 @@ impl HingeJoint {
 
 impl MapEntities for HingeJoint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.entity1 = entity_mapper.get_mapped(self.entity1);
+        self.entity2 = entity_mapper.get_mapped(self.entity2);
     }
 }

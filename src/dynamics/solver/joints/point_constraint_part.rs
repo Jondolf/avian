@@ -54,7 +54,7 @@ impl PointConstraintPart {
         center_difference: Vector,
     ) -> Vector {
         let delta_separation =
-            (body2.accumulated_translation.0 - body1.accumulated_translation.0) + (r2 - r1);
+            (body2.solver_body.delta_position - body1.solver_body.delta_position) + (r2 - r1);
         delta_separation + center_difference
     }
 

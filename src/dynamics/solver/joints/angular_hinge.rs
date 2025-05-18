@@ -1,9 +1,6 @@
 use crate::prelude::*;
 use bevy::{
-    ecs::{
-        component::{ComponentHooks, StorageType},
-        entity::{EntityMapper, MapEntities},
-    },
+    ecs::entity::{EntityMapper, MapEntities},
     prelude::*,
 };
 use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParameters};
@@ -12,10 +9,11 @@ use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParame
 use super::swing_limit::SwingLimitSolverData;
 
 /// The angular part of a hinge joint.
-#[derive(Clone, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
+#[require(AngularHingeSolverData)]
 pub struct AngularHinge {
     /// First entity constrained by the joint.
     pub entity1: Entity,
@@ -40,19 +38,6 @@ pub struct AngularHinge {
 
     /// Soft constraint parameters for tuning the stiffness and damping of the joint.
     pub stiffness: SoftnessParameters,
-}
-
-impl Component for AngularHinge {
-    const STORAGE_TYPE: StorageType = StorageType::Table;
-
-    fn register_component_hooks(hooks: &mut ComponentHooks) {
-        hooks.on_add(|mut world, entity, _| {
-            world
-                .commands()
-                .entity(entity)
-                .insert(AngularHingeSolverData::default());
-        });
-    }
 }
 
 /// Cached data required by the impulse-based solver for [`AngularHinge`].
@@ -422,8 +407,8 @@ impl AngularHinge {
 
 impl MapEntities for AngularHinge {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.entity1 = entity_mapper.get_mapped(self.entity1);
+        self.entity2 = entity_mapper.get_mapped(self.entity2);
     }
 }
 

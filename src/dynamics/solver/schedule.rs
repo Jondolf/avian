@@ -62,9 +62,6 @@ impl Plugin for SolverSchedulePlugin {
                         SubstepSolverSet::SolveConstraints,
                         IntegrationSet::Position,
                         SubstepSolverSet::Relax,
-                        SubstepSolverSet::SolveXpbdConstraints,
-                        SubstepSolverSet::SolveUserConstraints,
-                        SubstepSolverSet::XpbdVelocityProjection,
                     )
                         .chain(),
                 );
@@ -124,9 +121,6 @@ pub enum SolverSet {
 /// 3. Solve constraints with bias ([`SubstepSolverSet::SolveConstraints`])
 /// 4. Integrate positions ([`IntegrationSet::Position`])
 /// 5. Solve constraints without bias to relax velocities ([`SubstepSolverSet::Relax`])
-/// 6. Solve joints using Extended Position-Based Dynamics (XPBD). ([`SubstepSolverSet::SolveXpbdConstraints`])
-/// 7. Solve user-defined constraints. ([`SubstepSolverSet::SolveUserConstraints`])
-/// 8. Update velocities after XPBD constraint solving. ([`SubstepSolverSet::XpbdVelocityProjection`])
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubstepSolverSet {
     /// Warm starts the solver by applying the impulses from the previous frame or substep.
@@ -141,12 +135,6 @@ pub enum SubstepSolverSet {
     /// Solves velocity constraints without a position bias to relax the biased velocities
     /// and impulses. This reduces overshooting caused by [warm starting](SubstepSolverSet::WarmStart).
     Relax,
-    /// Solves joints using Extended Position-Based Dynamics (XPBD).
-    SolveXpbdConstraints,
-    /// A system set for user constraints.
-    SolveUserConstraints,
-    /// Performs velocity updates after XPBD constraint solving.
-    XpbdVelocityProjection,
 }
 
 /// The number of substeps used in the simulation.

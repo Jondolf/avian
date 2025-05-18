@@ -10,7 +10,7 @@ mod gizmos;
 pub use configuration::*;
 pub use gizmos::*;
 
-use crate::{dynamics::solver::xpbd::EntityConstraint, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, query::Has, schedule::ScheduleLabel},
     prelude::*,
@@ -121,11 +121,6 @@ impl Plugin for PhysicsDebugPlugin {
                     ))]
                     debug_render_colliders,
                     debug_render_contacts,
-                    // TODO: Refactor joints to allow iterating over all of them without generics
-                    debug_render_joints::<FixedJoint>,
-                    debug_render_joints::<PrismaticJoint>,
-                    debug_render_joints::<DistanceJoint>,
-                    debug_render_joints::<RevoluteJoint>,
                     #[cfg(feature = "3d")]
                     debug_render_constraints::<SphericalJoint>,
                     #[cfg(feature = "3d")]
@@ -390,53 +385,6 @@ fn debug_render_constraints<
         }
     }
 }
-
-fn debug_render_joints<T: Joint>(
-    bodies: Query<(&Position, &Rotation, Has<Sleeping>)>,
-    joints: Query<(&T, Option<&DebugRender>)>,
-    mut gizmos: Gizmos<PhysicsGizmos>,
-    store: Res<GizmoConfigStore>,
-) {
-    let config = store.config::<PhysicsGizmos>().1;
-    for (joint, render_config) in &joints {
-        if let Ok([(pos1, rot1, sleeping1), (pos2, rot2, sleeping2)]) =
-            bodies.get_many(joint.entities())
-        {
-            if let Some(mut anchor_color) = config.joint_anchor_color {
-                // If both bodies are sleeping, multiply the color by the sleeping color multiplier
-                if sleeping1 && sleeping2 {
-                    let hsla = Hsla::from(anchor_color).to_vec4();
-                    if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
-                        c.sleeping_color_multiplier
-                    }) {
-                        anchor_color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
-                    }
-                }
-
-                gizmos.draw_line(pos1.0, pos1.0 + rot1 * joint.local_anchor_1(), anchor_color);
-                gizmos.draw_line(pos2.0, pos2.0 + rot2 * joint.local_anchor_2(), anchor_color);
-            }
-            if let Some(mut separation_color) = config.joint_separation_color {
-                // If both bodies are sleeping, multiply the color by the sleeping color multiplier
-                if sleeping1 && sleeping2 {
-                    let hsla = Hsla::from(separation_color).to_vec4();
-                    if let Some(mul) = render_config.map_or(config.sleeping_color_multiplier, |c| {
-                        c.sleeping_color_multiplier
-                    }) {
-                        separation_color = Hsla::from_vec4(hsla * Vec4::from_array(mul)).into();
-                    }
-                }
-
-                gizmos.draw_line(
-                    pos1.0 + rot1 * joint.local_anchor_1(),
-                    pos2.0 + rot2 * joint.local_anchor_2(),
-                    separation_color,
-                );
-            }
-        }
-    }
-}
-
 fn debug_render_raycasts(
     query: Query<(&RayCaster, &RayHits)>,
     mut gizmos: Gizmos<PhysicsGizmos>,

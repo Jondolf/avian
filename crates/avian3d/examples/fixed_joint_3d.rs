@@ -45,7 +45,8 @@ fn setup(
         .id();
 
     // Connect anchor and dynamic object
-    commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 1.5));
+    todo!();
+    // commands.spawn(FixedJoint::new(anchor, object).with_local_anchor_1(Vector::X * 1.5));
 
     // Directional light
     commands.spawn((

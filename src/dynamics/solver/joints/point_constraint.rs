@@ -3,7 +3,6 @@
 use crate::prelude::*;
 use bevy::{
     ecs::{
-        component::{ComponentHooks, StorageType},
         entity::{EntityMapper, MapEntities},
         reflect::ReflectMapEntities,
     },
@@ -14,7 +13,7 @@ use dynamics::solver::softness_parameters::{SoftnessCoefficients, SoftnessParame
 use super::point_constraint_part::PointConstraintPart;
 
 /// A point-to-point constraint that prevents relative translation of the attached bodies.
-#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, MapEntities, PartialEq)]
@@ -246,8 +245,8 @@ impl PointConstraint {
 
 impl MapEntities for PointConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.entity1 = entity_mapper.map_entity(self.entity1);
-        self.entity2 = entity_mapper.map_entity(self.entity2);
+        self.entity1 = entity_mapper.get_mapped(self.entity1);
+        self.entity2 = entity_mapper.get_mapped(self.entity2);
     }
 }
 
