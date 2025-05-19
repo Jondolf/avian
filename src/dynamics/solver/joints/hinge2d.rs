@@ -148,8 +148,8 @@ impl ImpulseJoint for HingeJoint {
         let inv_inertia1 = inertia1.effective_inv_angular_inertia();
         let inv_inertia2 = inertia2.effective_inv_angular_inertia();
 
-        let r1 = solver_data.point_constraint.r1;
-        let r2 = solver_data.point_constraint.r2;
+        let r1 = body1.delta_rotation * solver_data.point_constraint.r1;
+        let r2 = body2.delta_rotation * solver_data.point_constraint.r2;
         let point_impulse = solver_data.point_constraint.impulse;
         let axial_impulse = solver_data.lower_impulse - solver_data.upper_impulse;
 
