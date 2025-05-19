@@ -91,15 +91,18 @@ mod hinge3d;
 mod spherical;
 #[cfg(feature = "3d")]
 mod swing_limit;
+mod weld;
 
 mod angular_hinge;
 mod debug_render;
+mod fixed_angle_constraint;
 mod point_constraint;
 mod point_constraint_part;
 
 pub use debug_render::ConstraintDebugRender;
 
 pub use angular_hinge::AngularHinge;
+pub use fixed_angle_constraint::FixedAngleConstraint;
 #[cfg(feature = "2d")]
 pub use hinge2d::*;
 #[cfg(feature = "3d")]
@@ -109,6 +112,7 @@ pub use point_constraint::PointConstraint;
 pub use spherical::*;
 #[cfg(feature = "3d")]
 pub use swing_limit::SwingLimit;
+pub use weld::WeldJoint;
 
 use crate::prelude::*;
 use bevy::{ecs::entity::MapEntities, prelude::*};
