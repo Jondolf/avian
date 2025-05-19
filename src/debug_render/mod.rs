@@ -125,6 +125,7 @@ impl Plugin for PhysicsDebugPlugin {
                     debug_render_constraints::<SphericalJoint>,
                     #[cfg(feature = "3d")]
                     debug_render_constraints::<HingeJoint>,
+                    // debug_render_constraints::<PrismaticJoint>,
                     // debug_render_constraints::<WeldJoint>,
                     #[cfg(feature = "3d")]
                     debug_render_constraints::<AngularHinge>,

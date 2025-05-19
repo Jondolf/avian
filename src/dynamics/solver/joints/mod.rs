@@ -87,6 +87,8 @@
 mod hinge2d;
 #[cfg(feature = "3d")]
 mod hinge3d;
+#[cfg(feature = "2d")]
+mod prismatic2d;
 #[cfg(feature = "3d")]
 mod spherical;
 #[cfg(feature = "3d")]
@@ -108,6 +110,8 @@ pub use hinge2d::*;
 #[cfg(feature = "3d")]
 pub use hinge3d::*;
 pub use point_constraint::PointConstraint;
+#[cfg(feature = "2d")]
+pub use prismatic2d::PrismaticJoint;
 #[cfg(feature = "3d")]
 pub use spherical::*;
 #[cfg(feature = "3d")]
