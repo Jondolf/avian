@@ -6,7 +6,7 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::prelude::*;
+use crate::{collision::contact_types::ContactId, prelude::*};
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
@@ -90,18 +90,32 @@ pub struct ContactConstraint {
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactPair`] in the [`ContactGraph`].
-    ///
-    /// This is primarily used for ordering contact constraints deterministically
-    /// when parallelism is enabled. The index may be invalidated by contact removal.
-    // TODO: We should figure out a better way to handle deterministic constraint generation.
-    #[cfg(feature = "parallel")]
-    pub pair_index: usize,
-    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
+    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
+    pub contact_id: ContactId,
+    /// The index of the contact manifold in the [`ContactPair`].
     pub manifold_index: usize,
 }
 
 impl ContactConstraint {
+    pub const PLACEHOLDER: ContactConstraint = ContactConstraint {
+        body1: Entity::PLACEHOLDER,
+        body2: Entity::PLACEHOLDER,
+        collider1: Entity::PLACEHOLDER,
+        collider2: Entity::PLACEHOLDER,
+        relative_dominance: 0,
+        friction: 0.0,
+        restitution: 0.0,
+        #[cfg(feature = "2d")]
+        tangent_speed: 0.0,
+        #[cfg(feature = "3d")]
+        tangent_velocity: Vector::ZERO,
+        normal: Vector::ZERO,
+        // TODO: Initialize with some reasonable capacity?
+        points: Vec::new(),
+        contact_id: ContactId::PLACEHOLDER,
+        manifold_index: usize::MAX,
+    };
+
     /// Warm starts the contact constraint by applying the impulses from the previous frame or substep.
     pub fn warm_start(
         &self,

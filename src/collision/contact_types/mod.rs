@@ -8,8 +8,105 @@ pub use contact_graph::ContactGraph;
 pub use feature_id::PackedFeatureId;
 pub use system_param::Collisions;
 
-use crate::prelude::*;
+use crate::{data_structures::graph::EdgeIndex, prelude::*};
 use bevy::prelude::*;
+
+/// A stable identifier for a [`ContactEdge`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct ContactId(pub u32);
+
+impl ContactId {
+    /// A placeholder identifier for a [`ContactEdge`].
+    ///
+    /// Used as a temporary value before the contact pair is added to the [`ContactGraph`].
+    pub const PLACEHOLDER: Self = Self(u32::MAX);
+}
+
+impl From<ContactId> for EdgeIndex {
+    fn from(id: ContactId) -> Self {
+        Self(id.0)
+    }
+}
+
+impl From<EdgeIndex> for ContactId {
+    fn from(id: EdgeIndex) -> Self {
+        Self(id.0)
+    }
+}
+
+/// Cold contact data stored in the [`ContactGraph`]. Used as a persistent handle for a [`ContactPair`].
+///
+/// The actual contact data is stored in the [`ContactPair`] in the [`ConstraintGraph`].
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ContactEdge {
+    /// The stable identifier of this contact edge.
+    pub id: ContactId,
+
+    /// The first collider entity in the contact.
+    pub collider1: Entity,
+
+    /// The second collider entity in the contact.
+    pub collider2: Entity,
+
+    /// The index of the graph color this edge belongs to in the [`ConstraintGraph`].
+    ///
+    /// `usize::MAX` if the contact is non-touching or sleeping.
+    pub color_index: usize,
+
+    /// The index of the contact pair within the graph color
+    /// that [`color_index`](Self::color_index) points to.
+    pub local_index: usize,
+
+    /// Flags for the contact edge.
+    pub flags: ContactEdgeFlags,
+}
+
+impl ContactEdge {
+    /// Creates a new non-touching [`ContactEdge`] with the given entities.
+    pub fn new(collider1: Entity, collider2: Entity) -> Self {
+        Self {
+            // This gets set to a valid ID when the contact pair is added to the `ContactGraph`.
+            id: ContactId::PLACEHOLDER,
+            collider1,
+            collider2,
+            color_index: usize::MAX,
+            local_index: usize::MAX,
+            flags: ContactEdgeFlags::empty(),
+        }
+    }
+
+    /// Returns `true` if the colliders are touching.
+    pub fn is_touching(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::TOUCHING)
+    }
+
+    /// Returns `true` if collision events are enabled for the contact.
+    pub fn events_enabled(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::CONTACT_EVENTS)
+    }
+}
+
+// These are stored separately from `ContactPairFlags` to avoid needing to fetch
+// the `ContactPair` when for example querying for touching contacts.
+/// Flags for a [`ContactEdge`].
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct ContactEdgeFlags(u8);
+
+bitflags::bitflags! {
+    impl ContactEdgeFlags: u8 {
+        /// Set if the colliders are touching, including sensors.
+        const TOUCHING = 1 << 0;
+        /// Set if the contact pair should emit contact events or sensor events.
+        const CONTACT_EVENTS = 1 << 1;
+    }
+}
 
 /// A contact pair between two colliders.
 ///
@@ -22,6 +119,8 @@ use bevy::prelude::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPair {
+    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
+    pub contact_id: ContactId,
     /// The first collider entity in the contact.
     pub collider1: Entity,
     /// The second collider entity in the contact.
@@ -48,27 +147,30 @@ pub struct ContactPairFlags(u8);
 bitflags::bitflags! {
     impl ContactPairFlags: u8 {
         /// Set if the colliders are touching, including sensors.
-        const TOUCHING = 0b0000_0001;
+        const TOUCHING = 1 << 0;
         /// Set if the AABBs of the colliders are no longer overlapping.
-        const DISJOINT_AABB = 0b0000_0010;
+        const DISJOINT_AABB = 1 << 1;
         /// Set if the colliders are touching and were not touching previously.
-        const STARTED_TOUCHING = 0b0000_0100;
+        const STARTED_TOUCHING = 1 << 2;
         /// Set if the colliders are not touching and were touching previously.
-        const STOPPED_TOUCHING = 0b0000_1000;
+        const STOPPED_TOUCHING = 1 << 3;
         /// Set if at least one of the colliders is a sensor.
-        const SENSOR = 0b0001_0000;
-        /// Set if the contact pair should emit contact events or sensor events.
-        const CONTACT_EVENTS = 0b0010_0000;
+        const SENSOR = 1 << 4;
+        /// Set if the first rigid body is static.
+        const STATIC1 = 1 << 5;
+        /// Set if the second rigid body is static.
+        const STATIC2 = 1 << 6;
         /// Set if the contact pair should have a custom contact modification hook applied.
-        const MODIFY_CONTACTS = 0b0100_0000;
+        const MODIFY_CONTACTS = 1 << 7;
     }
 }
 
 impl ContactPair {
     /// Creates a new [`ContactPair`] with the given entities.
     #[inline]
-    pub fn new(collider1: Entity, collider2: Entity) -> Self {
+    pub fn new(collider1: Entity, collider2: Entity, contact_id: ContactId) -> Self {
         Self {
+            contact_id,
             collider1,
             collider2,
             body1: None,
@@ -153,11 +255,6 @@ impl ContactPair {
     /// Returns `true` if a collision ended during the current frame.
     pub fn collision_ended(&self) -> bool {
         self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
-    }
-
-    /// Returns `true` if collision events are enabled for the contact pair.
-    pub fn events_enabled(&self) -> bool {
-        self.flags.contains(ContactPairFlags::CONTACT_EVENTS)
     }
 
     /// Returns the contact with the largest penetration depth.

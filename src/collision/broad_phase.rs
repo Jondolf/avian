@@ -5,7 +5,10 @@
 
 use core::marker::PhantomData;
 
-use crate::{data_structures::pair_key::PairKey, prelude::*};
+use crate::{
+    data_structures::pair_key::PairKey, dynamics::solver::constraint_graph::ConstraintGraph,
+    prelude::*,
+};
 use bevy::{
     ecs::{
         entity::{EntityHashSet, EntityMapper, MapEntities},
@@ -15,7 +18,10 @@ use bevy::{
     prelude::*,
 };
 
-use super::CollisionDiagnostics;
+use super::{
+    contact_types::{ContactEdge, ContactEdgeFlags},
+    CollisionDiagnostics,
+};
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 /// the number of potential contacts for the [narrow phase](super::narrow_phase).
@@ -256,6 +262,7 @@ fn add_new_aabb_intervals(
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
     mut contact_graph: ResMut<ContactGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
@@ -267,6 +274,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
     sweep_and_prune::<H>(
         intervals,
         &mut contact_graph,
+        &mut constraint_graph,
         &mut hooks.into_inner(),
         &mut commands,
     );
@@ -280,6 +288,7 @@ fn collect_collision_pairs<H: CollisionHooks>(
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
     contact_graph: &mut ContactGraph,
+    constraint_graph: &mut ConstraintGraph,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
@@ -338,30 +347,40 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
-            let mut contacts = ContactPair::new(*entity1, *entity2);
 
-            // Initialize flags and other data for the contact pair.
-            contacts.body1 = Some(collider_of1.body);
-            contacts.body2 = Some(collider_of2.body);
-            contacts.flags.set(
-                ContactPairFlags::SENSOR,
-                flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
-            );
-            contacts.flags.set(
-                ContactPairFlags::CONTACT_EVENTS,
+            let mut contact_edge = ContactEdge::new(*entity1, *entity2);
+            contact_edge.flags.set(
+                ContactEdgeFlags::CONTACT_EVENTS,
                 flags1
                     .union(*flags2)
                     .contains(AabbIntervalFlags::CONTACT_EVENTS),
             );
-            contacts.flags.set(
+
+            let contact_id = contact_graph
+                .add_pair_with_key(contact_edge, pair_key)
+                .unwrap_or_else(|| {
+                    panic!("Pair key already exists in contact graph: {:?}", pair_key)
+                });
+
+            // TODO: Get rid of this extra lookup.
+            let contact_edge = contact_graph.get_mut_by_id(contact_id).unwrap();
+
+            let mut contact_pair = ContactPair::new(*entity1, *entity2, contact_id);
+            contact_pair.flags.set(
                 ContactPairFlags::MODIFY_CONTACTS,
                 flags1
                     .union(*flags2)
                     .contains(AabbIntervalFlags::MODIFY_CONTACTS),
             );
+            contact_pair.flags.set(
+                ContactPairFlags::SENSOR,
+                flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
+            );
+            contact_pair.body1 = Some(collider_of1.body);
+            contact_pair.body2 = Some(collider_of2.body);
 
             // Add the contact pair to the contact graph.
-            contact_graph.add_pair_with_key(contacts, pair_key);
+            constraint_graph.add_non_touching_contact(contact_edge, contact_pair);
         }
     }
 }

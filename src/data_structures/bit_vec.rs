@@ -48,7 +48,7 @@ impl BitVec {
         self.blocks.iter_mut().for_each(|b| *b = 0);
     }
 
-    /// Sets the bit count of the [`BitVec`] and sets all bits.
+    /// Sets the bit at the specified index.
     ///
     /// # Panics
     ///
@@ -57,6 +57,21 @@ impl BitVec {
     pub fn set(&mut self, index: usize) {
         let block_index = index / 64;
         debug_assert!(block_index < self.block_count);
+        let bit_index = index % 64;
+        let mask = 1 << bit_index;
+        self.blocks[block_index] |= mask;
+    }
+
+    /// Sets the specified bit and grows the [`BitVec`] if necessary.
+    #[inline]
+    pub fn set_and_grow(&mut self, index: usize) {
+        let block_index = index / 64;
+
+        if block_index >= self.block_count {
+            let new_bit_capacity = index + 1 + (index >> 1);
+            *self = Self::new(new_bit_capacity);
+        }
+
         let bit_index = index % 64;
         let mask = 1 << bit_index;
         self.blocks[block_index] |= mask;

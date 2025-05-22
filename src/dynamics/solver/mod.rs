@@ -2,6 +2,7 @@
 //!
 //! See [`SolverPlugin`].
 
+pub mod constraint_graph;
 pub mod contact;
 pub mod joints;
 pub mod schedule;
@@ -10,12 +11,17 @@ pub mod solver_body;
 pub mod xpbd;
 
 mod diagnostics;
+use constraint_graph::ConstraintGraph;
+use contact::{ContactConstraintPoint, ContactNormalPart, ContactTangentPart};
 pub use diagnostics::SolverDiagnostics;
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 use xpbd::EntityConstraint;
 
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    ecs::{query::QueryData, system::lifetimeless::Read},
+    prelude::*,
+};
 use core::cmp::Ordering;
 use schedule::SubstepSolverSet;
 
@@ -96,7 +102,8 @@ impl Plugin for SolverPlugin {
 
         app.init_resource::<SolverConfig>()
             .init_resource::<ContactSoftnessCoefficients>()
-            .init_resource::<ContactConstraints>();
+            .init_resource::<ContactConstraints>()
+            .init_resource::<ConstraintGraph>();
 
         if app
             .world()
@@ -400,6 +407,232 @@ fn update_contact_softness(
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct ContactConstraints(pub Vec<ContactConstraint>);
 
+#[derive(QueryData)]
+struct BodyQuery {
+    rb: Read<RigidBody>,
+    rotation: Read<Rotation>,
+    dominance: Option<Read<Dominance>>,
+    mass: Read<ComputedMass>,
+    inertia: Read<GlobalAngularInertia>,
+    center_of_mass: Read<ComputedCenterOfMass>,
+    linear_velocity: Read<LinearVelocity>,
+    angular_velocity: Read<AngularVelocity>,
+}
+
+impl BodyQueryItem<'_> {
+    /// Returns the [dominance](Dominance) of the body.
+    ///
+    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
+    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
+    pub fn dominance(&self) -> i16 {
+        if !self.rb.is_dynamic() {
+            i8::MAX as i16 + 1
+        } else {
+            self.dominance.map_or(0, |dominance| dominance.0) as i16
+        }
+    }
+}
+
+fn prepare_contact_constraints(
+    mut contact_graph: ResMut<ConstraintGraph>,
+    mut diagnostics: ResMut<SolverDiagnostics>,
+    mut bodies: Query<BodyQuery, RigidBodyActiveFilter>,
+    narrow_phase_config: Res<NarrowPhaseConfig>,
+    contact_softness: Res<ContactSoftnessCoefficients>,
+) {
+    let start = crate::utils::Instant::now();
+
+    for color in contact_graph.colors.iter_mut() {
+        // Resize the contact constraints vector to match the number of contacts in this color.
+        // NOTE: This leaves old values in the vector, but they are overwritten in the parallel loop below.
+        //       We could clear the vector too if we wanted to.
+        // TODO: Box2D uses an arena allocator for constraints. Might be worth looking into?
+        color.contact_constraints.clear();
+    }
+
+    // Generate contact constraints for each contact pair, parallelizing over graph colors.
+    crate::utils::par_for_each!(contact_graph.colors, |_i, color| {
+        for contact_pair in &mut color.contacts {
+            let static1 = contact_pair.flags.contains(ContactPairFlags::STATIC1);
+            let static2 = contact_pair.flags.contains(ContactPairFlags::STATIC2);
+
+            // No collision response if both bodies are static or sleeping
+            // or if either of the colliders is a sensor collider.
+            // TODO: The static case shouldn't happen here anyway. Remove it.
+            if (static1 && static2) || contact_pair.is_sensor() {
+                return;
+            }
+
+            let (Some(body1_entity), Some(body2_entity)) = (contact_pair.body1, contact_pair.body2)
+            else {
+                return;
+            };
+
+            // Get the two colliding bodies.
+            // TODO: get_disjoint
+            let Ok(body1) = bodies.get(body1_entity) else {
+                return;
+            };
+            let Ok(body2) = bodies.get(body2_entity) else {
+                return;
+            };
+
+            // Compute the relative dominance of the bodies.
+            let relative_dominance = body1.dominance() - body2.dominance();
+
+            // Compute the inverse mass and angular inertia, taking into account the relative dominance.
+            // TODO: Handle locked axes.
+            let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
+                Ordering::Equal => (
+                    body1.mass.inverse(),
+                    body1.inertia.inverse(),
+                    body2.mass.inverse(),
+                    body2.inertia.inverse(),
+                ),
+                Ordering::Greater => (
+                    0.0,
+                    Tensor::ZERO,
+                    body2.mass.inverse(),
+                    body2.inertia.inverse(),
+                ),
+                Ordering::Less => (
+                    body1.mass.inverse(),
+                    body1.inertia.inverse(),
+                    0.0,
+                    Tensor::ZERO,
+                ),
+            };
+
+            let contact_softness = if relative_dominance != 0 {
+                contact_softness.non_dynamic
+            } else {
+                contact_softness.dynamic
+            };
+
+            let inverse_mass_sum = inv_mass1 + inv_mass2;
+
+            // Generate a contact constraint for each contact manifold.
+            for (manifold_index, manifold) in contact_pair.manifolds.iter_mut().enumerate() {
+                let mut constraint = ContactConstraint {
+                    body1: body1_entity,
+                    body2: body2_entity,
+                    collider1: contact_pair.collider1,
+                    collider2: contact_pair.collider2,
+                    relative_dominance,
+                    friction: manifold.friction,
+                    restitution: manifold.restitution,
+                    #[cfg(feature = "2d")]
+                    tangent_speed: manifold.tangent_speed,
+                    #[cfg(feature = "3d")]
+                    tangent_velocity: manifold.tangent_velocity,
+                    normal: manifold.normal,
+                    points: Vec::with_capacity(manifold.points.len()),
+                    contact_id: contact_pair.contact_id,
+                    manifold_index,
+                };
+
+                let tangents =
+                    constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+
+                for mut contact in manifold.points.iter().copied() {
+                    // Transform contact points from collider-space to body-space.
+                    /* TODO
+                    if let Some(transform) = collider1.transform.copied() {
+                        contact.local_point1 =
+                            transform.rotation * contact.local_point1 + transform.translation;
+                    }
+                    if let Some(transform) = collider2.transform.copied() {
+                        contact.local_point2 =
+                            transform.rotation * contact.local_point2 + transform.translation;
+                    }
+                    */
+
+                    // TODO
+                    // contact.penetration += collision_margin_sum;
+
+                    let effective_distance = -contact.penetration;
+
+                    let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
+                    let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
+
+                    // Store fixed world-space anchors.
+                    // This improves rolling behavior for shapes like balls and capsules.
+                    let r1 = *body1.rotation * local_anchor1;
+                    let r2 = *body2.rotation * local_anchor2;
+
+                    // Relative velocity at the contact point.
+                    // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
+                    #[cfg(feature = "2d")]
+                    let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
+                        + body2.angular_velocity.0 * r2.perp()
+                        - body1.angular_velocity.0 * r1.perp();
+                    #[cfg(feature = "3d")]
+                    let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
+                        + body2.angular_velocity.0.cross(r2)
+                        - body1.angular_velocity.0.cross(r1);
+                    let normal_speed = relative_velocity.dot(constraint.normal);
+
+                    /* TODO This probably needs to be done in the narrow phase.
+                    // Keep the contact if (1) the separation distance is below the required threshold,
+                    // or if (2) the bodies are expected to come into contact within the next frame.
+                    let keep_contact = effective_distance < effective_speculative_margin || {
+                        let delta_distance = normal_speed * delta_secs;
+                        effective_distance + delta_distance < effective_speculative_margin
+                    };
+
+                    if !keep_contact {
+                        continue;
+                    }
+                    */
+
+                    let point = ContactConstraintPoint {
+                        // TODO: Apply warm starting scale here instead of in `warm_start`?
+                        normal_part: ContactNormalPart::generate(
+                            inverse_mass_sum,
+                            i1,
+                            i2,
+                            r1,
+                            r2,
+                            constraint.normal,
+                            narrow_phase_config
+                                .match_contacts
+                                .then_some(contact.normal_impulse),
+                            contact_softness,
+                        ),
+                        // There should only be a friction part if the coefficient of friction is non-negative.
+                        tangent_part: (manifold.friction > 0.0).then_some(
+                            ContactTangentPart::generate(
+                                inverse_mass_sum,
+                                i1,
+                                i2,
+                                r1,
+                                r2,
+                                tangents,
+                                narrow_phase_config
+                                    .match_contacts
+                                    .then_some(contact.tangent_impulse),
+                            ),
+                        ),
+                        max_normal_impulse: 0.0,
+                        anchor1: r1,
+                        anchor2: r2,
+                        normal_speed,
+                        initial_separation: -contact.penetration - (r2 - r1).dot(constraint.normal),
+                    };
+
+                    constraint.points.push(point);
+                }
+
+                if !constraint.points.is_empty() {
+                    color.contact_constraints.push(constraint);
+                }
+            }
+        }
+    });
+
+    diagnostics.prepare_constraints += start.elapsed();
+}
+
 /// Warm starts the solver by applying the impulses from the previous frame or substep.
 ///
 /// See [`SubstepSolverSet::WarmStart`] for more information.
@@ -599,17 +832,27 @@ fn solve_restitution(
 fn store_contact_impulses(
     constraints: Res<ContactConstraints>,
     mut contact_graph: ResMut<ContactGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
     for constraint in constraints.iter() {
-        let Some(contact_pair) = contact_graph.get_mut(constraint.collider1, constraint.collider2)
-        else {
+        let Some(contact_edge) = contact_graph.get_mut_by_id(constraint.contact_id) else {
             unreachable!(
                 "Contact pair between {} and {} not found in contact graph.",
                 constraint.collider1, constraint.collider2
             );
+        };
+
+        let Some(contact_pair) = constraint_graph
+            .get_contact_pair_mut(contact_edge.color_index, contact_edge.local_index)
+        else {
+            warn!(
+                "Contact pair between {} and {} not found in contact graph.",
+                constraint.collider1, constraint.collider2
+            );
+            continue;
         };
 
         let manifold = &mut contact_pair.manifolds[constraint.manifold_index];

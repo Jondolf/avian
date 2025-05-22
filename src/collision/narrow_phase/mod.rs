@@ -6,11 +6,18 @@ mod system_param;
 use system_param::ContactStatusBits;
 pub use system_param::NarrowPhase;
 #[cfg(feature = "parallel")]
-use system_param::NarrowPhaseThreadLocals;
+use system_param::ThreadLocalContactStatusBits;
 
 use core::marker::PhantomData;
 
-use crate::{dynamics::solver::ContactConstraints, prelude::*};
+use crate::{
+    data_structures::graph::EdgeIndex,
+    dynamics::solver::{
+        constraint_graph::{ConstraintGraph, COLOR_OVERFLOW_INDEX, GRAPH_COLOR_COUNT},
+        ContactConstraints,
+    },
+    prelude::*,
+};
 use bevy::{
     ecs::{
         entity_disabling::Disabled,
@@ -20,9 +27,8 @@ use bevy::{
     },
     prelude::*,
 };
-use dynamics::solver::SolverDiagnostics;
 
-use super::CollisionDiagnostics;
+use super::{contact_types::ContactEdgeFlags, CollisionDiagnostics};
 
 /// Manages contacts and generates contact constraints.
 ///
@@ -106,7 +112,7 @@ where
             .init_resource::<DefaultRestitution>();
 
         #[cfg(feature = "parallel")]
-        app.init_resource::<NarrowPhaseThreadLocals>();
+        app.init_resource::<ThreadLocalContactStatusBits>();
 
         app.register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
 
@@ -250,7 +256,6 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     context: StaticSystemParam<C::Context>,
     mut commands: ParallelCommands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
-    solver_diagnostics: Option<ResMut<SolverDiagnostics>>,
 ) where
     for<'w, 's> SystemParamItem<'w, 's, H>: CollisionHooks,
 {
@@ -266,11 +271,7 @@ fn update_narrow_phase<C: AnyCollider, H: CollisionHooks + 'static>(
     );
 
     diagnostics.narrow_phase = start.elapsed();
-    diagnostics.contact_count = narrow_phase.contact_graph.internal.edge_count() as u32;
-
-    if let Some(mut solver_diagnostics) = solver_diagnostics {
-        solver_diagnostics.contact_constraint_count = narrow_phase.contact_constraints.len() as u32;
-    }
+    diagnostics.contact_count = narrow_phase.contact_graph.edges.edge_count() as u32;
 }
 
 #[derive(SystemParam)]
@@ -335,6 +336,7 @@ fn trigger_collision_events(
 fn remove_collider_on<E: Event, B: Bundle>(
     trigger: Trigger<E, B>,
     mut contact_graph: ResMut<ContactGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     mut query: Query<&mut CollidingEntities>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
@@ -342,28 +344,28 @@ fn remove_collider_on<E: Event, B: Bundle>(
     let entity = trigger.target();
 
     // Remove the collider from the contact graph.
-    contact_graph.remove_collider_with(entity, |contact_pair| {
+    contact_graph.remove_collider_with(entity, |graph, contact_edge| {
         // If the contact pair was not touching, we don't need to do anything.
-        if !contact_pair.flags.contains(ContactPairFlags::TOUCHING) {
+        if !contact_edge.flags.contains(ContactEdgeFlags::TOUCHING) {
             return;
         }
 
         // Send a collision ended event.
-        if contact_pair
+        if contact_edge
             .flags
-            .contains(ContactPairFlags::CONTACT_EVENTS)
+            .contains(ContactEdgeFlags::CONTACT_EVENTS)
         {
             event_writer.write(CollisionEnded(
-                contact_pair.collider1,
-                contact_pair.collider2,
+                contact_edge.collider1,
+                contact_edge.collider2,
             ));
         }
 
         // Remove the entity from the `CollidingEntities` of the other entity.
-        let other_entity = if contact_pair.collider1 == entity {
-            contact_pair.collider2
+        let other_entity = if contact_edge.collider1 == entity {
+            contact_edge.collider2
         } else {
-            contact_pair.collider1
+            contact_edge.collider1
         };
         if let Ok(mut colliding_entities) = query.get_mut(other_entity) {
             colliding_entities.remove(&entity);
@@ -371,5 +373,60 @@ fn remove_collider_on<E: Event, B: Bundle>(
 
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));
+
+        // TODO: Avoid this lookup.
+        let contact_pair = constraint_graph
+            .get_contact_pair(contact_edge.color_index, contact_edge.local_index)
+            .unwrap();
+
+        // TODO: For borrow checker reasons, we can't use use `ConstraintGraph` methods
+        //       here, since we'd be borrowing `contact_graph` mutably twice.
+        //       Should we change them to take `&mut StableUnGraph` or a closure instead,
+        //       or otherwise refactor this?
+        if contact_edge.color_index != usize::MAX {
+            // The contact is an active constraint.
+            // Remove the contact from the constraint graph.
+            if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                debug_assert!(contact_edge.color_index < GRAPH_COLOR_COUNT);
+
+                let color = &mut constraint_graph.colors[contact_edge.color_index];
+
+                if contact_edge.color_index != COLOR_OVERFLOW_INDEX {
+                    color.body_set.unset(body1.index() as usize);
+                    color.body_set.unset(body2.index() as usize);
+                }
+
+                let moved_index = color.contacts.len() - 1;
+                color.contacts.swap_remove(contact_edge.local_index);
+
+                if moved_index != 0 {
+                    // Fix moved contact.
+                    let moved_contact = &mut color.contacts[moved_index];
+                    let moved_contact_edge = graph
+                        .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
+                        .unwrap();
+                    debug_assert!(moved_contact_edge.color_index == contact_edge.color_index);
+                    debug_assert!(moved_contact_edge.local_index == moved_index);
+                    moved_contact_edge.local_index = contact_edge.local_index;
+                }
+            }
+        } else {
+            // Remove the contact from the non-touching contacts.
+            let moved_index = constraint_graph.non_touching_contacts.len() - 1;
+            constraint_graph
+                .non_touching_contacts
+                .swap_remove(contact_edge.local_index);
+
+            if moved_index != 0 {
+                // Fix moved contact.
+                let moved_contact = &mut constraint_graph.non_touching_contacts[moved_index];
+                let moved_contact_edge = graph
+                    .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
+                    .unwrap();
+                debug_assert!(moved_contact_edge.color_index == usize::MAX);
+                debug_assert!(moved_contact_edge.local_index == moved_index);
+                moved_contact_edge.local_index = contact_edge.local_index;
+            }
+        }
     });
 }
