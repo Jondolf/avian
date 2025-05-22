@@ -134,6 +134,10 @@ impl Plugin for SolverPlugin {
                 .in_set(SolverSet::PrepareJoints),
         );
 
+        // Prepare contact constraints before the substepping loop.
+        physics
+            .add_systems(prepare_contact_constraints.in_set(SolverSet::PrepareContactConstraints));
+
         // Apply restitution.
         physics.add_systems(solve_restitution.in_set(SolverSet::Restitution));
 
@@ -434,15 +438,15 @@ impl BodyQueryItem<'_> {
 }
 
 fn prepare_contact_constraints(
-    mut contact_graph: ResMut<ConstraintGraph>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
-    mut bodies: Query<BodyQuery, RigidBodyActiveFilter>,
+    bodies: Query<BodyQuery, RigidBodyActiveFilter>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     contact_softness: Res<ContactSoftnessCoefficients>,
 ) {
     let start = crate::utils::Instant::now();
 
-    for color in contact_graph.colors.iter_mut() {
+    for color in constraint_graph.colors.iter_mut() {
         // Resize the contact constraints vector to match the number of contacts in this color.
         // NOTE: This leaves old values in the vector, but they are overwritten in the parallel loop below.
         //       We could clear the vector too if we wanted to.
@@ -451,7 +455,7 @@ fn prepare_contact_constraints(
     }
 
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
-    crate::utils::par_for_each!(contact_graph.colors, |_i, color| {
+    crate::utils::par_for_each!(constraint_graph.colors, |_i, color| {
         for contact_pair in &mut color.contacts {
             let static1 = contact_pair.flags.contains(ContactPairFlags::STATIC1);
             let static2 = contact_pair.flags.contains(ContactPairFlags::STATIC2);
@@ -485,19 +489,19 @@ fn prepare_contact_constraints(
             let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
                 Ordering::Equal => (
                     body1.mass.inverse(),
-                    body1.inertia.inverse(),
+                    body1.inertia.value(),
                     body2.mass.inverse(),
-                    body2.inertia.inverse(),
+                    body2.inertia.value(),
                 ),
                 Ordering::Greater => (
                     0.0,
                     Tensor::ZERO,
                     body2.mass.inverse(),
-                    body2.inertia.inverse(),
+                    body2.inertia.value(),
                 ),
                 Ordering::Less => (
                     body1.mass.inverse(),
-                    body1.inertia.inverse(),
+                    body1.inertia.value(),
                     0.0,
                     Tensor::ZERO,
                 ),
@@ -534,7 +538,7 @@ fn prepare_contact_constraints(
                 let tangents =
                     constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-                for mut contact in manifold.points.iter().copied() {
+                for contact in manifold.points.iter().copied() {
                     // Transform contact points from collider-space to body-space.
                     /* TODO
                     if let Some(transform) = collider1.transform.copied() {
@@ -630,6 +634,15 @@ fn prepare_contact_constraints(
         }
     });
 
+    /*println!(
+        "Contact constraints: {:?}",
+        constraint_graph
+            .colors
+            .iter()
+            .map(|color| color.contact_constraints.len())
+            .collect::<Vec<_>>()
+    );*/
+
     diagnostics.prepare_constraints += start.elapsed();
 }
 
@@ -638,52 +651,54 @@ fn prepare_contact_constraints(
 /// See [`SubstepSolverSet::WarmStart`] for more information.
 fn warm_start(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     solver_config: Res<SolverConfig>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    for color in constraint_graph.colors.iter_mut() {
+        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+            debug_assert!(!constraint.points.is_empty());
 
-    for constraint in constraints.iter_mut() {
-        debug_assert!(!constraint.points.is_empty());
+            let mut dummy_body1 = SolverBody::default();
+            let mut dummy_body2 = SolverBody::default();
+            let dummy_inertia = SolverBodyInertia::default();
 
-        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-        // Get the solver bodies for the two colliding entities.
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-            body1 = body.into_inner();
-            inertia1 = inertia;
-        }
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-            body2 = body.into_inner();
-            inertia2 = inertia;
-        }
+            // Get the solver bodies for the two colliding entities.
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                body1 = body.into_inner();
+                inertia1 = inertia;
+            }
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                body2 = body.into_inner();
+                inertia2 = inertia;
+            }
 
-        // If a body has a higher dominance, it is treated as a static or kinematic body.
-        match constraint.relative_dominance.cmp(&0) {
-            Ordering::Greater => inertia1 = &dummy_inertia,
-            Ordering::Less => inertia2 = &dummy_inertia,
-            _ => {}
-        }
+            // If a body has a higher dominance, it is treated as a static or kinematic body.
+            match constraint.relative_dominance.cmp(&0) {
+                Ordering::Greater => inertia1 = &dummy_inertia,
+                Ordering::Less => inertia2 = &dummy_inertia,
+                _ => {}
+            }
 
-        let normal = constraint.normal;
-        let tangent_directions =
-            constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
+            let normal = constraint.normal;
+            let tangent_directions =
+                constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
 
-        constraint.warm_start(
-            body1,
-            body2,
-            inertia1,
-            inertia2,
-            normal,
-            tangent_directions,
-            solver_config.warm_start_coefficient,
-        );
+            constraint.warm_start(
+                body1,
+                body2,
+                inertia1,
+                inertia2,
+                normal,
+                tangent_directions,
+                solver_config.warm_start_coefficient,
+            );
+        });
     }
 
     diagnostics.warm_start += start.elapsed();
@@ -705,7 +720,7 @@ fn warm_start(
 #[allow(clippy::type_complexity)]
 fn solve_contacts<const USE_BIAS: bool>(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     time: Res<Time>,
@@ -716,40 +731,42 @@ fn solve_contacts<const USE_BIAS: bool>(
     let delta_secs = time.delta_seconds_adjusted();
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    for color in constraint_graph.colors.iter_mut() {
+        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+            let mut dummy_body1 = SolverBody::default();
+            let mut dummy_body2 = SolverBody::default();
+            let dummy_inertia = SolverBodyInertia::default();
 
-    for constraint in &mut constraints.0 {
-        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-        // Get the solver bodies for the two colliding entities.
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-            body1 = body.into_inner();
-            inertia1 = inertia;
-        }
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-            body2 = body.into_inner();
-            inertia2 = inertia;
-        }
+            // Get the solver bodies for the two colliding entities.
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                body1 = body.into_inner();
+                inertia1 = inertia;
+            }
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                body2 = body.into_inner();
+                inertia2 = inertia;
+            }
 
-        // If a body has a higher dominance, it is treated as a static or kinematic body.
-        match constraint.relative_dominance.cmp(&0) {
-            Ordering::Greater => inertia1 = &dummy_inertia,
-            Ordering::Less => inertia2 = &dummy_inertia,
-            _ => {}
-        }
+            // If a body has a higher dominance, it is treated as a static or kinematic body.
+            match constraint.relative_dominance.cmp(&0) {
+                Ordering::Greater => inertia1 = &dummy_inertia,
+                Ordering::Less => inertia2 = &dummy_inertia,
+                _ => {}
+            }
 
-        constraint.solve(
-            body1,
-            body2,
-            inertia1,
-            inertia2,
-            delta_secs,
-            USE_BIAS,
-            max_overlap_solve_speed,
-        );
+            constraint.solve(
+                body1,
+                body2,
+                inertia1,
+                inertia2,
+                delta_secs,
+                USE_BIAS,
+                max_overlap_solve_speed,
+            );
+        });
     }
 
     if USE_BIAS {
@@ -770,7 +787,7 @@ fn solve_contacts<const USE_BIAS: bool>(
 #[allow(clippy::type_complexity)]
 fn solve_restitution(
     bodies: Query<(&mut SolverBody, &SolverBodyInertia)>,
-    mut constraints: ResMut<ContactConstraints>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
     solver_config: Res<SolverConfig>,
     length_unit: Res<PhysicsLengthUnit>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -780,48 +797,50 @@ fn solve_restitution(
     // The restitution threshold determining the speed required for restitution to be applied.
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
-    let mut dummy_body1 = SolverBody::default();
-    let mut dummy_body2 = SolverBody::default();
-    let dummy_inertia = SolverBodyInertia::default();
+    for color in constraint_graph.colors.iter_mut() {
+        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+            let restitution = constraint.restitution;
 
-    for constraint in constraints.iter_mut() {
-        let restitution = constraint.restitution;
+            if restitution == 0.0 {
+                return;
+            }
 
-        if restitution == 0.0 {
-            continue;
-        }
+            let mut dummy_body1 = SolverBody::default();
+            let mut dummy_body2 = SolverBody::default();
+            let dummy_inertia = SolverBodyInertia::default();
 
-        let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-        let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-        // Get the solver bodies for the two colliding entities.
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-            body1 = body.into_inner();
-            inertia1 = inertia;
-        }
-        if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-            body2 = body.into_inner();
-            inertia2 = inertia;
-        }
+            // Get the solver bodies for the two colliding entities.
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                body1 = body.into_inner();
+                inertia1 = inertia;
+            }
+            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                body2 = body.into_inner();
+                inertia2 = inertia;
+            }
 
-        // If a body has a higher dominance, it is treated as a static or kinematic body.
-        match constraint.relative_dominance.cmp(&0) {
-            Ordering::Greater => inertia1 = &dummy_inertia,
-            Ordering::Less => inertia2 = &dummy_inertia,
-            _ => {}
-        }
+            // If a body has a higher dominance, it is treated as a static or kinematic body.
+            match constraint.relative_dominance.cmp(&0) {
+                Ordering::Greater => inertia1 = &dummy_inertia,
+                Ordering::Less => inertia2 = &dummy_inertia,
+                _ => {}
+            }
 
-        // Performing multiple iterations can result in more accurate restitution,
-        // but only if there are more than one contact point.
-        let restitution_iterations = if constraint.points.len() > 1 {
-            solver_config.restitution_iterations
-        } else {
-            1
-        };
+            // Performing multiple iterations can result in more accurate restitution,
+            // but only if there are more than one contact point.
+            let restitution_iterations = if constraint.points.len() > 1 {
+                solver_config.restitution_iterations
+            } else {
+                1
+            };
 
-        for _ in 0..restitution_iterations {
-            constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);
-        }
+            for _ in 0..restitution_iterations {
+                constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);
+            }
+        });
     }
 
     diagnostics.apply_restitution += start.elapsed();

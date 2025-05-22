@@ -10,7 +10,7 @@ use super::contact::ContactConstraint;
 
 /// The maximum number of colors in the constraint graph.
 /// Constraints that cannot find a color are added to the overflow set,
-/// which is solved on a signle thread.
+/// which is solved on a single thread.
 pub const GRAPH_COLOR_COUNT: usize = 12;
 
 /// The index of the overflow color in the graph, used for constraints that don't fit
@@ -122,8 +122,8 @@ impl ConstraintGraph {
                     continue;
                 }
 
-                color.body_set.set(body1.index() as usize);
-                color.body_set.set(body2.index() as usize);
+                color.body_set.set_and_grow(body1.index() as usize);
+                color.body_set.set_and_grow(body2.index() as usize);
                 color_index = i;
                 break;
             }
@@ -135,7 +135,7 @@ impl ConstraintGraph {
                     continue;
                 }
 
-                color.body_set.set(body1.index() as usize);
+                color.body_set.set_and_grow(body1.index() as usize);
                 color_index = i;
                 break;
             }
@@ -147,7 +147,7 @@ impl ConstraintGraph {
                     continue;
                 }
 
-                color.body_set.set(body2.index() as usize);
+                color.body_set.set_and_grow(body2.index() as usize);
                 color_index = i;
                 break;
             }
@@ -169,9 +169,9 @@ impl ConstraintGraph {
         let moved_index = self.non_touching_contacts.len() - 1;
         self.non_touching_contacts.swap_remove(local_index);
 
-        if moved_index != 0 {
+        if moved_index != local_index {
             // Fix moved contact.
-            let moved_contact = &mut self.non_touching_contacts[moved_index];
+            let moved_contact = &mut self.non_touching_contacts[local_index];
             let contact_edge = contact_graph
                 .get_mut_by_id(moved_contact.contact_id)
                 .unwrap();
@@ -201,9 +201,9 @@ impl ConstraintGraph {
         let moved_index = color.contacts.len() - 1;
         color.contacts.swap_remove(local_index);
 
-        if moved_index != 0 {
+        if moved_index != local_index {
             // Fix moved contact.
-            let moved_contact = &mut color.contacts[moved_index];
+            let moved_contact = &mut color.contacts[local_index];
             let contact_edge = contact_graph
                 .get_mut_by_id(moved_contact.contact_id)
                 .unwrap();

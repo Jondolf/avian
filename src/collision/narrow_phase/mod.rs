@@ -399,9 +399,9 @@ fn remove_collider_on<E: Event, B: Bundle>(
                 let moved_index = color.contacts.len() - 1;
                 color.contacts.swap_remove(contact_edge.local_index);
 
-                if moved_index != 0 {
+                if moved_index != contact_edge.local_index {
                     // Fix moved contact.
-                    let moved_contact = &mut color.contacts[moved_index];
+                    let moved_contact = &mut color.contacts[contact_edge.local_index];
                     let moved_contact_edge = graph
                         .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
                         .unwrap();
@@ -417,9 +417,10 @@ fn remove_collider_on<E: Event, B: Bundle>(
                 .non_touching_contacts
                 .swap_remove(contact_edge.local_index);
 
-            if moved_index != 0 {
+            if moved_index != contact_edge.local_index {
                 // Fix moved contact.
-                let moved_contact = &mut constraint_graph.non_touching_contacts[moved_index];
+                let moved_contact =
+                    &mut constraint_graph.non_touching_contacts[contact_edge.local_index];
                 let moved_contact_edge = graph
                     .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
                     .unwrap();

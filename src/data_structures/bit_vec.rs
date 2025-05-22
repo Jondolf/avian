@@ -56,7 +56,12 @@ impl BitVec {
     #[inline]
     pub fn set(&mut self, index: usize) {
         let block_index = index / 64;
-        debug_assert!(block_index < self.block_count);
+        debug_assert!(
+            block_index < self.block_count,
+            "block index out of bounds for `BitVec::set` ({} >= {})",
+            block_index,
+            self.block_count
+        );
         let bit_index = index % 64;
         let mask = 1 << bit_index;
         self.blocks[block_index] |= mask;
@@ -68,8 +73,7 @@ impl BitVec {
         let block_index = index / 64;
 
         if block_index >= self.block_count {
-            let new_bit_capacity = index + 1 + (index >> 1);
-            *self = Self::new(new_bit_capacity);
+            self.grow(block_index + 1);
         }
 
         let bit_index = index % 64;
@@ -77,13 +81,31 @@ impl BitVec {
         self.blocks[block_index] |= mask;
     }
 
+    /// Resizes the [`BitVec`] to the specified number of blocks.
+    ///
+    /// If the new block count exceeds the current capacity, the capacity is increased by half.
+    /// The blocks are not cleared.
+    pub fn grow(&mut self, new_block_count: usize) {
+        if new_block_count > self.block_capacity {
+            // Increase the block capacity by half if the new block count
+            // exceeds the current capacity.
+            let new_block_capacity = new_block_count + new_block_count / 2;
+            self.blocks.resize(new_block_capacity, 0);
+            self.block_capacity = new_block_capacity;
+        }
+
+        self.block_count = new_block_count;
+    }
+
     /// Unsets the bit at the specified index.
     #[inline]
     pub fn unset(&mut self, index: usize) {
         let block_index = index / 64;
+
         if block_index >= self.block_count {
             return;
         }
+
         let bit_index = index % 64;
         let mask = 1 << bit_index;
         self.blocks[block_index] &= !mask;
@@ -95,9 +117,11 @@ impl BitVec {
     #[inline]
     pub fn get(&self, index: usize) -> bool {
         let block_index = index / 64;
+
         if block_index >= self.block_count {
             return false;
         }
+
         let bit_index = index % 64;
         let mask = 1 << bit_index;
         (self.blocks[block_index] & mask) != 0
