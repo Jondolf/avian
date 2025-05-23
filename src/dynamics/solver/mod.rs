@@ -421,6 +421,7 @@ struct BodyQuery {
     center_of_mass: Read<ComputedCenterOfMass>,
     linear_velocity: Read<LinearVelocity>,
     angular_velocity: Read<AngularVelocity>,
+    is_sleeping: Has<Sleeping>,
 }
 
 impl BodyQueryItem<'_> {
@@ -457,16 +458,6 @@ fn prepare_contact_constraints(
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
     crate::utils::par_for_each!(constraint_graph.colors, |_i, color| {
         for contact_pair in &mut color.contacts {
-            let static1 = contact_pair.flags.contains(ContactPairFlags::STATIC1);
-            let static2 = contact_pair.flags.contains(ContactPairFlags::STATIC2);
-
-            // No collision response if both bodies are static or sleeping
-            // or if either of the colliders is a sensor collider.
-            // TODO: The static case shouldn't happen here anyway. Remove it.
-            if (static1 && static2) || contact_pair.is_sensor() {
-                return;
-            }
-
             let (Some(body1_entity), Some(body2_entity)) = (contact_pair.body1, contact_pair.body2)
             else {
                 return;
@@ -480,6 +471,18 @@ fn prepare_contact_constraints(
             let Ok(body2) = bodies.get(body2_entity) else {
                 return;
             };
+
+            let static1 = contact_pair.flags.contains(ContactPairFlags::STATIC1);
+            let static2 = contact_pair.flags.contains(ContactPairFlags::STATIC2);
+
+            // No collision response if both bodies are static or sleeping
+            // or if either of the colliders is a sensor collider.
+            // TODO: The static case shouldn't happen here anyway. Remove it.
+            if ((static1 || body1.is_sleeping) && (static2 || body2.is_sleeping))
+                || contact_pair.is_sensor()
+            {
+                return;
+            }
 
             // Compute the relative dominance of the bodies.
             let relative_dominance = body1.dominance() - body2.dominance();
@@ -644,6 +647,11 @@ fn prepare_contact_constraints(
     );*/
 
     diagnostics.prepare_constraints += start.elapsed();
+    diagnostics.contact_constraint_count = constraint_graph
+        .colors
+        .iter()
+        .map(|color| color.contact_constraints.len())
+        .sum::<usize>() as u32;
 }
 
 /// Warm starts the solver by applying the impulses from the previous frame or substep.
@@ -849,40 +857,33 @@ fn solve_restitution(
 /// Copies contact impulses from [`ContactConstraints`] to the contacts in the [`ContactGraph`].
 /// They will be used for [warm starting](SubstepSolverSet::WarmStart).
 fn store_contact_impulses(
-    constraints: Res<ContactConstraints>,
     mut contact_graph: ResMut<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
 
-    for constraint in constraints.iter() {
-        let Some(contact_edge) = contact_graph.get_mut_by_id(constraint.contact_id) else {
-            unreachable!(
-                "Contact pair between {} and {} not found in contact graph.",
-                constraint.collider1, constraint.collider2
-            );
-        };
+    for color in constraint_graph.colors.iter_mut() {
+        for constraint in &mut color.contact_constraints {
+            let Some(contact_edge) = contact_graph.get_mut_by_id(constraint.contact_id) else {
+                unreachable!(
+                    "Contact pair between {} and {} not found in contact graph.",
+                    constraint.collider1, constraint.collider2
+                );
+            };
+            let contact_pair = &mut color.contacts[contact_edge.local_index];
 
-        let Some(contact_pair) = constraint_graph
-            .get_contact_pair_mut(contact_edge.color_index, contact_edge.local_index)
-        else {
-            warn!(
-                "Contact pair between {} and {} not found in contact graph.",
-                constraint.collider1, constraint.collider2
-            );
-            continue;
-        };
-
-        let manifold = &mut contact_pair.manifolds[constraint.manifold_index];
-
-        for (contact, constraint_point) in manifold.points.iter_mut().zip(constraint.points.iter())
-        {
-            contact.normal_impulse = constraint_point.normal_part.impulse;
-            contact.tangent_impulse = constraint_point
-                .tangent_part
-                .as_ref()
-                .map_or(default(), |part| part.impulse);
+            for (contact, constraint_point) in contact_pair.manifolds[constraint.manifold_index]
+                .points
+                .iter_mut()
+                .zip(constraint.points.iter())
+            {
+                contact.normal_impulse = constraint_point.normal_part.impulse;
+                contact.tangent_impulse = constraint_point
+                    .tangent_part
+                    .as_ref()
+                    .map_or(default(), |part| part.impulse);
+            }
         }
     }
 

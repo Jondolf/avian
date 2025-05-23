@@ -8,6 +8,8 @@ use bevy::{
     prelude::*,
 };
 
+use super::solver::constraint_graph::ConstraintGraph;
+
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
 /// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
@@ -53,6 +55,22 @@ impl Plugin for SleepingPlugin {
                 last_physics_tick.0 = system_change_tick.this_run();
             })
             .after(PhysicsStepSet::Last),
+        );
+
+        app.add_observer(
+            |trigger: Trigger<OnAdd, Sleeping>,
+             mut contact_graph: ResMut<ContactGraph>,
+             mut constraint_graph: ResMut<ConstraintGraph>| {
+                constraint_graph.sleep_entity(&mut contact_graph, trigger.target());
+            },
+        );
+
+        app.add_observer(
+            |trigger: Trigger<OnRemove, Sleeping>,
+             mut contact_graph: ResMut<ContactGraph>,
+             mut constraint_graph: ResMut<ConstraintGraph>| {
+                constraint_graph.wake_entity(&mut contact_graph, trigger.target());
+            },
         );
     }
 }

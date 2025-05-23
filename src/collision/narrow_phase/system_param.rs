@@ -159,25 +159,22 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     if contact_edge.color_index != usize::MAX {
                         // The contact is an active constraint.
                         // Remove the contact from the constraint graph.
-                        if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
-                        {
-                            let color_index = contact_edge.color_index;
-                            let local_index = contact_edge.local_index;
-                            self.constraint_graph.remove_touching_contact(
-                                &mut self.contact_graph,
-                                body1,
-                                body2,
-                                color_index,
-                                local_index,
-                            );
-                        }
+                        let color_index = contact_edge.color_index;
+                        let local_index = contact_edge.local_index;
+                        self.constraint_graph.remove_touching_contact(
+                            &mut self.contact_graph.edges,
+                            color_index,
+                            local_index,
+                        );
                     } else {
                         // The contact is non-touching or sleeping.
                         // Remove the contact from the constraint graph.
                         // TODO: debug_assert here
                         let local_index = contact_edge.local_index;
-                        self.constraint_graph
-                            .remove_non_touching_contact(&mut self.contact_graph, local_index);
+                        self.constraint_graph.remove_non_touching_contact(
+                            &mut self.contact_graph.edges,
+                            local_index,
+                        );
                     }
                     self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
@@ -212,7 +209,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     self.constraint_graph
                         .add_touching_contact(contact_edge, contact_pair);
                     self.constraint_graph
-                        .remove_non_touching_contact(&mut self.contact_graph, local_index);
+                        .remove_non_touching_contact(&mut self.contact_graph.edges, local_index);
                 } else if contact_pair
                     .flags
                     .contains(ContactPairFlags::STOPPED_TOUCHING)
@@ -253,21 +250,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STOPPED_TOUCHING, false);
 
-                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
-                        // TODO: Can we avoid cloning and just take the touching contact?
-                        let contact_pair = contact_pair.clone();
-                        let color_index = contact_edge.color_index;
-                        let local_index = contact_edge.local_index;
-                        self.constraint_graph
-                            .add_non_touching_contact(contact_edge, contact_pair);
-                        self.constraint_graph.remove_touching_contact(
-                            &mut self.contact_graph,
-                            body1,
-                            body2,
-                            color_index,
-                            local_index,
-                        );
-                    }
+                    // TODO: Can we avoid cloning and just take the touching contact?
+                    let contact_pair = contact_pair.clone();
+                    let color_index = contact_edge.color_index;
+                    let local_index = contact_edge.local_index;
+                    self.constraint_graph
+                        .add_non_touching_contact(contact_edge, contact_pair);
+                    self.constraint_graph.remove_touching_contact(
+                        &mut self.contact_graph.edges,
+                        color_index,
+                        local_index,
+                    );
                 }
 
                 // Clear the least significant set bit.
@@ -353,7 +346,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         }
 
         // Add non-touching contacts from the constraint graph.
-        // TODO: Keep active and disabled contacts separate?
         contacts.extend(non_touching_contacts.iter_mut());
 
         // Compute contacts for all contact pairs in parallel or serially

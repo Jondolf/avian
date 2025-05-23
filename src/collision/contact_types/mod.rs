@@ -4,7 +4,7 @@ mod contact_graph;
 mod feature_id;
 mod system_param;
 
-pub use contact_graph::ContactGraph;
+pub use contact_graph::{ContactGraph, ContactGraphInternal};
 pub use feature_id::PackedFeatureId;
 pub use system_param::Collisions;
 

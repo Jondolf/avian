@@ -97,25 +97,6 @@ pub struct ContactConstraint {
 }
 
 impl ContactConstraint {
-    pub const PLACEHOLDER: ContactConstraint = ContactConstraint {
-        body1: Entity::PLACEHOLDER,
-        body2: Entity::PLACEHOLDER,
-        collider1: Entity::PLACEHOLDER,
-        collider2: Entity::PLACEHOLDER,
-        relative_dominance: 0,
-        friction: 0.0,
-        restitution: 0.0,
-        #[cfg(feature = "2d")]
-        tangent_speed: 0.0,
-        #[cfg(feature = "3d")]
-        tangent_velocity: Vector::ZERO,
-        normal: Vector::ZERO,
-        // TODO: Initialize with some reasonable capacity?
-        points: Vec::new(),
-        contact_id: ContactId::PLACEHOLDER,
-        manifold_index: usize::MAX,
-    };
-
     /// Warm starts the contact constraint by applying the impulses from the previous frame or substep.
     pub fn warm_start(
         &self,

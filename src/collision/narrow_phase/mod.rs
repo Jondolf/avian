@@ -11,11 +11,7 @@ use system_param::ThreadLocalContactStatusBits;
 use core::marker::PhantomData;
 
 use crate::{
-    data_structures::graph::EdgeIndex,
-    dynamics::solver::{
-        constraint_graph::{ConstraintGraph, COLOR_OVERFLOW_INDEX, GRAPH_COLOR_COUNT},
-        ContactConstraints,
-    },
+    dynamics::solver::{constraint_graph::ConstraintGraph, ContactConstraints},
     prelude::*,
 };
 use bevy::{
@@ -344,7 +340,7 @@ fn remove_collider_on<E: Event, B: Bundle>(
     let entity = trigger.target();
 
     // Remove the collider from the contact graph.
-    contact_graph.remove_collider_with(entity, |graph, contact_edge| {
+    contact_graph.remove_collider_with(entity, |contact_graph, contact_edge| {
         // If the contact pair was not touching, we don't need to do anything.
         if !contact_edge.flags.contains(ContactEdgeFlags::TOUCHING) {
             return;
@@ -374,60 +370,17 @@ fn remove_collider_on<E: Event, B: Bundle>(
         // Wake up the other body.
         commands.queue(WakeUpBody(other_entity));
 
-        // TODO: Avoid this lookup.
-        let contact_pair = constraint_graph
-            .get_contact_pair(contact_edge.color_index, contact_edge.local_index)
-            .unwrap();
-
-        // TODO: For borrow checker reasons, we can't use use `ConstraintGraph` methods
-        //       here, since we'd be borrowing `contact_graph` mutably twice.
-        //       Should we change them to take `&mut StableUnGraph` or a closure instead,
-        //       or otherwise refactor this?
         if contact_edge.color_index != usize::MAX {
             // The contact is an active constraint.
             // Remove the contact from the constraint graph.
-            if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
-                debug_assert!(contact_edge.color_index < GRAPH_COLOR_COUNT);
-
-                let color = &mut constraint_graph.colors[contact_edge.color_index];
-
-                if contact_edge.color_index != COLOR_OVERFLOW_INDEX {
-                    color.body_set.unset(body1.index() as usize);
-                    color.body_set.unset(body2.index() as usize);
-                }
-
-                let moved_index = color.contacts.len() - 1;
-                color.contacts.swap_remove(contact_edge.local_index);
-
-                if moved_index != contact_edge.local_index {
-                    // Fix moved contact.
-                    let moved_contact = &mut color.contacts[contact_edge.local_index];
-                    let moved_contact_edge = graph
-                        .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
-                        .unwrap();
-                    debug_assert!(moved_contact_edge.color_index == contact_edge.color_index);
-                    debug_assert!(moved_contact_edge.local_index == moved_index);
-                    moved_contact_edge.local_index = contact_edge.local_index;
-                }
-            }
+            constraint_graph.remove_touching_contact(
+                contact_graph,
+                contact_edge.color_index,
+                contact_edge.local_index,
+            );
         } else {
             // Remove the contact from the non-touching contacts.
-            let moved_index = constraint_graph.non_touching_contacts.len() - 1;
-            constraint_graph
-                .non_touching_contacts
-                .swap_remove(contact_edge.local_index);
-
-            if moved_index != contact_edge.local_index {
-                // Fix moved contact.
-                let moved_contact =
-                    &mut constraint_graph.non_touching_contacts[contact_edge.local_index];
-                let moved_contact_edge = graph
-                    .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
-                    .unwrap();
-                debug_assert!(moved_contact_edge.color_index == usize::MAX);
-                debug_assert!(moved_contact_edge.local_index == moved_index);
-                moved_contact_edge.local_index = contact_edge.local_index;
-            }
+            constraint_graph.remove_non_touching_contact(contact_graph, contact_edge.local_index);
         }
     });
 }

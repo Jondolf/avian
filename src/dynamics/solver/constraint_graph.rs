@@ -1,8 +1,12 @@
-use bevy::ecs::{entity::Entity, resource::Resource};
+use bevy::{
+    ecs::{entity::Entity, resource::Resource},
+    log::warn,
+};
+use parry::query::contact;
 
 use crate::{
-    collision::contact_types::ContactEdge,
-    data_structures::bit_vec::BitVec,
+    collision::contact_types::{ContactEdge, ContactGraphInternal, ContactId},
+    data_structures::{bit_vec::BitVec, graph::EdgeIndex},
     prelude::{ContactGraph, ContactPair, ContactPairFlags},
 };
 
@@ -41,11 +45,30 @@ pub struct GraphColor {
     // TODO: Joints
 }
 
+/// The constraint graph. This holds:
+///
+/// - Up to `GRAPH_COLOR_COUNT` colors
+///   - Contact pairs
+///   - Contact constraints
+/// - Non-touching contacts
+/// - Sleeping contacts
+///
+/// Each body can appear in a given color only once. This prevents race conditions
+/// and allows constraints to be solved in parallel within each color.
+///
+/// Non-touching contacts and sleeping contacts are not part of the graph coloring
+/// or the solver, but are still stored for the narrow phase and for users that need
+/// to access them.
+///
+/// Sleeping contacts are stored separately to avoid iterating over them in the narrow phase.
 #[derive(Resource, Clone, Debug)]
 pub struct ConstraintGraph {
     /// The colors in the graph.
     pub colors: Vec<GraphColor>,
+    /// All contacts for awake bodies that are not touching but have overlapping AABBs.
     pub non_touching_contacts: Vec<ContactPair>,
+    /// All contacts for sleeping bodies, both touching and non-touching.
+    pub sleeping_contacts: Vec<ContactPair>,
 }
 
 impl Default for ConstraintGraph {
@@ -77,6 +100,7 @@ impl ConstraintGraph {
             colors,
             // TODO: What's a good initial capacity for contacts?
             non_touching_contacts: Vec::with_capacity(bit_capacity),
+            sleeping_contacts: Vec::with_capacity(bit_capacity),
         }
     }
 
@@ -162,55 +186,64 @@ impl ConstraintGraph {
 
     pub fn remove_non_touching_contact(
         &mut self,
-        contact_graph: &mut ContactGraph,
+        // We don't use the `ContactGraph` here to make this more flexible and reusable
+        // for contexts where we can't provide the `ContactGraph` directly.
+        contact_graph: &mut ContactGraphInternal,
         local_index: usize,
-    ) {
+    ) -> ContactPair {
         // Remove the contact from the non-touching contacts.
         let moved_index = self.non_touching_contacts.len() - 1;
-        self.non_touching_contacts.swap_remove(local_index);
+        let removed = self.non_touching_contacts.swap_remove(local_index);
 
         if moved_index != local_index {
             // Fix moved contact.
             let moved_contact = &mut self.non_touching_contacts[local_index];
-            let contact_edge = contact_graph
-                .get_mut_by_id(moved_contact.contact_id)
+            let moved_contact_edge = contact_graph
+                .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
                 .unwrap();
-            debug_assert!(contact_edge.color_index == usize::MAX);
-            debug_assert!(contact_edge.local_index == moved_index);
-            contact_edge.local_index = local_index;
+            debug_assert!(moved_contact_edge.color_index == usize::MAX);
+            debug_assert!(moved_contact_edge.local_index == moved_index);
+            moved_contact_edge.local_index = local_index;
         }
+
+        removed
     }
 
     pub fn remove_touching_contact(
         &mut self,
-        contact_graph: &mut ContactGraph,
-        body1: Entity,
-        body2: Entity,
+        // We don't use the `ContactGraph` here to make this more flexible and reusable
+        // for contexts where we can't provide the `ContactGraph` directly.
+        contact_graph: &mut ContactGraphInternal,
         color_index: usize,
         local_index: usize,
-    ) {
+    ) -> ContactPair {
         debug_assert!(color_index < GRAPH_COLOR_COUNT);
 
         let color = &mut self.colors[color_index];
+
+        let moved_index = color.contacts.len() - 1;
+        let removed = color.contacts.swap_remove(local_index);
+
+        let body1 = removed.body1.unwrap();
+        let body2 = removed.body2.unwrap();
 
         if color_index != COLOR_OVERFLOW_INDEX {
             color.body_set.unset(body1.index() as usize);
             color.body_set.unset(body2.index() as usize);
         }
 
-        let moved_index = color.contacts.len() - 1;
-        color.contacts.swap_remove(local_index);
-
         if moved_index != local_index {
             // Fix moved contact.
             let moved_contact = &mut color.contacts[local_index];
-            let contact_edge = contact_graph
-                .get_mut_by_id(moved_contact.contact_id)
+            let moved_contact_edge = contact_graph
+                .edge_weight_mut(EdgeIndex(moved_contact.contact_id.0))
                 .unwrap();
-            debug_assert!(contact_edge.color_index == color_index);
-            debug_assert!(contact_edge.local_index == moved_index);
-            contact_edge.local_index = local_index;
+            debug_assert!(moved_contact_edge.color_index == color_index);
+            debug_assert!(moved_contact_edge.local_index == moved_index);
+            moved_contact_edge.local_index = local_index;
         }
+
+        removed
     }
 
     pub fn get_contact_pair(&self, color_index: usize, local_index: usize) -> Option<&ContactPair> {
@@ -237,7 +270,86 @@ impl ConstraintGraph {
             color.contacts.get_mut(local_index)
         } else {
             // The contact pair lives is non-touching.
+            // TODO: It could also be in the sleeping contacts!
             self.non_touching_contacts.get_mut(local_index)
+        }
+    }
+
+    /// Transfers contact of a body from the sleeping contacts to the graph.
+    pub fn wake_entity(&mut self, contact_graph: &mut ContactGraph, entity: Entity) {
+        // TODO: Avoid this.
+        let ids = contact_graph
+            .collisions_with(entity)
+            .map(|edge| edge.id)
+            .collect::<Vec<ContactId>>();
+
+        for contact_id in ids {
+            // Find the contact edge in the contact graph.
+            // TODO: Avoid this lookup.
+            let contact_edge = contact_graph
+                .get_mut_by_id(contact_id)
+                .unwrap_or_else(|| panic!("Contact edge not found in graph: {contact_id:?}"));
+            let local_index = contact_edge.local_index;
+
+            if contact_edge.color_index != usize::MAX || local_index >= self.sleeping_contacts.len()
+            {
+                // The contact is already in the graph.
+                // TODO: This should not happen, but it does.
+                warn!("Contact edge {contact_id:?} is already in the graph");
+                continue;
+            }
+
+            // Remove the contact from the sleeping contacts.
+            let moved_index = self.sleeping_contacts.len() - 1;
+            let transferred_pair = self.sleeping_contacts.swap_remove(local_index);
+
+            if contact_edge.is_touching() {
+                // Add the contact to the graph.
+                self.add_touching_contact(contact_edge, transferred_pair);
+            } else {
+                // Add the contact to the non-touching contacts.
+                self.add_non_touching_contact(contact_edge, transferred_pair);
+            }
+
+            if moved_index != local_index {
+                // Fix moved contact.
+                let moved_contact = &mut self.sleeping_contacts[local_index];
+                let moved_contact_edge = contact_graph
+                    .get_mut_by_id(moved_contact.contact_id)
+                    .unwrap();
+                debug_assert!(moved_contact_edge.color_index == usize::MAX);
+                debug_assert!(moved_contact_edge.local_index == moved_index);
+                moved_contact_edge.local_index = local_index;
+            }
+        }
+    }
+
+    /// Transfers contact of a body from the graph to the sleeping contacts.
+    pub fn sleep_entity(&mut self, contact_graph: &mut ContactGraph, entity: Entity) {
+        // TODO: Avoid this.
+        let indices = contact_graph
+            .collisions_with(entity)
+            .map(|edge| (edge.is_touching(), edge.color_index, edge.local_index))
+            .collect::<Vec<(bool, usize, usize)>>();
+
+        for (is_touching, color_index, local_index) in indices {
+            // Remove the contact from the graph.
+            let transferred_pair = if is_touching {
+                self.remove_touching_contact(&mut contact_graph.edges, color_index, local_index)
+            } else {
+                self.remove_non_touching_contact(&mut contact_graph.edges, local_index)
+            };
+
+            // Add the contact to the sleeping contacts.
+            let moved_index = self.sleeping_contacts.len();
+            let contact_id = transferred_pair.contact_id;
+            self.sleeping_contacts.push(transferred_pair);
+            // TODO: Avoid this lookup.
+            let contact_edge = contact_graph
+                .get_mut_by_id(contact_id)
+                .unwrap_or_else(|| panic!("Contact edge not found in graph: {contact_id:?}"));
+            contact_edge.color_index = usize::MAX;
+            contact_edge.local_index = moved_index;
         }
     }
 }

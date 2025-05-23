@@ -72,7 +72,7 @@ use super::{ContactEdge, ContactEdgeFlags, ContactId};
 pub struct ContactGraph {
     // TODO: We could have a separate intersection graph for sensors.
     /// The internal undirected graph where nodes are entities and edges are contact pairs.
-    pub edges: StableUnGraph<Entity, ContactEdge>,
+    pub edges: ContactGraphInternal,
 
     /// A set of all contact pairs for fast lookup.
     ///
@@ -85,6 +85,14 @@ pub struct ContactGraph {
     /// A map from entities to their corresponding node indices in the contact graph.
     entity_to_node: SparseSecondaryEntityMap<NodeIndex>,
 }
+
+/// An undirected graph where nodes are entities and edges are contact pairs.
+///
+/// The graph maintains stable indices for nodes and edges even when items are removed.
+///
+/// This is stored internally in the [`ContactGraph`] resource, which provides a higher-level API
+/// for working with contact pairs.
+pub type ContactGraphInternal = StableUnGraph<Entity, ContactEdge>;
 
 impl ContactGraph {
     /// Returns the contact pair between two entities.

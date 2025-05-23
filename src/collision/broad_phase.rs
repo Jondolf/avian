@@ -364,6 +364,7 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // TODO: Get rid of this extra lookup.
             let contact_edge = contact_graph.get_mut_by_id(contact_id).unwrap();
+            contact_edge.id = contact_id;
 
             let mut contact_pair = ContactPair::new(*entity1, *entity2, contact_id);
             contact_pair.flags.set(
