@@ -58,11 +58,6 @@ pub struct ContactConstraint {
     pub body1: Entity,
     /// The second rigid body entity in the contact.
     pub body2: Entity,
-    // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
-    /// The first collider entity in the contact.
-    pub collider1: Entity,
-    /// The second collider entity in the contact.
-    pub collider2: Entity,
     /// The relative dominance of the bodies.
     ///
     /// If the relative dominance is positive, the first body is dominant
@@ -315,7 +310,7 @@ impl ContactConstraint {
 
 impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.collider1 = entity_mapper.get_mapped(self.collider1);
-        self.collider2 = entity_mapper.get_mapped(self.collider2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
     }
 }

@@ -523,8 +523,6 @@ fn prepare_contact_constraints(
                 let mut constraint = ContactConstraint {
                     body1: body1_entity,
                     body2: body2_entity,
-                    collider1: contact_pair.collider1,
-                    collider2: contact_pair.collider2,
                     relative_dominance,
                     friction: manifold.friction,
                     restitution: manifold.restitution,
@@ -867,8 +865,8 @@ fn store_contact_impulses(
         for constraint in &mut color.contact_constraints {
             let Some(contact_edge) = contact_graph.get_mut_by_id(constraint.contact_id) else {
                 unreachable!(
-                    "Contact pair between {} and {} not found in contact graph.",
-                    constraint.collider1, constraint.collider2
+                    "Contact pair {:?} not found in contact graph.",
+                    constraint.contact_id
                 );
             };
             let contact_pair = &mut color.contacts[contact_edge.local_index];
