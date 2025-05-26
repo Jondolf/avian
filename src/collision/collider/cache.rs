@@ -10,7 +10,7 @@ pub struct ColliderCachePlugin;
 impl Plugin for ColliderCachePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderCache>();
-        app.add_systems(PostUpdate, clear_unused_colliders);
+        app.add_systems(PreUpdate, clear_unused_colliders);
     }
 }
 
