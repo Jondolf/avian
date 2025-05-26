@@ -791,6 +791,9 @@ impl PluginGroup for PhysicsPlugins {
             .add(ColliderHierarchyPlugin)
             .add(ColliderTransformPlugin::new(self.schedule));
 
+        #[cfg(feature = "collider-from-mesh")]
+        let builder = builder.add(ColliderCachePlugin);
+
         #[cfg(all(
             feature = "default-collider",
             any(feature = "parry-f32", feature = "parry-f64")
