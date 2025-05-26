@@ -15,7 +15,7 @@ impl Plugin for ColliderCachePlugin {
 }
 
 #[derive(Debug, Resource, Default)]
-pub(crate) struct ColliderCache(HashMap<AssetId<Mesh>, Collider>);
+pub(crate) struct ColliderCache(HashMap<(AssetId<Mesh>, ColliderConstructor), Collider>);
 
 impl ColliderCache {
     pub(crate) fn get_or_insert(
