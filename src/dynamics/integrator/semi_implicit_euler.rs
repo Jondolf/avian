@@ -98,7 +98,7 @@ pub fn integrate_position(
     #[cfg(feature = "2d")]
     {
         let delta_rot = Rotation::radians(ang_vel * delta_seconds);
-        *rot *= delta_rot;
+        *rot = delta_rot * *rot;
         *rot = rot.fast_renormalize();
     }
     #[cfg(feature = "3d")]
