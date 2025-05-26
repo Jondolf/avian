@@ -47,7 +47,9 @@ fn clear_unused_colliders(
 ) {
     for event in asset_events.read() {
         if let AssetEvent::Removed { id } | AssetEvent::Unused { id } = event {
-            collider_cache.0.remove(id);
+            if collider_cache.0.contains_key(id) {
+                collider_cache.0.remove(id);
+            }
         }
     }
 }
