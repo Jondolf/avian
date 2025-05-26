@@ -10,12 +10,12 @@ pub struct ColliderCachePlugin;
 impl Plugin for ColliderCachePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ColliderCache>();
-        app.add_systems(PostUpdate, garbage_collect_collider_cache);
+        app.add_systems(PostUpdate, clear_unused_colliders);
     }
 }
 
 #[derive(Debug, Resource, Default)]
-pub(crate) struct ColliderCache(HashMap<Handle<Mesh>, Collider>);
+pub(crate) struct ColliderCache(HashMap<AssetId<Mesh>, Collider>);
 
 impl ColliderCache {
     pub(crate) fn get_or_insert(
@@ -24,21 +24,22 @@ impl ColliderCache {
         mesh: &Mesh,
         constructor: ColliderConstructor,
     ) -> Option<Collider> {
-        if !self.0.contains_key(mesh_handle) {
+        let id = mesh_handle.id();
+        if !self.0.contains_key(&id) {
             let collider = Collider::try_from_constructor(constructor, Some(mesh))?;
-            self.0.insert(mesh_handle.clone_weak(), collider);
+            self.0.insert(id, collider);
         }
-        self.0.get(mesh_handle).cloned()
+        self.0.get(&id).cloned()
     }
 }
 
-fn garbage_collect_collider_cache(
+fn clear_unused_colliders(
+    mut asset_events: EventReader<AssetEvent<Mesh>>,
     mut collider_cache: ResMut<ColliderCache>,
-    asset_server: Res<AssetServer>,
 ) {
-    collider_cache
-        .0
-        // Not using `is_loaded_with_dependencies` because when dropping a handle,
-        // the entire hierarchy of handles is dropped.
-        .retain(|mesh_handle, _| asset_server.is_loaded(mesh_handle));
+    for event in asset_events.read() {
+        if let AssetEvent::Removed { id } | AssetEvent::Unused { id } = event {
+            collider_cache.0.remove(id);
+        }
+    }
 }
