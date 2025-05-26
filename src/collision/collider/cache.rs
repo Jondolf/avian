@@ -15,7 +15,7 @@ impl Plugin for ColliderCachePlugin {
 }
 
 #[derive(Debug, Resource, Default)]
-pub(crate) struct ColliderCache(HashMap<AssetId<Mesh>, Collider>);
+pub(crate) struct ColliderCache(HashMap<AssetId<Mesh>, Vec<(ColliderConstructor, Collider)>>);
 
 impl ColliderCache {
     pub(crate) fn get_or_insert(
@@ -25,11 +25,19 @@ impl ColliderCache {
         constructor: ColliderConstructor,
     ) -> Option<Collider> {
         let id = mesh_handle.id();
-        if !self.0.contains_key(&id) {
-            let collider = Collider::try_from_constructor(constructor, Some(mesh))?;
-            self.0.insert(id, collider);
+        let Some(entries) = self.0.get_mut(&id) else {
+            let collider = Collider::try_from_constructor(constructor.clone(), Some(mesh))?;
+            self.0
+                .insert(id, vec![(constructor.clone(), collider.clone())]);
+            return Some(collider);
+        };
+        if let Some((_ctor, collider)) = entries.iter().find(|(c, _)| c == &constructor) {
+            Some(collider.clone())
+        } else {
+            let collider = Collider::try_from_constructor(constructor.clone(), Some(mesh))?;
+            entries.push((constructor.clone(), collider.clone()));
+            Some(collider)
         }
-        self.0.get(&id).cloned()
     }
 }
 
