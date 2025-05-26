@@ -15,9 +15,9 @@ mod backend;
 
 pub use backend::{ColliderBackendPlugin, ColliderMarker};
 
-#[cfg(feature = "collider-from-mesh")]
+#[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
 mod cache;
-#[cfg(feature = "collider-from-mesh")]
+#[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
 pub use cache::ColliderCachePlugin;
 pub mod collider_hierarchy;
 pub mod collider_transform;
