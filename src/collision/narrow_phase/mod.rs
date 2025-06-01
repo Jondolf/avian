@@ -108,7 +108,12 @@ where
         #[cfg(feature = "parallel")]
         app.init_resource::<NarrowPhaseThreadLocals>();
 
-        app.register_type::<(NarrowPhaseConfig, DefaultFriction, DefaultRestitution)>();
+        app.register_type::<(
+            NarrowPhaseConfig,
+            DefaultFriction,
+            DefaultRestitution,
+            CollisionEventsEnabled,
+        )>();
 
         app.add_event::<CollisionStarted>()
             .add_event::<CollisionEnded>();
