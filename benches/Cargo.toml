@@ -1,0 +1,31 @@
+[package]
+name = "benches"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
+description = "Benchmarks for Avian Physics"
+repository = "https://github.com/Jondolf/avian"
+readme = "README.md"
+
+[features]
+default = ["2d", "3d"]
+2d = ["dep:avian2d"]
+3d = ["dep:avian3d"]
+
+[dependencies]
+# Physics
+avian2d = { path = "../crates/avian2d", optional = true }
+avian3d = { path = "../crates/avian3d", optional = true }
+
+# Bevy
+bevy = { version = "0.16", default-features = false }
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Miscellaneous
+rayon = { version = "1.10" }
+
+[lints]
+workspace = true

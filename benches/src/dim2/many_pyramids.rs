@@ -1,11 +1,11 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::BenchmarkPlugins;
+use super::Benchmark2dPlugins;
 
 pub fn create_bench(base_count: usize, row_count: usize, column_count: usize) -> App {
     let mut app = App::new();
-    app.add_plugins((BenchmarkPlugins, PhysicsPlugins::default()));
+    app.add_plugins((Benchmark2dPlugins, PhysicsPlugins::default()));
     app.add_systems(Startup, move |commands: Commands| {
         setup(commands, base_count, row_count, column_count);
     });

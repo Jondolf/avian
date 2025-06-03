@@ -1,10 +1,14 @@
-//! The command line interface for running benchmarks in the `benches2d` crate.
+//! A command line interface for running physics benchmarks.
 
 use core::{ops::Range, time::Duration};
 
-use bevy_app::App;
-use bevy_tasks::{ComputeTaskPool, TaskPoolBuilder};
+use bevy::{
+    app::App,
+    tasks::{ComputeTaskPool, TaskPoolBuilder},
+};
 use clap::Parser;
+
+use crate::Benchmark;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -63,27 +67,6 @@ fn parse_range(s: &str) -> Result<Range<u32>, String> {
         Ok(start..end)
     } else {
         Err("Invalid range format".to_string())
-    }
-}
-
-/// A benchmark that can be run with the CLI.
-pub struct Benchmark {
-    /// The name of the benchmark.
-    pub name: &'static str,
-    /// The name of the module where the benchmark is defined.
-    pub module: &'static str,
-    /// A function that constructs the benchmark application.
-    pub constructor: fn() -> App,
-}
-
-impl Benchmark {
-    /// Creates a new benchmark with the given name, module, and constructor function.
-    pub const fn new(name: &'static str, module: &'static str, constructor: fn() -> App) -> Self {
-        Self {
-            name,
-            module,
-            constructor,
-        }
     }
 }
 
@@ -328,6 +311,8 @@ fn run_benchmark_with_child_process(
 }
 
 fn run_benchmark(builder: impl Fn() -> App, options: &BenchmarkOptions) -> BenchmarkResult {
+    // Initialize task pools with the specified number of threads.
+    // We also limit rayon's global thread pool here in case it's used.
     ComputeTaskPool::get_or_init(|| {
         TaskPoolBuilder::new()
             .num_threads(options.threads as usize)
