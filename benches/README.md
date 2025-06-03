@@ -1,10 +1,10 @@
-# `benches_cli`
+# Avian Benchmarks
 
-A command-line interface for benchmarking Avian.
+Benchmarks for `avian2d` and `avian3d` for measuring performance and scaling in various test scenes.
 
-## Usage
+## Running the Benchmarks
 
-Below are the available option.
+The `benches` CLI is provided for running the benchmarks with various configurations.
 
 ```text
 Options:
@@ -18,11 +18,11 @@ Options:
   -V, --version                    Print version
 ```
 
-An example of running the "Large Pyramid 2D" benchmark with 1-6 threads, 500 steps, repeated 5 times:
+An example of running the "Large Pyramid 2D" benchmark with 1-6 threads and 500 steps, repeated 5 times:
 
 ```shell
-# Running in release mode is heavily encouraged!
-cargo run --release --bin benches2d -- --name "Large Pyramid 2D" --threads 1..=6 --steps 500 --repeat 5
+# Using the `release` profile is heavily recommended!
+cargo run -p benches --release -- --name "Large Pyramid 2D" --threads 1..=6 --steps 500 --repeat 5
 ```
 
 The output might look something like this:
@@ -31,10 +31,20 @@ The output might look something like this:
 Running benchmark 'Large Pyramid 2D' with threads ranging from 1 to 6:
 | threads | avg time / step | min time / step |
 | ------- | --------------- | --------------- |
-|       1 |      4.89532 ms |      4.33950 ms |
-|       2 |      4.04826 ms |      3.53192 ms |
-|       3 |      3.68756 ms |      3.19322 ms |
-|       4 |      3.53765 ms |      3.03870 ms |
-|       5 |      3.42883 ms |      2.90144 ms |
-|       6 |      3.39412 ms |      2.87670 ms |
+|       1 |     12.29045 ms |     11.22260 ms |
+|       2 |     10.40321 ms |      9.27592 ms |
+|       3 |      9.65242 ms |      8.53754 ms |
+|       4 |      9.19108 ms |      8.15204 ms |
+|       5 |      9.03052 ms |      8.08754 ms |
+|       6 |      8.91510 ms |      7.87406 ms |
+```
+
+To only run benchmarks for a specific dimension, disable default features and enable the `2d` or `3d` feature:
+
+```shell
+# List all 2D benchmarks
+cargo run -p benches --release --no-default-features --features 2d -- --list
+
+# Run all 3D benchmarks with default options
+cargo run -p benches --release --no-default-features --features 3d
 ```

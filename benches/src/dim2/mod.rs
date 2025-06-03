@@ -4,8 +4,6 @@ use avian2d::prelude::SubstepCount;
 use bevy::{
     MinimalPlugins,
     app::{App, Plugin, PluginGroup, PluginGroupBuilder},
-    asset::AssetPlugin,
-    scene::ScenePlugin,
     time::{Time, TimeUpdateStrategy},
     transform::TransformPlugin,
 };
@@ -34,8 +32,6 @@ impl PluginGroup for Benchmark2dPlugins {
             .add_group(MinimalPlugins)
             .add(Benchmark2dCorePlugin)
             .add(TransformPlugin)
-            .add(AssetPlugin::default())
-            .add(ScenePlugin)
     }
 }
 

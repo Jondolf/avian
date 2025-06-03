@@ -15,8 +15,20 @@ default = ["2d", "3d"]
 
 [dependencies]
 # Physics
-avian2d = { path = "../crates/avian2d", optional = true }
-avian3d = { path = "../crates/avian3d", optional = true }
+avian2d = { path = "../crates/avian2d", default-features = false, features = [
+    "2d",
+    "f32",
+    "parry-f32",
+    "parallel",
+    "simd",
+], optional = true }
+avian3d = { path = "../crates/avian3d", default-features = false, features = [
+    "3d",
+    "f32",
+    "parry-f32",
+    "parallel",
+    "simd",
+], optional = true }
 
 # Bevy
 bevy = { version = "0.16", default-features = false }
