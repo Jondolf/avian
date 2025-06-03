@@ -1,0 +1,10 @@
+[package]
+name = "benches2d"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+avian2d = { path = "../crates/avian2d" }
+bevy_rapier2d = { version = "0.30", features = ["parallel", "simd-stable"] }
+benches_cli = { path = "../benches_cli" }
+bevy = { version = "0.16", default-features = false }
