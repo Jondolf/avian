@@ -117,6 +117,26 @@ pub fn run(benchmark: &Benchmark, args: &Args) {
         );
         println!("Avg step time (s): {}", result.average_time.as_secs_f64());
         println!("Min step time (s): {}", result.min_time.as_secs_f64());
+        if let Some(output_dir) = &args.output {
+            // Create output directory if it doesn't exist
+            std::fs::create_dir_all(output_dir).unwrap();
+            // Write the CSV file
+            let path = format!(
+                "{output_dir}/{}.csv",
+                benchmark.name.to_lowercase().replace(" ", "_")
+            );
+            std::fs::write(
+                &path,
+                format!(
+                    "benchmark,avg_step_ms,min_step_ms\n{},{},{}\n",
+                    benchmark.name,
+                    result.average_time.as_secs_f64(),
+                    result.min_time.as_secs_f64()
+                ),
+            )
+            .unwrap();
+            println!("Results written to {path}");
+        }
     } else {
         println!(
             "Running benchmark '{}' with threads ranging from {} to {}:",
