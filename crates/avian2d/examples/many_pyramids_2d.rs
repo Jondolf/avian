@@ -30,13 +30,17 @@ fn setup(
     let ground_width = 2.0 * h * column_count as f32 * (base_count + 1) as f32;
 
     // Ground
+    let ground_shape = Rectangle::new(ground_width, 0.01);
+    let collider = Collider::from(ground_shape);
+    let mesh = meshes.add(ground_shape);
+    let material = materials.add(Color::srgb(0.3, 0.5, 0.3));
     for i in 0..row_count {
         commands.spawn((
             RigidBody::Static,
-            Collider::rectangle(ground_width, 0.01),
+            collider.clone(),
             Transform::from_xyz(0.0, i as f32 * ground_delta_y, 0.0),
-            Mesh2d(meshes.add(Rectangle::new(ground_width, 0.01))),
-            MeshMaterial2d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(material.clone()),
         ));
     }
 
@@ -81,7 +85,10 @@ fn spawn_small_pyramid(
     base_y: f32,
 ) {
     let box_size = 2.0 * h;
-    let collider = Collider::rectangle(box_size, box_size);
+    let rectangle = Rectangle::from_length(box_size);
+    let collider = Collider::from(rectangle);
+    let mesh = meshes.add(rectangle);
+    let material = materials.add(Color::srgb(0.2, 0.7, 0.9));
 
     for i in 0..base_count {
         let y = (2 * i + 1) as f32 * h + base_y;
@@ -93,8 +100,8 @@ fn spawn_small_pyramid(
                 RigidBody::Dynamic,
                 collider.clone(),
                 Transform::from_xyz(x, y, 0.0),
-                Mesh2d(meshes.add(Rectangle::new(box_size, box_size))),
-                MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
+                Mesh2d(mesh.clone()),
+                MeshMaterial2d(material.clone()),
             ));
         }
     }
