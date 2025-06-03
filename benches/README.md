@@ -21,8 +21,8 @@ Options:
 An example of running the "Large Pyramid 2D" benchmark with 1-6 threads and 500 steps, repeated 5 times:
 
 ```shell
-# Using the `release` profile is heavily recommended!
-cargo run -p benches --release -- --name "Large Pyramid 2D" --threads 1..=6 --steps 500 --repeat 5
+# Note: Make sure `benches` is the active working directory
+cargo run -- --name "Large Pyramid 2D" --threads 1..=6 --steps 500 --repeat 5
 ```
 
 The output might look something like this:
@@ -43,8 +43,11 @@ To only run benchmarks for a specific dimension, disable default features and en
 
 ```shell
 # List all 2D benchmarks
-cargo run -p benches --release --no-default-features --features 2d -- --list
+cargo run --no-default-features --features 2d -- --list
 
 # Run all 3D benchmarks with default options
-cargo run -p benches --release --no-default-features --features 3d
+cargo run --no-default-features --features 3d
 ```
+
+Note that the `dev` profile has been configured to be equivalent to the `release` profile
+in the `Cargo.toml`, so the `--release` flag is optional.

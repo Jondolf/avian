@@ -39,5 +39,17 @@ clap = { version = "4.5", features = ["derive"] }
 # Miscellaneous
 rayon = { version = "1.10" }
 
-[lints]
-workspace = true
+[profile.dev]
+# Make the `dev` profile equivalent to the `release` profile
+# so that benchmarks are more realistic even without `--release`.
+# Reference: https://doc.rust-lang.org/cargo/reference/profiles.html
+opt-level = 3
+debug = false
+strip = "none"
+debug-assertions = false
+overflow-checks = false
+lto = false
+panic = 'unwind'
+incremental = false
+codegen-units = 16
+rpath = false
