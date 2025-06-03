@@ -3,7 +3,7 @@
 use core::{ops::Range, time::Duration};
 
 use bevy::{
-    app::App,
+    app::{App, PluginsState},
     tasks::{ComputeTaskPool, TaskPoolBuilder},
 };
 use clap::Parser;
@@ -358,7 +358,14 @@ fn run_benchmark(builder: impl Fn() -> App, options: &BenchmarkOptions) -> Bench
     for _ in 0..options.repeat {
         let mut app = builder();
 
+        while app.plugins_state() != PluginsState::Ready {
+            bevy::tasks::tick_global_task_pools_on_main_thread();
+        }
+
         app.finish();
+        app.cleanup();
+
+        // Run the initial setup step before starting measurements to avoid skewing the results.
         app.update();
 
         let mut average_step_time = Duration::ZERO;
