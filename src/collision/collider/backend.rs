@@ -4,6 +4,8 @@
 
 use core::marker::PhantomData;
 
+#[cfg(feature = "collider-from-mesh")]
+use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig,
 };
@@ -302,6 +304,7 @@ fn init_collider_constructors(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
     #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
+    #[cfg(feature = "collider-from-mesh")] mut collider_cache: Option<ResMut<ColliderCache>>,
     constructors: Query<(
         Entity,
         Option<&Collider>,
@@ -320,22 +323,22 @@ fn init_collider_constructors(
             continue;
         }
         #[cfg(feature = "collider-from-mesh")]
-        let mesh = if constructor.requires_mesh() {
+        let collider = if constructor.requires_mesh() {
             let mesh_handle = mesh_handles.get(entity).unwrap_or_else(|_| panic!(
                 "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
                 but no mesh handle was found"));
-            let mesh = meshes.get(mesh_handle);
-            if mesh.is_none() {
+            let Some(mesh) = meshes.get(mesh_handle) else {
                 // Mesh required, but not loaded yet
                 continue;
-            }
-            mesh
+            };
+            collider_cache
+                .as_mut()
+                .map(|cache| cache.get_or_insert(mesh_handle, mesh, constructor.clone()))
+                .unwrap_or_else(|| Collider::try_from_constructor(constructor.clone(), Some(mesh)))
         } else {
-            None
+            Collider::try_from_constructor(constructor.clone(), None)
         };
 
-        #[cfg(feature = "collider-from-mesh")]
-        let collider = Collider::try_from_constructor(constructor.clone(), mesh);
         #[cfg(not(feature = "collider-from-mesh"))]
         let collider = Collider::try_from_constructor(constructor.clone());
 
@@ -359,6 +362,7 @@ fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
     #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
+    #[cfg(feature = "collider-from-mesh")] mut collider_cache: Option<ResMut<ColliderCache>>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
     #[cfg(feature = "bevy_scene")] scenes: Query<&SceneRoot>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
@@ -428,18 +432,25 @@ fn init_collider_constructor_hierarchies(
             };
 
             #[cfg(feature = "collider-from-mesh")]
-            let mesh = if constructor.requires_mesh() {
-                if let Ok(handle) = mesh_handles.get(child_entity) {
-                    meshes.get(handle)
-                } else {
+            let collider = if constructor.requires_mesh() {
+                let Ok(mesh_handle) = mesh_handles.get(child_entity) else {
+                    // This child entity does not have a mesh, so we skip it.
                     continue;
-                }
+                };
+                let Some(mesh) = meshes.get(mesh_handle) else {
+                    // Mesh required, but not loaded yet
+                    continue;
+                };
+                collider_cache
+                    .as_mut()
+                    .map(|cache| cache.get_or_insert(mesh_handle, mesh, constructor.clone()))
+                    .unwrap_or_else(|| {
+                        Collider::try_from_constructor(constructor.clone(), Some(mesh))
+                    })
             } else {
-                None
+                Collider::try_from_constructor(constructor.clone(), None)
             };
 
-            #[cfg(feature = "collider-from-mesh")]
-            let collider = Collider::try_from_constructor(constructor, mesh);
             #[cfg(not(feature = "collider-from-mesh"))]
             let collider = Collider::try_from_constructor(constructor);
 

@@ -95,7 +95,6 @@ thread_local = { version = "1.1", optional = true }
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
-benches_common_3d = { path = "../benches_common_3d" }
 bevy = { version = "0.16", default-features = false, features = [
     "bevy_gltf",
     "animation",
@@ -183,8 +182,3 @@ required-features = ["3d", "default-collider", "diagnostic_ui"]
 [[example]]
 name = "debugdump_3d"
 required-features = ["3d"]
-
-[[bench]]
-name = "cubes"
-required-features = ["3d", "default-collider"]
-harness = false

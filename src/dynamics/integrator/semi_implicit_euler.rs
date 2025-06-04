@@ -98,7 +98,7 @@ pub fn integrate_position(
     #[cfg(feature = "2d")]
     {
         let delta_rot = Rotation::radians(ang_vel * delta_seconds);
-        *rot *= delta_rot;
+        *rot = delta_rot * *rot;
         *rot = rot.fast_renormalize();
     }
     #[cfg(feature = "3d")]
@@ -224,12 +224,7 @@ pub fn solve_gyroscopic_torque(
 
     // Convert back to world-space angular velocity.
     let local_inverse_inertia = local_inertia.inverse();
-    let inv_inertia_diagonal = Vector::new(
-        local_inverse_inertia.x_axis.x,
-        local_inverse_inertia.y_axis.y,
-        local_inverse_inertia.z_axis.z,
-    );
-    *ang_vel = rotation * (inv_inertia_diagonal * new_local_momentum);
+    *ang_vel = rotation * (local_inverse_inertia * new_local_momentum);
 }
 
 #[cfg(test)]
