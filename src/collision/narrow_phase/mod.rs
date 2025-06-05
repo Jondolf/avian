@@ -334,6 +334,14 @@ fn trigger_collision_events(
             ended_pairs.push((event.1, OnCollisionEnd { collider, body }));
         }
     }
+
+    // Trigger the events, draining the buffers in the process.
+    started_pairs.drain(..).for_each(|(entity, event)| {
+        world.trigger_targets(event, entity);
+    });
+    ended_pairs.drain(..).for_each(|(entity, event)| {
+        world.trigger_targets(event, entity);
+    });
 }
 
 /// Removes colliders from the [`ContactGraph`] when the given trigger is activated.
