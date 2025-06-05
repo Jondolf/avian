@@ -127,7 +127,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .contact_graph
                     .internal
                     .edge_weight_mut(pair_index)
-                    .unwrap_or_else(|| panic!("Contact pair not found for {:?}", pair_index));
+                    .unwrap_or_else(|| panic!("Contact pair not found for {pair_index:?}"));
 
                 // Three options:
                 // 1. The AABBs are no longer overlapping, and the contact pair should be removed.
