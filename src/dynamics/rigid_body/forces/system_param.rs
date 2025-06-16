@@ -19,7 +19,9 @@ use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWor
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct RigidBodyForceQuery {
-    rotation: Read<Rotation>,
+    // TODO: This is currently an `Option`, because `Rotation` may not be present until physics has run.
+    //       We should properly initialize `Rotation` on spawn.
+    rotation: Option<Read<Rotation>>,
     linear_velocity: Write<LinearVelocity>,
     angular_velocity: Write<AngularVelocity>,
     mass_props: Read<SolverBodyInertia>,
@@ -103,7 +105,7 @@ impl EntityForces<'_> {
     ///
     /// The impulse modifies the [`LinearVelocity`] of the body immediately.
     pub fn apply_local_linear_impulse(&mut self, impulse: Vector) {
-        let world_impulse = *self.body.rotation * impulse;
+        let world_impulse = self.body.rotation.copied().unwrap_or_default() * impulse;
         self.apply_linear_impulse(world_impulse);
     }
 
@@ -296,7 +298,7 @@ impl EntityForces<'_> {
         };
 
         // Return the total world-space force.
-        world_force + self.body.rotation * local_force
+        world_force + self.body.rotation.copied().unwrap_or_default() * local_force
     }
 
     /// Returns the external torque that the body has accumulated
@@ -341,7 +343,7 @@ impl EntityForces<'_> {
         };
 
         // Return the total world-space torque.
-        world_torque + self.body.rotation * local_torque
+        world_torque + self.body.rotation.copied().unwrap_or_default() * local_torque
     }
 
     /// Returns the linear acceleration that the body has accumulated
@@ -363,7 +365,8 @@ impl EntityForces<'_> {
             };
 
         // Return the total world-space linear acceleration.
-        world_linear_acceleration + self.body.rotation * local_linear_acceleration
+        world_linear_acceleration
+            + self.body.rotation.copied().unwrap_or_default() * local_linear_acceleration
     }
 
     /// Returns the angular acceleration that the body has accumulated
@@ -397,7 +400,8 @@ impl EntityForces<'_> {
             };
 
         // Return the total world-space angular acceleration.
-        world_angular_acceleration + self.body.rotation * local_angular_acceleration
+        world_angular_acceleration
+            + self.body.rotation.copied().unwrap_or_default() * local_angular_acceleration
     }
 
     /// Resets the accumulated forces to zero.
