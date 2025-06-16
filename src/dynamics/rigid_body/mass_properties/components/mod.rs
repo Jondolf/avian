@@ -846,6 +846,8 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// # Related Types
 ///
 /// - [`ComputedCenterOfMass`] stores the total center of mass of a dynamic [rigid body] that considers child entities and colliders.
+/// - [`GlobalCenterOfMass`] stores the global center of mass, which is automatically recomputed whenever the local center of mass,
+///   position, or rotation is changed.
 /// - [`NoAutoCenterOfMass`] disables the centers of mass of child entities being taken into account for the [`ComputedCenterOfMass`].
 /// - [`Mass`] represents resistance to linear acceleration.
 /// - [`AngularInertia`] is the rotational equivalent of mass, representing resistance to angular acceleration.

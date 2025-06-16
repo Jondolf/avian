@@ -1,6 +1,6 @@
 use crate::{
     dynamics::{integrator::VelocityIntegrationData, solver::solver_body::SolverBodyInertia},
-    prelude::*,
+    prelude::{mass_properties::components::GlobalCenterOfMass, *},
 };
 use bevy::{
     ecs::{
@@ -19,16 +19,11 @@ use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWor
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct RigidBodyForceQuery {
-    // TODO: If we apply forces using an offset from the center of mass,
-    //       we don't need `Position` or `ComputedCenterOfMass` here.
-    position: Read<Position>,
     rotation: Read<Rotation>,
     linear_velocity: Write<LinearVelocity>,
     angular_velocity: Write<AngularVelocity>,
     mass_props: Read<SolverBodyInertia>,
-    center_of_mass: Read<ComputedCenterOfMass>,
-    // TODO: Use `SolverBodyInertia` for the locked axes.
-    locked_axes: Option<Read<LockedAxes>>,
+    global_center_of_mass: Read<GlobalCenterOfMass>,
     integration: Write<VelocityIntegrationData>,
     accumulated_world_forces: Option<Write<AccumulatedWorldForces>>,
     accumulated_local_forces: Option<Write<AccumulatedLocalForces>>,
@@ -125,10 +120,11 @@ impl EntityForces<'_> {
     ///
     /// The impulse modifies the [`LinearVelocity`] and [`AngularVelocity`] of the body immediately.
     pub fn apply_linear_impulse_at_point(&mut self, impulse: Vector, world_point: Vector) {
-        let world_center_of_mass =
-            self.body.position.0 + *self.body.rotation * self.body.center_of_mass.0;
         self.apply_linear_impulse(impulse);
-        self.apply_angular_impulse(cross(world_point - world_center_of_mass, impulse));
+        self.apply_angular_impulse(cross(
+            world_point - self.body.global_center_of_mass.get(),
+            impulse,
+        ));
     }
 
     /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m^2/s.
@@ -178,10 +174,11 @@ impl EntityForces<'_> {
     pub fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {
         // Note: This does not consider the rotation of the body during substeps,
         //       so the torque may not be accurate if the body is rotating quickly.
-        let world_center_of_mass =
-            self.body.position.0 + *self.body.rotation * self.body.center_of_mass.0;
         self.apply_force(force);
-        self.apply_torque(cross(world_point - world_center_of_mass, force));
+        self.apply_torque(cross(
+            world_point - self.body.global_center_of_mass.get(),
+            force,
+        ));
     }
 
     /// Applies a torque in local space. The unit is typically N⋅m or kg⋅m^2/s^2.
@@ -237,11 +234,9 @@ impl EntityForces<'_> {
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
-        // TODO: Technically we don't need to apply locked axes here since it's applied in the solver.
-        let locked_axes = self.body.locked_axes.copied().unwrap_or_default();
         self.body
             .integration
-            .apply_linear_acceleration(locked_axes.apply_to_vec(acceleration));
+            .apply_linear_acceleration(acceleration);
     }
 
     /// Applies an angular acceleration in local space, ignoring angular inertia. The unit is rad/s^2.
@@ -272,11 +267,9 @@ impl EntityForces<'_> {
         #[cfg(feature = "2d")] acceleration: f32,
         #[cfg(feature = "3d")] acceleration: Vector,
     ) {
-        // TODO: Technically we don't need to apply locked axes here since it's applied in the solver.
-        let locked_axes = self.body.locked_axes.copied().unwrap_or_default();
         self.body
             .integration
-            .apply_angular_acceleration(locked_axes.apply_to_angular_velocity(acceleration));
+            .apply_angular_acceleration(acceleration);
     }
 
     /// Returns the external forces that the body has accumulated

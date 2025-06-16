@@ -4,13 +4,20 @@ use bevy::{
 };
 
 use super::{SolverBody, SolverBodyInertia};
-#[cfg(feature = "3d")]
-use crate::{dynamics::solver::solver_body::SolverBodyFlags, math::MatExt};
 use crate::{
     dynamics::solver::SolverDiagnostics,
     prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+};
+#[cfg(feature = "3d")]
+use crate::{
+    dynamics::{
+        integrator::{integrate_positions, IntegrationSet},
+        solver::solver_body::SolverBodyFlags,
+    },
+    math::MatExt,
+    prelude::SubstepSchedule,
 };
 
 /// A plugin for managing solver bodies.
@@ -111,6 +118,16 @@ impl Plugin for SolverBodyPlugin {
         app.add_systems(
             PhysicsSchedule,
             writeback_solver_bodies.in_set(SolverSet::Finalize),
+        );
+
+        // Update the world-space angular inertia of solver bodies right after position integration
+        // in the substepping loop.
+        #[cfg(feature = "3d")]
+        app.add_systems(
+            SubstepSchedule,
+            update_solver_body_angular_inertia
+                .in_set(IntegrationSet::Position)
+                .after(integrate_positions),
         );
     }
 }
@@ -234,6 +251,17 @@ fn prepare_solver_bodies(
             }
         },
     );
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn update_solver_body_angular_inertia(
+    mut query: Query<(&mut SolverBodyInertia, &ComputedAngularInertia, &Rotation)>,
+) {
+    query
+        .par_iter_mut()
+        .for_each(|(mut inertia, angular_inertia, rotation)| {
+            inertia.update_inv_angular_inertia(angular_inertia.rotated(rotation.0).inverse());
+        });
 }
 
 /// Writes back solver body data to rigid bodies.

@@ -410,6 +410,20 @@ impl SolverBodyInertia {
         inv_inertia
     }
 
+    /// Updates the inverse angular inertia of the body in world space.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn update_inv_angular_inertia(&mut self, angular_inertia: Tensor) {
+        self.inv_inertia = angular_inertia;
+
+        // Update the flags based on the new angular inertia.
+        if angular_inertia == Tensor::ZERO {
+            self.flags |= InertiaFlags::INFINITE_ANGULAR_INERTIA;
+        } else {
+            self.flags &= !InertiaFlags::INFINITE_ANGULAR_INERTIA;
+        }
+    }
+
     /// Returns the [`InertiaFlags`] of the body.
     #[inline]
     pub fn flags(&self) -> InertiaFlags {

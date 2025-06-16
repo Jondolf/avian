@@ -196,8 +196,8 @@
 //! For example, [`MassPropertyHelper::total_mass_properties`] computes the total mass properties of an entity,
 //! taking into account the mass properties of descendants and colliders.
 
+use crate::prelude::mass_properties::components::GlobalCenterOfMass;
 use crate::{prelude::*, prepare::PrepareSet};
-#[cfg(feature = "3d")]
 use bevy::ecs::query::QueryFilter;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -321,12 +321,17 @@ impl Plugin for MassPropertyPlugin {
             self.schedule,
             (
                 update_mass_properties,
-                #[cfg(feature = "3d")]
-                update_global_angular_inertia::<Added<RigidBody>>,
+                update_global_center_of_mass::<Added<RigidBody>>,
                 warn_missing_mass,
             )
                 .chain()
                 .in_set(MassPropertySystems::UpdateComputedMassProperties),
+        );
+
+        // Update the global center of mass at the end of the physics step.
+        app.add_systems(
+            self.schedule,
+            update_global_center_of_mass::<()>.in_set(PhysicsStepSet::Finalize),
         );
     }
 }
@@ -410,23 +415,30 @@ fn update_mass_properties(
     }
 }
 
-/// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
-#[cfg(feature = "3d")]
-pub(crate) fn update_global_angular_inertia<F: QueryFilter>(
+/// Updates [`GlobalCenterOfMass`] for entities that match the given query filter `F`.
+pub(crate) fn update_global_center_of_mass<F: QueryFilter>(
     mut query: Populated<
         (
+            &Position,
             &Rotation,
-            &ComputedAngularInertia,
-            &mut GlobalAngularInertia,
+            &ComputedCenterOfMass,
+            &mut GlobalCenterOfMass,
         ),
-        (Or<(Changed<ComputedAngularInertia>, Changed<Rotation>)>, F),
+        (
+            Or<(
+                Changed<ComputedCenterOfMass>,
+                Changed<Position>,
+                Changed<Rotation>,
+            )>,
+            F,
+        ),
     >,
 ) {
-    query
-        .par_iter_mut()
-        .for_each(|(rotation, angular_inertia, mut global_angular_inertia)| {
-            global_angular_inertia.update(*angular_inertia, rotation.0);
-        });
+    query.par_iter_mut().for_each(
+        |(position, rotation, angular_inertia, mut global_angular_inertia)| {
+            global_angular_inertia.update(*angular_inertia, position.0, *rotation);
+        },
+    );
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].

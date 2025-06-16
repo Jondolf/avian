@@ -256,7 +256,7 @@ mod tests {
                 gravity,
                 default(),
                 #[cfg(feature = "3d")]
-                &GlobalAngularInertia::new(angular_inertia, rotation),
+                &angular_inertia.rotated(rotation.0),
                 #[cfg(feature = "3d")]
                 rotation,
                 default(),

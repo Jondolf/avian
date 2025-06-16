@@ -69,9 +69,7 @@ pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
-    pub(crate) use super::rigid_body::mass_properties::{
-        components::GlobalAngularInertia, ComputeMassProperties, MassProperties,
-    };
+    pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
