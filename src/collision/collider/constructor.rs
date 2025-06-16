@@ -1,5 +1,8 @@
+use core::iter::once;
+
 use crate::prelude::*;
 use bevy::{platform::collections::HashMap, prelude::*};
+use itertools::Either;
 
 /// A component that will automatically generate [`Collider`]s on its descendants at runtime.
 /// The type of the generated collider can be specified using [`ColliderConstructor`].
@@ -458,6 +461,28 @@ impl ColliderConstructor {
                 .map(|(pos, rot, constructor)| (pos.into(), rot.into(), constructor))
                 .collect(),
         )
+    }
+
+    pub(crate) fn flatten_compound_constructors(
+        constructors: Vec<(Position, Rotation, ColliderConstructor)>,
+    ) -> Vec<(Position, Rotation, ColliderConstructor)> {
+        constructors
+            .into_iter()
+            .flat_map(|(pos, rot, constructor)| match constructor {
+                ColliderConstructor::Compound(nested) => {
+                    Either::Left(Self::flatten_compound_constructors(nested).into_iter().map(
+                        move |(nested_pos, nested_rot, nested_constructor)| {
+                            (
+                                Position(pos.0 + rot * nested_pos.0),
+                                rot * nested_rot,
+                                nested_constructor,
+                            )
+                        },
+                    ))
+                }
+                other => Either::Right(once((pos, rot, other))),
+            })
+            .collect()
     }
 }
 

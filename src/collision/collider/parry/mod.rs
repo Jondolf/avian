@@ -1272,23 +1272,18 @@ impl Collider {
             #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
             ColliderConstructor::Compound(compound_constructors) => {
-                if compound_constructors.iter().any(|(_, _, constructor)| {
-                    matches!(constructor, ColliderConstructor::Compound(_))
-                }) {
-                    return None;
-                }
-
-                let shapes: Vec<_> = compound_constructors
-                    .into_iter()
-                    .filter_map(|(position, rotation, collider_constructor)| {
-                        Self::try_from_constructor(
-                            collider_constructor,
-                            #[cfg(feature = "collider-from-mesh")]
-                            mesh,
-                        )
-                        .map(|collider| (position, rotation, collider))
-                    })
-                    .collect();
+                let shapes: Vec<_> =
+                    ColliderConstructor::flatten_compound_constructors(compound_constructors)
+                        .into_iter()
+                        .filter_map(|(position, rotation, collider_constructor)| {
+                            Self::try_from_constructor(
+                                collider_constructor,
+                                #[cfg(feature = "collider-from-mesh")]
+                                mesh,
+                            )
+                            .map(|collider| (position, rotation, collider))
+                        })
+                        .collect();
 
                 (!shapes.is_empty()).then(|| Self::compound(shapes))
             }
@@ -1536,5 +1531,102 @@ fn scale_shape(
             }
             Err(parry::query::Unsupported)
         }
+    }
+}
+
+#[cfg(all(test, feature = "3d"))]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_flatten_compound_constructors() {
+        let input = vec![
+            (
+                Position(Vector::new(10.0, 0.0, 0.0)),
+                Rotation::default(),
+                ColliderConstructor::Sphere { radius: 1.0 },
+            ),
+            (
+                Position(Vector::new(5.0, 0.0, 0.0)),
+                Rotation::from(Quat::from_rotation_z(PI / 2.0)),
+                ColliderConstructor::Compound(vec![
+                    (
+                        Position(Vector::new(2.0, 0.0, 0.0)),
+                        Rotation::from(Quat::from_rotation_y(PI)),
+                        ColliderConstructor::Compound(vec![(
+                            Position(Vector::new(1.0, 0.0, 0.0)),
+                            Rotation::default(),
+                            ColliderConstructor::Sphere { radius: 0.5 },
+                        )]),
+                    ),
+                    (
+                        Position(Vector::new(0.0, 3.0, 0.0)),
+                        Rotation::default(),
+                        ColliderConstructor::Sphere { radius: 0.25 },
+                    ),
+                ]),
+            ),
+        ];
+
+        let flattened = ColliderConstructor::flatten_compound_constructors(input);
+        assert_eq!(flattened.len(), 3);
+
+        let unchanged_simple_sphere = &flattened[0];
+        let flattened_grandchild = &flattened[1];
+        let flattened_sibling = &flattened[2];
+
+        // Top level colliders should remain unchanged
+        assert_eq!(
+            unchanged_simple_sphere.0,
+            Position(Vector::new(10.0, 0.0, 0.0))
+        );
+        assert_eq!(unchanged_simple_sphere.1, Rotation::default());
+
+        // Grandchild local position: (1, 0, 0)
+        // 1. Apply parent's 180 Y rotation -> (-1, 0, 0)
+        // 2. Add parent's position (2, 0, 0) -> (1, 0, 0)
+        // 3. Apply grandparent's 90 Z rotation -> (0, 1, 0)
+        // 4. Add grandparent's position (5, 0, 0) -> (5, 1, 0)
+        let expected_grandchild_world_pos = Vector::new(5.0, 1.0, 0.0);
+        let actual_grandchild_world_pos = flattened_grandchild.0 .0;
+
+        assert_relative_eq!(
+            actual_grandchild_world_pos.x,
+            expected_grandchild_world_pos.x,
+            epsilon = 1e-6
+        );
+        assert_relative_eq!(
+            actual_grandchild_world_pos.y,
+            expected_grandchild_world_pos.y,
+            epsilon = 1e-6
+        );
+        assert_relative_eq!(
+            actual_grandchild_world_pos.z,
+            expected_grandchild_world_pos.z,
+            epsilon = 1e-6
+        );
+
+        // Sibling local position: (0, 3, 0)
+        // 1. Apply parent's 90 Z rotation -> (-3, 0, 0)
+        // 2. Add parent's position (5, 0, 0) -> (2, 0, 0)
+        let expected_sibling_world_pos = Vector::new(2.0, 0.0, 0.0);
+        let actual_sibling_world_pos = flattened_sibling.0 .0;
+
+        assert_relative_eq!(
+            actual_sibling_world_pos.x,
+            expected_sibling_world_pos.x,
+            epsilon = 1e-6
+        );
+        assert_relative_eq!(
+            actual_sibling_world_pos.y,
+            expected_sibling_world_pos.y,
+            epsilon = 1e-6
+        );
+        assert_relative_eq!(
+            actual_sibling_world_pos.z,
+            expected_sibling_world_pos.z,
+            epsilon = 1e-6
+        );
     }
 }
