@@ -1271,6 +1271,27 @@ impl Collider {
             }
             #[cfg(feature = "collider-from-mesh")]
             ColliderConstructor::ConvexHullFromMesh => Self::convex_hull_from_mesh(mesh?),
+            ColliderConstructor::Compound(compound_constructors) => {
+                if compound_constructors.iter().any(|(_, _, constructor)| {
+                    matches!(constructor, ColliderConstructor::Compound(_))
+                }) {
+                    return None;
+                }
+
+                let shapes: Vec<_> = compound_constructors
+                    .into_iter()
+                    .filter_map(|(position, rotation, collider_constructor)| {
+                        Self::try_from_constructor(
+                            collider_constructor,
+                            #[cfg(feature = "collider-from-mesh")]
+                            mesh,
+                        )
+                        .map(|collider| (position, rotation, collider))
+                    })
+                    .collect();
+
+                (!shapes.is_empty()).then(|| Self::compound(shapes))
+            }
         }
     }
 }

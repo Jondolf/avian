@@ -280,6 +280,7 @@ pub struct ColliderConstructorHierarchyConfig {
 #[cfg_attr(feature = "collider-from-mesh", derive(Default))]
 #[cfg_attr(feature = "collider-from-mesh", reflect(Default))]
 #[reflect(Debug, Component, PartialEq)]
+#[reflect(no_field_bounds)]
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub enum ColliderConstructor {
@@ -427,6 +428,8 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull_from_mesh`].
     #[cfg(feature = "collider-from-mesh")]
     ConvexHullFromMesh,
+    /// Constructs a collider with [`Collider::compound`].
+    Compound(Vec<(Position, Rotation, ColliderConstructor)>),
 }
 
 impl ColliderConstructor {
@@ -440,6 +443,20 @@ impl ColliderConstructor {
                 | Self::ConvexDecompositionFromMesh
                 | Self::ConvexDecompositionFromMeshWithConfig(_)
                 | Self::ConvexHullFromMesh
+        )
+    }
+
+    /// Construct a [`ColliderConstructor::Compound`] from arbitrary [`Position`] and [`Rotation`] representations.
+    pub fn compound<P, R>(shapes: Vec<(P, R, ColliderConstructor)>) -> Self
+    where
+        P: Into<Position>,
+        R: Into<Rotation>,
+    {
+        Self::Compound(
+            shapes
+                .into_iter()
+                .map(|(pos, rot, constructor)| (pos.into(), rot.into(), constructor))
+                .collect(),
         )
     }
 }
