@@ -1549,11 +1549,11 @@ mod tests {
             ),
             (
                 Position(Vector::new(5.0, 0.0, 0.0)),
-                Rotation::from(Quat::from_rotation_z(PI / 2.0)),
+                Rotation::from(Quaternion::from_rotation_z(PI / 2.0)),
                 ColliderConstructor::Compound(vec![
                     (
                         Position(Vector::new(2.0, 0.0, 0.0)),
-                        Rotation::from(Quat::from_rotation_y(PI)),
+                        Rotation::from(Quaternion::from_rotation_y(PI)),
                         ColliderConstructor::Compound(vec![(
                             Position(Vector::new(1.0, 0.0, 0.0)),
                             Rotation::default(),
