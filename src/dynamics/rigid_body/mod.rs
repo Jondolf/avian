@@ -18,7 +18,7 @@ pub use world_query::*;
 pub(crate) use forces::FloatZero;
 pub(crate) use forces::Torque;
 
-use crate::prelude::*;
+use crate::prelude::{mass_properties::components::GlobalCenterOfMass, *};
 use bevy::prelude::*;
 use derive_more::From;
 
@@ -269,6 +269,7 @@ use derive_more::From;
     ComputedMass,
     ComputedAngularInertia,
     ComputedCenterOfMass,
+    GlobalCenterOfMass,
     // TODO: We can remove these pre-solve deltas once joints don't use XPBD.
     PreSolveDeltaPosition,
     PreSolveDeltaRotation,

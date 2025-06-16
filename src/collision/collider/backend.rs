@@ -5,7 +5,10 @@
 use core::marker::PhantomData;
 
 use crate::{
-    collision::broad_phase::BroadPhaseSet, prelude::*, prepare::PrepareSet, sync::SyncConfig,
+    collision::broad_phase::BroadPhaseSet,
+    prelude::{mass_properties::components::GlobalCenterOfMass, *},
+    prepare::PrepareSet,
+    sync::SyncConfig,
 };
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
@@ -500,8 +503,7 @@ fn update_aabb<C: AnyCollider>(
     >,
     rb_velocities: Query<
         (
-            &Position,
-            &ComputedCenterOfMass,
+            &GlobalCenterOfMass,
             Option<&LinearVelocity>,
             Option<&AngularVelocity>,
         ),
@@ -549,7 +551,7 @@ fn update_aabb<C: AnyCollider>(
         // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Some(Ok((rb_pos, center_of_mass, Some(lin_vel), Some(ang_vel)))) =
+        } else if let Some(Ok((global_com, Some(lin_vel), Some(ang_vel)))) =
             collider_of.map(|&ColliderOf { body }| rb_velocities.get(body))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
@@ -558,7 +560,7 @@ fn update_aabb<C: AnyCollider>(
             // TODO: This assumes that the colliders would continue moving in the same direction,
             //       but because they are orbiting, the direction will change. We should take
             //       into account the uniform circular motion.
-            let offset = pos.0 - rb_pos.0 - center_of_mass.0;
+            let offset = pos.0 - global_com.get();
             #[cfg(feature = "2d")]
             let vel_at_offset =
                 lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;
