@@ -118,6 +118,9 @@ pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "3d")]
+    use approx::assert_relative_eq;
+
     use super::*;
 
     #[test]
@@ -344,7 +347,10 @@ mod tests {
                 assert_eq!(pos, &expected);
                 assert!(app.world().get::<Rotation>(e_4_with_trans).is_some());
                 let rot = app.world().get::<Rotation>(e_4_with_trans).unwrap();
-                assert_eq!(rot, &Rotation::from(trans_4.rotation));
+                #[cfg(feature = "2d")]
+                assert_eq!(*rot, Rotation::from(trans_4.rotation));
+                #[cfg(feature = "3d")]
+                assert_relative_eq!(rot.f32(), trans_4.rotation);
 
                 assert!(app.world().get::<Position>(e_5_with_trans).is_some());
                 let pos = app.world().get::<Position>(e_5_with_trans).unwrap();
@@ -361,7 +367,10 @@ mod tests {
                 assert_eq!(pos, &expected);
                 assert!(app.world().get::<Rotation>(e_5_with_trans).is_some());
                 let rot = app.world().get::<Rotation>(e_5_with_trans).unwrap();
+                #[cfg(feature = "2d")]
                 assert_eq!(rot, &Rotation::from(trans_5.rotation));
+                #[cfg(feature = "3d")]
+                assert_relative_eq!(rot.f32(), trans_5.rotation);
 
                 assert!(app.world().get::<Position>(e_6_without_trans).is_some());
                 let pos = app.world().get::<Position>(e_6_without_trans).unwrap();
