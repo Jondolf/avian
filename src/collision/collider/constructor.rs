@@ -398,6 +398,27 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_polyline`].
     #[cfg(feature = "2d")]
     ConvexPolyline { points: Vec<Vector> },
+    /// Constructs a collider with [`Collider::voxels`].
+    Voxels {
+        voxel_size: Vector,
+        grid_coordinates: Vec<IVector>,
+    },
+    /// Constructs a collider with [`Collider::voxelized_polyline`].
+    #[cfg(feature = "2d")]
+    VoxelizedPolyline {
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 2]>,
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
+    /// Constructs a collider with [`Collider::voxelized_trimesh`].
+    #[cfg(feature = "3d")]
+    VoxelizedTrimesh {
+        vertices: Vec<Vector>,
+        indices: Vec<[u32; 3]>,
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
     /// Constructs a collider with [`Collider::heightfield`].
     #[cfg(feature = "2d")]
     Heightfield { heights: Vec<Scalar>, scale: Vector },
@@ -431,6 +452,12 @@ pub enum ColliderConstructor {
     /// Constructs a collider with [`Collider::convex_hull_from_mesh`].
     #[cfg(feature = "collider-from-mesh")]
     ConvexHullFromMesh,
+    /// Constructs a collider with [`Collider::voxelized_trimesh_from_mesh`].
+    #[cfg(feature = "collider-from-mesh")]
+    VoxelizedTrimeshFromMesh {
+        voxel_size: Scalar,
+        fill_mode: FillMode,
+    },
     /// Constructs a collider with [`Collider::compound`].
     Compound(Vec<(Position, Rotation, ColliderConstructor)>),
 }
@@ -446,6 +473,7 @@ impl ColliderConstructor {
                 | Self::ConvexDecompositionFromMesh
                 | Self::ConvexDecompositionFromMeshWithConfig(_)
                 | Self::ConvexHullFromMesh
+                | Self::VoxelizedTrimeshFromMesh { .. }
         )
     }
 
