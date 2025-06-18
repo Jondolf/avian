@@ -72,7 +72,19 @@ pub enum PrepareSet {
 impl Plugin for PreparePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SyncConfig>()
-            .register_type::<SyncConfig>();
+            .init_resource::<PrepareConfig>();
+
+        app.register_type::<(SyncConfig, PrepareConfig)>();
+
+        if app
+            .world()
+            .resource::<PrepareConfig>()
+            .position_to_transform
+        {
+            app.register_required_components::<Position, Transform>();
+            app.register_required_components::<Rotation, Transform>();
+        }
+
         app.configure_sets(
             self.schedule,
             (
@@ -84,9 +96,6 @@ impl Plugin for PreparePlugin {
                 .chain()
                 .in_set(PhysicsSet::Prepare),
         );
-
-        app.init_resource::<PrepareConfig>()
-            .register_type::<PrepareConfig>();
     }
 }
 

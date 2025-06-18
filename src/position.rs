@@ -170,7 +170,6 @@ pub(crate) type RotationValue = Quaternion;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, PartialEq)]
 #[cfg(feature = "2d")]
-#[require(Transform)]
 pub struct Rotation {
     /// The cosine of the rotation angle in radians.
     ///
@@ -731,7 +730,6 @@ impl Ease for Rotation {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
-#[require(Transform)]
 pub struct Rotation(pub Quaternion);
 
 #[cfg(feature = "3d")]
