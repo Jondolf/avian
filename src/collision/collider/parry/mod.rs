@@ -538,6 +538,11 @@ impl Collider {
         &self.shape
     }
 
+    /// Returns a mutable reference to the raw unscaled shape of the collider.
+    pub fn shape_mut(&mut self) -> &mut SharedShape {
+        &mut self.shape
+    }
+
     /// Returns the shape of the collider with the scale from its `GlobalTransform` applied.
     pub fn shape_scaled(&self) -> &SharedShape {
         &self.scaled_shape
