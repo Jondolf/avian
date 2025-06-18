@@ -6,3 +6,4 @@ crates/*/target
 /.idea
 /.vscode
 /benches/target
+/.direnv
