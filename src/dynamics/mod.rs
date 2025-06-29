@@ -75,8 +75,10 @@ pub mod prelude {
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
             forces::{
-                ConstantForce, ConstantLocalForce, ConstantLocalTorque, ConstantTorque,
-                ForceHelper, ForcePlugin, ForceSet,
+                ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
+                ConstantLocalAngularAcceleration, ConstantLocalForce,
+                ConstantLocalLinearAcceleration, ConstantLocalTorque, ConstantTorque, ForceHelper,
+                ForcePlugin, ForceSet,
             },
             mass_properties::{
                 bevy_heavy::{
@@ -85,8 +87,9 @@ pub mod prelude {
                 },
                 components::{
                     AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
-                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
-                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, GlobalCenterOfMass,
+                    Mass, MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass,
+                    NoAutoMass,
                 },
                 MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
             },

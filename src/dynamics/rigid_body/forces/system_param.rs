@@ -132,7 +132,7 @@ impl EntityForces<'_> {
     /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m^2/s.
     ///
     /// The impulse modifies the [`AngularVelocity`] of the body immediately.
-    pub fn apply_angular_impulse(&mut self, impulse: Torque) {
+    pub fn apply_angular_impulse(&mut self, impulse: AngularVector) {
         self.body.angular_velocity.0 +=
             self.body.mass_props.effective_inv_angular_inertia() * impulse;
     }
@@ -190,7 +190,7 @@ impl EntityForces<'_> {
     /// **Note:** This does not consider the rotation of the body during substeps,
     ///           so the torque may not be accurate if the body is rotating quickly.
     #[cfg(feature = "3d")]
-    pub fn apply_local_torque(&mut self, torque: Torque) {
+    pub fn apply_local_torque(&mut self, torque: AngularVector) {
         if let Some(ref mut accumulated) = self.body.accumulated_local_forces {
             accumulated.torque += torque;
         } else {
@@ -205,7 +205,7 @@ impl EntityForces<'_> {
     /// Applies a torque in world space. The unit is typically N⋅m or kg⋅m^2/s^2.
     ///
     /// The torque is applied continuously over the physics step and cleared afterwards.
-    pub fn apply_torque(&mut self, torque: Torque) {
+    pub fn apply_torque(&mut self, torque: AngularVector) {
         if let Some(ref mut forces) = self.body.accumulated_world_forces {
             forces.torque += torque;
         } else {
@@ -307,14 +307,14 @@ impl EntityForces<'_> {
     /// This does not include gravity, contact forces, or joint forces.
     /// Only torques applied through [`ForceHelper`] are included.
     #[cfg(feature = "2d")]
-    pub fn accumulated_torque(&self) -> Torque {
+    pub fn accumulated_torque(&self) -> AngularVector {
         if let Some(ref forces) = self.body.accumulated_world_forces {
             forces.torque
         } else {
             self.insertion_buffers
                 .world_forces
                 .get(&self.entity)
-                .map_or(Torque::ZERO, |forces| forces.torque)
+                .map_or(AngularVector::ZERO, |forces| forces.torque)
         }
     }
 
@@ -324,14 +324,14 @@ impl EntityForces<'_> {
     /// This does not include gravity, contact forces, or joint forces.
     /// Only torques applied through [`ForceHelper`] are included.
     #[cfg(feature = "3d")]
-    pub fn accumulated_torque(&self) -> Torque {
+    pub fn accumulated_torque(&self) -> AngularVector {
         let world_torque = if let Some(ref forces) = self.body.accumulated_world_forces {
             forces.torque
         } else {
             self.insertion_buffers
                 .world_forces
                 .get(&self.entity)
-                .map_or(Torque::ZERO, |forces| forces.torque)
+                .map_or(AngularVector::ZERO, |forces| forces.torque)
         };
         let local_torque = if let Some(ref forces) = self.body.accumulated_local_forces {
             forces.torque
@@ -339,7 +339,7 @@ impl EntityForces<'_> {
             self.insertion_buffers
                 .local_forces
                 .get(&self.entity)
-                .map_or(Torque::ZERO, |forces| forces.torque)
+                .map_or(AngularVector::ZERO, |forces| forces.torque)
         };
 
         // Return the total world-space torque.
@@ -375,7 +375,7 @@ impl EntityForces<'_> {
     /// This does not include gravity, contact forces, or joint forces.
     /// Only accelerations applied through [`ForceHelper`] are included.
     #[cfg(feature = "2d")]
-    pub fn accumulated_angular_acceleration(&self) -> Torque {
+    pub fn accumulated_angular_acceleration(&self) -> AngularVector {
         // The angular increment is treated as angular acceleration until the integration step.
         self.body.integration.angular_increment
     }
@@ -386,7 +386,7 @@ impl EntityForces<'_> {
     /// This does not include gravity, contact forces, or joint forces.
     /// Only accelerations applied through [`ForceHelper`] are included.
     #[cfg(feature = "3d")]
-    pub fn accumulated_angular_acceleration(&self) -> Torque {
+    pub fn accumulated_angular_acceleration(&self) -> AngularVector {
         // The angular increment is treated as angular acceleration until the integration step.
         let world_angular_acceleration = self.body.integration.angular_increment;
         let local_angular_acceleration =
@@ -429,24 +429,24 @@ impl EntityForces<'_> {
     /// Resets the accumulated torque to zero.
     pub fn reset_accumulated_torque(&mut self) {
         if let Some(ref mut forces) = self.body.accumulated_world_forces {
-            forces.torque = Torque::ZERO;
+            forces.torque = AngularVector::ZERO;
         } else {
             self.insertion_buffers
                 .world_forces
                 .entry(self.entity)
                 .or_default()
-                .torque = Torque::ZERO;
+                .torque = AngularVector::ZERO;
         }
         #[cfg(feature = "3d")]
         {
             if let Some(ref mut forces) = self.body.accumulated_local_forces {
-                forces.torque = Torque::ZERO;
+                forces.torque = AngularVector::ZERO;
             } else {
                 self.insertion_buffers
                     .local_forces
                     .entry(self.entity)
                     .or_default()
-                    .torque = Torque::ZERO;
+                    .torque = AngularVector::ZERO;
             }
         }
     }
@@ -467,7 +467,7 @@ impl EntityForces<'_> {
 
     /// Resets the accumulated angular acceleration to zero.
     pub fn reset_accumulated_angular_acceleration(&mut self) {
-        self.body.integration.angular_increment = Torque::ZERO;
+        self.body.integration.angular_increment = AngularVector::ZERO;
         #[cfg(feature = "3d")]
         {
             if let Some(ref mut forces) = self.body.accumulated_local_acceleration {

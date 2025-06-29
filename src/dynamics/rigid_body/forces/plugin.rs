@@ -17,6 +17,14 @@ pub struct ForcePlugin;
 impl Plugin for ForcePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<(
+            ConstantForce,
+            ConstantTorque,
+            ConstantLinearAcceleration,
+            ConstantAngularAcceleration,
+            ConstantLocalForce,
+            ConstantLocalTorque,
+            ConstantLocalLinearAcceleration,
+            ConstantLocalAngularAcceleration,
             AccumulatedWorldForces,
             AccumulatedLocalForces,
             AccumulatedLocalAcceleration,
@@ -42,7 +50,12 @@ impl Plugin for ForcePlugin {
 
         app.add_systems(
             PhysicsSchedule,
-            (apply_constant_forces, apply_constant_torques)
+            (
+                apply_constant_forces,
+                apply_constant_torques,
+                apply_constant_linear_acceleration,
+                apply_constant_angular_acceleration,
+            )
                 .chain()
                 .in_set(ForceSet::ApplyConstantForces),
         );
@@ -58,6 +71,8 @@ impl Plugin for ForcePlugin {
                 apply_local_acceleration,
                 apply_constant_local_forces,
                 apply_constant_local_torques,
+                apply_constant_local_linear_acceleration,
+                apply_constant_local_angular_acceleration,
             )
                 .chain()
                 .in_set(ForceSet::ApplyLocalForces),
@@ -99,6 +114,24 @@ fn apply_constant_torques(mut bodies: Query<(&mut AccumulatedWorldForces, &Const
     }
 }
 
+/// Applies [`ConstantLinearAcceleration`] to the linear velocity increments.
+fn apply_constant_linear_acceleration(
+    mut bodies: Query<(&mut VelocityIntegrationData, &ConstantLinearAcceleration)>,
+) {
+    for (mut integration, constant_acceleration) in &mut bodies {
+        integration.linear_increment += constant_acceleration.0;
+    }
+}
+
+/// Applies [`ConstantAngularAcceleration`] to the angular velocity increments.
+fn apply_constant_angular_acceleration(
+    mut bodies: Query<(&mut VelocityIntegrationData, &ConstantAngularAcceleration)>,
+) {
+    for (mut integration, constant_acceleration) in &mut bodies {
+        integration.angular_increment += constant_acceleration.0;
+    }
+}
+
 /// Applies [`ConstantLocalForce`] to the accumulated forces.
 fn apply_constant_local_forces(
     mut bodies: Query<(&mut AccumulatedLocalForces, &ConstantLocalForce)>,
@@ -114,6 +147,30 @@ fn apply_constant_local_torques(
 ) {
     for (mut forces, constant_torque) in &mut bodies {
         forces.torque += constant_torque.0;
+    }
+}
+
+/// Applies [`ConstantLocalLinearAcceleration`] to the accumulated local acceleration.
+fn apply_constant_local_linear_acceleration(
+    mut bodies: Query<(
+        &mut AccumulatedLocalAcceleration,
+        &ConstantLocalLinearAcceleration,
+    )>,
+) {
+    for (mut acceleration, constant_acceleration) in &mut bodies {
+        acceleration.linear += constant_acceleration.0;
+    }
+}
+
+/// Applies [`ConstantLocalAngularAcceleration`] to the accumulated local acceleration.
+fn apply_constant_local_angular_acceleration(
+    mut bodies: Query<(
+        &mut AccumulatedLocalAcceleration,
+        &ConstantLocalAngularAcceleration,
+    )>,
+) {
+    for (mut acceleration, constant_acceleration) in &mut bodies {
+        acceleration.angular += constant_acceleration.0;
     }
 }
 
@@ -260,11 +317,11 @@ fn clear_accumulated_world_forces(
     let mut entity_buffer = Vec::new();
 
     for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
-        if forces.force != Vector::ZERO || forces.torque != Torque::ZERO {
+        if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
             // The force or torque was not zero, so these may be continuously applied forces.
             // Just reset the forces and keep the component.
             forces.force = Vector::ZERO;
-            forces.torque = Torque::ZERO;
+            forces.torque = AngularVector::ZERO;
         } else if !has_constant_force && !has_constant_torque {
             // No forces or torques were applied for an entire time step, so we can remove the component.
             entity_buffer.push(entity);
@@ -301,11 +358,11 @@ fn clear_accumulated_local_forces(
     let mut entity_buffer = Vec::new();
 
     for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
-        if forces.force != Vector::ZERO || forces.torque != Torque::ZERO {
+        if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
             // The force or torque was not zero, so these may be continuously applied forces.
             // Just reset the forces and keep the component.
             forces.force = Vector::ZERO;
-            forces.torque = Torque::ZERO;
+            forces.torque = AngularVector::ZERO;
         } else if !has_constant_force && !has_constant_torque {
             // No forces or torques were applied for an entire time step, so we can remove the component.
             entity_buffer.push(entity);

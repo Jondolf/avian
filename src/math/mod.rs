@@ -53,6 +53,14 @@ pub(crate) type Dir = Dir2;
 #[cfg(feature = "3d")]
 pub(crate) type Dir = Dir3;
 
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) type AngularVector = Scalar;
+
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) type AngularVector = Vector;
+
 /// The tensor type chosen based on the dimension.
 /// Often used for angular inertia.
 ///

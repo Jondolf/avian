@@ -16,7 +16,6 @@ pub use world_query::*;
 
 #[cfg(feature = "2d")]
 pub(crate) use forces::FloatZero;
-pub(crate) use forces::Torque;
 
 use crate::{
     position::init_physics_transform,
