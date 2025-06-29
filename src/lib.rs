@@ -525,7 +525,7 @@ pub mod prelude {
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
         position::{Position, Rotation},
-        prepare::{init_transforms, PrepareConfig, PreparePlugin},
+        prepare::{PrepareConfig, PreparePlugin},
         schedule::*,
         spatial_query::{self, *},
         sync::SyncPlugin,
@@ -568,7 +568,11 @@ use prelude::*;
 /// | [`ForcePlugin`]                   | Manages [`AccumulatedForces`] and other rigid body force logic.                                                                                            |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
-/// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.                                                                                                           |
+/// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.
+#[cfg_attr(
+    all(feature = "collider-from-mesh", feature = "default-collider"),
+    doc = "| [`ColliderCachePlugin`]           | Caches colliders created from meshes. Requires `collider-from-mesh` and `default-collider` features.                                                       |"
+)]
 /// | [`BroadPhasePlugin`]              | Finds pairs of entities with overlapping [AABBs](ColliderAabb) to reduce the number of potential contacts for the [narrow phase](collision::narrow_phase). |
 /// | [`NarrowPhasePlugin`]             | Manages contacts and generates contact constraints.                                                                                                        |
 /// | [`SolverSchedulePlugin`]          | Sets up the solver and substepping loop by initializing the necessary schedules, sets and resources.                                                       |
@@ -793,6 +797,9 @@ impl PluginGroup for PhysicsPlugins {
             .add(ForcePlugin)
             .add(ColliderHierarchyPlugin)
             .add(ColliderTransformPlugin::new(self.schedule));
+
+        #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
+        let builder = builder.add(ColliderCachePlugin);
 
         #[cfg(all(
             feature = "default-collider",

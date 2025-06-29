@@ -22,6 +22,8 @@ fn create_app() -> App {
         TransformPlugin,
         PhysicsPlugins::default(),
         bevy::asset::AssetPlugin::default(),
+        #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
+        bevy::render::mesh::MeshPlugin,
         #[cfg(feature = "bevy_scene")]
         bevy::scene::ScenePlugin,
     ))
@@ -195,6 +197,8 @@ fn no_ambiguity_errors() {
             bevy::asset::AssetPlugin::default(),
             #[cfg(feature = "bevy_scene")]
             bevy::scene::ScenePlugin,
+            #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
+            bevy::render::mesh::MeshPlugin,
         ))
         .init_resource::<Assets<Mesh>>()
         .edit_schedule(DeterministicSchedule, |s| {

@@ -422,7 +422,8 @@ pub fn integrate_positions(
         }
         #[cfg(feature = "3d")]
         {
-            delta_rotation.0 *= Quaternion::from_scaled_axis(*angular_velocity * delta_secs);
+            delta_rotation.0 =
+                Quaternion::from_scaled_axis(*angular_velocity * delta_secs) * delta_rotation.0;
         }
     });
 

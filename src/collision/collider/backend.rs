@@ -4,8 +4,11 @@
 
 use core::marker::PhantomData;
 
+#[cfg(feature = "collider-from-mesh")]
+use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSet,
+    position::init_physics_transform,
     prelude::{mass_properties::components::GlobalCenterOfMass, *},
     prepare::PrepareSet,
     sync::SyncConfig,
@@ -95,11 +98,17 @@ impl<C: ScalableCollider> Default for ColliderBackendPlugin<C> {
 impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
     fn build(&self, app: &mut App) {
         // Register required components for the collider type.
+        let _ = app.try_register_required_components_with::<C, Position>(|| Position::PLACEHOLDER);
+        let _ = app.try_register_required_components_with::<C, Rotation>(|| Rotation::PLACEHOLDER);
         let _ = app.try_register_required_components::<C, ColliderMarker>();
         let _ = app.try_register_required_components::<C, ColliderAabb>();
         let _ = app.try_register_required_components::<C, CollisionLayers>();
         let _ = app.try_register_required_components::<C, ColliderDensity>();
         let _ = app.try_register_required_components::<C, ColliderMassProperties>();
+
+        // Make sure the necessary resources are initialized.
+        app.init_resource::<NarrowPhaseConfig>();
+        app.init_resource::<PhysicsLengthUnit>();
 
         // Register the one-shot system that is run for all removed colliders.
         if !app.world().contains_resource::<ColliderRemovalSystem>() {
@@ -111,40 +120,14 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
 
         // Initialize missing components for colliders.
         hooks.on_add(|mut world, ctx| {
-            let existing_global_transform = world
+            // Initialize the global physics transform for the collider.
+            init_physics_transform(&mut world, &ctx);
+
+            let scale = world
                 .entity(ctx.entity)
                 .get::<GlobalTransform>()
-                .copied()
+                .map(|gt| gt.scale())
                 .unwrap_or_default();
-            let global_transform = if existing_global_transform != GlobalTransform::IDENTITY {
-                // This collider was built deferred, probably via `ColliderConstructor`.
-                existing_global_transform
-            } else {
-                // This collider *may* have been `spawn`ed directly on a new entity.
-                // As such, its global transform is not yet available.
-                // You may notice that this will fail if the hierarchy's scale was updated in this
-                // frame. Remember that `GlobalTransform` is not updated in between fixed updates.
-                // But this is fine, as `update_collider_scale` will be updated in the next fixed update anyway.
-                // The reason why we care about initializing this scale here is for those users that opted out of
-                // `update_collider_scale` in order to do their own interpolation, which implies that they won't touch
-                // the `Transform` component before the collider is initialized, which in turn means that it will
-                // always be initialized with the correct `GlobalTransform`.
-                let parent_global_transform = world
-                    .entity(ctx.entity)
-                    .get::<ChildOf>()
-                    .and_then(|&ChildOf(parent)| {
-                        world.entity(parent).get::<GlobalTransform>().copied()
-                    })
-                    .unwrap_or_default();
-                let transform = world
-                    .entity(ctx.entity)
-                    .get::<Transform>()
-                    .copied()
-                    .unwrap_or_default();
-                parent_global_transform * transform
-            };
-
-            let scale = global_transform.compute_transform().scale;
             #[cfg(feature = "2d")]
             let scale = scale.xy();
 
@@ -206,6 +189,33 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
                 world.commands().run_system_with(system_id, collider_of);
             });
 
+        // Initialize `ColliderAabb` for colliders.
+        app.add_observer(
+            |trigger: Trigger<OnAdd, C>,
+             mut query: Query<(
+                &C,
+                &Position,
+                &Rotation,
+                Option<&CollisionMargin>,
+                &mut ColliderAabb,
+            )>,
+             narrow_phase_config: Res<NarrowPhaseConfig>,
+             length_unit: Res<PhysicsLengthUnit>,
+             collider_context: StaticSystemParam<C::Context>| {
+                let contact_tolerance = length_unit.0 * narrow_phase_config.contact_tolerance;
+                let aabb_context = AabbContext::new(trigger.target(), &*collider_context);
+
+                if let Ok((collider, pos, rot, collision_margin, mut aabb)) =
+                    query.get_mut(trigger.target())
+                {
+                    let collision_margin = collision_margin.map_or(0.0, |m| m.0);
+                    *aabb = collider
+                        .aabb_with_context(pos.0, *rot, aabb_context)
+                        .grow(Vector::splat(contact_tolerance + collision_margin));
+                }
+            },
+        );
+
         // When the `Sensor` component is added to a collider, queue its rigid body for a mass property update.
         app.add_observer(
             |trigger: Trigger<OnAdd, Sensor>,
@@ -248,16 +258,11 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.add_systems(
             self.schedule,
             (
-                init_transforms::<C>
-                    .in_set(PrepareSet::InitTransforms)
-                    .after(init_transforms::<RigidBody>),
-                (
-                    update_collider_scale::<C>.in_set(PrepareSet::Finalize),
-                    update_collider_mass_properties::<C>
-                        .in_set(MassPropertySystems::UpdateColliderMassProperties),
-                )
-                    .chain(),
-            ),
+                update_collider_scale::<C>.in_set(PrepareSet::Finalize),
+                update_collider_mass_properties::<C>
+                    .in_set(MassPropertySystems::UpdateColliderMassProperties),
+            )
+                .chain(),
         );
 
         let physics_schedule = app
@@ -305,6 +310,7 @@ fn init_collider_constructors(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
     #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
+    #[cfg(feature = "collider-from-mesh")] mut collider_cache: Option<ResMut<ColliderCache>>,
     constructors: Query<(
         Entity,
         Option<&Collider>,
@@ -323,22 +329,22 @@ fn init_collider_constructors(
             continue;
         }
         #[cfg(feature = "collider-from-mesh")]
-        let mesh = if constructor.requires_mesh() {
+        let collider = if constructor.requires_mesh() {
             let mesh_handle = mesh_handles.get(entity).unwrap_or_else(|_| panic!(
                 "Tried to add a collider to entity {name} via {constructor:#?} that requires a mesh, \
                 but no mesh handle was found"));
-            let mesh = meshes.get(mesh_handle);
-            if mesh.is_none() {
+            let Some(mesh) = meshes.get(mesh_handle) else {
                 // Mesh required, but not loaded yet
                 continue;
-            }
-            mesh
+            };
+            collider_cache
+                .as_mut()
+                .map(|cache| cache.get_or_insert(mesh_handle, mesh, constructor.clone()))
+                .unwrap_or_else(|| Collider::try_from_constructor(constructor.clone(), Some(mesh)))
         } else {
-            None
+            Collider::try_from_constructor(constructor.clone(), None)
         };
 
-        #[cfg(feature = "collider-from-mesh")]
-        let collider = Collider::try_from_constructor(constructor.clone(), mesh);
         #[cfg(not(feature = "collider-from-mesh"))]
         let collider = Collider::try_from_constructor(constructor.clone());
 
@@ -362,6 +368,7 @@ fn init_collider_constructor_hierarchies(
     mut commands: Commands,
     #[cfg(feature = "collider-from-mesh")] meshes: Res<Assets<Mesh>>,
     #[cfg(feature = "collider-from-mesh")] mesh_handles: Query<&Mesh3d>,
+    #[cfg(feature = "collider-from-mesh")] mut collider_cache: Option<ResMut<ColliderCache>>,
     #[cfg(feature = "bevy_scene")] scene_spawner: Res<SceneSpawner>,
     #[cfg(feature = "bevy_scene")] scenes: Query<&SceneRoot>,
     #[cfg(feature = "bevy_scene")] scene_instances: Query<&SceneInstance>,
@@ -431,18 +438,25 @@ fn init_collider_constructor_hierarchies(
             };
 
             #[cfg(feature = "collider-from-mesh")]
-            let mesh = if constructor.requires_mesh() {
-                if let Ok(handle) = mesh_handles.get(child_entity) {
-                    meshes.get(handle)
-                } else {
+            let collider = if constructor.requires_mesh() {
+                let Ok(mesh_handle) = mesh_handles.get(child_entity) else {
+                    // This child entity does not have a mesh, so we skip it.
                     continue;
-                }
+                };
+                let Some(mesh) = meshes.get(mesh_handle) else {
+                    // Mesh required, but not loaded yet
+                    continue;
+                };
+                collider_cache
+                    .as_mut()
+                    .map(|cache| cache.get_or_insert(mesh_handle, mesh, constructor.clone()))
+                    .unwrap_or_else(|| {
+                        Collider::try_from_constructor(constructor.clone(), Some(mesh))
+                    })
             } else {
-                None
+                Collider::try_from_constructor(constructor.clone(), None)
             };
 
-            #[cfg(feature = "collider-from-mesh")]
-            let collider = Collider::try_from_constructor(constructor, mesh);
             #[cfg(not(feature = "collider-from-mesh"))]
             let collider = Collider::try_from_constructor(constructor);
 
@@ -600,7 +614,7 @@ fn update_aabb<C: AnyCollider>(
         // TODO: Should we expand the AABB in all directions for speculative contacts?
         *aabb = collider
             .swept_aabb_with_context(start_pos.0, start_rot, end_pos, end_rot, context)
-            .grow(Vector::splat(collision_margin));
+            .grow(Vector::splat(contact_tolerance + collision_margin));
     }
 }
 
