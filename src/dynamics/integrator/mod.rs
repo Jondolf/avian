@@ -3,9 +3,6 @@
 //!
 //! See [`IntegratorPlugin`].
 
-#[doc(alias = "symplectic_euler")]
-pub mod semi_implicit_euler;
-
 use crate::prelude::*;
 use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
@@ -20,10 +17,10 @@ use super::solver::solver_body::SolverBody;
 /// This acts as a prediction for the next positions and orientations of the bodies. The [solver](dynamics::solver)
 /// corrects these predicted positions to take constraints like contacts and joints into account.
 ///
-/// Currently, only the [semi-implicit (symplectic) Euler](semi_implicit_euler) integration scheme
-/// is supported. It is the standard for game physics, being simple, efficient, and sufficiently accurate.
+/// Currently, only the [semi-implicit (symplectic) Euler](https://en.wikipedia.org/wiki/Semi-implicit_Euler_method)
+/// integration scheme is supported. It is the standard for game physics, being stable, efficient, and sufficiently accurate.
 ///
-/// The plugin adds systems in the [`IntegrationSet::Velocity`] and [`IntegrationSet::Position`] system sets.
+/// See [`IntegrationSet`] for the system sets used by this plugin.
 pub struct IntegratorPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
@@ -104,12 +101,20 @@ impl Plugin for IntegratorPlugin {
 pub enum IntegrationSet {
     /// Applies gravity and locked axes to the linear and angular velocity increments of bodies,
     /// and multiplies them by the substep delta time to get the final per-substep increments.
+    ///
+    /// Runs in the [`PhysicsSchedule`], in [`SolverSet::PreSubstep`].
     UpdateVelocityIncrements,
     /// Applies velocity increments to the linear and angular velocities of bodies.
+    ///
+    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSet::Velocity`].
     Velocity,
     /// Moves bodies based on their current velocities and the physics time step.
+    ///
+    /// Typically runs in the [`SubstepSchedule`], in [`IntegrationSet::Position`].
     Position,
     /// Clears the velocity increments of bodies after the substepping loop.
+    ///
+    /// Runs in the [`PhysicsSchedule`], in [`SolverSet::PostSubstep`].
     ClearVelocityIncrements,
 }
 
@@ -165,22 +170,13 @@ impl Gravity {
     pub const ZERO: Gravity = Gravity(Vector::ZERO);
 }
 
-#[cfg(feature = "2d")]
-type AngularValue = Scalar;
-#[cfg(feature = "3d")]
-type AngularValue = Vector;
-#[cfg(feature = "2d")]
-type TorqueValue = Scalar;
-#[cfg(feature = "3d")]
-type TorqueValue = Vector;
-
 /// Pre-computed data for speeding up velocity integration.
 ///
 /// This includes:
 ///
-/// - Velocity increments for gravity.
-/// - Velocity increments for [`ConstantForce`] and [`ConstantTorque`].
-/// - Velocity increments for forces, torques, and accelerations applied using [`RigidBodyForces`].
+/// - Velocity increments for [`Gravity`].
+/// - Velocity increments for [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`].
+/// - Velocity increments for forces, torques, and accelerations applied using the [`ForceHelper`].
 /// - Cached operands for applying linear and angular velocity damping.
 ///
 /// The values are computed once per time step, and applied to the body at each substep
@@ -203,13 +199,13 @@ pub struct VelocityIntegrationData {
     ///
     /// **Note:** This is treated as angular acceleration until [`IntegrationSet::UpdateVelocityIncrements`].
     /// where it is multiplied by the time step to get the corresponding velocity increment.
-    pub angular_increment: AngularValue,
+    pub angular_increment: AngularVector,
     /// The right-hand side of the linear damping equation,
     /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
-    pub linear_damping_rhs: f32,
+    pub linear_damping_rhs: Scalar,
     /// The right-hand side of the angular damping equation,
     /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
-    pub angular_damping_rhs: f32,
+    pub angular_damping_rhs: Scalar,
 }
 
 impl VelocityIntegrationData {
@@ -219,19 +215,19 @@ impl VelocityIntegrationData {
     }
 
     /// Applies a given angular acceleration to the body.
-    pub fn apply_angular_acceleration(&mut self, acceleration: AngularValue) {
+    pub fn apply_angular_acceleration(&mut self, acceleration: AngularVector) {
         self.angular_increment += acceleration;
     }
 
     /// Updates the cached right-hand side of the linear damping equation,
     /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
-    pub fn update_linear_damping_rhs(&mut self, damping_coefficient: f32, delta_secs: Scalar) {
+    pub fn update_linear_damping_rhs(&mut self, damping_coefficient: Scalar, delta_secs: Scalar) {
         self.linear_damping_rhs = 1.0 / (1.0 + delta_secs * damping_coefficient);
     }
 
     /// Updates the cached right-hand side of the angular damping equation,
     /// `1 / (1 + dt * c)`, where `c` is the damping coefficient.
-    pub fn update_angular_damping_rhs(&mut self, damping_coefficient: f32, delta_secs: Scalar) {
+    pub fn update_angular_damping_rhs(&mut self, damping_coefficient: Scalar, delta_secs: Scalar) {
         self.angular_damping_rhs = 1.0 / (1.0 + delta_secs * damping_coefficient);
     }
 }
@@ -295,7 +291,7 @@ fn clear_velocity_increments(
 
     bodies.par_iter_mut().for_each(|mut integration| {
         integration.linear_increment = Vector::ZERO;
-        integration.angular_increment = AngularValue::ZERO;
+        integration.angular_increment = AngularVector::ZERO;
     });
 
     diagnostics.update_velocity_increments += start.elapsed();
@@ -340,10 +336,10 @@ pub fn integrate_velocities(
                 // TODO: It's a bit unfortunate that this has to run in the substepping loop
                 //       rather than pre-computing the velocity increments once per time step.
                 //       This needs to be done because the gyroscopic torque relies on up-to-date rotations
-                //       and world-space angular inertia tensors. Omitting the change in orientaton would
+                //       and world-space angular inertia tensors. Omitting the change in orientation would
                 //       lead to worse accuracy and angular momentum not being conserved.
                 let rotation = body.solver_body.delta_rotation.0 * body.rotation.0;
-                semi_implicit_euler::solve_gyroscopic_torque(
+                solve_gyroscopic_torque(
                     &mut body.solver_body.angular_velocity,
                     rotation,
                     body.angular_inertia,
@@ -354,6 +350,75 @@ pub fn integrate_velocities(
     });
 
     diagnostics.integrate_velocities += start.elapsed();
+}
+
+/// Applies the effects of gyroscopic motion to the given angular velocity.
+///
+/// Gyroscopic motion is the tendency of a rotating object to maintain its axis of rotation
+/// unless acted upon by an external torque. It manifests as objects with non-uniform angular
+/// inertia tensors seemingly wobbling as they spin in the air or on the ground.
+///
+/// Gyroscopic motion is important for realistic spinning behavior, and for simulating
+/// gyroscopic phenomena such as the Dzhanibekov effect.
+#[cfg(feature = "3d")]
+#[inline]
+pub fn solve_gyroscopic_torque(
+    ang_vel: &mut Vector,
+    rotation: Quaternion,
+    local_inertia: &ComputedAngularInertia,
+    delta_secs: Scalar,
+) {
+    // References:
+    // - The "Gyroscopic Motion" section of Erin Catto's GDC 2015 slides on Numerical Methods.
+    //   https://box2d.org/files/ErinCatto_NumericalMethods_GDC2015.pdf
+    // - Jolt Physics - MotionProperties::ApplyGyroscopicForceInternal
+    //   https://github.com/jrouwe/JoltPhysics/blob/d497df2b9b0fa9aaf41295e1406079c23148232d/Jolt/Physics/Body/MotionProperties.inl#L102
+    //
+    // Erin Catto's GDC presentation suggests using implicit Euler for gyroscopic torque,
+    // as semi-implicit Euler can easily blow up with larger time steps due to extrapolating velocity.
+    // The extrapolation diverges quickly because gyroscopic torque is quadratic in the angular velocity.
+    //
+    // However, implicit Euler is measurably more expensive than semi-implicit Euler.
+    // We instead take inspiration from Jolt, and use semi-implicit Euler integration,
+    // clamping the magnitude of the angular momentum to remain the same.
+    // This is efficient, prevents energy from being introduced into the system,
+    // and produces reasonably accurate results for game purposes.
+
+    // Convert angular velocity to body space so that we can use the local angular inertia.
+    let local_ang_vel = rotation.inverse() * *ang_vel;
+
+    // Compute body-space angular momentum.
+    let local_momentum = local_inertia.tensor() * local_ang_vel;
+
+    // The gyroscopic torque is given by:
+    //
+    // T = -ω x I ω = -ω x L
+    //
+    // where ω is the angular velocity, I is the angular inertia tensor,
+    // and L is the angular momentum.
+    //
+    // The change in angular momentum is given by:
+    //
+    // ΔL = T Δt = -ω x L Δt
+    //
+    // Thus, we can compute the new angular momentum as:
+    //
+    // L' = L + ΔL = L - Δt (ω x L)
+    let mut new_local_momentum = local_momentum - delta_secs * local_ang_vel.cross(local_momentum);
+
+    // Make sure the magnitude of the angular momentum remains the same to avoid introducing
+    // energy into the system due to the extrapolation done by semi-implicit Euler integration.
+    let new_local_momentum_length_squared = new_local_momentum.length_squared();
+    if new_local_momentum_length_squared == 0.0 {
+        *ang_vel = Vector::ZERO;
+        return;
+    }
+    new_local_momentum *=
+        (local_momentum.length_squared() / new_local_momentum_length_squared).sqrt();
+
+    // Convert back to world-space angular velocity.
+    let local_inverse_inertia = local_inertia.inverse();
+    *ang_vel = rotation * (local_inverse_inertia * new_local_momentum);
 }
 
 // NOTE: If the majority of bodies have clamped velocities, it would be more efficient
@@ -418,7 +483,8 @@ pub fn integrate_positions(
         *delta_position += *linear_velocity * delta_secs;
         #[cfg(feature = "2d")]
         {
-            *delta_rotation = delta_rotation.add_angle_fast(*angular_velocity * delta_secs);
+            // Note: We should probably use `add_angle_fast` here
+            *delta_rotation = Rotation::radians(*angular_velocity * delta_secs) * *delta_rotation;
         }
         #[cfg(feature = "3d")]
         {
@@ -428,4 +494,100 @@ pub fn integrate_positions(
     });
 
     diagnostics.integrate_positions += start.elapsed();
+}
+
+#[cfg(test)]
+mod tests {
+    use core::time::Duration;
+
+    use approx::assert_relative_eq;
+
+    use crate::prelude::*;
+    use bevy::{prelude::*, render::mesh::MeshPlugin, time::TimeUpdateStrategy};
+
+    fn create_app() -> App {
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            PhysicsPlugins::default(),
+            TransformPlugin,
+            #[cfg(feature = "bevy_scene")]
+            AssetPlugin::default(),
+            #[cfg(feature = "bevy_scene")]
+            bevy::scene::ScenePlugin,
+            MeshPlugin,
+        ))
+        .init_resource::<Assets<Mesh>>();
+        app
+    }
+
+    #[test]
+    fn semi_implicit_euler() {
+        let mut app = create_app();
+        app.insert_resource(SubstepCount(1));
+        app.finish();
+
+        let body_entity = app
+            .world_mut()
+            .spawn((
+                RigidBody::Dynamic,
+                #[cfg(feature = "2d")]
+                {
+                    (
+                        MassPropertiesBundle::from_shape(&Rectangle::from_length(1.0), 1.0),
+                        AngularVelocity(2.0),
+                    )
+                },
+                #[cfg(feature = "3d")]
+                {
+                    (
+                        MassPropertiesBundle::from_shape(&Cuboid::from_length(1.0), 1.0),
+                        AngularVelocity(Vector::Z * 2.0),
+                    )
+                },
+            ))
+            .id();
+
+        // Step by 100 steps of 0.1 seconds.
+        app.insert_resource(Time::from_hz(10.0));
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
+            1.0 / 10.0,
+        )));
+
+        // Initialize the app.
+        app.update();
+
+        for _ in 0..100 {
+            app.update();
+        }
+
+        // Get the body after the simulation.
+        let entity_ref = app.world_mut().entity(body_entity);
+        let position = entity_ref.get::<Position>().unwrap().0;
+        let rotation = *entity_ref.get::<Rotation>().unwrap();
+        let linear_velocity = entity_ref.get::<LinearVelocity>().unwrap().0;
+        let angular_velocity = entity_ref.get::<AngularVelocity>().unwrap().0;
+
+        // Euler methods have some precision issues, but this seems weirdly inaccurate.
+        assert_relative_eq!(position, Vector::NEG_Y * 490.5, epsilon = 10.0);
+
+        #[cfg(feature = "2d")]
+        assert_relative_eq!(
+            rotation.as_radians(),
+            Rotation::radians(20.0).as_radians(),
+            epsilon = 0.00001
+        );
+        #[cfg(feature = "3d")]
+        assert_relative_eq!(
+            rotation.0,
+            Quaternion::from_rotation_z(20.0),
+            epsilon = 0.01
+        );
+
+        assert_relative_eq!(linear_velocity, Vector::NEG_Y * 98.1, epsilon = 0.0001);
+        #[cfg(feature = "2d")]
+        assert_relative_eq!(angular_velocity, 2.0, epsilon = 0.00001);
+        #[cfg(feature = "3d")]
+        assert_relative_eq!(angular_velocity, Vector::Z * 2.0, epsilon = 0.00001);
+    }
 }

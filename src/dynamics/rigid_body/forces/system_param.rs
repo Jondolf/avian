@@ -350,7 +350,7 @@ impl EntityForces<'_> {
     #[inline]
     pub fn apply_angular_acceleration(
         &mut self,
-        #[cfg(feature = "2d")] acceleration: f32,
+        #[cfg(feature = "2d")] acceleration: Scalar,
         #[cfg(feature = "3d")] acceleration: Vector,
     ) {
         self.body
@@ -365,7 +365,7 @@ impl EntityForces<'_> {
     #[inline]
     pub fn apply_local_angular_acceleration(
         &mut self,
-        #[cfg(feature = "2d")] acceleration: f32,
+        #[cfg(feature = "2d")] acceleration: Scalar,
         #[cfg(feature = "3d")] acceleration: Vector,
     ) {
         if let Some(ref mut accumulated) = self.body.accumulated_local_acceleration {

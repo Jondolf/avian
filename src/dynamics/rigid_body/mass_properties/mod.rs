@@ -330,7 +330,7 @@ impl Plugin for MassPropertyPlugin {
 
         // Update the global center of mass at the end of the physics step.
         app.add_systems(
-            self.schedule,
+            PhysicsSchedule,
             update_global_center_of_mass::<()>.in_set(PhysicsStepSet::Finalize),
         );
     }
