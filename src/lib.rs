@@ -437,8 +437,7 @@
     unexpected_cfgs,
     clippy::type_complexity,
     clippy::too_many_arguments,
-    rustdoc::invalid_rust_codeblocks,
-    mismatched_lifetime_syntaxes
+    rustdoc::invalid_rust_codeblocks
 )]
 #![warn(clippy::doc_markdown, missing_docs)]
 
