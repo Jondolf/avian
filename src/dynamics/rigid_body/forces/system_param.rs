@@ -162,7 +162,7 @@ impl ForceHelper<'_, '_> {
     ///
     /// Panics if the entity does not exist or is not a dynamic rigid body.
     #[inline]
-    pub fn entity(&mut self, entity: Entity) -> EntityForces {
+    pub fn entity(&mut self, entity: Entity) -> EntityForces<'_> {
         self.get_entity(entity).unwrap_or_else(|_| {
             panic!("Entity {entity} does not exist or is not a dynamic rigid body.")
         })
@@ -174,7 +174,7 @@ impl ForceHelper<'_, '_> {
     ///
     /// Returns a [`QueryEntityError`] if the entity does not exist or is not a dynamic rigid body.
     #[inline]
-    pub fn get_entity(&mut self, entity: Entity) -> Result<EntityForces, QueryEntityError> {
+    pub fn get_entity(&mut self, entity: Entity) -> Result<EntityForces<'_>, QueryEntityError> {
         self.query.get_mut(entity).map(|body| EntityForces {
             entity,
             body,
