@@ -75,7 +75,7 @@
 #![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
 #![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 //! #
-//! # #[cfg_attr(feature = "f32")]
+//! # #[cfg(feature = "f32")]
 //! fn apply_forces(query: Query<Entity, With<RigidBody>>, forces: ForceHelper) {
 //!     for entity in &mut query {
 //!         // Apply a force of 10 N in the positive Y direction to `entity`.
@@ -98,8 +98,8 @@
 //! If the point is not aligned with the [`GlobalCenterOfMass`], it will also apply a torque to the body.
 //!
 //! ```
-#![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+#![cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::{math::Vector, prelude::*};")]
 #![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 //! #
 //! # fn apply_impulses(query: Query<Entity, With<RigidBody>>, forces: ForceHelper) {
@@ -151,6 +151,7 @@
 //! # use bevy::prelude::*;
 //! #
 //! // In `FixedUpdate`
+//! # #[cfg(feature = "f32")]
 //! fn gravity(mut bodies: Query<&mut LinearVelocity>, time: Res<Time>) {
 //!     for mut velocity in &mut bodies {
 //!         // Apply a constant acceleration of 9.81 m/s² in the negative Y direction.
