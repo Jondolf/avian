@@ -1,4 +1,4 @@
-//! Forces, torques, impulses, and acceleration for dynamic [rigid bodies](RigidBody).
+//! External forces, torques, impulses, and acceleration for dynamic [rigid bodies](RigidBody).
 //!
 //! # Overview
 //!

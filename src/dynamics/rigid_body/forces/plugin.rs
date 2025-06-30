@@ -12,10 +12,14 @@ use bevy::prelude::*;
 
 use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWorldForces};
 
+/// A plugin for managing and applying external forces, torques, and accelerations for [rigid bodies](RigidBody).
+///
+/// See the [module-level documentation](crate::dynamics::rigid_body::forces) for more general information about forces in Avian.
 pub struct ForcePlugin;
 
 impl Plugin for ForcePlugin {
     fn build(&self, app: &mut App) {
+        // Register types.
         app.register_type::<(
             ConstantForce,
             ConstantTorque,
@@ -30,6 +34,7 @@ impl Plugin for ForcePlugin {
             AccumulatedLocalAcceleration,
         )>();
 
+        // Set up system sets.
         app.configure_sets(
             PhysicsSchedule,
             (
@@ -40,7 +45,6 @@ impl Plugin for ForcePlugin {
                 ForceSet::Clear.in_set(SolverSet::PostSubstep),
             ),
         );
-
         app.configure_sets(
             SubstepSchedule,
             ForceSet::ApplyLocalForces
@@ -48,6 +52,7 @@ impl Plugin for ForcePlugin {
                 .before(integrator::integrate_velocities),
         );
 
+        // Accumulate constant forces, torques, and accelerations.
         app.add_systems(
             PhysicsSchedule,
             (
@@ -55,29 +60,31 @@ impl Plugin for ForcePlugin {
                 apply_constant_torques,
                 apply_constant_linear_acceleration,
                 apply_constant_angular_acceleration,
-            )
-                .chain()
-                .in_set(ForceSet::ApplyConstantForces),
-        );
-
-        app.add_systems(
-            PhysicsSchedule,
-            apply_world_forces.in_set(ForceSet::ApplyWorldForces),
-        );
-        app.add_systems(
-            SubstepSchedule,
-            (
-                apply_local_forces,
-                apply_local_acceleration,
                 apply_constant_local_forces,
                 apply_constant_local_torques,
                 apply_constant_local_linear_acceleration,
                 apply_constant_local_angular_acceleration,
             )
                 .chain()
+                .in_set(ForceSet::ApplyConstantForces),
+        );
+
+        // Apply world forces.
+        app.add_systems(
+            PhysicsSchedule,
+            apply_world_forces.in_set(ForceSet::ApplyWorldForces),
+        );
+
+        // Apply local forces and accelerations.
+        // This is done in the substepping loop, because the orientations of bodies can change between substeps.
+        app.add_systems(
+            SubstepSchedule,
+            (apply_local_forces, apply_local_acceleration)
+                .chain()
                 .in_set(ForceSet::ApplyLocalForces),
         );
 
+        // Clear accumulated forces and accelerations.
         app.add_systems(
             PhysicsSchedule,
             (
@@ -90,13 +97,18 @@ impl Plugin for ForcePlugin {
     }
 }
 
+/// System sets for managing and applying forces, torques, and accelerations for [rigid bodies](RigidBody).
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ForceSet {
-    /// Adds [`ConstantForce`] and [`ConstantTorque`] to [`AccumulatedWorldForces`]
-    /// and [`ConstantLocalForce`] and [`ConstantLocalTorque`] to [`AccumulatedLocalForces`].
+    /// Adds [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`]
+    /// to [`AccumulatedWorldForces`] and [`ConstantLocalForce`], [`ConstantLocalTorque`], [`ConstantLocalLinearAcceleration`],
+    /// and [`ConstantLocalAngularAcceleration`] to [`AccumulatedLocalForces`].
     ApplyConstantForces,
+    /// Applies [`AccumulatedWorldForces`] to the linear and angular velocities of bodies.
     ApplyWorldForces,
+    /// Applies [`AccumulatedLocalForces`] to the linear and angular velocities of bodies.
     ApplyLocalForces,
+    /// Clears [`AccumulatedWorldForces`], [`AccumulatedLocalForces`], and [`AccumulatedLocalAcceleration`] for all bodies.
     Clear,
 }
 

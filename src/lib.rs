@@ -127,7 +127,7 @@
 //! - [Creating rigid bodies](RigidBody#creation)
 //! - [Movement](RigidBody#movement)
 //!     - [Linear](LinearVelocity) and [angular](AngularVelocity) velocity
-//!     - [Forces](ExternalForce), [torque](ExternalTorque), and [linear](ExternalImpulse) and [angular](ExternalAngularImpulse) impulses
+//!     - [External forces, impulses, and acceleration](dynamics::rigid_body::forces)
 //! - [Gravity] and [gravity scale](GravityScale)
 //! - [Mass properties](dynamics::rigid_body::mass_properties)
 //! - [Linear](LinearDamping) and [angular](AngularDamping) velocity damping
@@ -565,7 +565,7 @@ use prelude::*;
 /// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
 /// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
-/// | [`ForcePlugin`]                   | Manages [`AccumulatedForces`] and other rigid body force logic.                                                                                            |
+/// | [`ForcePlugin`]                   | Manages and applies external forces, torques, and acceleration for rigid bodies. See the [module-level documentation](dynamics::rigid_body::forces).       |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
 /// | [`ColliderHierarchyPlugin`]       | Manages [`ColliderOf`] relationships based on the entity hierarchy.                                                                                        |
 /// | [`ColliderTransformPlugin`]       | Propagates and updates transforms for colliders.
