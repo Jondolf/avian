@@ -114,52 +114,56 @@ pub enum ForceSet {
 
 /// Applies [`ConstantForce`] to the accumulated forces.
 fn apply_constant_forces(mut bodies: Query<(&mut AccumulatedWorldForces, &ConstantForce)>) {
-    for (mut forces, constant_force) in &mut bodies {
+    bodies.iter_mut().for_each(|(mut forces, constant_force)| {
         forces.force += constant_force.0;
-    }
+    })
 }
 
 /// Applies [`ConstantTorque`] to the accumulated torques.
 fn apply_constant_torques(mut bodies: Query<(&mut AccumulatedWorldForces, &ConstantTorque)>) {
-    for (mut forces, constant_torque) in &mut bodies {
+    bodies.iter_mut().for_each(|(mut forces, constant_torque)| {
         forces.torque += constant_torque.0;
-    }
+    })
 }
 
 /// Applies [`ConstantLinearAcceleration`] to the linear velocity increments.
 fn apply_constant_linear_acceleration(
     mut bodies: Query<(&mut VelocityIntegrationData, &ConstantLinearAcceleration)>,
 ) {
-    for (mut integration, constant_acceleration) in &mut bodies {
-        integration.linear_increment += constant_acceleration.0;
-    }
+    bodies
+        .iter_mut()
+        .for_each(|(mut integration, constant_acceleration)| {
+            integration.linear_increment += constant_acceleration.0;
+        })
 }
 
 /// Applies [`ConstantAngularAcceleration`] to the angular velocity increments.
 fn apply_constant_angular_acceleration(
     mut bodies: Query<(&mut VelocityIntegrationData, &ConstantAngularAcceleration)>,
 ) {
-    for (mut integration, constant_acceleration) in &mut bodies {
-        integration.angular_increment += constant_acceleration.0;
-    }
+    bodies
+        .iter_mut()
+        .for_each(|(mut integration, constant_acceleration)| {
+            integration.angular_increment += constant_acceleration.0;
+        })
 }
 
 /// Applies [`ConstantLocalForce`] to the accumulated forces.
 fn apply_constant_local_forces(
     mut bodies: Query<(&mut AccumulatedLocalForces, &ConstantLocalForce)>,
 ) {
-    for (mut forces, constant_force) in &mut bodies {
+    bodies.iter_mut().for_each(|(mut forces, constant_force)| {
         forces.force += constant_force.0;
-    }
+    })
 }
 
 /// Applies [`ConstantLocalTorque`] to the accumulated torques.
 fn apply_constant_local_torques(
     mut bodies: Query<(&mut AccumulatedLocalForces, &ConstantLocalTorque)>,
 ) {
-    for (mut forces, constant_torque) in &mut bodies {
+    bodies.iter_mut().for_each(|(mut forces, constant_torque)| {
         forces.torque += constant_torque.0;
-    }
+    })
 }
 
 /// Applies [`ConstantLocalLinearAcceleration`] to the accumulated local acceleration.
@@ -169,9 +173,11 @@ fn apply_constant_local_linear_acceleration(
         &ConstantLocalLinearAcceleration,
     )>,
 ) {
-    for (mut acceleration, constant_acceleration) in &mut bodies {
-        acceleration.linear += constant_acceleration.0;
-    }
+    bodies
+        .iter_mut()
+        .for_each(|(mut acceleration, constant_acceleration)| {
+            acceleration.linear += constant_acceleration.0;
+        })
 }
 
 /// Applies [`ConstantLocalAngularAcceleration`] to the accumulated local acceleration.
@@ -181,9 +187,11 @@ fn apply_constant_local_angular_acceleration(
         &ConstantLocalAngularAcceleration,
     )>,
 ) {
-    for (mut acceleration, constant_acceleration) in &mut bodies {
-        acceleration.angular += constant_acceleration.0;
-    }
+    bodies
+        .iter_mut()
+        .for_each(|(mut acceleration, constant_acceleration)| {
+            acceleration.angular += constant_acceleration.0;
+        })
 }
 
 /// Applies [`AccumulatedWorldForces`] to the linear and angular velocity of bodies.
@@ -199,7 +207,7 @@ fn apply_world_forces(
 
     // TODO: Do we want to skip kinematic bodies here?
     bodies
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|(mut integration, forces, mass_props)| {
             // NOTE: The velocity increments are treated as accelerations at this point.
 
@@ -236,7 +244,7 @@ fn apply_local_forces(
     let delta_secs = time.delta_secs_f64() as Scalar;
 
     bodies
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|(mut body, forces, rotation, mass_props)| {
             let rotation = body.delta_rotation * *rotation;
             let locked_axes = body.flags.locked_axes();
@@ -288,7 +296,7 @@ fn apply_local_acceleration(
     let delta_secs = time.delta_secs_f64() as Scalar;
 
     bodies
-        .par_iter_mut()
+        .iter_mut()
         .for_each(|(mut body, acceleration, rotation, locked_axes)| {
             let rotation = body.delta_rotation * *rotation;
             let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
@@ -328,17 +336,19 @@ fn clear_accumulated_world_forces(
     // Initialize a buffer for entities to remove the component from.
     let mut entity_buffer = Vec::new();
 
-    for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
-        if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
-            // The force or torque was not zero, so these may be continuously applied forces.
-            // Just reset the forces and keep the component.
-            forces.force = Vector::ZERO;
-            forces.torque = AngularVector::ZERO;
-        } else if !has_constant_force && !has_constant_torque {
-            // No forces or torques were applied for an entire time step, so we can remove the component.
-            entity_buffer.push(entity);
-        }
-    }
+    query.iter_mut().for_each(
+        |(entity, mut forces, has_constant_force, has_constant_torque)| {
+            if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
+                // The force or torque was not zero, so these may be continuously applied forces.
+                // Just reset the forces and keep the component.
+                forces.force = Vector::ZERO;
+                forces.torque = AngularVector::ZERO;
+            } else if !has_constant_force && !has_constant_torque {
+                // No forces or torques were applied for an entire time step, so we can remove the component.
+                entity_buffer.push(entity);
+            }
+        },
+    );
 
     if entity_buffer.is_empty() {
         return;
@@ -369,17 +379,19 @@ fn clear_accumulated_local_forces(
     // Initialize a buffer for entities to remove the component from.
     let mut entity_buffer = Vec::new();
 
-    for (entity, mut forces, has_constant_force, has_constant_torque) in &mut query {
-        if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
-            // The force or torque was not zero, so these may be continuously applied forces.
-            // Just reset the forces and keep the component.
-            forces.force = Vector::ZERO;
-            forces.torque = AngularVector::ZERO;
-        } else if !has_constant_force && !has_constant_torque {
-            // No forces or torques were applied for an entire time step, so we can remove the component.
-            entity_buffer.push(entity);
-        }
-    }
+    query.iter_mut().for_each(
+        |(entity, mut forces, has_constant_force, has_constant_torque)| {
+            if forces.force != Vector::ZERO || forces.torque != AngularVector::ZERO {
+                // The force or torque was not zero, so these may be continuously applied forces.
+                // Just reset the forces and keep the component.
+                forces.force = Vector::ZERO;
+                forces.torque = AngularVector::ZERO;
+            } else if !has_constant_force && !has_constant_torque {
+                // No forces or torques were applied for an entire time step, so we can remove the component.
+                entity_buffer.push(entity);
+            }
+        },
+    );
 
     if entity_buffer.is_empty() {
         return;
@@ -400,7 +412,7 @@ fn clear_accumulated_local_acceleration(
     // Initialize a buffer for entities to remove the component from.
     let mut entity_buffer = Vec::new();
 
-    for (entity, mut acceleration) in &mut query {
+    query.iter_mut().for_each(|(entity, mut acceleration)| {
         #[cfg(feature = "2d")]
         let non_zero_acceleration = acceleration.linear != Vector::ZERO;
         #[cfg(feature = "3d")]
@@ -418,7 +430,7 @@ fn clear_accumulated_local_acceleration(
             // No acceleration was applied for an entire time step, so we can remove the component.
             entity_buffer.push(entity);
         }
-    }
+    });
 
     if entity_buffer.is_empty() {
         return;
