@@ -129,7 +129,7 @@ impl EntityForces<'_> {
         ));
     }
 
-    /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m^2/s.
+    /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m²/s.
     ///
     /// The impulse modifies the [`AngularVelocity`] of the body immediately.
     pub fn apply_angular_impulse(&mut self, impulse: AngularVector) {
@@ -137,7 +137,7 @@ impl EntityForces<'_> {
             self.body.mass_props.effective_inv_angular_inertia() * impulse;
     }
 
-    /// Applies a force at the center of mass in local space. The unit is typically N or kg⋅m/s^2.
+    /// Applies a force at the center of mass in local space. The unit is typically N or kg⋅m/s².
     ///
     /// The force is applied continuously over the physics step and cleared afterwards.
     // TODO: Do we also want `apply_local_force`? It's not clear what the point should be relative to.
@@ -153,7 +153,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies a force at the center of mass in world space. The unit is typically N or kg⋅m/s^2.
+    /// Applies a force at the center of mass in world space. The unit is typically N or kg⋅m/s².
     ///
     /// The force is applied continuously over the physics step and cleared afterwards.
     pub fn apply_force(&mut self, force: Vector) {
@@ -168,7 +168,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies a force at the given point in world space. The unit is typically N or kg⋅m/s^2.
+    /// Applies a force at the given point in world space. The unit is typically N or kg⋅m/s².
     ///
     /// If the point is not at the center of mass, the force will also generate a torque.
     ///
@@ -183,7 +183,7 @@ impl EntityForces<'_> {
         ));
     }
 
-    /// Applies a torque in local space. The unit is typically N⋅m or kg⋅m^2/s^2.
+    /// Applies a torque in local space. The unit is typically N⋅m or kg⋅m²/s².
     ///
     /// The torque is applied continuously over the physics step and cleared afterwards.
     ///
@@ -202,7 +202,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies a torque in world space. The unit is typically N⋅m or kg⋅m^2/s^2.
+    /// Applies a torque in world space. The unit is typically N⋅m or kg⋅m²/s².
     ///
     /// The torque is applied continuously over the physics step and cleared afterwards.
     pub fn apply_torque(&mut self, torque: AngularVector) {
@@ -217,7 +217,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies a linear acceleration in local space, ignoring mass. The unit is typically m/s^2.
+    /// Applies a linear acceleration in local space, ignoring mass. The unit is typically m/s².
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_local_linear_acceleration(&mut self, acceleration: Vector) {
@@ -232,7 +232,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies a linear acceleration, ignoring mass. The unit is typically m/s^2.
+    /// Applies a linear acceleration, ignoring mass. The unit is typically m/s².
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_linear_acceleration(&mut self, acceleration: Vector) {
@@ -241,7 +241,7 @@ impl EntityForces<'_> {
             .apply_linear_acceleration(acceleration);
     }
 
-    /// Applies an angular acceleration in local space, ignoring angular inertia. The unit is rad/s^2.
+    /// Applies an angular acceleration in local space, ignoring angular inertia. The unit is rad/s².
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
     #[cfg(feature = "3d")]
@@ -261,7 +261,7 @@ impl EntityForces<'_> {
         }
     }
 
-    /// Applies an angular acceleration, ignoring angular inertia. The unit is rad/s^2.
+    /// Applies an angular acceleration, ignoring angular inertia. The unit is rad/s².
     ///
     /// The acceleration is applied continuously over the physics step and cleared afterwards.
     pub fn apply_angular_acceleration(

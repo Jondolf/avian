@@ -1,33 +1,24 @@
-//! Forces, torques, impulses, and acceleration for dynamic rigid bodies.
+//! Forces, torques, impulses, and acceleration for dynamic [rigid bodies](RigidBody).
+//!
+//! # Overview
 //!
 //! In addition to [`Gravity`], it is possible to apply your own forces, impulses, and acceleration
 //! to dynamic rigid bodies to simulate various effects such as force fields, motors, and thrusters.
 //! They have the following relationships:
 //!
-//! | Type         | Formula      | Relation to Velocity | Unit        |
-//! | ------------ | ------------ | -------------------- | ----------- |
-//! | Force        | `F = m * a`  | `Δa = F / m`         | kg⋅m/s² (N) |
-//! | Impulse      | `J = F * Δt` | `Δv = J / m`         | kg⋅m/s (N⋅s) |
-//! | Acceleration | `a = F / m`  | `Δv = a * Δt`        | m/s²        |
+//! | Type             | Formula      | Relation to Velocity | Unit        |
+//! | ---------------- | ------------ | -------------------- | ----------- |
+//! | **Force**        | `F = m * a`  | `Δa = F / m`         | kg⋅m/s² (N) |
+//! | **Impulse**      | `J = F * Δt` | `Δv = J / m`         | kg⋅m/s (N⋅s) |
+//! | **Acceleration** | `a = F / m`  | `Δv = a * Δt`        | m/s²        |
 //!
-//! In other words, a force applies an acceleration to a body, which in turn modifies its velocity over time,
+//! A force applies an acceleration to a body, which in turn modifies its velocity over time,
 //! while an impulse applies an immediate change in velocity. Both forces and impulses consider [mass properties],
 //! while acceleration by itself is independent of mass.
 //!
 //! The rotational equivalents are torques, angular impulses, and angular acceleration, which work similarly.
 //!
 //! [mass properties]: crate::dynamics::rigid_body::mass_properties
-//!
-//! # Usage
-//!
-//! There are two main APIs for applying forces:
-//!
-//! - Components like [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`]
-//!   for forces that persist across time steps.
-//! - The [`ForceHelper`] system parameter for one-time forces, impulses, and acceleration, among other features.
-//!
-//! The former is convenient and efficient for applying persistent forces with a component-driven approach,
-//! while the latter is more flexible and ad hoc, allowing you to apply forces to any entity at any time.
 //!
 //! ## Constant Forces
 //!
@@ -47,10 +38,10 @@
 //!
 //! These components are useful for simulating continuously applied forces that are expected
 //! to remain the same across time steps, such as per-body gravity or force fields.
-//! They are accumulated in the [`AccumulatedWorldForces`] and [`AccumulatedLocalForces`]
+//! They are gathered in the [`AccumulatedWorldForces`] and [`AccumulatedLocalForces`]
 //! components, which are applied at each [substep](SubstepCount) of the physics simulation.
 //!
-//! You can use the components by adding them to your entities:
+//! You can use constant forces by adding the components to your entities:
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -74,12 +65,10 @@
 //! ## One-Time Forces and Impulses
 //!
 //! It is common to apply many individual forces and impulses to dynamic rigid bodies,
-//! and to clear them after they have been applied. For this purpose, you can use the
-//! [`ForceHelper`] system parameter.
+//! and to clear them afterwards. This can be done using the [`ForceHelper`] system parameter.
 //!
 //! To use the [`ForceHelper`], you can add it to your system, and use the [`entity`](ForceHelper::entity)
-//! method to get access to [`EntityForces`] for applying forces, impulses, and acceleration
-//! to that entity.
+//! method to get access to [`EntityForces`] for applying forces, impulses, and acceleration to that entity.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -124,7 +113,7 @@
 //! # }
 //! ```
 //!
-//! As an example, you could implement radial gravity that pulls rigid bodies towards the center of the world
+//! As an example, you could implement radial gravity that pulls rigid bodies towards the world origin
 //! with a system like the following:
 //!
 //! ```
@@ -137,7 +126,6 @@
 //!     for (entity, global_transform) in &mut query {
 //!         // Compute the direction towards the center of the world.
 //!         let direction = -global_transform.translation().normalize_or_zero();
-//!
 //!         // Apply a linear acceleration of 9.81 m/s² towards the center of the world.
 #![cfg_attr(
     feature = "2d",
@@ -205,7 +193,7 @@ impl FloatZero for Scalar {
 }
 
 /// A component for applying a constant force to a dynamic rigid body in world space.
-/// The unit is typically N or kg⋅m/s^2.
+/// The unit is typically N or kg⋅m/s².
 ///
 /// The force persists across time steps, and is accumulated with other forces
 /// in the [`AccumulatedWorldForces`] component.
@@ -263,7 +251,7 @@ impl ConstantForce {
 }
 
 /// A component for applying a constant torque to a dynamic rigid body in world space.
-/// The unit is typically N⋅m or kg⋅m^2/s^2.
+/// The unit is typically N⋅m or kg⋅m²/s².
 ///
 /// The torque persists across time steps, and is accumulated with other torques
 /// in the [`AccumulatedWorldForces`] component.
@@ -315,7 +303,7 @@ impl ConstantTorque {
 }
 
 /// A component for applying a constant force to a dynamic rigid body in local space.
-/// The unit is typically N or kg⋅m/s^2.
+/// The unit is typically N or kg⋅m/s².
 ///
 /// The force persists across time steps, and is accumulated with other forces
 /// in the [`AccumulatedLocalForces`] component.
@@ -373,7 +361,7 @@ impl ConstantLocalForce {
 }
 
 /// A component for applying a constant torque to a dynamic rigid body in local space.
-/// The unit is typically N⋅m or kg⋅m^2/s^2
+/// The unit is typically N⋅m or kg⋅m²/s²
 ///
 /// The torque persists across time steps, and is accumulated with other torques
 /// in the [`AccumulatedLocalForces`] component.
@@ -424,7 +412,7 @@ impl ConstantLocalTorque {
 }
 
 /// A component for applying a constant linear acceleration to a dynamic rigid body in world space.
-/// The unit is typically m/s^2.
+/// The unit is typically m/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
 ///
@@ -443,7 +431,7 @@ impl ConstantLocalTorque {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
-///     // Apply a constant linear acceleration of 9.81 m/s^2 in the negative Y direction.
+///     // Apply a constant linear acceleration of 9.81 m/s² in the negative Y direction.
 ///     // This is equivalent to using the `Gravity` resource, but only for this entity.
 #[cfg_attr(
     feature = "2d",
@@ -485,7 +473,7 @@ impl ConstantLinearAcceleration {
 }
 
 /// A component for applying a constant angular acceleration to a dynamic rigid body in world space.
-/// The unit is typically rad/s^2.
+/// The unit is typically rad/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
 ///
@@ -505,7 +493,7 @@ impl ConstantLinearAcceleration {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
-///     // Apply a constant angular acceleration of 1.0 rad/s^2 in the positive Z direction.
+///     // Apply a constant angular acceleration of 1.0 rad/s² in the positive Z direction.
 #[cfg_attr(feature = "2d", doc = "    ConstantAngularAcceleration(1.0),")]
 #[cfg_attr(
     feature = "3d",
@@ -537,7 +525,7 @@ impl ConstantAngularAcceleration {
 }
 
 /// A component for applying a constant linear acceleration to a dynamic rigid body in local space.
-/// The unit is typically m/s^2.
+/// The unit is typically m/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
 ///
@@ -557,7 +545,7 @@ impl ConstantAngularAcceleration {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
-///     // Apply a constant linear acceleration of 10.0 m/s^2 in the positive Y direction in local space.
+///     // Apply a constant linear acceleration of 10.0 m/s² in the positive Y direction in local space.
 #[cfg_attr(
     feature = "2d",
     doc = "    ConstantLocalLinearAcceleration::new(0.0, 10.0),"
@@ -598,7 +586,7 @@ impl ConstantLocalLinearAcceleration {
 }
 
 /// A component for applying a constant angular acceleration to a dynamic rigid body in local space.
-/// The unit is typically rad/s^2.
+/// The unit is typically rad/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
 ///
@@ -618,7 +606,7 @@ impl ConstantLocalLinearAcceleration {
 /// commands.spawn((
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
-///     // Apply a constant angular acceleration of 1.0 rad/s^2 in the positive Z direction in local space.
+///     // Apply a constant angular acceleration of 1.0 rad/s² in the positive Z direction in local space.
 #[cfg_attr(feature = "2d", doc = "    ConstantLocalAngularAcceleration(1.0),")]
 #[cfg_attr(
     feature = "3d",
