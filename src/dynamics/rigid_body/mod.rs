@@ -113,8 +113,7 @@ use derive_more::From;
 /// # fn main() {}
 /// ```
 ///
-/// For applying forces and impulses to dynamic bodies, see the [`ExternalForce`], [`ExternalTorque`],
-/// [`ExternalImpulse`] and [`ExternalAngularImpulse`] components.
+/// For applying forces, impulses, and acceleration to dynamic bodies, see the [`forces`] module.
 ///
 /// Avian does not have a built-in character controller, so if you need one,
 /// you will need to implement it yourself or use a third party option.
@@ -437,7 +436,6 @@ pub struct SleepingDisabled;
 /// # Related Components
 ///
 /// - [`AngularVelocity`]: The angular velocity of a body.
-/// - [`ExternalForce`]: Applies a force to a dynamic body.
 /// - [`LinearDamping`]: Reduces the linear velocity of a body over time, similar to air resistance.
 /// - [`MaxLinearSpeed`]: Clamps the linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -535,7 +533,6 @@ impl Default for MaxAngularSpeed {
 /// # Related Components
 ///
 /// - [`LinearVelocity`]: The linear velocity of a body.
-/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "2d")]
@@ -569,7 +566,6 @@ pub struct AngularVelocity(pub Scalar);
 /// # Related Components
 ///
 /// - [`LinearVelocity`]: The linear velocity of a body.
-/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "3d")]
