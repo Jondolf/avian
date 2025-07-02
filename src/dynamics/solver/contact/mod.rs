@@ -7,6 +7,8 @@ pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
 use crate::{collision::contact_types::ContactId, prelude::*};
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
@@ -18,6 +20,9 @@ use super::solver_body::{SolverBody, SolverBodyInertia};
 // TODO: One-body constraint version
 /// Data and logic for solving a single contact point for a [`ContactConstraint`].
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraintPoint {
     /// The normal part of the contact constraint.
     pub normal_part: ContactNormalPart,
@@ -53,6 +58,9 @@ pub struct ContactConstraintPoint {
 /// Each constraint corresponds to a [`ContactManifold`] indicated by the `manifold_index`.
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraint {
     /// The first rigid body entity in the contact.
     pub body1: Entity,
@@ -84,6 +92,7 @@ pub struct ContactConstraint {
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
+    // TODO: Use a `SmallVec`
     pub points: Vec<ContactConstraintPoint>,
     /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
     ///

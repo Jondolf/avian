@@ -18,6 +18,8 @@
 //! [Box2D - SIMD Matters]: https://box2d.org/posts/2024/08/simd-matters/
 //! [Erin Catto]: https://github.com/erincatto
 
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 use bevy::{
     ecs::{entity::Entity, resource::Resource},
     reflect::Reflect,

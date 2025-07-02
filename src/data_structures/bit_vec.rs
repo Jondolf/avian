@@ -6,6 +6,8 @@ use core::ops::BitOrAssign;
 use core::slice;
 
 use bevy::reflect::Reflect;
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 
 /// A dynamically sized compact bit vector with a fixed block size of 64 bits.
 #[derive(Clone, Debug, Default, Reflect)]

@@ -1,5 +1,7 @@
 use crate::prelude::*;
 use bevy::reflect::Reflect;
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 
 #[cfg(feature = "2d")]
 pub type TangentImpulse = Scalar;
@@ -9,6 +11,9 @@ pub type TangentImpulse = Vector2;
 // TODO: One-body constraint version
 /// The tangential friction part of a [`ContactConstraintPoint`](super::ContactConstraintPoint).
 #[derive(Clone, Debug, Default, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactTangentPart {
     /// The contact impulse magnitude along the contact tangent.
     ///
