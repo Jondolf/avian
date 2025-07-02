@@ -1,3 +1,4 @@
+use crate::collision::contact_types::ContactEdgeFlags;
 use crate::prelude::*;
 use crate::{
     data_structures::{
@@ -636,7 +637,12 @@ impl ContactGraph {
         };
 
         // Find all edges connected to the entity.
-        let edges: Vec<ContactEdge> = self.edges.edge_weights(*index).cloned().collect();
+        let edges: Vec<ContactEdge> = self
+            .edges
+            .edge_weights(*index)
+            .filter(|edge| edge.is_sleeping())
+            .cloned()
+            .collect();
 
         // Iterate over the edges and move sleeping contacts to active contacts.
         for edge in edges {
@@ -652,6 +658,9 @@ impl ContactGraph {
 
             // Update the pair index of the edge.
             edge.pair_index = self.active_pairs.len();
+
+            // Set the edge to active.
+            edge.flags.set(ContactEdgeFlags::SLEEPING, false);
 
             // Call the pair callback.
             pair_callback(self, &transferred_pair);
@@ -684,7 +693,12 @@ impl ContactGraph {
         };
 
         // Find all edges connected to the entity.
-        let edges: Vec<ContactEdge> = self.edges.edge_weights(*index).cloned().collect();
+        let edges: Vec<ContactEdge> = self
+            .edges
+            .edge_weights(*index)
+            .filter(|edge| !edge.is_sleeping())
+            .cloned()
+            .collect();
 
         // Iterate over the edges and move active contacts to sleeping contacts.
         for edge in edges {
@@ -700,6 +714,9 @@ impl ContactGraph {
 
             // Update the pair index of the edge.
             edge.pair_index = self.sleeping_pairs.len();
+
+            // Set the edge to sleeping.
+            edge.flags.set(ContactEdgeFlags::SLEEPING, true);
 
             // Call the edge callback.
             pair_callback(self, &transferred_pair);

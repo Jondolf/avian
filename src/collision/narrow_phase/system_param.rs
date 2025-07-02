@@ -134,17 +134,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider2,
                     );
 
-                    // Wake up the bodies.
-                    // TODO: When we have simulation islands, this will be more efficient.
-                    commands.command_scope(|mut commands| {
-                        commands.queue(WakeUpBody(
-                            contact_pair.body1.unwrap_or(contact_pair.collider1),
-                        ));
-                        commands.queue(WakeUpBody(
-                            contact_pair.body2.unwrap_or(contact_pair.collider2),
-                        ));
-                    });
-
                     // Remove the contact pair from the contact graph.
                     let pair_key = PairKey::new(
                         contact_pair.collider1.index(),
@@ -178,6 +167,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider1,
                         contact_pair.collider2,
                     );
+
+                    // Wake up the bodies.
+                    // TODO: When we have simulation islands, this will be more efficient.
+                    commands.command_scope(|mut commands| {
+                        commands.queue(WakeUpBody(
+                            contact_pair.body1.unwrap_or(contact_pair.collider1),
+                        ));
+                        commands.queue(WakeUpBody(
+                            contact_pair.body2.unwrap_or(contact_pair.collider2),
+                        ));
+                    });
 
                     debug_assert!(
                         !contact_pair.manifolds.is_empty(),
