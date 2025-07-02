@@ -103,11 +103,8 @@ impl<N, E> StableUnGraph<N, E> {
     fn occupy_vacant_node(&mut self, node_idx: NodeIndex, weight: N) {
         let node_slot = &mut self.graph.nodes[node_idx.index()];
 
-        #[cfg(debug_assertions)]
-        {
-            let old = core::mem::replace(&mut node_slot.weight, Some(weight));
-            debug_assert!(old.is_none());
-        }
+        let _old = node_slot.weight.replace(weight);
+        debug_assert!(_old.is_none());
 
         let previous_node = node_slot.next[1];
         let next_node = node_slot.next[0];
@@ -165,7 +162,7 @@ impl<N, E> StableUnGraph<N, E> {
                 edge_idx = self.free_edge;
                 edge = &mut self.graph.edges[edge_idx.index()];
 
-                let _old = core::mem::replace(&mut edge.weight, Some(weight));
+                let _old = edge.weight.replace(weight);
                 debug_assert!(_old.is_none());
 
                 self.free_edge = edge.next[0];
@@ -344,7 +341,7 @@ impl<N, E> StableUnGraph<N, E> {
     /// Produces an empty iterator if the node doesn't exist.
     ///
     /// The iterator element type is `NodeIndex`.
-    pub fn neighbors(&self, a: NodeIndex) -> Neighbors<E> {
+    pub fn neighbors(&self, a: NodeIndex) -> Neighbors<'_, E> {
         Neighbors {
             skip_start: a,
             edges: &self.graph.edges,
@@ -360,7 +357,7 @@ impl<N, E> StableUnGraph<N, E> {
     /// Produces an empty iterator if the node doesn't exist.
     ///
     /// The iterator element type is `EdgeReference<E>`.
-    pub fn edges(&self, a: NodeIndex) -> Edges<E> {
+    pub fn edges(&self, a: NodeIndex) -> Edges<'_, E> {
         Edges {
             skip_start: a,
             edges: &self.graph.edges,
@@ -389,7 +386,7 @@ impl<N, E> StableUnGraph<N, E> {
     }
 
     /// Returns an iterator yielding immutable access to edge weights for edges from or to `a`.
-    pub fn edge_weights(&self, a: NodeIndex) -> EdgeWeights<E> {
+    pub fn edge_weights(&self, a: NodeIndex) -> EdgeWeights<'_, E> {
         EdgeWeights {
             skip_start: a,
             edges: &self.graph.edges,
@@ -631,30 +628,6 @@ impl<E> Clone for EdgeWeights<'_, E> {
             edges: self.edges,
             next: self.next,
             direction: self.direction,
-        }
-    }
-}
-
-struct EdgesWalkerMut<'a, E: 'a> {
-    edges: &'a mut [Edge<E>],
-    next: EdgeIndex,
-    dir: EdgeDirection,
-}
-
-impl<E> EdgesWalkerMut<'_, E> {
-    fn next_edge(&mut self) -> Option<&mut Edge<E>> {
-        self.next().map(|t| t.1)
-    }
-
-    fn next(&mut self) -> Option<(EdgeIndex, &mut Edge<E>)> {
-        let this_index = self.next;
-        let k = self.dir as usize;
-        match self.edges.get_mut(self.next.index()) {
-            None => None,
-            Some(edge) => {
-                self.next = edge.next[k];
-                Some((this_index, edge))
-            }
         }
     }
 }
