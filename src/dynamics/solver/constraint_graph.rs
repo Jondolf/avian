@@ -315,4 +315,26 @@ impl ConstraintGraph {
             }
         }
     }
+
+    /// Clears the constraint graph, removing all colors and their contents.
+    ///
+    /// This can be useful to ensure that the world is in a clean state
+    /// when for example reloading a scene or resetting the physics world.
+    ///
+    /// # Warning
+    ///
+    /// This does *not* clear the [`ContactGraph`]! You should additionally
+    /// call [`ContactGraph::clear`], or alternatively use [`Collisions::clear`]
+    /// that clears both resources.
+    ///
+    /// [`ContactGraph`]: crate::collision::contact_types::ContactGraph
+    /// [`ContactGraph::clear`]: crate::collision::contact_types::ContactGraph::clear
+    /// [`Collisions::clear`]: crate::collision::contact_types::Collisions::clear
+    pub fn clear(&mut self) {
+        for color in &mut self.colors {
+            color.body_set.clear();
+            color.manifold_handles.clear();
+            color.contact_constraints.clear();
+        }
+    }
 }
