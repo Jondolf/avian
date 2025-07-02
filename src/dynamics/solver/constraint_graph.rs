@@ -37,13 +37,18 @@ pub const GRAPH_COLOR_COUNT: usize = 12;
 /// the graph color limit. This can happen when a single body is interacting with many other bodies.
 pub const COLOR_OVERFLOW_INDEX: usize = GRAPH_COLOR_COUNT - 1;
 
-// Kinematic bodies have to be treated like dynamic bodies in graph coloring. Unlike static bodies, we cannot use a dummy solver
-// body for kinematic bodies. We cannot access a kinematic body from multiple threads efficiently because the SIMD solver body
-// scatter would write to the same kinematic body from multiple threads. Even if these writes don't modify the body, they will
-// cause horrible cache stalls. To make this feasible I would need a way to block these writes.
-
-/// A color in the graph. Each color is a set of bodies and constraints that can be solved in parallel
-/// without race conditions.
+/// A color in the [`ConstraintGraph`]. Each color is a set of bodies and constraints
+/// that can be solved in parallel without race conditions.
+///
+/// Only awake dynamic and kinematic bodies are included in graph coloring. For static bodies,
+/// the solver uses a dummy [`SolverBody`].
+///
+/// Kinematic bodies cannot use a dummy [`SolverBody`], because we cannot access the same body
+/// from multiple threads efficiently, since the (to-be-implemented) SIMD solver body scatter
+/// would write to the same body from multiple threads. Even if these writes didn't actually modify
+/// the body, they would still cause horrible cache stalls.
+///
+/// [`SolverBody`]: crate::dynamics::solver::SolverBody
 #[derive(Clone, Debug, Default)]
 pub struct GraphColor {
     /// A bit vector representing the [`SolverBody`]s that are part of this color.
@@ -87,7 +92,7 @@ pub struct ContactConstraintHandle {
 
 /// The constraint graph used for graph coloring to solve constraints in parallel.
 ///
-/// The graph holds up to [`GRAPH_COLOR_COUNT`] colors, where each color is a set of bodies and constraints
+/// The graph holds up to [`GRAPH_COLOR_COUNT`] colors, where each [`GraphColor`] is a set of bodies and constraints
 /// that can be solved in parallel without race conditions. Each body can appear in a given color only once.
 ///
 /// The last color, [`COLOR_OVERFLOW_INDEX`], is used for constraints that cannot find a color.
