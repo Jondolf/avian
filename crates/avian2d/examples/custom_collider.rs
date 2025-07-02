@@ -109,7 +109,7 @@ impl AnyCollider for CircleCollider {
             )
             .with_feature_ids(PackedFeatureId::face(0), PackedFeatureId::face(0));
 
-            manifolds.push(ContactManifold::new([point], rotation1 * local_normal1, 0));
+            manifolds.push(ContactManifold::new([point], rotation1 * local_normal1));
         }
     }
 }
