@@ -343,7 +343,7 @@ impl ContactGraph {
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
     ///
-    /// If you only want touching contacts, use [`iter_touching_mut`](Self::iter_touching_mut) instead.
+    /// If you only want touching contacts, use [`iter_active_touching_mut`](Self::iter_active_touching_mut) instead.
     #[inline]
     pub fn iter_active_mut(&mut self) -> impl Iterator<Item = &mut ContactPair> {
         self.active_pairs.iter_mut()

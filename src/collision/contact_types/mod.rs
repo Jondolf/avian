@@ -42,8 +42,6 @@ impl From<EdgeIndex> for ContactId {
 }
 
 /// Cold contact data stored in the [`ContactGraph`]. Used as a persistent handle for a [`ContactPair`].
-///
-/// The actual contact data is stored in the [`ContactPair`] in the [`ConstraintGraph`].
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactEdge {
