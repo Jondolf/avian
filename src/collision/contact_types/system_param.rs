@@ -1,6 +1,4 @@
-use crate::{
-    data_structures::pair_key::PairKey, dynamics::solver::constraint_graph::ConstraintGraph,
-};
+use crate::data_structures::pair_key::PairKey;
 use bevy::{ecs::system::SystemParam, prelude::*};
 
 use super::{ContactGraph, ContactPair};
@@ -55,8 +53,6 @@ use super::{ContactGraph, ContactPair};
 pub struct Collisions<'w> {
     /// The [`ContactGraph`] that stores all contact edges.
     contact_graph: Res<'w, ContactGraph>,
-    /// The [`ConstraintGraph`] that stores all contact data.
-    constraint_graph: Res<'w, ConstraintGraph>,
 }
 
 impl Collisions<'_> {
@@ -73,9 +69,9 @@ impl Collisions<'_> {
     /// If the pair does not exist, `None` is returned.
     #[inline]
     pub fn get(&self, entity1: Entity, entity2: Entity) -> Option<&ContactPair> {
-        let edge = self.contact_graph.get(entity1, entity2)?;
-        self.constraint_graph
-            .get_contact_pair(edge.color_index, edge.local_index)
+        self.contact_graph
+            .get(entity1, entity2)
+            .map(|(_edge, pair)| pair)
     }
 
     /// Returns `true` if the given entities have a touching contact pair.
@@ -98,14 +94,9 @@ impl Collisions<'_> {
     /// Returns an iterator yielding immutable access to all touching contact pairs.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &ContactPair> {
-        self.contact_graph.iter().filter_map(|contacts| {
-            if contacts.is_touching() {
-                self.constraint_graph
-                    .get_contact_pair(contacts.color_index, contacts.local_index)
-            } else {
-                None
-            }
-        })
+        self.contact_graph
+            .iter_active_touching()
+            .chain(self.contact_graph.iter_sleeping_touching())
     }
 
     /// Returns an iterator yielding immutable access to all touching contact pairs
@@ -114,14 +105,7 @@ impl Collisions<'_> {
     pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
         self.contact_graph
             .collisions_with(entity)
-            .filter_map(|contacts| {
-                if contacts.is_touching() {
-                    self.constraint_graph
-                        .get_contact_pair(contacts.color_index, contacts.local_index)
-                } else {
-                    None
-                }
-            })
+            .filter(|contact_pair| contact_pair.is_touching())
     }
 
     /// Returns an iterator yielding immutable access to all entities

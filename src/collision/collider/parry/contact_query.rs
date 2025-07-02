@@ -208,12 +208,10 @@ pub fn contact_manifolds(
                     -contact.dist,
                 )];
 
-                manifolds.push(ContactManifold::new(points, normal, 0));
+                manifolds.push(ContactManifold::new(points, normal));
             }
         }
     }
-
-    let mut manifold_index = 0;
 
     manifolds.extend(new_manifolds.iter().filter_map(|manifold| {
         // Skip empty manifolds.
@@ -244,9 +242,7 @@ pub fn contact_manifolds(
             .with_feature_ids(contact.fid1.into(), contact.fid2.into())
         });
 
-        let manifold = ContactManifold::new(points, normal, manifold_index);
-
-        manifold_index += 1;
+        let manifold = ContactManifold::new(points, normal);
 
         Some(manifold)
     }));

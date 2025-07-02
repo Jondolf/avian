@@ -5,10 +5,7 @@
 
 use core::marker::PhantomData;
 
-use crate::{
-    data_structures::pair_key::PairKey, dynamics::solver::constraint_graph::ConstraintGraph,
-    prelude::*,
-};
+use crate::{data_structures::pair_key::PairKey, prelude::*};
 use bevy::{
     ecs::{
         entity::{EntityHashSet, EntityMapper, MapEntities},
@@ -262,7 +259,6 @@ fn add_new_aabb_intervals(
 fn collect_collision_pairs<H: CollisionHooks>(
     intervals: ResMut<AabbIntervals>,
     mut contact_graph: ResMut<ContactGraph>,
-    mut constraint_graph: ResMut<ConstraintGraph>,
     hooks: StaticSystemParam<H>,
     mut commands: Commands,
     mut diagnostics: ResMut<CollisionDiagnostics>,
@@ -274,7 +270,6 @@ fn collect_collision_pairs<H: CollisionHooks>(
     sweep_and_prune::<H>(
         intervals,
         &mut contact_graph,
-        &mut constraint_graph,
         &mut hooks.into_inner(),
         &mut commands,
     );
@@ -288,7 +283,6 @@ fn collect_collision_pairs<H: CollisionHooks>(
 fn sweep_and_prune<H: CollisionHooks>(
     mut intervals: ResMut<AabbIntervals>,
     contact_graph: &mut ContactGraph,
-    constraint_graph: &mut ConstraintGraph,
     hooks: &mut H::Item<'_, '_>,
     commands: &mut Commands,
 ) where
@@ -359,14 +353,14 @@ fn sweep_and_prune<H: CollisionHooks>(
             let contact_id = contact_graph
                 .add_pair_with_key(contact_edge, pair_key)
                 .unwrap_or_else(|| {
-                    panic!("Pair key already exists in contact graph: {:?}", pair_key)
+                    panic!("Pair key already exists in contact graph: {pair_key:?}")
                 });
 
-            // TODO: Get rid of this extra lookup.
-            let contact_edge = contact_graph.get_mut_by_id(contact_id).unwrap();
-            contact_edge.id = contact_id;
+            let (contact_edge, contact_pair) = contact_graph.get_mut_by_id(contact_id).unwrap();
 
-            let mut contact_pair = ContactPair::new(*entity1, *entity2, contact_id);
+            // Initialize the contact pair data.
+            contact_edge.id = contact_id;
+            contact_pair.contact_id = contact_id;
             contact_pair.flags.set(
                 ContactPairFlags::MODIFY_CONTACTS,
                 flags1
@@ -379,9 +373,6 @@ fn sweep_and_prune<H: CollisionHooks>(
             );
             contact_pair.body1 = Some(collider_of1.body);
             contact_pair.body2 = Some(collider_of2.body);
-
-            // Add the contact pair to the contact graph.
-            constraint_graph.add_non_touching_contact(contact_edge, contact_pair);
         }
     }
 }

@@ -74,7 +74,7 @@ impl Plugin for BruteForceBroadPhasePlugin {
 
 fn collect_collision_pairs(
     bodies: Query<(Entity, &ColliderAabb, &RigidBody)>,
-    mut collisions: ResMut<ContactGraph>,
+    collisions: ResMut<ContactGraph>,
 ) {
     // Loop through all entity combinations and collect pairs of bodies with intersecting AABBs.
     for [(entity1, aabb1, rb1), (entity2, aabb2, rb2)] in bodies.iter_combinations() {

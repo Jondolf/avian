@@ -7,7 +7,7 @@ use crate::{
         contact_types::{ContactEdgeFlags, ContactId},
     },
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
-    dynamics::solver::{constraint_graph::ConstraintGraph, ContactSoftnessCoefficients},
+    dynamics::solver::constraint_graph::ConstraintGraph,
     prelude::*,
 };
 use bevy::{
@@ -49,7 +49,6 @@ pub struct NarrowPhase<'w, 's, C: AnyCollider> {
     pub config: Res<'w, NarrowPhaseConfig>,
     default_friction: Res<'w, DefaultFriction>,
     default_restitution: Res<'w, DefaultRestitution>,
-    contact_softness: Res<'w, ContactSoftnessCoefficients>,
     length_unit: Res<'w, PhysicsLengthUnit>,
     // These are scaled by the length unit.
     default_speculative_margin: Local<'s, Scalar>,
@@ -107,14 +106,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 let trailing_zeros = bits.trailing_zeros();
                 let contact_id = ContactId(i as u32 * 64 + trailing_zeros);
 
-                let contact_edge = self
+                let (contact_edge, contact_pair) = self
                     .contact_graph
                     .get_mut_by_id(contact_id)
-                    .unwrap_or_else(|| panic!("Contact edge not found for {contact_id:?}"));
-
-                let contact_pair = self
-                    .constraint_graph
-                    .get_contact_pair_mut(contact_edge.color_index, contact_edge.local_index)
                     .unwrap_or_else(|| panic!("Contact pair not found for {contact_id:?}"));
 
                 // Three options:
@@ -156,25 +150,17 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         contact_pair.collider1.index(),
                         contact_pair.collider2.index(),
                     );
-                    if contact_edge.color_index != usize::MAX {
-                        // The contact is an active constraint.
-                        // Remove the contact from the constraint graph.
-                        let color_index = contact_edge.color_index;
-                        let local_index = contact_edge.local_index;
-                        self.constraint_graph.remove_touching_contact(
-                            &mut self.contact_graph.edges,
-                            color_index,
-                            local_index,
-                        );
-                    } else {
-                        // The contact is non-touching or sleeping.
-                        // Remove the contact from the constraint graph.
-                        // TODO: debug_assert here
-                        let local_index = contact_edge.local_index;
-                        self.constraint_graph.remove_non_touching_contact(
-                            &mut self.contact_graph.edges,
-                            local_index,
-                        );
+
+                    // Remove the contact pair from the constraint graph.
+                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                        for _ in 0..contact_edge.constraint_handles.len() {
+                            self.constraint_graph.pop_manifold(
+                                &mut self.contact_graph.edges,
+                                contact_id,
+                                body1,
+                                body2,
+                            );
+                        }
                     }
                     self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
@@ -203,13 +189,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
-                    // TODO: Can we avoid cloning and just take the non-touching contact?
-                    let contact_pair = contact_pair.clone();
-                    let local_index = contact_edge.local_index;
-                    self.constraint_graph
-                        .add_touching_contact(contact_edge, contact_pair);
-                    self.constraint_graph
-                        .remove_non_touching_contact(&mut self.contact_graph.edges, local_index);
+                    for _ in contact_pair.manifolds.iter() {
+                        self.constraint_graph
+                            .push_manifold(contact_edge, contact_pair);
+                    }
                 } else if contact_pair
                     .flags
                     .contains(ContactPairFlags::STOPPED_TOUCHING)
@@ -250,17 +233,41 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STOPPED_TOUCHING, false);
 
-                    // TODO: Can we avoid cloning and just take the touching contact?
-                    let contact_pair = contact_pair.clone();
-                    let color_index = contact_edge.color_index;
-                    let local_index = contact_edge.local_index;
-                    self.constraint_graph
-                        .add_non_touching_contact(contact_edge, contact_pair);
-                    self.constraint_graph.remove_touching_contact(
-                        &mut self.contact_graph.edges,
-                        color_index,
-                        local_index,
-                    );
+                    // Remove the contact pair from the constraint graph.
+                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                        for _ in 0..contact_edge.constraint_handles.len() {
+                            self.constraint_graph.pop_manifold(
+                                &mut self.contact_graph.edges,
+                                contact_id,
+                                body1,
+                                body2,
+                            );
+                        }
+                    }
+                } else if contact_pair.is_touching() && contact_pair.manifold_count_change > 0 {
+                    // The contact pair is still touching, but the manifold count has increased.
+                    // Add the new manifolds to the constraint graph.
+                    for _ in 0..contact_pair.manifold_count_change {
+                        self.constraint_graph
+                            .push_manifold(contact_edge, contact_pair);
+                    }
+                    contact_pair.manifold_count_change = 0;
+                } else if contact_pair.is_touching() && contact_pair.manifold_count_change < 0 {
+                    // The contact pair is still touching, but the manifold count has decreased.
+                    // Remove the excess manifolds from the constraint graph.
+                    let removal_count = contact_pair.manifold_count_change.unsigned_abs() as usize;
+                    contact_pair.manifold_count_change = 0;
+
+                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                        for _ in 0..removal_count {
+                            self.constraint_graph.pop_manifold(
+                                &mut self.contact_graph.edges,
+                                contact_id,
+                                body1,
+                                body2,
+                            );
+                        }
+                    }
                 }
 
                 // Clear the least significant set bit.
@@ -329,25 +336,6 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 bit_vec_mut.set_bit_count_and_clear(bit_count);
             });
 
-        // Collect mutable references to contacts into a single vector for easier parallel-for.
-        // TODO: Don't allocate this vector from scratch every time.
-        let mut contacts =
-            Vec::<&mut ContactPair>::with_capacity(self.contact_graph.edges.edge_count());
-
-        let ConstraintGraph {
-            colors: graph_colors,
-            non_touching_contacts,
-            ..
-        } = &mut *self.constraint_graph;
-
-        // Add contacts from each color in the constraint graph.
-        for color in graph_colors.iter_mut() {
-            contacts.extend(color.contacts.iter_mut());
-        }
-
-        // Add non-touching contacts from the constraint graph.
-        contacts.extend(non_touching_contacts.iter_mut());
-
         // Compute contacts for all contact pairs in parallel or serially
         // based on the `parallel` feature.
         //
@@ -363,7 +351,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         //
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
-        crate::utils::par_for_each!(contacts, |_i, contacts| {
+        crate::utils::par_for_each!(self.contact_graph.active_pairs_mut(), |_i, contacts| {
             let contact_id = contacts.contact_id.0 as usize;
 
             #[cfg(not(feature = "parallel"))]
@@ -539,6 +527,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     relative_linear_velocity = lin_vel2 - lin_vel1;
                     delta_secs * relative_linear_velocity.length()
                 };
+                contacts.effective_speculative_margin = effective_speculative_margin;
 
                 // The maximum distance at which contacts are detected.
                 // At least as large as the contact tolerance.
@@ -570,7 +559,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     context,
                 );
 
-                // Set the initial surface properties.
+                // Set the initial surface properties and prune contact points.
                 // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
                 contacts.manifolds.iter_mut().for_each(|manifold| {
                     manifold.friction = friction;
@@ -599,6 +588,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
 
                 contacts.flags.set(ContactPairFlags::TOUCHING, touching);
 
+                // TODO: Manifold reduction
+
                 // TODO: This condition is pretty arbitrary, mainly to skip dense trimeshes.
                 //       If we let Parry handle contact matching, this wouldn't be needed.
                 if contacts.manifolds.len() <= 4 && self.config.match_contacts {
@@ -612,6 +603,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     }
                 }
 
+                // Record how many manifolds were added or removed.
+                // This is used to add or remove contact constraints in the `ConstraintGraph` for persistent contacts.
+                contacts.manifold_count_change =
+                    (contacts.manifolds.len() as i32 - old_manifolds.len() as i32) as i16;
+
                 // TODO: For unmatched contacts, apply any leftover impulses from the previous frame.
 
                 if touching && !was_touching {
@@ -621,6 +617,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 } else if !touching && was_touching {
                     // The colliders stopped touching.
                     contacts.flags.set(ContactPairFlags::STOPPED_TOUCHING, true);
+                    status_change_bits.set(contact_id);
+                } else if contacts.manifold_count_change != 0 {
+                    // The manifold count changed, but the colliders are still touching.
+                    // This is used to add or remove contact constraints in the `ConstraintGraph`.
                     status_change_bits.set(contact_id);
                 }
             };

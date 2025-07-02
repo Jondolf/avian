@@ -6,9 +6,13 @@ mod system_param;
 
 pub use contact_graph::{ContactGraph, ContactGraphInternal};
 pub use feature_id::PackedFeatureId;
+use smallvec::SmallVec;
 pub use system_param::Collisions;
 
-use crate::{data_structures::graph::EdgeIndex, prelude::*};
+use crate::{
+    data_structures::graph::EdgeIndex, dynamics::solver::constraint_graph::ContactConstraintHandle,
+    prelude::*,
+};
 use bevy::prelude::*;
 
 /// A stable identifier for a [`ContactEdge`].
@@ -52,14 +56,16 @@ pub struct ContactEdge {
     /// The second collider entity in the contact.
     pub collider2: Entity,
 
-    /// The index of the graph color this edge belongs to in the [`ConstraintGraph`].
-    ///
-    /// `usize::MAX` if the contact is non-touching or sleeping.
-    pub color_index: usize,
+    /// The handles to the constraints associated with this contact edge.
+    #[cfg(feature = "2d")]
+    pub constraint_handles: SmallVec<[ContactConstraintHandle; 2]>,
 
-    /// The index of the contact pair within the graph color
-    /// that [`color_index`](Self::color_index) points to.
-    pub local_index: usize,
+    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    pub pair_index: usize,
+
+    /// The handles to the constraints associated with this contact edge.
+    #[cfg(feature = "3d")]
+    pub constraint_handles: SmallVec<[ContactConstraintHandle; 4]>,
 
     /// Flags for the contact edge.
     pub flags: ContactEdgeFlags,
@@ -73,8 +79,8 @@ impl ContactEdge {
             id: ContactId::PLACEHOLDER,
             collider1,
             collider2,
-            color_index: usize::MAX,
-            local_index: usize::MAX,
+            pair_index: 0,
+            constraint_handles: SmallVec::new(),
             flags: ContactEdgeFlags::empty(),
         }
     }
@@ -82,6 +88,11 @@ impl ContactEdge {
     /// Returns `true` if the colliders are touching.
     pub fn is_touching(&self) -> bool {
         self.flags.contains(ContactEdgeFlags::TOUCHING)
+    }
+
+    /// Returns `true` if the contact pair is between sleeping bodies.
+    pub fn is_sleeping(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::SLEEPING)
     }
 
     /// Returns `true` if collision events are enabled for the contact.
@@ -103,8 +114,10 @@ bitflags::bitflags! {
     impl ContactEdgeFlags: u8 {
         /// Set if the colliders are touching, including sensors.
         const TOUCHING = 1 << 0;
+        /// Set if the contact pair is between sleeping bodies.
+        const SLEEPING = 1 << 1;
         /// Set if the contact pair should emit contact events or sensor events.
-        const CONTACT_EVENTS = 1 << 1;
+        const CONTACT_EVENTS = 1 << 2;
     }
 }
 
@@ -133,6 +146,16 @@ pub struct ContactPair {
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
     pub manifolds: Vec<ContactManifold>,
+    /// The number of manifolds that were added or removed during the current time step.
+    ///
+    /// This is used to manage contact constraint updates for persistent contacts in the [`ConstraintGraph`].
+    ///
+    /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
+    pub(crate) manifold_count_change: i16,
+    /// The effective speculative margin computed for this contact pair.
+    ///
+    /// This is computed in the narrow phase and reused during constraint preparation.
+    pub(crate) effective_speculative_margin: Scalar,
     /// Flag indicating the status and type of the contact pair.
     pub flags: ContactPairFlags,
 }
@@ -176,6 +199,8 @@ impl ContactPair {
             body1: None,
             body2: None,
             manifolds: Vec::new(),
+            manifold_count_change: 0,
+            effective_speculative_margin: 0.0,
             flags: ContactPairFlags::empty(),
         }
     }
@@ -322,8 +347,6 @@ pub struct ContactManifold {
     /// such as conveyor belts.
     #[cfg(feature = "3d")]
     pub tangent_velocity: Vector,
-    /// The index of the manifold in the collision.
-    pub index: usize,
 }
 
 impl ContactManifold {
@@ -331,11 +354,7 @@ impl ContactManifold {
     /// expressed in local space.
     ///
     /// `index` represents the index of the manifold in the collision.
-    pub fn new(
-        points: impl IntoIterator<Item = ContactPoint>,
-        normal: Vector,
-        index: usize,
-    ) -> Self {
+    pub fn new(points: impl IntoIterator<Item = ContactPoint>, normal: Vector) -> Self {
         Self {
             #[cfg(feature = "2d")]
             points: arrayvec::ArrayVec::from_iter(points),
@@ -348,7 +367,6 @@ impl ContactManifold {
             tangent_speed: 0.0,
             #[cfg(feature = "3d")]
             tangent_velocity: Vector::ZERO,
-            index,
         }
     }
 

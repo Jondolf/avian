@@ -349,10 +349,16 @@ fn remove_collider_on<E: Event, B: Bundle>(
     mut contact_graph: ResMut<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut query: Query<&mut CollidingEntities>,
+    collider_of: Query<&ColliderOf>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
 ) {
     let entity = trigger.target();
+
+    let body1 = collider_of
+        .get(entity)
+        .map(|&ColliderOf { body }| body)
+        .ok();
 
     // Remove the collider from the contact graph.
     contact_graph.remove_collider_with(entity, |contact_graph, contact_edge| {
@@ -383,19 +389,17 @@ fn remove_collider_on<E: Event, B: Bundle>(
         }
 
         // Wake up the other body.
-        commands.queue(WakeUpBody(other_entity));
+        let body2 = collider_of
+            .get(other_entity)
+            .map(|&ColliderOf { body }| body)
+            .ok();
+        if let Some(body2) = body2 {
+            commands.queue(WakeUpBody(body2));
+        }
 
-        if contact_edge.color_index != usize::MAX {
-            // The contact is an active constraint.
-            // Remove the contact from the constraint graph.
-            constraint_graph.remove_touching_contact(
-                contact_graph,
-                contact_edge.color_index,
-                contact_edge.local_index,
-            );
-        } else {
-            // Remove the contact from the non-touching contacts.
-            constraint_graph.remove_non_touching_contact(contact_graph, contact_edge.local_index);
+        // Remove the contact edge from the constraint graph.
+        if let (Some(body1), Some(body2)) = (body1, body2) {
+            constraint_graph.remove_contact_edge(contact_graph, contact_edge, body1, body2);
         }
     });
 }
