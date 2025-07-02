@@ -130,6 +130,7 @@ impl Collisions<'_> {
     ///
     /// This can be useful to ensure that the world is in a clean state
     /// when for example reloading a scene or resetting the physics world.
+    #[inline]
     pub fn clear(&mut self) {
         self.contact_graph.clear();
         self.constraint_graph.clear();

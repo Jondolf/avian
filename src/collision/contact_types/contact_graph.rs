@@ -10,14 +10,11 @@ use bevy::{platform::collections::HashSet, prelude::*};
 
 use super::{ContactEdge, ContactId};
 
-/// A resource that stores all [`ContactEdge`]s in the physics world in an [undirected graph](UnGraph).
+/// A resource that stores all [`ContactEdge`]s in the physics world in an [undirected graph](StableUnGraph),
+/// and their corresponding [`ContactPair`]s.
 ///
 /// Contact pairs exist between [colliders](Collider) that have intersecting [AABBs](ColliderAabb),
 /// even if the shapes themselves are not yet touching.
-///
-/// For performance reasons, this does *not* store the actual contact data,
-/// only how contact pairs are connected. The contact data is stored in the [`ConstraintGraph`]
-/// resource, and can be accessed using the [`ContactEdge`]s stored in this resource.
 ///
 /// For a simpler API that abstracts over this complexity, consider using the [`Collisions`]
 /// system parameter.
@@ -27,10 +24,10 @@ use super::{ContactEdge, ContactId};
 /// The following methods can be used for querying collisions:
 ///
 /// - [`get`](Self::get) and [`get_mut`](Self::get_mut)
-/// - [`iter`](Self::iter) and [`iter_mut`](Self::iter_mut)
+/// - [`iter_active`](Self::iter_active) and [`iter_active_mut`](Self::iter_active_mut)
+/// - [`iter_sleeping`](Self::iter_sleeping) and [`iter_sleeping_mut`](Self::iter_sleeping_mut)
 /// - [`contains`](Self::contains)
-/// - [`collisions_with`](Self::collisions_with) and
-///   [`collisions_with_mut`](Self::collisions_with_mut)
+/// - [`collisions_with`](Self::collisions_with)
 /// - [`entities_colliding_with`](Self::entities_colliding_with)
 ///
 /// For example, to iterate over all collisions with a given entity:
@@ -61,6 +58,9 @@ use super::{ContactEdge, ContactId};
 ///
 /// While mutable access is allowed, contact modification and filtering should typically
 /// be done using [`CollisionHooks`]. See the documentation for more information.
+///
+/// For advanced usage, there are also methods such as [`get_edge`](Self::get_edge) and [`get_edge_mut`](Self::get_edge_mut)
+/// methods to access the [`ContactEdge`]s directly, along with variants that take a [`ContactId`] to access edges by their ID.
 ///
 /// # Warning
 ///
@@ -733,6 +733,7 @@ impl ContactGraph {
     /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
     /// [`ConstraintGraph::clear`]: crate::dynamics::solver::constraint_graph::ConstraintGraph::clear
     /// [`Collisions::clear`]: crate::collision::contact_types::Collisions::clear
+    #[inline]
     pub fn clear(&mut self) {
         self.edges.clear();
         self.active_pairs.clear();

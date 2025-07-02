@@ -86,6 +86,8 @@ pub struct ContactConstraint {
     /// The contact points in the manifold. Each point shares the same `normal`.
     pub points: Vec<ContactConstraintPoint>,
     /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
+    ///
+    /// [`ContactEdge`]: crate::collision::contact_types::ContactEdge
     pub contact_id: ContactId,
     /// The index of the contact manifold in the [`ContactPair`].
     pub manifold_index: usize,
