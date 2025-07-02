@@ -197,7 +197,6 @@ type AabbIntervalQueryData = (
     Entity,
     Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
-    Option<Read<RigidBody>>,
     Read<CollisionLayers>,
     Has<Sensor>,
     Has<CollisionEventsEnabled>,
@@ -211,6 +210,7 @@ type AabbIntervalQueryData = (
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
     aabbs: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
+    rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
     mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
     mut re_enabled_entities: RemovedComponents<Disabled>,
@@ -223,11 +223,13 @@ fn add_new_aabb_intervals(
     let re_enabled_aabbs = aabbs.iter_many(re_enabled);
 
     let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
-        |(entity, collider_of, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
+        |(entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)| {
             let mut flags = AabbIntervalFlags::empty();
             flags.set(
                 AabbIntervalFlags::IS_INACTIVE,
-                rb.is_some_and(|rb| rb.is_static()),
+                collider_of.is_some_and(|collider_of| {
+                    rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)
+                }),
             );
             flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
             flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);
