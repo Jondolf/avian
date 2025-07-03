@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::prelude::*;
+use crate::{prelude::*, prepare::PrepareSet};
 use ancestor_marker::AncestorMarkerPlugin;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -96,8 +96,7 @@ impl Plugin for SyncPlugin {
                 update_previous_global_transforms,
             )
                 .chain()
-                .after(PhysicsSet::Prepare)
-                .before(PhysicsSet::StepSimulation)
+                .in_set(PrepareSet::PropagateTransforms)
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
