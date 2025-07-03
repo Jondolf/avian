@@ -6,7 +6,7 @@
 
 use crate::{prelude::*, sync::SyncConfig};
 use bevy::{
-    ecs::{intern::Interned, query::QueryFilter, schedule::ScheduleLabel},
+    ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
 };
 
@@ -118,11 +118,6 @@ impl Default for PrepareConfig {
             transform_to_position: true,
         }
     }
-}
-
-/// A run condition that returns `true` if any entity matches the given query filter.
-pub(crate) fn match_any<F: QueryFilter>(query: Query<(), F>) -> bool {
-    !query.is_empty()
 }
 
 #[cfg(test)]

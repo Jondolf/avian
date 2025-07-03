@@ -155,16 +155,16 @@ pub enum PhysicsSet {
 
 /// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
 ///
-/// 1. First (empty by default)
+/// 1. First
 /// 2. Broad phase
 /// 3. Narrow phase
 /// 4. Solver
 /// 5. Sleeping
 /// 6. Spatial queries
-/// 7. Last (empty by default)
+/// 7. Last
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsStepSet {
-    /// Runs at the start of the [`PhysicsSchedule`]. Empty by default.
+    /// Runs at the start of the [`PhysicsSchedule`].
     First,
     /// Responsible for finding pairs of entities with overlapping [`ColliderAabb`]
     /// and creating contact pairs for them in the [`ContactGraph`].
@@ -189,7 +189,7 @@ pub enum PhysicsStepSet {
     SpatialQuery,
     /// Responsible for logic that runs after the core physics step and prepares for the next one.
     Finalize,
-    /// Runs at the end of the [`PhysicsSchedule`]. Empty by default.
+    /// Runs at the end of the [`PhysicsSchedule`].
     Last,
 }
 

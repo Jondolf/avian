@@ -3,7 +3,7 @@
 //!
 //! See [`SyncPlugin`].
 
-use crate::prelude::*;
+use crate::{prelude::*, prepare::PrepareSet};
 use ancestor_marker::AncestorMarkerPlugin;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -96,8 +96,7 @@ impl Plugin for SyncPlugin {
                 update_previous_global_transforms,
             )
                 .chain()
-                .after(PhysicsSet::Prepare)
-                .before(PhysicsSet::StepSimulation)
+                .in_set(PrepareSet::PropagateTransforms)
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
@@ -156,7 +155,7 @@ pub struct SyncConfig {
     /// Updates [`Collider::scale()`] based on transform changes,
     /// allowing you to scale colliders using [`Transform`]. Defaults to true.
     ///
-    /// This operation is run in [`PrepareSet::Finalize`](crate::prepare::PrepareSet::Finalize).
+    /// This operation is run in [`PrepareSet::Finalize`].
     pub transform_to_collider_scale: bool,
 }
 
