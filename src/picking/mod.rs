@@ -16,14 +16,14 @@ Note that in 3D, only the closest intersection will be reported."
 )]
 
 use crate::{
-    diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics},
+    diagnostics::{PhysicsDiagnostics, impl_diagnostic_paths},
     prelude::*,
 };
 use bevy::{
     ecs::entity::hash_set::EntityHashSet,
     picking::{
-        backend::{ray::RayMap, HitData, PointerHits},
         PickSet,
+        backend::{HitData, PointerHits, ray::RayMap},
     },
     prelude::*,
 };

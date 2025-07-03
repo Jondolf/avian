@@ -7,6 +7,7 @@ use parry::{
     math::Isometry,
     partitioning::Qbvh,
     query::{
+        DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions,
         details::{
             NormalConstraints, RayCompositeShapeToiAndNormalBestFirstVisitor,
             TOICompositeShapeShapeBestFirstVisitor,
@@ -15,7 +16,6 @@ use parry::{
         visitors::{
             BoundingVolumeIntersectionsVisitor, PointIntersectionsVisitor, RayIntersectionsVisitor,
         },
-        DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions,
     },
     shape::{Shape, TypedSimdCompositeShape},
 };

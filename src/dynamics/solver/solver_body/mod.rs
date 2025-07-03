@@ -14,7 +14,7 @@ pub use plugin::SolverBodyPlugin;
 use bevy::prelude::*;
 
 use super::{Rotation, Vector};
-use crate::{math::Scalar, prelude::LockedAxes, Tensor};
+use crate::{Tensor, math::Scalar, prelude::LockedAxes};
 
 // The `SolverBody` layout is inspired by `b2BodyState` in Box2D v3.
 

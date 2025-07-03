@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         component::Mutable,
-        entity::{hash_set::EntityHashSet, EntityMapper, MapEntities},
+        entity::{EntityMapper, MapEntities, hash_set::EntityHashSet},
         system::{ReadOnlySystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,

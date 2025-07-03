@@ -119,7 +119,9 @@ impl Relationship for ColliderOf {
         } else {
             warn!(
                 "{}Tried to attach collider on entity {collider} to rigid body on entity {body}, but the rigid body does not exist.",
-                caller.map(|location| format!("{location}: ")).unwrap_or_default(),
+                caller
+                    .map(|location| format!("{location}: "))
+                    .unwrap_or_default(),
             );
         }
     }

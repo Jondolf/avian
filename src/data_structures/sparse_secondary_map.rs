@@ -198,7 +198,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     #[inline]
     pub unsafe fn get_unchecked(&self, entity: Entity) -> &V {
         debug_assert!(self.contains(entity));
-        self.get(entity).unwrap_unchecked()
+        unsafe { self.get(entity).unwrap_unchecked() }
     }
 
     /// Returns a mutable reference to the value corresponding to the entity.
@@ -220,7 +220,7 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     #[inline]
     pub unsafe fn get_unchecked_mut(&mut self, entity: Entity) -> &mut V {
         debug_assert!(self.contains(entity));
-        self.get_mut(entity).unwrap_unchecked()
+        unsafe { self.get_mut(entity).unwrap_unchecked() }
     }
 
     /// Returns the value corresponding to the entity if it exists, otherwise inserts
@@ -307,11 +307,13 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
         entities: [Entity; N],
     ) -> [&mut V; N] {
         // Safe, see get_disjoint_mut.
-        let mut ptrs: [MaybeUninit<*mut V>; N] = MaybeUninit::uninit().assume_init();
-        for i in 0..N {
-            ptrs[i] = MaybeUninit::new(self.get_unchecked_mut(entities[i]));
+        unsafe {
+            let mut ptrs: [MaybeUninit<*mut V>; N] = MaybeUninit::uninit().assume_init();
+            for i in 0..N {
+                ptrs[i] = MaybeUninit::new(self.get_unchecked_mut(entities[i]));
+            }
+            core::mem::transmute_copy::<_, [&mut V; N]>(&ptrs)
         }
-        core::mem::transmute_copy::<_, [&mut V; N]>(&ptrs)
     }
 }
 

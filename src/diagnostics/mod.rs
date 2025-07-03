@@ -75,7 +75,7 @@ pub(crate) use path_macro::impl_diagnostic_paths;
 #[cfg(feature = "bevy_diagnostic")]
 pub use total::{PhysicsTotalDiagnostics, PhysicsTotalDiagnosticsPlugin};
 
-use crate::{schedule::PhysicsSchedule, PhysicsStepSet};
+use crate::{PhysicsStepSet, schedule::PhysicsSchedule};
 use bevy::{
     app::{App, Plugin},
     diagnostic::{Diagnostic, DiagnosticPath, Diagnostics, RegisterDiagnostic},
