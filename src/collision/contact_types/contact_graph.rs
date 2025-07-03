@@ -546,42 +546,43 @@ impl ContactGraph {
         self.pair_set.remove(pair_key);
 
         // Remove the edge from the graph.
-        if let Some(edge) = self.edges.remove_edge(id.into()) {
-            // Remove the contact pair from the active or sleeping pairs.
-            let pair_index = edge.pair_index;
-            if edge.is_sleeping() {
-                let moved_index = self.sleeping_pairs.len() - 1;
-                self.sleeping_pairs.swap_remove(pair_index);
+        let edge = self.edges.remove_edge(id.into())?;
+        let edge_count = self.edges.raw_edges().len();
 
-                if moved_index != pair_index {
-                    // Fix moved pair index.
-                    let moved_contact_id = self.sleeping_pairs[pair_index].contact_id;
-                    let moved_edge = self
-                        .get_edge_mut_by_id(moved_contact_id)
-                        .expect("moved edge should exist");
-                    debug_assert!(moved_edge.pair_index == moved_index);
-                    moved_edge.pair_index = pair_index;
-                }
+        // Remove the contact pair from the active or sleeping pairs.
+        let pair_index = edge.pair_index;
+        if edge.is_sleeping() {
+            let moved_index = self.sleeping_pairs.len() - 1;
+            self.sleeping_pairs.swap_remove(pair_index);
 
-                Some(edge)
-            } else {
-                let moved_index = self.active_pairs.len() - 1;
-                self.active_pairs.swap_remove(pair_index);
-
-                if moved_index != pair_index {
-                    // Fix moved pair index.
-                    let moved_contact_id = self.active_pairs[pair_index].contact_id;
-                    let moved_edge = self
-                        .get_edge_mut_by_id(moved_contact_id)
-                        .expect("moved edge should exist");
-                    moved_edge.pair_index = pair_index;
-                }
-
-                Some(edge)
+            if moved_index != pair_index {
+                // Fix moved pair index.
+                let moved_contact_id = self.sleeping_pairs[pair_index].contact_id;
+                let moved_edge = self
+                    .get_edge_mut_by_id(moved_contact_id)
+                    .unwrap_or_else(|| {
+                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges")
+                    });
+                debug_assert!(moved_edge.pair_index == moved_index);
+                moved_edge.pair_index = pair_index;
             }
         } else {
-            None
+            let moved_index = self.active_pairs.len() - 1;
+            self.active_pairs.swap_remove(pair_index);
+
+            if moved_index != pair_index {
+                // Fix moved pair index.
+                let moved_contact_id = self.active_pairs[pair_index].contact_id;
+                let moved_edge = self
+                    .get_edge_mut_by_id(moved_contact_id)
+                    .unwrap_or_else(|| {
+                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges")
+                    });
+                moved_edge.pair_index = pair_index;
+            }
         }
+
+        Some(edge)
     }
 
     /// Removes the collider of the given entity from the contact graph,
