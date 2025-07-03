@@ -203,6 +203,7 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
         ("Narrow Phase", Collision::NARROW_PHASE),
     ];
     let solver_timers = vec![
+        ("Velocity Increments", Solver::UPDATE_VELOCITY_INCREMENTS),
         ("Integrate Velocities", Solver::INTEGRATE_VELOCITIES),
         ("Warm Start", Solver::WARM_START),
         ("Solve Constraints", Solver::SOLVE_CONSTRAINTS),

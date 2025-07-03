@@ -4,13 +4,20 @@ use bevy::{
 };
 
 use super::{SolverBody, SolverBodyInertia};
-#[cfg(feature = "3d")]
-use crate::{dynamics::solver::solver_body::SolverBodyFlags, math::MatExt};
 use crate::{
     dynamics::solver::SolverDiagnostics,
     prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+};
+#[cfg(feature = "3d")]
+use crate::{
+    dynamics::{
+        integrator::{integrate_positions, IntegrationSet},
+        solver::solver_body::SolverBodyFlags,
+    },
+    math::MatExt,
+    prelude::SubstepSchedule,
 };
 
 /// A plugin for managing solver bodies.
@@ -112,6 +119,16 @@ impl Plugin for SolverBodyPlugin {
             PhysicsSchedule,
             writeback_solver_bodies.in_set(SolverSet::Finalize),
         );
+
+        // Update the world-space angular inertia of solver bodies right after position integration
+        // in the substepping loop.
+        #[cfg(feature = "3d")]
+        app.add_systems(
+            SubstepSchedule,
+            update_solver_body_angular_inertia
+                .in_set(IntegrationSet::Position)
+                .after(integrate_positions),
+        );
     }
 }
 
@@ -196,30 +213,55 @@ fn prepare_solver_bodies(
             solver_body.delta_position = Vector::ZERO;
             solver_body.delta_rotation = Rotation::IDENTITY;
 
+            let locked_axes = locked_axes.copied().unwrap_or_default();
             *inertial_properties = SolverBodyInertia::new(
                 mass.inverse(),
                 #[cfg(feature = "2d")]
                 angular_inertia.inverse(),
                 #[cfg(feature = "3d")]
                 angular_inertia.rotated(rotation.0).inverse(),
-                locked_axes.copied().unwrap_or_default(),
+                locked_axes,
             );
 
             #[cfg(feature = "3d")]
             {
-                // Check if the inertia tensor is isotropic, meaning that it is invariant
-                // under all rotations. If it is, we can skip computing gyroscopic motion.
-                // This applies to shapes like spheres and regular solids.
+                // Only compute gyroscopic motion if the following conditions are met:
+                //
+                // 1. Rotation is unlocked on at least one axis.
+                // 2. The inertia tensor is not isotropic.
+                //
+                // If the inertia tensor is isotropic, it is invariant under all rotations,
+                // and the same around any axis passing through the object's center of mass.
+                // This is the case for shapes like spheres, as well as cubes and other regular solids.
+                //
+                // From Moments of inertia of Archimedean solids by Frédéric Perrier:
+                // "The condition of two axes of threefold or higher rotational symmetry
+                // crossing at the center of gravity is sufficient to produce an isotropic tensor of inertia.
+                // The MI around any axis passing by the center of gravity are then identical."
+
+                // TODO: Kinematic bodies should not have gyroscopic motion.
                 // TODO: Should we scale the epsilon based on the `PhysicsLengthUnit`?
                 // TODO: We should only do this when the body is added or the local inertia tensor is changed.
                 let epsilon = 1e-6;
-                let is_inertia_isotropic = angular_inertia.inverse().is_isotropic(epsilon);
+                let is_gyroscopic = !locked_axes.is_rotation_locked()
+                    && !angular_inertia.inverse().is_isotropic(epsilon);
                 solver_body
                     .flags
-                    .set(SolverBodyFlags::GYROSCOPIC_MOTION, !is_inertia_isotropic);
+                    .set(SolverBodyFlags::GYROSCOPIC_MOTION, is_gyroscopic);
             }
         },
     );
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn update_solver_body_angular_inertia(
+    mut query: Query<(&mut SolverBodyInertia, &ComputedAngularInertia, &Rotation)>,
+) {
+    query
+        .par_iter_mut()
+        .for_each(|(mut inertia, angular_inertia, rotation)| {
+            inertia.update_inv_angular_inertia(angular_inertia.rotated(rotation.0).inverse());
+        });
 }
 
 /// Writes back solver body data to rigid bodies.

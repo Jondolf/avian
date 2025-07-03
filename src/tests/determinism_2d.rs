@@ -43,7 +43,7 @@ fn cross_platform_determinism_2d() {
         #[cfg(feature = "bevy_scene")]
         AssetPlugin::default(),
         #[cfg(feature = "bevy_scene")]
-        bevy::scene::ScenePlugin::default(),
+        bevy::scene::ScenePlugin,
     ))
     .insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
         1.0 / 64.0,
@@ -62,7 +62,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0x10b3db5;
+    let expected = 0x129c50db;
 
     assert!(
         hash == expected,

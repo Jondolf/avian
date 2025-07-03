@@ -386,8 +386,7 @@ impl From<ComputedAngularInertia> for AngularInertia {
 /// from an attached [`Collider`] based on its shape and mass.
 ///
 /// This is computed in local space, so the object's orientation is not taken into account.
-/// The world-space version is stored in [`GlobalAngularInertia`], which is automatically recomputed
-/// whenever the local angular inertia or rotation is changed.
+/// The world-space version can be computed using the associated [`rotated`](Self::rotated) method.
 ///
 /// To manually compute the world-space version that takes the body's rotation into account,
 /// use the associated [`rotated`](Self::rotated) method.
@@ -415,8 +414,6 @@ impl From<ComputedAngularInertia> for AngularInertia {
 /// # Related Types
 ///
 /// - [`AngularInertia`] can be used to set the local angular inertia associated with an individual entity.
-/// - [`GlobalAngularInertia`] stores the world-space angular inertia tensor, which is automatically recomputed
-///   whenever the local angular inertia or rotation is changed.
 /// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
 /// - [`ComputedCenterOfMass`] stores the total center of mass of a rigid body, taking into account colliders and descendants.
 /// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
@@ -748,62 +745,6 @@ impl core::ops::Mul<Vector> for ComputedAngularInertia {
     }
 }
 
-// In 2D, the global angular inertia is the same as the local angular inertia.
-#[cfg(feature = "2d")]
-pub(crate) type GlobalAngularInertia = ComputedAngularInertia;
-
-/// The total world-space angular inertia computed for a dynamic [rigid body], taking into account
-/// colliders and descendants.
-///
-/// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
-/// meaning the rigid body will not be affected by any torque.
-///
-/// This component is updated automatically whenever the local [`ComputedAngularInertia`] or rotation is changed.
-/// To manually update it, use the associated [`update`](Self::update) method.
-///
-/// [rigid body]: RigidBody
-#[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, PartialEq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct GlobalAngularInertia(ComputedAngularInertia);
-
-#[cfg(feature = "3d")]
-impl GlobalAngularInertia {
-    /// Creates a new [`GlobalAngularInertia`] from the given local angular inertia and rotation.
-    pub fn new(
-        local_angular_inertia: impl Into<ComputedAngularInertia>,
-        rotation: impl Into<Quaternion>,
-    ) -> Self {
-        let local_angular_inertia: ComputedAngularInertia = local_angular_inertia.into();
-        Self(local_angular_inertia.rotated(rotation.into()))
-    }
-
-    /// Updates the global angular inertia with the given local angular inertia and rotation.
-    pub fn update(
-        &mut self,
-        local_angular_inertia: impl Into<ComputedAngularInertia>,
-        rotation: impl Into<Quaternion>,
-    ) {
-        *self = Self::new(local_angular_inertia, rotation);
-    }
-}
-
-#[cfg(feature = "3d")]
-impl From<GlobalAngularInertia> for ComputedAngularInertia {
-    fn from(inertia: GlobalAngularInertia) -> Self {
-        inertia.0
-    }
-}
-
-#[cfg(feature = "3d")]
-impl From<Matrix> for GlobalAngularInertia {
-    fn from(tensor: Matrix) -> Self {
-        Self(ComputedAngularInertia::from_tensor(tensor))
-    }
-}
-
 /// The local [center of mass] computed for a dynamic [rigid body], taking into account
 /// colliders and descendants. Represents the average position of mass in the body.
 ///
@@ -818,6 +759,8 @@ impl From<Matrix> for GlobalAngularInertia {
 /// # Related Types
 ///
 /// - [`CenterOfMass`] can be used to set the local center of mass associated with an individual entity.
+/// - [`GlobalCenterOfMass`] stores the global center of mass, which is automatically recomputed whenever the local center of mass,
+///   position, or rotation is changed.
 /// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
 /// - [`ComputedAngularInertia`] stores the total angular inertia of a rigid body, taking into account colliders and descendants.
 /// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
@@ -857,6 +800,59 @@ impl From<CenterOfMass> for ComputedCenterOfMass {
 impl From<ComputedCenterOfMass> for CenterOfMass {
     fn from(center_of_mass: ComputedCenterOfMass) -> Self {
         Self(center_of_mass.f32())
+    }
+}
+
+/// The global [center of mass] computed for a dynamic [rigid body], taking into account
+/// colliders and descendants. Represents the average position of mass in the body in world space.
+///
+/// This component is updated automatically whenever the local [`ComputedCenterOfMass`], position, or rotation is changed.
+/// To manually update it, use the associated [`update`](Self::update) method.
+///
+/// [rigid body]: RigidBody
+#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, PartialEq, From)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, PartialEq)]
+pub struct GlobalCenterOfMass(Vector);
+
+impl GlobalCenterOfMass {
+    /// A center of mass set at the world origin.
+    pub const ZERO: Self = Self(Vector::ZERO);
+
+    /// Creates a new [`GlobalCenterOfMass`] at the given world position.
+    #[inline]
+    #[cfg(feature = "2d")]
+    pub const fn new(x: Scalar, y: Scalar) -> Self {
+        Self(Vector::new(x, y))
+    }
+
+    /// Creates a new [`GlobalCenterOfMass`] at the given world position.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub const fn new(x: Scalar, y: Scalar, z: Scalar) -> Self {
+        Self(Vector::new(x, y, z))
+    }
+
+    /// Returns the global center of mass as a vector.
+    #[inline]
+    pub fn get(&self) -> Vector {
+        self.0
+    }
+
+    /// Updates the global angular inertia with the given local angular inertia and rotation.
+    #[inline]
+    pub fn update(
+        &mut self,
+        local_angular_inertia: impl Into<ComputedCenterOfMass>,
+        position: impl Into<Vector>,
+        rotation: impl Into<Rotation>,
+    ) {
+        let local_angular_inertia: ComputedCenterOfMass = local_angular_inertia.into();
+        let position: Vector = position.into();
+        let rotation: Rotation = rotation.into();
+        let global_angular_inertia = position + rotation * local_angular_inertia.0;
+        self.0 = global_angular_inertia;
     }
 }
 

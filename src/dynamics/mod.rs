@@ -69,13 +69,17 @@ pub mod solver;
 
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
-    pub(crate) use super::rigid_body::mass_properties::{
-        components::GlobalAngularInertia, ComputeMassProperties, MassProperties,
-    };
+    pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
         integrator::{Gravity, IntegratorPlugin},
         rigid_body::{
+            forces::{
+                ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
+                ConstantLocalAngularAcceleration, ConstantLocalForce,
+                ConstantLocalLinearAcceleration, ConstantLocalTorque, ConstantTorque, ForceHelper,
+                ForcePlugin, ForceSet,
+            },
             mass_properties::{
                 bevy_heavy::{
                     AngularInertiaTensor, AngularInertiaTensorError, ComputeMassProperties2d,
@@ -83,8 +87,9 @@ pub mod prelude {
                 },
                 components::{
                     AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
-                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
-                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, GlobalCenterOfMass,
+                    Mass, MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass,
+                    NoAutoMass,
                 },
                 MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,
             },

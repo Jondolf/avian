@@ -184,6 +184,18 @@ impl LockedAxes {
         (self.0 & 0b001_000) != 0
     }
 
+    /// Returns true if all translation is locked.
+    #[cfg(feature = "2d")]
+    pub const fn is_translation_locked(&self) -> bool {
+        (self.0 & 0b110_000) == 0b110_000
+    }
+
+    /// Returns true if all translation is locked.
+    #[cfg(feature = "3d")]
+    pub const fn is_translation_locked(&self) -> bool {
+        (self.0 & 0b111_000) == 0b111_000
+    }
+
     /// Returns true if rotation is locked around the `X` axis.
     #[cfg(feature = "3d")]
     pub const fn is_rotation_x_locked(&self) -> bool {
@@ -206,6 +218,12 @@ impl LockedAxes {
     #[cfg(feature = "2d")]
     pub const fn is_rotation_locked(&self) -> bool {
         (self.0 & 0b000_001) != 0
+    }
+
+    /// Returns true if all rotation is locked.
+    #[cfg(feature = "3d")]
+    pub const fn is_rotation_locked(&self) -> bool {
+        (self.0 & 0b000_111) == 0b000_111
     }
 
     /// Sets translational axes of the given vector to zero based on the [`LockedAxes`] configuration.

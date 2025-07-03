@@ -20,7 +20,7 @@ pub struct FixedAngleConstraint {
     /// Lagrange multiplier for the angular correction caused by the alignment of the bodies.
     lagrange: Scalar,
     /// The torque exerted by the constraint when aligning the bodies.
-    torque: Torque,
+    torque: AngularVector,
     /// Pre-step data for the solver.
     pub(crate) pre_step: FixedAngleConstraintPreStepData,
 }
@@ -113,7 +113,7 @@ impl FixedAngleConstraint {
 
     /// Returns the torque exerted by the joint.
     #[inline]
-    pub fn torque(&self) -> Torque {
+    pub fn torque(&self) -> AngularVector {
         self.torque
     }
 }

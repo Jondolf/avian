@@ -7,6 +7,9 @@ use bevy::{
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
 };
+use dynamics::rigid_body::forces::{
+    AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWorldForces,
+};
 
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
@@ -236,10 +239,9 @@ pub(crate) fn wake_on_changed(
         Query<
             Entity,
             Or<(
-                Changed<ExternalForce>,
-                Changed<ExternalTorque>,
-                Changed<ExternalImpulse>,
-                Changed<ExternalAngularImpulse>,
+                Changed<AccumulatedWorldForces>,
+                Changed<AccumulatedLocalForces>,
+                Changed<AccumulatedLocalAcceleration>,
                 Changed<GravityScale>,
             )>,
         >,

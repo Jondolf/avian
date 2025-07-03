@@ -55,9 +55,9 @@ pub struct SphericalJoint {
     /// Lagrange multiplier for the angular correction caused by the twist limits.
     pub twist_lagrange: Scalar,
     /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `swing_axis`.
-    pub swing_torque: Torque,
+    pub swing_torque: AngularVector,
     /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `twist_axis`.
-    pub twist_torque: Torque,
+    pub twist_torque: AngularVector,
     pre_step: SphericalJointPreStepData,
 }
 
@@ -302,7 +302,7 @@ impl SphericalJoint {
         inertia1: &SolverBodyInertia,
         inertia2: &SolverBodyInertia,
         dt: Scalar,
-    ) -> Torque {
+    ) -> AngularVector {
         if let Some(joint_limit) = self.swing_limit {
             let a1 = body1.delta_rotation * self.pre_step.swing_axis1;
             let a2 = body2.delta_rotation * self.pre_step.swing_axis2;
@@ -311,7 +311,7 @@ impl SphericalJoint {
             let n_magnitude = n.length();
 
             if n_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
+                return AngularVector::ZERO;
             }
 
             let n = n / n_magnitude;
@@ -336,7 +336,7 @@ impl SphericalJoint {
                 return torque;
             }
         }
-        Torque::ZERO
+        AngularVector::ZERO
     }
 
     /// Applies angle limits to limit the relative rotation of the bodies around the `twist_axis`.
@@ -347,7 +347,7 @@ impl SphericalJoint {
         inertia1: &SolverBodyInertia,
         inertia2: &SolverBodyInertia,
         dt: Scalar,
-    ) -> Torque {
+    ) -> AngularVector {
         if let Some(joint_limit) = self.twist_limit {
             let a1 = body1.delta_rotation * self.pre_step.swing_axis1;
             let a2 = body2.delta_rotation * self.pre_step.swing_axis2;
@@ -356,7 +356,7 @@ impl SphericalJoint {
             let n_magnitude = n.length();
 
             if n_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
+                return AngularVector::ZERO;
             }
 
             let b1 = body1.delta_rotation * self.pre_step.twist_axis1;
@@ -370,7 +370,7 @@ impl SphericalJoint {
             let n2_magnitude = n2.length();
 
             if n1_magnitude <= Scalar::EPSILON || n2_magnitude <= Scalar::EPSILON {
-                return Torque::ZERO;
+                return AngularVector::ZERO;
             }
 
             let n1 = n1 / n1_magnitude;
@@ -398,7 +398,7 @@ impl SphericalJoint {
                 return torque;
             }
         }
-        Torque::ZERO
+        AngularVector::ZERO
     }
 }
 

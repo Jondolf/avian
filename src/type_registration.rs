@@ -34,10 +34,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<Friction>()
             .register_type::<LinearDamping>()
             .register_type::<AngularDamping>()
-            .register_type::<ExternalForce>()
-            .register_type::<ExternalTorque>()
-            .register_type::<ExternalImpulse>()
-            .register_type::<ExternalAngularImpulse>()
             .register_type::<GravityScale>()
             .register_type::<ColliderDensity>()
             .register_type::<ColliderMassProperties>()
@@ -63,8 +59,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<DistanceJoint>()
             .register_type::<FixedJoint>()
             .register_type::<PrismaticJoint>()
-            .register_type::<RevoluteJoint>()
-            .register_type::<GlobalAngularInertia>();
+            .register_type::<RevoluteJoint>();
 
         #[cfg(feature = "default-collider")]
         app.register_type::<ColliderConstructor>()

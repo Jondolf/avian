@@ -11,6 +11,10 @@ use crate::diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics};
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource, Debug)]
 pub struct SolverDiagnostics {
+    /// Time spent preparing or clearing velocity increments in [`VelocityIntegrationData`]s.
+    ///
+    /// [`VelocityIntegrationData`]: crate::dynamics::integrator::VelocityIntegrationData
+    pub update_velocity_increments: Duration,
     /// Time spent integrating velocities.
     pub integrate_velocities: Duration,
     /// Time spent warm starting the solver.
@@ -36,6 +40,10 @@ pub struct SolverDiagnostics {
 impl PhysicsDiagnostics for SolverDiagnostics {
     fn timer_paths(&self) -> Vec<(&'static DiagnosticPath, Duration)> {
         vec![
+            (
+                Self::UPDATE_VELOCITY_INCREMENTS,
+                self.update_velocity_increments,
+            ),
             (Self::INTEGRATE_VELOCITIES, self.integrate_velocities),
             (Self::WARM_START, self.warm_start),
             (Self::SOLVE_CONSTRAINTS, self.solve_constraints),
@@ -58,6 +66,7 @@ impl PhysicsDiagnostics for SolverDiagnostics {
 
 impl_diagnostic_paths! {
     impl SolverDiagnostics {
+        UPDATE_VELOCITY_INCREMENTS: "avian/solver/update_velocity_increments",
         INTEGRATE_VELOCITIES: "avian/solver/integrate_velocities",
         WARM_START: "avian/solver/warm_start",
         SOLVE_CONSTRAINTS: "avian/solver/solve_constraints",
