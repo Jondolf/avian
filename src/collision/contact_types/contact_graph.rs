@@ -561,7 +561,7 @@ impl ContactGraph {
                 let moved_edge = self
                     .get_edge_mut_by_id(moved_contact_id)
                     .unwrap_or_else(|| {
-                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges")
+                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges and {moved_index} sleeping pairs")
                     });
                 debug_assert!(moved_edge.pair_index == moved_index);
                 moved_edge.pair_index = pair_index;
@@ -576,7 +576,7 @@ impl ContactGraph {
                 let moved_edge = self
                     .get_edge_mut_by_id(moved_contact_id)
                     .unwrap_or_else(|| {
-                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges")
+                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges and {moved_index} active pairs")
                     });
                 moved_edge.pair_index = pair_index;
             }
