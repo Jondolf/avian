@@ -155,7 +155,7 @@ pub struct SyncConfig {
     /// Updates [`Collider::scale()`] based on transform changes,
     /// allowing you to scale colliders using [`Transform`]. Defaults to true.
     ///
-    /// This operation is run in [`PrepareSet::Finalize`](crate::prepare::PrepareSet::Finalize).
+    /// This operation is run in [`PrepareSet::Finalize`].
     pub transform_to_collider_scale: bool,
 }
 
