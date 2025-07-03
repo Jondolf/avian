@@ -391,11 +391,9 @@ fn sweep_and_prune<H: CollisionHooks>(
                     panic!("Pair key already exists in contact graph: {pair_key:?}")
                 });
 
-            let (contact_edge, contact_pair) = contact_graph.get_mut_by_id(contact_id).unwrap();
+            let contact_pair = contact_graph.get_mut_by_id(contact_id).unwrap().1;
 
             // Initialize the contact pair data.
-            contact_edge.id = contact_id;
-            contact_pair.contact_id = contact_id;
             contact_pair.flags.set(
                 ContactPairFlags::MODIFY_CONTACTS,
                 flags1
