@@ -1113,7 +1113,8 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
 
             // Update the `Transform` of the entity with the new local transform.
             if let Some(mut transform) = world.get_mut::<Transform>(ctx.entity) {
-                *transform = new_transform;
+                transform.translation = new_transform.translation;
+                transform.rotation = new_transform.rotation;
             }
         } else if let Some(mut transform) = world.get_mut::<Transform>(ctx.entity) {
             // If the entity has no parent, we can set the transform directly.
