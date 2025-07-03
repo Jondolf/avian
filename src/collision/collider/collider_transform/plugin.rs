@@ -251,7 +251,8 @@ unsafe fn propagate_collider_transforms_recursive(
             return;
         };
 
-        changed |= transform_ref.is_changed();
+        changed |=
+            transform_ref.is_changed() || collider_transform.as_ref().is_some_and(|t| t.is_added());
         if changed {
             if let Some(mut collider_transform) = collider_transform {
                 if *collider_transform != transform {
