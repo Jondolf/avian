@@ -361,7 +361,10 @@ fn remove_collider_on<E: Event, B: Bundle>(
         .ok();
 
     // Remove the collider from the contact graph.
-    contact_graph.remove_collider_with(entity, |contact_graph, contact_edge| {
+    contact_graph.remove_collider_with(entity, |contact_graph, contact_id| {
+        // Get the contact edge.
+        let contact_edge = contact_graph.edge_weight(contact_id.into()).unwrap();
+
         // If the contact pair was not touching, we don't need to do anything.
         if !contact_edge.flags.contains(ContactEdgeFlags::TOUCHING) {
             return;
@@ -399,7 +402,9 @@ fn remove_collider_on<E: Event, B: Bundle>(
 
         // Remove the contact edge from the constraint graph.
         if let (Some(body1), Some(body2)) = (body1, body2) {
-            constraint_graph.remove_contact_edge(contact_graph, contact_edge, body1, body2);
+            for _ in 0..contact_edge.constraint_handles.len() {
+                constraint_graph.pop_manifold(contact_graph, contact_id, body1, body2);
+            }
         }
     });
 }

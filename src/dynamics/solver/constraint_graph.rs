@@ -287,57 +287,6 @@ impl ConstraintGraph {
         Some(contact_constraint_handle)
     }
 
-    /// Removes all constraints associated with the given [`ContactEdge`], updating the color's
-    /// body set and manifold handles accordingly.
-    ///
-    /// This does *not* remove the [`ContactEdge`] itself from the graph, but assumes that the edge
-    /// was already removed elsewhere and passed to this method.
-    pub fn remove_contact_edge(
-        &mut self,
-        contact_graph: &mut ContactGraphInternal,
-        contact_edge: ContactEdge,
-        body1: Entity,
-        body2: Entity,
-    ) {
-        for contact_constraint_handle in contact_edge.constraint_handles {
-            let color_index = contact_constraint_handle.color_index as usize;
-            let local_index = contact_constraint_handle.local_index;
-            debug_assert!(color_index < GRAPH_COLOR_COUNT);
-
-            let color = &mut self.colors[color_index];
-
-            if color_index != COLOR_OVERFLOW_INDEX {
-                // Remove the bodies from the color's body set.
-                color.body_set.unset(body1.index() as usize);
-                color.body_set.unset(body2.index() as usize);
-            }
-
-            // Remove the manifold handle from the color.
-            let moved_index = color.manifold_handles.len() - 1;
-            color.manifold_handles.swap_remove(local_index);
-
-            if moved_index != local_index {
-                // Fix moved manifold handle.
-                let moved_handle = &mut color.manifold_handles[local_index];
-                let contact_edge = contact_graph
-                    .edge_weight_mut(moved_handle.contact_id.into())
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "Contact edge not found in graph: {:?}",
-                            moved_handle.contact_id
-                        )
-                    });
-
-                // Update the local index of the constraint handle associated with the moved manifold handle.
-                let constraint_handle =
-                    &mut contact_edge.constraint_handles[moved_handle.manifold_index];
-                debug_assert!(constraint_handle.color_index == color_index as u8);
-                debug_assert!(constraint_handle.local_index == moved_index);
-                constraint_handle.local_index = local_index;
-            }
-        }
-    }
-
     /// Clears the constraint graph, removing all colors and their contents.
     ///
     /// This can be useful to ensure that the world is in a clean state

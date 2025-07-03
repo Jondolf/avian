@@ -261,8 +261,8 @@ impl<N, E> StableUnGraph<N, E> {
         Some((edge.source(), edge.target()))
     }
 
-    /// Removes `a` from the graph if it exists, calling `edge_callback` for each of its edges,
-    /// and returns its weight. If it doesn't exist in the graph, returns `None`.
+    /// Removes `a` from the graph if it exists, calling `edge_callback` for each of its edges
+    /// right before removal, and returns its weight. If it doesn't exist in the graph, returns `None`.
     ///
     /// Invalidates the node index `a`, but not any other indices.
     /// Edge indices are invalidated as they would be following
@@ -274,7 +274,7 @@ impl<N, E> StableUnGraph<N, E> {
     /// and including the edges with an endpoint in the displaced node.
     pub fn remove_node_with<F>(&mut self, a: NodeIndex, mut edge_callback: F) -> Option<N>
     where
-        F: FnMut(&mut Self, E),
+        F: FnMut(&mut Self, EdgeIndex),
     {
         let node_weight = self.graph.nodes.get_mut(a.index())?.weight.take()?;
 
@@ -287,8 +287,8 @@ impl<N, E> StableUnGraph<N, E> {
                 if next == EdgeIndex::END {
                     break;
                 }
-                let edge = self.remove_edge(next).expect("edge not found for removal");
-                edge_callback(self, edge);
+                edge_callback(self, next);
+                self.remove_edge(next).expect("edge not found for removal");
             }
         }
 

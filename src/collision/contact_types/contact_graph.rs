@@ -595,7 +595,7 @@ impl ContactGraph {
     #[inline]
     pub fn remove_collider_with<F>(&mut self, entity: Entity, mut pair_callback: F)
     where
-        F: FnMut(&mut StableUnGraph<Entity, ContactEdge>, ContactEdge),
+        F: FnMut(&mut StableUnGraph<Entity, ContactEdge>, ContactId),
     {
         // Remove the entity from the entity-to-node mapping,
         // and get the index of the node in the graph.
@@ -604,10 +604,17 @@ impl ContactGraph {
         };
 
         // Remove the entity from the graph.
-        self.edges.remove_node_with(index, |graph, contacts| {
-            let pair_key = PairKey::new(contacts.collider1.index(), contacts.collider2.index());
+        self.edges.remove_node_with(index, |graph, edge_index| {
+            let contact_id: ContactId = edge_index.into();
+            let contact_edge = graph.edge_weight(edge_index).unwrap_or_else(|| {
+                panic!("contact edge {contact_id:?} not found in contact graph")
+            });
+            let pair_key = PairKey::new(
+                contact_edge.collider1.index(),
+                contact_edge.collider2.index(),
+            );
 
-            pair_callback(graph, contacts);
+            pair_callback(graph, contact_id);
 
             // Remove the pair from the pair set.
             self.pair_set.remove(&pair_key);
