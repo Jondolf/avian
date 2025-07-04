@@ -1,5 +1,7 @@
 use crate::{dynamics::solver::softness_parameters::SoftnessCoefficients, prelude::*};
 use bevy::reflect::Reflect;
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 
 pub type NormalImpulse = Scalar;
 
@@ -8,6 +10,9 @@ pub type NormalImpulse = Scalar;
 /// The normal part of a [`ContactConstraintPoint`](super::ContactConstraintPoint).
 /// Aims to resolve overlap.
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactNormalPart {
     /// The magnitude of the contact impulse along the contact normal.
     pub impulse: NormalImpulse,

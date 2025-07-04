@@ -214,12 +214,17 @@ fn clear_scene(
             With<Camera>,
         )>,
     >,
+    mut collisions: Collisions,
     mut step: ResMut<Step>,
 ) {
     step.0 = 0;
     for entity in &query {
         commands.entity(entity).despawn();
     }
+
+    // We need to clear the contact graph and constraint graph to make sure
+    // that previous contacts and constraints do not affect the simulation.
+    collisions.clear();
 }
 
 #[derive(Pod, Zeroable, Clone, Copy)]
