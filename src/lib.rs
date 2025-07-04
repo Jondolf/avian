@@ -437,7 +437,6 @@
     unexpected_cfgs,
     clippy::type_complexity,
     clippy::too_many_arguments,
-    clippy::collapsible_if, // forcing if-let chains often hurts readability
     rustdoc::invalid_rust_codeblocks
 )]
 #![warn(clippy::doc_markdown, missing_docs)]

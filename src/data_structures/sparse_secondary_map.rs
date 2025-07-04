@@ -164,10 +164,10 @@ impl<V, S: hash::BuildHasher> SparseSecondaryEntityMap<V, S> {
     /// the entity was not previously removed.
     #[inline]
     pub fn remove(&mut self, entity: Entity) -> Option<V> {
-        if let hash_map::Entry::Occupied(entry) = self.slots.entry(entity.index()) {
-            if entry.get().generation == entity.generation() {
-                return Some(entry.remove_entry().1.value);
-            }
+        if let hash_map::Entry::Occupied(entry) = self.slots.entry(entity.index())
+            && entry.get().generation == entity.generation()
+        {
+            return Some(entry.remove_entry().1.value);
         }
 
         None
