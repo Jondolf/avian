@@ -85,13 +85,13 @@ pub mod prelude {
     #[cfg(all(feature = "collider-from-mesh", feature = "default-collider"))]
     pub use super::collider::ColliderCachePlugin;
     pub use super::collider::{
-        collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
-        collider_transform::{ColliderTransform, ColliderTransformPlugin},
         AabbContext, AnyCollider, Collider, ColliderAabb, ColliderBackendPlugin,
         ColliderConstructor, ColliderConstructorHierarchy, ColliderDisabled, ColliderMarker,
         CollidingEntities, CollisionLayers, CollisionMargin, ContactManifoldContext, FillMode,
         IntoCollider, LayerMask, PhysicsLayer, ScalableCollider, Sensor, SimpleCollider,
         TrimeshFlags, VhacdParameters,
+        collider_hierarchy::{ColliderHierarchyPlugin, ColliderOf, RigidBodyColliders},
+        collider_transform::{ColliderTransform, ColliderTransformPlugin},
     };
     pub use super::collision_events::{
         CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,

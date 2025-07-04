@@ -1,10 +1,10 @@
 use bevy::{diagnostic::DiagnosticPath, prelude::*};
 
 use crate::{
-    dynamics::solver::joints::*, ColliderMarker, PhysicsSchedule, PhysicsStepSet, RigidBody,
+    ColliderMarker, PhysicsSchedule, PhysicsStepSet, RigidBody, dynamics::solver::joints::*,
 };
 
-use super::{impl_diagnostic_paths, AppDiagnosticsExt, PhysicsDiagnostics};
+use super::{AppDiagnosticsExt, PhysicsDiagnostics, impl_diagnostic_paths};
 
 /// A plugin that adds diagnostics for physics entity counts.
 pub struct PhysicsEntityDiagnosticsPlugin;

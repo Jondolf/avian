@@ -5,7 +5,7 @@ use core::cmp::Ordering;
 use crate::{
     collision::collider::ColliderQuery,
     data_structures::{bit_vec::BitVec, graph::EdgeIndex},
-    dynamics::solver::{contact::ContactConstraint, ContactSoftnessCoefficients},
+    dynamics::solver::{ContactSoftnessCoefficients, contact::ContactConstraint},
     prelude::*,
 };
 use bevy::{
@@ -13,8 +13,8 @@ use bevy::{
     prelude::*,
 };
 use dynamics::solver::{
-    contact::{ContactConstraintPoint, ContactNormalPart, ContactTangentPart},
     ContactConstraints,
+    contact::{ContactConstraintPoint, ContactNormalPart, ContactTangentPart},
 };
 #[cfg(feature = "parallel")]
 use thread_local::ThreadLocal;

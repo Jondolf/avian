@@ -300,8 +300,12 @@ fn trigger_collision_events(
     // Collect `OnCollisionStart` and `OnCollisionEnd` events
     // for entities that have events enabled.
     for event in state.started.read() {
-        let Ok([(collider_of1, events_enabled1), (collider_of2, events_enabled2)]) =
-            state.query.get_many([event.0, event.1])
+        let Ok(
+            [
+                (collider_of1, events_enabled1),
+                (collider_of2, events_enabled2),
+            ],
+        ) = state.query.get_many([event.0, event.1])
         else {
             continue;
         };
@@ -317,8 +321,12 @@ fn trigger_collision_events(
         }
     }
     for event in state.ended.read() {
-        let Ok([(collider_of1, events_enabled1), (collider_of2, events_enabled2)]) =
-            state.query.get_many([event.0, event.1])
+        let Ok(
+            [
+                (collider_of1, events_enabled1),
+                (collider_of2, events_enabled2),
+            ],
+        ) = state.query.get_many([event.0, event.1])
         else {
             continue;
         };

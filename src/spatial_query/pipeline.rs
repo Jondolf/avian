@@ -7,6 +7,7 @@ use parry::{
     math::Isometry,
     partitioning::Qbvh,
     query::{
+        DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions,
         details::{
             NormalConstraints, RayCompositeShapeToiAndNormalBestFirstVisitor,
             TOICompositeShapeShapeBestFirstVisitor,
@@ -15,7 +16,6 @@ use parry::{
         visitors::{
             BoundingVolumeIntersectionsVisitor, PointIntersectionsVisitor, RayIntersectionsVisitor,
         },
-        DefaultQueryDispatcher, QueryDispatcher, ShapeCastOptions,
     },
     shape::{Shape, TypedSimdCompositeShape},
 };
@@ -277,23 +277,22 @@ impl SpatialQueryPipeline {
         let ray = parry::query::Ray::new(origin.into(), direction.adjust_precision().into());
 
         let mut leaf_callback = &mut |index: &u32| {
-            if let Some(proxy) = proxies.get(*index as usize) {
-                if filter.test(proxy.entity, proxy.layers) {
-                    if let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
-                        &proxy.isometry,
-                        &ray,
-                        max_distance,
-                        solid,
-                    ) {
-                        let hit = RayHitData {
-                            entity: proxy.entity,
-                            distance: hit.time_of_impact,
-                            normal: hit.normal.into(),
-                        };
+            if let Some(proxy) = proxies.get(*index as usize)
+                && filter.test(proxy.entity, proxy.layers)
+                && let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
+                    &proxy.isometry,
+                    &ray,
+                    max_distance,
+                    solid,
+                )
+            {
+                let hit = RayHitData {
+                    entity: proxy.entity,
+                    distance: hit.time_of_impact,
+                    normal: hit.normal.into(),
+                };
 
-                        return callback(hit);
-                    }
-                }
+                return callback(hit);
             }
             true
         };
@@ -645,15 +644,14 @@ impl SpatialQueryPipeline {
         let point = point.into();
 
         let mut leaf_callback = &mut |index: &u32| {
-            if let Some(proxy) = self.proxies.get(*index as usize) {
-                if filter.test(proxy.entity, proxy.layers)
-                    && proxy
-                        .collider
-                        .shape_scaled()
-                        .contains_point(&proxy.isometry, &point)
-                {
-                    return callback(proxy.entity);
-                }
+            if let Some(proxy) = self.proxies.get(*index as usize)
+                && filter.test(proxy.entity, proxy.layers)
+                && proxy
+                    .collider
+                    .shape_scaled()
+                    .contains_point(&proxy.isometry, &point)
+            {
+                return callback(proxy.entity);
             }
             true
         };
@@ -772,18 +770,18 @@ impl SpatialQueryPipeline {
         let dispatcher = &*self.dispatcher;
 
         let mut leaf_callback = &mut |index: &u32| {
-            if let Some(proxy) = proxies.get(*index as usize) {
-                if filter.test(proxy.entity, proxy.layers) {
-                    let isometry = inverse_shape_isometry * proxy.isometry;
+            if let Some(proxy) = proxies.get(*index as usize)
+                && filter.test(proxy.entity, proxy.layers)
+            {
+                let isometry = inverse_shape_isometry * proxy.isometry;
 
-                    if dispatcher.intersection_test(
-                        &isometry,
-                        shape.shape_scaled().as_ref(),
-                        proxy.collider.shape_scaled().as_ref(),
-                    ) == Ok(true)
-                    {
-                        return callback(proxy.entity);
-                    }
+                if dispatcher.intersection_test(
+                    &isometry,
+                    shape.shape_scaled().as_ref(),
+                    proxy.collider.shape_scaled().as_ref(),
+                ) == Ok(true)
+                {
+                    return callback(proxy.entity);
                 }
             }
             true
@@ -815,14 +813,14 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShape<'_> {
             Option<&Self::PartNormalConstraints>,
         ),
     ) {
-        if let Some(proxy) = self.proxies.get(shape_id as usize) {
-            if self.query_filter.test(proxy.entity, proxy.layers) {
-                f(
-                    Some(&proxy.isometry),
-                    proxy.collider.shape_scaled().as_ref(),
-                    None,
-                );
-            }
+        if let Some(proxy) = self.proxies.get(shape_id as usize)
+            && self.query_filter.test(proxy.entity, proxy.layers)
+        {
+            f(
+                Some(&proxy.isometry),
+                proxy.collider.shape_scaled().as_ref(),
+                None,
+            );
         }
     }
 
@@ -860,15 +858,15 @@ impl TypedSimdCompositeShape for QueryPipelineAsCompositeShapeWithPredicate<'_, 
             Option<&Self::PartNormalConstraints>,
         ),
     ) {
-        if let Some(proxy) = self.proxies.get(shape_id as usize) {
-            if self.query_filter.test(proxy.entity, proxy.layers) && (self.predicate)(proxy.entity)
-            {
-                f(
-                    Some(&proxy.isometry),
-                    proxy.collider.shape_scaled().as_ref(),
-                    None,
-                );
-            }
+        if let Some(proxy) = self.proxies.get(shape_id as usize)
+            && self.query_filter.test(proxy.entity, proxy.layers)
+            && (self.predicate)(proxy.entity)
+        {
+            f(
+                Some(&proxy.isometry),
+                proxy.collider.shape_scaled().as_ref(),
+                None,
+            );
         }
     }
 

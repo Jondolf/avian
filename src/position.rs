@@ -1140,15 +1140,11 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
     }
 
     if !prepare_config.transform_to_position {
-        if is_pos_placeholder {
-            if let Some(mut position) = world.get_mut::<Position>(ctx.entity) {
-                position.0 = Vector::ZERO;
-            }
+        if is_pos_placeholder && let Some(mut position) = world.get_mut::<Position>(ctx.entity) {
+            position.0 = Vector::ZERO;
         }
-        if is_rot_placeholder {
-            if let Some(mut rotation) = world.get_mut::<Rotation>(ctx.entity) {
-                *rotation = Rotation::IDENTITY;
-            }
+        if is_rot_placeholder && let Some(mut rotation) = world.get_mut::<Rotation>(ctx.entity) {
+            *rotation = Rotation::IDENTITY;
         }
     } else if is_pos_placeholder || is_rot_placeholder {
         // If either `Position` or `Rotation` is a placeholder, we need to compute the global transform

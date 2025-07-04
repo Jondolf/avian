@@ -647,7 +647,10 @@ pub fn joint_damping<T: Joint + EntityConstraint<2>>(
 
     for joint in &joints {
         if let Ok(
-            [(rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1), (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2)],
+            [
+                (rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1),
+                (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2),
+            ],
         ) = bodies.get_many_mut(joint.entities())
         {
             let delta_omega =

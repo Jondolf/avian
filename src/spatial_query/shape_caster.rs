@@ -7,7 +7,7 @@ use bevy::{
     },
     prelude::*,
 };
-use parry::query::{details::TOICompositeShapeShapeBestFirstVisitor, ShapeCastOptions};
+use parry::query::{ShapeCastOptions, details::TOICompositeShapeShapeBestFirstVisitor};
 
 /// A component used for [shapecasting](spatial_query#shapecasting).
 ///

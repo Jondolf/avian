@@ -161,10 +161,10 @@ fn raycast(
         })
     {
         // Set the color of the hit object to red.
-        if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity) {
-            if let Some(material) = materials.get_mut(material_handle) {
-                material.base_color = RED.into();
-            }
+        if let Ok((material_handle, _)) = cubes.get(ray_hit_data.entity)
+            && let Some(material) = materials.get_mut(material_handle)
+        {
+            material.base_color = RED.into();
         }
 
         // Set the length of the ray indicator to look more like a laser,

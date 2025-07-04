@@ -232,12 +232,11 @@ unsafe fn propagate_collider_transforms_recursive(
 
         changed |=
             transform_ref.is_changed() || collider_transform.as_ref().is_some_and(|t| t.is_added());
-        if changed {
-            if let Some(mut collider_transform) = collider_transform {
-                if *collider_transform != transform {
-                    *collider_transform = transform;
-                }
-            }
+        if changed
+            && let Some(mut collider_transform) = collider_transform
+            && *collider_transform != transform
+        {
+            *collider_transform = transform;
         }
 
         children
@@ -246,7 +245,8 @@ unsafe fn propagate_collider_transforms_recursive(
     let Some(children) = children else { return };
     for (child, child_transform, is_rb, child_of) in parent_query.iter_many(children) {
         assert_eq!(
-            child_of.parent(), entity,
+            child_of.parent(),
+            entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 

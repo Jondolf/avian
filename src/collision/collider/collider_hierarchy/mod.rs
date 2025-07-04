@@ -119,7 +119,9 @@ impl Relationship for ColliderOf {
         } else {
             warn!(
                 "{}Tried to attach collider on entity {collider} to rigid body on entity {body}, but the rigid body does not exist.",
-                caller.map(|location| format!("{location}: ")).unwrap_or_default(),
+                caller
+                    .map(|location| format!("{location}: "))
+                    .unwrap_or_default(),
             );
         }
     }
@@ -145,30 +147,30 @@ impl Relationship for ColliderOf {
             }
         }
         let body = world.entity(entity).get::<Self>().unwrap().get();
-        if let Ok(mut body_mut) = world.get_entity_mut(body) {
-            if let Some(mut relationship_target) = body_mut.get_mut::<Self::RelationshipTarget>() {
-                RelationshipSourceCollection::remove(
-                    relationship_target.collection_mut_risky(),
-                    entity,
+        if let Ok(mut body_mut) = world.get_entity_mut(body)
+            && let Some(mut relationship_target) = body_mut.get_mut::<Self::RelationshipTarget>()
+        {
+            RelationshipSourceCollection::remove(
+                relationship_target.collection_mut_risky(),
+                entity,
+            );
+            if relationship_target.len() == 0
+                && let Ok(mut entity) = world.commands().get_entity(body)
+            {
+                // this "remove" operation must check emptiness because in the event that an identical
+                // relationship is inserted on top, this despawn would result in the removal of that identical
+                // relationship ... not what we want!
+                entity.queue_handled(
+                    |mut entity: EntityWorldMut| {
+                        if entity
+                            .get::<Self::RelationshipTarget>()
+                            .is_some_and(RelationshipTarget::is_empty)
+                        {
+                            entity.remove::<Self::RelationshipTarget>();
+                        }
+                    },
+                    |_, _| {},
                 );
-                if relationship_target.len() == 0 {
-                    if let Ok(mut entity) = world.commands().get_entity(body) {
-                        // this "remove" operation must check emptiness because in the event that an identical
-                        // relationship is inserted on top, this despawn would result in the removal of that identical
-                        // relationship ... not what we want!
-                        entity.queue_handled(
-                            |mut entity: EntityWorldMut| {
-                                if entity
-                                    .get::<Self::RelationshipTarget>()
-                                    .is_some_and(RelationshipTarget::is_empty)
-                                {
-                                    entity.remove::<Self::RelationshipTarget>();
-                                }
-                            },
-                            |_, _| {},
-                        );
-                    }
-                }
             }
         }
     }

@@ -4,14 +4,14 @@ use bevy::{
 };
 
 use super::{SolverBody, SolverBodyInertia};
-#[cfg(feature = "3d")]
-use crate::{dynamics::solver::solver_body::SolverBodyFlags, math::MatExt};
 use crate::{
-    dynamics::solver::SolverDiagnostics,
-    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    dynamics::solver::SolverDiagnostics,
+    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
 };
+#[cfg(feature = "3d")]
+use crate::{dynamics::solver::solver_body::SolverBodyFlags, math::MatExt};
 
 /// A plugin for managing solver bodies.
 ///

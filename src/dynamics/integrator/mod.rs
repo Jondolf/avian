@@ -196,15 +196,17 @@ fn integrate_velocities(
                 .map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
             // Apply damping
-            if let Some(lin_damping) = body.lin_damping {
-                if *linear_velocity != Vector::ZERO && lin_damping.0 != 0.0 {
-                    *linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
-                }
+            if let Some(lin_damping) = body.lin_damping
+                && *linear_velocity != Vector::ZERO
+                && lin_damping.0 != 0.0
+            {
+                *linear_velocity *= 1.0 / (1.0 + delta_secs * lin_damping.0);
             }
-            if let Some(ang_damping) = body.ang_damping {
-                if *angular_velocity != AngularVelocity::ZERO.0 && ang_damping.0 != 0.0 {
-                    *angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
-                }
+            if let Some(ang_damping) = body.ang_damping
+                && *angular_velocity != AngularVelocity::ZERO.0
+                && ang_damping.0 != 0.0
+            {
+                *angular_velocity *= 1.0 / (1.0 + delta_secs * ang_damping.0);
             }
 
             let external_force = body.force.force();
