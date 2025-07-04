@@ -453,7 +453,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .unwrap_or_default();
 
                 // Store these to avoid having to query for the bodies
-                // when processing status changes for the constraint grapn.
+                // when processing status changes for the constraint graph.
                 contacts.flags.set(ContactPairFlags::STATIC1, is_static1);
                 contacts.flags.set(ContactPairFlags::STATIC2, is_static2);
 

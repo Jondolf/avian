@@ -417,7 +417,7 @@ struct BodyQuery {
     rotation: Read<Rotation>,
     dominance: Option<Read<Dominance>>,
     mass: Read<ComputedMass>,
-    inertia: Read<GlobalAngularInertia>,
+    angular_inertia: Read<GlobalAngularInertia>,
     center_of_mass: Read<ComputedCenterOfMass>,
     linear_velocity: Read<LinearVelocity>,
     angular_velocity: Read<AngularVelocity>,
@@ -472,22 +472,30 @@ fn prepare_contact_constraints(
             let manifold = &contact_pair.manifolds[manifold_index];
 
             if contact_pair.is_sensor() {
-                return;
+                continue;
             }
 
             let (Some(body1_entity), Some(body2_entity)) = (contact_pair.body1, contact_pair.body2)
             else {
-                return;
+                continue;
             };
 
             // Get the two colliding bodies.
             // TODO: get_disjoint
             let Ok(body1) = bodies.get(body1_entity) else {
-                return;
+                continue;
             };
             let Ok(body2) = bodies.get(body2_entity) else {
-                return;
+                continue;
             };
+
+            // TODO: To skip this, we probably shouldn't have manifold handles between non-dynamic bodies
+            //       in the constraint graph. Or alternatively, just don't generate contacts at all for them.
+            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+                // If both bodies are static or kinematic, skip the contact.
+                continue;
+            }
+
             let (collider_transform1, collision_margin1) =
                 collider_transforms.get(contact_pair.collider1).unwrap();
             let (collider_transform2, collision_margin2) =
@@ -503,19 +511,19 @@ fn prepare_contact_constraints(
             let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
                 Ordering::Equal => (
                     body1.mass.inverse(),
-                    body1.inertia.value(),
+                    body1.angular_inertia.value(),
                     body2.mass.inverse(),
-                    body2.inertia.value(),
+                    body2.angular_inertia.value(),
                 ),
                 Ordering::Greater => (
                     0.0,
                     Tensor::ZERO,
                     body2.mass.inverse(),
-                    body2.inertia.value(),
+                    body2.angular_inertia.value(),
                 ),
                 Ordering::Less => (
                     body1.mass.inverse(),
-                    body1.inertia.value(),
+                    body1.angular_inertia.value(),
                     0.0,
                     Tensor::ZERO,
                 ),
