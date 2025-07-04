@@ -28,7 +28,7 @@ use super::{ContactEdge, ContactId};
 /// - [`iter_active`](Self::iter_active) and [`iter_active_mut`](Self::iter_active_mut)
 /// - [`iter_sleeping`](Self::iter_sleeping) and [`iter_sleeping_mut`](Self::iter_sleeping_mut)
 /// - [`contains`](Self::contains)
-/// - [`collisions_with`](Self::collisions_with)
+/// - [`contact_pairs_with`](Self::contact_pairs_with)
 /// - [`entities_colliding_with`](Self::entities_colliding_with)
 ///
 /// For example, to iterate over all collisions with a given entity:
@@ -46,7 +46,7 @@ use super::{ContactEdge, ContactId};
 ///         // Compute the total impulse applied to the pressure plate.
 ///         let mut total_impulse = 0.0;
 ///
-///         for contact_pair in contact_graph.collisions_with(pressure_plate) {
+///         for contact_pair in contact_graph.contact_pairs_with(pressure_plate) {
 ///             total_impulse += contact_pair.total_normal_impulse_magnitude();
 ///         }
 ///

@@ -16,8 +16,8 @@ use bevy::{
 };
 
 use super::{
-    contact_types::{ContactEdge, ContactEdgeFlags},
     CollisionDiagnostics,
+    contact_types::{ContactEdge, ContactEdgeFlags},
 };
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
