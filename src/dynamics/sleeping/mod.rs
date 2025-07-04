@@ -207,7 +207,7 @@ pub fn mark_sleeping_bodies(
     let delta_secs = time.delta_seconds_adjusted();
 
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
-        let colliding_entities = contact_graph.collisions_with(entity).map(|c| {
+        let colliding_entities = contact_graph.contact_pairs_with(entity).map(|c| {
             if entity == c.collider1 {
                 c.collider2
             } else {

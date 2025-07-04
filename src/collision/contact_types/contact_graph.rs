@@ -78,10 +78,10 @@ pub struct ContactGraph {
     pub edges: ContactGraphInternal,
 
     /// Contact pairs for awake dynamic and kinematic bodies.
-    active_pairs: Vec<ContactPair>,
+    pub(crate) active_pairs: Vec<ContactPair>,
 
     /// Contact pairs for sleeping dynamic bodies.
-    sleeping_pairs: Vec<ContactPair>,
+    pub(crate) sleeping_pairs: Vec<ContactPair>,
 
     /// A set of all contact pairs for fast lookup.
     ///
@@ -104,6 +104,14 @@ pub struct ContactGraph {
 pub type ContactGraphInternal = StableUnGraph<Entity, ContactEdge>;
 
 impl ContactGraph {
+    /// Returns the [`NodeIndex`] of the given entity in the contact graph.
+    ///
+    /// If the entity is not in the graph, `None` is returned.
+    #[inline]
+    pub fn entity_to_node(&self, entity: Entity) -> Option<NodeIndex> {
+        self.entity_to_node.get(entity).copied()
+    }
+
     /// Returns the contact edge between two entities.
     /// If the edge does not exist, `None` is returned.
     ///
@@ -111,10 +119,9 @@ impl ContactGraph {
     /// Use [`ContactEdge::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
     pub fn get_edge(&self, entity1: Entity, entity2: Entity) -> Option<&ContactEdge> {
-        let (Some(&index1), Some(&index2)) = (
-            self.entity_to_node.get(entity1),
-            self.entity_to_node.get(entity2),
-        ) else {
+        let (Some(index1), Some(index2)) =
+            (self.entity_to_node(entity1), self.entity_to_node(entity2))
+        else {
             return None;
         };
 
@@ -140,10 +147,9 @@ impl ContactGraph {
     /// Use [`ContactEdge::is_touching`] to determine if the actual collider shapes are touching.
     #[inline]
     pub fn get_edge_mut(&mut self, entity1: Entity, entity2: Entity) -> Option<&mut ContactEdge> {
-        let (Some(&index1), Some(&index2)) = (
-            self.entity_to_node.get(entity1),
-            self.entity_to_node.get(entity2),
-        ) else {
+        let (Some(index1), Some(index2)) =
+            (self.entity_to_node(entity1), self.entity_to_node(entity2))
+        else {
             return None;
         };
 
@@ -209,10 +215,9 @@ impl ContactGraph {
         entity1: Entity,
         entity2: Entity,
     ) -> Option<(&mut ContactEdge, &mut ContactPair)> {
-        let (Some(&index1), Some(&index2)) = (
-            self.entity_to_node.get(entity1),
-            self.entity_to_node.get(entity2),
-        ) else {
+        let (Some(index1), Some(index2)) =
+            (self.entity_to_node(entity1), self.entity_to_node(entity2))
+        else {
             return None;
         };
 
@@ -402,26 +407,42 @@ impl ContactGraph {
             .filter(|contacts| contacts.flags.contains(ContactPairFlags::TOUCHING))
     }
 
+    /// Returns an iterator yielding immutable access to all contact edges involving the given entity.
+    #[inline]
+    pub fn contact_edges_with(&self, entity: Entity) -> impl Iterator<Item = &ContactEdge> {
+        let index = self.entity_to_node(entity);
+        if let Some(index) = index {
+            itertools::Either::Left(self.edges.edge_weights(index))
+        } else {
+            itertools::Either::Right(core::iter::empty())
+        }
+    }
+
+    /// Returns an iterator yielding mutable access to all contact edges involving the given entity.
+    #[inline]
+    pub fn contact_edges_with_mut(
+        &mut self,
+        entity: Entity,
+    ) -> impl Iterator<Item = &mut ContactEdge> {
+        let index = self.entity_to_node(entity);
+        if let Some(index) = index {
+            itertools::Either::Left(self.edges.edge_weights_mut(index))
+        } else {
+            itertools::Either::Right(core::iter::empty())
+        }
+    }
+
     /// Returns an iterator yielding immutable access to all contact pairs involving the given entity.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect,
     /// even if the shapes themselves are not yet touching.
     ///
     /// Use [`ContactEdge::is_touching`](ContactEdge::is_touching) to determine if the actual collider shapes are touching.
+    // TODO: A mutable version of this could be useful, but it would probably require some `unsafe`.
     #[inline]
-    pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
-        self.entity_to_node
-            .get(entity)
-            .into_iter()
-            .flat_map(move |&index| {
-                self.edges.edge_weights(index).filter_map(|edge| {
-                    if edge.is_sleeping() {
-                        self.sleeping_pairs.get(edge.pair_index)
-                    } else {
-                        self.active_pairs.get(edge.pair_index)
-                    }
-                })
-            })
+    pub fn contact_pairs_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
+        self.contact_edges_with(entity)
+            .filter_map(move |edge| self.get_pair_by_edge(edge))
     }
 
     /// Returns an iterator yielding immutable access to all entities that have a contact pair with the given entity.
@@ -518,10 +539,9 @@ impl ContactGraph {
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
     pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<ContactEdge> {
-        let (Some(&index1), Some(&index2)) = (
-            self.entity_to_node.get(entity1),
-            self.entity_to_node.get(entity2),
-        ) else {
+        let (Some(index1), Some(index2)) =
+            (self.entity_to_node(entity1), self.entity_to_node(entity2))
+        else {
             return None;
         };
 
@@ -652,14 +672,14 @@ impl ContactGraph {
         F: FnMut(&mut ContactGraph, &ContactPair),
     {
         // Get the index of the entity in the graph.
-        let Some(index) = self.entity_to_node.get(entity) else {
+        let Some(index) = self.entity_to_node(entity) else {
             return;
         };
 
         // Find all edges connected to the entity.
         let contact_ids: Vec<ContactId> = self
             .edges
-            .edge_weights(*index)
+            .edge_weights(index)
             .filter_map(|edge| edge.is_sleeping().then_some(edge.id))
             .collect();
 
@@ -709,14 +729,14 @@ impl ContactGraph {
         F: FnMut(&mut ContactGraph, &ContactPair),
     {
         // Get the index of the entity in the graph.
-        let Some(index) = self.entity_to_node.get(entity) else {
+        let Some(index) = self.entity_to_node(entity) else {
             return;
         };
 
         // Find all edges connected to the entity.
         let contact_ids: Vec<ContactId> = self
             .edges
-            .edge_weights(*index)
+            .edge_weights(index)
             .filter_map(|edge| (!edge.is_sleeping()).then_some(edge.id))
             .collect();
 

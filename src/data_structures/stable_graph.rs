@@ -4,7 +4,7 @@
 //! - Edge iteration order after serialization/deserialization is preserved.
 //! - Fewer iterators and helpers, and a few new ones.
 
-use super::graph::{index_twice, Edge, EdgeDirection, EdgeIndex, Node, NodeIndex, Pair, UnGraph};
+use super::graph::{Edge, EdgeDirection, EdgeIndex, Node, NodeIndex, Pair, UnGraph, index_twice};
 
 /// A graph with undirected edges and stable indices.
 ///
@@ -398,6 +398,16 @@ impl<N, E> StableUnGraph<N, E> {
         }
     }
 
+    /// Returns an iterator yielding mutable access to edge weights for edges from or to `a`.
+    pub fn edge_weights_mut(&mut self, a: NodeIndex) -> EdgeWeightsMut<'_, N, E>
+    where
+        N: Copy,
+    {
+        self.graph
+            .edge_weights_mut(a)
+            .filter_map(|edge| edge.as_mut())
+    }
+
     /// Returns an iterator yielding immutable access to all edge weights.
     ///
     /// The order in which weights are yielded matches the order of their
@@ -631,6 +641,12 @@ impl<E> Clone for EdgeWeights<'_, E> {
         }
     }
 }
+
+/// An iterator over mutable references to all edge weights from or to a node.
+type EdgeWeightsMut<'a, N, E> = core::iter::FilterMap<
+    super::graph::EdgeWeightsMut<'a, Option<N>, Option<E>>,
+    fn(&mut Option<E>) -> Option<&mut E>,
+>;
 
 /// A reference to a graph edge.
 #[derive(Debug)]

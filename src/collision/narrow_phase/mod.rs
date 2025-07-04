@@ -11,7 +11,7 @@ use system_param::ThreadLocalContactStatusBits;
 use core::marker::PhantomData;
 
 use crate::{
-    dynamics::solver::{constraint_graph::ConstraintGraph, ContactConstraints},
+    dynamics::solver::{ContactConstraints, constraint_graph::ConstraintGraph},
     prelude::*,
 };
 use bevy::{
@@ -24,7 +24,7 @@ use bevy::{
     prelude::*,
 };
 
-use super::{contact_types::ContactEdgeFlags, CollisionDiagnostics};
+use super::{CollisionDiagnostics, contact_types::ContactEdgeFlags};
 
 /// Manages contacts and generates contact constraints.
 ///
@@ -154,6 +154,12 @@ where
             // Remove collision pairs when colliders are disabled or removed.
             app.add_observer(remove_collider_on::<OnAdd, (Disabled, ColliderDisabled)>);
             app.add_observer(remove_collider_on::<OnRemove, ColliderMarker>);
+
+            // Add colliders to the constraint graph when `Sensor` is removed,
+            // and remove them when `Sensor` is added.
+            // TODO: If we separate sensors from normal colliders, this won't be needed.
+            app.add_observer(add_to_constraint_graph_on::<OnRemove, Sensor>);
+            app.add_observer(remove_from_constraint_graph_on::<OnAdd, Sensor>);
 
             // Trigger collision events for colliders that started or stopped touching.
             app.add_systems(
@@ -415,4 +421,66 @@ fn remove_collider_on<E: Event, B: Bundle>(
             }
         }
     });
+}
+
+// TODO: These are currently used just for sensors. It wouldn't be needed if sensor logic
+//       was separate from normal colliders and didn't compute contact manifolds.
+
+/// Adds all touching contact edges associated with an entity to the [`ConstraintGraph`].
+fn add_to_constraint_graph_on<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+) {
+    let entity = trigger.target();
+
+    // Get the node index of the entity in the contact graph.
+    let Some(node) = contact_graph.entity_to_node(entity) else {
+        return;
+    };
+
+    // TODO: It'd be nice to have some APIs on the contact graph to do this more cleanly.
+    let ContactGraph {
+        edges,
+        active_pairs,
+        ..
+    } = &mut *contact_graph;
+
+    // Add all contact edges associated with the sensor to the constraint graph.
+    for contact_edge in edges.edge_weights_mut(node) {
+        if !contact_edge.is_touching() {
+            continue;
+        }
+        let pair = &active_pairs[contact_edge.pair_index];
+        constraint_graph.push_manifold(contact_edge, pair);
+    }
+}
+
+/// Removes all contact edges associated with an entity from the [`ConstraintGraph`].
+fn remove_from_constraint_graph_on<E: Event, B: Bundle>(
+    trigger: Trigger<E, B>,
+    mut constraint_graph: ResMut<ConstraintGraph>,
+    mut contact_graph: ResMut<ContactGraph>,
+) {
+    let entity = trigger.target();
+
+    // Get all touching contact pairs.
+    let contact_pairs = contact_graph
+        .contact_pairs_with(entity)
+        .filter_map(|contact_pair| {
+            if contact_pair.is_touching()
+                && let Some(body1) = contact_pair.body1
+                && let Some(body2) = contact_pair.body2
+            {
+                Some((contact_pair.contact_id, body1, body2))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    // Remove all contact edges associated with the sensor from the constraint graph.
+    for (contact_id, body1, body2) in contact_pairs {
+        constraint_graph.pop_manifold(&mut contact_graph.edges, contact_id, body1, body2);
+    }
 }

@@ -108,7 +108,7 @@ impl Collisions<'_> {
     #[inline]
     pub fn collisions_with(&self, entity: Entity) -> impl Iterator<Item = &ContactPair> {
         self.contact_graph
-            .collisions_with(entity)
+            .contact_pairs_with(entity)
             .filter(|contact_pair| contact_pair.is_touching())
     }
 
