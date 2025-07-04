@@ -1,4 +1,4 @@
-use crate::{math, AdjustPrecision, Scalar, Vector, FRAC_PI_2, PI, TAU};
+use crate::{AdjustPrecision, FRAC_PI_2, PI, Scalar, TAU, Vector, math};
 
 use super::{AsF32, Collider, IntoCollider};
 use bevy::prelude::{Deref, DerefMut};
@@ -8,8 +8,8 @@ use parry::{
     mass_properties::MassProperties,
     math::Isometry,
     query::{
-        details::local_ray_intersection_with_support_map_with_params, gjk::VoronoiSimplex,
-        point::local_point_projection_on_support_map, PointQuery, RayCast,
+        PointQuery, RayCast, details::local_ray_intersection_with_support_map_with_params,
+        gjk::VoronoiSimplex, point::local_point_projection_on_support_map,
     },
     shape::{
         FeatureId, PackedFeatureId, PolygonalFeature, PolygonalFeatureMap, Shape, SharedShape,

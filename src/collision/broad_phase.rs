@@ -10,7 +10,7 @@ use bevy::{
     ecs::{
         entity::{EntityMapper, MapEntities},
         entity_disabling::Disabled,
-        system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
+        system::{StaticSystemParam, SystemParamItem, lifetimeless::Read},
     },
     prelude::*,
 };

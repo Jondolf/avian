@@ -10,7 +10,7 @@ use avian2d::{math::*, prelude::*};
 use bevy::{
     ecs::{
         entity::hash_set::EntityHashSet,
-        system::{lifetimeless::Read, SystemParam},
+        system::{SystemParam, lifetimeless::Read},
     },
     prelude::*,
 };

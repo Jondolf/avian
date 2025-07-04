@@ -1,9 +1,9 @@
 use crate::{
     prelude::*,
-    sync::{ancestor_marker::AncestorMarker, PreviousGlobalTransform, SyncConfig},
+    sync::{PreviousGlobalTransform, SyncConfig, ancestor_marker::AncestorMarker},
 };
 use bevy::prelude::*;
-use dynamics::solver::{schedule::SubstepCount, SolverConfig};
+use dynamics::solver::{SolverConfig, schedule::SubstepCount};
 
 /// Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.
 pub struct PhysicsTypeRegistrationPlugin;

@@ -1,8 +1,8 @@
 use crate::prelude::*;
 use bevy::{
     ecs::system::{
-        lifetimeless::{Read, Write},
         SystemParam,
+        lifetimeless::{Read, Write},
     },
     prelude::*,
 };

@@ -15,7 +15,7 @@
 //! <https://github.com/erincatto/box2d/blob/90c2781f64775085035655661d5fe6542bf0fbd5/samples/sample_determinism.cpp>
 
 use avian2d::{
-    math::{AdjustPrecision, Scalar, Vector, PI},
+    math::{AdjustPrecision, PI, Scalar, Vector},
     prelude::*,
 };
 use bevy::{

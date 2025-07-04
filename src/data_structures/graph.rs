@@ -257,11 +257,11 @@ impl<N, E> UnGraph<N, E> {
     ///
     /// Panics if any of the nodes doesn't exist.
     pub fn update_edge(&mut self, a: NodeIndex, b: NodeIndex, weight: E) -> EdgeIndex {
-        if let Some(ix) = self.find_edge(a, b) {
-            if let Some(ed) = self.edge_weight_mut(ix) {
-                *ed = weight;
-                return ix;
-            }
+        if let Some(ix) = self.find_edge(a, b)
+            && let Some(ed) = self.edge_weight_mut(ix)
+        {
+            *ed = weight;
+            return ix;
         }
         self.add_edge(a, b, weight)
     }

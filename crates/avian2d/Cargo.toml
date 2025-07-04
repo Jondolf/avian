@@ -1,7 +1,7 @@
 [package]
 name = "avian2d"
 version = "0.3.0"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
 description = "An ECS-driven physics engine for the Bevy game engine"
