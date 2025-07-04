@@ -141,7 +141,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     );
 
                     // Remove the contact pair from the constraint graph.
-                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                    if !contact_pair.is_sensor()
+                        && let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
+                    {
                         for _ in 0..contact_edge.constraint_handles.len() {
                             self.constraint_graph.pop_manifold(
                                 &mut self.contact_graph.edges,
@@ -189,9 +191,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .flags
                         .set(ContactPairFlags::STARTED_TOUCHING, false);
 
-                    for _ in contact_pair.manifolds.iter() {
-                        self.constraint_graph
-                            .push_manifold(contact_edge, contact_pair);
+                    if !contact_pair.is_sensor() {
+                        for _ in contact_pair.manifolds.iter() {
+                            self.constraint_graph
+                                .push_manifold(contact_edge, contact_pair);
+                        }
                     }
                 } else if contact_pair
                     .flags
@@ -234,7 +238,9 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                         .set(ContactPairFlags::STOPPED_TOUCHING, false);
 
                     // Remove the contact pair from the constraint graph.
-                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                    if !contact_pair.is_sensor()
+                        && let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2)
+                    {
                         for _ in 0..contact_edge.constraint_handles.len() {
                             self.constraint_graph.pop_manifold(
                                 &mut self.contact_graph.edges,
@@ -244,7 +250,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
-                } else if contact_pair.is_touching() && contact_pair.manifold_count_change > 0 {
+                } else if contact_pair.is_touching()
+                    && !contact_pair.is_sensor()
+                    && contact_pair.manifold_count_change > 0
+                {
                     // The contact pair is still touching, but the manifold count has increased.
                     // Add the new manifolds to the constraint graph.
                     for _ in 0..contact_pair.manifold_count_change {
@@ -252,7 +261,10 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             .push_manifold(contact_edge, contact_pair);
                     }
                     contact_pair.manifold_count_change = 0;
-                } else if contact_pair.is_touching() && contact_pair.manifold_count_change < 0 {
+                } else if contact_pair.is_touching()
+                    && !contact_pair.is_sensor()
+                    && contact_pair.manifold_count_change < 0
+                {
                     // The contact pair is still touching, but the manifold count has decreased.
                     // Remove the excess manifolds from the constraint graph.
                     let removal_count = contact_pair.manifold_count_change.unsigned_abs() as usize;

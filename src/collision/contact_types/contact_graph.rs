@@ -551,42 +551,32 @@ impl ContactGraph {
 
         // Remove the contact pair from the active or sleeping pairs.
         let pair_index = edge.pair_index;
-        if edge.is_sleeping() {
-            let moved_index = self.sleeping_pairs.len() - 1;
-            self.sleeping_pairs.swap_remove(pair_index);
+        let contact_pairs = if edge.is_sleeping() {
+            &mut self.sleeping_pairs
+        } else {
+            &mut self.active_pairs
+        };
 
-            if moved_index != pair_index {
-                // Fix moved pair index.
-                let moved_contact_id = self.sleeping_pairs[pair_index].contact_id;
-                let moved_edge = self
+        let moved_index = contact_pairs.len() - 1;
+        contact_pairs.swap_remove(pair_index);
+
+        if moved_index != pair_index {
+            // Fix moved pair index.
+            let moved_contact_id = contact_pairs[pair_index].contact_id;
+            let moved_edge = self
                     .get_edge_mut_by_id(moved_contact_id)
                     .unwrap_or_else(|| {
                         panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges and {moved_index} sleeping pairs")
                     });
-                debug_assert!(moved_edge.pair_index == moved_index);
-                moved_edge.pair_index = pair_index;
-            }
-        } else {
-            let moved_index = self.active_pairs.len() - 1;
-            self.active_pairs.swap_remove(pair_index);
-
-            if moved_index != pair_index {
-                // Fix moved pair index.
-                let moved_contact_id = self.active_pairs[pair_index].contact_id;
-                let moved_edge = self
-                    .get_edge_mut_by_id(moved_contact_id)
-                    .unwrap_or_else(|| {
-                        panic!("error when removing contact pair {id:?} with pair index {pair_index:?}: moved edge {moved_contact_id:?} not found in contact graph with {edge_count} edges and {moved_index} active pairs")
-                    });
-                moved_edge.pair_index = pair_index;
-            }
+            debug_assert!(moved_edge.pair_index == moved_index);
+            moved_edge.pair_index = pair_index;
         }
 
         Some(edge)
     }
 
-    /// Removes the collider of the given entity from the contact graph,
-    /// calling the given callback for each contact pair that is removed in the process.
+    /// Removes the collider of the given entity from the contact graph, calling the given callback
+    /// for each contact pair right before it is removed.
     ///
     /// # Warning
     ///
@@ -613,8 +603,30 @@ impl ContactGraph {
                 contact_edge.collider1.index(),
                 contact_edge.collider2.index(),
             );
+            let pair_index = contact_edge.pair_index;
+            let contact_pairs = if contact_edge.is_sleeping() {
+                &mut self.sleeping_pairs
+            } else {
+                &mut self.active_pairs
+            };
 
             pair_callback(graph, contact_id);
+
+            // Remove the contact pair from the active or sleeping pairs.
+            let moved_index = contact_pairs.len() - 1;
+            let _ = contact_pairs.swap_remove(pair_index);
+
+            // Fix moved pair index.
+            if moved_index != pair_index {
+                let moved_contact_id = contact_pairs[pair_index].contact_id;
+                let moved_edge = graph
+                    .edge_weight_mut(moved_contact_id.into())
+                    .unwrap_or_else(|| {
+                        panic!("moved edge {moved_contact_id:?} not found in contact graph")
+                    });
+                debug_assert!(moved_edge.pair_index == moved_index);
+                moved_edge.pair_index = pair_index;
+            }
 
             // Remove the pair from the pair set.
             self.pair_set.remove(&pair_key);
@@ -645,18 +657,17 @@ impl ContactGraph {
         };
 
         // Find all edges connected to the entity.
-        let edges: Vec<ContactEdge> = self
+        let contact_ids: Vec<ContactId> = self
             .edges
             .edge_weights(*index)
-            .filter(|edge| edge.is_sleeping())
-            .cloned()
+            .filter_map(|edge| edge.is_sleeping().then_some(edge.id))
             .collect();
 
         // Iterate over the edges and move sleeping contacts to active contacts.
-        for edge in edges {
+        for id in contact_ids {
             let edge = self
                 .edges
-                .edge_weight_mut(edge.id.into())
+                .edge_weight_mut(id.into())
                 .expect("edge should exist");
             let pair_index = edge.pair_index;
 
@@ -681,7 +692,9 @@ impl ContactGraph {
                 let moved_contact_id = self.sleeping_pairs[pair_index].contact_id;
                 let moved_edge = self
                     .get_edge_mut_by_id(moved_contact_id)
-                    .expect("moved edge should exist");
+                    .unwrap_or_else(|| {
+                        panic!("error when waking contact pair {moved_contact_id:?} (other {id:?}) with pair index {pair_index:?}: moved edge not found in contact graph")
+                    });
                 debug_assert!(moved_edge.pair_index == moved_index);
                 moved_edge.pair_index = pair_index;
             }
@@ -701,18 +714,17 @@ impl ContactGraph {
         };
 
         // Find all edges connected to the entity.
-        let edges: Vec<ContactEdge> = self
+        let contact_ids: Vec<ContactId> = self
             .edges
             .edge_weights(*index)
-            .filter(|edge| !edge.is_sleeping())
-            .cloned()
+            .filter_map(|edge| (!edge.is_sleeping()).then_some(edge.id))
             .collect();
 
         // Iterate over the edges and move active contacts to sleeping contacts.
-        for edge in edges {
+        for id in contact_ids {
             let edge = self
                 .edges
-                .edge_weight_mut(edge.id.into())
+                .edge_weight_mut(id.into())
                 .expect("edge should exist");
             let pair_index = edge.pair_index;
 
@@ -737,7 +749,9 @@ impl ContactGraph {
                 let moved_contact_id = self.active_pairs[pair_index].contact_id;
                 let moved_edge = self
                     .get_edge_mut_by_id(moved_contact_id)
-                    .expect("moved edge should exist");
+                    .unwrap_or_else(|| {
+                        panic!("error when sleeping contact pair {moved_contact_id:?} with pair index {pair_index:?}: moved edge not found in contact graph")
+                    });
                 debug_assert!(moved_edge.pair_index == moved_index);
                 moved_edge.pair_index = pair_index;
             }
