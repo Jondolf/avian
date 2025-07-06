@@ -376,7 +376,6 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
-
             let mut contact_edge = ContactEdge::new(*entity1, *entity2);
             contact_edge.flags.set(
                 ContactEdgeFlags::CONTACT_EVENTS,
@@ -384,28 +383,24 @@ fn sweep_and_prune<H: CollisionHooks>(
                     .union(*flags2)
                     .contains(AabbIntervalFlags::CONTACT_EVENTS),
             );
-
-            let contact_id = contact_graph
-                .add_pair_with_key(contact_edge, pair_key)
+            contact_graph
+                .add_edge_and_key_with(contact_edge, pair_key, |contact_pair| {
+                    contact_pair.body1 = Some(collider_of1.body);
+                    contact_pair.body2 = Some(collider_of2.body);
+                    contact_pair.flags.set(
+                        ContactPairFlags::MODIFY_CONTACTS,
+                        flags1
+                            .union(*flags2)
+                            .contains(AabbIntervalFlags::MODIFY_CONTACTS),
+                    );
+                    contact_pair.flags.set(
+                        ContactPairFlags::SENSOR,
+                        flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
+                    );
+                })
                 .unwrap_or_else(|| {
                     panic!("Pair key already exists in contact graph: {pair_key:?}")
                 });
-
-            let contact_pair = contact_graph.get_mut_by_id(contact_id).unwrap().1;
-
-            // Initialize the contact pair data.
-            contact_pair.flags.set(
-                ContactPairFlags::MODIFY_CONTACTS,
-                flags1
-                    .union(*flags2)
-                    .contains(AabbIntervalFlags::MODIFY_CONTACTS),
-            );
-            contact_pair.flags.set(
-                ContactPairFlags::SENSOR,
-                flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
-            );
-            contact_pair.body1 = Some(collider_of1.body);
-            contact_pair.body2 = Some(collider_of2.body);
         }
     }
 }

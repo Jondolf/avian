@@ -8,7 +8,7 @@ use super::{ContactGraph, ContactPair};
 /// A [`SystemParam`] for accessing and querying collision data.
 ///
 /// This is a wrapper around the [`ContactGraph`] resource that provides a convenient API
-/// for querying touching contact pairs between entities. If you need more lower-level control
+/// for querying touching [`ContactPair`]s between entities. If you need more lower-level control
 /// and access to non-touching contact pairs, consider using the [`ContactGraph`] directly.
 ///
 /// # Usage

@@ -21,10 +21,11 @@ use thread_local::ThreadLocal;
 ///
 /// Responsibilities:
 ///
-/// - Updates contacts for each contact pair in the [`ContactGraph`].
-/// - Sends collision events when colliders start or stop touching.
+/// - Updates each active [`ContactPair`] in the [`ContactGraph`].
+/// - Sends [collision events](crate::collision::collision_events) when colliders start or stop touching.
 /// - Removes contact pairs from the [`ContactGraph`] when AABBs stop overlapping.
-/// - Generates contact constraints for each contact pair that is touching or expected to start touching.
+/// - Adds [`ContactManifold`]s to the [`ConstraintGraph`] when they are created.
+/// - Removes [`ContactManifold`]s from the [`ConstraintGraph`] when they are destroyed.
 #[derive(SystemParam)]
 #[expect(missing_docs)]
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
@@ -153,7 +154,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                             );
                         }
                     }
-                    self.contact_graph.remove_pair_by_id(&pair_key, contact_id);
+                    self.contact_graph.remove_edge_by_id(&pair_key, contact_id);
                 } else if contact_pair.collision_started() {
                     // Send collision started event.
                     if contact_edge.events_enabled() {

@@ -15,7 +15,8 @@ use super::{ContactEdge, ContactId};
 /// and their corresponding [`ContactPair`]s.
 ///
 /// Contact pairs exist between [colliders](Collider) that have intersecting [AABBs](ColliderAabb),
-/// even if the shapes themselves are not yet touching.
+/// even if the shapes themselves are not yet touching. Internally, pairs for active (non-sleeping) bodies
+/// are stored separately from pairs for sleeping bodies for optimization purposes.
 ///
 /// For a simpler API that abstracts over this complexity, consider using the [`Collisions`]
 /// system parameter.
@@ -74,6 +75,7 @@ use super::{ContactEdge, ContactId};
 #[derive(Resource, Clone, Debug, Default)]
 pub struct ContactGraph {
     // TODO: We could have a separate intersection graph for sensors.
+    // TODO: Make the fields private, but expose a public API through methods.
     /// The internal undirected graph where nodes are entities and edges are contact pairs.
     pub edges: ContactGraphInternal,
 
@@ -95,7 +97,7 @@ pub struct ContactGraph {
     entity_to_node: SparseSecondaryEntityMap<NodeIndex>,
 }
 
-/// An undirected graph where nodes are entities and edges are contact pairs.
+/// An undirected graph where each node is an entity and each edge is a [`ContactEdge`].
 ///
 /// The graph maintains stable indices for nodes and edges even when items are removed.
 ///
@@ -112,7 +114,7 @@ impl ContactGraph {
         self.entity_to_node.get(entity).copied()
     }
 
-    /// Returns the contact edge between two entities.
+    /// Returns the [`ContactEdge`] between two entities.
     /// If the edge does not exist, `None` is returned.
     ///
     /// A contact edge exists between two entities if their [`ColliderAabb`]s intersect.
@@ -130,7 +132,7 @@ impl ContactGraph {
             .and_then(|edge| self.get_edge_by_id(edge.into()))
     }
 
-    /// Returns the contact edge between two entities based on their IDs.
+    /// Returns the [`ContactEdge`] between two entities based on their IDs.
     /// If the edge does not exist, `None` is returned.
     ///
     /// A contact edge exists between two entities if their [`ColliderAabb`]s intersect.
@@ -140,7 +142,7 @@ impl ContactGraph {
         self.edges.edge_weight(id.into())
     }
 
-    /// Returns a mutable reference to the contact edge between two entities.
+    /// Returns a mutable reference to the [`ContactEdge`] between two entities.
     /// If the edge does not exist, `None` is returned.
     ///
     /// A contact edge exists between two entities if their [`ColliderAabb`]s intersect.
@@ -158,7 +160,7 @@ impl ContactGraph {
             .and_then(|edge| self.get_edge_mut_by_id(edge.into()))
     }
 
-    /// Returns a mutable reference to the contact edge between two entities based on their IDs.
+    /// Returns a mutable reference to the [`ContactEdge`] between two entities based on their IDs.
     /// If the edge does not exist, `None` is returned.
     ///
     /// A contact edge exists between two entities if their [`ColliderAabb`]s intersect.
@@ -168,7 +170,7 @@ impl ContactGraph {
         self.edges.edge_weight_mut(id.into())
     }
 
-    /// Returns the contact edge and contact pair between two entities.
+    /// Returns the [`ContactEdge`] and [`ContactPair`] between two entities.
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
@@ -179,7 +181,7 @@ impl ContactGraph {
             .and_then(|edge| self.get_pair_by_edge(edge).map(|pair| (edge, pair)))
     }
 
-    /// Returns the contact edge and contact pair between two entities based on the contact ID.
+    /// Returns the [`ContactEdge`] and [`ContactPair`] between two entities based on the contact ID.
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
@@ -190,21 +192,7 @@ impl ContactGraph {
             .and_then(|edge| self.get_pair_by_edge(edge).map(|pair| (edge, pair)))
     }
 
-    /// Returns the contact pair between two entities based on the [`ContactEdge`].
-    /// If the pair does not exist, `None` is returned.
-    ///
-    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
-    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
-    #[inline]
-    pub fn get_pair_by_edge(&self, edge: &ContactEdge) -> Option<&ContactPair> {
-        if edge.is_sleeping() {
-            self.sleeping_pairs.get(edge.pair_index)
-        } else {
-            self.active_pairs.get(edge.pair_index)
-        }
-    }
-
-    /// Returns a mutable reference to the contact edge and contact pair between two entities.
+    /// Returns a mutable reference to the [`ContactEdge`] and [`ContactPair`] between two entities.
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
@@ -226,7 +214,7 @@ impl ContactGraph {
             .and_then(|edge| self.get_mut_by_id(edge.into()))
     }
 
-    /// Returns a mutable reference to the contact edge and contact pair between two entities based on the contact ID.
+    /// Returns a mutable reference to the [`ContactEdge`] and [`ContactPair`] between two entities based on the contact ID.
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
@@ -246,7 +234,21 @@ impl ContactGraph {
         })
     }
 
-    /// Returns a mutable reference to the contact pair between two entities based on the [`ContactEdge`].
+    /// Returns the [`ContactPair`] between two entities based on the [`ContactEdge`].
+    /// If the pair does not exist, `None` is returned.
+    ///
+    /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
+    /// Use [`ContactPair::is_touching`] to determine if the actual collider shapes are touching.
+    #[inline]
+    pub fn get_pair_by_edge(&self, edge: &ContactEdge) -> Option<&ContactPair> {
+        if edge.is_sleeping() {
+            self.sleeping_pairs.get(edge.pair_index)
+        } else {
+            self.active_pairs.get(edge.pair_index)
+        }
+    }
+
+    /// Returns a mutable reference to the [`ContactPair`] between two entities based on the [`ContactEdge`].
     /// If the pair does not exist, `None` is returned.
     ///
     /// A contact pair exists between two entities if their [`ColliderAabb`]s intersect.
@@ -461,49 +463,77 @@ impl ContactGraph {
             })
     }
 
-    /// Creates a contact pair between two entities.
+    /// Creates a [`ContactEdge`] between two entities and adds an associated [`ContactPair`]
+    /// to the list of active pairs.
     ///
-    /// Returns the ID of the contact pair if it was created,
-    /// or `None` if the pair already exists.
+    /// Returns the ID of the contact edge if it was created, or `None` if the edge already exists.
     ///
     /// # Warning
     ///
-    /// Creating a collision pair with this method will *not* trigger any collision events
+    /// Creating a contact edge with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_pair(&mut self, contacts: ContactEdge) -> Option<ContactId> {
-        let pair_key = PairKey::new(contacts.collider1.index(), contacts.collider2.index());
-        self.add_pair_with_key(contacts, pair_key)
+    pub fn add_edge(&mut self, contact_edge: ContactEdge) -> Option<ContactId> {
+        self.add_edge_with(contact_edge, |_| {})
     }
 
-    /// Creates a contact pair between two entities with the given pair key.
+    /// Creates a [`ContactEdge`] between two entities, calling the provided callback
+    /// to initialize the associated [`ContactPair`] in the list of active pairs.
+    ///
+    /// Returns the ID of the contact edge if it was created, or `None` if the edge already exists.
+    ///
+    /// # Warning
+    ///
+    /// Creating a contact edge with this method will *not* trigger any collision events
+    /// or wake up the entities involved. Only use this method if you know what you are doing.
+    #[inline]
+    pub fn add_edge_with<F>(
+        &mut self,
+        contact_edge: ContactEdge,
+        pair_callback: F,
+    ) -> Option<ContactId>
+    where
+        F: FnMut(&mut ContactPair),
+    {
+        let pair_key = PairKey::new(
+            contact_edge.collider1.index(),
+            contact_edge.collider2.index(),
+        );
+        self.add_edge_and_key_with(contact_edge, pair_key, pair_callback)
+    }
+
+    /// Creates a [`ContactEdge`] between two entities with the given pair key, calling the provided callback
+    /// to initialize the associated [`ContactPair`] in the list of active pairs.
     ///
     /// The key must be equivalent to `PairKey::new(contacts.entity1.index(), contacts.entity2.index())`.
     ///
-    /// Returns the ID of the contact pair if it was created,
-    /// or `None` if the pair already exists.
+    /// Returns the ID of the contact edge if it was created, or `None` if the edge already exists.
     ///
     /// This method can be useful to avoid constructing a new `PairKey` when the key is already known.
-    /// If the key is not available, consider using [`add_pair`](Self::add_pair) instead.
+    /// If the key is not available, consider using [`add_edge`](Self::add_edge) or [`add_edge_with`](Self::add_edge_with) instead.
     ///
     /// # Warning
     ///
-    /// Creating a collision pair with this method will *not* trigger any collision events
+    /// Creating a contact edge with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn add_pair_with_key(
+    pub fn add_edge_and_key_with<F>(
         &mut self,
-        contacts: ContactEdge,
+        contact_edge: ContactEdge,
         pair_key: PairKey,
-    ) -> Option<ContactId> {
+        mut pair_callback: F,
+    ) -> Option<ContactId>
+    where
+        F: FnMut(&mut ContactPair),
+    {
         // Add the pair to the pair set for fast lookup.
         if !self.pair_set.insert(pair_key) {
             // The pair already exists.
             return None;
         }
 
-        let collider1 = contacts.collider1;
-        let collider2 = contacts.collider2;
+        let collider1 = contact_edge.collider1;
+        let collider2 = contact_edge.collider2;
 
         // Get the indices of the entities in the graph.
         let index1 = self
@@ -514,10 +544,14 @@ impl ContactGraph {
             .get_or_insert_with(collider2, || self.edges.add_node(collider2));
 
         // Add the edge to the graph.
-        let edge_id = ContactId(self.edges.add_edge(index1, index2, contacts).0);
+        let edge_id = ContactId(self.edges.add_edge(index1, index2, contact_edge).0);
 
         // Create the contact pair. Contacts are created as active.
-        let pair = ContactPair::new(collider1, collider2, edge_id);
+        let mut pair = ContactPair::new(collider1, collider2, edge_id);
+
+        // Call the pair callback to allow for custom initialization.
+        pair_callback(&mut pair);
+
         let pair_index = self.active_pairs.len();
         self.active_pairs.push(pair);
 
@@ -529,16 +563,16 @@ impl ContactGraph {
         Some(edge_id)
     }
 
-    /// Removes a contact pair between two entites and returns its value.
+    /// Removes a [`ContactEdge`] between two entites and returns its value.
     ///
     /// # Warning
     ///
-    /// Removing a collision pair with this method will *not* trigger any collision events
+    /// Removing a contact edge with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
-    pub fn remove_pair(&mut self, entity1: Entity, entity2: Entity) -> Option<ContactEdge> {
+    pub fn remove_edge(&mut self, entity1: Entity, entity2: Entity) -> Option<ContactEdge> {
         let (Some(index1), Some(index2)) =
             (self.entity_to_node(entity1), self.entity_to_node(entity2))
         else {
@@ -548,20 +582,20 @@ impl ContactGraph {
         // Remove the edge from the graph.
         self.edges.find_edge(index1, index2).and_then(|edge_id| {
             let pair_key = PairKey::new(entity1.index(), entity2.index());
-            self.remove_pair_by_id(&pair_key, edge_id.into())
+            self.remove_edge_by_id(&pair_key, edge_id.into())
         })
     }
 
-    /// Removes a contact pair based on its pair key and ID and returns its value.
+    /// Removes a [`ContactEdge`] based on its pair key and ID and returns its value.
     ///
     /// # Warning
     ///
-    /// Removing a collision pair with this method will *not* trigger any collision events
+    /// Removing a contact edge with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     ///
     /// For filtering and modifying collisions, consider using [`CollisionHooks`] instead.
     #[inline]
-    pub fn remove_pair_by_id(&mut self, pair_key: &PairKey, id: ContactId) -> Option<ContactEdge> {
+    pub fn remove_edge_by_id(&mut self, pair_key: &PairKey, id: ContactId) -> Option<ContactEdge> {
         // Remove the pair from the pair set.
         self.pair_set.remove(pair_key);
 
@@ -596,14 +630,14 @@ impl ContactGraph {
     }
 
     /// Removes the collider of the given entity from the contact graph, calling the given callback
-    /// for each contact pair right before it is removed.
+    /// for each [`ContactEdge`] right before it is removed.
     ///
     /// # Warning
     ///
     /// Removing a collider with this method will *not* trigger any collision events
     /// or wake up the entities involved. Only use this method if you know what you are doing.
     #[inline]
-    pub fn remove_collider_with<F>(&mut self, entity: Entity, mut pair_callback: F)
+    pub fn remove_collider_with<F>(&mut self, entity: Entity, mut edge_callback: F)
     where
         F: FnMut(&mut StableUnGraph<Entity, ContactEdge>, ContactId),
     {
@@ -630,7 +664,7 @@ impl ContactGraph {
                 &mut self.active_pairs
             };
 
-            pair_callback(graph, contact_id);
+            edge_callback(graph, contact_id);
 
             // Remove the contact pair from the active or sleeping pairs.
             let moved_index = contact_pairs.len() - 1;
@@ -665,7 +699,7 @@ impl ContactGraph {
     }
 
     /// Transfers contact of a body from the sleeping contacts to the active contacts,
-    /// calling the given callback for each contact pair that is moved to active contacts.
+    /// calling the given callback for each [`ContactPair`] that is moved to active contacts.
     #[inline]
     pub fn wake_entity_with<F>(&mut self, entity: Entity, mut pair_callback: F)
     where
@@ -722,7 +756,7 @@ impl ContactGraph {
     }
 
     /// Transfers contact of a body from the active contacts to the sleeping contacts,
-    /// calling the given callback for each contact pair that is moved to sleeping contacts.
+    /// calling the given callback for each [`ContactPair`] that is moved to sleeping contacts.
     #[inline]
     pub fn sleep_entity_with<F>(&mut self, entity: Entity, mut pair_callback: F)
     where
