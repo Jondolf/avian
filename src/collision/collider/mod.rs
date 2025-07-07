@@ -37,9 +37,6 @@ mod parry;
 ))]
 pub use parry::*;
 
-mod world_query;
-pub use world_query::*;
-
 #[cfg(feature = "default-collider")]
 mod constructor;
 #[cfg(feature = "default-collider")]
