@@ -2,20 +2,47 @@
 use core::cell::RefCell;
 
 use crate::{
-    collision::{
-        collider::ColliderQuery,
-        contact_types::{ContactEdgeFlags, ContactId},
-    },
+    collision::contact_types::{ContactEdgeFlags, ContactId},
     data_structures::{bit_vec::BitVec, pair_key::PairKey},
     dynamics::solver::constraint_graph::ConstraintGraph,
     prelude::*,
 };
 use bevy::{
-    ecs::system::{SystemParam, SystemParamItem},
+    ecs::{
+        query::QueryData,
+        system::{SystemParam, SystemParamItem},
+    },
     prelude::*,
 };
 #[cfg(feature = "parallel")]
 use thread_local::ThreadLocal;
+
+#[derive(QueryData)]
+struct ColliderQuery<C: AnyCollider> {
+    entity: Entity,
+    of: Option<&'static ColliderOf>,
+    shape: &'static C,
+    aabb: Ref<'static, ColliderAabb>,
+    position: Ref<'static, Position>,
+    rotation: Ref<'static, Rotation>,
+    layers: &'static CollisionLayers,
+    friction: Option<&'static Friction>,
+    restitution: Option<&'static Restitution>,
+    collision_margin: Option<&'static CollisionMargin>,
+    speculative_margin: Option<&'static SpeculativeMargin>,
+}
+
+#[derive(QueryData)]
+struct RigidBodyQuery {
+    entity: Entity,
+    rb: Ref<'static, RigidBody>,
+    linear_velocity: Ref<'static, LinearVelocity>,
+    // TODO: We should define these as purely collider components and not query for them here.
+    friction: Option<&'static Friction>,
+    restitution: Option<&'static Restitution>,
+    collision_margin: Option<&'static CollisionMargin>,
+    speculative_margin: Option<&'static SpeculativeMargin>,
+}
 
 /// A system parameter for managing the narrow phase.
 ///
@@ -29,19 +56,9 @@ use thread_local::ThreadLocal;
 #[derive(SystemParam)]
 #[expect(missing_docs)]
 pub struct NarrowPhase<'w, 's, C: AnyCollider> {
-    pub collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
-    pub colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
-    pub body_query: Query<
-        'w,
-        's,
-        (
-            // TODO: Only query for linear velocity
-            RigidBodyQueryReadOnly,
-            Option<&'static CollisionMargin>,
-            Option<&'static SpeculativeMargin>,
-        ),
-        Without<RigidBodyDisabled>,
-    >,
+    collider_query: Query<'w, 's, ColliderQuery<C>, Without<ColliderDisabled>>,
+    colliding_entities_query: Query<'w, 's, &'static mut CollidingEntities>,
+    body_query: Query<'w, 's, RigidBodyQuery, Without<RigidBodyDisabled>>,
     pub contact_graph: ResMut<'w, ContactGraph>,
     pub constraint_graph: ResMut<'w, ConstraintGraph>,
     contact_status_bits: ResMut<'w, ContactStatusBits>,
@@ -74,9 +91,11 @@ pub(super) struct ThreadLocalContactStatusBits(pub ThreadLocal<RefCell<BitVec>>)
 impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
     /// Updates the narrow phase.
     ///
-    /// - Updates contacts for each contact pair in the [`ContactGraph`].
-    /// - Sends collision events when colliders start or stop touching.
-    /// - Removes pairs from the [`ContactGraph`] when AABBs stop overlapping.
+    /// - Updates each active [`ContactPair`] in the [`ContactGraph`].
+    /// - Sends [collision events](crate::collision::collision_events) when colliders start or stop touching.
+    /// - Removes contact pairs from the [`ContactGraph`] when AABBs stop overlapping.
+    /// - Adds [`ContactManifold`]s to the [`ConstraintGraph`] when they are created.
+    /// - Removes [`ContactManifold`]s from the [`ConstraintGraph`] when they are destroyed.
     pub fn update<H: CollisionHooks>(
         &mut self,
         collision_started_event_writer: &mut EventWriter<CollisionStarted>,
@@ -408,11 +427,11 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // The AABBs overlap. Compute contacts.
 
                 let body1_bundle = collider1
-                    .body()
-                    .and_then(|body| self.body_query.get(body).ok());
+                    .of
+                    .and_then(|&ColliderOf { body }| self.body_query.get(body).ok());
                 let body2_bundle = collider2
-                    .body()
-                    .and_then(|body| self.body_query.get(body).ok());
+                    .of
+                    .and_then(|&ColliderOf { body }| self.body_query.get(body).ok());
 
                 // The rigid body's friction, restitution, collision margin, and speculative margin
                 // will be used if the collider doesn't have them specified.
@@ -424,13 +443,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     rb_speculative_margin1,
                 ) = body1_bundle
                     .as_ref()
-                    .map(|(body, collision_margin, speculative_margin)| {
+                    .map(|body| {
                         (
                             body.rb.is_static(),
                             body.linear_velocity.0,
                             body.friction,
-                            *collision_margin,
-                            *speculative_margin,
+                            body.collision_margin,
+                            body.speculative_margin,
                         )
                     })
                     .unwrap_or_default();
@@ -442,13 +461,13 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     rb_speculative_margin2,
                 ) = body2_bundle
                     .as_ref()
-                    .map(|(body, collision_margin, speculative_margin)| {
+                    .map(|body| {
                         (
                             body.rb.is_static(),
                             body.linear_velocity.0,
                             body.friction,
-                            *collision_margin,
-                            *speculative_margin,
+                            body.collision_margin,
+                            body.speculative_margin,
                         )
                     })
                     .unwrap_or_default();
