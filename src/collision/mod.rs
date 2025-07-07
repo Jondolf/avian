@@ -97,7 +97,8 @@ pub mod prelude {
         CollisionEnded, CollisionEventsEnabled, CollisionStarted, OnCollisionEnd, OnCollisionStart,
     };
     pub use super::contact_types::{
-        Collisions, ContactGraph, ContactManifold, ContactPair, ContactPairFlags, ContactPoint,
+        Collisions, ContactEdge, ContactGraph, ContactManifold, ContactPair, ContactPairFlags,
+        ContactPoint,
     };
     pub use super::hooks::{ActiveCollisionHooks, CollisionHooks};
     pub use super::narrow_phase::{NarrowPhaseConfig, NarrowPhasePlugin, NarrowPhaseSet};

@@ -72,7 +72,7 @@ impl EdgeDirection {
 
     /// Returns the opposite direction.
     #[inline]
-    fn opposite(self) -> EdgeDirection {
+    pub(super) fn opposite(self) -> EdgeDirection {
         match self {
             EdgeDirection::Outgoing => EdgeDirection::Incoming,
             EdgeDirection::Incoming => EdgeDirection::Outgoing,
@@ -87,7 +87,7 @@ pub struct Node<N> {
     /// Associated node data.
     pub weight: N,
     /// Next edge in outgoing and incoming edge lists.
-    next: [EdgeIndex; 2],
+    pub(super) next: [EdgeIndex; 2],
 }
 
 /// The edge type for a graph structure.
@@ -97,9 +97,9 @@ pub struct Edge<E> {
     /// Associated edge data.
     pub weight: E,
     /// Next edge in outgoing and incoming edge lists.
-    next: [EdgeIndex; 2],
+    pub(super) next: [EdgeIndex; 2],
     /// Start and End node index
-    node: [NodeIndex; 2],
+    pub(super) node: [NodeIndex; 2],
 }
 
 impl<E> Edge<E> {
@@ -116,13 +116,13 @@ impl<E> Edge<E> {
 
 /// A graph with undirected edges.
 ///
-/// For example, an edge between *1* and *2* is equivalent to an edge between
-/// *2* and *1*.
+/// The graph can invalidate node or edge indices when items are removed.
+/// If you need stable indices, use [`StableUnGraph`](super::stable_graph::StableUnGraph).
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnGraph<N, E> {
-    nodes: Vec<Node<N>>,
-    edges: Vec<Edge<E>>,
+    pub(super) nodes: Vec<Node<N>>,
+    pub(super) edges: Vec<Edge<E>>,
 }
 
 impl<N, E> Default for UnGraph<N, E> {
@@ -134,14 +134,14 @@ impl<N, E> Default for UnGraph<N, E> {
     }
 }
 
-enum Pair<T> {
+pub(super) enum Pair<T> {
     Both(T, T),
     One(T),
     None,
 }
 
 /// Get mutable references at index `a` and `b`.
-fn index_twice<T>(arr: &mut [T], a: usize, b: usize) -> Pair<&mut T> {
+pub(super) fn index_twice<T>(arr: &mut [T], a: usize, b: usize) -> Pair<&mut T> {
     if max(a, b) >= arr.len() {
         Pair::None
     } else if a == b {
@@ -193,7 +193,7 @@ impl<N, E> UnGraph<N, E> {
             weight,
             next: [EdgeIndex::END, EdgeIndex::END],
         };
-        assert!(self.nodes.len() != usize::MAX);
+        assert!(self.nodes.len() as u32 != u32::MAX);
         let node_idx = NodeIndex(self.nodes.len() as u32);
         self.nodes.push(node);
         node_idx
@@ -220,7 +220,7 @@ impl<N, E> UnGraph<N, E> {
     ///
     /// Panics if any of the nodes don't exist or the graph is at the maximum number of edges.
     pub fn add_edge(&mut self, a: NodeIndex, b: NodeIndex, weight: E) -> EdgeIndex {
-        assert!(self.edges.len() != usize::MAX);
+        assert!(self.edges.len() as u32 != u32::MAX);
         let edge_idx = EdgeIndex(self.edges.len() as u32);
         let mut edge = Edge {
             weight,
@@ -303,7 +303,10 @@ impl<N, E> UnGraph<N, E> {
     where
         F: FnMut(E),
     {
-        self.nodes.get(a.index())?;
+        if a.index() >= self.nodes.len() {
+            return None;
+        }
+
         for d in EdgeDirection::ALL {
             let k = d as usize;
 
@@ -352,7 +355,7 @@ impl<N, E> UnGraph<N, E> {
 
     /// For edge `e` with endpoints `edge_node`, replaces links to it
     /// with links to `edge_next`.
-    fn change_edge_links(
+    pub(super) fn change_edge_links(
         &mut self,
         edge_node: [NodeIndex; 2],
         e: EdgeIndex,
@@ -493,7 +496,10 @@ impl<N, E> UnGraph<N, E> {
     /// Computes in **O(e')** time, where **e'** is the number of edges
     /// connected to `a` (and `b`, if the graph edges are undirected).
     pub fn find_edge(&self, a: NodeIndex, b: NodeIndex) -> Option<EdgeIndex> {
-        let node = self.nodes.get(a.index())?;
+        self.find_edge_from_node(self.nodes.get(a.index())?, b)
+    }
+
+    pub(super) fn find_edge_from_node(&self, node: &Node<N>, b: NodeIndex) -> Option<EdgeIndex> {
         for &d in &EdgeDirection::ALL {
             let k = d as usize;
             let mut edix = node.next[k];
@@ -505,16 +511,6 @@ impl<N, E> UnGraph<N, E> {
             }
         }
         None
-    }
-
-    /// Returns an iterator over the node indices of the graph.
-    pub fn node_indices(&self) -> impl DoubleEndedIterator<Item = NodeIndex> + use<N, E> {
-        (0..self.node_count()).map(|i| NodeIndex(i as u32))
-    }
-
-    /// Returns an iterator over the edge indices of the graph
-    pub fn edge_indices(&self) -> impl DoubleEndedIterator<Item = EdgeIndex> + use<N, E> {
-        (0..self.edge_count()).map(|i| EdgeIndex(i as u32))
     }
 
     /// Returns an iterator yielding immutable access to edge weights for edges from or to `a`.
@@ -654,46 +650,6 @@ impl<N, E> UnGraph<N, E> {
     /// Panics if the new capacity overflows `usize`.
     pub fn reserve_edges(&mut self, additional: usize) {
         self.edges.reserve(additional);
-    }
-
-    /// Keep all nodes that return `true` from the `visit` closure,
-    /// remove the others.
-    ///
-    /// `visit` is provided a proxy reference to the graph, so that
-    /// the graph can be walked and associated data modified.
-    ///
-    /// The order nodes are visited is not specified.
-    pub fn retain_nodes<F>(&mut self, mut visit: F)
-    where
-        F: FnMut(&Self, NodeIndex) -> bool,
-    {
-        for index in self.node_indices().rev() {
-            if !visit(self, index) {
-                let ret = self.remove_node_with(index, |_| ());
-                debug_assert!(ret.is_some());
-                let _ = ret;
-            }
-        }
-    }
-
-    /// Keep all edges that return `true` from the `visit` closure,
-    /// remove the others.
-    ///
-    /// `visit` is provided a proxy reference to the graph, so that
-    /// the graph can be walked and associated data modified.
-    ///
-    /// The order edges are visited is not specified.
-    pub fn retain_edges<F>(&mut self, mut visit: F)
-    where
-        F: FnMut(&Self, EdgeIndex) -> bool,
-    {
-        for index in self.edge_indices().rev() {
-            if !visit(self, index) {
-                let ret = self.remove_edge(index);
-                debug_assert!(ret.is_some());
-                let _ = ret;
-            }
-        }
     }
 }
 
@@ -873,37 +829,22 @@ impl<'a, E> Iterator for EdgeWeights<'a, E> {
     type Item = &'a E;
 
     fn next(&mut self) -> Option<Self::Item> {
-        //      type        direction    |    iterate over    reverse
-        // ------------------------------|------------------------------
-        //    Directed      Outgoing     |      outgoing        no
-        //    Directed      Incoming     |      incoming        no
-        //   Undirected     Outgoing     |        both       incoming
-        //   Undirected     Incoming     |        both       outgoing
-
-        // For `iterate_over`, "both" is represented as `None`.
-        // For `reverse`, "no" is represented as `None`.
-        let (iterate_over, _reverse) = (None, Some(self.direction.opposite()));
-
-        if iterate_over.unwrap_or(EdgeDirection::Outgoing) == EdgeDirection::Outgoing {
-            let i = self.next[0].index();
-            if let Some(Edge { weight, next, .. }) = self.edges.get(i) {
-                self.next[0] = next[0];
-                return Some(weight);
-            }
+        let i = self.next[0].index();
+        if let Some(Edge { weight, next, .. }) = self.edges.get(i) {
+            self.next[0] = next[0];
+            return Some(weight);
         }
 
-        if iterate_over.unwrap_or(EdgeDirection::Incoming) == EdgeDirection::Incoming {
-            while let Some(Edge { node, weight, next }) = self.edges.get(self.next[1].index()) {
-                self.next[1] = next[1];
+        while let Some(Edge { node, weight, next }) = self.edges.get(self.next[1].index()) {
+            self.next[1] = next[1];
 
-                // In any of the "both" situations, self-loops would be iterated over twice.
-                // Skip them here.
-                if iterate_over.is_none() && node[0] == self.skip_start {
-                    continue;
-                }
-
-                return Some(weight);
+            // In any of the "both" situations, self-loops would be iterated over twice.
+            // Skip them here.
+            if node[0] == self.skip_start {
+                continue;
             }
+
+            return Some(weight);
         }
 
         None

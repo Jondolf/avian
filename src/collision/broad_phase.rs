@@ -15,7 +15,10 @@ use bevy::{
     prelude::*,
 };
 
-use super::CollisionDiagnostics;
+use super::{
+    CollisionDiagnostics,
+    contact_types::{ContactEdge, ContactEdgeFlags},
+};
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 /// the number of potential contacts for the [narrow phase](super::narrow_phase).
@@ -373,30 +376,31 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
-            let mut contacts = ContactPair::new(*entity1, *entity2);
-
-            // Initialize flags and other data for the contact pair.
-            contacts.body1 = Some(collider_of1.body);
-            contacts.body2 = Some(collider_of2.body);
-            contacts.flags.set(
-                ContactPairFlags::SENSOR,
-                flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
-            );
-            contacts.flags.set(
-                ContactPairFlags::CONTACT_EVENTS,
+            let mut contact_edge = ContactEdge::new(*entity1, *entity2);
+            contact_edge.flags.set(
+                ContactEdgeFlags::CONTACT_EVENTS,
                 flags1
                     .union(*flags2)
                     .contains(AabbIntervalFlags::CONTACT_EVENTS),
             );
-            contacts.flags.set(
-                ContactPairFlags::MODIFY_CONTACTS,
-                flags1
-                    .union(*flags2)
-                    .contains(AabbIntervalFlags::MODIFY_CONTACTS),
-            );
-
-            // Add the contact pair to the contact graph.
-            contact_graph.add_pair_with_key(contacts, pair_key);
+            contact_graph
+                .add_edge_and_key_with(contact_edge, pair_key, |contact_pair| {
+                    contact_pair.body1 = Some(collider_of1.body);
+                    contact_pair.body2 = Some(collider_of2.body);
+                    contact_pair.flags.set(
+                        ContactPairFlags::MODIFY_CONTACTS,
+                        flags1
+                            .union(*flags2)
+                            .contains(AabbIntervalFlags::MODIFY_CONTACTS),
+                    );
+                    contact_pair.flags.set(
+                        ContactPairFlags::SENSOR,
+                        flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
+                    );
+                })
+                .unwrap_or_else(|| {
+                    panic!("Pair key already exists in contact graph: {pair_key:?}")
+                });
         }
     }
 }

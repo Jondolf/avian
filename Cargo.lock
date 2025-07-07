@@ -308,6 +308,7 @@ dependencies = [
  "parry2d",
  "parry2d-f64",
  "serde",
+ "smallvec",
  "thread_local",
 ]
 
@@ -332,6 +333,7 @@ dependencies = [
  "parry3d",
  "parry3d-f64",
  "serde",
+ "smallvec",
  "thread_local",
 ]
 

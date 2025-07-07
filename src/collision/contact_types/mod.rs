@@ -4,12 +4,120 @@ mod contact_graph;
 mod feature_id;
 mod system_param;
 
-pub use contact_graph::ContactGraph;
+pub use contact_graph::{ContactGraph, ContactGraphInternal};
 pub use feature_id::PackedFeatureId;
+use smallvec::SmallVec;
 pub use system_param::Collisions;
 
-use crate::prelude::*;
+use crate::{
+    data_structures::graph::EdgeIndex, dynamics::solver::constraint_graph::ContactConstraintHandle,
+    prelude::*,
+};
 use bevy::prelude::*;
+
+/// A stable identifier for a [`ContactEdge`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
+pub struct ContactId(pub u32);
+
+impl ContactId {
+    /// A placeholder identifier for a [`ContactEdge`].
+    ///
+    /// Used as a temporary value before the contact pair is added to the [`ContactGraph`].
+    pub const PLACEHOLDER: Self = Self(u32::MAX);
+}
+
+impl From<ContactId> for EdgeIndex {
+    fn from(id: ContactId) -> Self {
+        Self(id.0)
+    }
+}
+
+impl From<EdgeIndex> for ContactId {
+    fn from(id: EdgeIndex) -> Self {
+        Self(id.0)
+    }
+}
+
+/// Cold contact data stored in the [`ContactGraph`]. Used as a persistent handle for a [`ContactPair`].
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+pub struct ContactEdge {
+    /// The stable identifier of this contact edge.
+    pub id: ContactId,
+
+    /// The first collider entity in the contact.
+    pub collider1: Entity,
+
+    /// The second collider entity in the contact.
+    pub collider2: Entity,
+
+    /// The handles to the constraints associated with this contact edge.
+    #[cfg(feature = "2d")]
+    pub constraint_handles: SmallVec<[ContactConstraintHandle; 2]>,
+
+    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    pub pair_index: usize,
+
+    /// The handles to the constraints associated with this contact edge.
+    #[cfg(feature = "3d")]
+    pub constraint_handles: SmallVec<[ContactConstraintHandle; 4]>,
+
+    /// Flags for the contact edge.
+    pub flags: ContactEdgeFlags,
+}
+
+impl ContactEdge {
+    /// Creates a new non-touching [`ContactEdge`] with the given entities.
+    pub fn new(collider1: Entity, collider2: Entity) -> Self {
+        Self {
+            // This gets set to a valid ID when the contact pair is added to the `ContactGraph`.
+            id: ContactId::PLACEHOLDER,
+            collider1,
+            collider2,
+            pair_index: 0,
+            constraint_handles: SmallVec::new(),
+            flags: ContactEdgeFlags::empty(),
+        }
+    }
+
+    /// Returns `true` if the colliders are touching.
+    pub fn is_touching(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::TOUCHING)
+    }
+
+    /// Returns `true` if the contact pair is between sleeping bodies.
+    pub fn is_sleeping(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::SLEEPING)
+    }
+
+    /// Returns `true` if collision events are enabled for the contact.
+    pub fn events_enabled(&self) -> bool {
+        self.flags.contains(ContactEdgeFlags::CONTACT_EVENTS)
+    }
+}
+
+// These are stored separately from `ContactPairFlags` to avoid needing to fetch
+// the `ContactPair` when for example querying for touching contacts.
+/// Flags for a [`ContactEdge`].
+#[repr(transparent)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Hash, Clone, Copy, PartialEq, Eq, Debug, Reflect)]
+#[reflect(opaque, Hash, PartialEq, Debug)]
+pub struct ContactEdgeFlags(u8);
+
+bitflags::bitflags! {
+    impl ContactEdgeFlags: u8 {
+        /// Set if the colliders are touching, including sensors.
+        const TOUCHING = 1 << 0;
+        /// Set if the contact pair is between sleeping bodies.
+        const SLEEPING = 1 << 1;
+        /// Set if the contact pair should emit contact events or sensor events.
+        const CONTACT_EVENTS = 1 << 2;
+    }
+}
 
 /// A contact pair between two colliders.
 ///
@@ -22,6 +130,8 @@ use bevy::prelude::*;
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPair {
+    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
+    pub contact_id: ContactId,
     /// The first collider entity in the contact.
     pub collider1: Entity,
     /// The second collider entity in the contact.
@@ -34,6 +144,16 @@ pub struct ContactPair {
     /// Each manifold contains one or more contact points, but each contact
     /// in a given manifold shares the same contact normal.
     pub manifolds: Vec<ContactManifold>,
+    /// The number of manifolds that were added or removed during the current time step.
+    ///
+    /// This is used to manage contact constraint updates for persistent contacts in the [`ConstraintGraph`].
+    ///
+    /// [`ConstraintGraph`]: crate::dynamics::solver::constraint_graph::ConstraintGraph
+    pub(crate) manifold_count_change: i16,
+    /// The effective speculative margin computed for this contact pair.
+    ///
+    /// This is computed in the narrow phase and reused during constraint preparation.
+    pub(crate) effective_speculative_margin: Scalar,
     /// Flag indicating the status and type of the contact pair.
     pub flags: ContactPairFlags,
 }
@@ -48,32 +168,37 @@ pub struct ContactPairFlags(u8);
 bitflags::bitflags! {
     impl ContactPairFlags: u8 {
         /// Set if the colliders are touching, including sensors.
-        const TOUCHING = 0b0000_0001;
+        const TOUCHING = 1 << 0;
         /// Set if the AABBs of the colliders are no longer overlapping.
-        const DISJOINT_AABB = 0b0000_0010;
+        const DISJOINT_AABB = 1 << 1;
         /// Set if the colliders are touching and were not touching previously.
-        const STARTED_TOUCHING = 0b0000_0100;
+        const STARTED_TOUCHING = 1 << 2;
         /// Set if the colliders are not touching and were touching previously.
-        const STOPPED_TOUCHING = 0b0000_1000;
+        const STOPPED_TOUCHING = 1 << 3;
         /// Set if at least one of the colliders is a sensor.
-        const SENSOR = 0b0001_0000;
-        /// Set if the contact pair should emit contact events or sensor events.
-        const CONTACT_EVENTS = 0b0010_0000;
+        const SENSOR = 1 << 4;
+        /// Set if the first rigid body is static.
+        const STATIC1 = 1 << 5;
+        /// Set if the second rigid body is static.
+        const STATIC2 = 1 << 6;
         /// Set if the contact pair should have a custom contact modification hook applied.
-        const MODIFY_CONTACTS = 0b0100_0000;
+        const MODIFY_CONTACTS = 1 << 7;
     }
 }
 
 impl ContactPair {
     /// Creates a new [`ContactPair`] with the given entities.
     #[inline]
-    pub fn new(collider1: Entity, collider2: Entity) -> Self {
+    pub fn new(collider1: Entity, collider2: Entity, contact_id: ContactId) -> Self {
         Self {
+            contact_id,
             collider1,
             collider2,
             body1: None,
             body2: None,
             manifolds: Vec::new(),
+            manifold_count_change: 0,
+            effective_speculative_margin: 0.0,
             flags: ContactPairFlags::empty(),
         }
     }
@@ -155,11 +280,6 @@ impl ContactPair {
         self.flags.contains(ContactPairFlags::STOPPED_TOUCHING)
     }
 
-    /// Returns `true` if collision events are enabled for the contact pair.
-    pub fn events_enabled(&self) -> bool {
-        self.flags.contains(ContactPairFlags::CONTACT_EVENTS)
-    }
-
     /// Returns the contact with the largest penetration depth.
     ///
     /// If the objects are separated but there is still a speculative contact,
@@ -225,8 +345,6 @@ pub struct ContactManifold {
     /// such as conveyor belts.
     #[cfg(feature = "3d")]
     pub tangent_velocity: Vector,
-    /// The index of the manifold in the collision.
-    pub index: usize,
 }
 
 impl ContactManifold {
@@ -234,11 +352,7 @@ impl ContactManifold {
     /// expressed in local space.
     ///
     /// `index` represents the index of the manifold in the collision.
-    pub fn new(
-        points: impl IntoIterator<Item = ContactPoint>,
-        normal: Vector,
-        index: usize,
-    ) -> Self {
+    pub fn new(points: impl IntoIterator<Item = ContactPoint>, normal: Vector) -> Self {
         Self {
             #[cfg(feature = "2d")]
             points: arrayvec::ArrayVec::from_iter(points),
@@ -251,7 +365,6 @@ impl ContactManifold {
             tangent_speed: 0.0,
             #[cfg(feature = "3d")]
             tangent_velocity: Vector::ZERO,
-            index,
         }
     }
 
