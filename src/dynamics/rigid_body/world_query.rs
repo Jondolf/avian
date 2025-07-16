@@ -18,8 +18,6 @@ pub struct RigidBodyQuery {
     pub angular_velocity: &'static mut AngularVelocity,
     pub mass: &'static mut ComputedMass,
     pub angular_inertia: &'static mut ComputedAngularInertia,
-    #[cfg(feature = "3d")]
-    pub global_angular_inertia: &'static mut GlobalAngularInertia,
     pub center_of_mass: &'static mut ComputedCenterOfMass,
     pub friction: Option<&'static Friction>,
     pub restitution: Option<&'static Restitution>,
@@ -76,7 +74,7 @@ impl RigidBodyQueryItem<'_> {
         #[cfg(feature = "2d")]
         let mut angular_inertia = *self.angular_inertia;
         #[cfg(feature = "3d")]
-        let mut angular_inertia = **self.global_angular_inertia;
+        let mut angular_inertia = self.angular_inertia.rotated(self.rotation.0);
 
         if let Some(locked_axes) = self.locked_axes {
             angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
@@ -153,7 +151,7 @@ impl RigidBodyQueryReadOnlyItem<'_> {
         #[cfg(feature = "2d")]
         let mut angular_inertia = *self.angular_inertia;
         #[cfg(feature = "3d")]
-        let mut angular_inertia = **self.global_angular_inertia;
+        let mut angular_inertia = self.angular_inertia.rotated(self.rotation.0);
 
         if let Some(locked_axes) = self.locked_axes {
             angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);

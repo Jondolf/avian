@@ -106,7 +106,7 @@ impl MassPropertyHelper<'_, '_> {
                     computed_inertia.set(
                         mass_props
                             .angular_inertia_tensor()
-                            .as_mat3()
+                            .as_symmetric_mat3()
                             .adjust_precision(),
                     );
                 }
@@ -121,7 +121,7 @@ impl MassPropertyHelper<'_, '_> {
                 computed_inertia.set(
                     mass_props
                         .angular_inertia_tensor()
-                        .as_mat3()
+                        .as_symmetric_mat3()
                         .adjust_precision(),
                 );
             }

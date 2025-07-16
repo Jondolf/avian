@@ -38,8 +38,8 @@ pub fn integrate_velocity(
     force: Vector,
     torque: TorqueValue,
     mass: ComputedMass,
-    angular_inertia: &ComputedAngularInertia,
-    #[cfg(feature = "3d")] global_angular_inertia: &GlobalAngularInertia,
+    effective_inv_angular_inertia: &SymmetricTensor,
+    #[cfg(feature = "3d")] local_angular_inertia: &ComputedAngularInertia,
     #[cfg(feature = "3d")] rotation: Rotation,
     locked_axes: LockedAxes,
     gravity: Vector,
@@ -55,9 +55,9 @@ pub fn integrate_velocity(
 
     // Compute angular acceleration.
     #[cfg(feature = "2d")]
-    let ang_acc = angular_acceleration(torque, angular_inertia, locked_axes);
+    let ang_acc = angular_acceleration(torque, effective_inv_angular_inertia);
     #[cfg(feature = "3d")]
-    let ang_acc = angular_acceleration(torque, global_angular_inertia, locked_axes);
+    let ang_acc = angular_acceleration(torque, effective_inv_angular_inertia);
 
     // Compute angular velocity delta.
     // Δω = α * Δt
@@ -68,7 +68,7 @@ pub fn integrate_velocity(
         if is_gyroscopic {
             // Handle gyroscopic motion, which accounts for non-spherical shapes
             // that may wobble as they spin in the air.
-            solve_gyroscopic_torque(ang_vel, rotation.0, angular_inertia, delta_seconds);
+            solve_gyroscopic_torque(ang_vel, rotation.0, local_angular_inertia, delta_seconds);
             *ang_vel = locked_axes.apply_to_angular_velocity(*ang_vel);
         }
     }
@@ -142,12 +142,8 @@ correction, use `solve_gyroscopic_torque`."
 #[inline]
 pub fn angular_acceleration(
     torque: TorqueValue,
-    global_angular_inertia: &ComputedAngularInertia,
-    locked_axes: LockedAxes,
+    effective_inv_angular_inertia: &SymmetricTensor,
 ) -> AngularValue {
-    // Effective inverse inertia along each axis
-    let effective_angular_inertia = locked_axes.apply_to_angular_inertia(*global_angular_inertia);
-
     // Newton's 2nd law for rotational movement:
     //
     // τ = I * α
@@ -155,7 +151,7 @@ pub fn angular_acceleration(
     //
     // where α (alpha) is the angular acceleration,
     // τ (tau) is the torque, and I is the moment of inertia.
-    effective_angular_inertia.inverse() * torque
+    effective_inv_angular_inertia * torque
 }
 
 /// Applies the effects of gyroscopic motion to the given angular velocity.
@@ -260,9 +256,12 @@ mod tests {
                 default(),
                 default(),
                 mass,
-                &angular_inertia,
+                #[cfg(feature = "2d")]
+                &angular_inertia.inverse(),
                 #[cfg(feature = "3d")]
-                &GlobalAngularInertia::new(angular_inertia, rotation),
+                &angular_inertia.rotated(rotation.0).inverse(),
+                #[cfg(feature = "3d")]
+                &angular_inertia,
                 #[cfg(feature = "3d")]
                 rotation,
                 default(),

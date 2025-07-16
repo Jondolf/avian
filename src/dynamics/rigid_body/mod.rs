@@ -283,7 +283,6 @@ use derive_more::From;
     PreSolveDeltaRotation,
 )]
 #[component(on_add = RigidBody::on_add)]
-#[cfg_attr(feature = "3d", require(GlobalAngularInertia))]
 pub enum RigidBody {
     /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
     #[default]
