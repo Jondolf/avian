@@ -386,8 +386,7 @@ impl From<ComputedAngularInertia> for AngularInertia {
 /// from an attached [`Collider`] based on its shape and mass.
 ///
 /// This is computed in local space, so the object's orientation is not taken into account.
-/// The world-space version is stored in [`GlobalAngularInertia`], which is automatically recomputed
-/// whenever the local angular inertia or rotation is changed.
+/// The world-space version can be computed using the [`rotated`](Self::rotated) method.
 ///
 /// To manually compute the world-space version that takes the body's rotation into account,
 /// use the associated [`rotated`](Self::rotated) method.
