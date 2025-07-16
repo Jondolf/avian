@@ -230,11 +230,10 @@ impl LockedAxes {
         angular_inertia: impl Into<ComputedAngularInertia>,
     ) -> ComputedAngularInertia {
         let mut angular_inertia = angular_inertia.into();
-
+        let angular_inertia_mut = angular_inertia.inverse_mut();
         if self.is_rotation_locked() {
-            *angular_inertia.inverse_mut() = 0.0;
+            *angular_inertia_mut = 0.0;
         }
-
         angular_inertia
     }
 
@@ -245,17 +244,22 @@ impl LockedAxes {
         angular_inertia: impl Into<ComputedAngularInertia>,
     ) -> ComputedAngularInertia {
         let mut angular_inertia = angular_inertia.into();
-
+        let angular_inertia_mut = angular_inertia.inverse_mut();
         if self.is_rotation_x_locked() {
-            angular_inertia.inverse_mut().x_axis = Vector::ZERO;
+            angular_inertia_mut.m00 = 0.0;
+            angular_inertia_mut.m01 = 0.0;
+            angular_inertia_mut.m02 = 0.0;
         }
         if self.is_rotation_y_locked() {
-            angular_inertia.inverse_mut().y_axis = Vector::ZERO;
+            angular_inertia_mut.m11 = 0.0;
+            angular_inertia_mut.m01 = 0.0;
+            angular_inertia_mut.m12 = 0.0;
         }
         if self.is_rotation_z_locked() {
-            angular_inertia.inverse_mut().z_axis = Vector::ZERO;
+            angular_inertia_mut.m22 = 0.0;
+            angular_inertia_mut.m02 = 0.0;
+            angular_inertia_mut.m12 = 0.0;
         }
-
         angular_inertia
     }
 

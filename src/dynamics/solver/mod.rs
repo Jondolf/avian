@@ -517,7 +517,7 @@ fn prepare_contact_constraints(
                 ),
                 Ordering::Greater => (
                     0.0,
-                    Tensor::ZERO,
+                    SymmetricTensor::ZERO,
                     body2.mass.inverse(),
                     body2.angular_inertia.value(),
                 ),
@@ -525,7 +525,7 @@ fn prepare_contact_constraints(
                     body1.mass.inverse(),
                     body1.angular_inertia.value(),
                     0.0,
-                    Tensor::ZERO,
+                    SymmetricTensor::ZERO,
                 ),
             };
 

@@ -83,7 +83,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
     fn compute_generalized_inverse_mass(
         &self,
         inverse_mass: Scalar,
-        inverse_angular_inertia: Scalar,
+        inverse_angular_inertia: SymmetricTensor,
         r: Vector,
         n: Vector,
     ) -> Scalar {
@@ -96,7 +96,7 @@ pub trait PositionConstraint: XpbdConstraint<2> {
     fn compute_generalized_inverse_mass(
         &self,
         inverse_mass: Scalar,
-        inverse_angular_inertia: Matrix3,
+        inverse_angular_inertia: SymmetricTensor,
         r: Vector,
         n: Vector,
     ) -> Scalar {
@@ -109,14 +109,14 @@ pub trait PositionConstraint: XpbdConstraint<2> {
 
     /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "2d")]
-    fn get_delta_rot(inverse_angular_inertia: Scalar, r: Vector, p: Vector) -> Scalar {
+    fn get_delta_rot(inverse_angular_inertia: SymmetricTensor, r: Vector, p: Vector) -> Scalar {
         // Equation 8/9 but in 2D
         inverse_angular_inertia * r.perp_dot(p)
     }
 
     /// Computes the update in rotation when applying a positional correction `p` at point `r`.
     #[cfg(feature = "3d")]
-    fn get_delta_rot(inverse_angular_inertia: Matrix3, r: Vector, p: Vector) -> Quaternion {
+    fn get_delta_rot(inverse_angular_inertia: SymmetricTensor, r: Vector, p: Vector) -> Quaternion {
         // Equation 8/9
         Quaternion::from_scaled_axis(inverse_angular_inertia * r.cross(p))
     }

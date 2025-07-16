@@ -13,8 +13,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         delta_lagrange: Scalar,
     ) -> Scalar {
         if delta_lagrange.abs() <= Scalar::EPSILON {
@@ -39,8 +39,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         impulse: Scalar,
     ) -> Scalar {
         // Apply rotational updates
@@ -62,8 +62,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
@@ -91,8 +91,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         impulse: Vector,
     ) -> Vector {
         // Apply rotational updates
@@ -113,8 +113,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         angle: Scalar,
         lagrange: &mut Scalar,
         compliance: Scalar,
@@ -151,8 +151,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         rotation_difference: Vector,
         lagrange: &mut Scalar,
         compliance: Scalar,
@@ -201,8 +201,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         delta_lagrange: Scalar,
         axis: Vector3,
     ) -> Scalar {
@@ -232,8 +232,8 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         &self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         delta_lagrange: Scalar,
         axis: Vector,
     ) -> Vector {
@@ -261,7 +261,7 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     /// clockwise rotation.
     fn compute_generalized_inverse_mass(
         &self,
-        inv_angular_inertia: Tensor,
+        inv_angular_inertia: SymmetricTensor,
         axis: Vector3,
     ) -> Scalar {
         axis.dot(inv_angular_inertia * axis)
@@ -269,14 +269,14 @@ pub trait AngularConstraint: XpbdConstraint<2> {
 
     /// Computes the update in rotation when applying an angular correction `p`.
     #[cfg(feature = "2d")]
-    fn get_delta_rot(inverse_inertia: Tensor, p: Scalar) -> Scalar {
+    fn get_delta_rot(inverse_inertia: SymmetricTensor, p: Scalar) -> Scalar {
         // Equation 8/9 but in 2D
         inverse_inertia * p
     }
 
     /// Computes the update in rotation when applying an angular correction `p`.
     #[cfg(feature = "3d")]
-    fn get_delta_rot(inverse_inertia: Tensor, p: Vector) -> Quaternion {
+    fn get_delta_rot(inverse_inertia: SymmetricTensor, p: Vector) -> Quaternion {
         // Equation 8/9
         Quaternion::from_scaled_axis(inverse_inertia * p)
     }
