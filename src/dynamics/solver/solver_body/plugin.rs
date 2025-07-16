@@ -12,20 +12,11 @@ use crate::{
 };
 #[cfg(feature = "3d")]
 use crate::{
+    MatExt,
     dynamics::{
         integrator::{IntegrationSet, integrate_positions},
         solver::solver_body::SolverBodyFlags,
     },
-    math::MatExt,
-    prelude::SubstepSchedule,
-};
-#[cfg(feature = "3d")]
-use crate::{
-    dynamics::{
-        integrator::{IntegrationSet, integrate_positions},
-        solver::solver_body::SolverBodyFlags,
-    },
-    math::MatExt,
     prelude::SubstepSchedule,
 };
 
@@ -261,17 +252,6 @@ fn prepare_solver_bodies(
             }
         },
     );
-}
-
-#[cfg(feature = "3d")]
-pub(crate) fn update_solver_body_angular_inertia(
-    mut query: Query<(&mut SolverBodyInertia, &ComputedAngularInertia, &Rotation)>,
-) {
-    query
-        .par_iter_mut()
-        .for_each(|(mut inertia, angular_inertia, rotation)| {
-            inertia.update_inv_angular_inertia(angular_inertia.rotated(rotation.0).inverse());
-        });
 }
 
 /// Writes back solver body data to rigid bodies.
