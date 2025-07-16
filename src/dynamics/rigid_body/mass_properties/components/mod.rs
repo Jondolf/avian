@@ -745,6 +745,15 @@ impl AngularInertia {
 }
 
 #[cfg(feature = "3d")]
+impl TryFrom<Mat3> for AngularInertia {
+    type Error = MatConversionError;
+
+    fn try_from(mat: Mat3) -> Result<Self, Self::Error> {
+        Self::try_from_mat3(mat)
+    }
+}
+
+#[cfg(feature = "3d")]
 impl From<SymmetricMat3> for AngularInertia {
     fn from(tensor: SymmetricMat3) -> Self {
         Self::from_tensor(tensor)
