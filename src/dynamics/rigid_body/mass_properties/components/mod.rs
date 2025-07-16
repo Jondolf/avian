@@ -698,7 +698,10 @@ impl AngularInertia {
     /// represented as a [`Mat3`].
     ///
     /// Only the lower left triangle of the matrix is used. No check is performed to ensure
-    /// that the given matrix is truly symmetric or positive-semidefinite.
+    /// that the given matrix is truly symmetric or [positive-semidefinite].
+    ///
+    /// [tensor]: https://en.wikipedia.org/wiki/Moment_of_inertia#Inertia_tensor
+    /// [positive-semidefinite]: https://en.wikipedia.org/wiki/Definite_matrix
     #[inline]
     #[must_use]
     pub fn from_mat3_unchecked(mat: Mat3) -> Self {
