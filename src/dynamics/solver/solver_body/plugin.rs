@@ -5,15 +5,24 @@ use bevy::{
 
 use super::{SolverBody, SolverBodyInertia};
 use crate::{
-    dynamics::solver::SolverDiagnostics,
-    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
+    dynamics::solver::SolverDiagnostics,
+    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
 };
 #[cfg(feature = "3d")]
 use crate::{
     dynamics::{
-        integrator::{integrate_positions, IntegrationSet},
+        integrator::{IntegrationSet, integrate_positions},
+        solver::solver_body::SolverBodyFlags,
+    },
+    math::MatExt,
+    prelude::SubstepSchedule,
+};
+#[cfg(feature = "3d")]
+use crate::{
+    dynamics::{
+        integrator::{IntegrationSet, integrate_positions},
         solver::solver_body::SolverBodyFlags,
     },
     math::MatExt,
@@ -245,6 +254,7 @@ fn prepare_solver_bodies(
                 let epsilon = 1e-6;
                 let is_gyroscopic = !locked_axes.is_rotation_locked()
                     && !angular_inertia.inverse().is_isotropic(epsilon);
+
                 solver_body
                     .flags
                     .set(SolverBodyFlags::GYROSCOPIC_MOTION, is_gyroscopic);
@@ -295,6 +305,17 @@ fn writeback_solver_bodies(
     );
 
     diagnostics.finalize += start.elapsed();
+}
+
+#[cfg(feature = "3d")]
+pub(crate) fn update_solver_body_angular_inertia(
+    mut query: Query<(&mut SolverBodyInertia, &ComputedAngularInertia, &Rotation)>,
+) {
+    query
+        .par_iter_mut()
+        .for_each(|(mut inertia, angular_inertia, rotation)| {
+            inertia.update_effective_inv_angular_inertia(angular_inertia, rotation.0);
+        });
 }
 
 #[cfg(test)]

@@ -509,10 +509,10 @@ pub use type_registration::PhysicsTypeRegistrationPlugin;
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]
     pub use crate::debug_render::*;
-    #[cfg(feature = "diagnostic_ui")]
-    pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
     #[cfg(feature = "bevy_diagnostic")]
     pub use crate::diagnostics::PhysicsDiagnosticsPlugin;
+    #[cfg(feature = "diagnostic_ui")]
+    pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
     #[cfg(feature = "bevy_picking")]
     pub use crate::picking::{
         PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
@@ -520,6 +520,7 @@ pub mod prelude {
     #[cfg(feature = "default-collider")]
     pub(crate) use crate::position::RotationValue;
     pub use crate::{
+        PhysicsPlugins,
         collision::prelude::*,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
@@ -529,7 +530,6 @@ pub mod prelude {
         spatial_query::{self, *},
         sync::SyncPlugin,
         type_registration::PhysicsTypeRegistrationPlugin,
-        PhysicsPlugins,
     };
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,

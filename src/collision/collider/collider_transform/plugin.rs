@@ -1,13 +1,11 @@
 use crate::{
-    collision::narrow_phase::NarrowPhaseSet,
     prelude::*,
-    prepare::{match_any, PrepareSet},
+    prepare::PrepareSet,
     sync::ancestor_marker::{AncestorMarker, AncestorMarkerPlugin},
 };
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
-    transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
 
 /// A plugin for propagating and updating transforms for colliders.
@@ -47,30 +45,11 @@ impl Plugin for ColliderTransformPlugin {
         // trees that have no colliders.
         app.add_plugins(AncestorMarkerPlugin::<ColliderMarker>::default());
 
-        // Run transform propagation if new colliders without rigid bodies have been added.
-        // The `PreparePlugin` should handle transform propagation for new rigid bodies.
-        app.add_systems(
-            self.schedule,
-            (
-                mark_dirty_trees,
-                propagate_parent_transforms,
-                sync_simple_transforms,
-            )
-                .chain()
-                .run_if(match_any::<(Added<ColliderMarker>, Without<RigidBody>)>)
-                .in_set(PrepareSet::PropagateTransforms)
-                .ambiguous_with_all(),
-        );
-
         // Propagate `ColliderTransform`s if there are new colliders.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         app.add_systems(
             self.schedule,
-            (
-                propagate_collider_transforms,
-                update_child_collider_position.run_if(match_any::<Added<ColliderMarker>>),
-            )
-                .chain()
+            propagate_collider_transforms
                 .after(PrepareSet::InitTransforms)
                 .before(PrepareSet::Finalize),
         );
@@ -81,7 +60,7 @@ impl Plugin for ColliderTransformPlugin {
 
         // Update child collider positions before narrow phase collision detection.
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
-        physics_schedule.add_systems(update_child_collider_position.in_set(NarrowPhaseSet::First));
+        physics_schedule.add_systems(update_child_collider_position.in_set(PhysicsStepSet::First));
     }
 }
 
@@ -251,13 +230,13 @@ unsafe fn propagate_collider_transforms_recursive(
             return;
         };
 
-        changed |= transform_ref.is_changed();
-        if changed {
-            if let Some(mut collider_transform) = collider_transform {
-                if *collider_transform != transform {
-                    *collider_transform = transform;
-                }
-            }
+        changed |=
+            transform_ref.is_changed() || collider_transform.as_ref().is_some_and(|t| t.is_added());
+        if changed
+            && let Some(mut collider_transform) = collider_transform
+            && *collider_transform != transform
+        {
+            *collider_transform = transform;
         }
 
         children
@@ -266,7 +245,8 @@ unsafe fn propagate_collider_transforms_recursive(
     let Some(children) = children else { return };
     for (child, child_transform, is_rb, child_of) in parent_query.iter_many(children) {
         assert_eq!(
-            child_of.parent(), entity,
+            child_of.parent(),
+            entity,
             "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
         );
 

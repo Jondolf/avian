@@ -6,7 +6,9 @@ mod tangent_part;
 pub use normal_part::ContactNormalPart;
 pub use tangent_part::ContactTangentPart;
 
-use crate::prelude::*;
+use crate::{collision::contact_types::ContactId, prelude::*};
+#[cfg(feature = "serialize")]
+use bevy::reflect::{ReflectDeserialize, ReflectSerialize};
 use bevy::{
     ecs::entity::{Entity, EntityMapper, MapEntities},
     reflect::Reflect,
@@ -18,6 +20,9 @@ use super::solver_body::{SolverBody, SolverBodyInertia};
 // TODO: One-body constraint version
 /// Data and logic for solving a single contact point for a [`ContactConstraint`].
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraintPoint {
     /// The normal part of the contact constraint.
     pub normal_part: ContactNormalPart,
@@ -53,16 +58,14 @@ pub struct ContactConstraintPoint {
 /// Each constraint corresponds to a [`ContactManifold`] indicated by the `manifold_index`.
 /// The contact points are stored in `points`, and they all share the same `normal`.
 #[derive(Clone, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, PartialEq)]
 pub struct ContactConstraint {
     /// The first rigid body entity in the contact.
     pub body1: Entity,
     /// The second rigid body entity in the contact.
     pub body2: Entity,
-    // TODO: These aren't needed if we get rid of the lookup in `store_contact_impulses`.
-    /// The first collider entity in the contact.
-    pub collider1: Entity,
-    /// The second collider entity in the contact.
-    pub collider2: Entity,
     /// The relative dominance of the bodies.
     ///
     /// If the relative dominance is positive, the first body is dominant
@@ -89,15 +92,13 @@ pub struct ContactConstraint {
     /// The world-space contact normal shared by all points in the contact manifold.
     pub normal: Vector,
     /// The contact points in the manifold. Each point shares the same `normal`.
+    // TODO: Use a `SmallVec`
     pub points: Vec<ContactConstraintPoint>,
-    /// The index of the [`ContactPair`] in the [`ContactGraph`].
+    /// The stable identifier of the [`ContactEdge`] in the [`ContactGraph`].
     ///
-    /// This is primarily used for ordering contact constraints deterministically
-    /// when parallelism is enabled. The index may be invalidated by contact removal.
-    // TODO: We should figure out a better way to handle deterministic constraint generation.
-    #[cfg(feature = "parallel")]
-    pub pair_index: usize,
-    /// The index of the [`ContactManifold`] in the [`ContactPair`] stored for the two bodies.
+    /// [`ContactEdge`]: crate::collision::contact_types::ContactEdge
+    pub contact_id: ContactId,
+    /// The index of the contact manifold in the [`ContactPair`].
     pub manifold_index: usize,
 }
 
@@ -320,7 +321,7 @@ impl ContactConstraint {
 
 impl MapEntities for ContactConstraint {
     fn map_entities<M: EntityMapper>(&mut self, entity_mapper: &mut M) {
-        self.collider1 = entity_mapper.get_mapped(self.collider1);
-        self.collider2 = entity_mapper.get_mapped(self.collider2);
+        self.body1 = entity_mapper.get_mapped(self.body1);
+        self.body2 = entity_mapper.get_mapped(self.body2);
     }
 }

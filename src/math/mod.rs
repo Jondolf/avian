@@ -5,6 +5,7 @@
 #[cfg(feature = "f32")]
 mod single;
 use approx::abs_diff_ne;
+use glam_matrix_extensions::{SymmetricDMat2, SymmetricDMat3, SymmetricMat2, SymmetricMat3};
 #[cfg(feature = "f32")]
 pub use single::*;
 
@@ -41,6 +42,7 @@ pub(crate) use bevy_math::IVec3 as IVector;
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Ray = Ray2d;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Ray = Ray3d;
@@ -49,6 +51,7 @@ pub(crate) type Ray = Ray3d;
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Dir = Dir2;
+
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Dir = Dir3;
@@ -61,18 +64,19 @@ pub(crate) type AngularVector = Scalar;
 #[cfg(feature = "3d")]
 pub(crate) type AngularVector = Vector;
 
-/// The tensor type chosen based on the dimension.
+/// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.
 ///
 /// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
 #[cfg(feature = "2d")]
-pub(crate) type Tensor = Scalar;
-/// The tensor type chosen based on the dimension.
+pub(crate) type SymmetricTensor = Scalar;
+
+/// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.
 ///
 /// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
 #[cfg(feature = "3d")]
-pub(crate) type Tensor = Matrix3;
+pub(crate) type SymmetricTensor = SymmetricMatrix;
 
 /// Adjust the precision of the math construct to the precision chosen for compilation.
 pub trait AdjustPrecision {
@@ -153,6 +157,24 @@ impl AsF32 for Mat2 {
     }
 }
 
+impl AsF32 for SymmetricDMat2 {
+    type F32 = SymmetricMat2;
+    fn f32(&self) -> Self::F32 {
+        SymmetricMat2 {
+            m00: self.m00 as f32,
+            m01: self.m01 as f32,
+            m11: self.m11 as f32,
+        }
+    }
+}
+
+impl AsF32 for SymmetricMat2 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
 impl AsF32 for DMat3 {
     type F32 = Mat3;
     fn f32(&self) -> Self::F32 {
@@ -161,6 +183,27 @@ impl AsF32 for DMat3 {
 }
 
 impl AsF32 for Mat3 {
+    type F32 = Self;
+    fn f32(&self) -> Self::F32 {
+        *self
+    }
+}
+
+impl AsF32 for SymmetricDMat3 {
+    type F32 = SymmetricMat3;
+    fn f32(&self) -> Self::F32 {
+        SymmetricMat3 {
+            m00: self.m00 as f32,
+            m01: self.m01 as f32,
+            m02: self.m02 as f32,
+            m11: self.m11 as f32,
+            m12: self.m12 as f32,
+            m22: self.m22 as f32,
+        }
+    }
+}
+
+impl AsF32 for SymmetricMat3 {
     type F32 = Self;
     fn f32(&self) -> Self::F32 {
         *self
@@ -319,6 +362,60 @@ impl MatExt for DMat2 {
     }
 }
 
+impl MatExt for SymmetricMat2 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec2::new(self.m00, self.m11);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // All off-diagonal elements must be approximately zero.
+        self.m01.abs() < epsilon
+    }
+}
+
+impl MatExt for SymmetricDMat2 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec2::new(self.m00, self.m11);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon) {
+            return false;
+        }
+
+        // All off-diagonal elements must be approximately zero.
+        self.m01.abs() < epsilon
+    }
+}
+
 impl MatExt for Mat3 {
     type Scalar = f32;
 
@@ -391,6 +488,70 @@ impl MatExt for DMat3 {
             self.z_axis.x,
             self.z_axis.y,
         ];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for SymmetricMat3 {
+    type Scalar = f32;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f32) -> bool {
+        // Extract diagonal elements.
+        let diag = Vec3::new(self.m00, self.m11, self.m22);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.m01, self.m02, self.m12];
+
+        // All off-diagonal elements must be approximately zero.
+        off_diag.iter().all(|&x| x.abs() < epsilon)
+    }
+}
+
+impl MatExt for SymmetricDMat3 {
+    type Scalar = f64;
+
+    #[inline]
+    fn inverse_or_zero(self) -> Self {
+        if self.determinant() == 0.0 {
+            Self::ZERO
+        } else {
+            self.inverse()
+        }
+    }
+
+    #[inline]
+    fn is_isotropic(&self, epsilon: f64) -> bool {
+        // Extract diagonal elements.
+        let diag = DVec3::new(self.m00, self.m11, self.m22);
+
+        // All diagonal elements must be approximately equal.
+        if abs_diff_ne!(diag.x, diag.y, epsilon = epsilon)
+            || abs_diff_ne!(diag.y, diag.z, epsilon = epsilon)
+        {
+            return false;
+        }
+
+        // Extract off-diagonal elements.
+        let off_diag = [self.m01, self.m02, self.m12];
 
         // All off-diagonal elements must be approximately zero.
         off_diag.iter().all(|&x| x.abs() < epsilon)

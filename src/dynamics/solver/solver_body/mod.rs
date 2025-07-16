@@ -14,7 +14,9 @@ pub use plugin::SolverBodyPlugin;
 use bevy::prelude::*;
 
 use super::{Rotation, Vector};
-use crate::{math::Scalar, prelude::LockedAxes, Tensor};
+use crate::{SymmetricTensor, math::Scalar, prelude::LockedAxes};
+#[cfg(feature = "3d")]
+use crate::{math::Quaternion, prelude::ComputedAngularInertia};
 
 // The `SolverBody` layout is inspired by `b2BodyState` in Box2D v3.
 
@@ -184,11 +186,7 @@ The API abstracts over this difference in representation to reduce complexity.
 /// This includes the effective inverse mass and angular inertia,
 /// and flags indicating whether the body is static or has locked axes.
 ///
-/// 16 bytes in 2D and 44 bytes in 3D with the `f32` feature.
-///
-/// The 3D version will be 32 bytes in the future
-/// if/when we switch to a symmetric 3x3 matrix representation
-/// for the angular inertia tensor.
+/// 16 bytes in 2D and 32 bytes in 3D with the `f32` feature.
 #[derive(Component, Clone, Debug, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -212,21 +210,15 @@ pub struct SolverBodyInertia {
     ///
     /// 4 bytes with the `f32` feature.
     #[cfg(feature = "2d")]
-    effective_inv_inertia: Tensor,
+    effective_inv_angular_inertia: SymmetricTensor,
 
-    /// The world-space inverse angular inertia of the body
-    /// before the substepping loop of the solver.
+    /// The world-space inverse angular inertia of the body.
     ///
-    /// Rotate by `delta_rotation` to get the current angular inertia
-    /// during the substepping loop.
-    ///
-    /// 36 bytes with the `f32` feature. This will be 32 bytes
-    /// in the future if/when we switch to a symmetric 3x3 matrix representation.
+    /// 32 bytes with the `f32` feature.
     #[cfg(feature = "3d")]
-    inv_inertia: Tensor,
+    effective_inv_angular_inertia: SymmetricTensor,
 
     // TODO: We could also store the `Dominance` of the body here if we wanted to.
-    // TODO: Technically we don't even need these flags at the moment.
     /// Flags indicating the inertial properties of the body,
     /// like locked axes and whether the body is static.
     ///
@@ -242,9 +234,9 @@ impl Default for SolverBodyInertia {
             #[cfg(feature = "3d")]
             inv_mass: 0.0,
             #[cfg(feature = "2d")]
-            effective_inv_inertia: 0.0,
+            effective_inv_angular_inertia: 0.0,
             #[cfg(feature = "3d")]
-            inv_inertia: Tensor::ZERO,
+            effective_inv_angular_inertia: SymmetricTensor::ZERO,
             flags: InertiaFlags::STATIC,
         }
     }
@@ -299,9 +291,9 @@ impl SolverBodyInertia {
     /// and locked axes.
     #[inline]
     #[cfg(feature = "2d")]
-    pub fn new(inv_mass: Scalar, inv_inertia: Tensor, locked_axes: LockedAxes) -> Self {
+    pub fn new(inv_mass: Scalar, inv_inertia: SymmetricTensor, locked_axes: LockedAxes) -> Self {
         let mut effective_inv_mass = Vector::splat(inv_mass);
-        let mut effective_inv_inertia = inv_inertia;
+        let mut effective_inv_angular_inertia = inv_inertia;
         let mut flags = InertiaFlags(locked_axes.to_bits() as u32);
 
         if inv_mass == 0.0 {
@@ -318,12 +310,12 @@ impl SolverBodyInertia {
             effective_inv_mass.y = 0.0;
         }
         if locked_axes.is_rotation_locked() {
-            effective_inv_inertia = 0.0;
+            effective_inv_angular_inertia = 0.0;
         }
 
         Self {
             effective_inv_mass,
-            effective_inv_inertia,
+            effective_inv_angular_inertia,
             flags: InertiaFlags(flags.0),
         }
     }
@@ -332,19 +324,38 @@ impl SolverBodyInertia {
     /// and locked axes.
     #[inline]
     #[cfg(feature = "3d")]
-    pub fn new(inv_mass: Scalar, inv_inertia: Tensor, locked_axes: LockedAxes) -> Self {
+    pub fn new(inv_mass: Scalar, inv_inertia: SymmetricTensor, locked_axes: LockedAxes) -> Self {
+        let mut effective_inv_angular_inertia = inv_inertia;
         let mut flags = InertiaFlags(locked_axes.to_bits() as u32);
 
         if inv_mass == 0.0 {
             flags |= InertiaFlags::INFINITE_MASS;
         }
-        if inv_inertia == Tensor::ZERO {
+        if inv_inertia == SymmetricTensor::ZERO {
             flags |= InertiaFlags::INFINITE_ANGULAR_INERTIA;
+        }
+
+        if locked_axes.is_rotation_x_locked() {
+            effective_inv_angular_inertia.m00 = 0.0;
+            effective_inv_angular_inertia.m01 = 0.0;
+            effective_inv_angular_inertia.m02 = 0.0;
+        }
+
+        if locked_axes.is_rotation_y_locked() {
+            effective_inv_angular_inertia.m01 = 0.0;
+            effective_inv_angular_inertia.m11 = 0.0;
+            effective_inv_angular_inertia.m12 = 0.0;
+        }
+
+        if locked_axes.is_rotation_z_locked() {
+            effective_inv_angular_inertia.m02 = 0.0;
+            effective_inv_angular_inertia.m12 = 0.0;
+            effective_inv_angular_inertia.m22 = 0.0;
         }
 
         Self {
             inv_mass,
-            inv_inertia,
+            effective_inv_angular_inertia,
             flags: InertiaFlags(flags.0),
         }
     }
@@ -381,33 +392,50 @@ impl SolverBodyInertia {
     /// taking into account any locked axes.
     #[inline]
     #[cfg(feature = "2d")]
-    pub fn effective_inv_angular_inertia(&self) -> Tensor {
-        self.effective_inv_inertia
+    pub fn effective_inv_angular_inertia(&self) -> SymmetricTensor {
+        self.effective_inv_angular_inertia
     }
 
     /// Returns the effective inverse angular inertia of the body in world space,
     /// taking into account any locked axes.
-    ///
-    /// Note that this is the world-space value from before the substepping loop,
-    /// which may have changed if the body has rotated. For most cases,
-    /// the difference should be acceptable.
     #[inline]
     #[cfg(feature = "3d")]
-    pub fn effective_inv_angular_inertia(&self) -> Tensor {
-        let mut inv_inertia = self.inv_inertia;
+    pub fn effective_inv_angular_inertia(&self) -> SymmetricTensor {
+        self.effective_inv_angular_inertia
+    }
 
-        // TODO: Should we just store the effective version directly rather than computing it here?
-        if self.flags.contains(InertiaFlags::ROTATION_X_LOCKED) {
-            inv_inertia.x_axis = Vector::ZERO;
-        }
-        if self.flags.contains(InertiaFlags::ROTATION_Y_LOCKED) {
-            inv_inertia.y_axis = Vector::ZERO;
-        }
-        if self.flags.contains(InertiaFlags::ROTATION_Z_LOCKED) {
-            inv_inertia.z_axis = Vector::ZERO;
+    /// Updates the effective inverse angular inertia of the body in world space,
+    /// taking into account any locked axes.
+    #[inline]
+    #[cfg(feature = "3d")]
+    pub fn update_effective_inv_angular_inertia(
+        &mut self,
+        computed_angular_inertia: &ComputedAngularInertia,
+        rotation: Quaternion,
+    ) {
+        let locked_axes = self.flags.locked_axes();
+        let mut effective_inv_angular_inertia =
+            computed_angular_inertia.rotated(rotation).inverse();
+
+        if locked_axes.is_rotation_x_locked() {
+            effective_inv_angular_inertia.m00 = 0.0;
+            effective_inv_angular_inertia.m01 = 0.0;
+            effective_inv_angular_inertia.m02 = 0.0;
         }
 
-        inv_inertia
+        if locked_axes.is_rotation_y_locked() {
+            effective_inv_angular_inertia.m11 = 0.0;
+            effective_inv_angular_inertia.m01 = 0.0;
+            effective_inv_angular_inertia.m12 = 0.0;
+        }
+
+        if locked_axes.is_rotation_z_locked() {
+            effective_inv_angular_inertia.m22 = 0.0;
+            effective_inv_angular_inertia.m02 = 0.0;
+            effective_inv_angular_inertia.m12 = 0.0;
+        }
+
+        self.effective_inv_angular_inertia = effective_inv_angular_inertia;
     }
 
     /// Updates the inverse angular inertia of the body in world space.

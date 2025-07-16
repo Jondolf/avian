@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{
     ecs::{
         component::Mutable,
-        entity::{hash_set::EntityHashSet, EntityMapper, MapEntities},
+        entity::{EntityMapper, MapEntities, hash_set::EntityHashSet},
         system::{ReadOnlySystemParam, SystemParam, SystemParamItem},
     },
     prelude::*,
@@ -36,9 +36,6 @@ mod parry;
     any(feature = "parry-f32", feature = "parry-f64")
 ))]
 pub use parry::*;
-
-mod world_query;
-pub use world_query::*;
 
 #[cfg(feature = "default-collider")]
 mod constructor;

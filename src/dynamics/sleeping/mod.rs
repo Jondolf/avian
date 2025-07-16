@@ -11,6 +11,8 @@ use dynamics::rigid_body::forces::{
     AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWorldForces,
 };
 
+use super::solver::constraint_graph::ConstraintGraph;
+
 /// Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.
 ///
 /// Bodies are marked as [`Sleeping`] when their linear and angular velocities are below the [`SleepingThreshold`]
@@ -56,6 +58,61 @@ impl Plugin for SleepingPlugin {
                 last_physics_tick.0 = system_change_tick.this_run();
             })
             .after(PhysicsStepSet::Last),
+        );
+
+        app.add_observer(
+            |trigger: Trigger<OnAdd, Sleeping>,
+             mut contact_graph: ResMut<ContactGraph>,
+             mut constraint_graph: ResMut<ConstraintGraph>| {
+                contact_graph.sleep_entity_with(trigger.target(), |graph, contact_pair| {
+                    // Remove touching contacts from the constraint graph.
+                    if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                        return;
+                    }
+                    let contact_edge = graph
+                        .get_edge_mut_by_id(contact_pair.contact_id)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Contact edge with id {:?} not found in contact graph.",
+                                contact_pair.contact_id
+                            )
+                        });
+                    if let (Some(body1), Some(body2)) = (contact_pair.body1, contact_pair.body2) {
+                        for _ in 0..contact_edge.constraint_handles.len() {
+                            constraint_graph.pop_manifold(
+                                &mut graph.edges,
+                                contact_pair.contact_id,
+                                body1,
+                                body2,
+                            );
+                        }
+                    }
+                });
+            },
+        );
+
+        app.add_observer(
+            |trigger: Trigger<OnRemove, Sleeping>,
+             mut contact_graph: ResMut<ContactGraph>,
+             mut constraint_graph: ResMut<ConstraintGraph>| {
+                contact_graph.wake_entity_with(trigger.target(), |graph, contact_pair| {
+                    // Add touching contacts to the constraint graph.
+                    if !contact_pair.is_touching() || contact_pair.is_sensor() {
+                        return;
+                    }
+                    let contact_edge = graph
+                        .get_edge_mut_by_id(contact_pair.contact_id)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "Contact edge with id {:?} not found in contact graph.",
+                                contact_pair.contact_id
+                            )
+                        });
+                    for _ in contact_pair.manifolds.iter() {
+                        constraint_graph.push_manifold(contact_edge, contact_pair);
+                    }
+                });
+            },
         );
     }
 }
@@ -153,7 +210,7 @@ pub fn mark_sleeping_bodies(
     let delta_secs = time.delta_seconds_adjusted();
 
     for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
-        let colliding_entities = contact_graph.collisions_with(entity).map(|c| {
+        let colliding_entities = contact_graph.contact_pairs_with(entity).map(|c| {
             if entity == c.collider1 {
                 c.collider2
             } else {

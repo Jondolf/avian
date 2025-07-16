@@ -23,7 +23,7 @@ use bevy::{
     },
     prelude::*,
 };
-use mass_properties::{components::RecomputeMassProperties, MassPropertySystems};
+use mass_properties::{MassPropertySystems, components::RecomputeMassProperties};
 
 /// A plugin for handling generic collider backend logic.
 ///
@@ -415,9 +415,11 @@ fn init_collider_constructor_hierarchies(
                     .cloned()
                     .unwrap_or_else(default_collider)
             } else if existing_collider.is_some() {
-                warn!("Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                warn!(
+                    "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but that entity already holds a collider. Skipping. \
-                        If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`.");
+                        If this was intentional, add the name of the collider to overwrite to `ColliderConstructorHierarchy.config`."
+                );
                 continue;
             } else {
                 default_collider()
@@ -472,9 +474,9 @@ fn init_collider_constructor_hierarchies(
                 ));
             } else {
                 error!(
-                        "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
+                    "Tried to add a collider to entity {pretty_name} via {collider_constructor_hierarchy:#?}, \
                         but the collider could not be generated. Skipping.",
-                    );
+                );
             }
         }
 

@@ -18,7 +18,7 @@
 use core::time::Duration;
 
 use crate::{
-    math::{Vector, PI},
+    math::{PI, Vector},
     prelude::*,
 };
 use bevy::{ecs::system::SystemParam, prelude::*, time::TimeUpdateStrategy};
@@ -62,11 +62,13 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0x129c50db;
+    let expected = 0x374904f0;
 
     assert!(
         hash == expected,
-        "\nExpected transform hash 0x{:x}, found 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 61.\n", expected, hash,
+        "\nExpected transform hash 0x{:x}, found 0x{:x} instead.\nIf changes in behavior were expected, update the hash in src/tests/determinism_2d.rs on line 61.\n",
+        expected,
+        hash,
     );
 }
 

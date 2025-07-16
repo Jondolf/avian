@@ -5,12 +5,14 @@ use bevy::{
 };
 use core::time::Duration;
 
-use crate::diagnostics::{impl_diagnostic_paths, PhysicsDiagnostics};
+use crate::diagnostics::{PhysicsDiagnostics, impl_diagnostic_paths};
 
 /// Diagnostics for the physics solver.
 #[derive(Resource, Debug, Default, Reflect)]
 #[reflect(Resource, Debug)]
 pub struct SolverDiagnostics {
+    /// Time spent preparing constraints.
+    pub prepare_constraints: Duration,
     /// Time spent preparing or clearing velocity increments in [`VelocityIntegrationData`]s.
     ///
     /// [`VelocityIntegrationData`]: crate::dynamics::integrator::VelocityIntegrationData
@@ -40,6 +42,7 @@ pub struct SolverDiagnostics {
 impl PhysicsDiagnostics for SolverDiagnostics {
     fn timer_paths(&self) -> Vec<(&'static DiagnosticPath, Duration)> {
         vec![
+            (Self::PREPARE_CONSTRAINTS, self.prepare_constraints),
             (
                 Self::UPDATE_VELOCITY_INCREMENTS,
                 self.update_velocity_increments,
@@ -66,6 +69,7 @@ impl PhysicsDiagnostics for SolverDiagnostics {
 
 impl_diagnostic_paths! {
     impl SolverDiagnostics {
+        PREPARE_CONSTRAINTS: "avian/solver/prepare_constraints",
         UPDATE_VELOCITY_INCREMENTS: "avian/solver/update_velocity_increments",
         INTEGRATE_VELOCITIES: "avian/solver/integrate_velocities",
         WARM_START: "avian/solver/warm_start",

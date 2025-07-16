@@ -300,33 +300,32 @@ impl RayCaster {
             );
 
             let mut leaf_callback = &mut |index: &u32| {
-                if let Some(proxy) = query_pipeline.proxies.get(*index as usize) {
-                    if self.query_filter.test(proxy.entity, proxy.layers) {
-                        if let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
-                            &proxy.isometry,
-                            &ray,
-                            self.max_distance,
-                            self.solid,
-                        ) {
-                            if (hits.vector.len() as u32) < hits.count + 1 {
-                                hits.vector.push(RayHitData {
-                                    entity: proxy.entity,
-                                    distance: hit.time_of_impact,
-                                    normal: hit.normal.into(),
-                                });
-                            } else {
-                                hits.vector[hits.count as usize] = RayHitData {
-                                    entity: proxy.entity,
-                                    distance: hit.time_of_impact,
-                                    normal: hit.normal.into(),
-                                };
-                            }
-
-                            hits.count += 1;
-
-                            return hits.count < self.max_hits;
-                        }
+                if let Some(proxy) = query_pipeline.proxies.get(*index as usize)
+                    && self.query_filter.test(proxy.entity, proxy.layers)
+                    && let Some(hit) = proxy.collider.shape_scaled().cast_ray_and_get_normal(
+                        &proxy.isometry,
+                        &ray,
+                        self.max_distance,
+                        self.solid,
+                    )
+                {
+                    if (hits.vector.len() as u32) < hits.count + 1 {
+                        hits.vector.push(RayHitData {
+                            entity: proxy.entity,
+                            distance: hit.time_of_impact,
+                            normal: hit.normal.into(),
+                        });
+                    } else {
+                        hits.vector[hits.count as usize] = RayHitData {
+                            entity: proxy.entity,
+                            distance: hit.time_of_impact,
+                            normal: hit.normal.into(),
+                        };
                     }
+
+                    hits.count += 1;
+
+                    return hits.count < self.max_hits;
                 }
                 true
             };

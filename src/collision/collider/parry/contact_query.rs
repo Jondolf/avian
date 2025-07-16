@@ -184,36 +184,33 @@ pub fn contact_manifolds(
     manifolds.clear();
 
     // Fall back to support map contacts for unsupported (custom) shapes.
-    if result.is_err() {
-        if let (Some(shape1), Some(shape2)) = (
+    if result.is_err()
+        && let (Some(shape1), Some(shape2)) = (
             collider1.shape_scaled().as_support_map(),
             collider2.shape_scaled().as_support_map(),
-        ) {
-            if let Some(contact) = parry::query::contact::contact_support_map_support_map(
-                &isometry12,
-                shape1,
-                shape2,
-                prediction_distance,
-            ) {
-                let normal = rotation1 * Vector::from(contact.normal1);
+        )
+        && let Some(contact) = parry::query::contact::contact_support_map_support_map(
+            &isometry12,
+            shape1,
+            shape2,
+            prediction_distance,
+        )
+    {
+        let normal = rotation1 * Vector::from(contact.normal1);
 
-                // Make sure the normal is valid
-                if !normal.is_normalized() {
-                    return;
-                }
-
-                let points = [ContactPoint::new(
-                    contact.point1.into(),
-                    contact.point2.into(),
-                    -contact.dist,
-                )];
-
-                manifolds.push(ContactManifold::new(points, normal, 0));
-            }
+        // Make sure the normal is valid
+        if !normal.is_normalized() {
+            return;
         }
-    }
 
-    let mut manifold_index = 0;
+        let points = [ContactPoint::new(
+            contact.point1.into(),
+            contact.point2.into(),
+            -contact.dist,
+        )];
+
+        manifolds.push(ContactManifold::new(points, normal));
+    }
 
     manifolds.extend(new_manifolds.iter().filter_map(|manifold| {
         // Skip empty manifolds.
@@ -244,9 +241,7 @@ pub fn contact_manifolds(
             .with_feature_ids(contact.fid1.into(), contact.fid2.into())
         });
 
-        let manifold = ContactManifold::new(points, normal, manifold_index);
-
-        manifold_index += 1;
+        let manifold = ContactManifold::new(points, normal);
 
         Some(manifold)
     }));

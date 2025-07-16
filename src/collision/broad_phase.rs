@@ -8,14 +8,17 @@ use core::marker::PhantomData;
 use crate::{data_structures::pair_key::PairKey, prelude::*};
 use bevy::{
     ecs::{
-        entity::{EntityHashSet, EntityMapper, MapEntities},
+        entity::{EntityMapper, MapEntities},
         entity_disabling::Disabled,
-        system::{lifetimeless::Read, StaticSystemParam, SystemParamItem},
+        system::{StaticSystemParam, SystemParamItem, lifetimeless::Read},
     },
     prelude::*,
 };
 
-use super::CollisionDiagnostics;
+use super::{
+    CollisionDiagnostics,
+    contact_types::{ContactEdge, ContactEdgeFlags},
+};
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s to reduce
 /// the number of potential contacts for the [narrow phase](super::narrow_phase).
@@ -67,6 +70,38 @@ where
 
         physics_schedule
             .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
+
+        app.add_observer(
+            |trigger: Trigger<OnRemove, (Disabled, ColliderDisabled)>,
+             query: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
+             rbs: Query<&RigidBody>,
+             mut intervals: ResMut<AabbIntervals>| {
+                let entity = trigger.target();
+
+                // Re-enable the collider.
+                if let Ok((entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)) =
+                    query.get(entity)
+                {
+                    let flags = init_aabb_interval_flags(
+                        collider_of,
+                        &rbs,
+                        is_sensor,
+                        events_enabled,
+                        hooks,
+                    );
+                    let interval = (
+                        entity,
+                        collider_of.map_or(ColliderOf { body: entity }, |p| *p),
+                        *aabb,
+                        *layers,
+                        flags,
+                    );
+
+                    // Add the re-enabled collider to the intervals.
+                    intervals.0.push(interval);
+                }
+            },
+        );
     }
 
     fn finish(&self, app: &mut App) {
@@ -91,14 +126,14 @@ pub enum BroadPhaseSet {
 
 /// Entities with [`ColliderAabb`]s sorted along an axis by their extents.
 #[derive(Resource, Default)]
-struct AabbIntervals(
-    Vec<(
-        Entity,
-        ColliderOf,
-        ColliderAabb,
-        CollisionLayers,
-        AabbIntervalFlags,
-    )>,
+struct AabbIntervals(Vec<AabbInterval>);
+
+type AabbInterval = (
+    Entity,
+    ColliderOf,
+    ColliderAabb,
+    CollisionLayers,
+    AabbIntervalFlags,
 );
 
 bitflags::bitflags! {
@@ -197,7 +232,6 @@ type AabbIntervalQueryData = (
     Entity,
     Option<Read<ColliderOf>>,
     Read<ColliderAabb>,
-    Option<Read<RigidBody>>,
     Read<CollisionLayers>,
     Has<Sensor>,
     Has<CollisionEventsEnabled>,
@@ -210,35 +244,13 @@ type AabbIntervalQueryData = (
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    aabbs: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
+    rbs: Query<&RigidBody>,
     mut intervals: ResMut<AabbIntervals>,
-    mut re_enabled_colliders: RemovedComponents<ColliderDisabled>,
-    mut re_enabled_entities: RemovedComponents<Disabled>,
 ) {
-    // Collect re-enabled entities without duplicates.
-    let re_enabled = re_enabled_colliders
-        .read()
-        .chain(re_enabled_entities.read())
-        .collect::<EntityHashSet>();
-    let re_enabled_aabbs = aabbs.iter_many(re_enabled);
-
-    let aabbs = added_aabbs.iter().chain(re_enabled_aabbs).map(
-        |(entity, collider_of, aabb, rb, layers, is_sensor, events_enabled, hooks)| {
-            let mut flags = AabbIntervalFlags::empty();
-            flags.set(
-                AabbIntervalFlags::IS_INACTIVE,
-                rb.is_some_and(|rb| rb.is_static()),
-            );
-            flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
-            flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);
-            flags.set(
-                AabbIntervalFlags::CUSTOM_FILTER,
-                hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
-            );
-            flags.set(
-                AabbIntervalFlags::MODIFY_CONTACTS,
-                hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::MODIFY_CONTACTS)),
-            );
+    let aabbs = added_aabbs.iter().map(
+        |(entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)| {
+            let flags =
+                init_aabb_interval_flags(collider_of, &rbs, is_sensor, events_enabled, hooks);
             (
                 entity,
                 collider_of.map_or(ColliderOf { body: entity }, |p| *p),
@@ -249,6 +261,32 @@ fn add_new_aabb_intervals(
         },
     );
     intervals.0.extend(aabbs);
+}
+
+fn init_aabb_interval_flags(
+    collider_of: Option<&ColliderOf>,
+    rbs: &Query<&RigidBody>,
+    is_sensor: bool,
+    events_enabled: bool,
+    hooks: Option<&ActiveCollisionHooks>,
+) -> AabbIntervalFlags {
+    let mut flags = AabbIntervalFlags::empty();
+    flags.set(
+        AabbIntervalFlags::IS_INACTIVE,
+        collider_of
+            .is_some_and(|collider_of| rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)),
+    );
+    flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
+    flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);
+    flags.set(
+        AabbIntervalFlags::CUSTOM_FILTER,
+        hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::FILTER_PAIRS)),
+    );
+    flags.set(
+        AabbIntervalFlags::MODIFY_CONTACTS,
+        hooks.is_some_and(|h| h.contains(ActiveCollisionHooks::MODIFY_CONTACTS)),
+    );
+    flags
 }
 
 /// Finds pairs of entities with overlapping [`ColliderAabb`]s
@@ -338,30 +376,31 @@ fn sweep_and_prune<H: CollisionHooks>(
 
             // Create a new contact pair as non-touching.
             // The narrow phase will determine if the entities are touching and compute contact data.
-            let mut contacts = ContactPair::new(*entity1, *entity2);
-
-            // Initialize flags and other data for the contact pair.
-            contacts.body1 = Some(collider_of1.body);
-            contacts.body2 = Some(collider_of2.body);
-            contacts.flags.set(
-                ContactPairFlags::SENSOR,
-                flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
-            );
-            contacts.flags.set(
-                ContactPairFlags::CONTACT_EVENTS,
+            let mut contact_edge = ContactEdge::new(*entity1, *entity2);
+            contact_edge.flags.set(
+                ContactEdgeFlags::CONTACT_EVENTS,
                 flags1
                     .union(*flags2)
                     .contains(AabbIntervalFlags::CONTACT_EVENTS),
             );
-            contacts.flags.set(
-                ContactPairFlags::MODIFY_CONTACTS,
-                flags1
-                    .union(*flags2)
-                    .contains(AabbIntervalFlags::MODIFY_CONTACTS),
-            );
-
-            // Add the contact pair to the contact graph.
-            contact_graph.add_pair_with_key(contacts, pair_key);
+            contact_graph
+                .add_edge_and_key_with(contact_edge, pair_key, |contact_pair| {
+                    contact_pair.body1 = Some(collider_of1.body);
+                    contact_pair.body2 = Some(collider_of2.body);
+                    contact_pair.flags.set(
+                        ContactPairFlags::MODIFY_CONTACTS,
+                        flags1
+                            .union(*flags2)
+                            .contains(AabbIntervalFlags::MODIFY_CONTACTS),
+                    );
+                    contact_pair.flags.set(
+                        ContactPairFlags::SENSOR,
+                        flags1.union(*flags2).contains(AabbIntervalFlags::IS_SENSOR),
+                    );
+                })
+                .unwrap_or_else(|| {
+                    panic!("Pair key already exists in contact graph: {pair_key:?}")
+                });
         }
     }
 }

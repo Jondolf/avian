@@ -15,7 +15,7 @@
 //! <https://github.com/erincatto/box2d/blob/90c2781f64775085035655661d5fe6542bf0fbd5/samples/sample_determinism.cpp>
 
 use avian2d::{
-    math::{AdjustPrecision, Scalar, Vector, PI},
+    math::{AdjustPrecision, PI, Scalar, Vector},
     prelude::*,
 };
 use bevy::{
@@ -214,12 +214,17 @@ fn clear_scene(
             With<Camera>,
         )>,
     >,
+    mut collisions: Collisions,
     mut step: ResMut<Step>,
 ) {
     step.0 = 0;
     for entity in &query {
         commands.entity(entity).despawn();
     }
+
+    // We need to clear the contact graph and constraint graph to make sure
+    // that previous contacts and constraints do not affect the simulation.
+    collisions.clear();
 }
 
 #[derive(Pod, Zeroable, Clone, Copy)]

@@ -1,7 +1,7 @@
 [package]
 name = "avian2d"
 version = "0.3.0"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Joona Aalto <jondolf.dev@gmail.com>"]
 description = "An ECS-driven physics engine for the Bevy game engine"
@@ -52,6 +52,7 @@ bevy_picking = ["bevy/bevy_picking"]
 serialize = [
     "dep:serde",
     "bevy/serialize",
+    "glam_matrix_extensions/serde",
     "bevy_heavy/serialize",
     "bevy_transform_interpolation/serialize",
     "parry2d?/serde-serialize",
@@ -78,7 +79,10 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_log",
 ] }
 bevy_math = { version = "0.16" }
-bevy_heavy = { version = "0.2" }
+glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
+    "bevy_reflect",
+] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git" }
 bevy_transform_interpolation = { version = "0.2" }
 libm = { version = "0.2", optional = true }
 approx = "0.5"
@@ -88,6 +92,7 @@ nalgebra = { version = "0.33", features = ["convert-glam029"], optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 derive_more = "1"
 arrayvec = "0.7"
+smallvec = "1.15"
 itertools = "0.13"
 bitflags = "2.5.0"
 thread_local = { version = "1.1", optional = true }
@@ -95,7 +100,9 @@ thread_local = { version = "1.1", optional = true }
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
 bevy_math = { version = "0.16", features = ["approx"] }
-bevy_heavy = { version = "0.2", features = ["approx"] }
+bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
+    "approx",
+] }
 glam = { version = "0.29", features = ["bytemuck"] }
 bytemuck = "1.19"
 criterion = { version = "0.5", features = ["html_reports"] }

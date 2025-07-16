@@ -320,8 +320,8 @@ impl RevoluteJoint {
         &mut self,
         body1: &mut SolverBody,
         body2: &mut SolverBody,
-        inv_angular_inertia1: Tensor,
-        inv_angular_inertia2: Tensor,
+        inv_angular_inertia1: SymmetricTensor,
+        inv_angular_inertia2: SymmetricTensor,
         dt: Scalar,
     ) -> AngularVector {
         let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
