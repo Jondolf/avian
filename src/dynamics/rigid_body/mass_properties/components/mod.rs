@@ -691,7 +691,7 @@ impl AngularInertia {
     /// Returns a [`MatConversionError`] if the given matrix is not symmetric.
     #[inline]
     pub fn try_from_mat3(mat: Mat3) -> Result<Self, MatConversionError> {
-        SymmetricTensor::try_from_mat3(mat).map(Self::from_tensor)
+        SymmetricMat3::try_from_mat3(mat).map(Self::from_tensor)
     }
 
     /// Creates a new [`AngularInertiaTensor`] from the given angular inertia [tensor]
