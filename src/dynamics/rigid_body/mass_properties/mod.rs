@@ -197,8 +197,6 @@
 //! taking into account the mass properties of descendants and colliders.
 
 use crate::{prelude::*, prepare::PrepareSet};
-#[cfg(feature = "3d")]
-use bevy::ecs::query::QueryFilter;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
@@ -319,12 +317,7 @@ impl Plugin for MassPropertyPlugin {
         // Update mass properties for entities with the `RecomputeMassProperties` component.
         app.add_systems(
             self.schedule,
-            (
-                update_mass_properties,
-                #[cfg(feature = "3d")]
-                update_global_angular_inertia::<Added<RigidBody>>,
-                warn_missing_mass,
-            )
+            (update_mass_properties, warn_missing_mass)
                 .chain()
                 .in_set(MassPropertySystems::UpdateComputedMassProperties),
         );
@@ -408,25 +401,6 @@ fn update_mass_properties(
         mass_helper.update_mass_properties(entity);
         commands.entity(entity).remove::<RecomputeMassProperties>();
     }
-}
-
-/// Updates [`GlobalAngularInertia`] for entities that match the given query filter `F`.
-#[cfg(feature = "3d")]
-pub(crate) fn update_global_angular_inertia<F: QueryFilter>(
-    mut query: Populated<
-        (
-            &Rotation,
-            &ComputedAngularInertia,
-            &mut GlobalAngularInertia,
-        ),
-        (Or<(Changed<ComputedAngularInertia>, Changed<Rotation>)>, F),
-    >,
-) {
-    query
-        .par_iter_mut()
-        .for_each(|(rotation, angular_inertia, mut global_angular_inertia)| {
-            global_angular_inertia.update(*angular_inertia, rotation.0);
-        });
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].

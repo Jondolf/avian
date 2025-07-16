@@ -417,8 +417,9 @@ struct BodyQuery {
     rotation: Read<Rotation>,
     dominance: Option<Read<Dominance>>,
     mass: Read<ComputedMass>,
-    angular_inertia: Read<GlobalAngularInertia>,
+    angular_inertia: Read<ComputedAngularInertia>,
     center_of_mass: Read<ComputedCenterOfMass>,
+    locked_axes: Option<Read<LockedAxes>>,
     linear_velocity: Read<LinearVelocity>,
     angular_velocity: Read<AngularVelocity>,
 }
@@ -434,6 +435,24 @@ impl BodyQueryItem<'_> {
         } else {
             self.dominance.map_or(0, |dominance| dominance.0) as i16
         }
+    }
+
+    /// Computes the effective world-space angular inertia, taking into account any rotation locking.
+    pub fn effective_global_angular_inertia(&self) -> ComputedAngularInertia {
+        if !self.rb.is_dynamic() {
+            return ComputedAngularInertia::INFINITY;
+        }
+
+        #[cfg(feature = "2d")]
+        let mut angular_inertia = *self.angular_inertia;
+        #[cfg(feature = "3d")]
+        let mut angular_inertia = self.angular_inertia.rotated(self.rotation.0);
+
+        if let Some(locked_axes) = self.locked_axes {
+            angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
+        }
+
+        angular_inertia
     }
 }
 
@@ -511,21 +530,21 @@ fn prepare_contact_constraints(
             let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
                 Ordering::Equal => (
                     body1.mass.inverse(),
-                    body1.angular_inertia.value(),
+                    body1.effective_global_angular_inertia(),
                     body2.mass.inverse(),
-                    body2.angular_inertia.value(),
+                    body2.effective_global_angular_inertia(),
                 ),
                 Ordering::Greater => (
                     0.0,
-                    SymmetricTensor::ZERO,
+                    ComputedAngularInertia::INFINITY,
                     body2.mass.inverse(),
-                    body2.angular_inertia.value(),
+                    body2.effective_global_angular_inertia(),
                 ),
                 Ordering::Less => (
                     body1.mass.inverse(),
-                    body1.angular_inertia.value(),
+                    body1.effective_global_angular_inertia(),
                     0.0,
-                    SymmetricTensor::ZERO,
+                    ComputedAngularInertia::INFINITY,
                 ),
             };
 

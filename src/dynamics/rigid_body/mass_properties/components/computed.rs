@@ -415,8 +415,6 @@ impl From<ComputedAngularInertia> for AngularInertia {
 /// # Related Types
 ///
 /// - [`AngularInertia`] can be used to set the local angular inertia associated with an individual entity.
-/// - [`GlobalAngularInertia`] stores the world-space angular inertia tensor, which is automatically recomputed
-///   whenever the local angular inertia or rotation is changed.
 /// - [`ComputedMass`] stores the total mass of a rigid body, taking into account colliders and descendants.
 /// - [`ComputedCenterOfMass`] stores the total center of mass of a rigid body, taking into account colliders and descendants.
 /// - [`MassPropertyHelper`] is a [`SystemParam`] with utilities for computing and updating mass properties.
@@ -750,62 +748,6 @@ impl core::ops::Mul<Vector> for ComputedAngularInertia {
     #[inline]
     fn mul(self, rhs: Vector) -> Vector {
         self.value() * rhs
-    }
-}
-
-// In 2D, the global angular inertia is the same as the local angular inertia.
-#[cfg(feature = "2d")]
-pub(crate) type GlobalAngularInertia = ComputedAngularInertia;
-
-/// The total world-space angular inertia computed for a dynamic [rigid body], taking into account
-/// colliders and descendants.
-///
-/// A total angular inertia of zero is a special case, and is interpreted as infinite angular inertia,
-/// meaning the rigid body will not be affected by any torque.
-///
-/// This component is updated automatically whenever the local [`ComputedAngularInertia`] or rotation is changed.
-/// To manually update it, use the associated [`update`](Self::update) method.
-///
-/// [rigid body]: RigidBody
-#[cfg(feature = "3d")]
-#[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, PartialEq, From)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Debug, Component, PartialEq)]
-pub struct GlobalAngularInertia(ComputedAngularInertia);
-
-#[cfg(feature = "3d")]
-impl GlobalAngularInertia {
-    /// Creates a new [`GlobalAngularInertia`] from the given local angular inertia and rotation.
-    pub fn new(
-        local_angular_inertia: impl Into<ComputedAngularInertia>,
-        rotation: impl Into<Quaternion>,
-    ) -> Self {
-        let local_angular_inertia: ComputedAngularInertia = local_angular_inertia.into();
-        Self(local_angular_inertia.rotated(rotation.into()))
-    }
-
-    /// Updates the global angular inertia with the given local angular inertia and rotation.
-    pub fn update(
-        &mut self,
-        local_angular_inertia: impl Into<ComputedAngularInertia>,
-        rotation: impl Into<Quaternion>,
-    ) {
-        *self = Self::new(local_angular_inertia, rotation);
-    }
-}
-
-#[cfg(feature = "3d")]
-impl From<GlobalAngularInertia> for ComputedAngularInertia {
-    fn from(inertia: GlobalAngularInertia) -> Self {
-        inertia.0
-    }
-}
-
-#[cfg(feature = "3d")]
-impl From<SymmetricMatrix> for GlobalAngularInertia {
-    fn from(tensor: SymmetricMatrix) -> Self {
-        Self(ComputedAngularInertia::from_tensor(tensor))
     }
 }
 

@@ -239,18 +239,25 @@ bitflags::bitflags! {
         const ROTATION_Y_LOCKED = 0b000_010;
         /// Set if rotation around the `Z` axis is locked.
         const ROTATION_Z_LOCKED = 0b000_001;
-        /// Set if the body has infinite mass.
-        const INFINITE_MASS = 1 << 6;
-        /// Set if the body has infinite inertia.
-        const INFINITE_ANGULAR_INERTIA = 1 << 7;
         /// Set if all translational axes are locked.
         const TRANSLATION_LOCKED = Self::TRANSLATION_X_LOCKED.bits() | Self::TRANSLATION_Y_LOCKED.bits() | Self::TRANSLATION_Z_LOCKED.bits();
         /// Set if all rotational axes are locked.
         const ROTATION_LOCKED = Self::ROTATION_X_LOCKED.bits() | Self::ROTATION_Y_LOCKED.bits() | Self::ROTATION_Z_LOCKED.bits();
         /// Set if all translational and rotational axes are locked.
         const ALL_LOCKED = Self::TRANSLATION_LOCKED.bits() | Self::ROTATION_LOCKED.bits();
+        /// Set if the body has infinite mass.
+        const INFINITE_MASS = 1 << 6;
+        /// Set if the body has infinite inertia.
+        const INFINITE_ANGULAR_INERTIA = 1 << 7;
         /// Set if the body is static.
         const STATIC = Self::INFINITE_MASS.bits() | Self::INFINITE_ANGULAR_INERTIA.bits();
+    }
+}
+
+impl InertiaFlags {
+    /// Returns the [`LockedAxes`] of the body.
+    pub fn locked_axes(&self) -> LockedAxes {
+        LockedAxes::from_bits(self.0 as u8)
     }
 }
 
@@ -380,8 +387,8 @@ impl SolverBodyInertia {
         &mut self,
         computed_angular_inertia: &ComputedAngularInertia,
         rotation: Quaternion,
-        locked_axes: LockedAxes,
     ) {
+        let locked_axes = self.flags.locked_axes();
         let mut effective_inv_angular_inertia =
             computed_angular_inertia.rotated(rotation).inverse();
 

@@ -6,7 +6,7 @@
 #[doc(alias = "symplectic_euler")]
 pub mod semi_implicit_euler;
 
-use crate::prelude::*;
+use crate::{dynamics::solver::solver_body::SolverBodyInertia, prelude::*};
 use bevy::{
     ecs::{intern::Interned, query::QueryData, schedule::ScheduleLabel},
     prelude::*,
@@ -60,14 +60,6 @@ impl Plugin for IntegratorPlugin {
                 integrate_velocities.in_set(IntegrationSet::Velocity),
                 integrate_positions.in_set(IntegrationSet::Position),
             ),
-        );
-
-        #[cfg(feature = "3d")]
-        app.add_systems(
-            self.schedule.intern(),
-            dynamics::rigid_body::mass_properties::update_global_angular_inertia::<()>
-                .in_set(IntegrationSet::Position)
-                .after(integrate_positions),
         );
 
         app.get_schedule_mut(PhysicsSchedule)
@@ -153,10 +145,9 @@ struct VelocityIntegrationQuery {
     rot: &'static Rotation,
     force: &'static ExternalForce,
     torque: &'static ExternalTorque,
+    inertia: &'static SolverBodyInertia,
     mass: &'static ComputedMass,
     angular_inertia: &'static ComputedAngularInertia,
-    #[cfg(feature = "3d")]
-    global_angular_inertia: &'static GlobalAngularInertia,
     lin_damping: Option<&'static LinearDamping>,
     ang_damping: Option<&'static AngularDamping>,
     max_linear_speed: Option<&'static MaxLinearSpeed>,
@@ -221,9 +212,9 @@ fn integrate_velocities(
                 external_force,
                 external_torque,
                 *body.mass,
-                body.angular_inertia,
+                &body.inertia.effective_inv_angular_inertia(),
                 #[cfg(feature = "3d")]
-                body.global_angular_inertia,
+                body.angular_inertia,
                 #[cfg(feature = "3d")]
                 rotation,
                 locked_axes,
@@ -260,7 +251,7 @@ fn integrate_velocities(
 }
 
 #[allow(clippy::type_complexity)]
-fn integrate_positions(
+pub(crate) fn integrate_positions(
     mut solver_bodies: Query<&mut SolverBody>,
     time: Res<Time>,
     mut diagnostics: ResMut<SolverDiagnostics>,
@@ -308,39 +299,22 @@ type ImpulseQueryComponents = (
     &'static mut ExternalAngularImpulse,
     &'static mut LinearVelocity,
     &'static mut AngularVelocity,
-    &'static Rotation,
-    &'static ComputedMass,
-    &'static GlobalAngularInertia,
-    Option<&'static LockedAxes>,
+    &'static SolverBodyInertia,
 );
 
 fn apply_impulses(mut bodies: Query<ImpulseQueryComponents, RigidBodyActiveFilter>) {
-    for (
-        rb,
-        impulse,
-        ang_impulse,
-        mut lin_vel,
-        mut ang_vel,
-        _rotation,
-        mass,
-        global_angular_inertia,
-        locked_axes,
-    ) in &mut bodies
-    {
+    for (rb, impulse, ang_impulse, mut lin_vel, mut ang_vel, inertia) in &mut bodies {
         if !rb.is_dynamic() {
             continue;
         }
 
-        let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
-
-        let effective_inv_mass = locked_axes.apply_to_vec(Vector::splat(mass.inverse()));
-        let effective_angular_inertia =
-            locked_axes.apply_to_angular_inertia(*global_angular_inertia);
+        let effective_inv_mass = inertia.effective_inv_mass();
+        let effective_inv_angular_inertia = inertia.effective_inv_angular_inertia();
 
         // Avoid triggering bevy's change detection unnecessarily.
         let delta_lin_vel = impulse.impulse() * effective_inv_mass;
-        let delta_ang_vel = effective_angular_inertia.inverse()
-            * (ang_impulse.impulse() + impulse.angular_impulse());
+        let delta_ang_vel =
+            effective_inv_angular_inertia * (ang_impulse.impulse() + impulse.angular_impulse());
 
         if delta_lin_vel != Vector::ZERO {
             lin_vel.0 += delta_lin_vel;
