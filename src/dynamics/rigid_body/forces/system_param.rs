@@ -7,8 +7,8 @@ use bevy::{
         entity::EntityHashMap,
         query::{QueryData, QueryEntityError},
         system::{
-            lifetimeless::{Read, Write},
             SystemParam,
+            lifetimeless::{Read, Write},
         },
     },
     prelude::*,

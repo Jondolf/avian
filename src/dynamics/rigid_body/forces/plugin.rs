@@ -2,8 +2,8 @@ use crate::{
     dynamics::{
         integrator::{self, IntegrationSet, VelocityIntegrationData},
         solver::{
-            solver_body::{SolverBody, SolverBodyInertia},
             SolverDiagnostics,
+            solver_body::{SolverBody, SolverBodyInertia},
         },
     },
     prelude::*,
