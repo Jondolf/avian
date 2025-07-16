@@ -33,8 +33,8 @@ use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWor
 #[cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 /// #
 /// # #[cfg(feature = "f32")]
-/// fn apply_forces(query: Query<Entity, With<RigidBody>>, forces: ForceHelper) {
-///     for entity in &mut query {
+/// fn apply_forces(query: Query<Entity, With<RigidBody>>, mut forces: ForceHelper) {
+///     for entity in &query {
 ///         // Apply a force of 10 N in the positive Y direction to `entity`.
 #[cfg_attr(
     feature = "2d",
@@ -59,8 +59,8 @@ use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWor
 #[cfg_attr(feature = "3d", doc = "# use avian3d::{math::Vector, prelude::*};")]
 #[cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 /// #
-/// # fn apply_impulses(query: Query<Entity, With<RigidBody>>, forces: ForceHelper) {
-/// #     for entity in &mut query {
+/// # fn apply_impulses(query: Query<Entity, With<RigidBody>>, mut forces: ForceHelper) {
+/// #     for entity in &query {
 /// #         let force = Vector::default();
 /// #         let point = Vector::default();
 /// // Apply an impulse at a specific point in the world.
@@ -79,8 +79,8 @@ use super::{AccumulatedLocalAcceleration, AccumulatedLocalForces, AccumulatedWor
 /// # use bevy::prelude::*;
 /// #
 /// # #[cfg(feature = "f32")]
-/// fn radial_gravity(query: Query<(Entity, &GlobalTransform), With<RigidBody>>, forces: ForceHelper) {
-///     for (entity, global_transform) in &mut query {
+/// fn radial_gravity(query: Query<(Entity, &GlobalTransform), With<RigidBody>>, mut forces: ForceHelper) {
+///     for (entity, global_transform) in &query {
 ///         // Compute the direction towards the center of the world.
 ///         let direction = -global_transform.translation().normalize_or_zero();
 ///         // Apply a linear acceleration of 9.81 m/s² towards the center of the world.
