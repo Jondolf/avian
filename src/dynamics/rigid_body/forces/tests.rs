@@ -22,16 +22,22 @@ fn create_app() -> App {
         MeshPlugin,
     ))
     .init_resource::<Assets<Mesh>>();
-    app
-}
 
-fn configure_timestep(app: &mut App) {
+    // Use 20 substeps.
+    app.insert_resource(SubstepCount(20));
+
+    // Use a gravity of 9.81 m/s².
+    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
+
+    // Configure the timestep.
     app.insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(
         TIMESTEP,
     )));
     app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f32(
         TIMESTEP,
     )));
+
+    app
 }
 
 fn spawn_body(app: &mut App, mass: f32, angular_inertia: f32) -> EntityWorldMut<'_> {
@@ -48,14 +54,7 @@ fn spawn_body(app: &mut App, mass: f32, angular_inertia: f32) -> EntityWorldMut<
 #[test]
 fn apply_force() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a force of 9.81 N in the positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -100,14 +99,7 @@ fn apply_force() {
 #[test]
 fn apply_local_force() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a force of 9.81 N in the local positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -160,14 +152,7 @@ fn apply_local_force() {
 #[test]
 fn apply_linear_impulse() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a linear impulse of 9.81 kg⋅m/s multiplied by the timestep in the positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -212,14 +197,7 @@ fn apply_linear_impulse() {
 #[test]
 fn apply_local_linear_impulse() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a linear impulse of 9.81 m/s² multiplied by the timestep in the local positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -272,14 +250,7 @@ fn apply_local_linear_impulse() {
 #[test]
 fn apply_linear_acceleration() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a linear acceleration of 9.81 m/s² in the positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -324,14 +295,7 @@ fn apply_linear_acceleration() {
 #[test]
 fn apply_local_linear_acceleration() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
-
-    // Use a gravity of 9.81 m/s².
-    app.insert_resource(Gravity(Vector::NEG_Y * 9.81));
 
     // Continuously apply a linear acceleration of 9.81 m/s² in the local positive Y direction.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -383,11 +347,7 @@ fn apply_local_linear_acceleration() {
 #[test]
 fn apply_torque() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply a torque of 1.5 N⋅m about the Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -438,11 +398,7 @@ fn apply_torque() {
 #[cfg(feature = "3d")]
 fn apply_local_torque() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply a torque of 1.5 N⋅m about the local Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -494,11 +450,7 @@ fn apply_local_torque() {
 #[test]
 fn apply_angular_impulse() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply an angular impulse of 1.5 kg⋅m²/s multiplied by the timestep about the Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -549,11 +501,7 @@ fn apply_angular_impulse() {
 #[cfg(feature = "3d")]
 fn apply_local_angular_impulse() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply an angular impulse of 1.5 kg⋅m²/s multiplied by the timestep about the local Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -605,11 +553,7 @@ fn apply_local_angular_impulse() {
 #[test]
 fn apply_angular_acceleration() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply a torque of 1.5 rad/s² about the Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
@@ -660,11 +604,7 @@ fn apply_angular_acceleration() {
 #[cfg(feature = "3d")]
 fn apply_local_angular_acceleration() {
     let mut app = create_app();
-    configure_timestep(&mut app);
     app.finish();
-
-    // Use 20 substeps.
-    app.insert_resource(SubstepCount(20));
 
     // Continuously apply a torque of 1.5 rad/s² about the local Z axis.
     app.add_systems(FixedUpdate, |mut query: Query<Forces>| {
