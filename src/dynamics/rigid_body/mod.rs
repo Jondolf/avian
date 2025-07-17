@@ -19,7 +19,9 @@ pub(crate) use forces::FloatZero;
 
 use crate::{
     position::init_physics_transform,
-    prelude::{mass_properties::components::GlobalCenterOfMass, *},
+    prelude::{
+        forces::AccumulatedLocalAcceleration, mass_properties::components::GlobalCenterOfMass, *,
+    },
 };
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
@@ -276,6 +278,8 @@ use derive_more::From;
     ComputedAngularInertia,
     ComputedCenterOfMass,
     GlobalCenterOfMass,
+    // Required for local forces and acceleration.
+    AccumulatedLocalAcceleration,
     // TODO: We can remove these pre-solve deltas once joints don't use XPBD.
     PreSolveDeltaPosition,
     PreSolveDeltaRotation,

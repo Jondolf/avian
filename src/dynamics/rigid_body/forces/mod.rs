@@ -32,14 +32,15 @@
 //! They also have local space equivalents:
 //!
 //! - [`ConstantLocalForce`]: Applies a constant force in local space.
-//! - [`ConstantLocalTorque`]: Applies a constant torque in local space.
+#![cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
+)]
 //! - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
 //! - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
 //!
 //! These components are useful for simulating continuously applied forces that are expected
 //! to remain the same across time steps, such as per-body gravity or force fields.
-//! They are gathered in the [`AccumulatedWorldForces`] and [`AccumulatedLocalForces`]
-//! components, which are applied at each [substep](SubstepCount) of the physics simulation.
 //!
 //! You can use constant forces by adding the components to your entities:
 //!
@@ -65,10 +66,10 @@
 //! ## One-Time Forces and Impulses
 //!
 //! It is common to apply many individual forces and impulses to dynamic rigid bodies,
-//! and to clear them afterwards. This can be done using the [`ForceHelper`] system parameter.
+//! and to clear them afterwards. This can be done using the [`Forces`] helper [`QueryData`](bevy::ecs::query::QueryData).
 //!
-//! To use the [`ForceHelper`], you can add it to your system, and use the [`entity`](ForceHelper::entity)
-//! method to get access to [`EntityForces`] for applying forces, impulses, and acceleration to that entity.
+//! To use [`Forces`], add it to a [`Query`](bevy::prelude::Query) (without `&` or `&mut`),
+//! and use the associated methods to apply forces, impulses, and accelerations to the rigid bodies.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
@@ -76,39 +77,38 @@
 #![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 //! #
 //! # #[cfg(feature = "f32")]
-//! fn apply_forces(query: Query<Entity, With<RigidBody>>, mut forces: ForceHelper) {
-//!     for entity in &query {
-//!         // Apply a force of 10 N in the positive Y direction to `entity`.
+//! fn apply_forces(mut query: Query<Forces>) {
+//!     for mut forces in &mut query {
+//!         // Apply a force of 10 N in the positive Y direction to the entity.
 #![cfg_attr(
     feature = "2d",
-    doc = "        forces.entity(entity).apply_force(Vec2::new(0.0, 10.0));"
+    doc = "        forces.apply_force(Vec2::new(0.0, 10.0));"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "        forces.entity(entity).apply_force(Vec3::new(0.0, 10.0, 0.0));"
+    doc = "        forces.apply_force(Vec3::new(0.0, 10.0, 0.0));"
 )]
 //!     }
 //! }
 //! ```
 //!
-//! The force is applied continuously during the physics step, and cleared after the step is complete.
-//! The [`ForceHelper`] manages everything for you, so there is no need to add or remove any components manually.
+//! The force is applied continuously during the physics step, and cleared automatically after the step is complete.
 //!
-//! The [`ForceHelper`] can also apply forces and impulses at a specific point in the world.
-//! If the point is not aligned with the [`GlobalCenterOfMass`], it will also apply a torque to the body.
+//! [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
+//! with the [`GlobalCenterOfMass`], it will also apply a torque to the body.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
 #![cfg_attr(feature = "3d", doc = "# use avian3d::{math::Vector, prelude::*};")]
 #![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
 //! #
-//! # fn apply_impulses(query: Query<Entity, With<RigidBody>>, mut forces: ForceHelper) {
-//! #     for entity in &query {
+//! # fn apply_impulses(mut query: Query<Forces>) {
+//! #     for mut forces in &mut query {
 //! #         let force = Vector::default();
 //! #         let point = Vector::default();
 //! // Apply an impulse at a specific point in the world.
 //! // Unlike forces, impulses are applied immediately to the velocity,
-//! forces.entity(entity).apply_linear_impulse_at_point(force, point);
+//! forces.apply_linear_impulse_at_point(force, point);
 //! #     }
 //! # }
 //! ```
@@ -122,18 +122,18 @@
 //! # use bevy::prelude::*;
 //! #
 //! # #[cfg(feature = "f32")]
-//! fn radial_gravity(query: Query<(Entity, &GlobalTransform), With<RigidBody>>, mut forces: ForceHelper) {
-//!     for (entity, global_transform) in &query {
+//! fn radial_gravity(mut query: Query<(Forces, &GlobalTransform)>) {
+//!     for (mut forces, global_transform) in &mut query {
 //!         // Compute the direction towards the center of the world.
 //!         let direction = -global_transform.translation().normalize_or_zero();
 //!         // Apply a linear acceleration of 9.81 m/s² towards the center of the world.
 #![cfg_attr(
     feature = "2d",
-    doc = "        forces.entity(entity).apply_linear_acceleration(direction.truncate() * 9.81);"
+    doc = "        forces.apply_linear_acceleration(direction.truncate() * 9.81);"
 )]
 #![cfg_attr(
     feature = "3d",
-    doc = "        forces.entity(entity).apply_linear_acceleration(direction * 9.81);"
+    doc = "        forces.apply_linear_acceleration(direction * 9.81);"
 )]
 //!     }
 //! }
@@ -175,10 +175,10 @@
 //! for most cases where you want to apply forces, impulses, or acceleration to dynamic rigid bodies.
 
 mod plugin;
-mod system_param;
+mod query_data;
 
 pub use plugin::{ForcePlugin, ForceSet};
-pub use system_param::{EntityForces, ForceHelper};
+pub use query_data::Forces;
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -196,9 +196,7 @@ impl FloatZero for Scalar {
 /// A component for applying a constant force to a dynamic rigid body in world space.
 /// The unit is typically N or kg⋅m/s².
 ///
-/// The force persists across time steps, and is accumulated with other forces
-/// in the [`AccumulatedWorldForces`] component.
-///
+/// The force persists across time steps, and is accumulated with other forces.
 /// This can be useful for simulating constant forces like gravity, force fields, wind,
 /// or other environmental effects.
 ///
@@ -224,17 +222,15 @@ impl FloatZero for Scalar {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantLocalForce`]: Applies a constant force in local space.
 /// - [`ConstantTorque`]: Applies a constant torque in world space.
 /// - [`ConstantLinearAcceleration`]: Applies a constant linear acceleration in world space.
 /// - [`ConstantAngularAcceleration`]: Applies a constant angular acceleration in world space.
-/// - [`AccumulatedWorldForces`]: Stores the accumulated world forces and torques.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
-#[require(AccumulatedWorldForces)]
 pub struct ConstantForce(pub Vector);
 
 impl ConstantForce {
@@ -254,9 +250,7 @@ impl ConstantForce {
 /// A component for applying a constant torque to a dynamic rigid body in world space.
 /// The unit is typically N⋅m or kg⋅m²/s².
 ///
-/// The torque persists across time steps, and is accumulated with other torques
-/// in the [`AccumulatedWorldForces`] component.
-///
+/// The torque persists across time steps, and is accumulated with other torques.
 /// This can be useful for simulating constant torques like the torque from a motor,
 /// or other rotational effects.
 ///
@@ -282,17 +276,18 @@ impl ConstantForce {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
-/// - [`ConstantLocalTorque`]: Applies a constant torque in local space.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
+)]
 /// - [`ConstantForce`]: Applies a constant force in world space.
 /// - [`ConstantLinearAcceleration`]: Applies a constant linear acceleration in world space.
 /// - [`ConstantAngularAcceleration`]: Applies a constant angular acceleration in world space.
-/// - [`AccumulatedWorldForces`]: Stores the accumulated world forces and torques.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
-#[require(AccumulatedWorldForces)]
 pub struct ConstantTorque(pub AngularVector);
 
 #[cfg(feature = "3d")]
@@ -306,9 +301,7 @@ impl ConstantTorque {
 /// A component for applying a constant force to a dynamic rigid body in local space.
 /// The unit is typically N or kg⋅m/s².
 ///
-/// The force persists across time steps, and is accumulated with other forces
-/// in the [`AccumulatedLocalForces`] component.
-///
+/// The force persists across time steps, and is accumulated with other forces.
 /// This can be useful for simulating constant forces like rocket thrust,
 /// or other local force effects.
 ///
@@ -334,17 +327,18 @@ impl ConstantTorque {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantForce`]: Applies a constant force in world space.
-/// - [`ConstantLocalTorque`]: Applies a constant torque in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
+)]
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
 /// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
-/// /// - [`AccumulatedLocalForces`]: Stores the accumulated local forces and torques.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
-#[require(AccumulatedLocalForces)]
 pub struct ConstantLocalForce(pub Vector);
 
 impl ConstantLocalForce {
@@ -364,9 +358,7 @@ impl ConstantLocalForce {
 /// A component for applying a constant torque to a dynamic rigid body in local space.
 /// The unit is typically N⋅m or kg⋅m²/s²
 ///
-/// The torque persists across time steps, and is accumulated with other torques
-/// in the [`AccumulatedLocalForces`] component.
-///
+/// The torque persists across time steps, and is accumulated with other torques.
 /// This can be useful for simulating constant torques like torque from a motor,
 /// or other rotational effects in local space.
 ///
@@ -392,7 +384,7 @@ impl ConstantLocalForce {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantTorque`]: Applies a constant torque in world space.
 /// - [`ConstantLocalForce`]: Applies a constant force in local space.
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
@@ -401,7 +393,7 @@ impl ConstantLocalForce {
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
-#[require(AccumulatedLocalForces)]
+#[cfg(feature = "3d")]
 pub struct ConstantLocalTorque(pub AngularVector);
 
 #[cfg(feature = "3d")]
@@ -416,7 +408,6 @@ impl ConstantLocalTorque {
 /// The unit is typically m/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
-///
 /// This can be useful for simulating constant accelerations like per-body gravity.
 ///
 /// See the [module-level documentation](self) for more general information about forces in Avian.
@@ -448,7 +439,7 @@ impl ConstantLocalTorque {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
 /// - [`ConstantForce`]: Applies a constant force in world space.
 /// - [`ConstantTorque`]: Applies a constant torque in world space.
@@ -477,7 +468,6 @@ impl ConstantLinearAcceleration {
 /// The unit is typically rad/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
-///
 /// This can be useful for simulating constant angular accelerations like rotation from a motor,
 /// or other rotational effects.
 ///
@@ -506,7 +496,7 @@ impl ConstantLinearAcceleration {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
 /// - [`ConstantForce`]: Applies a constant force in world space.
 /// - [`ConstantTorque`]: Applies a constant torque in world space.
@@ -529,7 +519,6 @@ impl ConstantAngularAcceleration {
 /// The unit is typically m/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
-///
 /// This can be useful for simulating constant linear accelerations like rocket thrust,
 /// or other local acceleration effects.
 ///
@@ -561,10 +550,13 @@ impl ConstantAngularAcceleration {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantLinearAcceleration`]: Applies a constant linear acceleration in world space.
 /// - [`ConstantLocalForce`]: Applies a constant force in local space.
-/// - [`ConstantLocalTorque`]: Applies a constant torque in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
+)]
 /// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -590,7 +582,6 @@ impl ConstantLocalLinearAcceleration {
 /// The unit is typically rad/s².
 ///
 /// The acceleration persists across time steps, and is accumulated with other accelerations.
-///
 /// This can be useful for simulating constant angular accelerations like rotation from a motor,
 /// or other rotational effects in local space.
 ///
@@ -619,10 +610,13 @@ impl ConstantLocalLinearAcceleration {
 ///
 /// # Related Types
 ///
-/// - [`ForceHelper`]: A system parameter for applying forces, impulses, and acceleration to entities.
+/// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantAngularAcceleration`]: Applies a constant angular acceleration in world space.
 /// - [`ConstantLocalForce`]: Applies a constant force in local space.
-/// - [`ConstantLocalTorque`]: Applies a constant torque in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
+)]
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
@@ -638,45 +632,8 @@ impl ConstantLocalAngularAcceleration {
     }
 }
 
-// TODO: Should accumulated forces and accelerations be `SparseSet` components?
-
-/// A component with the user-applied world forces and torques
-/// accumulated for a rigid body before the physics step.
-///
-/// Only entities with non-zero world forces have this component.
-/// It is added and removed automatically to reduce unnecessary work.
-#[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component, Debug, Default, PartialEq)]
-pub struct AccumulatedWorldForces {
-    /// The accumulated force in world space.
-    pub force: Vector,
-    /// The accumulated torque in world space.
-    pub torque: AngularVector,
-}
-
-/// A component with the user-applied local forces and torques
-/// accumulated for a rigid body before the physics step.
-///
-/// Only entities with non-zero local forces have this component.
-/// It is added and removed automatically to reduce unnecessary work.
-#[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
-#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
-#[reflect(Component, Debug, Default, PartialEq)]
-pub struct AccumulatedLocalForces {
-    /// The accumulated force in local space.
-    pub force: Vector,
-    /// The accumulated torque in local space.
-    pub torque: AngularVector,
-}
-
 /// A component with the user-applied local acceleration
 /// accumulated for a rigid body before the physics step.
-///
-/// Only entities with non-zero local acceleration have this component.
-/// It is added and removed automatically to reduce unnecessary work.
 #[derive(Component, Clone, Debug, Default, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -684,9 +641,6 @@ pub struct AccumulatedLocalForces {
 pub struct AccumulatedLocalAcceleration {
     /// The accumulated linear acceleration in local space.
     pub linear: Vector,
-    /// The accumulated angular acceleration in local space.
-    #[cfg(feature = "2d")]
-    pub angular: Scalar,
     /// The accumulated angular acceleration in local space.
     #[cfg(feature = "3d")]
     pub angular: Vector,

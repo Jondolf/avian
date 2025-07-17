@@ -291,8 +291,16 @@ impl Plugin for MassPropertyPlugin {
             NoAutoCenterOfMass,
         )>();
 
+        // TODO: We probably don't need this since we have the observer.
         // Force mass property computation for new rigid bodies.
         app.register_required_components::<RigidBody, RecomputeMassProperties>();
+
+        // Compute mass properties for new rigid bodies at spawn.y
+        app.add_observer(
+            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.target());
+            },
+        );
 
         // Configure system sets for mass property computation.
         app.configure_sets(

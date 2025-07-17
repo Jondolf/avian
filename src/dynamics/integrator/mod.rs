@@ -176,7 +176,7 @@ impl Gravity {
 ///
 /// - Velocity increments for [`Gravity`].
 /// - Velocity increments for [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`].
-/// - Velocity increments for forces, torques, and accelerations applied using the [`ForceHelper`].
+/// - Velocity increments for forces, torques, and accelerations applied using [`Forces`].
 /// - Cached operands for applying linear and angular velocity damping.
 ///
 /// The values are computed once per time step, and applied to the body at each substep
