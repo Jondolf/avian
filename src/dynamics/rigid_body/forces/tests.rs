@@ -47,7 +47,7 @@ fn spawn_body(app: &mut App, mass: f32, angular_inertia: f32) -> EntityWorldMut<
         #[cfg(feature = "2d")]
         AngularInertia(angular_inertia),
         #[cfg(feature = "3d")]
-        AngularInertia::new(Vector::splat(angular_inertia)),
+        AngularInertia::new(Vec3::splat(angular_inertia)),
     ))
 }
 
