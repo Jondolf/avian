@@ -26,7 +26,6 @@ fn create_app() -> App {
 }
 
 fn configure_timestep(app: &mut App) {
-    // Use a fixed time step of 1/60 seconds.
     app.insert_resource(Time::<Fixed>::from_duration(Duration::from_secs_f32(
         TIMESTEP,
     )));
