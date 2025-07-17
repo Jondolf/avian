@@ -176,6 +176,8 @@
 
 mod plugin;
 mod query_data;
+#[cfg(test)]
+mod tests;
 
 pub use plugin::{ForcePlugin, ForceSet};
 pub use query_data::Forces;
