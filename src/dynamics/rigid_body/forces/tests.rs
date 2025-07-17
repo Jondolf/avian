@@ -1,5 +1,5 @@
+use core::f32::consts::FRAC_PI_2;
 use core::time::Duration;
-use std::f32::consts::FRAC_PI_2;
 
 use approx::assert_relative_eq;
 use bevy::{prelude::*, render::mesh::MeshPlugin, time::TimeUpdateStrategy};
