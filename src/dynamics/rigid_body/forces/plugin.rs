@@ -100,7 +100,7 @@ pub enum ForceSet {
     ApplyConstantForces,
     /// Applies [`AccumulatedLocalAcceleration`] to the linear and angular velocities of bodies.
     ApplyLocalAcceleration,
-    /// Clears [[`AccumulatedLocalAcceleration`] for all bodies.
+    /// Clears [`AccumulatedLocalAcceleration`] for all bodies.
     Clear,
 }
 
