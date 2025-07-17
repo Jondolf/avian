@@ -42,6 +42,7 @@ pub(crate) use bevy_math::IVec3 as IVector;
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Ray = Ray2d;
+
 /// The ray type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Ray = Ray3d;
@@ -50,9 +51,18 @@ pub(crate) type Ray = Ray3d;
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "2d")]
 pub(crate) type Dir = Dir2;
+
 /// The direction type chosen based on the dimension.
 #[cfg(feature = "3d")]
 pub(crate) type Dir = Dir3;
+
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "2d")]
+pub(crate) type AngularVector = Scalar;
+
+/// The vector type for angular values chosen based on the dimension.
+#[cfg(feature = "3d")]
+pub(crate) type AngularVector = Vector;
 
 /// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.
@@ -60,6 +70,7 @@ pub(crate) type Dir = Dir3;
 /// In 2D, this is a scalar, while in 3D, it is a 3x3 matrix.
 #[cfg(feature = "2d")]
 pub(crate) type SymmetricTensor = Scalar;
+
 /// The symmetric tensor type chosen based on the dimension.
 /// Often used for angular inertia.
 ///

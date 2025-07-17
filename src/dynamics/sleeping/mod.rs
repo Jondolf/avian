@@ -2,11 +2,12 @@
 //!
 //! See [`SleepingPlugin`].
 
-use crate::prelude::*;
+use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
 use bevy::{
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
 };
+use dynamics::rigid_body::forces::AccumulatedLocalAcceleration;
 
 use super::solver::constraint_graph::ConstraintGraph;
 
@@ -293,10 +294,8 @@ pub(crate) fn wake_on_changed(
         Query<
             Entity,
             Or<(
-                Changed<ExternalForce>,
-                Changed<ExternalTorque>,
-                Changed<ExternalImpulse>,
-                Changed<ExternalAngularImpulse>,
+                Changed<VelocityIntegrationData>,
+                Changed<AccumulatedLocalAcceleration>,
                 Changed<GravityScale>,
             )>,
         >,

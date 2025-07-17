@@ -8,7 +8,6 @@ mod locked_axes;
 mod physics_material;
 mod world_query;
 
-pub use forces::{ExternalAngularImpulse, ExternalForce, ExternalImpulse, ExternalTorque};
 pub use locked_axes::LockedAxes;
 pub use physics_material::{
     CoefficientCombine, DefaultFriction, DefaultRestitution, Friction, Restitution,
@@ -17,9 +16,13 @@ pub use world_query::*;
 
 #[cfg(feature = "2d")]
 pub(crate) use forces::FloatZero;
-pub(crate) use forces::Torque;
 
-use crate::{position::init_physics_transform, prelude::*};
+use crate::{
+    position::init_physics_transform,
+    prelude::{
+        forces::AccumulatedLocalAcceleration, mass_properties::components::GlobalCenterOfMass, *,
+    },
+};
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
     prelude::*,
@@ -112,8 +115,7 @@ use derive_more::From;
 /// # fn main() {}
 /// ```
 ///
-/// For applying forces and impulses to dynamic bodies, see the [`ExternalForce`], [`ExternalTorque`],
-/// [`ExternalImpulse`] and [`ExternalAngularImpulse`] components.
+/// For applying forces, impulses, and acceleration to dynamic bodies, see the [`forces`] module.
 ///
 /// Avian does not have a built-in character controller, so if you need one,
 /// you will need to implement it yourself or use a third party option.
@@ -266,18 +268,18 @@ use derive_more::From;
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 #[require(
+    // TODO: Only dynamic and kinematic bodies need velocity,
+    //       and only dynamic bodies need mass and angular inertia.
     Position::PLACEHOLDER,
     Rotation::PLACEHOLDER,
     LinearVelocity,
     AngularVelocity,
-    // TODO: Make these force components optional.
-    ExternalForce,
-    ExternalTorque,
-    ExternalImpulse,
-    ExternalAngularImpulse,
     ComputedMass,
     ComputedAngularInertia,
     ComputedCenterOfMass,
+    GlobalCenterOfMass,
+    // Required for local forces and acceleration.
+    AccumulatedLocalAcceleration,
     // TODO: We can remove these pre-solve deltas once joints don't use XPBD.
     PreSolveDeltaPosition,
     PreSolveDeltaRotation,
@@ -438,7 +440,6 @@ pub struct SleepingDisabled;
 /// # Related Components
 ///
 /// - [`AngularVelocity`]: The angular velocity of a body.
-/// - [`ExternalForce`]: Applies a force to a dynamic body.
 /// - [`LinearDamping`]: Reduces the linear velocity of a body over time, similar to air resistance.
 /// - [`MaxLinearSpeed`]: Clamps the linear velocity of a body.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, Deref, DerefMut, PartialEq, From)]
@@ -536,7 +537,6 @@ impl Default for MaxAngularSpeed {
 /// # Related Components
 ///
 /// - [`LinearVelocity`]: The linear velocity of a body.
-/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "2d")]
@@ -570,7 +570,6 @@ pub struct AngularVelocity(pub Scalar);
 /// # Related Components
 ///
 /// - [`LinearVelocity`]: The linear velocity of a body.
-/// - [`ExternalTorque`]: Applies a torque to a dynamic body.
 /// - [`AngularDamping`]: Reduces the angular velocity of a body over time, similar to air resistance.
 /// - [`MaxAngularSpeed`]: Clamps the angular velocity of a body.
 #[cfg(feature = "3d")]

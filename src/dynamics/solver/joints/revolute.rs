@@ -57,9 +57,9 @@ pub struct RevoluteJoint {
     /// Lagrange multiplier for the angular correction caused by the angle limits.
     pub limit_lagrange: Scalar,
     /// The torque exerted by the joint when aligning the bodies.
-    pub align_torque: Torque,
+    pub align_torque: AngularVector,
     /// The torque exerted by the joint when limiting the relative rotation of the bodies around the `aligned_axis`.
-    pub limit_torque: Torque,
+    pub limit_torque: AngularVector,
     pre_step: RevoluteJointPreStepData,
 }
 
@@ -323,7 +323,7 @@ impl RevoluteJoint {
         inv_angular_inertia1: SymmetricTensor,
         inv_angular_inertia2: SymmetricTensor,
         dt: Scalar,
-    ) -> Torque {
+    ) -> AngularVector {
         let Some(Some(correction)) = self.angle_limit.map(|angle_limit| {
             #[cfg(feature = "2d")]
             {
@@ -340,7 +340,7 @@ impl RevoluteJoint {
                 angle_limit.compute_correction(a1, b1, b2, PI)
             }
         }) else {
-            return Torque::ZERO;
+            return AngularVector::ZERO;
         };
 
         let mut lagrange = self.limit_lagrange;

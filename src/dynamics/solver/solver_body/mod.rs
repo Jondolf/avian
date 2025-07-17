@@ -119,8 +119,33 @@ pub struct SolverBodyFlags(u32);
 
 bitflags::bitflags! {
     impl SolverBodyFlags: u32 {
+        /// Set if translation along the `X` axis is locked.
+        const TRANSLATION_X_LOCKED = 0b100_000;
+        /// Set if translation along the `Y` axis is locked.
+        const TRANSLATION_Y_LOCKED = 0b010_000;
+        /// Set if translation along the `Z` axis is locked.
+        const TRANSLATION_Z_LOCKED = 0b001_000;
+        /// Set if rotation around the `X` axis is locked.
+        const ROTATION_X_LOCKED = 0b000_100;
+        /// Set if rotation around the `Y` axis is locked.
+        const ROTATION_Y_LOCKED = 0b000_010;
+        /// Set if rotation around the `Z` axis is locked.
+        const ROTATION_Z_LOCKED = 0b000_001;
+        /// Set if all translational axes are locked.
+        const TRANSLATION_LOCKED = Self::TRANSLATION_X_LOCKED.bits() | Self::TRANSLATION_Y_LOCKED.bits() | Self::TRANSLATION_Z_LOCKED.bits();
+        /// Set if all rotational axes are locked.
+        const ROTATION_LOCKED = Self::ROTATION_X_LOCKED.bits() | Self::ROTATION_Y_LOCKED.bits() | Self::ROTATION_Z_LOCKED.bits();
+        /// Set if all translational and rotational axes are locked.
+        const ALL_LOCKED = Self::TRANSLATION_LOCKED.bits() | Self::ROTATION_LOCKED.bits();
         /// Set if gyroscopic motion is enabled.
-        const GYROSCOPIC_MOTION = 1 << 0;
+        const GYROSCOPIC_MOTION = 1 << 6;
+    }
+}
+
+impl SolverBodyFlags {
+    /// Returns the [`LockedAxes`] of the body.
+    pub fn locked_axes(&self) -> LockedAxes {
+        LockedAxes::from_bits(self.0 as u8)
     }
 }
 

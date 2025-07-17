@@ -12,11 +12,11 @@ use crate::{
 };
 #[cfg(feature = "3d")]
 use crate::{
+    MatExt,
     dynamics::{
         integrator::{IntegrationSet, integrate_positions},
         solver::solver_body::SolverBodyFlags,
     },
-    math::MatExt,
     prelude::SubstepSchedule,
 };
 
@@ -238,11 +238,11 @@ fn prepare_solver_bodies(
                 // "The condition of two axes of threefold or higher rotational symmetry
                 // crossing at the center of gravity is sufficient to produce an isotropic tensor of inertia.
                 // The MI around any axis passing by the center of gravity are then identical."
+
                 // TODO: Kinematic bodies should not have gyroscopic motion.
                 // TODO: Should we scale the epsilon based on the `PhysicsLengthUnit`?
                 // TODO: We should only do this when the body is added or the local inertia tensor is changed.
                 let epsilon = 1e-6;
-
                 let is_gyroscopic = !locked_axes.is_rotation_locked()
                     && !angular_inertia.inverse().is_isotropic(epsilon);
 

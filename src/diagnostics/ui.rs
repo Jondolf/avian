@@ -243,6 +243,7 @@ fn build_diagnostic_texts(cmd: &mut RelatedSpawnerCommands<ChildOf>) {
     ];
     let solver_timers = vec![
         ("Prepare Constraints", Solver::PREPARE_CONSTRAINTS),
+        ("Velocity Increments", Solver::UPDATE_VELOCITY_INCREMENTS),
         ("Integrate Velocities", Solver::INTEGRATE_VELOCITIES),
         ("Warm Start", Solver::WARM_START),
         ("Solve Constraints", Solver::SOLVE_CONSTRAINTS),

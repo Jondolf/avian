@@ -119,9 +119,9 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         lagrange: &mut Scalar,
         compliance: Scalar,
         dt: Scalar,
-    ) -> Torque {
+    ) -> AngularVector {
         if angle.abs() <= Scalar::EPSILON {
-            return Torque::ZERO;
+            return AngularVector::ZERO;
         }
 
         let w = [inv_angular_inertia1, inv_angular_inertia2];
@@ -157,11 +157,11 @@ pub trait AngularConstraint: XpbdConstraint<2> {
         lagrange: &mut Scalar,
         compliance: Scalar,
         dt: Scalar,
-    ) -> Torque {
+    ) -> AngularVector {
         let angle = rotation_difference.length();
 
         if angle <= Scalar::EPSILON {
-            return Torque::ZERO;
+            return AngularVector::ZERO;
         }
 
         let axis = rotation_difference / angle;
@@ -284,14 +284,14 @@ pub trait AngularConstraint: XpbdConstraint<2> {
     /// Computes the torque acting along the constraint using the equation `tau = lambda * n / h^2`,
     /// where `n` is the Z axis in 2D.
     #[cfg(feature = "2d")]
-    fn compute_torque(&self, lagrange: Scalar, dt: Scalar) -> Torque {
+    fn compute_torque(&self, lagrange: Scalar, dt: Scalar) -> AngularVector {
         // Eq (17)
         lagrange / dt.powi(2)
     }
 
     /// Computes the torque acting along the constraint using the equation `tau = lambda * n / h^2`
     #[cfg(feature = "3d")]
-    fn compute_torque(&self, lagrange: Scalar, axis: Vector, dt: Scalar) -> Torque {
+    fn compute_torque(&self, lagrange: Scalar, axis: Vector, dt: Scalar) -> AngularVector {
         // Eq (17)
         lagrange * axis / dt.powi(2)
     }

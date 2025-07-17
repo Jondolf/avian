@@ -164,7 +164,11 @@ where
             // Trigger collision events for colliders that started or stopped touching.
             app.add_systems(
                 PhysicsSchedule,
-                trigger_collision_events.in_set(CollisionEventSystems),
+                trigger_collision_events
+                    .in_set(CollisionEventSystems)
+                    // TODO: Ideally we don't need to make this ambiguous, but currently it is
+                    //       to avoid conflicts since the system has exclusive world access.
+                    .ambiguous_with(PhysicsStepSet::Finalize),
             );
         }
 
