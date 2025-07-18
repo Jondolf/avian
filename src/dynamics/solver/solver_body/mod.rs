@@ -137,8 +137,10 @@ bitflags::bitflags! {
         const ROTATION_LOCKED = Self::ROTATION_X_LOCKED.bits() | Self::ROTATION_Y_LOCKED.bits() | Self::ROTATION_Z_LOCKED.bits();
         /// Set if all translational and rotational axes are locked.
         const ALL_LOCKED = Self::TRANSLATION_LOCKED.bits() | Self::ROTATION_LOCKED.bits();
+        /// Set if the body is kinematic. Otherwise, it is dynamic.
+        const IS_KINEMATIC = 1 << 6;
         /// Set if gyroscopic motion is enabled.
-        const GYROSCOPIC_MOTION = 1 << 6;
+        const GYROSCOPIC_MOTION = 1 << 7;
     }
 }
 
@@ -146,6 +148,16 @@ impl SolverBodyFlags {
     /// Returns the [`LockedAxes`] of the body.
     pub fn locked_axes(&self) -> LockedAxes {
         LockedAxes::from_bits(self.0 as u8)
+    }
+
+    /// Returns `true` if the body is dynamic.
+    pub fn is_dynamic(&self) -> bool {
+        !self.contains(SolverBodyFlags::IS_KINEMATIC)
+    }
+
+    /// Returns `true` if the body is kinematic.
+    pub fn is_kinematic(&self) -> bool {
+        self.contains(SolverBodyFlags::IS_KINEMATIC)
     }
 }
 
