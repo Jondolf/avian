@@ -366,8 +366,9 @@ fn remove_collider_on<E: Event, B: Bundle>(
     trigger: Trigger<E, B>,
     mut contact_graph: ResMut<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
-    mut query: Query<&mut CollidingEntities>,
-    collider_of: Query<&ColliderOf>,
+    // TODO: Change this hack to include disabled entities with `Allows<T>` for 0.17
+    mut query: Query<&mut CollidingEntities, Or<(With<Disabled>, Without<Disabled>)>>,
+    collider_of: Query<&ColliderOf, Or<(With<Disabled>, Without<Disabled>)>>,
     mut event_writer: EventWriter<CollisionEnded>,
     mut commands: Commands,
 ) {
