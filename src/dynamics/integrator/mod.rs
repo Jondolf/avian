@@ -235,6 +235,7 @@ impl VelocityIntegrationData {
 /// Applies gravity and locked axes to the linear and angular velocity increments of bodies.
 pub fn pre_process_velocity_increments(
     mut bodies: Query<(
+        &RigidBody,
         &mut VelocityIntegrationData,
         Option<&LinearDamping>,
         Option<&AngularDamping>,
@@ -251,7 +252,12 @@ pub fn pre_process_velocity_increments(
 
     // TODO: Do we want to skip kinematic bodies here?
     bodies.par_iter_mut().for_each(
-        |(mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
+        |(rb, mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
+            if !rb.is_dynamic() {
+                // Skip non-dynamic bodies.
+                return;
+            }
+
             let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
             // Update the cached right-hand side of the velocity damping equation,
@@ -321,6 +327,11 @@ pub fn integrate_velocities(
     let delta_secs = time.delta_secs_f64() as Scalar;
 
     bodies.par_iter_mut().for_each(|mut body| {
+        if body.solver_body.flags.is_kinematic() {
+            // Skip kinematic bodies.
+            return;
+        }
+
         // Apply velocity damping.
         body.solver_body.linear_velocity *= body.integration.linear_damping_rhs;
         body.solver_body.angular_velocity *= body.integration.angular_damping_rhs;

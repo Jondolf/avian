@@ -7,16 +7,13 @@ use super::{SolverBody, SolverBodyInertia};
 use crate::{
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
-    dynamics::solver::SolverDiagnostics,
+    dynamics::solver::{SolverDiagnostics, solver_body::SolverBodyFlags},
     prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
 };
 #[cfg(feature = "3d")]
 use crate::{
     MatExt,
-    dynamics::{
-        integrator::{IntegrationSet, integrate_positions},
-        solver::solver_body::SolverBodyFlags,
-    },
+    dynamics::integrator::{IntegrationSet, integrate_positions},
     prelude::SubstepSchedule,
 };
 
@@ -186,6 +183,7 @@ fn remove_solver_body(In(entity): In<Entity>, mut deferred_world: DeferredWorld)
 
 fn prepare_solver_bodies(
     mut query: Query<(
+        &RigidBody,
         &mut SolverBody,
         &mut SolverBodyInertia,
         &LinearVelocity,
@@ -199,6 +197,7 @@ fn prepare_solver_bodies(
     #[allow(unused_variables)]
     query.par_iter_mut().for_each(
         |(
+            rb,
             mut solver_body,
             mut inertial_properties,
             linear_velocity,
@@ -222,6 +221,10 @@ fn prepare_solver_bodies(
                 angular_inertia.rotated(rotation.0).inverse(),
                 locked_axes,
             );
+            solver_body.flags = SolverBodyFlags(locked_axes.to_bits() as u32);
+            solver_body
+                .flags
+                .set(SolverBodyFlags::IS_KINEMATIC, rb.is_kinematic());
 
             #[cfg(feature = "3d")]
             {
