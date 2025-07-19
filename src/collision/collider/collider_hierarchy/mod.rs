@@ -154,7 +154,7 @@ impl Relationship for ColliderOf {
                 relationship_target.collection_mut_risky(),
                 entity,
             );
-            if relationship_target.len() == 0
+            if relationship_target.is_empty()
                 && let Ok(mut entity) = world.commands().get_entity(body)
             {
                 // this "remove" operation must check emptiness because in the event that an identical
@@ -191,3 +191,22 @@ impl Relationship for ColliderOf {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct RigidBodyColliders(Vec<Entity>);
+
+impl<'a> IntoIterator for &'a RigidBodyColliders {
+    type Item = <Self::IntoIter as Iterator>::Item;
+
+    type IntoIter = core::iter::Copied<core::slice::Iter<'a, Entity>>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl core::ops::Deref for RigidBodyColliders {
+    type Target = [Entity];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
