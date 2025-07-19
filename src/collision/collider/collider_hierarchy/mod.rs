@@ -154,7 +154,7 @@ impl Relationship for ColliderOf {
                 relationship_target.collection_mut_risky(),
                 entity,
             );
-            if relationship_target.len() == 0
+            if relationship_target.is_empty()
                 && let Ok(mut entity) = world.commands().get_entity(body)
             {
                 // this "remove" operation must check emptiness because in the event that an identical
