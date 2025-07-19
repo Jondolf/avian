@@ -129,6 +129,8 @@ pub struct NonWakingForcesItem<'a>(pub ForcesItem<'a>);
 
 impl ForcesItem<'_> {
     /// Reborrows `self` as a new instance of [`ForcesItem`].
+    #[inline]
+    #[must_use]
     pub fn reborrow(&mut self) -> ForcesItem<'_> {
         ForcesItem {
             rotation: self.rotation,
