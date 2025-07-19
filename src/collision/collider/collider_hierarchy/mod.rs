@@ -191,3 +191,22 @@ impl Relationship for ColliderOf {
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct RigidBodyColliders(Vec<Entity>);
+
+impl<'a> IntoIterator for &'a RigidBodyColliders {
+    type Item = <Self::IntoIter as Iterator>::Item;
+
+    type IntoIter = core::iter::Copied<core::slice::Iter<'a, Entity>>;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl core::ops::Deref for RigidBodyColliders {
+    type Target = [Entity];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
