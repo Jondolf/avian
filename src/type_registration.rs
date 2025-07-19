@@ -1,6 +1,6 @@
 use crate::{
     prelude::*,
-    sync::{PreviousGlobalTransform, SyncConfig, ancestor_marker::AncestorMarker},
+    sync::{SyncConfig, ancestor_marker::AncestorMarker},
 };
 use bevy::prelude::*;
 use dynamics::solver::{SolverConfig, schedule::SubstepCount};
@@ -25,7 +25,6 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<Rotation>()
             .register_type::<PreSolveDeltaPosition>()
             .register_type::<PreSolveDeltaRotation>()
-            .register_type::<PreviousGlobalTransform>()
             .register_type::<LinearVelocity>()
             .register_type::<AngularVelocity>()
             .register_type::<MaxLinearSpeed>()

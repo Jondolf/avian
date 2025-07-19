@@ -747,6 +747,12 @@ impl Rotation {
     /// No rotation.
     pub const IDENTITY: Self = Self(Quaternion::IDENTITY);
 
+    /// Returns the angle (in radians) for the minimal rotation for transforming this rotation into another.
+    #[inline]
+    pub fn angle_between(self, other: Self) -> Scalar {
+        self.0.angle_between(other.0)
+    }
+
     /// Inverts the rotation.
     #[inline]
     #[must_use]

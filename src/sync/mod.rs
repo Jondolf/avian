@@ -5,6 +5,7 @@
 
 use crate::{prelude::*, prepare::PrepareSet};
 use ancestor_marker::AncestorMarkerPlugin;
+use approx::AbsDiffEq;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
@@ -60,22 +61,12 @@ impl Plugin for SyncPlugin {
         app.init_resource::<SyncConfig>()
             .register_type::<SyncConfig>();
 
-        if app.world().resource::<SyncConfig>().transform_to_position {
-            app.register_required_components::<Position, PreviousGlobalTransform>();
-            app.register_required_components::<Rotation, PreviousGlobalTransform>();
-        }
-
         app.configure_sets(
             self.schedule,
             (
-                SyncSet::First,
-                SyncSet::TransformToPosition,
-                SyncSet::PositionToTransform,
-                SyncSet::Update,
-                SyncSet::Last,
-            )
-                .chain()
-                .in_set(PhysicsSet::Sync),
+                SyncSet::TransformToPosition.in_set(PrepareSet::PropagateTransforms),
+                SyncSet::PositionToTransform.in_set(PhysicsSet::Sync),
+            ),
         );
 
         // Mark ancestors of colliders with `AncestorMarker<RigidBody>`.
@@ -85,23 +76,6 @@ impl Plugin for SyncPlugin {
 
         // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
         // between the end of the previous physics frame and the start of this physics frame.
-        app.add_systems(
-            self.schedule,
-            (
-                mark_dirty_trees,
-                propagate_parent_transforms,
-                sync_simple_transforms,
-                transform_to_position,
-                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
-                update_previous_global_transforms,
-            )
-                .chain()
-                .in_set(PrepareSet::PropagateTransforms)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
-        );
-
-        // Apply `Transform` changes to `Position` and `Rotation`.
-        // TODO: Do we need this?
         app.add_systems(
             self.schedule,
             (
@@ -121,20 +95,6 @@ impl Plugin for SyncPlugin {
             position_to_transform
                 .in_set(SyncSet::PositionToTransform)
                 .run_if(|config: Res<SyncConfig>| config.position_to_transform),
-        );
-
-        // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
-        app.add_systems(
-            self.schedule,
-            (
-                mark_dirty_trees,
-                propagate_parent_transforms,
-                sync_simple_transforms,
-                update_previous_global_transforms,
-            )
-                .chain()
-                .in_set(SyncSet::Update)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
     }
 }
@@ -172,23 +132,11 @@ impl Default for SyncConfig {
 /// System sets for systems running in [`PhysicsSet::Sync`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SyncSet {
-    /// Runs at the start of [`PhysicsSet::Sync`]. Empty by default.
-    First,
     /// Updates [`Position`] and [`Rotation`] based on transform changes.
     TransformToPosition,
     /// Updates transforms based on [`Position`] and [`Rotation`] changes.
     PositionToTransform,
-    /// Handles transform propagation and other updates after physics positions have been synced with transforms.
-    Update,
-    /// Runs at the end of [`PhysicsSet::Sync`]. Empty by default.
-    Last,
 }
-
-/// The global transform of a body at the end of the previous frame.
-/// Used for detecting if the transform was modified before the start of the physics schedule.
-#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub struct PreviousGlobalTransform(pub GlobalTransform);
 
 /// Copies `GlobalTransform` changes to [`Position`] and [`Rotation`].
 /// This allows users to use transforms for moving and positioning bodies and colliders.
@@ -196,37 +144,27 @@ pub struct PreviousGlobalTransform(pub GlobalTransform);
 /// To account for hierarchies, transform propagation should be run before this system.
 #[allow(clippy::type_complexity)]
 pub fn transform_to_position(
-    mut query: Query<(
-        &GlobalTransform,
-        &PreviousGlobalTransform,
-        &mut Position,
-        &mut Rotation,
-    )>,
+    mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>,
+    length_unit: Res<PhysicsLengthUnit>,
 ) {
-    for (global_transform, previous_transform, mut position, mut rotation) in &mut query {
-        // Skip entity if the global transform value hasn't changed
-        if *global_transform == previous_transform.0 {
-            continue;
-        }
+    // If the `GlobalTransform` translation and `Position` differ by less than 0.01 mm, we ignore the change.
+    let distance_tolerance = length_unit.0 * 1e-5;
+    // If the `GlobalTransform` rotation and `Rotation` differ by less than 0.1 degrees, we ignore the change.
+    let rotation_tolerance = (0.1 as Scalar).to_radians();
 
+    for (global_transform, mut position, mut rotation) in &mut query {
         let global_transform = global_transform.compute_transform();
-
         #[cfg(feature = "2d")]
-        {
-            position.0 = global_transform.translation.truncate().adjust_precision();
-        }
+        let transform_translation = global_transform.translation.truncate().adjust_precision();
         #[cfg(feature = "3d")]
-        {
-            position.0 = global_transform.translation.adjust_precision();
-        }
+        let transform_translation = global_transform.translation.adjust_precision();
+        let transform_rotation = Rotation::from(global_transform.rotation.adjust_precision());
 
-        #[cfg(feature = "2d")]
-        {
-            *rotation = Rotation::from(global_transform.rotation.adjust_precision());
+        if position.abs_diff_ne(&transform_translation, distance_tolerance) {
+            position.0 = transform_translation;
         }
-        #[cfg(feature = "3d")]
-        {
-            rotation.0 = global_transform.rotation.adjust_precision();
+        if rotation.angle_between(transform_rotation).abs() > rotation_tolerance {
+            *rotation = transform_rotation;
         }
     }
 }
@@ -329,14 +267,5 @@ pub fn position_to_transform(
             transform.translation = pos.f32();
             transform.rotation = rot.f32();
         }
-    }
-}
-
-/// Updates [`PreviousGlobalTransform`] by setting it to `GlobalTransform` at the very end or start of a frame.
-pub fn update_previous_global_transforms(
-    mut bodies: Query<(&GlobalTransform, &mut PreviousGlobalTransform)>,
-) {
-    for (transform, mut previous_transform) in &mut bodies {
-        previous_transform.0 = *transform;
     }
 }
