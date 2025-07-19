@@ -187,8 +187,11 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_force(&mut self, force: Vector) {
-        let force = self.inverse_mass() * force;
-        self.apply_linear_acceleration(force);
+        if force != Vector::ZERO && self.try_wake_up() {
+            let acceleration = self.inverse_mass() * force;
+            self.integration_data_mut()
+                .apply_linear_acceleration(acceleration);
+        }
     }
 
     /// Applies a force at the given point in world space. The unit is typically N or kg⋅m/s².
@@ -215,8 +218,10 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_local_force(&mut self, force: Vector) {
-        let acceleration = self.inverse_mass() * force;
-        self.apply_local_linear_acceleration(acceleration);
+        if force != Vector::ZERO && self.try_wake_up() {
+            let acceleration = self.inverse_mass() * force;
+            self.accumulated_local_acceleration_mut().linear += acceleration;
+        }
     }
 
     /// Applies a torque in world space. The unit is typically N⋅m or kg⋅m²/s².
@@ -227,8 +232,11 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_torque(&mut self, torque: AngularVector) {
-        let acceleration = self.global_inverse_angular_inertia() * torque;
-        self.apply_angular_acceleration(acceleration);
+        if torque != AngularVector::ZERO && self.try_wake_up() {
+            let acceleration = self.global_inverse_angular_inertia() * torque;
+            self.integration_data_mut()
+                .apply_angular_acceleration(acceleration);
+        }
     }
 
     /// Applies a torque in local space. The unit is typically N⋅m or kg⋅m²/s².
@@ -240,8 +248,10 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     #[cfg(feature = "3d")]
     #[inline]
     fn apply_local_torque(&mut self, torque: AngularVector) {
-        let acceleration = self.inverse_angular_inertia() * torque;
-        self.apply_local_angular_acceleration(acceleration);
+        if torque != AngularVector::ZERO && self.try_wake_up() {
+            let acceleration = self.inverse_angular_inertia() * torque;
+            self.accumulated_local_acceleration_mut().angular += acceleration;
+        }
     }
 
     /// Applies a linear impulse at the center of mass in world space. The unit is typically N⋅s or kg⋅m/s.
@@ -252,12 +262,11 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_linear_impulse(&mut self, impulse: Vector) {
-        let effective_inverse_mass = self
-            .locked_axes()
-            .apply_to_vec(Vector::splat(self.inverse_mass()));
-        let delta_vel = effective_inverse_mass * impulse;
-
         if impulse != Vector::ZERO && self.try_wake_up() {
+            let effective_inverse_mass = self
+                .locked_axes()
+                .apply_to_vec(Vector::splat(self.inverse_mass()));
+            let delta_vel = effective_inverse_mass * impulse;
             *self.linear_velocity_mut() += delta_vel;
         }
     }
@@ -284,8 +293,14 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_local_linear_impulse(&mut self, impulse: Vector) {
-        let world_impulse = self.rotation() * impulse;
-        self.apply_linear_impulse(world_impulse);
+        if impulse != Vector::ZERO && self.try_wake_up() {
+            let world_impulse = self.rotation() * impulse;
+            let effective_inverse_mass = self
+                .locked_axes()
+                .apply_to_vec(Vector::splat(self.inverse_mass()));
+            let delta_vel = effective_inverse_mass * world_impulse;
+            *self.linear_velocity_mut() += delta_vel;
+        }
     }
 
     /// Applies an angular impulse in world space. The unit is typically N⋅m⋅s or kg⋅m²/s.
@@ -296,12 +311,11 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
     #[inline]
     fn apply_angular_impulse(&mut self, impulse: AngularVector) {
-        let effective_inverse_angular_inertia = self
-            .locked_axes()
-            .apply_to_angular_inertia(self.global_inverse_angular_inertia());
-        let delta_vel = effective_inverse_angular_inertia * impulse;
-
         if impulse != AngularVector::ZERO && self.try_wake_up() {
+            let effective_inverse_angular_inertia = self
+                .locked_axes()
+                .apply_to_angular_inertia(self.global_inverse_angular_inertia());
+            let delta_vel = effective_inverse_angular_inertia * impulse;
             *self.angular_velocity_mut() += delta_vel;
         }
     }
@@ -315,8 +329,14 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     #[cfg(feature = "3d")]
     #[inline]
     fn apply_local_angular_impulse(&mut self, impulse: AngularVector) {
-        let world_impulse = self.rotation() * impulse;
-        self.apply_angular_impulse(world_impulse);
+        if impulse != AngularVector::ZERO && self.try_wake_up() {
+            let world_impulse = self.rotation() * impulse;
+            let effective_inverse_angular_inertia = self
+                .locked_axes()
+                .apply_to_angular_inertia(self.global_inverse_angular_inertia());
+            let delta_vel = effective_inverse_angular_inertia * world_impulse;
+            *self.angular_velocity_mut() += delta_vel;
+        }
     }
 
     /// Applies a linear acceleration, ignoring mass. The unit is typically m/s².

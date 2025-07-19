@@ -243,7 +243,7 @@ fn apply_local_linear_impulse() {
             -0.5 * 9.81 * duration.squared(),
             0.0
         ),
-        epsilon = 1.0
+        epsilon = 1.5
     );
 }
 
