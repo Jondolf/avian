@@ -505,6 +505,9 @@ pub mod data_structures;
 mod type_registration;
 pub use type_registration::PhysicsTypeRegistrationPlugin;
 
+// TODO: Where should this go?
+pub(crate) mod ancestor_marker;
+
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
     #[cfg(feature = "debug-plugin")]

@@ -4,16 +4,12 @@
 //! See [`SyncPlugin`].
 
 use crate::{prelude::*, prepare::PrepareSet};
-use ancestor_marker::AncestorMarkerPlugin;
 use approx::AbsDiffEq;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
     transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
-
-// TODO: Where should this be?
-pub mod ancestor_marker;
 
 /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
 /// and [`Rotation`] in sync with `Transform`.
@@ -61,35 +57,34 @@ impl Plugin for SyncPlugin {
         app.init_resource::<SyncConfig>()
             .register_type::<SyncConfig>();
 
+        // Run transform propagation and transform-to-position synchronization before physics.
         app.configure_sets(
             self.schedule,
-            (
-                SyncSet::TransformToPosition.in_set(PrepareSet::PropagateTransforms),
-                SyncSet::PositionToTransform.in_set(PhysicsSet::Sync),
-            ),
+            (SyncSet::Propagate, SyncSet::TransformToPosition)
+                .chain()
+                .in_set(PrepareSet::PropagateTransforms),
         );
-
-        // Mark ancestors of colliders with `AncestorMarker<RigidBody>`.
-        // This is used to speed up transform propagation by skipping
-        // trees that have no rigid bodies.
-        app.add_plugins(AncestorMarkerPlugin::<RigidBody>::default());
-
-        // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
-        // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
             self.schedule,
             (
                 mark_dirty_trees,
                 propagate_parent_transforms,
                 sync_simple_transforms,
-                transform_to_position,
             )
-                .chain()
+                .in_set(SyncSet::Propagate),
+        );
+        app.add_systems(
+            self.schedule,
+            transform_to_position
                 .in_set(SyncSet::TransformToPosition)
                 .run_if(|config: Res<SyncConfig>| config.transform_to_position),
         );
 
-        // Apply `Position` and `Rotation` changes to `Transform`
+        // Run position-to-transform synchronization after physics.
+        app.configure_sets(
+            self.schedule,
+            SyncSet::PositionToTransform.in_set(PhysicsSet::Sync),
+        );
         app.add_systems(
             self.schedule,
             position_to_transform
@@ -103,25 +98,37 @@ impl Plugin for SyncPlugin {
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
 pub struct SyncConfig {
-    /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+    /// If true, [`Transform`] is propagated before stepping physics to ensure that
+    /// [`GlobalTransform`] is up-to-date.
+    ///
+    /// Default: `true`
+    pub propagate_before_physics: bool,
+    /// Updates transforms based on [`Position`] and [`Rotation`] changes.
     ///
     /// This operation is run in [`SyncSet::PositionToTransform`].
+    ///
+    /// Default: `true`
     pub position_to_transform: bool,
     /// Updates [`Position`] and [`Rotation`] based on transform changes,
-    /// allowing you to move bodies using [`Transform`]. Defaults to true.
+    /// allowing you to move bodies using [`Transform`].
     ///
     /// This operation is run in [`SyncSet::TransformToPosition`].
+    ///
+    /// Default: `true`
     pub transform_to_position: bool,
     /// Updates [`Collider::scale()`] based on transform changes,
-    /// allowing you to scale colliders using [`Transform`]. Defaults to true.
+    /// allowing you to scale colliders using [`Transform`].
     ///
     /// This operation is run in [`PrepareSet::Finalize`].
+    ///
+    /// Default: `true`
     pub transform_to_collider_scale: bool,
 }
 
 impl Default for SyncConfig {
     fn default() -> Self {
         SyncConfig {
+            propagate_before_physics: true,
             position_to_transform: true,
             transform_to_position: true,
             transform_to_collider_scale: true,
@@ -132,6 +139,8 @@ impl Default for SyncConfig {
 /// System sets for systems running in [`PhysicsSet::Sync`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SyncSet {
+    /// Propagates [`Transform`] before physics simulation.
+    Propagate,
     /// Updates [`Position`] and [`Rotation`] based on transform changes.
     TransformToPosition,
     /// Updates transforms based on [`Position`] and [`Rotation`] changes.
