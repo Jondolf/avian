@@ -409,6 +409,14 @@ pub struct Sleeping;
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct TimeSleeping(pub Scalar);
 
+impl TimeSleeping {
+    /// Resets the time sleeping to zero.
+    #[inline]
+    pub fn reset(&mut self) {
+        self.0 = 0.0;
+    }
+}
+
 /// Indicates that the body can not be deactivated by the physics engine. See [`Sleeping`] for information about sleeping.
 #[derive(Reflect, Clone, Copy, Component, Debug, Default, PartialEq, Eq, From)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]

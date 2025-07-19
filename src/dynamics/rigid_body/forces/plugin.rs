@@ -27,11 +27,10 @@ impl Plugin for ForcePlugin {
             ConstantAngularAcceleration,
             ConstantLocalForce,
             ConstantLocalLinearAcceleration,
-            ConstantLocalAngularAcceleration,
             AccumulatedLocalAcceleration,
         )>();
         #[cfg(feature = "3d")]
-        app.register_type::<ConstantLocalTorque>();
+        app.register_type::<(ConstantLocalTorque, ConstantLocalAngularAcceleration)>();
 
         // Set up system sets.
         app.configure_sets(

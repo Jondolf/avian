@@ -37,7 +37,10 @@
     doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
 )]
 //! - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
-//! - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
+#![cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space."
+)]
 //!
 //! These components are useful for simulating continuously applied forces that are expected
 //! to remain the same across time steps, such as per-body gravity or force fields.
@@ -74,7 +77,7 @@
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
 #![cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
-#![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
+//! # use bevy::prelude::*;
 //! #
 //! # #[cfg(feature = "f32")]
 //! fn apply_forces(mut query: Query<Forces>) {
@@ -94,20 +97,38 @@
 //!
 //! The force is applied continuously during the physics step, and cleared automatically after the step is complete.
 //!
-//! [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
-//! with the [`GlobalCenterOfMass`], it will also apply a torque to the body.
+//! By default, applying forces to [sleeping](Sleeping) bodies will wake them up. If this is not desired,
+//! the [`non_waking`](ForcesItem::non_waking) method can be used to fetch a [`NonWakingForcesItem`]
+//! that allows applying forces to a body without waking it up.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
 #![cfg_attr(feature = "3d", doc = "# use avian3d::{math::Vector, prelude::*};")]
-#![cfg_attr(feature = "serialize", doc = "# use bevy::prelude::*;")]
+//! # use bevy::prelude::*;
+//! #
+//! # fn apply_forces(mut query: Query<Forces>) {
+//! #     for mut forces in &mut query {
+//! #         let force = Vector::default();
+//! // Apply a force without waking up the body if it is sleeping.
+//! forces.non_waking().apply_force(force);
+//! #     }
+//! # }
+//! ```
+//!
+//! [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
+//! with the [`GlobalCenterOfMass`], it will apply a torque to the body.
+//!
+//! ```
+#![cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
+#![cfg_attr(feature = "3d", doc = "# use avian3d::{math::Vector, prelude::*};")]
+//! # use bevy::prelude::*;
 //! #
 //! # fn apply_impulses(mut query: Query<Forces>) {
 //! #     for mut forces in &mut query {
 //! #         let force = Vector::default();
 //! #         let point = Vector::default();
 //! // Apply an impulse at a specific point in the world.
-//! // Unlike forces, impulses are applied immediately to the velocity,
+//! // Unlike forces, impulses are applied immediately to the velocity.
 //! forces.apply_linear_impulse_at_point(force, point);
 //! #     }
 //! # }
@@ -180,7 +201,7 @@ mod query_data;
 mod tests;
 
 pub use plugin::{ForcePlugin, ForceSet};
-pub use query_data::Forces;
+pub use query_data::{Forces, ForcesItem, NonWakingForcesItem, RigidBodyForces};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -336,7 +357,10 @@ impl ConstantTorque {
     doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
 )]
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
-/// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space."
+)]
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -369,8 +393,7 @@ impl ConstantLocalForce {
 /// # Example
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use avian3d::prelude::*;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -378,8 +401,7 @@ impl ConstantLocalForce {
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant torque of 5 N⋅m in the positive Z direction in local space.
-#[cfg_attr(feature = "2d", doc = "    ConstantLocalTorque(5.0),")]
-#[cfg_attr(feature = "3d", doc = "    ConstantLocalTorque::new(0.0, 0.0, 5.0),")]
+///     ConstantLocalTorque::new(0.0, 0.0, 5.0),
 /// ));
 /// # }
 /// ```
@@ -499,7 +521,10 @@ impl ConstantLinearAcceleration {
 /// # Related Types
 ///
 /// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
-/// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space."
+)]
 /// - [`ConstantForce`]: Applies a constant force in world space.
 /// - [`ConstantTorque`]: Applies a constant torque in world space.
 /// - [`ConstantLinearAcceleration`]: Applies a constant linear acceleration in world space.
@@ -559,7 +584,10 @@ impl ConstantAngularAcceleration {
     feature = "3d",
     doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
 )]
-/// - [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space.
+#[cfg_attr(
+    feature = "3d",
+    doc = "- [`ConstantLocalAngularAcceleration`]: Applies a constant angular acceleration in local space."
+)]
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
@@ -592,8 +620,7 @@ impl ConstantLocalLinearAcceleration {
 /// # Example
 ///
 /// ```
-#[cfg_attr(feature = "2d", doc = "# use avian2d::prelude::*;")]
-#[cfg_attr(feature = "3d", doc = "# use avian3d::prelude::*;")]
+/// # use avian3d::prelude::*;
 /// # use bevy::prelude::*;
 /// #
 /// # fn setup(mut commands: Commands) {
@@ -601,11 +628,7 @@ impl ConstantLocalLinearAcceleration {
 ///     RigidBody::Dynamic,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant angular acceleration of 1.0 rad/s² in the positive Z direction in local space.
-#[cfg_attr(feature = "2d", doc = "    ConstantLocalAngularAcceleration(1.0),")]
-#[cfg_attr(
-    feature = "3d",
-    doc = "    ConstantLocalAngularAcceleration::new(0.0, 0.0, 1.0),"
-)]
+///     ConstantLocalAngularAcceleration::new(0.0, 0.0, 1.0),
 /// ));
 /// # }
 /// ```
@@ -615,15 +638,13 @@ impl ConstantLocalLinearAcceleration {
 /// - [`Forces`]: A helper [`QueryData`](bevy::ecs::query::QueryData) for applying forces, impulses, and acceleration to entities.
 /// - [`ConstantAngularAcceleration`]: Applies a constant angular acceleration in world space.
 /// - [`ConstantLocalForce`]: Applies a constant force in local space.
-#[cfg_attr(
-    feature = "3d",
-    doc = "- [`ConstantLocalTorque`]: Applies a constant torque in local space."
-)]
+/// - [`ConstantLocalTorque`]: Applies a constant torque in local space.
 /// - [`ConstantLocalLinearAcceleration`]: Applies a constant linear acceleration in local space.
 #[derive(Component, Clone, Debug, Default, Deref, DerefMut, PartialEq, Reflect)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
 #[reflect(Component, Debug, Default, PartialEq)]
+#[cfg(feature = "3d")]
 pub struct ConstantLocalAngularAcceleration(pub AngularVector);
 
 #[cfg(feature = "3d")]
