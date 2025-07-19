@@ -1,4 +1,4 @@
-//! External forces, torques, impulses, and acceleration for dynamic [rigid bodies](RigidBody).
+//! External forces, impulses, and acceleration for dynamic [rigid bodies](RigidBody).
 //!
 //! # Overview
 //!
@@ -22,7 +22,7 @@
 //!
 //! ## Constant Forces
 //!
-//! Constant forces and torques that persist across time steps can be applied using the following components:
+//! Constant forces and accelerations that persist across time steps can be applied using the following components:
 //!
 //! - [`ConstantForce`]: Applies a constant force in world space.
 //! - [`ConstantTorque`]: Applies a constant torque in world space.

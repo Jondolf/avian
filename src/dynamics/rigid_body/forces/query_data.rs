@@ -9,7 +9,7 @@ use bevy::ecs::{
 
 use super::AccumulatedLocalAcceleration;
 
-/// A helper [`QueryData`] for applying forces, torques, impulses, and accelerations to dynamic [rigid bodies](RigidBody).
+/// A helper [`QueryData`] for applying forces, impulses, and accelerations to dynamic [rigid bodies](RigidBody).
 ///
 /// For constant forces that persist across time steps, consider using components like [`ConstantForce`] instead.
 ///
@@ -166,7 +166,7 @@ impl<'a> NonWakingForcesItem<'a> {
 impl RigidBodyForces for ForcesItem<'_> {}
 impl RigidBodyForces for NonWakingForcesItem<'_> {}
 
-/// A trait for applying forces, torques, impulses, and accelerations to a dynamic [rigid body](RigidBody).
+/// A trait for applying forces, impulses, and accelerations to a dynamic [rigid body](RigidBody).
 ///
 /// This is implemented as a shared interface for the [`ForcesItem`] and [`NonWakingForcesItem`]
 /// returned by [`Forces`].
