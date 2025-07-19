@@ -2,12 +2,11 @@
 //!
 //! See [`SleepingPlugin`].
 
-use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
+use crate::prelude::*;
 use bevy::{
     ecs::{component::Tick, system::SystemChangeTick},
     prelude::*,
 };
-use dynamics::rigid_body::forces::AccumulatedLocalAcceleration;
 
 use super::solver::constraint_graph::ConstraintGraph;
 
@@ -263,6 +262,27 @@ pub fn mark_sleeping_bodies(
 #[reflect(Resource, Default)]
 pub(crate) struct LastPhysicsTick(pub Tick);
 
+#[cfg(feature = "2d")]
+type ConstantForceChanges = Or<(
+    Changed<ConstantForce>,
+    Changed<ConstantTorque>,
+    Changed<ConstantLinearAcceleration>,
+    Changed<ConstantAngularAcceleration>,
+    Changed<ConstantLocalForce>,
+    Changed<ConstantLocalLinearAcceleration>,
+)>;
+#[cfg(feature = "3d")]
+type ConstantForceChanges = Or<(
+    Changed<ConstantForce>,
+    Changed<ConstantTorque>,
+    Changed<ConstantLinearAcceleration>,
+    Changed<ConstantAngularAcceleration>,
+    Changed<ConstantLocalForce>,
+    Changed<ConstantLocalTorque>,
+    Changed<ConstantLocalLinearAcceleration>,
+    Changed<ConstantLocalAngularAcceleration>,
+)>;
+
 /// Removes the [`Sleeping`] component from sleeping bodies when properties like
 /// position, rotation, velocity and external forces are changed by the user.
 #[allow(clippy::type_complexity)]
@@ -278,6 +298,7 @@ pub(crate) fn wake_on_changed(
                 Ref<Rotation>,
                 Ref<LinearVelocity>,
                 Ref<AngularVelocity>,
+                Ref<TimeSleeping>,
             ),
             (
                 With<Sleeping>,
@@ -286,30 +307,25 @@ pub(crate) fn wake_on_changed(
                     Changed<Rotation>,
                     Changed<LinearVelocity>,
                     Changed<AngularVelocity>,
+                    Changed<TimeSleeping>,
                 )>,
             ),
         >,
         // These are not modified by the physics engine
         // and don't need special handling.
-        Query<
-            Entity,
-            Or<(
-                Changed<VelocityIntegrationData>,
-                Changed<AccumulatedLocalAcceleration>,
-                Changed<GravityScale>,
-            )>,
-        >,
+        Query<Entity, Or<(ConstantForceChanges, Changed<GravityScale>)>>,
     )>,
     last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
 ) {
     let this_run = system_tick.this_run();
 
-    for (entity, pos, rot, lin_vel, ang_vel) in &query.p0() {
+    for (entity, pos, rot, lin_vel, ang_vel, time_sleeping) in &query.p0() {
         if is_changed_after_tick(pos, last_physics_tick.0, this_run)
             || is_changed_after_tick(rot, last_physics_tick.0, this_run)
             || is_changed_after_tick(lin_vel, last_physics_tick.0, this_run)
             || is_changed_after_tick(ang_vel, last_physics_tick.0, this_run)
+            || is_changed_after_tick(time_sleeping, last_physics_tick.0, this_run)
         {
             commands.queue(WakeUpBody(entity));
         }

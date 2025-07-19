@@ -27,11 +27,10 @@ impl Plugin for ForcePlugin {
             ConstantAngularAcceleration,
             ConstantLocalForce,
             ConstantLocalLinearAcceleration,
-            ConstantLocalAngularAcceleration,
             AccumulatedLocalAcceleration,
         )>();
         #[cfg(feature = "3d")]
-        app.register_type::<ConstantLocalTorque>();
+        app.register_type::<(ConstantLocalTorque, ConstantLocalAngularAcceleration)>();
 
         // Set up system sets.
         app.configure_sets(
@@ -90,13 +89,13 @@ pub enum ForceSet {
     /// Adds [`ConstantForce`], [`ConstantTorque`], [`ConstantLinearAcceleration`], and [`ConstantAngularAcceleration`]
     #[cfg_attr(
         feature = "2d",
-        doc = "to [`VelocityIntegrationData`] and [`ConstantLocalForce`], [`ConstantLocalLinearAcceleration`],"
+        doc = "to [`VelocityIntegrationData`], and [`ConstantLocalForce`] and [`ConstantLocalLinearAcceleration`]"
     )]
     #[cfg_attr(
         feature = "3d",
-        doc = "to [`VelocityIntegrationData`] and [`ConstantLocalForce`], [`ConstantLocalTorque`], [`ConstantLocalLinearAcceleration`],"
+        doc = "to [`VelocityIntegrationData`], and [`ConstantLocalForce`], [`ConstantLocalTorque`], [`ConstantLocalLinearAcceleration`], and [`ConstantLocalAngularAcceleration`]"
     )]
-    /// and [`ConstantLocalAngularAcceleration`] to [`AccumulatedLocalAcceleration`].
+    /// to [`AccumulatedLocalAcceleration`].
     ApplyConstantForces,
     /// Applies [`AccumulatedLocalAcceleration`] to the linear and angular velocities of bodies.
     ApplyLocalAcceleration,

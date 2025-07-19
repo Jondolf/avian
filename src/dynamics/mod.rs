@@ -70,7 +70,7 @@ pub mod solver;
 /// Re-exports common types related to the rigid body dynamics functionality.
 pub mod prelude {
     #[cfg(feature = "3d")]
-    pub use super::rigid_body::forces::ConstantLocalTorque;
+    pub use super::rigid_body::forces::{ConstantLocalAngularAcceleration, ConstantLocalTorque};
     pub(crate) use super::rigid_body::mass_properties::{ComputeMassProperties, MassProperties};
     pub use super::{
         ccd::{CcdPlugin, SpeculativeMargin, SweepMode, SweptCcd},
@@ -78,8 +78,8 @@ pub mod prelude {
         rigid_body::{
             forces::{
                 ConstantAngularAcceleration, ConstantForce, ConstantLinearAcceleration,
-                ConstantLocalAngularAcceleration, ConstantLocalForce,
-                ConstantLocalLinearAcceleration, ConstantTorque, ForcePlugin, ForceSet, Forces,
+                ConstantLocalForce, ConstantLocalLinearAcceleration, ConstantTorque, ForcePlugin,
+                ForceSet, Forces, RigidBodyForces,
             },
             mass_properties::{
                 MassPropertiesExt, MassPropertyHelper, MassPropertyPlugin,

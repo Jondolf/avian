@@ -47,15 +47,6 @@ impl Plugin for IntegratorPlugin {
         // Add `VelocityIntegrationData` to all `SolverBody`s.
         app.register_required_components::<SolverBody, VelocityIntegrationData>();
 
-        // Remove `VelocityIntegrationData` when `SolverBody` is removed.
-        app.add_observer(
-            |trigger: Trigger<OnRemove, SolverBody>, mut commands: Commands| {
-                commands
-                    .entity(trigger.target())
-                    .try_remove::<VelocityIntegrationData>();
-            },
-        );
-
         app.init_resource::<Gravity>();
 
         app.configure_sets(
