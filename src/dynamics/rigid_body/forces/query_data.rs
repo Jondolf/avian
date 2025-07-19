@@ -487,7 +487,7 @@ trait RigidBodyForcesInternal {
 impl RigidBodyForcesInternal for ForcesItem<'_> {
     #[inline]
     fn rotation(&self) -> &Rotation {
-        &self.rotation
+        self.rotation
     }
     #[inline]
     fn lin_vel(&self) -> Vector {
