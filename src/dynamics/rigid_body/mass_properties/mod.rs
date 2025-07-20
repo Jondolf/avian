@@ -196,8 +196,9 @@
 //! For example, [`MassPropertyHelper::total_mass_properties`] computes the total mass properties of an entity,
 //! taking into account the mass properties of descendants and colliders.
 
+use crate::physics_transform::PhysicsTransformSet;
 use crate::prelude::mass_properties::components::GlobalCenterOfMass;
-use crate::{prelude::*, prepare::PrepareSet};
+use crate::prelude::*;
 use bevy::ecs::query::QueryFilter;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -311,7 +312,8 @@ impl Plugin for MassPropertyPlugin {
                 MassPropertySystems::UpdateComputedMassProperties,
             )
                 .chain()
-                .in_set(PrepareSet::Finalize),
+                .in_set(PhysicsSet::Prepare)
+                .after(PhysicsTransformSet::TransformToPosition),
         );
 
         // Queue mass property recomputation when mass properties are changed.

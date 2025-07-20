@@ -80,7 +80,7 @@ bevy = { version = "0.16", default-features = false, features = [
     "std",
     "bevy_log",
 ] }
-bevy_math = { version = "0.16" }
+bevy_math = { version = "0.16", features = ["approx"] }
 glam_matrix_extensions = { git = "https://github.com/Jondolf/glam_matrix_extensions", features = [
     "bevy_reflect",
 ] }
@@ -104,7 +104,6 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_gltf",
     "animation",
 ] }
-bevy_math = { version = "0.16", features = ["approx"] }
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
     "approx",
 ] }

@@ -1,4 +1,4 @@
-use crate::{prelude::*, sync::ancestor_marker::AncestorMarker};
+use crate::{ancestor_marker::AncestorMarker, prelude::*};
 use bevy::prelude::*;
 
 /// A plugin for managing [`ColliderOf`] relationships based on the entity hierarchy.

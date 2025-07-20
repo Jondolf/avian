@@ -2,11 +2,11 @@
 //!
 //! See [`SleepingPlugin`].
 
-use crate::prelude::*;
-use bevy::{
-    ecs::{component::Tick, system::SystemChangeTick},
+use crate::{
     prelude::*,
+    schedule::{LastPhysicsTick, is_changed_after_tick},
 };
+use bevy::{ecs::system::SystemChangeTick, prelude::*};
 
 use super::solver::constraint_graph::ConstraintGraph;
 
@@ -30,8 +30,7 @@ impl Plugin for SleepingPlugin {
         let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
 
         app.init_resource::<SleepingThreshold>()
-            .init_resource::<DeactivationTime>()
-            .init_resource::<LastPhysicsTick>();
+            .init_resource::<DeactivationTime>();
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
@@ -47,14 +46,6 @@ impl Plugin for SleepingPlugin {
                 .chain()
                 .after(PhysicsStepSet::First)
                 .before(PhysicsStepSet::BroadPhase),
-        );
-
-        physics_schedule.add_systems(
-            (|mut last_physics_tick: ResMut<LastPhysicsTick>,
-              system_change_tick: SystemChangeTick| {
-                last_physics_tick.0 = system_change_tick.this_run();
-            })
-            .after(PhysicsStepSet::Last),
         );
 
         app.add_observer(
@@ -257,11 +248,6 @@ pub fn mark_sleeping_bodies(
     }
 }
 
-/// A [`Tick`] corresponding to the end of the previous run of the [`PhysicsSchedule`].
-#[derive(Resource, Reflect, Default)]
-#[reflect(Resource, Default)]
-pub(crate) struct LastPhysicsTick(pub Tick);
-
 #[cfg(feature = "2d")]
 type ConstantForceChanges = Or<(
     Changed<ConstantForce>,
@@ -334,11 +320,6 @@ pub(crate) fn wake_on_changed(
     for entity in &query.p1() {
         commands.queue(WakeUpBody(entity));
     }
-}
-
-fn is_changed_after_tick<C: Component>(component_ref: Ref<C>, tick: Tick, this_run: Tick) -> bool {
-    let last_changed = component_ref.last_changed();
-    component_ref.is_changed() && last_changed.is_newer_than(tick, this_run)
 }
 
 /// Removes the [`Sleeping`] component from all sleeping bodies.

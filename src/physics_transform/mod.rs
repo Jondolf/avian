@@ -1,21 +1,26 @@
-//! Responsible for synchronizing physics components with other data, like keeping [`Position`]
-//! and [`Rotation`] in sync with `Transform`.
+//! Manages physics transforms and synchronizes them with [`Transform`].
 //!
-//! See [`SyncPlugin`].
+//! See [`PhysicsTransformPlugin`].
 
-use crate::{prelude::*, prepare::PrepareSet};
-use ancestor_marker::AncestorMarkerPlugin;
+mod transform;
+pub use transform::{Position, PreSolveDeltaPosition, PreSolveDeltaRotation, Rotation};
+pub(crate) use transform::{RotationValue, init_physics_transform};
+
+#[cfg(test)]
+mod tests;
+
+use crate::{
+    prelude::*,
+    schedule::{LastPhysicsTick, is_changed_after_tick},
+};
+use approx::AbsDiffEq;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel},
+    ecs::{component::Tick, intern::Interned, schedule::ScheduleLabel, system::SystemChangeTick},
     prelude::*,
     transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
 
-// TODO: Where should this be?
-pub mod ancestor_marker;
-
-/// Responsible for synchronizing physics components with other data, like keeping [`Position`]
-/// and [`Rotation`] in sync with `Transform`.
+/// Manages physics transforms and synchronizes them with [`Transform`].
 ///
 /// # Syncing Between [`Position`]/[`Rotation`] and [`Transform`]
 ///
@@ -24,7 +29,7 @@ pub mod ancestor_marker;
 /// or position bodies, and the changes be reflected in the other components.
 ///
 /// You can configure what data is synchronized and how it is synchronized
-/// using the [`SyncConfig`] resource.
+/// using the [`PhysicsTransformConfig`] resource.
 ///
 /// # `Transform` Hierarchies
 ///
@@ -34,12 +39,12 @@ pub mod ancestor_marker;
 ///
 /// If you would like a child entity to be rigidly attached to its parent, you could use a [`FixedJoint`]
 /// or write your own system to handle hierarchies differently.
-pub struct SyncPlugin {
+pub struct PhysicsTransformPlugin {
     schedule: Interned<dyn ScheduleLabel>,
 }
 
-impl SyncPlugin {
-    /// Creates a [`SyncPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
+impl PhysicsTransformPlugin {
+    /// Creates a [`PhysicsTransformPlugin`] with the schedule that is used for running the [`PhysicsSchedule`].
     ///
     /// The default schedule is `FixedPostUpdate`.
     pub fn new(schedule: impl ScheduleLabel) -> Self {
@@ -49,119 +54,101 @@ impl SyncPlugin {
     }
 }
 
-impl Default for SyncPlugin {
+impl Default for PhysicsTransformPlugin {
     fn default() -> Self {
         Self::new(FixedPostUpdate)
     }
 }
 
-impl Plugin for SyncPlugin {
+impl Plugin for PhysicsTransformPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SyncConfig>()
-            .register_type::<SyncConfig>();
+        app.init_resource::<PhysicsTransformConfig>()
+            .register_type::<PhysicsTransformConfig>();
 
-        if app.world().resource::<SyncConfig>().transform_to_position {
-            app.register_required_components::<Position, PreviousGlobalTransform>();
-            app.register_required_components::<Rotation, PreviousGlobalTransform>();
+        if app
+            .world()
+            .resource::<PhysicsTransformConfig>()
+            .position_to_transform
+        {
+            app.register_required_components::<Position, Transform>();
+            app.register_required_components::<Rotation, Transform>();
         }
 
+        // Run transform propagation and transform-to-position synchronization before physics.
         app.configure_sets(
             self.schedule,
             (
-                SyncSet::First,
-                SyncSet::TransformToPosition,
-                SyncSet::PositionToTransform,
-                SyncSet::Update,
-                SyncSet::Last,
+                PhysicsTransformSet::Propagate,
+                PhysicsTransformSet::TransformToPosition,
             )
                 .chain()
-                .in_set(PhysicsSet::Sync),
+                .in_set(PhysicsSet::Prepare),
         );
-
-        // Mark ancestors of colliders with `AncestorMarker<RigidBody>`.
-        // This is used to speed up transform propagation by skipping
-        // trees that have no rigid bodies.
-        app.add_plugins(AncestorMarkerPlugin::<RigidBody>::default());
-
-        // Initialize `PreviousGlobalTransform` and apply `Transform` changes that happened
-        // between the end of the previous physics frame and the start of this physics frame.
         app.add_systems(
             self.schedule,
             (
                 mark_dirty_trees,
                 propagate_parent_transforms,
                 sync_simple_transforms,
-                transform_to_position,
-                // Update `PreviousGlobalTransform` for the physics step's `GlobalTransform` change detection
-                update_previous_global_transforms,
             )
                 .chain()
-                .in_set(PrepareSet::PropagateTransforms)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                .in_set(PhysicsTransformSet::Propagate)
+                .run_if(|config: Res<PhysicsTransformConfig>| config.propagate_before_physics),
         );
-
-        // Apply `Transform` changes to `Position` and `Rotation`.
-        // TODO: Do we need this?
         app.add_systems(
             self.schedule,
-            (
-                mark_dirty_trees,
-                propagate_parent_transforms,
-                sync_simple_transforms,
-                transform_to_position,
-            )
-                .chain()
-                .in_set(SyncSet::TransformToPosition)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+            transform_to_position
+                .in_set(PhysicsTransformSet::TransformToPosition)
+                .run_if(|config: Res<PhysicsTransformConfig>| config.transform_to_position),
         );
 
-        // Apply `Position` and `Rotation` changes to `Transform`
+        // Run position-to-transform synchronization after physics.
+        app.configure_sets(
+            self.schedule,
+            PhysicsTransformSet::PositionToTransform.in_set(PhysicsSet::Writeback),
+        );
         app.add_systems(
             self.schedule,
             position_to_transform
-                .in_set(SyncSet::PositionToTransform)
-                .run_if(|config: Res<SyncConfig>| config.position_to_transform),
-        );
-
-        // Update `PreviousGlobalTransform` for next frame's `GlobalTransform` change detection
-        app.add_systems(
-            self.schedule,
-            (
-                mark_dirty_trees,
-                propagate_parent_transforms,
-                sync_simple_transforms,
-                update_previous_global_transforms,
-            )
-                .chain()
-                .in_set(SyncSet::Update)
-                .run_if(|config: Res<SyncConfig>| config.transform_to_position),
+                .in_set(PhysicsTransformSet::PositionToTransform)
+                .run_if(|config: Res<PhysicsTransformConfig>| config.position_to_transform),
         );
     }
 }
 
-/// Configures what physics data is synchronized by the [`SyncPlugin`] and [`PreparePlugin`] and how.
+/// Configures how physics transforms are managed and synchronized with [`Transform`].
 #[derive(Resource, Reflect, Clone, Debug, PartialEq, Eq)]
 #[reflect(Resource)]
-pub struct SyncConfig {
-    /// Updates transforms based on [`Position`] and [`Rotation`] changes. Defaults to true.
+pub struct PhysicsTransformConfig {
+    /// If true, [`Transform`] is propagated before stepping physics to ensure that
+    /// [`GlobalTransform`] is up-to-date.
     ///
-    /// This operation is run in [`SyncSet::PositionToTransform`].
-    pub position_to_transform: bool,
-    /// Updates [`Position`] and [`Rotation`] based on transform changes,
-    /// allowing you to move bodies using [`Transform`]. Defaults to true.
+    /// Default: `true`
+    pub propagate_before_physics: bool,
+    /// Updates [`Position`] and [`Rotation`] based on [`Transform`] changes
+    /// in [`PhysicsTransformSet::TransformToPosition`],
     ///
-    /// This operation is run in [`SyncSet::TransformToPosition`].
+    /// This allows using transforms for moving and positioning bodies,
+    ///
+    /// Default: `true`
     pub transform_to_position: bool,
-    /// Updates [`Collider::scale()`] based on transform changes,
-    /// allowing you to scale colliders using [`Transform`]. Defaults to true.
+    /// Updates [`Transform`] based on [`Position`] and [`Rotation`] changes
+    /// in [`PhysicsTransformSet::PositionToTransform`],
     ///
-    /// This operation is run in [`PrepareSet::Finalize`].
+    /// Default: `true`
+    pub position_to_transform: bool,
+    /// Updates [`Collider::scale()`] based on transform changes.
+    ///
+    /// This allows using transforms for scaling colliders.
+    ///
+    /// Default: `true`
     pub transform_to_collider_scale: bool,
 }
 
-impl Default for SyncConfig {
+impl Default for PhysicsTransformConfig {
     fn default() -> Self {
-        SyncConfig {
+        PhysicsTransformConfig {
+            propagate_before_physics: true,
             position_to_transform: true,
             transform_to_position: true,
             transform_to_collider_scale: true,
@@ -169,64 +156,68 @@ impl Default for SyncConfig {
     }
 }
 
-/// System sets for systems running in [`PhysicsSet::Sync`].
+/// System sets for managing physics transforms.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum SyncSet {
-    /// Runs at the start of [`PhysicsSet::Sync`]. Empty by default.
-    First,
-    /// Updates [`Position`] and [`Rotation`] based on transform changes.
+pub enum PhysicsTransformSet {
+    /// Propagates [`Transform`] before physics simulation.
+    Propagate,
+    /// Updates [`Position`] and [`Rotation`] based on [`Transform`] changes before physics simulation.
     TransformToPosition,
-    /// Updates transforms based on [`Position`] and [`Rotation`] changes.
+    /// Updates [`Transform`] based on [`Position`] and [`Rotation`] changes after physics simulation.
     PositionToTransform,
-    /// Handles transform propagation and other updates after physics positions have been synced with transforms.
-    Update,
-    /// Runs at the end of [`PhysicsSet::Sync`]. Empty by default.
-    Last,
 }
 
-/// The global transform of a body at the end of the previous frame.
-/// Used for detecting if the transform was modified before the start of the physics schedule.
-#[derive(Component, Reflect, Clone, Copy, Debug, Default, Deref, DerefMut, PartialEq)]
-#[reflect(Component)]
-pub struct PreviousGlobalTransform(pub GlobalTransform);
-
-/// Copies `GlobalTransform` changes to [`Position`] and [`Rotation`].
+/// Copies [`GlobalTransform`] changes to [`Position`] and [`Rotation`].
 /// This allows users to use transforms for moving and positioning bodies and colliders.
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
 #[allow(clippy::type_complexity)]
 pub fn transform_to_position(
-    mut query: Query<(
-        &GlobalTransform,
-        &PreviousGlobalTransform,
-        &mut Position,
-        &mut Rotation,
-    )>,
+    mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>,
+    length_unit: Res<PhysicsLengthUnit>,
+    last_physics_tick: Res<LastPhysicsTick>,
+    system_tick: SystemChangeTick,
 ) {
-    for (global_transform, previous_transform, mut position, mut rotation) in &mut query {
-        // Skip entity if the global transform value hasn't changed
-        if *global_transform == previous_transform.0 {
-            continue;
-        }
+    // On the first tick, the last physics tick and system tick are both defaulted to 0,
+    // but to handle change detection correctly, the system tick should always be larger.
+    // So we use a minimum system tick of 1 here.
+    let this_run = if last_physics_tick.0.get() == 0 {
+        Tick::new(1)
+    } else {
+        system_tick.this_run()
+    };
 
+    // If the `GlobalTransform` translation and `Position` differ by less than 0.01 mm, we ignore the change.
+    let distance_tolerance = length_unit.0 * 1e-5;
+    // If the `GlobalTransform` rotation and `Rotation` differ by less than 0.1 degrees, we ignore the change.
+    let rotation_tolerance = (0.1 as Scalar).to_radians();
+
+    for (global_transform, mut position, mut rotation) in &mut query {
         let global_transform = global_transform.compute_transform();
-
         #[cfg(feature = "2d")]
-        {
-            position.0 = global_transform.translation.truncate().adjust_precision();
-        }
+        let transform_translation = global_transform.translation.truncate().adjust_precision();
         #[cfg(feature = "3d")]
-        {
-            position.0 = global_transform.translation.adjust_precision();
+        let transform_translation = global_transform.translation.adjust_precision();
+        let transform_rotation = Rotation::from(global_transform.rotation.adjust_precision());
+
+        let position_changed = is_changed_after_tick(
+            Ref::from(position.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !position_changed && position.abs_diff_ne(&transform_translation, distance_tolerance) {
+            position.0 = transform_translation;
         }
 
-        #[cfg(feature = "2d")]
+        let rotation_changed = is_changed_after_tick(
+            Ref::from(rotation.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !rotation_changed
+            && rotation.angle_between(transform_rotation).abs() > rotation_tolerance
         {
-            *rotation = Rotation::from(global_transform.rotation.adjust_precision());
-        }
-        #[cfg(feature = "3d")]
-        {
-            rotation.0 = global_transform.rotation.adjust_precision();
+            *rotation = transform_rotation;
         }
     }
 }
@@ -246,10 +237,10 @@ type ParentComponents = (
     Option<&'static Rotation>,
 );
 
-/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
+/// Copies [`Position`] and [`Rotation`] changes to [`Transform`].
 /// This allows users and the engine to use these components for moving and positioning bodies.
 ///
-/// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
+/// Nested rigid bodies move independently of each other, so the [`Transform`]s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "2d")]
 pub fn position_to_transform(
@@ -293,10 +284,10 @@ pub fn position_to_transform(
     }
 }
 
-/// Copies [`Position`] and [`Rotation`] changes to `Transform`.
+/// Copies [`Position`] and [`Rotation`] changes to [`Transform`].
 /// This allows users and the engine to use these components for moving and positioning bodies.
 ///
-/// Nested rigid bodies move independently of each other, so the `Transform`s of child entities are updated
+/// Nested rigid bodies move independently of each other, so the [`Transform`]s of child entities are updated
 /// based on their own and their parent's [`Position`] and [`Rotation`].
 #[cfg(feature = "3d")]
 pub fn position_to_transform(
@@ -329,14 +320,5 @@ pub fn position_to_transform(
             transform.translation = pos.f32();
             transform.rotation = rot.f32();
         }
-    }
-}
-
-/// Updates [`PreviousGlobalTransform`] by setting it to `GlobalTransform` at the very end or start of a frame.
-pub fn update_previous_global_transforms(
-    mut bodies: Query<(&GlobalTransform, &mut PreviousGlobalTransform)>,
-) {
-    for (transform, mut previous_transform) in &mut bodies {
-        previous_transform.0 = *transform;
     }
 }

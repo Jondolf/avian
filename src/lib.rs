@@ -205,7 +205,6 @@
 //!     - [`PhysicsSchedule`] and [`PhysicsStepSet`]
 //!     - [`SubstepSchedule`]
 //!     - [`SolverSet`] and [`SubstepSolverSet`](dynamics::solver::schedule::SubstepSolverSet)
-//!     - [`PrepareSet`](prepare::PrepareSet)
 //!     - Many more internal system sets
 //! - [Configure the schedule used for running physics](PhysicsPlugins#custom-schedule)
 //! - [Pausing, resuming and stepping physics](Physics#pausing-resuming-and-stepping-physics)
@@ -382,7 +381,7 @@
 //!
 //! While `Transform` can be used for the vast majority of things, Avian internally
 //! uses separate [`Position`] and [`Rotation`] components. These are automatically
-//! kept in sync by the [`SyncPlugin`].
+//! kept in sync by the [`PhysicsTransformPlugin`].
 //!
 //! There are several reasons why the separate components are currently used.
 //!
@@ -492,18 +491,19 @@ pub mod diagnostics;
 pub mod dynamics;
 pub mod interpolation;
 pub mod math;
+pub mod physics_transform;
 #[cfg(feature = "bevy_picking")]
 pub mod picking;
-pub mod position;
-pub mod prepare;
 pub mod schedule;
 pub mod spatial_query;
-pub mod sync;
 
 pub mod data_structures;
 
 mod type_registration;
 pub use type_registration::PhysicsTypeRegistrationPlugin;
+
+// TODO: Where should this go?
+pub(crate) mod ancestor_marker;
 
 /// Re-exports common components, bundles, resources, plugins and types.
 pub mod prelude {
@@ -513,28 +513,31 @@ pub mod prelude {
     pub use crate::diagnostics::PhysicsDiagnosticsPlugin;
     #[cfg(feature = "diagnostic_ui")]
     pub use crate::diagnostics::ui::{PhysicsDiagnosticsUiPlugin, PhysicsDiagnosticsUiSettings};
+    #[cfg(feature = "default-collider")]
+    pub(crate) use crate::physics_transform::RotationValue;
     #[cfg(feature = "bevy_picking")]
     pub use crate::picking::{
         PhysicsPickable, PhysicsPickingFilter, PhysicsPickingPlugin, PhysicsPickingSettings,
     };
-    #[cfg(feature = "default-collider")]
-    pub(crate) use crate::position::RotationValue;
     pub use crate::{
         PhysicsPlugins,
         collision::prelude::*,
         dynamics::{self, ccd::SpeculativeMargin, prelude::*},
         interpolation::*,
-        position::{Position, Rotation},
-        prepare::{PrepareConfig, PreparePlugin},
-        schedule::*,
+        physics_transform::PhysicsTransformPlugin,
+        physics_transform::{Position, Rotation},
+        schedule::{
+            Physics, PhysicsSchedule, PhysicsSchedulePlugin, PhysicsSet, PhysicsStepSet,
+            PhysicsTime, Substeps,
+        },
         spatial_query::{self, *},
-        sync::SyncPlugin,
         type_registration::PhysicsTypeRegistrationPlugin,
     };
     pub(crate) use crate::{
         diagnostics::AppDiagnosticsExt,
         math::*,
-        position::{PreSolveDeltaPosition, PreSolveDeltaRotation},
+        physics_transform::{PreSolveDeltaPosition, PreSolveDeltaRotation},
+        schedule::TimePrecisionAdjusted,
     };
     pub use avian_derive::*;
 }
@@ -552,7 +555,7 @@ use bevy::{
 #[allow(unused_imports)]
 use prelude::*;
 
-/// A plugin group containing all of Avian's plugins.
+/// A plugin group containing Avian's plugins.
 ///
 /// # Plugins
 ///
@@ -562,7 +565,6 @@ use prelude::*;
 /// | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 /// | [`PhysicsSchedulePlugin`]         | Sets up the physics engine by initializing the necessary schedules, sets and resources.                                                                    |
 /// | [`PhysicsTypeRegistrationPlugin`] | Registers physics types to the `TypeRegistry` resource in `bevy_reflect`.                                                                                  |
-/// | [`PreparePlugin`]                 | Runs systems at the start of each physics frame. Initializes [rigid bodies](RigidBody) and updates components.                                             |
 /// | [`MassPropertyPlugin`]            | Manages mass properties of dynamic [rigid bodies](RigidBody).                                                                                              |
 /// | [`ForcePlugin`]                   | Manages and applies external forces, torques, and acceleration for rigid bodies. See the [module-level documentation](dynamics::rigid_body::forces).       |
 /// | [`ColliderBackendPlugin`]         | Handles generic collider backend logic, like initializing colliders and AABBs and updating related components.                                             |
@@ -582,7 +584,7 @@ use prelude::*;
 /// | [`SleepingPlugin`]                | Manages sleeping and waking for bodies, automatically deactivating them to save computational resources.                                                   |
 /// | [`SpatialQueryPlugin`]            | Handles spatial queries like [raycasting](spatial_query#raycasting) and [shapecasting](spatial_query#shapecasting).                                        |
 /// | [`PhysicsInterpolationPlugin`]    | [`Transform`] interpolation and extrapolation for rigid bodies.                                                                                            |
-/// | [`SyncPlugin`]                    | Keeps [`Position`] and [`Rotation`] in sync with `Transform`.                                                                                              |
+/// | [`PhysicsTransformPlugin`]        | Manages physics transforms and synchronizes them with [`Transform`].                                                                                       |
 ///
 /// Optional additional plugins include:
 ///
@@ -791,7 +793,6 @@ impl PluginGroup for PhysicsPlugins {
         let builder = PluginGroupBuilder::start::<Self>()
             .add(PhysicsSchedulePlugin::new(self.schedule))
             .add(PhysicsTypeRegistrationPlugin)
-            .add(PreparePlugin::new(self.schedule))
             .add(MassPropertyPlugin::new(self.schedule))
             .add(ForcePlugin)
             .add(ColliderHierarchyPlugin)
@@ -816,7 +817,7 @@ impl PluginGroup for PhysicsPlugins {
             .add(CcdPlugin)
             .add(SleepingPlugin)
             .add(SpatialQueryPlugin)
-            .add(SyncPlugin::new(self.schedule))
+            .add(PhysicsTransformPlugin::new(self.schedule))
             .add(PhysicsInterpolationPlugin::default())
     }
 }

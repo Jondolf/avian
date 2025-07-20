@@ -8,10 +8,8 @@ use core::marker::PhantomData;
 use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSet,
-    position::init_physics_transform,
+    physics_transform::{PhysicsTransformConfig, PhysicsTransformSet, init_physics_transform},
     prelude::{mass_properties::components::GlobalCenterOfMass, *},
-    prepare::PrepareSet,
-    sync::SyncConfig,
 };
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
@@ -107,6 +105,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         let _ = app.try_register_required_components::<C, ColliderMassProperties>();
 
         // Make sure the necessary resources are initialized.
+        app.init_resource::<PhysicsTransformConfig>();
         app.init_resource::<NarrowPhaseConfig>();
         app.init_resource::<PhysicsLengthUnit>();
 
@@ -258,7 +257,9 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         app.add_systems(
             self.schedule,
             (
-                update_collider_scale::<C>.in_set(PrepareSet::Finalize),
+                update_collider_scale::<C>
+                    .in_set(PhysicsSet::Prepare)
+                    .after(PhysicsTransformSet::TransformToPosition),
                 update_collider_mass_properties::<C>
                     .in_set(MassPropertySystems::UpdateColliderMassProperties),
             )
@@ -629,9 +630,9 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<ChildOf>, Changed<ColliderTransform>)>,
     )>,
-    sync_config: Res<SyncConfig>,
+    config: Res<PhysicsTransformConfig>,
 ) {
-    if sync_config.transform_to_collider_scale {
+    if config.transform_to_collider_scale {
         // Update collider scale for root bodies
         for (transform, mut collider) in &mut colliders.p0() {
             #[cfg(feature = "2d")]
@@ -712,7 +713,6 @@ mod tests {
             .init_schedule(SubstepSchedule);
 
         app.add_plugins((
-            PreparePlugin::new(FixedPostUpdate),
             MassPropertyPlugin::new(FixedPostUpdate),
             ColliderHierarchyPlugin,
             ColliderTransformPlugin::default(),
