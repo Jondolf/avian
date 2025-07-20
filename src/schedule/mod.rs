@@ -130,7 +130,7 @@ pub struct PhysicsSchedule;
 /// 2. `Prepare`: Responsible for preparing data for the physics simulation, such as updating
 ///    physics transforms or mass properties.
 /// 3. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
-/// 4. `Sync`: Responsible for writing back the results of the physics simulation to other data,
+/// 4. `Writeback`: Responsible for writing back the results of the physics simulation to other data,
 ///    such as updating [`Transform`] based on the new [`Position`] and [`Rotation`].
 /// 5. `Last`: Runs right after all of Avian's physics systems. Empty by default.
 ///
