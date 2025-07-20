@@ -526,7 +526,10 @@ pub mod prelude {
         interpolation::*,
         physics_transform::PhysicsTransformPlugin,
         physics_transform::{Position, Rotation},
-        schedule::*,
+        schedule::{
+            Physics, PhysicsSchedule, PhysicsSchedulePlugin, PhysicsSet, PhysicsStepSet,
+            PhysicsTime, Substeps,
+        },
         spatial_query::{self, *},
         type_registration::PhysicsTypeRegistrationPlugin,
     };
@@ -534,6 +537,7 @@ pub mod prelude {
         diagnostics::AppDiagnosticsExt,
         math::*,
         physics_transform::{PreSolveDeltaPosition, PreSolveDeltaRotation},
+        schedule::TimePrecisionAdjusted,
     };
     pub use avian_derive::*;
 }

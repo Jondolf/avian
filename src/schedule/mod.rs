@@ -13,8 +13,12 @@ use core::time::Duration;
 use crate::prelude::*;
 
 use bevy::{
-    ecs::intern::Interned,
-    ecs::schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
+    ecs::{
+        component::Tick,
+        intern::Interned,
+        schedule::{ExecutorKind, LogLevel, ScheduleBuildSettings, ScheduleLabel},
+        system::SystemChangeTick,
+    },
     prelude::*,
     transform::TransformSystem,
 };
@@ -103,6 +107,11 @@ impl Plugin for PhysicsSchedulePlugin {
         app.add_systems(
             schedule,
             run_physics_schedule.in_set(PhysicsSet::StepSimulation),
+        );
+
+        app.add_systems(
+            PhysicsSchedule,
+            update_last_physics_tick.in_set(PhysicsStepSet::Last),
         );
     }
 }
@@ -197,6 +206,20 @@ pub enum PhysicsStepSet {
     Last,
 }
 
+/// A [`Tick`] corresponding to the end of the previous run of the [`PhysicsSchedule`].
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource, Default)]
+pub struct LastPhysicsTick(pub Tick);
+
+pub(crate) fn is_changed_after_tick<C: Component>(
+    component_ref: Ref<C>,
+    tick: Tick,
+    this_run: Tick,
+) -> bool {
+    let last_changed = component_ref.last_changed();
+    component_ref.is_changed() && last_changed.is_newer_than(tick, this_run)
+}
+
 /// Runs the [`PhysicsSchedule`].
 fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) {
     let _ = world.try_schedule_scope(PhysicsSchedule, |world, schedule| {
@@ -242,4 +265,11 @@ fn run_physics_schedule(world: &mut World, mut is_first_run: Local<IsFirstRun>) 
     });
 
     is_first_run.0 = false;
+}
+
+fn update_last_physics_tick(
+    mut last_physics_tick: ResMut<LastPhysicsTick>,
+    system_change_tick: SystemChangeTick,
+) {
+    last_physics_tick.0 = system_change_tick.this_run();
 }

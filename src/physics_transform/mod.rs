@@ -9,10 +9,13 @@ pub(crate) use transform::{RotationValue, init_physics_transform};
 #[cfg(test)]
 mod tests;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    schedule::{LastPhysicsTick, is_changed_after_tick},
+};
 use approx::AbsDiffEq;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel},
+    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemChangeTick},
     prelude::*,
     transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
@@ -172,7 +175,11 @@ pub enum PhysicsTransformSet {
 pub fn transform_to_position(
     mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>,
     length_unit: Res<PhysicsLengthUnit>,
+    last_physics_tick: Res<LastPhysicsTick>,
+    system_tick: SystemChangeTick,
 ) {
+    let this_run = system_tick.this_run();
+
     // If the `GlobalTransform` translation and `Position` differ by less than 0.01 mm, we ignore the change.
     let distance_tolerance = length_unit.0 * 1e-5;
     // If the `GlobalTransform` rotation and `Rotation` differ by less than 0.1 degrees, we ignore the change.
@@ -186,10 +193,23 @@ pub fn transform_to_position(
         let transform_translation = global_transform.translation.adjust_precision();
         let transform_rotation = Rotation::from(global_transform.rotation.adjust_precision());
 
-        if position.abs_diff_ne(&transform_translation, distance_tolerance) {
+        let position_changed = is_changed_after_tick(
+            Ref::from(position.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !position_changed && position.abs_diff_ne(&transform_translation, distance_tolerance) {
             position.0 = transform_translation;
         }
-        if rotation.angle_between(transform_rotation).abs() > rotation_tolerance {
+
+        let rotation_changed = is_changed_after_tick(
+            Ref::from(rotation.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !rotation_changed
+            && rotation.angle_between(transform_rotation).abs() > rotation_tolerance
+        {
             *rotation = transform_rotation;
         }
     }
