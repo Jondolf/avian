@@ -89,7 +89,8 @@ impl Plugin for PhysicsTransformPlugin {
                 sync_simple_transforms,
             )
                 .chain()
-                .in_set(PhysicsTransformSet::Propagate),
+                .in_set(PhysicsTransformSet::Propagate)
+                .run_if(|config: Res<PhysicsTransformConfig>| config.propagate_before_physics),
         );
         app.add_systems(
             self.schedule,
