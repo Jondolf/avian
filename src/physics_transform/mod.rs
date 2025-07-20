@@ -88,6 +88,7 @@ impl Plugin for PhysicsTransformPlugin {
                 propagate_parent_transforms,
                 sync_simple_transforms,
             )
+                .chain()
                 .in_set(PhysicsTransformSet::Propagate),
         );
         app.add_systems(
