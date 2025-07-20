@@ -1,4 +1,6 @@
-use crate::{ancestor_marker::AncestorMarker, prelude::*, sync::SyncConfig};
+use crate::{
+    ancestor_marker::AncestorMarker, physics_transform::PhysicsTransformConfig, prelude::*,
+};
 use bevy::prelude::*;
 use dynamics::solver::{SolverConfig, schedule::SubstepCount};
 
@@ -48,7 +50,7 @@ impl Plugin for PhysicsTypeRegistrationPlugin {
             .register_type::<CollisionMargin>()
             .register_type::<NarrowPhaseConfig>()
             .register_type::<SolverConfig>()
-            .register_type::<SyncConfig>()
+            .register_type::<PhysicsTransformConfig>()
             .register_type::<AncestorMarker<ColliderMarker>>()
             .register_type::<RayCaster>()
             .register_type::<DistanceJoint>()

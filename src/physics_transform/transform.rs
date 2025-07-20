@@ -2,7 +2,7 @@
 
 #![allow(clippy::unnecessary_cast)]
 
-use crate::prelude::*;
+use crate::{physics_transform::PhysicsTransformConfig, prelude::*};
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
     math::DQuat,
@@ -18,7 +18,7 @@ use crate::math::Matrix;
 /// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Position`] is used for physics internally and kept in sync with `Transform`
-/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
 /// be used for almost everything. Using [`Position`] should only be required for managing positions
 /// in systems running in the [`SubstepSchedule`]. However, if you prefer, you can also use [`Position`]
 /// for everything.
@@ -146,7 +146,7 @@ pub(crate) type RotationValue = Quaternion;
 /// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
-/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
 /// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
 /// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
 /// for everything.
@@ -705,7 +705,7 @@ impl Ease for Rotation {
 /// # Relation to `Transform` and `GlobalTransform`
 ///
 /// [`Rotation`] is used for physics internally and kept in sync with `Transform`
-/// by the [`SyncPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
 /// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
 /// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
 /// for everything.
@@ -1068,8 +1068,8 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
     // If either `Position` or `Rotation` was set manually, we want to set `Transform` to match later.
     let is_not_placeholder = !is_pos_placeholder || !is_rot_placeholder;
 
-    let prepare_config = world
-        .get_resource::<PrepareConfig>()
+    let config = world
+        .get_resource::<PhysicsTransformConfig>()
         .cloned()
         .unwrap_or_default();
 
@@ -1086,7 +1086,7 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
 
     // If either `Position` or `Rotation` was not a placeholder,
     // we need to update the `Transform` to match the current values.
-    if is_not_placeholder && prepare_config.position_to_transform {
+    if is_not_placeholder && config.position_to_transform {
         // Get the parent's global transform if it exists.
         if parent_global_transform != GlobalTransform::default() {
             #[cfg(feature = "2d")]
@@ -1145,7 +1145,7 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
         }
     }
 
-    if !prepare_config.transform_to_position {
+    if !config.transform_to_position {
         if is_pos_placeholder && let Some(mut position) = world.get_mut::<Position>(ctx.entity) {
             position.0 = Vector::ZERO;
         }

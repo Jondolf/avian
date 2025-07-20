@@ -18,7 +18,7 @@ pub use world_query::*;
 pub(crate) use forces::FloatZero;
 
 use crate::{
-    position::init_physics_transform,
+    physics_transform::init_physics_transform,
     prelude::{
         forces::AccumulatedLocalAcceleration, mass_properties::components::GlobalCenterOfMass, *,
     },

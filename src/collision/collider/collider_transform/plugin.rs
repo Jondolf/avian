@@ -1,7 +1,7 @@
 use crate::{
     ancestor_marker::{AncestorMarker, AncestorMarkerPlugin},
+    physics_transform::PhysicsTransformSet,
     prelude::*,
-    sync::SyncSet,
 };
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
@@ -49,7 +49,7 @@ impl Plugin for ColliderTransformPlugin {
         // Only traverses trees with `AncestorMarker<ColliderMarker>`.
         app.add_systems(
             self.schedule,
-            propagate_collider_transforms.in_set(SyncSet::Propagate),
+            propagate_collider_transforms.in_set(PhysicsTransformSet::Propagate),
         );
 
         let physics_schedule = app

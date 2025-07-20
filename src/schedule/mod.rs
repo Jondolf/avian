@@ -66,9 +66,11 @@ impl Plugin for PhysicsSchedulePlugin {
         app.configure_sets(
             schedule,
             (
+                PhysicsSet::First,
                 PhysicsSet::Prepare,
                 PhysicsSet::StepSimulation,
-                PhysicsSet::Sync,
+                PhysicsSet::Writeback,
+                PhysicsSet::Last,
             )
                 .chain()
                 .before(TransformSystem::TransformPropagate),
@@ -124,11 +126,13 @@ pub struct PhysicsSchedule;
 /// You can use these to schedule your own systems before or after physics is run without
 /// having to worry about implementation details.
 ///
-/// 1. `Prepare`: Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
-///    updating several components.
-/// 2. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
-/// 3. `Sync`: Responsible for synchronizing physics components with other data, like keeping [`Position`]
-///    and [`Rotation`] in sync with `Transform`.
+/// 1. `First`: Runs right before any of Avian's physics systems. Empty by default.
+/// 2. `Prepare`: Responsible for preparing data for the physics simulation, such as updating
+///    physics transforms or mass properties.
+/// 3. `StepSimulation`: Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
+/// 4. `Sync`: Responsible for writing back the results of the physics simulation to other data,
+///    such as updating [`Transform`] based on the new [`Position`] and [`Rotation`].
+/// 5. `Last`: Runs right after all of Avian's physics systems. Empty by default.
 ///
 /// # See Also
 ///
@@ -138,19 +142,19 @@ pub struct PhysicsSchedule;
 /// - [`SubstepSchedule`]: Responsible for running the substepping loop in [`PhysicsStepSet::Solver`].
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PhysicsSet {
-    /// Responsible for initializing [rigid bodies](RigidBody) and [colliders](Collider) and
-    /// updating several components.
-    ///
-    /// See [`PreparePlugin`].
+    /// Runs right before any of Avian's physics systems. Empty by default.
+    First,
+    /// Responsible for preparing data for the physics simulation, such as updating
+    /// physics transforms or mass properties.
     Prepare,
     /// Responsible for advancing the simulation by running the steps in [`PhysicsStepSet`].
     /// Systems in this set are run in the [`PhysicsSchedule`].
     StepSimulation,
-    /// Responsible for synchronizing physics components with other data, like keeping [`Position`]
-    /// and [`Rotation`] in sync with `Transform`.
-    ///
-    /// See [`SyncPlugin`].
-    Sync,
+    /// Responsible for writing back the results of the physics simulation to other data,
+    /// such as updating [`Transform`] based on the new [`Position`] and [`Rotation`].
+    Writeback,
+    /// Runs right after all of Avian's physics systems. Empty by default.
+    Last,
 }
 
 /// System sets for the main steps in the physics simulation loop. These are typically run in the [`PhysicsSchedule`].
