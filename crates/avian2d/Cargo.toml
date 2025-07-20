@@ -29,9 +29,9 @@ debug-plugin = ["bevy/bevy_gizmos", "bevy/bevy_render"]
 simd = ["parry2d?/simd-stable", "parry2d-f64?/simd-stable"]
 parallel = [
     "dep:thread_local",
-    "bevy/multi_threaded",
-    "parry2d?/parallel",
-    "parry2d-f64?/parallel",
+    # "bevy/multi_threaded",
+    # "parry2d?/parallel",
+    # "parry2d-f64?/parallel",
 ]
 enhanced-determinism = [
     "dep:libm",
@@ -96,6 +96,7 @@ smallvec = "1.15"
 itertools = "0.13"
 bitflags = "2.5.0"
 thread_local = { version = "1.1", optional = true }
+rayon = { git = "https://github.com/Jondolf/rayon", branch = "forte" }
 
 [dev-dependencies]
 examples_common_2d = { path = "../examples_common_2d" }
@@ -104,7 +105,7 @@ bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
 ] }
 glam = { version = "0.29", features = ["bytemuck"] }
 bytemuck = "1.19"
-criterion = { version = "0.5", features = ["html_reports"] }
+# criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { version = "0.13" }
 
 [lints]

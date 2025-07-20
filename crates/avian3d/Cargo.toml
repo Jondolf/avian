@@ -31,8 +31,8 @@ simd = ["parry3d?/simd-stable", "parry3d-f64?/simd-stable"]
 parallel = [
     "dep:thread_local",
     "bevy/multi_threaded",
-    "parry3d?/parallel",
-    "parry3d-f64?/parallel",
+    # "parry3d?/parallel",
+    # "parry3d-f64?/parallel",
 ]
 enhanced-determinism = [
     "dep:libm",
@@ -97,6 +97,7 @@ smallvec = "1.15"
 itertools = "0.13"
 bitflags = "2.5.0"
 thread_local = { version = "1.1", optional = true }
+rayon = { git = "https://github.com/Jondolf/rayon", branch = "forte" }
 
 [dev-dependencies]
 examples_common_3d = { path = "../examples_common_3d" }
@@ -107,7 +108,7 @@ bevy = { version = "0.16", default-features = false, features = [
 bevy_heavy = { git = "https://github.com/Jondolf/bevy_heavy.git", features = [
     "approx",
 ] }
-criterion = { version = "0.5", features = ["html_reports"] }
+# criterion = { version = "0.5", features = ["html_reports"] }
 bevy_mod_debugdump = { version = "0.13" }
 
 [lints]

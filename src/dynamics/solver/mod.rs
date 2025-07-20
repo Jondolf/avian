@@ -14,6 +14,7 @@ mod diagnostics;
 use constraint_graph::ConstraintGraph;
 use contact::{ContactConstraintPoint, ContactNormalPart, ContactTangentPart};
 pub use diagnostics::SolverDiagnostics;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 use xpbd::EntityConstraint;
 
@@ -478,7 +479,7 @@ fn prepare_contact_constraints(
     }
 
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
-    crate::utils::par_for_each!(constraint_graph.colors, |_i, color| {
+    constraint_graph.colors.par_iter_mut().for_each(|color| {
         for handle in color.manifold_handles.iter() {
             // Get the contact pair and its manifold.
             let contact_pair = contact_graph
@@ -688,47 +689,50 @@ fn warm_start(
     let start = crate::utils::Instant::now();
 
     for color in constraint_graph.colors.iter_mut() {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
-            debug_assert!(!constraint.points.is_empty());
+        color
+            .contact_constraints
+            .par_iter_mut()
+            .for_each(|constraint| {
+                debug_assert!(!constraint.points.is_empty());
 
-            let mut dummy_body1 = SolverBody::default();
-            let mut dummy_body2 = SolverBody::default();
-            let dummy_inertia = SolverBodyInertia::default();
+                let mut dummy_body1 = SolverBody::default();
+                let mut dummy_body2 = SolverBody::default();
+                let dummy_inertia = SolverBodyInertia::default();
 
-            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+                let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+                let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            // Get the solver bodies for the two colliding entities.
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-                body1 = body.into_inner();
-                inertia1 = inertia;
-            }
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-                body2 = body.into_inner();
-                inertia2 = inertia;
-            }
+                // Get the solver bodies for the two colliding entities.
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                    body1 = body.into_inner();
+                    inertia1 = inertia;
+                }
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                    body2 = body.into_inner();
+                    inertia2 = inertia;
+                }
 
-            // If a body has a higher dominance, it is treated as a static or kinematic body.
-            match constraint.relative_dominance.cmp(&0) {
-                Ordering::Greater => inertia1 = &dummy_inertia,
-                Ordering::Less => inertia2 = &dummy_inertia,
-                _ => {}
-            }
+                // If a body has a higher dominance, it is treated as a static or kinematic body.
+                match constraint.relative_dominance.cmp(&0) {
+                    Ordering::Greater => inertia1 = &dummy_inertia,
+                    Ordering::Less => inertia2 = &dummy_inertia,
+                    _ => {}
+                }
 
-            let normal = constraint.normal;
-            let tangent_directions =
-                constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
+                let normal = constraint.normal;
+                let tangent_directions =
+                    constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
 
-            constraint.warm_start(
-                body1,
-                body2,
-                inertia1,
-                inertia2,
-                normal,
-                tangent_directions,
-                solver_config.warm_start_coefficient,
-            );
-        });
+                constraint.warm_start(
+                    body1,
+                    body2,
+                    inertia1,
+                    inertia2,
+                    normal,
+                    tangent_directions,
+                    solver_config.warm_start_coefficient,
+                );
+            });
     }
 
     diagnostics.warm_start += start.elapsed();
@@ -762,41 +766,44 @@ fn solve_contacts<const USE_BIAS: bool>(
     let max_overlap_solve_speed = solver_config.max_overlap_solve_speed * length_unit.0;
 
     for color in constraint_graph.colors.iter_mut() {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
-            let mut dummy_body1 = SolverBody::default();
-            let mut dummy_body2 = SolverBody::default();
-            let dummy_inertia = SolverBodyInertia::default();
+        color
+            .contact_constraints
+            .par_iter_mut()
+            .for_each(|constraint| {
+                let mut dummy_body1 = SolverBody::default();
+                let mut dummy_body2 = SolverBody::default();
+                let dummy_inertia = SolverBodyInertia::default();
 
-            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+                let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+                let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            // Get the solver bodies for the two colliding entities.
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-                body1 = body.into_inner();
-                inertia1 = inertia;
-            }
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-                body2 = body.into_inner();
-                inertia2 = inertia;
-            }
+                // Get the solver bodies for the two colliding entities.
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                    body1 = body.into_inner();
+                    inertia1 = inertia;
+                }
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                    body2 = body.into_inner();
+                    inertia2 = inertia;
+                }
 
-            // If a body has a higher dominance, it is treated as a static or kinematic body.
-            match constraint.relative_dominance.cmp(&0) {
-                Ordering::Greater => inertia1 = &dummy_inertia,
-                Ordering::Less => inertia2 = &dummy_inertia,
-                _ => {}
-            }
+                // If a body has a higher dominance, it is treated as a static or kinematic body.
+                match constraint.relative_dominance.cmp(&0) {
+                    Ordering::Greater => inertia1 = &dummy_inertia,
+                    Ordering::Less => inertia2 = &dummy_inertia,
+                    _ => {}
+                }
 
-            constraint.solve(
-                body1,
-                body2,
-                inertia1,
-                inertia2,
-                delta_secs,
-                USE_BIAS,
-                max_overlap_solve_speed,
-            );
-        });
+                constraint.solve(
+                    body1,
+                    body2,
+                    inertia1,
+                    inertia2,
+                    delta_secs,
+                    USE_BIAS,
+                    max_overlap_solve_speed,
+                );
+            });
     }
 
     if USE_BIAS {
@@ -828,49 +835,52 @@ fn solve_restitution(
     let threshold = solver_config.restitution_threshold * length_unit.0;
 
     for color in constraint_graph.colors.iter_mut() {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
-            let restitution = constraint.restitution;
+        color
+            .contact_constraints
+            .par_iter_mut()
+            .for_each(|constraint| {
+                let restitution = constraint.restitution;
 
-            if restitution == 0.0 {
-                return;
-            }
+                if restitution == 0.0 {
+                    return;
+                }
 
-            let mut dummy_body1 = SolverBody::default();
-            let mut dummy_body2 = SolverBody::default();
-            let dummy_inertia = SolverBodyInertia::default();
+                let mut dummy_body1 = SolverBody::default();
+                let mut dummy_body2 = SolverBody::default();
+                let dummy_inertia = SolverBodyInertia::default();
 
-            let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
-            let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
+                let (mut body1, mut inertia1) = (&mut dummy_body1, &dummy_inertia);
+                let (mut body2, mut inertia2) = (&mut dummy_body2, &dummy_inertia);
 
-            // Get the solver bodies for the two colliding entities.
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
-                body1 = body.into_inner();
-                inertia1 = inertia;
-            }
-            if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
-                body2 = body.into_inner();
-                inertia2 = inertia;
-            }
+                // Get the solver bodies for the two colliding entities.
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body1) } {
+                    body1 = body.into_inner();
+                    inertia1 = inertia;
+                }
+                if let Ok((body, inertia)) = unsafe { bodies.get_unchecked(constraint.body2) } {
+                    body2 = body.into_inner();
+                    inertia2 = inertia;
+                }
 
-            // If a body has a higher dominance, it is treated as a static or kinematic body.
-            match constraint.relative_dominance.cmp(&0) {
-                Ordering::Greater => inertia1 = &dummy_inertia,
-                Ordering::Less => inertia2 = &dummy_inertia,
-                _ => {}
-            }
+                // If a body has a higher dominance, it is treated as a static or kinematic body.
+                match constraint.relative_dominance.cmp(&0) {
+                    Ordering::Greater => inertia1 = &dummy_inertia,
+                    Ordering::Less => inertia2 = &dummy_inertia,
+                    _ => {}
+                }
 
-            // Performing multiple iterations can result in more accurate restitution,
-            // but only if there are more than one contact point.
-            let restitution_iterations = if constraint.points.len() > 1 {
-                solver_config.restitution_iterations
-            } else {
-                1
-            };
+                // Performing multiple iterations can result in more accurate restitution,
+                // but only if there are more than one contact point.
+                let restitution_iterations = if constraint.points.len() > 1 {
+                    solver_config.restitution_iterations
+                } else {
+                    1
+                };
 
-            for _ in 0..restitution_iterations {
-                constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);
-            }
-        });
+                for _ in 0..restitution_iterations {
+                    constraint.apply_restitution(body1, body2, inertia1, inertia2, threshold);
+                }
+            });
     }
 
     diagnostics.apply_restitution += start.elapsed();
