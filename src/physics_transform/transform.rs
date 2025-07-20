@@ -17,8 +17,8 @@ use crate::math::Matrix;
 ///
 /// # Relation to `Transform` and `GlobalTransform`
 ///
-/// [`Position`] is used for physics internally and kept in sync with `Transform`
-/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// [`Position`] is used for physics internally and kept in sync with [`Transform`]
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as [`Transform`] can still
 /// be used for almost everything. Using [`Position`] should only be required for managing positions
 /// in systems running in the [`SubstepSchedule`]. However, if you prefer, you can also use [`Position`]
 /// for everything.
@@ -145,8 +145,8 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// # Relation to `Transform` and `GlobalTransform`
 ///
-/// [`Rotation`] is used for physics internally and kept in sync with `Transform`
-/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// [`Rotation`] is used for physics internally and kept in sync with `[Transform`]
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `[Transform`] can still
 /// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
 /// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
 /// for everything.
@@ -704,8 +704,8 @@ impl Ease for Rotation {
 ///
 /// # Relation to `Transform` and `GlobalTransform`
 ///
-/// [`Rotation`] is used for physics internally and kept in sync with `Transform`
-/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as `Transform` can still
+/// [`Rotation`] is used for physics internally and kept in sync with [`Transform`]
+/// by the [`PhysicsTransformPlugin`]. It rarely needs to be used directly in your own code, as [`Transform`] can still
 /// be used for almost everything. Using [`Rotation`] should only be required for managing rotations
 /// in systems running in the [`SubstepSchedule`], but if you prefer, you can also use [`Rotation`]
 /// for everything.

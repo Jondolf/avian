@@ -8,7 +8,7 @@ use core::marker::PhantomData;
 use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSet,
-    physics_transform::{PhysicsTransformSet, PhysicsTransformConfig, init_physics_transform},
+    physics_transform::{PhysicsTransformConfig, PhysicsTransformSet, init_physics_transform},
     prelude::{mass_properties::components::GlobalCenterOfMass, *},
 };
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
@@ -629,9 +629,9 @@ pub fn update_collider_scale<C: ScalableCollider>(
         // Child colliders
         Query<(&ColliderTransform, &mut C), (With<ChildOf>, Changed<ColliderTransform>)>,
     )>,
-    sync_config: Res<PhysicsTransformConfig>,
+    config: Res<PhysicsTransformConfig>,
 ) {
-    if sync_config.transform_to_collider_scale {
+    if config.transform_to_collider_scale {
         // Update collider scale for root bodies
         for (transform, mut collider) in &mut colliders.p0() {
             #[cfg(feature = "2d")]
