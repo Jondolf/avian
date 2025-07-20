@@ -1172,13 +1172,11 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b674242641cab680688fc3b850243b351c1af49d4f3417a576debd6cca8dcf5"
 dependencies = [
- "async-channel",
  "async-executor",
  "async-task",
  "atomic-waker",
  "bevy_platform",
  "cfg-if",
- "concurrent-queue",
  "crossbeam-queue",
  "derive_more",
  "futures-channel",
