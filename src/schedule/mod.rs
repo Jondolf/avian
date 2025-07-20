@@ -59,7 +59,8 @@ impl Plugin for PhysicsSchedulePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Time<Physics>>()
             .insert_resource(Time::new_with(Substeps))
-            .init_resource::<SubstepCount>();
+            .init_resource::<SubstepCount>()
+            .init_resource::<LastPhysicsTick>();
 
         // TODO: Where should this be initialized?
         app.init_resource::<PhysicsLengthUnit>();
@@ -111,7 +112,7 @@ impl Plugin for PhysicsSchedulePlugin {
 
         app.add_systems(
             PhysicsSchedule,
-            update_last_physics_tick.in_set(PhysicsStepSet::Last),
+            update_last_physics_tick.after(PhysicsStepSet::Last),
         );
     }
 }

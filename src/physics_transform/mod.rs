@@ -15,7 +15,7 @@ use crate::{
 };
 use approx::AbsDiffEq;
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel, system::SystemChangeTick},
+    ecs::{component::Tick, intern::Interned, schedule::ScheduleLabel, system::SystemChangeTick},
     prelude::*,
     transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
@@ -178,7 +178,14 @@ pub fn transform_to_position(
     last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
 ) {
-    let this_run = system_tick.this_run();
+    // On the first tick, the last physics tick and system tick are both defaulted to 0,
+    // but to handle change detection correctly, the system tick should always be larger.
+    // So we use a minimum system tick of 1 here.
+    let this_run = if last_physics_tick.0.get() == 0 {
+        Tick::new(1)
+    } else {
+        system_tick.this_run()
+    };
 
     // If the `GlobalTransform` translation and `Position` differ by less than 0.01 mm, we ignore the change.
     let distance_tolerance = length_unit.0 * 1e-5;

@@ -30,8 +30,7 @@ impl Plugin for SleepingPlugin {
         let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
 
         app.init_resource::<SleepingThreshold>()
-            .init_resource::<DeactivationTime>()
-            .init_resource::<LastPhysicsTick>();
+            .init_resource::<DeactivationTime>();
 
         let physics_schedule = app
             .get_schedule_mut(PhysicsSchedule)
