@@ -105,6 +105,7 @@ impl<C: ScalableCollider> Plugin for ColliderBackendPlugin<C> {
         let _ = app.try_register_required_components::<C, ColliderMassProperties>();
 
         // Make sure the necessary resources are initialized.
+        app.init_resource::<PhysicsTransformConfig>();
         app.init_resource::<NarrowPhaseConfig>();
         app.init_resource::<PhysicsLengthUnit>();
 
