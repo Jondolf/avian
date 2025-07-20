@@ -41,7 +41,7 @@ fn setup(
         MeshMaterial2d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
     ));
 
-    let base_count = 50;
+    let base_count = 100;
     let h = 0.5;
     let box_size = 2.0 * h;
     let collider = Collider::rectangle(box_size as Scalar, box_size as Scalar);
