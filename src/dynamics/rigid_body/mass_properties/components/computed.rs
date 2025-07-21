@@ -845,19 +845,19 @@ impl GlobalCenterOfMass {
         self.0
     }
 
-    /// Updates the global angular inertia with the given local angular inertia and rotation.
+    /// Updates the global center of mass,
     #[inline]
     pub fn update(
         &mut self,
-        local_angular_inertia: impl Into<ComputedCenterOfMass>,
+        local_com: impl Into<ComputedCenterOfMass>,
         position: impl Into<Vector>,
         rotation: impl Into<Rotation>,
     ) {
-        let local_angular_inertia: ComputedCenterOfMass = local_angular_inertia.into();
+        let local_com: ComputedCenterOfMass = local_com.into();
         let position: Vector = position.into();
         let rotation: Rotation = rotation.into();
-        let global_angular_inertia = position + rotation * local_angular_inertia.0;
-        self.0 = global_angular_inertia;
+        let global_com = position + rotation * local_com.0;
+        self.0 = global_com;
     }
 }
 

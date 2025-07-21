@@ -296,10 +296,23 @@ impl Plugin for MassPropertyPlugin {
         // Force mass property computation for new rigid bodies.
         app.register_required_components::<RigidBody, RecomputeMassProperties>();
 
-        // Compute mass properties for new rigid bodies at spawn.y
+        // Compute mass properties for new rigid bodies at spawn.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
+            |trigger: Trigger<OnAdd, RigidBody>,
+             mut mass_helper: MassPropertyHelper,
+             mut query: Query<(
+                &mut GlobalCenterOfMass,
+                &ComputedCenterOfMass,
+                &Position,
+                &Rotation,
+            )>| {
                 mass_helper.update_mass_properties(trigger.target());
+
+                if let Ok((mut global_com, lcoal_com, position, rotation)) =
+                    query.get_mut(trigger.target())
+                {
+                    global_com.update(*lcoal_com, position.0, *rotation);
+                }
             },
         );
 
@@ -444,11 +457,11 @@ pub(crate) fn update_global_center_of_mass<F: QueryFilter>(
         ),
     >,
 ) {
-    query.par_iter_mut().for_each(
-        |(position, rotation, angular_inertia, mut global_angular_inertia)| {
-            global_angular_inertia.update(*angular_inertia, position.0, *rotation);
-        },
-    );
+    query
+        .par_iter_mut()
+        .for_each(|(position, rotation, lcoal_com, mut global_com)| {
+            global_com.update(*lcoal_com, position.0, *rotation);
+        });
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
