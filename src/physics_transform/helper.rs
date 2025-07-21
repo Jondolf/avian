@@ -55,7 +55,7 @@ impl PhysicsTransformHelper<'_, '_> {
     pub fn update_physics_transform(
         &mut self,
         entity: Entity,
-    ) -> Result<(Mut<Position>, Mut<Rotation>), UpdatePhysicsTransformError> {
+    ) -> Result<(Mut<'_, Position>, Mut<'_, Rotation>), UpdatePhysicsTransformError> {
         use ComputeGlobalTransformError::*;
 
         // Compute the global transform.
