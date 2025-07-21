@@ -1,7 +1,4 @@
-use crate::{
-    dynamics::integrator::VelocityIntegrationData,
-    prelude::{mass_properties::components::GlobalCenterOfMass, *},
-};
+use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
 use bevy::ecs::{
     query::{Has, QueryData},
     system::lifetimeless::{Read, Write},
@@ -62,7 +59,7 @@ use super::AccumulatedLocalAcceleration;
 /// ```
 ///
 /// [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
-/// with the [`GlobalCenterOfMass`], it will apply a torque to the body.
+/// with the [center of mass](CenterOfMass), it will apply a torque to the body.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
@@ -108,12 +105,13 @@ use super::AccumulatedLocalAcceleration;
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct Forces {
+    position: Read<Position>,
     rotation: Read<Rotation>,
     linear_velocity: Write<LinearVelocity>,
     angular_velocity: Write<AngularVelocity>,
     mass: Read<ComputedMass>,
     angular_inertia: Read<ComputedAngularInertia>,
-    global_center_of_mass: Read<GlobalCenterOfMass>,
+    center_of_mass: Read<ComputedCenterOfMass>,
     locked_axes: Option<Read<LockedAxes>>,
     integration: Write<VelocityIntegrationData>,
     accumulated_local_acceleration: Write<AccumulatedLocalAcceleration>,
@@ -133,12 +131,13 @@ impl ForcesItem<'_> {
     #[must_use]
     pub fn reborrow(&mut self) -> ForcesItem<'_> {
         ForcesItem {
+            position: self.position,
             rotation: self.rotation,
             linear_velocity: self.linear_velocity.reborrow(),
             angular_velocity: self.angular_velocity.reborrow(),
             mass: self.mass,
             angular_inertia: self.angular_inertia,
-            global_center_of_mass: self.global_center_of_mass,
+            center_of_mass: self.center_of_mass,
             locked_axes: self.locked_axes,
             integration: self.integration.reborrow(),
             accumulated_local_acceleration: self.accumulated_local_acceleration.reborrow(),
@@ -548,7 +547,7 @@ impl RigidBodyForcesInternal for ForcesItem<'_> {
     }
     #[inline]
     fn global_center_of_mass(&self) -> Vector {
-        self.global_center_of_mass.get()
+        self.position.0 + self.rotation * self.center_of_mass.0
     }
     #[inline]
     fn locked_axes(&self) -> LockedAxes {

@@ -9,7 +9,7 @@ use crate::collision::collider::cache::ColliderCache;
 use crate::{
     collision::broad_phase::BroadPhaseSet,
     physics_transform::{PhysicsTransformConfig, PhysicsTransformSet, init_physics_transform},
-    prelude::{mass_properties::components::GlobalCenterOfMass, *},
+    prelude::*,
 };
 #[cfg(all(feature = "bevy_scene", feature = "default-collider"))]
 use bevy::scene::SceneInstance;
@@ -520,9 +520,11 @@ fn update_aabb<C: AnyCollider>(
     >,
     rb_velocities: Query<
         (
-            &GlobalCenterOfMass,
-            Option<&LinearVelocity>,
-            Option<&AngularVelocity>,
+            &Position,
+            &Rotation,
+            &ComputedCenterOfMass,
+            &LinearVelocity,
+            &AngularVelocity,
         ),
         With<Children>,
     >,
@@ -568,7 +570,7 @@ fn update_aabb<C: AnyCollider>(
         // Expand the AABB based on the body's velocity and CCD speculative margin.
         let (lin_vel, ang_vel) = if let (Some(lin_vel), Some(ang_vel)) = (lin_vel, ang_vel) {
             (*lin_vel, *ang_vel)
-        } else if let Some(Ok((global_com, Some(lin_vel), Some(ang_vel)))) =
+        } else if let Some(Ok((rb_pos, rb_rot, center_of_mass, lin_vel, ang_vel))) =
             collider_of.map(|&ColliderOf { body }| rb_velocities.get(body))
         {
             // If the rigid body is rotating, off-center colliders will orbit around it,
@@ -577,7 +579,7 @@ fn update_aabb<C: AnyCollider>(
             // TODO: This assumes that the colliders would continue moving in the same direction,
             //       but because they are orbiting, the direction will change. We should take
             //       into account the uniform circular motion.
-            let offset = pos.0 - global_com.get();
+            let offset = pos.0 - rb_pos.0 - rb_rot * center_of_mass.0;
             #[cfg(feature = "2d")]
             let vel_at_offset =
                 lin_vel.0 + Vector::new(-ang_vel.0 * offset.y, ang_vel.0 * offset.x) * 1.0;

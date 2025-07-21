@@ -197,9 +197,7 @@
 //! taking into account the mass properties of descendants and colliders.
 
 use crate::physics_transform::PhysicsTransformSet;
-use crate::prelude::mass_properties::components::GlobalCenterOfMass;
 use crate::prelude::*;
-use bevy::ecs::query::QueryFilter;
 use bevy::{
     ecs::{intern::Interned, schedule::ScheduleLabel},
     prelude::*,
@@ -298,21 +296,8 @@ impl Plugin for MassPropertyPlugin {
 
         // Compute mass properties for new rigid bodies at spawn.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>,
-             mut mass_helper: MassPropertyHelper,
-             mut query: Query<(
-                &mut GlobalCenterOfMass,
-                &ComputedCenterOfMass,
-                &Position,
-                &Rotation,
-            )>| {
+            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
                 mass_helper.update_mass_properties(trigger.target());
-
-                if let Ok((mut global_com, lcoal_com, position, rotation)) =
-                    query.get_mut(trigger.target())
-                {
-                    global_com.update(*lcoal_com, position.0, *rotation);
-                }
             },
         );
 
@@ -342,19 +327,9 @@ impl Plugin for MassPropertyPlugin {
         // Update mass properties for entities with the `RecomputeMassProperties` component.
         app.add_systems(
             self.schedule,
-            (
-                update_mass_properties,
-                update_global_center_of_mass::<Added<RigidBody>>,
-                warn_missing_mass,
-            )
+            (update_mass_properties, warn_missing_mass)
                 .chain()
                 .in_set(MassPropertySystems::UpdateComputedMassProperties),
-        );
-
-        // Update the global center of mass at the end of the physics step.
-        app.add_systems(
-            PhysicsSchedule,
-            update_global_center_of_mass::<()>.in_set(PhysicsStepSet::Finalize),
         );
     }
 }
@@ -436,32 +411,6 @@ fn update_mass_properties(
         mass_helper.update_mass_properties(entity);
         commands.entity(entity).remove::<RecomputeMassProperties>();
     }
-}
-
-/// Updates [`GlobalCenterOfMass`] for entities that match the given query filter `F`.
-pub(crate) fn update_global_center_of_mass<F: QueryFilter>(
-    mut query: Populated<
-        (
-            &Position,
-            &Rotation,
-            &ComputedCenterOfMass,
-            &mut GlobalCenterOfMass,
-        ),
-        (
-            Or<(
-                Changed<ComputedCenterOfMass>,
-                Changed<Position>,
-                Changed<Rotation>,
-            )>,
-            F,
-        ),
-    >,
-) {
-    query
-        .par_iter_mut()
-        .for_each(|(position, rotation, lcoal_com, mut global_com)| {
-            global_com.update(*lcoal_com, position.0, *rotation);
-        });
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].

@@ -116,7 +116,7 @@
 //! ```
 //!
 //! [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
-//! with the [`GlobalCenterOfMass`], it will apply a torque to the body.
+//! with the [center of mass](CenterOfMass), it will apply a torque to the body.
 //!
 //! ```
 #![cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
