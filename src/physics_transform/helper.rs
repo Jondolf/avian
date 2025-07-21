@@ -11,7 +11,10 @@ use bevy::{
 };
 use thiserror::Error;
 
-use crate::prelude::{Position, Rotation};
+use crate::{
+    math::AdjustPrecision,
+    prelude::{Position, Rotation},
+};
 
 /// A system parameter for computing up-to-date [`Position`] and [`Rotation`] components
 /// of entities based on their [`Transform`]s.
@@ -71,13 +74,13 @@ impl PhysicsTransformHelper<'_, '_> {
         };
         #[cfg(feature = "2d")]
         {
-            position.0 = global_transform.translation().truncate();
-            *rotation = Rotation::from(global_transform.rotation());
+            position.0 = global_transform.translation().truncate().adjust_precision();
+            *rotation = Rotation::from(global_transform.rotation().adjust_precision());
         }
         #[cfg(feature = "3d")]
         {
-            position.0 = global_transform.translation();
-            rotation.0 = global_transform.rotation();
+            position.0 = global_transform.translation().adjust_precision();
+            rotation.0 = global_transform.rotation().adjust_precision();
         }
 
         Ok((position, rotation))
