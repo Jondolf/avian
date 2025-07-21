@@ -6,6 +6,9 @@ mod transform;
 pub use transform::{Position, PreSolveDeltaPosition, PreSolveDeltaRotation, Rotation};
 pub(crate) use transform::{RotationValue, init_physics_transform};
 
+mod helper;
+pub use helper::PhysicsTransformHelper;
+
 #[cfg(test)]
 mod tests;
 

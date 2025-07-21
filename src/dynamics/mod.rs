@@ -89,9 +89,8 @@ pub mod prelude {
                 },
                 components::{
                     AngularInertia, CenterOfMass, ColliderDensity, ColliderMassProperties,
-                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, GlobalCenterOfMass,
-                    Mass, MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass,
-                    NoAutoMass,
+                    ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, Mass,
+                    MassPropertiesBundle, NoAutoAngularInertia, NoAutoCenterOfMass, NoAutoMass,
                 },
             },
             *,

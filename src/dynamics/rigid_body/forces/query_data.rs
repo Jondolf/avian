@@ -1,7 +1,4 @@
-use crate::{
-    dynamics::integrator::VelocityIntegrationData,
-    prelude::{mass_properties::components::GlobalCenterOfMass, *},
-};
+use crate::{dynamics::integrator::VelocityIntegrationData, prelude::*};
 use bevy::ecs::{
     query::{Has, QueryData},
     system::lifetimeless::{Read, Write},
@@ -62,7 +59,7 @@ use super::AccumulatedLocalAcceleration;
 /// ```
 ///
 /// [`Forces`] can also apply forces and impulses at a specific point in the world. If the point is not aligned
-/// with the [`GlobalCenterOfMass`], it will apply a torque to the body.
+/// with the [center of mass](CenterOfMass), it will apply a torque to the body.
 ///
 /// ```
 #[cfg_attr(feature = "2d", doc = "# use avian2d::{math::Vector, prelude::*};")]
@@ -108,12 +105,13 @@ use super::AccumulatedLocalAcceleration;
 #[derive(QueryData)]
 #[query_data(mutable)]
 pub struct Forces {
+    position: Read<Position>,
     rotation: Read<Rotation>,
     linear_velocity: Write<LinearVelocity>,
     angular_velocity: Write<AngularVelocity>,
     mass: Read<ComputedMass>,
     angular_inertia: Read<ComputedAngularInertia>,
-    global_center_of_mass: Read<GlobalCenterOfMass>,
+    center_of_mass: Read<ComputedCenterOfMass>,
     locked_axes: Option<Read<LockedAxes>>,
     integration: Write<VelocityIntegrationData>,
     accumulated_local_acceleration: Write<AccumulatedLocalAcceleration>,
@@ -133,12 +131,13 @@ impl ForcesItem<'_> {
     #[must_use]
     pub fn reborrow(&mut self) -> ForcesItem<'_> {
         ForcesItem {
+            position: self.position,
             rotation: self.rotation,
             linear_velocity: self.linear_velocity.reborrow(),
             angular_velocity: self.angular_velocity.reborrow(),
             mass: self.mass,
             angular_inertia: self.angular_inertia,
-            global_center_of_mass: self.global_center_of_mass,
+            center_of_mass: self.center_of_mass,
             locked_axes: self.locked_axes,
             integration: self.integration.reborrow(),
             accumulated_local_acceleration: self.accumulated_local_acceleration.reborrow(),
@@ -202,6 +201,19 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     ///
     /// By default, a non-zero force will wake up the body if it is sleeping. This can be prevented
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
+    ///
+    /// # Note
+    ///
+    /// If the [`Transform`] of the body is modified before applying the force,
+    /// the torque will be computed using an outdated global center of mass.
+    /// This may cause problems when applying a force right after teleporting
+    /// an entity, as the torque could grow very large if the distance between the point
+    /// and old center of mass is large.
+    ///
+    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]
+    /// to update the global physics transform after modifying [`Transform`].
+    ///
+    /// [`Transform`]: bevy::transform::components::Transform
     #[inline]
     fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {
         // Note: This does not consider the rotation of the body during substeps,
@@ -279,6 +291,19 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     ///
     /// By default, a non-zero impulse will wake up the body if it is sleeping. This can be prevented
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
+    ///
+    /// # Note
+    ///
+    /// If the [`Transform`] of the body is modified before applying the impulse,
+    /// the torque will be computed using an outdated global center of mass.
+    /// This may cause problems when applying a impulse right after teleporting
+    /// an entity, as the torque could grow very large if the distance between the point
+    /// and old center of mass is large.
+    ///
+    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]
+    /// to update the global physics transform after modifying [`Transform`].
+    ///
+    /// [`Transform`]: bevy::transform::components::Transform
     #[inline]
     fn apply_linear_impulse_at_point(&mut self, impulse: Vector, world_point: Vector) {
         self.apply_linear_impulse(impulse);
@@ -548,7 +573,7 @@ impl RigidBodyForcesInternal for ForcesItem<'_> {
     }
     #[inline]
     fn global_center_of_mass(&self) -> Vector {
-        self.global_center_of_mass.get()
+        self.position.0 + self.rotation * self.center_of_mass.0
     }
     #[inline]
     fn locked_axes(&self) -> LockedAxes {

@@ -310,6 +310,7 @@ dependencies = [
  "parry2d-f64",
  "serde",
  "smallvec",
+ "thiserror 2.0.12",
  "thread_local",
 ]
 
@@ -336,6 +337,7 @@ dependencies = [
  "parry3d-f64",
  "serde",
  "smallvec",
+ "thiserror 2.0.12",
  "thread_local",
 ]
 

@@ -1084,13 +1084,21 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
         curr_parent = world.get::<ChildOf>(parent.0);
     }
 
+    let transform = world.get::<Transform>(ctx.entity).copied();
+    let global_transform = transform.map(|transform| {
+        let global_transform = parent_global_transform * GlobalTransform::from(transform);
+        // Update the global transform.
+        *world.get_mut::<GlobalTransform>(ctx.entity).unwrap() = global_transform;
+        global_transform
+    });
+
     // If either `Position` or `Rotation` was not a placeholder,
     // we need to update the `Transform` to match the current values.
     if is_not_placeholder && config.position_to_transform {
         // Get the parent's global transform if it exists.
         if parent_global_transform != GlobalTransform::default() {
             #[cfg(feature = "2d")]
-            let Some(transform) = world.get::<Transform>(ctx.entity).copied() else {
+            let Some(transform) = transform else {
                 return;
             };
 
@@ -1156,9 +1164,7 @@ pub(crate) fn init_physics_transform(world: &mut DeferredWorld, ctx: &HookContex
         // If either `Position` or `Rotation` is a placeholder, we need to compute the global transform
         // from the hierarchy and set the `Position` and/or `Rotation` to the computed values.
 
-        if let Some(transform) = world.get::<Transform>(ctx.entity) {
-            let global_transform = parent_global_transform * GlobalTransform::from(*transform);
-
+        if let Some(global_transform) = global_transform {
             // Set the computed `position` and `rotation` based on the global transform.
             let (_, global_rotation, global_translation) =
                 global_transform.to_scale_rotation_translation();
