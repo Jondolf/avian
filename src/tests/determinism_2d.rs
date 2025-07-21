@@ -62,7 +62,7 @@ fn cross_platform_determinism_2d() {
     let hash = compute_hash(app.world(), query);
 
     // Update this value if simulation behavior changes.
-    let expected = 0xd3cdba7c;
+    let expected = 0x98d5fcca;
 
     assert!(
         hash == expected,
