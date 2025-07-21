@@ -301,6 +301,15 @@ impl Plugin for MassPropertyPlugin {
             },
         );
 
+        // Update the mass properties of rigid bodies when colliders added or removed.
+        // TODO: Avoid duplicating work with the above observer.
+        app.add_observer(
+            |trigger: Trigger<OnInsert, RigidBodyColliders>,
+             mut mass_helper: MassPropertyHelper| {
+                mass_helper.update_mass_properties(trigger.target());
+            },
+        );
+
         // Configure system sets for mass property computation.
         app.configure_sets(
             self.schedule,

@@ -86,7 +86,26 @@ impl Relationship for ColliderOf {
             ..
         }: HookContext,
     ) {
-        // This is largely the same as the default implementation,
+        let collider_ref = world.entity(entity);
+
+        let &ColliderOf { body } = collider_ref.get::<ColliderOf>().unwrap();
+
+        // Get the global transform of the collider and its rigid body.
+        let Some(collider_global_transform) = collider_ref.get::<GlobalTransform>() else {
+            return;
+        };
+        let Some(body_global_transform) = world.get::<GlobalTransform>(body) else {
+            return;
+        };
+
+        // Get the collider's transform relative to the rigid body.
+        let collider_transform = collider_global_transform.reparented_to(body_global_transform);
+
+        // Update the collider transform.
+        *world.get_mut::<ColliderTransform>(entity).unwrap() =
+            ColliderTransform::from(collider_transform);
+
+        // The rest is largely the same as the default implementation,
         // but allows relationships to point to their own entity.
 
         match relationship_hook_mode {
