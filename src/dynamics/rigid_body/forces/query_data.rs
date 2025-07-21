@@ -201,6 +201,19 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     ///
     /// By default, a non-zero force will wake up the body if it is sleeping. This can be prevented
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
+    ///
+    /// # Note
+    ///
+    /// If the [`Transform`] of the body is modified before applying the force,
+    /// the torque will be computed using an outdated global center of mass.
+    /// This may cause problems when applying a force right after teleporting
+    /// an entity, as the torque could grow very large if the distance between the point
+    /// and old center of mass is large.
+    ///
+    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]
+    /// to update the global physics transform after modifying [`Transform`].
+    ///
+    /// [`Transform`]: bevy::transform::components::Transform
     #[inline]
     fn apply_force_at_point(&mut self, force: Vector, world_point: Vector) {
         // Note: This does not consider the rotation of the body during substeps,
@@ -278,6 +291,19 @@ pub trait RigidBodyForces: RigidBodyForcesInternal {
     ///
     /// By default, a non-zero impulse will wake up the body if it is sleeping. This can be prevented
     /// by first calling [`ForcesItem::non_waking`] to get a [`NonWakingForcesItem`].
+    ///
+    /// # Note
+    ///
+    /// If the [`Transform`] of the body is modified before applying the impulse,
+    /// the torque will be computed using an outdated global center of mass.
+    /// This may cause problems when applying a impulse right after teleporting
+    /// an entity, as the torque could grow very large if the distance between the point
+    /// and old center of mass is large.
+    ///
+    /// In case this is causing problems, consider using the [`PhysicsTransformHelper`]
+    /// to update the global physics transform after modifying [`Transform`].
+    ///
+    /// [`Transform`]: bevy::transform::components::Transform
     #[inline]
     fn apply_linear_impulse_at_point(&mut self, impulse: Vector, world_point: Vector) {
         self.apply_linear_impulse(impulse);
