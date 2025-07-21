@@ -32,19 +32,13 @@ pub struct ContactConstraintPoint {
     /// `None` if the coefficient of friction is zero.
     pub tangent_part: Option<ContactTangentPart>,
 
-    // TODO: This could probably just be a boolean?
-    /// The largest incremental contact impulse magnitude along the contact normal during this frame.
-    ///
-    /// This is used for determining whether restitution should be applied.
-    pub max_normal_impulse: Scalar,
-
     /// The world-space contact point relative to the center of mass of the first body.
     pub anchor1: Vector,
 
     /// The world-space contact point relative to the center of mass of the second body.
     pub anchor2: Vector,
 
-    /// The relative velocity of the bodies along the normal at the contact point.
+    /// The pre-solve relative velocity of the bodies along the normal at the contact point.
     pub normal_speed: Scalar,
 
     /// The pre-solve separation distance between the bodies.
@@ -169,6 +163,7 @@ impl ContactConstraint {
             let r1 = body1.delta_rotation * point.anchor1;
             let r2 = body2.delta_rotation * point.anchor2;
 
+            // Compute current saparation.
             let delta_separation = delta_translation + (r2 - r1);
             let separation = delta_separation.dot(self.normal) + point.initial_separation;
 
@@ -188,13 +183,6 @@ impl ContactConstraint {
                 max_overlap_solve_speed,
                 delta_secs,
             );
-
-            // Store the maximum impulse for restitution.
-            point.max_normal_impulse = impulse_magnitude.max(point.max_normal_impulse);
-
-            if impulse_magnitude == 0.0 {
-                continue;
-            }
 
             let impulse = impulse_magnitude * self.normal;
 
@@ -261,7 +249,7 @@ impl ContactConstraint {
         for point in self.points.iter_mut() {
             // Skip restitution for speeds below the threshold.
             // We also skip contacts that don't apply an impulse to account for speculative contacts.
-            if point.normal_speed > -threshold || point.max_normal_impulse == 0.0 {
+            if point.normal_speed > -threshold || point.normal_part.total_impulse == 0.0 {
                 continue;
             }
 
@@ -283,7 +271,7 @@ impl ContactConstraint {
             point.normal_part.impulse = new_impulse;
 
             // Add the incremental impulse instead of the full impulse because this is not a substep.
-            point.max_normal_impulse += impulse;
+            point.normal_part.total_impulse += impulse;
 
             // Apply the impulse.
             let impulse = impulse * self.normal;
