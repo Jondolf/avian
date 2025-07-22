@@ -71,9 +71,51 @@ where
         physics_schedule
             .add_systems(collect_collision_pairs::<H>.in_set(BroadPhaseSet::CollectCollisions));
 
+        // TODO: Deduplicate these observers.
+        // Add colliders back to the broad phase when `Disabled` is removed.
         app.add_observer(
-            |trigger: Trigger<OnRemove, (Disabled, ColliderDisabled)>,
-             query: Query<AabbIntervalQueryData, Without<ColliderDisabled>>,
+            |trigger: Trigger<OnRemove, Disabled>,
+             // TODO: Use `Allows<T>` in Bevy 0.17.
+             query: Query<
+                AabbIntervalQueryData,
+                (
+                    Without<ColliderDisabled>,
+                    Or<(With<Disabled>, Without<Disabled>)>,
+                ),
+            >,
+             rbs: Query<&RigidBody>,
+             mut intervals: ResMut<AabbIntervals>| {
+                let entity = trigger.target();
+
+                // Re-enable the collider.
+                if let Ok((entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)) =
+                    query.get(entity)
+                {
+                    let flags = init_aabb_interval_flags(
+                        collider_of,
+                        &rbs,
+                        is_sensor,
+                        events_enabled,
+                        hooks,
+                    );
+                    let interval = (
+                        entity,
+                        collider_of.map_or(ColliderOf { body: entity }, |p| *p),
+                        *aabb,
+                        *layers,
+                        flags,
+                    );
+
+                    // Add the re-enabled collider to the intervals.
+                    intervals.0.push(interval);
+                }
+            },
+        );
+
+        // Add colliders back to the broad phase when `ColliderDisabled` is removed.
+        app.add_observer(
+            |trigger: Trigger<OnRemove, ColliderDisabled>,
+             query: Query<AabbIntervalQueryData>,
              rbs: Query<&RigidBody>,
              mut intervals: ResMut<AabbIntervals>| {
                 let entity = trigger.target();
