@@ -176,6 +176,7 @@ pub enum PhysicsTransformSet {
 #[allow(clippy::type_complexity)]
 pub fn transform_to_position(
     mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>,
+    length_unit: Res<PhysicsLengthUnit>,
     last_physics_tick: Res<LastPhysicsTick>,
     system_tick: SystemChangeTick,
 ) {
@@ -187,6 +188,11 @@ pub fn transform_to_position(
     } else {
         system_tick.this_run()
     };
+
+    // If the `GlobalTransform` translation and `Position` differ by less than 0.01 mm, we ignore the change.
+    let distance_tolerance_squared = (length_unit.0 * 1e-5).powi(2);
+    // If the `GlobalTransform` rotation and `Rotation` differ by less than 0.1 degrees, we ignore the change.
+    let rotation_tolerance = (0.1 as Scalar).to_radians();
 
     for (global_transform, mut position, mut rotation) in &mut query {
         let global_transform = global_transform.compute_transform();
@@ -201,7 +207,9 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        if !position_changed {
+        if !position_changed
+            && position.distance_squared(transform_translation) > distance_tolerance_squared
+        {
             position.0 = transform_translation;
         }
 
@@ -210,7 +218,9 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        if !rotation_changed {
+        if !rotation_changed
+            && rotation.angle_between(transform_rotation).abs() > rotation_tolerance
+        {
             *rotation = transform_rotation;
         }
     }
