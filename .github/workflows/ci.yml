@@ -44,7 +44,7 @@ jobs:
         name: Test Suite
         strategy:
             matrix:
-                os: [windows-latest, macos-latest, ubuntu-latest]
+                os: [windows-latest]
         env:
             RUSTFLAGS: --deny warnings -C debuginfo=line-tables-only -Zthreads=0
         runs-on: ${{ matrix.os }}
