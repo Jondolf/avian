@@ -509,7 +509,6 @@ mod tests {
 
     fn create_app() -> App {
         let mut app = App::new();
-
         app.add_plugins((
             MinimalPlugins,
             PhysicsPlugins::default(),
@@ -521,7 +520,6 @@ mod tests {
             MeshPlugin,
         ))
         .init_resource::<Assets<Mesh>>();
-
         app
     }
 
@@ -554,7 +552,6 @@ mod tests {
 
         // Step by 100 steps of 0.1 seconds.
         app.insert_resource(Time::from_hz(10.0));
-
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs_f64(
             1.0 / 10.0,
         )));
@@ -575,6 +572,7 @@ mod tests {
 
         // Euler methods have some precision issues, but this seems weirdly inaccurate.
         assert_relative_eq!(position, Vector::NEG_Y * 490.5, epsilon = 10.0);
+
         #[cfg(feature = "2d")]
         assert_relative_eq!(
             rotation.as_radians(),

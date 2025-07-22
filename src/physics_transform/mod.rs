@@ -217,10 +217,7 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        #[cfg(feature = "2d")]
         let angle_difference = rotation.angle_between(transform_rotation).abs();
-        #[cfg(feature = "3d")]
-        let angle_difference = rotation.f32().angle_between(transform_rotation.f32()).abs();
         if !rotation_changed && angle_difference > rotation_tolerance {
             *rotation = transform_rotation;
         }

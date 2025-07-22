@@ -750,7 +750,7 @@ impl Rotation {
     /// Returns the angle (in radians) for the minimal rotation for transforming this rotation into another.
     #[inline]
     pub fn angle_between(self, other: Self) -> Scalar {
-        self.0.angle_between(other.0)
+        self.0.f32().angle_between(other.0.f32()) as Scalar
     }
 
     /// Inverts the rotation.
