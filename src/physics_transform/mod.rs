@@ -208,20 +208,14 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        if !position_changed && position.abs_diff_ne(&transform_translation, distance_tolerance) {
-            position.0 = transform_translation;
-        }
+        position.0 = transform_translation;
 
         let rotation_changed = is_changed_after_tick(
             Ref::from(rotation.reborrow()),
             last_physics_tick.0,
             this_run,
         );
-        if !rotation_changed
-            && rotation.angle_between(transform_rotation).abs() > rotation_tolerance
-        {
-            *rotation = transform_rotation;
-        }
+        *rotation = transform_rotation;
     }
 }
 
