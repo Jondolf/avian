@@ -178,7 +178,7 @@ fn cubes_simulation_is_locally_deterministic() {
     }
 
     // run simulation and check that results are equal each time
-    for (a, b) in (0..4).map(|_| run_cubes()).tuple_windows() {
+    for (a, b) in (0..20).map(|_| run_cubes()).tuple_windows() {
         assert_eq!(a, b);
     }
 }
