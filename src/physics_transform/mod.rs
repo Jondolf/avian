@@ -12,9 +12,12 @@ pub use helper::PhysicsTransformHelper;
 #[cfg(test)]
 mod tests;
 
-use crate::prelude::*;
+use crate::{
+    prelude::*,
+    schedule::{LastPhysicsTick, is_changed_after_tick},
+};
 use bevy::{
-    ecs::{intern::Interned, schedule::ScheduleLabel},
+    ecs::{component::Tick, intern::Interned, schedule::ScheduleLabel, system::SystemChangeTick},
     prelude::*,
     transform::systems::{mark_dirty_trees, propagate_parent_transforms, sync_simple_transforms},
 };
@@ -171,7 +174,20 @@ pub enum PhysicsTransformSet {
 ///
 /// To account for hierarchies, transform propagation should be run before this system.
 #[allow(clippy::type_complexity)]
-pub fn transform_to_position(mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>) {
+pub fn transform_to_position(
+    mut query: Query<(&GlobalTransform, &mut Position, &mut Rotation)>,
+    last_physics_tick: Res<LastPhysicsTick>,
+    system_tick: SystemChangeTick,
+) {
+    // On the first tick, the last physics tick and system tick are both defaulted to 0,
+    // but to handle change detection correctly, the system tick should always be larger.
+    // So we use a minimum system tick of 1 here.
+    let this_run = if last_physics_tick.0.get() == 0 {
+        Tick::new(1)
+    } else {
+        system_tick.this_run()
+    };
+
     for (global_transform, mut position, mut rotation) in &mut query {
         let global_transform = global_transform.compute_transform();
         #[cfg(feature = "2d")]
@@ -180,8 +196,23 @@ pub fn transform_to_position(mut query: Query<(&GlobalTransform, &mut Position, 
         let transform_translation = global_transform.translation.adjust_precision();
         let transform_rotation = Rotation::from(global_transform.rotation.adjust_precision());
 
-        position.0 = transform_translation;
-        *rotation = transform_rotation;
+        let position_changed = is_changed_after_tick(
+            Ref::from(position.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !position_changed {
+            position.0 = transform_translation;
+        }
+
+        let rotation_changed = is_changed_after_tick(
+            Ref::from(rotation.reborrow()),
+            last_physics_tick.0,
+            this_run,
+        );
+        if !rotation_changed {
+            *rotation = transform_rotation;
+        }
     }
 }
 
