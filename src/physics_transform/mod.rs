@@ -207,9 +207,8 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        if !position_changed
-            && position.distance_squared(transform_translation) > distance_tolerance_squared
-        {
+        let distance_squared = position.distance_squared(transform_translation);
+        if !position_changed && distance_squared > distance_tolerance_squared {
             position.0 = transform_translation;
         }
 
@@ -218,9 +217,11 @@ pub fn transform_to_position(
             last_physics_tick.0,
             this_run,
         );
-        if !rotation_changed
-            && rotation.angle_between(transform_rotation).abs() > rotation_tolerance
-        {
+        #[cfg(feature = "2d")]
+        let angle_difference = rotation.angle_between(transform_rotation).abs();
+        #[cfg(feature = "3d")]
+        let angle_difference = rotation.f32().angle_between(transform_rotation.f32()).abs();
+        if !rotation_changed && angle_difference > rotation_tolerance {
             *rotation = transform_rotation;
         }
     }

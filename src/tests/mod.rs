@@ -9,7 +9,9 @@ use bevy::{
     prelude::*,
     time::TimeUpdateStrategy,
 };
+use bevy_math::DQuat;
 use core::time::Duration;
+use itertools::Itertools;
 
 #[cfg(all(feature = "2d", feature = "enhanced-determinism"))]
 mod determinism_2d;
@@ -141,6 +143,26 @@ fn body_with_velocity_moves() {
         1. * UPDATES as f32 * 1. / 60.,
         epsilon = 0.03 // allow some leeway, as we might be one frame off
     );
+}
+
+#[test]
+fn angle_between_quat_is_deterministic() {
+    let a = Quat::from_rotation_x(0.1);
+    let b = Quat::from_rotation_x(0.2);
+
+    for (res1, res2) in (0..100).map(|_| a.angle_between(b)).tuple_windows() {
+        assert_eq!(res1, res2);
+    }
+}
+
+#[test]
+fn angle_between_dquat_is_deterministic() {
+    let a = DQuat::from_rotation_x(0.1);
+    let b = DQuat::from_rotation_x(0.2);
+
+    for (res1, res2) in (0..100).map(|_| a.angle_between(b)).tuple_windows() {
+        assert_eq!(res1, res2);
+    }
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord)]
