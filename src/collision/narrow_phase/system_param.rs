@@ -383,7 +383,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
         //
         // TODO: An alternative to thread-local bit vectors could be to have one larger bit vector
         //       and to chunk it into smaller bit vectors for each thread. Might not be any faster though.
-        crate::utils::par_for_each!(self.contact_graph.active_pairs_mut(), |_i, contacts| {
+        crate::utils::par_for_each(self.contact_graph.active_pairs_mut(), 64, |_i, contacts| {
             let contact_id = contacts.contact_id.0 as usize;
 
             #[cfg(not(feature = "parallel"))]

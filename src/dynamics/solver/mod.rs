@@ -18,7 +18,7 @@ use solver_body::{SolverBody, SolverBodyInertia, SolverBodyPlugin};
 use xpbd::EntityConstraint;
 
 use crate::{
-    dynamics::solver::constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle},
+    dynamics::solver::constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
     prelude::*,
 };
 use bevy::{
@@ -480,8 +480,15 @@ fn prepare_contact_constraints(
         color.contact_constraints.clear();
     }
 
+    // Get colors with at least one active manifold handle.
+    let mut active_colors = constraint_graph
+        .colors
+        .iter_mut()
+        .filter(|color| !color.manifold_handles.is_empty())
+        .collect::<Vec<&mut GraphColor>>();
+
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
-    crate::utils::par_for_each!(constraint_graph.colors, |_i, color| {
+    crate::utils::par_for_each(&mut active_colors, 2, |_i, color| {
         for handle in color.manifold_handles.iter() {
             // Get the contact pair and its manifold.
             let contact_pair = contact_graph
@@ -703,8 +710,9 @@ fn warm_start(
         .colors
         .iter_mut()
         .take(COLOR_OVERFLOW_INDEX)
+        .filter(|color| !color.contact_constraints.is_empty())
     {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+        crate::utils::par_for_each(&mut color.contact_constraints, 64, |_i, constraint| {
             warm_start_internal(&bodies, constraint, solver_config.warm_start_coefficient);
         });
     }
@@ -799,8 +807,13 @@ fn solve_contacts<const USE_BIAS: bool>(
     }
 
     // Solve contact constraints in each color in parallel.
-    for color in constraint_graph.colors.iter_mut() {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+    for color in constraint_graph
+        .colors
+        .iter_mut()
+        .take(COLOR_OVERFLOW_INDEX)
+        .filter(|color| !color.contact_constraints.is_empty())
+    {
+        crate::utils::par_for_each(&mut color.contact_constraints, 64, |_i, constraint| {
             solve_contacts_internal::<USE_BIAS>(
                 &bodies,
                 constraint,
@@ -893,8 +906,13 @@ fn solve_restitution(
     }
 
     // Solve restitution for contact constraints in each color in parallel.
-    for color in constraint_graph.colors.iter_mut() {
-        crate::utils::par_for_each!(color.contact_constraints, |_i, constraint| {
+    for color in constraint_graph
+        .colors
+        .iter_mut()
+        .take(COLOR_OVERFLOW_INDEX)
+        .filter(|color| !color.contact_constraints.is_empty())
+    {
+        crate::utils::par_for_each(&mut color.contact_constraints, 64, |_i, constraint| {
             solve_restitution_internal(
                 &bodies,
                 constraint,
