@@ -645,7 +645,7 @@ fn prepare_contact_constraints(
                         constraint.normal,
                         narrow_phase_config
                             .match_contacts
-                            .then_some(contact.normal_impulse),
+                            .then_some(contact.warm_start_normal_impulse),
                         contact_softness,
                     ),
                     // There should only be a friction part if the coefficient of friction is non-negative.
@@ -659,10 +659,9 @@ fn prepare_contact_constraints(
                             tangents,
                             narrow_phase_config
                                 .match_contacts
-                                .then_some(contact.tangent_impulse),
+                                .then_some(contact.warm_start_tangent_impulse),
                         ),
                     ),
-                    max_normal_impulse: 0.0,
                     anchor1: r1,
                     anchor2: r2,
                     normal_speed,
@@ -995,11 +994,12 @@ fn store_contact_impulses(
             for (contact, constraint_point) in
                 manifold.points.iter_mut().zip(constraint.points.iter())
             {
-                contact.normal_impulse = constraint_point.normal_part.impulse;
-                contact.tangent_impulse = constraint_point
+                contact.warm_start_normal_impulse = constraint_point.normal_part.impulse;
+                contact.warm_start_tangent_impulse = constraint_point
                     .tangent_part
                     .as_ref()
                     .map_or(default(), |part| part.impulse);
+                contact.normal_impulse = constraint_point.normal_part.total_impulse;
             }
         }
     }

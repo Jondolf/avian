@@ -17,6 +17,14 @@ pub struct ContactNormalPart {
     /// The magnitude of the contact impulse along the contact normal.
     pub impulse: NormalImpulse,
 
+    /// The total normal impulse applied across substeps and restitution.
+    /// The unit is typically N⋅s or kg⋅m/s.
+    ///
+    /// This is used by the solver to identify speculative contacts that did not generate
+    /// an impulse, but is also useful for users to determine how "strong" the contact is.
+    /// This is stored for contact manifolds as [`ContactPoint::normal_impulse`].
+    pub total_impulse: Scalar,
+
     /// The inertial properties of the bodies projected onto the contact normal,
     /// or in other words, the mass "seen" by the constraint along the normal.
     pub effective_mass: Scalar,
@@ -98,6 +106,7 @@ impl ContactNormalPart {
 
         Self {
             impulse: warm_start_impulse.unwrap_or_default(),
+            total_impulse: 0.0,
             effective_mass: k.recip_or_zero(),
             softness,
         }
@@ -151,6 +160,7 @@ impl ContactNormalPart {
         let new_impulse = (self.impulse + impulse).max(0.0);
         impulse = new_impulse - self.impulse;
         self.impulse = new_impulse;
+        self.total_impulse += new_impulse;
 
         // Return the clamped incremental normal impulse.
         impulse
