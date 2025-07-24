@@ -38,18 +38,16 @@ impl ContactNormalPart {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         inv_mass_sum: Scalar,
-        angular_inertia1: impl Into<ComputedAngularInertia>,
-        angular_inertia2: impl Into<ComputedAngularInertia>,
+        inverse_angular_inertia1: &SymmetricTensor,
+        inverse_angular_inertia2: &SymmetricTensor,
         r1: Vector,
         r2: Vector,
         normal: Vector,
         warm_start_impulse: Option<NormalImpulse>,
         softness: SoftnessCoefficients,
     ) -> Self {
-        let angular_inertia1: ComputedAngularInertia = angular_inertia1.into();
-        let angular_inertia2: ComputedAngularInertia = angular_inertia2.into();
-        let i1 = angular_inertia1.inverse();
-        let i2 = angular_inertia2.inverse();
+        let i1 = inverse_angular_inertia1;
+        let i2 = inverse_angular_inertia2;
 
         // Derivation for the projected normal mass. This is for 3D, but the 2D version is basically equivalent.
         //

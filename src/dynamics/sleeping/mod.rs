@@ -27,7 +27,7 @@ impl Plugin for SleepingPlugin {
     fn build(&self, app: &mut App) {
         // TODO: This is only relevant for dynamic bodies. Different bodies should be distinguished with marker components.
         // Add sleep timer for all rigid bodies.
-        let _ = app.try_register_required_components::<RigidBody, TimeSleeping>();
+        let _ = app.try_register_required_components::<DynamicBody, TimeSleeping>();
 
         app.init_resource::<SleepingThreshold>()
             .init_resource::<DeactivationTime>();
@@ -180,15 +180,18 @@ pub fn mark_sleeping_bodies(
     mut query: Query<
         (
             Entity,
-            &RigidBody,
             &mut LinearVelocity,
             &mut AngularVelocity,
             &mut TimeSleeping,
         ),
-        (Without<Sleeping>, Without<SleepingDisabled>),
+        (
+            With<DynamicBody>,
+            Without<Sleeping>,
+            Without<SleepingDisabled>,
+        ),
     >,
+    dynamic_bodies: Query<(), With<DynamicBody>>,
     contact_graph: Res<ContactGraph>,
-    rb_query: Query<&RigidBody>,
     deactivation_time: Res<DeactivationTime>,
     sleep_threshold: Res<SleepingThreshold>,
     length_unit: Res<PhysicsLengthUnit>,
@@ -197,7 +200,7 @@ pub fn mark_sleeping_bodies(
     let length_unit_sq = length_unit.powi(2);
     let delta_secs = time.delta_seconds_adjusted();
 
-    for (entity, rb, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
+    for (entity, mut lin_vel, mut ang_vel, mut time_sleeping) in &mut query {
         let colliding_entities = contact_graph.contact_pairs_with(entity).map(|c| {
             if entity == c.collider1 {
                 c.collider2
@@ -206,15 +209,14 @@ pub fn mark_sleeping_bodies(
             }
         });
 
-        // Only dynamic bodies can sleep, and only if they are not
-        // in contact with other dynamic bodies.
+        // Dynamic bodies can only sleep if they are not in contact with other dynamic bodies.
         //
         // Contacts with other types of bodies will be allowed once
         // sleeping/waking is implemented with simulation islands.
-        if !rb.is_dynamic()
-            || rb_query
-                .iter_many(colliding_entities)
-                .any(|rb| rb.is_dynamic())
+        if dynamic_bodies
+            .iter_many(colliding_entities)
+            .next()
+            .is_some()
         {
             continue;
         }

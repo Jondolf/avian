@@ -1,7 +1,9 @@
 use bevy::{diagnostic::DiagnosticPath, prelude::*};
 
 use crate::{
-    ColliderMarker, PhysicsSchedule, PhysicsStepSet, RigidBody, dynamics::solver::joints::*,
+    ColliderMarker, PhysicsSchedule, PhysicsStepSet,
+    dynamics::solver::joints::*,
+    prelude::{DynamicBody, KinematicBody, StaticBody},
 };
 
 use super::{AppDiagnosticsExt, PhysicsDiagnostics, impl_diagnostic_paths};
@@ -60,9 +62,10 @@ impl_diagnostic_paths! {
     }
 }
 
-// TODO: This is pretty inefficient.
 fn diagnostic_entity_counts(
-    rigid_bodies_query: Query<&RigidBody>,
+    dynamic_bodies_query: Query<&DynamicBody>,
+    kinematic_bodies_query: Query<&KinematicBody>,
+    static_bodies_query: Query<&StaticBody>,
     colliders_query: Query<&ColliderMarker>,
     fixed_joint_query: Query<&FixedJoint>,
     prismatic_joint_query: Query<&PrismaticJoint>,
@@ -71,25 +74,16 @@ fn diagnostic_entity_counts(
     #[cfg(feature = "3d")] spherical_joint_query: Query<&SphericalJoint>,
     mut diagnostics: ResMut<PhysicsEntityDiagnostics>,
 ) {
-    diagnostics.dynamic_body_count = rigid_bodies_query
-        .iter()
-        .filter(|rb| rb.is_dynamic())
-        .count() as u32;
-    diagnostics.kinematic_body_count = rigid_bodies_query
-        .iter()
-        .filter(|rb| rb.is_kinematic())
-        .count() as u32;
-    diagnostics.static_body_count = rigid_bodies_query
-        .iter()
-        .filter(|rb| rb.is_static())
-        .count() as u32;
-    diagnostics.collider_count = colliders_query.iter().count() as u32;
-    diagnostics.joint_count = fixed_joint_query.iter().count() as u32
-        + prismatic_joint_query.iter().count() as u32
-        + distance_joint_query.iter().count() as u32
-        + revolute_joint_query.iter().count() as u32;
+    diagnostics.dynamic_body_count = dynamic_bodies_query.iter().len() as u32;
+    diagnostics.kinematic_body_count = kinematic_bodies_query.iter().len() as u32;
+    diagnostics.static_body_count = static_bodies_query.iter().len() as u32;
+    diagnostics.collider_count = colliders_query.iter().len() as u32;
+    diagnostics.joint_count = fixed_joint_query.iter().len() as u32
+        + prismatic_joint_query.iter().len() as u32
+        + distance_joint_query.iter().len() as u32
+        + revolute_joint_query.iter().len() as u32;
     #[cfg(feature = "3d")]
     {
-        diagnostics.joint_count += spherical_joint_query.iter().count() as u32;
+        diagnostics.joint_count += spherical_joint_query.iter().len() as u32;
     }
 }

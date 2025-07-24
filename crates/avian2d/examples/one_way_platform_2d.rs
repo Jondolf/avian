@@ -80,28 +80,28 @@ fn setup(
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(0.0, 50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(0.0, -50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
         square_sprite,
         Transform::from_xyz(50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
 
@@ -118,7 +118,7 @@ fn setup(
             one_way_sprite.clone(),
             Transform::from_xyz(0.0, y as f32 * 16.0 * 6.0, 0.0)
                 .with_scale(Vec3::new(10.0, 0.5, 1.0)),
-            RigidBody::Static,
+            StaticBody,
             Collider::rectangle(50.0, 50.0),
             OneWayPlatform::default(),
         ));
@@ -132,7 +132,7 @@ fn setup(
     commands.spawn((
         Mesh2d(actor_mesh),
         MeshMaterial2d(actor_material),
-        RigidBody::Dynamic,
+        DynamicBody,
         LockedAxes::ROTATION_LOCKED,
         Restitution::ZERO.with_combine_rule(CoefficientCombine::Min),
         Collider::rectangle(actor_size.x, actor_size.y),

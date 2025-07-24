@@ -85,7 +85,7 @@ impl XpbdConstraint<2> for SphericalJoint {
         self.twist_lagrange = 0.0;
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], _dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], _dt: Scalar) {
         let [body1, body2] = bodies;
 
         // Compute the rotation matrices since we're performing so many rotations.
@@ -94,11 +94,11 @@ impl XpbdConstraint<2> for SphericalJoint {
 
         // Prepare the point-to-point constraint.
         self.point_constraint.pre_step.world_r1 =
-            rot1_mat * (self.point_constraint.local_anchor1 - body1.center_of_mass.0);
+            rot1_mat * (self.point_constraint.local_anchor1 - body1.center_of_mass());
         self.point_constraint.pre_step.world_r2 =
-            rot2_mat * (self.point_constraint.local_anchor2 - body2.center_of_mass.0);
+            rot2_mat * (self.point_constraint.local_anchor2 - body2.center_of_mass());
         self.point_constraint.pre_step.center_difference = (body2.position.0 - body1.position.0)
-            + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
+            + (body2.rotation * body2.center_of_mass() - body1.rotation * body1.center_of_mass());
 
         // Prepare the base swing and twist axes.
         self.pre_step.swing_axis1 = rot1_mat * self.swing_axis;

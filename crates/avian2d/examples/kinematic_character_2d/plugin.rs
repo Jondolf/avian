@@ -41,6 +41,7 @@ pub enum MovementAction {
 
 /// A marker component indicating that an entity is using a character controller.
 #[derive(Component)]
+#[require(KinematicBody)]
 pub struct CharacterController;
 
 /// A marker component indicating that an entity is on the ground.
@@ -74,7 +75,6 @@ pub struct MaxSlopeAngle(Scalar);
 #[derive(Bundle)]
 pub struct CharacterControllerBundle {
     character_controller: CharacterController,
-    body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
     gravity: ControllerGravity,
@@ -120,7 +120,6 @@ impl CharacterControllerBundle {
 
         Self {
             character_controller: CharacterController,
-            body: RigidBody::Kinematic,
             collider,
             ground_caster: ShapeCaster::new(caster_shape, Vector::ZERO, 0.0, Dir2::NEG_Y)
                 .with_max_distance(10.0),
@@ -269,11 +268,11 @@ fn apply_movement_damping(mut query: Query<(&MovementDampingFactor, &mut LinearV
 #[allow(clippy::type_complexity)]
 fn kinematic_controller_collisions(
     collisions: Collisions,
-    bodies: Query<&RigidBody>,
+    dynamic_bodies: Query<(), With<DynamicBody>>,
     collider_rbs: Query<&ColliderOf, Without<Sensor>>,
     mut character_controllers: Query<
         (&mut Position, &mut LinearVelocity, Option<&MaxSlopeAngle>),
-        (With<RigidBody>, With<CharacterController>),
+        With<CharacterController>,
     >,
     time: Res<Time>,
 ) {
@@ -290,28 +289,20 @@ fn kinematic_controller_collisions(
         // or second entity in the collision.
         let is_first: bool;
 
-        let character_rb: RigidBody;
         let is_other_dynamic: bool;
 
         let (mut position, mut linear_velocity, max_slope_angle) =
             if let Ok(character) = character_controllers.get_mut(rb1) {
                 is_first = true;
-                character_rb = *bodies.get(rb1).unwrap();
-                is_other_dynamic = bodies.get(rb2).is_ok_and(|rb| rb.is_dynamic());
+                is_other_dynamic = dynamic_bodies.contains(rb2);
                 character
             } else if let Ok(character) = character_controllers.get_mut(rb2) {
                 is_first = false;
-                character_rb = *bodies.get(rb2).unwrap();
-                is_other_dynamic = bodies.get(rb1).is_ok_and(|rb| rb.is_dynamic());
+                is_other_dynamic = dynamic_bodies.contains(rb1);
                 character
             } else {
                 continue;
             };
-
-        // This system only handles collision response for kinematic character controllers.
-        if !character_rb.is_kinematic() {
-            continue;
-        }
 
         // Iterate through contact manifolds and their contacts.
         // Each contact in a single manifold shares the same contact normal.

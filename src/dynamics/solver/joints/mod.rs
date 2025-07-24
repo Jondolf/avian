@@ -35,8 +35,8 @@
 //! use bevy::prelude::*;
 
 //! fn setup(mut commands: Commands) {
-//!     let entity1 = commands.spawn(RigidBody::Dynamic).id();
-//!     let entity2 = commands.spawn(RigidBody::Dynamic).id();
+//!     let entity1 = commands.spawn(DynamicBody).id();
+//!     let entity2 = commands.spawn(DynamicBody).id();
 //!     
 //!     // Connect the bodies with a fixed joint
 //!     commands.spawn(FixedJoint::new(entity1, entity2));

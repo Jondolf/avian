@@ -28,7 +28,7 @@ fn setup(
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(8.0, 8.0))),
         MeshMaterial3d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
-        RigidBody::Static,
+        StaticBody,
         Collider::cuboid(8.0, 0.002, 8.0),
     ));
     // Cube
@@ -36,7 +36,7 @@ fn setup(
         Mesh3d(meshes.add(Cuboid::default())),
         MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
         Transform::from_xyz(0.0, 4.0, 0.0),
-        RigidBody::Dynamic,
+        DynamicBody,
         AngularVelocity(Vector::new(2.5, 3.4, 1.6)),
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
@@ -74,7 +74,7 @@ impl Plugin for BruteForceBroadPhasePlugin {
 
 fn collect_collision_pairs(
     colliders: Query<(Entity, &ColliderAabb, &ColliderOf)>,
-    bodies: Query<&RigidBody>,
+    bodies: Query<Has<DynamicBody>>,
     mut contact_graph: ResMut<ContactGraph>,
 ) {
     // Loop through all entity combinations and create contact pairs for overlapping AABBs.
@@ -84,15 +84,15 @@ fn collect_collision_pairs(
     ] in colliders.iter_combinations()
     {
         // Get the rigid bodies of the colliders.
-        let Ok(rb1) = bodies.get(collider_of1.body) else {
+        let Ok(is_dynamic1) = bodies.get(collider_of1.body) else {
             continue;
         };
-        let Ok(rb2) = bodies.get(collider_of2.body) else {
+        let Ok(is_dynamic2) = bodies.get(collider_of2.body) else {
             continue;
         };
 
         // Skip pairs where both bodies are non-dynamic.
-        if !rb1.is_dynamic() && !rb2.is_dynamic() {
+        if !is_dynamic1 && !is_dynamic2 {
             continue;
         }
 

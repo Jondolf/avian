@@ -42,7 +42,7 @@ fn create_app() -> App {
 
 fn spawn_body(app: &mut App, mass: f32, angular_inertia: f32) -> EntityWorldMut<'_> {
     app.world_mut().spawn((
-        RigidBody::Dynamic,
+        DynamicBody,
         Mass(mass),
         #[cfg(feature = "2d")]
         AngularInertia(angular_inertia),

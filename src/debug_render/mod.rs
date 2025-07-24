@@ -64,7 +64,7 @@ use bevy::{
 /// fn setup(mut commands: Commands) {
 ///     // This rigid body and its collider and AABB will get rendered
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         // Overwrite default collider color (optional)

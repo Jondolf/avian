@@ -28,7 +28,7 @@ fn setup(
         .spawn((
             Mesh3d(cube_mesh.clone()),
             MeshMaterial3d(cube_material.clone()),
-            RigidBody::Kinematic,
+            KinematicBody,
             AngularVelocity(Vector::Z * 1.5),
         ))
         .id();
@@ -39,7 +39,7 @@ fn setup(
             Mesh3d(cube_mesh),
             MeshMaterial3d(cube_material),
             Transform::from_xyz(1.5, 0.0, 0.0),
-            RigidBody::Dynamic,
+            DynamicBody,
             MassPropertiesBundle::from_shape(&Cuboid::from_length(1.0), 1.0),
         ))
         .id();

@@ -92,13 +92,13 @@ impl EntityConstraint<2> for CenterDistanceConstraint {
 }
 
 impl XpbdConstraint<2> for CenterDistanceConstraint {
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], _dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], _dt: Scalar) {
         let [body1, body2] = bodies;
 
         // Prepare the base center difference.
         // The solver will compute the updated version based on the position deltas of the bodies.
         self.pre_step.center_difference = (body2.position.0 - body1.position.0)
-            + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
+            + (body2.rotation * body2.center_of_mass() - body1.rotation * body1.center_of_mass());
 
         // Prepare the relative dominance.
         self.relative_dominance = body1.dominance() - body2.dominance();
@@ -232,7 +232,7 @@ fn setup(
         .spawn((
             Mesh3d(cube_mesh.clone()),
             MeshMaterial3d(cube_material.clone()),
-            RigidBody::Static,
+            StaticBody,
         ))
         .id();
     let dynamic_cube = commands
@@ -240,7 +240,7 @@ fn setup(
             Mesh3d(cube_mesh),
             MeshMaterial3d(cube_material),
             Transform::from_xyz(3.0, 3.5, 0.0),
-            RigidBody::Dynamic,
+            DynamicBody,
             MassPropertiesBundle::from_shape(&Cuboid::from_length(1.0), 1.0),
         ))
         .id();

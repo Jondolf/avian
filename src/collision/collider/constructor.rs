@@ -751,7 +751,7 @@ mod tests {
                     .with_density_for_name("armL_mesh", 2.0)
                     // Remove the right arm. Don't worry, crabs can regrow lost limbs!
                     .without_constructor_for_name("armR_mesh"),
-                RigidBody::Dynamic,
+                DynamicBody,
             ))
             .id();
 

@@ -78,7 +78,7 @@ fn setup_scene(
     // Spawn the ground.
     commands.spawn((
         Name::new("Ground"),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(500.0, 20.0),
         Restitution::new(0.99).with_combine_rule(CoefficientCombine::Max),
         Transform::from_xyz(0.0, -300.0, 0.0),
@@ -99,7 +99,7 @@ fn setup_balls(
     commands.spawn((
         Name::new("Interpolation"),
         Ball,
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::from(circle),
         TransformInterpolation,
         Transform::from_xyz(-100.0, 300.0, 0.0),
@@ -111,7 +111,7 @@ fn setup_balls(
     commands.spawn((
         Name::new("Extrapolation"),
         Ball,
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::from(circle),
         TransformExtrapolation,
         Transform::from_xyz(0.0, 300.0, 0.0),
@@ -123,7 +123,7 @@ fn setup_balls(
     commands.spawn((
         Name::new("No Interpolation"),
         Ball,
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::from(circle),
         Transform::from_xyz(100.0, 300.0, 0.0),
         Mesh2d(mesh.clone()),

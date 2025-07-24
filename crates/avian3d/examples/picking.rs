@@ -83,7 +83,7 @@ fn setup_scene(
             .spawn((
                 Mesh3d(mesh),
                 MeshMaterial3d(white_matl.clone()),
-                RigidBody::Kinematic,
+                KinematicBody,
                 collider,
                 AngularVelocity(Vector::new(0.0, 0.5, 0.0)),
                 Transform::from_xyz(
@@ -105,7 +105,7 @@ fn setup_scene(
     commands.spawn((
         Mesh3d(meshes.add(Plane3d::default().mesh().size(50.0, 50.0).subdivisions(10))),
         MeshMaterial3d(ground_matl.clone()),
-        RigidBody::Static,
+        StaticBody,
         Collider::cuboid(50.0, 0.1, 50.0),
         Pickable::IGNORE, // Disable picking for the ground plane.
     ));

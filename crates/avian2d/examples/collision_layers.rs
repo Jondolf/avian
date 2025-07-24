@@ -43,7 +43,7 @@ fn setup(
             ..default()
         },
         Transform::from_xyz(0.0, -50.0, 0.0),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Blue], [Layer::Blue]),
     ));
@@ -56,7 +56,7 @@ fn setup(
             ..default()
         },
         Transform::from_xyz(0.0, -200.0, 0.0),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(500.0, 25.0),
         CollisionLayers::new([Layer::Red], [Layer::Red]),
     ));
@@ -76,7 +76,7 @@ fn setup(
                     y as f32 * 2.5 * marble_radius + 200.0,
                     0.0,
                 ),
-                RigidBody::Dynamic,
+                DynamicBody,
                 Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Blue], [Layer::Blue]),
             ));
@@ -95,7 +95,7 @@ fn setup(
                     y as f32 * 2.5 * marble_radius + 200.0,
                     0.0,
                 ),
-                RigidBody::Dynamic,
+                DynamicBody,
                 Collider::circle(marble_radius as Scalar),
                 CollisionLayers::new([Layer::Red], [Layer::Red]),
             ));

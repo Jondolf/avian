@@ -18,7 +18,7 @@ use derive_more::derive::From;
 /// // Spawn a body with a collider that has a density of `2.5`.
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         ColliderDensity(2.5),
@@ -59,11 +59,11 @@ impl ColliderDensity {
 /// fn setup(mut commands: Commands) {
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
+    doc = "    commands.spawn((DynamicBody, Collider::circle(0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "    commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
+    doc = "    commands.spawn((DynamicBody, Collider::sphere(0.5)));"
 )]
 /// }
 ///

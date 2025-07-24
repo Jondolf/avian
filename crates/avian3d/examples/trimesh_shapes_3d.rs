@@ -50,7 +50,7 @@ fn setup(
     // Spawn shapes
     for (i, shape) in shapes.into_iter().enumerate() {
         commands.spawn((
-            RigidBody::Dynamic,
+            DynamicBody,
             Collider::trimesh_from_mesh(&shape).unwrap(),
             Mesh3d(meshes.add(shape)),
             MeshMaterial3d(debug_material.clone()),
@@ -65,7 +65,7 @@ fn setup(
 
     // Ground plane
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::cuboid(50.0, 0.1, 50.0),
         Mesh3d(meshes.add(Plane3d::default().mesh().size(50.0, 50.0))),
         MeshMaterial3d(materials.add(Color::from(SILVER))),

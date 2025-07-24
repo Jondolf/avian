@@ -727,7 +727,7 @@ mod tests {
         let parent = app
             .world_mut()
             .spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 mass_properties.clone(),
                 Transform::default(),
             ))

@@ -15,7 +15,7 @@ pub fn create_bench(base_count: usize) -> App {
 fn setup(mut commands: Commands, base_count: usize) {
     // Ground
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(800.0, 40.0),
         Transform::from_xyz(0.0, -20.0, 0.0),
     ));
@@ -31,7 +31,7 @@ fn setup(mut commands: Commands, base_count: usize) {
             let x = (i as f32 + 1.0) * shift + 2.0 * (j - i) as f32 * shift - h * base_count as f32;
 
             commands.spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 collider.clone(),
                 Transform::from_xyz(x, y, 0.0),
             ));

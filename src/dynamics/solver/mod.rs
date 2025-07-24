@@ -21,10 +21,7 @@ use crate::{
     dynamics::solver::constraint_graph::{COLOR_OVERFLOW_INDEX, ContactManifoldHandle, GraphColor},
     prelude::*,
 };
-use bevy::{
-    ecs::{query::QueryData, system::lifetimeless::Read},
-    prelude::*,
-};
+use bevy::prelude::*;
 use core::cmp::Ordering;
 use schedule::SubstepSolverSet;
 
@@ -414,56 +411,19 @@ fn update_contact_softness(
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct ContactConstraints(pub Vec<ContactConstraint>);
 
-#[derive(QueryData)]
-struct BodyQuery {
-    rb: Read<RigidBody>,
-    rotation: Read<Rotation>,
-    dominance: Option<Read<Dominance>>,
-    mass: Read<ComputedMass>,
-    angular_inertia: Read<ComputedAngularInertia>,
-    center_of_mass: Read<ComputedCenterOfMass>,
-    locked_axes: Option<Read<LockedAxes>>,
-    linear_velocity: Read<LinearVelocity>,
-    angular_velocity: Read<AngularVelocity>,
-}
-
-impl BodyQueryItem<'_> {
-    /// Returns the [dominance](Dominance) of the body.
-    ///
-    /// If it isn't specified, the default of `0` is returned for dynamic bodies.
-    /// For static and kinematic bodies, `i8::MAX + 1` (`128`) is always returned instead.
-    pub fn dominance(&self) -> i16 {
-        if !self.rb.is_dynamic() {
-            i8::MAX as i16 + 1
-        } else {
-            self.dominance.map_or(0, |dominance| dominance.0) as i16
-        }
-    }
-
-    /// Computes the effective world-space angular inertia, taking into account any rotation locking.
-    pub fn effective_global_angular_inertia(&self) -> ComputedAngularInertia {
-        if !self.rb.is_dynamic() {
-            return ComputedAngularInertia::INFINITY;
-        }
-
-        #[cfg(feature = "2d")]
-        let mut angular_inertia = *self.angular_inertia;
-        #[cfg(feature = "3d")]
-        let mut angular_inertia = self.angular_inertia.rotated(self.rotation.0);
-
-        if let Some(locked_axes) = self.locked_axes {
-            angular_inertia = locked_axes.apply_to_angular_inertia(angular_inertia);
-        }
-
-        angular_inertia
-    }
-}
-
 fn prepare_contact_constraints(
     contact_graph: Res<ContactGraph>,
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
-    bodies: Query<BodyQuery, RigidBodyActiveFilter>,
+    solver_bodies: Query<(
+        &SolverBody,
+        &SolverBodyInertia,
+        &ComputedCenterOfMass,
+        Option<&Dominance>,
+        Has<DynamicBody>,
+    )>,
+    // TODO: Remove this once the contact data stores the world-space anchors.
+    rotation_query: Query<&Rotation>,
     collider_transforms: Query<(Option<&ColliderTransform>, Option<&CollisionMargin>)>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     contact_softness: Res<ContactSoftnessCoefficients>,
@@ -486,6 +446,10 @@ fn prepare_contact_constraints(
         .iter_mut()
         .filter(|color| !color.manifold_handles.is_empty())
         .collect::<Vec<&mut GraphColor>>();
+
+    let dummy_body = SolverBody::default();
+    let dummy_inertia = SolverBodyInertia::default();
+    let dummy_com = ComputedCenterOfMass::default();
 
     // Generate contact constraints for each contact pair, parallelizing over graph colors.
     crate::utils::par_for_each(&mut active_colors, 2, |_i, color| {
@@ -510,17 +474,33 @@ fn prepare_contact_constraints(
             };
 
             // Get the two colliding bodies.
-            // TODO: get_disjoint
-            let Ok(body1) = bodies.get(body1_entity) else {
+            let Ok(rotation1) = rotation_query.get(body1_entity) else {
                 continue;
             };
-            let Ok(body2) = bodies.get(body2_entity) else {
+            let Ok(rotation2) = rotation_query.get(body2_entity) else {
                 continue;
+            };
+            let (body1, inertia1, com1, dominance1, is_dynamic1) = solver_bodies
+                .get(body1_entity)
+                .unwrap_or((&dummy_body, &dummy_inertia, &dummy_com, None, false));
+            let (body2, inertia2, com2, dominance2, is_dynamic2) = solver_bodies
+                .get(body2_entity)
+                .unwrap_or((&dummy_body, &dummy_inertia, &dummy_com, None, false));
+
+            let dominance1 = if is_dynamic1 {
+                dominance1.map_or(0, |d| d.0) as i16
+            } else {
+                i8::MAX as i16 + 1
+            };
+            let dominance2 = if is_dynamic2 {
+                dominance2.map_or(0, |d| d.0) as i16
+            } else {
+                i8::MAX as i16 + 1
             };
 
             // TODO: To skip this, we probably shouldn't have manifold handles between non-dynamic bodies
             //       in the constraint graph. Or alternatively, just don't generate contacts at all for them.
-            if !body1.rb.is_dynamic() && !body2.rb.is_dynamic() {
+            if !is_dynamic1 && !is_dynamic2 {
                 // If both bodies are static or kinematic, skip the contact.
                 continue;
             }
@@ -533,28 +513,28 @@ fn prepare_contact_constraints(
                 collision_margin1.map_or(0.0, |cm| cm.0) + collision_margin2.map_or(0.0, |cm| cm.0);
 
             // Compute the relative dominance of the bodies.
-            let relative_dominance = body1.dominance() - body2.dominance();
+            let relative_dominance = dominance1 - dominance2;
 
             // Compute the inverse mass and angular inertia, taking into account the relative dominance.
-            // TODO: Handle locked axes.
+            // TODO: Handle locked axes for mass.
             let (inv_mass1, i1, inv_mass2, i2) = match relative_dominance.cmp(&0) {
                 Ordering::Equal => (
-                    body1.mass.inverse(),
-                    body1.effective_global_angular_inertia(),
-                    body2.mass.inverse(),
-                    body2.effective_global_angular_inertia(),
+                    inertia1.effective_inv_mass().max_element(),
+                    inertia1.effective_inv_angular_inertia(),
+                    inertia2.effective_inv_mass().max_element(),
+                    inertia2.effective_inv_angular_inertia(),
                 ),
                 Ordering::Greater => (
                     0.0,
-                    ComputedAngularInertia::INFINITY,
-                    body2.mass.inverse(),
-                    body2.effective_global_angular_inertia(),
+                    SymmetricTensor::ZERO,
+                    inertia2.effective_inv_mass().max_element(),
+                    inertia2.effective_inv_angular_inertia(),
                 ),
                 Ordering::Less => (
-                    body1.mass.inverse(),
-                    body1.effective_global_angular_inertia(),
+                    inertia1.effective_inv_mass().max_element(),
+                    inertia1.effective_inv_angular_inertia(),
                     0.0,
-                    ComputedAngularInertia::INFINITY,
+                    SymmetricTensor::ZERO,
                 ),
             };
 
@@ -584,7 +564,7 @@ fn prepare_contact_constraints(
             };
 
             let tangents =
-                constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
+                constraint.tangent_directions(body1.linear_velocity, body2.linear_velocity);
 
             for mut contact in manifold.points.iter().copied() {
                 // Transform contact points from collider-space to body-space.
@@ -601,26 +581,25 @@ fn prepare_contact_constraints(
 
                 let effective_distance = -contact.penetration;
 
-                let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
-                let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
+                let local_anchor1 = contact.local_point1 - com1.0;
+                let local_anchor2 = contact.local_point2 - com2.0;
 
                 // Store fixed world-space anchors.
                 // This improves rolling behavior for shapes like balls and capsules.
-                let r1 = *body1.rotation * local_anchor1;
-                let r2 = *body2.rotation * local_anchor2;
+                let r1 = rotation1 * local_anchor1;
+                let r2 = rotation2 * local_anchor2;
 
                 // Relative velocity at the contact point.
                 // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
                 #[cfg(feature = "2d")]
-                let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0 * r2.perp()
-                    - body1.angular_velocity.0 * r1.perp();
+                let relative_velocity = body2.linear_velocity - body1.linear_velocity
+                    + body2.angular_velocity * r2.perp()
+                    - body1.angular_velocity * r1.perp();
                 #[cfg(feature = "3d")]
-                let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0.cross(r2)
-                    - body1.angular_velocity.0.cross(r1);
+                let relative_velocity = body2.linear_velocity - body1.linear_velocity
+                    + body2.angular_velocity.cross(r2)
+                    - body1.angular_velocity.cross(r1);
                 let normal_speed = relative_velocity.dot(constraint.normal);
-
                 // Keep the contact if (1) the separation distance is below the required threshold,
                 // or if (2) the bodies are expected to come into contact within the next frame.
                 let keep_contact = effective_distance < contact_pair.effective_speculative_margin
@@ -638,8 +617,8 @@ fn prepare_contact_constraints(
                     // TODO: Apply warm starting scale here instead of in `warm_start`?
                     normal_part: ContactNormalPart::generate(
                         inverse_mass_sum,
-                        i1,
-                        i2,
+                        &i1,
+                        &i2,
                         r1,
                         r2,
                         constraint.normal,
@@ -652,8 +631,8 @@ fn prepare_contact_constraints(
                     tangent_part: (manifold.friction > 0.0).then_some(
                         ContactTangentPart::generate(
                             inverse_mass_sum,
-                            i1,
-                            i2,
+                            &i1,
+                            &i2,
                             r1,
                             r2,
                             tangents,
@@ -1012,7 +991,7 @@ fn store_contact_impulses(
 pub fn joint_damping<T: Joint + EntityConstraint<2>>(
     mut bodies: Query<
         (
-            &RigidBody,
+            Has<DynamicBody>,
             &mut LinearVelocity,
             &mut AngularVelocity,
             &ComputedMass,
@@ -1028,34 +1007,26 @@ pub fn joint_damping<T: Joint + EntityConstraint<2>>(
     for joint in &joints {
         if let Ok(
             [
-                (rb1, mut lin_vel1, mut ang_vel1, mass1, dominance1),
-                (rb2, mut lin_vel2, mut ang_vel2, mass2, dominance2),
+                (is_dynamic1, mut lin_vel1, mut ang_vel1, mass1, dominance1),
+                (is_dynamic2, mut lin_vel2, mut ang_vel2, mass2, dominance2),
             ],
         ) = bodies.get_many_mut(joint.entities())
         {
             let delta_omega =
                 (ang_vel2.0 - ang_vel1.0) * (joint.damping_angular() * delta_secs).min(1.0);
 
-            if rb1.is_dynamic() {
+            if is_dynamic1 {
                 ang_vel1.0 += delta_omega;
             }
-            if rb2.is_dynamic() {
+            if is_dynamic2 {
                 ang_vel2.0 -= delta_omega;
             }
 
             let delta_v =
                 (lin_vel2.0 - lin_vel1.0) * (joint.damping_linear() * delta_secs).min(1.0);
 
-            let w1 = if rb1.is_dynamic() {
-                mass1.inverse()
-            } else {
-                0.0
-            };
-            let w2 = if rb2.is_dynamic() {
-                mass2.inverse()
-            } else {
-                0.0
-            };
+            let w1 = if is_dynamic1 { mass1.inverse() } else { 0.0 };
+            let w2 = if is_dynamic2 { mass2.inverse() } else { 0.0 };
 
             if w1 + w2 <= Scalar::EPSILON {
                 continue;
@@ -1066,10 +1037,10 @@ pub fn joint_damping<T: Joint + EntityConstraint<2>>(
             let dominance1 = dominance1.map_or(0, |dominance| dominance.0);
             let dominance2 = dominance2.map_or(0, |dominance| dominance.0);
 
-            if rb1.is_dynamic() && (!rb2.is_dynamic() || dominance1 <= dominance2) {
+            if is_dynamic1 && (!is_dynamic2 || dominance1 <= dominance2) {
                 lin_vel1.0 += p * mass1.inverse();
             }
-            if rb2.is_dynamic() && (!rb1.is_dynamic() || dominance2 <= dominance1) {
+            if is_dynamic2 && (!is_dynamic1 || dominance2 <= dominance1) {
                 lin_vel2.0 -= p * mass2.inverse();
             }
         }

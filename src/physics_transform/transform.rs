@@ -35,7 +35,7 @@ use crate::math::Matrix;
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 #[cfg_attr(feature = "2d", doc = "         Position::from_xy(0.0, 20.0),")]
 #[cfg_attr(feature = "3d", doc = "         Position::from_xyz(0.0, 2.0, 0.0),")]
 ///     ));
@@ -162,7 +162,7 @@ pub(crate) type RotationValue = Quaternion;
 ///
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 90 degrees
-///     commands.spawn((RigidBody::Dynamic, Rotation::degrees(90.0)));
+///     commands.spawn((DynamicBody, Rotation::degrees(90.0)));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, PartialEq)]
@@ -722,7 +722,7 @@ impl Ease for Rotation {
 /// # #[cfg(feature = "f32")]
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body rotated by 1.5 radians around the x axis
-///     commands.spawn((RigidBody::Dynamic, Rotation(Quat::from_rotation_x(1.5))));
+///     commands.spawn((DynamicBody, Rotation(Quat::from_rotation_x(1.5))));
 /// }
 /// ```
 #[cfg(feature = "3d")]

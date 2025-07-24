@@ -107,7 +107,7 @@ fn setup(
 ) {
     // Static physics object with a collision shape
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::cylinder(4.0, 0.1),
         Mesh3d(meshes.add(Cylinder::new(4.0, 0.1))),
         MeshMaterial3d(materials.add(Color::WHITE)),
@@ -115,7 +115,7 @@ fn setup(
 
     // Dynamic physics object with a collision shape and initial angular velocity
     commands.spawn((
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::cuboid(1.0, 1.0, 1.0),
         AngularVelocity(Vec3::new(2.5, 3.5, 1.5)),
         Mesh3d(meshes.add(Cuboid::from_length(1.0))),

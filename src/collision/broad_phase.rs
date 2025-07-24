@@ -83,7 +83,7 @@ where
                     Or<(With<Disabled>, Without<Disabled>)>,
                 ),
             >,
-             rbs: Query<&RigidBody>,
+             static_bodies: Query<(), With<StaticBody>>,
              mut intervals: ResMut<AabbIntervals>| {
                 let entity = trigger.target();
 
@@ -93,7 +93,7 @@ where
                 {
                     let flags = init_aabb_interval_flags(
                         collider_of,
-                        &rbs,
+                        &static_bodies,
                         is_sensor,
                         events_enabled,
                         hooks,
@@ -116,7 +116,7 @@ where
         app.add_observer(
             |trigger: Trigger<OnRemove, ColliderDisabled>,
              query: Query<AabbIntervalQueryData>,
-             rbs: Query<&RigidBody>,
+             static_bodies: Query<(), With<StaticBody>>,
              mut intervals: ResMut<AabbIntervals>| {
                 let entity = trigger.target();
 
@@ -126,7 +126,7 @@ where
                 {
                     let flags = init_aabb_interval_flags(
                         collider_of,
-                        &rbs,
+                        &static_bodies,
                         is_sensor,
                         events_enabled,
                         hooks,
@@ -218,7 +218,7 @@ fn update_aabb_intervals(
         ),
         Without<ColliderDisabled>,
     >,
-    rbs: Query<&RigidBody>,
+    static_bodies: Query<(), With<StaticBody>>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     intervals
@@ -247,9 +247,8 @@ fn update_aabb_intervals(
                 );
                 *layers = *new_layers;
 
-                let is_static = new_collider_of.is_some_and(|collider_of| {
-                    rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)
-                });
+                let is_static = new_collider_of
+                    .is_some_and(|collider_of| static_bodies.contains(collider_of.body));
 
                 flags.set(AabbIntervalFlags::IS_INACTIVE, is_static || is_sleeping);
                 flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
@@ -286,13 +285,18 @@ type AabbIntervalQueryData = (
 #[allow(clippy::type_complexity)]
 fn add_new_aabb_intervals(
     added_aabbs: Query<AabbIntervalQueryData, (Added<ColliderAabb>, Without<ColliderDisabled>)>,
-    rbs: Query<&RigidBody>,
+    static_bodies: Query<(), With<StaticBody>>,
     mut intervals: ResMut<AabbIntervals>,
 ) {
     let aabbs = added_aabbs.iter().map(
         |(entity, collider_of, aabb, layers, is_sensor, events_enabled, hooks)| {
-            let flags =
-                init_aabb_interval_flags(collider_of, &rbs, is_sensor, events_enabled, hooks);
+            let flags = init_aabb_interval_flags(
+                collider_of,
+                &static_bodies,
+                is_sensor,
+                events_enabled,
+                hooks,
+            );
             (
                 entity,
                 collider_of.map_or(ColliderOf { body: entity }, |p| *p),
@@ -307,7 +311,7 @@ fn add_new_aabb_intervals(
 
 fn init_aabb_interval_flags(
     collider_of: Option<&ColliderOf>,
-    rbs: &Query<&RigidBody>,
+    static_bodies: &Query<(), With<StaticBody>>,
     is_sensor: bool,
     events_enabled: bool,
     hooks: Option<&ActiveCollisionHooks>,
@@ -315,8 +319,7 @@ fn init_aabb_interval_flags(
     let mut flags = AabbIntervalFlags::empty();
     flags.set(
         AabbIntervalFlags::IS_INACTIVE,
-        collider_of
-            .is_some_and(|collider_of| rbs.get(collider_of.body).is_ok_and(RigidBody::is_static)),
+        collider_of.is_some_and(|collider_of| static_bodies.contains(collider_of.body)),
     );
     flags.set(AabbIntervalFlags::IS_SENSOR, is_sensor);
     flags.set(AabbIntervalFlags::CONTACT_EVENTS, events_enabled);

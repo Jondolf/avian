@@ -37,7 +37,7 @@ fn test_init_transforms_basics() {
         };
         let e_0_with_pos_and_rot = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, pos_0, rot_0))
+            .spawn((DynamicBody, pos_0, rot_0))
             .id();
 
         let (pos_1, rot_1) = {
@@ -55,7 +55,7 @@ fn test_init_transforms_basics() {
         };
         let e_1_with_pos_and_rot = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, pos_1, rot_1))
+            .spawn((DynamicBody, pos_1, rot_1))
             .id();
 
         // Spawn an entity with only `Position`
@@ -69,7 +69,7 @@ fn test_init_transforms_basics() {
                 Position::from_xyz(10., 1., 5.)
             }
         };
-        let e_2_with_pos = app.world_mut().spawn((RigidBody::Dynamic, pos_2)).id();
+        let e_2_with_pos = app.world_mut().spawn((DynamicBody, pos_2)).id();
 
         // Spawn an entity with only `Rotation`
         let rot_3 = {
@@ -82,7 +82,7 @@ fn test_init_transforms_basics() {
                 Rotation(Quaternion::from_axis_angle(Vector::Z, 0.4))
             }
         };
-        let e_3_with_rot = app.world_mut().spawn((RigidBody::Dynamic, rot_3)).id();
+        let e_3_with_rot = app.world_mut().spawn((DynamicBody, rot_3)).id();
 
         // Spawn entities with `Transform`
         let trans_4 = {
@@ -92,7 +92,7 @@ fn test_init_transforms_basics() {
                 scale: Vec3::ONE,
             }
         };
-        let e_4_with_trans = app.world_mut().spawn((RigidBody::Dynamic, trans_4)).id();
+        let e_4_with_trans = app.world_mut().spawn((DynamicBody, trans_4)).id();
 
         let trans_5 = {
             Transform {
@@ -101,10 +101,10 @@ fn test_init_transforms_basics() {
                 scale: Vec3::ONE,
             }
         };
-        let e_5_with_trans = app.world_mut().spawn((RigidBody::Dynamic, trans_5)).id();
+        let e_5_with_trans = app.world_mut().spawn((DynamicBody, trans_5)).id();
 
         // Spawn entity without any transforms
-        let e_6_without_trans = app.world_mut().spawn(RigidBody::Dynamic).id();
+        let e_6_without_trans = app.world_mut().spawn(DynamicBody).id();
 
         // Spawn entity without a ridid body
         let e_7_without_rb = app.world_mut().spawn(()).id();

@@ -66,14 +66,14 @@ use crate::prelude::*;
 /// fn setup(mut commands: Commands) {
 ///     // Enable interpolation for this rigid body.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Transform::default(),
 ///         TransformInterpolation,
 ///     ));
 ///
 ///     // Enable extrapolation for this rigid body.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Transform::default(),
 ///         TransformExtrapolation,
 ///     ));
@@ -158,7 +158,7 @@ use crate::prelude::*;
 /// fn setup(mut commands: Commands) {
 ///     // Enable Hermite interpolation for this rigid body.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Transform::default(),
 ///         TransformInterpolation,
 ///         TransformHermiteEasing,
@@ -276,18 +276,24 @@ impl Plugin for PhysicsInterpolationPlugin {
 
         // Enable interpolation for all entities with a rigid body.
         if self.interpolate_translation_all {
-            let _ = app.try_register_required_components::<RigidBody, TranslationInterpolation>();
+            let _ = app.try_register_required_components::<DynamicBody, TranslationInterpolation>();
+            let _ =
+                app.try_register_required_components::<KinematicBody, TranslationInterpolation>();
         }
         if self.interpolate_rotation_all {
-            let _ = app.try_register_required_components::<RigidBody, RotationInterpolation>();
+            let _ = app.try_register_required_components::<DynamicBody, RotationInterpolation>();
+            let _ = app.try_register_required_components::<KinematicBody, RotationInterpolation>();
         }
 
         // Enable extrapolation for all entities with a rigid body.
         if self.extrapolate_translation_all {
-            let _ = app.try_register_required_components::<RigidBody, TranslationExtrapolation>();
+            let _ = app.try_register_required_components::<DynamicBody, TranslationExtrapolation>();
+            let _ =
+                app.try_register_required_components::<KinematicBody, TranslationExtrapolation>();
         }
         if self.extrapolate_rotation_all {
-            let _ = app.try_register_required_components::<RigidBody, RotationExtrapolation>();
+            let _ = app.try_register_required_components::<DynamicBody, RotationExtrapolation>();
+            let _ = app.try_register_required_components::<KinematicBody, RotationExtrapolation>();
         }
 
         // Update previous velocity components for Hermite interpolation.

@@ -85,7 +85,7 @@ fn setup(
 
     // Spawn four conveyor belts.
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::from(long_conveyor),
         Friction::new(1.0),
         ConveyorBelt {
@@ -98,7 +98,7 @@ fn setup(
         MeshMaterial3d(long_conveyor_material.clone()),
     ));
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::from(long_conveyor),
         Friction::new(1.0),
         ConveyorBelt {
@@ -111,7 +111,7 @@ fn setup(
         MeshMaterial3d(long_conveyor_material.clone()),
     ));
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::from(short_conveyor),
         Friction::new(1.0),
         ConveyorBelt {
@@ -125,7 +125,7 @@ fn setup(
         MeshMaterial3d(short_conveyor_material.clone()),
     ));
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Collider::from(short_conveyor),
         Friction::new(1.0),
         ConveyorBelt {
@@ -147,7 +147,7 @@ fn setup(
             for z in -2..2 {
                 let position = Vec3::new(x as f32 + 10.0, y as f32 + 1.0, z as f32);
                 commands.spawn((
-                    RigidBody::Dynamic,
+                    DynamicBody,
                     // This small margin just helps prevent hitting internal edges
                     // while sliding from one conveyor to another.
                     CollisionMargin(0.01),

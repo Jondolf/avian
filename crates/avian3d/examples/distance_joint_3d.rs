@@ -27,7 +27,7 @@ fn setup(
         .spawn((
             Mesh3d(cube_mesh.clone()),
             MeshMaterial3d(cube_material.clone()),
-            RigidBody::Static,
+            StaticBody,
             Collider::cuboid(1., 1., 1.),
         ))
         .id();
@@ -36,7 +36,7 @@ fn setup(
             Mesh3d(cube_mesh),
             MeshMaterial3d(cube_material),
             Transform::from_xyz(-2.0, -0.5, 0.0),
-            RigidBody::Dynamic,
+            DynamicBody,
             Collider::cuboid(1., 1., 1.),
         ))
         .id();

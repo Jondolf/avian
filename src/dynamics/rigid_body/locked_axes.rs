@@ -18,7 +18,7 @@ use crate::prelude::*;
 ///
 /// fn spawn(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Collider::capsule(0.5, 1.0),
 #[cfg_attr(feature = "2d", doc = "        LockedAxes::ROTATION_LOCKED,")]
 #[cfg_attr(feature = "3d", doc = "        LockedAxes::new().lock_rotation_z(),")]

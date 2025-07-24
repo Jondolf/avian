@@ -54,7 +54,7 @@ fn setup(
 
     // A cube to move around
     commands.spawn((
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::cuboid(1.0, 1.0, 1.0),
         Mesh3d(meshes.add(Cuboid::default())),
         MeshMaterial3d(materials.add(Color::srgb(0.8, 0.7, 0.6))),
@@ -66,7 +66,7 @@ fn setup(
         SceneRoot(assets.load("character_controller_demo.glb#Scene0")),
         Transform::from_rotation(Quat::from_rotation_y(-core::f32::consts::PI * 0.5)),
         ColliderConstructorHierarchy::new(ColliderConstructor::ConvexHullFromMesh),
-        RigidBody::Static,
+        StaticBody,
     ));
 
     // Light

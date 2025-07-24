@@ -74,7 +74,7 @@
 //!         self.lagrange = 0.0;
 //!     }
 //!
-//!     fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: f32) {
+//!     fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], dt: f32) {
 //!          // Prepare the constraint for `solve` (compute current anchor positions, offsets, and so on).
 //!          // This runs before the substepping loop.
 //!     }
@@ -242,9 +242,11 @@
 
 mod angular_constraint;
 mod positional_constraint;
+mod query_data;
 
 pub use angular_constraint::AngularConstraint;
 pub use positional_constraint::PositionConstraint;
+pub use query_data::{XpbdBodyQuery, XpbdBodyQueryItem};
 
 use crate::prelude::*;
 use bevy::{
@@ -264,7 +266,7 @@ pub trait EntityConstraint<const ENTITY_COUNT: usize>: MapEntities {
 /// A trait for all XPBD [constraints](self#constraints).
 pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
     /// Prepares the constraint for solving.
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; ENTITY_COUNT], dt: Scalar);
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; ENTITY_COUNT], dt: Scalar);
 
     /// Solves the constraint.
     ///
@@ -365,7 +367,7 @@ pub trait XpbdConstraint<const ENTITY_COUNT: usize> {
 pub fn prepare_xpbd_joint<
     C: Joint + EntityConstraint<2> + XpbdConstraint<2> + Component<Mutability = Mutable>,
 >(
-    bodies: Query<RigidBodyQueryReadOnly, Without<RigidBodyDisabled>>,
+    bodies: Query<XpbdBodyQuery, Without<RigidBodyDisabled>>,
     mut joints: Query<&mut C, (Without<RigidBody>, Without<JointDisabled>)>,
     time: Res<Time>,
     mut commands: Commands,
@@ -374,16 +376,17 @@ pub fn prepare_xpbd_joint<
 
     for mut joint in &mut joints {
         // Get components for entities
-        if let Ok([body1, body2]) = bodies.get_many(joint.entities()) {
+        let [entity1, entity2] = joint.entities();
+        if let Ok([body1, body2]) = bodies.get_many([entity1, entity2]) {
             joint.prepare([&body1, &body2], delta_secs);
 
             // Wake up the bodies if they are sleeping.
             // TODO: Simulation islands will let us handle this better.
             if body1.is_sleeping {
-                commands.queue(WakeUpBody(body1.entity));
+                commands.queue(WakeUpBody(entity1));
             }
             if body2.is_sleeping {
-                commands.queue(WakeUpBody(body2.entity));
+                commands.queue(WakeUpBody(entity2));
             }
         }
     }

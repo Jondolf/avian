@@ -20,7 +20,7 @@ fn setup(mut commands: Commands, base_count: usize, row_count: usize, column_cou
     // Ground
     for i in 0..row_count {
         commands.spawn((
-            RigidBody::Static,
+            StaticBody,
             Collider::rectangle(ground_width, 0.01),
             Transform::from_xyz(0.0, i as f32 * ground_delta_y, 0.0),
         ));
@@ -55,7 +55,7 @@ fn spawn_small_pyramid(
             let x = (i + 1) as f32 * h + 2.0 * (j - i) as f32 * h + center_x - 0.5;
 
             commands.spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 collider.clone(),
                 Transform::from_xyz(x, y, 0.0),
             ));

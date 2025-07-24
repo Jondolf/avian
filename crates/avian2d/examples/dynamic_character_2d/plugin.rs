@@ -28,6 +28,7 @@ pub enum MovementAction {
 
 /// A marker component indicating that an entity is using a character controller.
 #[derive(Component)]
+#[require(DynamicBody)]
 pub struct CharacterController;
 
 /// A marker component indicating that an entity is on the ground.
@@ -57,7 +58,6 @@ pub struct MaxSlopeAngle(Scalar);
 #[derive(Bundle)]
 pub struct CharacterControllerBundle {
     character_controller: CharacterController,
-    body: RigidBody,
     collider: Collider,
     ground_caster: ShapeCaster,
     locked_axes: LockedAxes,
@@ -103,7 +103,6 @@ impl CharacterControllerBundle {
 
         Self {
             character_controller: CharacterController,
-            body: RigidBody::Dynamic,
             collider,
             ground_caster: ShapeCaster::new(caster_shape, Vector::ZERO, 0.0, Dir2::NEG_Y)
                 .with_max_distance(10.0),

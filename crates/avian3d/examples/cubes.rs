@@ -30,27 +30,27 @@ fn setup(
 
     // Ground
     commands.spawn((
+        StaticBody,
+        Collider::cuboid(1.0, 1.0, 1.0),
+        Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
         Mesh3d(cube_mesh.clone()),
         MeshMaterial3d(materials.add(Color::srgb(0.7, 0.7, 0.8))),
-        Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
-        RigidBody::Static,
-        Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
     let cube_size = 2.0;
 
     // Spawn cube stacks
-    for x in -2..2 {
-        for y in -2..2 {
-            for z in -2..2 {
+    for x in 0..1 {
+        for y in 0..1 {
+            for z in 0..1 {
                 let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
+                    DynamicBody,
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    Transform::from_translation(position).with_scale(Vec3::splat(cube_size as f32)),
+                    MovementAcceleration(10.0),
                     Mesh3d(cube_mesh.clone()),
                     MeshMaterial3d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
-                    Transform::from_translation(position).with_scale(Vec3::splat(cube_size as f32)),
-                    RigidBody::Dynamic,
-                    Collider::cuboid(1.0, 1.0, 1.0),
-                    MovementAcceleration(10.0),
                 ));
             }
         }

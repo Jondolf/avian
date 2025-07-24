@@ -51,7 +51,7 @@ fn setup(
         MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
         Transform::from_xyz(0.0, -100.0, 1.0),
         Character,
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::capsule(12.5, 20.0),
     ));
 
@@ -65,7 +65,7 @@ fn setup(
         Transform::from_xyz(0.0, 150.0, 0.0),
         PressurePlate,
         Sensor,
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(100.0, 100.0),
         // Enable collision events for this entity.
         CollisionEventsEnabled,

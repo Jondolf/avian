@@ -169,7 +169,7 @@ fn setup(
         .spawn((
             Mesh2d(meshes.add(Circle::new(center_radius))),
             MeshMaterial2d(materials.add(Color::srgb(0.7, 0.7, 0.8)).clone()),
-            RigidBody::Kinematic,
+            KinematicBody,
             CircleCollider::new(center_radius.adjust_precision()),
             CenterBody,
         ))
@@ -202,7 +202,7 @@ fn setup(
                     y as f32 * 3.0 * particle_radius,
                     0.0,
                 ),
-                RigidBody::Dynamic,
+                DynamicBody,
                 CircleCollider::new(particle_radius.adjust_precision()),
                 LinearDamping(0.4),
             ));

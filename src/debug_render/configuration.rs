@@ -38,11 +38,11 @@ use bevy::{color::palettes::css::*, prelude::*};
 ///     // This rigid body and its collider and AABB will get rendered
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Dynamic, Collider::circle(0.5)));"
+    doc = "    commands.spawn((DynamicBody, Collider::circle(0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "    commands.spawn((RigidBody::Dynamic, Collider::sphere(0.5)));"
+    doc = "    commands.spawn((DynamicBody, Collider::sphere(0.5)));"
 )]
 /// }
 /// ```
@@ -399,7 +399,7 @@ impl PhysicsGizmos {
 /// fn setup(mut commands: Commands) {
 ///     // This rigid body and its collider and AABB will get rendered
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         // Overwrite default collider color (optional)

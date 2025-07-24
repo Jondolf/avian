@@ -43,7 +43,7 @@ fn setup(
         Mesh3d(cube_mesh.clone()),
         MeshMaterial3d(materials.add(Color::srgb(0.7, 0.7, 0.8))),
         Transform::from_xyz(0.0, -2.0, 0.0).with_scale(Vec3::new(100.0, 1.0, 100.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::cuboid(1.0, 1.0, 1.0),
     ));
 
@@ -63,7 +63,7 @@ fn setup(
                     Mesh3d(cube_mesh.clone()),
                     MeshMaterial3d(materials.add(material.clone())),
                     Transform::from_translation(position).with_scale(Vec3::splat(cube_size as f32)),
-                    RigidBody::Dynamic,
+                    DynamicBody,
                     Collider::cuboid(1.0, 1.0, 1.0),
                     MovementAcceleration(10.0),
                     OutOfGlass(x == -1),

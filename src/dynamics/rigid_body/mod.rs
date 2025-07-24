@@ -6,13 +6,11 @@ pub mod mass_properties;
 // Components
 mod locked_axes;
 mod physics_material;
-mod world_query;
 
 pub use locked_axes::LockedAxes;
 pub use physics_material::{
     CoefficientCombine, DefaultFriction, DefaultRestitution, Friction, Restitution,
 };
-pub use world_query::*;
 
 #[cfg(feature = "2d")]
 pub(crate) use forces::FloatZero;
@@ -50,7 +48,7 @@ use derive_more::From;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a dynamic rigid body and specify its position.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Collider::capsule(0.5, 1.5),
 ///         Transform::from_xyz(0.0, 3.0, 0.0),
 ///     ));
@@ -147,7 +145,7 @@ use derive_more::From;
 /// # fn setup(mut commands: Commands) {
 /// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     ColliderDensity(2.0),
 /// ));
@@ -165,7 +163,7 @@ use derive_more::From;
 /// # fn setup(mut commands: Commands) {
 /// // Override mass and the center of mass, but use the collider's angular inertia.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(5.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -193,7 +191,7 @@ use derive_more::From;
     doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
 )]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(10.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -222,7 +220,7 @@ use derive_more::From;
 #[cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
 #[cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(10.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -270,6 +268,35 @@ use derive_more::From;
     //       and only dynamic bodies need mass and angular inertia.
     Position::PLACEHOLDER,
     Rotation::PLACEHOLDER,
+)]
+#[component(on_add = RigidBody::on_add)]
+pub struct RigidBody;
+
+impl RigidBody {
+    /// Checks if the rigid body is dynamic.
+    #[deprecated(
+        note = "The `is_dynamic` method is implemented through the `PartialReflect` trait, but it does not return whether the rigid body is dynamic. Check for the `DynamicBody` component instead, or if you really meant `PartialReflect::is_dynamic`, use it explicitly."
+    )]
+    #[doc(hidden)]
+    pub fn is_dynamic(&self) -> bool {
+        panic!(
+            "The `is_dynamic` method is implemented through the `PartialReflect` trait, but it does not return whether the rigid body is dynamic. Check for the `DynamicBody` component instead, or if you really meant `PartialReflect::is_dynamic`, use it explicitly."
+        );
+    }
+
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        // Initialize the global physics transform for the rigid body.
+        init_physics_transform(&mut world, &ctx);
+    }
+}
+
+/// A [`RigidBody`] with [mass properties](mass_properties) and [velocity] that is simulated and affected by forces.
+#[derive(Component, Reflect, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[require(
+    RigidBody,
     LinearVelocity,
     AngularVelocity,
     ComputedMass,
@@ -281,48 +308,186 @@ use derive_more::From;
     PreSolveDeltaPosition,
     PreSolveDeltaRotation,
 )]
-#[component(on_add = RigidBody::on_add)]
-pub enum RigidBody {
-    /// Dynamic bodies are bodies that are affected by forces, velocity and collisions.
-    #[default]
-    Dynamic,
+#[component(on_add = DynamicBody::on_add, on_remove = DynamicBody::on_remove)]
+pub struct DynamicBody;
 
-    /// Static bodies are not affected by any forces, collisions or velocity, and they act as if they have an infinite mass and moment of inertia.
-    /// The only way to move a static body is to manually change its position.
-    ///
-    /// Collisions with static bodies will affect dynamic bodies, but not other static bodies or kinematic bodies.
-    ///
-    /// Static bodies are typically used for things like the ground, walls and any other objects that you don't want to move.
-    Static,
+impl DynamicBody {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+        let is_kinematic = entity_ref.contains::<KinematicBody>();
+        let is_static = entity_ref.contains::<StaticBody>();
 
-    /// Kinematic bodies are bodies that are not affected by any external forces or collisions.
-    /// They will realistically affect colliding dynamic bodies, but not other kinematic bodies.
-    ///
-    /// Unlike static bodies, kinematic bodies can have velocity.
-    /// The engine doesn't modify the values of a kinematic body's components,
-    /// so you have full control of them.
-    Kinematic,
+        // If the entity has a `KinematicBody` or `StaticBody`, replace it.
+        if is_kinematic {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a dynamic body.
+                    if entity_mut.contains::<DynamicBody>() {
+                        entity_mut.remove::<KinematicBody>();
+                    }
+                }
+            });
+        }
+        if is_static {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a dynamic body.
+                    if entity_mut.contains::<DynamicBody>() {
+                        entity_mut.remove::<StaticBody>();
+                    }
+                }
+            });
+        }
+    }
+
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+
+        // If the entity has no rigid body type left, remove `RigidBody`.
+        if !entity_ref.contains::<DynamicBody>()
+            && !entity_ref.contains::<KinematicBody>()
+            && !entity_ref.contains::<StaticBody>()
+        {
+            world.commands().queue(move |world: &mut World| {
+                // Only remove the component if the entity has no rigid body type left.
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    if !entity_mut.contains::<DynamicBody>()
+                        && !entity_mut.contains::<KinematicBody>()
+                        && !entity_mut.contains::<StaticBody>()
+                    {
+                        entity_mut.remove::<RigidBody>();
+                    }
+                }
+            });
+        }
+    }
 }
 
-impl RigidBody {
-    /// Checks if the rigid body is dynamic.
-    pub fn is_dynamic(&self) -> bool {
-        *self == Self::Dynamic
-    }
+/// A [`RigidBody`] with [velocity] that is moved programmatically and does not respond to forces or collisions.
+#[derive(Component, Reflect, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[require(RigidBody, LinearVelocity, AngularVelocity)]
+#[component(on_add = KinematicBody::on_add, on_remove = KinematicBody::on_remove)]
+pub struct KinematicBody;
 
-    /// Checks if the rigid body is static.
-    pub fn is_static(&self) -> bool {
-        *self == Self::Static
-    }
-
-    /// Checks if the rigid body is kinematic.
-    pub fn is_kinematic(&self) -> bool {
-        *self == Self::Kinematic
-    }
-
+impl KinematicBody {
     fn on_add(mut world: DeferredWorld, ctx: HookContext) {
-        // Initialize the global physics transform for the rigid body.
-        init_physics_transform(&mut world, &ctx);
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+        let is_dynamic = entity_ref.contains::<DynamicBody>();
+        let is_static = entity_ref.contains::<StaticBody>();
+
+        // If the entity has a `DynamicBody` or `StaticBody`, replace it.
+        if is_dynamic {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a kinematic body.
+                    if entity_mut.contains::<KinematicBody>() {
+                        entity_mut.remove::<DynamicBody>();
+                    }
+                }
+            });
+        }
+        if is_static {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a kinematic body.
+                    if entity_mut.contains::<KinematicBody>() {
+                        entity_mut.remove::<StaticBody>();
+                    }
+                }
+            });
+        }
+    }
+
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+
+        // If the entity has no rigid body type left, remove `RigidBody`.
+        if !entity_ref.contains::<DynamicBody>()
+            && !entity_ref.contains::<KinematicBody>()
+            && !entity_ref.contains::<StaticBody>()
+        {
+            world.commands().queue(move |world: &mut World| {
+                // Only remove the component if the entity has no rigid body type left.
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    if !entity_mut.contains::<DynamicBody>()
+                        && !entity_mut.contains::<KinematicBody>()
+                        && !entity_mut.contains::<StaticBody>()
+                    {
+                        entity_mut.remove::<RigidBody>();
+                    }
+                }
+            });
+        }
+    }
+}
+
+/// A [`RigidBody`] that does not move and is not affected by forces or collisions.
+#[derive(Component, Reflect, Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serialize", reflect(Serialize, Deserialize))]
+#[reflect(Debug, Component, Default, PartialEq)]
+#[require(RigidBody)]
+#[component(on_add = StaticBody::on_add, on_remove = StaticBody::on_remove)]
+pub struct StaticBody;
+
+impl StaticBody {
+    fn on_add(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+        let is_dynamic = entity_ref.contains::<DynamicBody>();
+        let is_kinematic = entity_ref.contains::<KinematicBody>();
+
+        // If the entity has a `DynamicBody` or `KinematicBody`, replace it.
+        if is_dynamic {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a static body.
+                    if entity_mut.contains::<StaticBody>() {
+                        entity_mut.remove::<DynamicBody>();
+                    }
+                }
+            });
+        }
+        if is_kinematic {
+            world.commands().queue(move |world: &mut World| {
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    // Only remove the component if the entity is still a static body.
+                    if entity_mut.contains::<StaticBody>() {
+                        entity_mut.remove::<KinematicBody>();
+                    }
+                }
+            });
+        }
+    }
+
+    fn on_remove(mut world: DeferredWorld, ctx: HookContext) {
+        let entity = ctx.entity;
+        let entity_ref = world.entity(entity);
+
+        // If the entity has no rigid body type left, remove `RigidBody`.
+        if !entity_ref.contains::<DynamicBody>()
+            && !entity_ref.contains::<KinematicBody>()
+            && !entity_ref.contains::<StaticBody>()
+        {
+            world.commands().queue(move |world: &mut World| {
+                // Only remove the component if the entity has no rigid body type left.
+                if let Ok(mut entity_mut) = world.get_entity_mut(entity) {
+                    if !entity_mut.contains::<DynamicBody>()
+                        && !entity_mut.contains::<KinematicBody>()
+                        && !entity_mut.contains::<StaticBody>()
+                    {
+                        entity_mut.remove::<RigidBody>();
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -472,7 +637,7 @@ impl LinearVelocity {
 ///
 /// // Spawn a dynamic body with linear velocity clamped to `100.0` units per second.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, MaxLinearSpeed(100.0)));
+///     commands.spawn((DynamicBody, MaxLinearSpeed(100.0)));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
@@ -502,7 +667,7 @@ impl Default for MaxLinearSpeed {
 ///
 /// // Spawn a dynamic body with angular velocity clamped to `20.0` radians per second.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, MaxAngularSpeed(20.0)));
+///     commands.spawn((DynamicBody, MaxAngularSpeed(20.0)));
 /// }
 /// ```
 #[derive(Reflect, Clone, Copy, Component, Debug, Deref, DerefMut, PartialEq, From)]
@@ -607,7 +772,7 @@ impl AngularVelocity {
 ///
 /// // Spawn a dynamic body with `1.5` times the normal gravity.
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, GravityScale(1.5)));
+///     commands.spawn((DynamicBody, GravityScale(1.5)));
 /// }
 /// ```
 #[derive(Component, Reflect, Debug, Clone, Copy, PartialEq, PartialOrd, Deref, DerefMut, From)]
@@ -635,7 +800,7 @@ impl Default for GravityScale {
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, LinearDamping(0.8)));
+///     commands.spawn((DynamicBody, LinearDamping(0.8)));
 /// }
 /// ```
 #[derive(
@@ -659,7 +824,7 @@ pub struct LinearDamping(pub Scalar);
 /// use bevy::prelude::*;
 ///
 /// fn setup(mut commands: Commands) {
-///     commands.spawn((RigidBody::Dynamic, AngularDamping(1.6)));
+///     commands.spawn((DynamicBody, AngularDamping(1.6)));
 /// }
 /// ```
 #[derive(
@@ -670,7 +835,7 @@ pub struct LinearDamping(pub Scalar);
 #[reflect(Debug, Component, Default, PartialEq)]
 pub struct AngularDamping(pub Scalar);
 
-/// **Dominance** allows [dynamic rigid bodies](RigidBody::Dynamic) to dominate
+/// **Dominance** allows [dynamic rigid bodies](DynamicBody) to dominate
 /// each other during physical interactions.
 /// 
 /// The body with a higher dominance acts as if it had infinite mass, and will be unaffected during
@@ -690,7 +855,7 @@ pub struct AngularDamping(pub Scalar);
 /// // Player dominates all dynamic bodies with a dominance lower than `5`.
 /// fn spawn_player(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Collider::capsule(0.4, 1.0),
 ///         Dominance(5),
 ///     ));

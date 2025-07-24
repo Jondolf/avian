@@ -54,7 +54,7 @@
 //! #
 //! # fn setup(mut commands: Commands) {
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Collider::capsule(0.5, 1.0),
 //!     // Apply a constant force of 10 N in the positive Y direction.
 #![cfg_attr(feature = "2d", doc = "    ConstantForce::new(0.0, 10.0),")]
@@ -234,7 +234,7 @@ impl FloatZero for Scalar {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant force of 10 N in the positive Y direction.
 #[cfg_attr(feature = "2d", doc = "    ConstantForce::new(0.0, 10.0),")]
@@ -288,7 +288,7 @@ impl ConstantForce {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant torque of 5 N⋅m in the positive Z direction.
 #[cfg_attr(feature = "2d", doc = "    ConstantTorque(5.0),")]
@@ -339,7 +339,7 @@ impl ConstantTorque {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant force of 10 N in the positive Y direction in local space.
 #[cfg_attr(feature = "2d", doc = "    ConstantLocalForce::new(0.0, 10.0),")]
@@ -398,7 +398,7 @@ impl ConstantLocalForce {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant torque of 5 N⋅m in the positive Z direction in local space.
 ///     ConstantLocalTorque::new(0.0, 0.0, 5.0),
@@ -445,7 +445,7 @@ impl ConstantLocalTorque {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant linear acceleration of 9.81 m/s² in the negative Y direction.
 ///     // This is equivalent to using the `Gravity` resource, but only for this entity.
@@ -506,7 +506,7 @@ impl ConstantLinearAcceleration {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant angular acceleration of 1.0 rad/s² in the positive Z direction.
 #[cfg_attr(feature = "2d", doc = "    ConstantAngularAcceleration(1.0),")]
@@ -560,7 +560,7 @@ impl ConstantAngularAcceleration {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant linear acceleration of 10.0 m/s² in the positive Y direction in local space.
 #[cfg_attr(
@@ -625,7 +625,7 @@ impl ConstantLocalLinearAcceleration {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.0),
 ///     // Apply a constant angular acceleration of 1.0 rad/s² in the positive Z direction in local space.
 ///     ConstantLocalAngularAcceleration::new(0.0, 0.0, 1.0),

@@ -45,7 +45,7 @@
 //! # fn setup(mut commands: Commands) {
 //! // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Collider::capsule(0.5, 1.5),
 //!     ColliderDensity(2.0),
 //! ));
@@ -63,7 +63,7 @@
 //! # fn setup(mut commands: Commands) {
 //! // Override mass and the center of mass, but use the collider's angular inertia.
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Collider::capsule(0.5, 1.5),
 //!     Mass(5.0),
 #![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -91,7 +91,7 @@
     doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
 )]
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Collider::capsule(0.5, 1.5),
 //!     Mass(10.0),
 #![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -120,7 +120,7 @@
 #![cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
 #![cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Collider::capsule(0.5, 1.5),
 //!     Mass(10.0),
 #![cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -173,7 +173,7 @@
 #![cfg_attr(feature = "2d", doc = "let shape = Collider::circle(0.5);")]
 #![cfg_attr(feature = "3d", doc = "let shape = Collider::sphere(0.5);")]
 //! commands.spawn((
-//!     RigidBody::Dynamic,
+//!     DynamicBody,
 //!     Mass::from_shape(&shape, 2.0),
 //!     AngularInertia::from_shape(&shape, 1.5),
 //!     CenterOfMass::from_shape(&shape),
@@ -182,7 +182,7 @@
 //! // Construct a `MassPropertiesBundle` from a primitive shape.
 #![cfg_attr(feature = "2d", doc = "let shape = Circle::new(0.5);")]
 #![cfg_attr(feature = "3d", doc = "let shape = Sphere::new(0.5);")]
-//! commands.spawn((RigidBody::Dynamic, MassPropertiesBundle::from_shape(&shape, 2.0)));
+//! commands.spawn((DynamicBody, MassPropertiesBundle::from_shape(&shape, 2.0)));
 //! # }
 //! ```
 //!
@@ -292,11 +292,11 @@ impl Plugin for MassPropertyPlugin {
 
         // TODO: We probably don't need this since we have the observer.
         // Force mass property computation for new rigid bodies.
-        app.register_required_components::<RigidBody, RecomputeMassProperties>();
+        app.register_required_components::<DynamicBody, RecomputeMassProperties>();
 
         // Compute mass properties for new rigid bodies at spawn.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>, mut mass_helper: MassPropertyHelper| {
+            |trigger: Trigger<OnAdd, DynamicBody>, mut mass_helper: MassPropertyHelper| {
                 mass_helper.update_mass_properties(trigger.target());
             },
         );
@@ -425,16 +425,14 @@ fn update_mass_properties(
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
 fn warn_missing_mass(
     mut bodies: Query<
+        (Entity, Ref<ComputedMass>, Ref<ComputedAngularInertia>),
         (
-            Entity,
-            &RigidBody,
-            Ref<ComputedMass>,
-            Ref<ComputedAngularInertia>,
+            With<DynamicBody>,
+            Or<(Changed<ComputedMass>, Changed<ComputedAngularInertia>)>,
         ),
-        Or<(Changed<ComputedMass>, Changed<ComputedAngularInertia>)>,
     >,
 ) {
-    for (entity, rb, mass, inertia) in &mut bodies {
+    for (entity, mass, inertia) in &mut bodies {
         let is_mass_valid = mass.value().is_finite();
         #[cfg(feature = "2d")]
         let is_inertia_valid = inertia.value().is_finite();
@@ -442,7 +440,7 @@ fn warn_missing_mass(
         let is_inertia_valid = inertia.value().is_finite();
 
         // Warn about dynamic bodies with no mass or inertia
-        if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
+        if !(is_mass_valid && is_inertia_valid) {
             warn!(
                 "Dynamic rigid body {:?} has no mass or inertia. This can cause NaN values. Consider adding a `MassPropertiesBundle` or a `Collider` with mass.",
                 entity
@@ -487,7 +485,7 @@ mod tests {
 
         let mut app = create_app();
 
-        let body_entity = app.world_mut().spawn(RigidBody::Dynamic).id();
+        let body_entity = app.world_mut().spawn(DynamicBody).id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -508,7 +506,7 @@ mod tests {
         let collider = Collider::circle(1.0);
         let collider_mass_props = collider.mass_properties(1.0);
 
-        let body_entity = app.world_mut().spawn((RigidBody::Dynamic, collider)).id();
+        let body_entity = app.world_mut().spawn((DynamicBody, collider)).id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -534,7 +532,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider, Mass(5.0)))
+            .spawn((DynamicBody, collider, Mass(5.0)))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
@@ -560,12 +558,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((
-                RigidBody::Dynamic,
-                collider,
-                Mass(5.0),
-                AngularInertia(10.0),
-            ))
+            .spawn((DynamicBody, collider, Mass(5.0), AngularInertia(10.0)))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
@@ -590,7 +583,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider.clone(), Mass(5.0)))
+            .spawn((DynamicBody, collider.clone(), Mass(5.0)))
             .with_child((collider, ColliderDensity(2.0)))
             .id();
 
@@ -619,7 +612,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider.clone(), Mass(5.0)))
+            .spawn((DynamicBody, collider.clone(), Mass(5.0)))
             .with_child((collider, ColliderDensity(2.0), Mass(10.0)))
             .id();
 
@@ -647,7 +640,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, Collider::circle(1.0), NoAutoMass))
+            .spawn((DynamicBody, Collider::circle(1.0), NoAutoMass))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
@@ -672,7 +665,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider.clone(), Mass(5.0), NoAutoMass))
+            .spawn((DynamicBody, collider.clone(), Mass(5.0), NoAutoMass))
             .with_child((collider, ColliderDensity(2.0), Mass(10.0)))
             .id();
 
@@ -707,7 +700,7 @@ mod tests {
         let collider = Collider::circle(1.0);
         let collider_mass_props = collider.mass_properties(1.0);
 
-        let body_entity = app.world_mut().spawn((RigidBody::Dynamic, collider)).id();
+        let body_entity = app.world_mut().spawn((DynamicBody, collider)).id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
 
@@ -776,7 +769,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider, Mass(5.0)))
+            .spawn((DynamicBody, collider, Mass(5.0)))
             .id();
 
         app.world_mut().run_schedule(FixedPostUpdate);
@@ -821,7 +814,7 @@ mod tests {
         let body_entity = app
             .world_mut()
             .spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 Mass(10.0),
                 CenterOfMass::new(0.0, -0.5),
                 Transform::default(),
@@ -880,7 +873,7 @@ mod tests {
 
         let body_entity = app
             .world_mut()
-            .spawn((RigidBody::Dynamic, collider.clone(), Mass(5.0)))
+            .spawn((DynamicBody, collider.clone(), Mass(5.0)))
             .with_child((collider, Mass(10.0)))
             .id();
 

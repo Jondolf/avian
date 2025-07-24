@@ -156,7 +156,7 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// # Notes
     ///
     /// - Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::FILTER_PAIRS`] set.
-    /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
+    /// - Only called if at least one entity in the contact pair is not [`StaticBody`] and not [`Sleeping`].
     /// - Access to the [`ContactGraph`] resource is not allowed in this method.
     ///   Trying to access it will result in a panic.
     fn filter_pairs(&self, collider1: Entity, collider2: Entity, commands: &mut Commands) -> bool {
@@ -175,7 +175,7 @@ pub trait CollisionHooks: ReadOnlySystemParam + Send + Sync {
     /// # Notes
     ///
     /// - Only called if at least one entity in the contact pair has [`ActiveCollisionHooks::MODIFY_CONTACTS`] set.
-    /// - Only called if at least one entity in the contact pair is not [`RigidBody::Static`] and not [`Sleeping`].
+    /// - Only called if at least one entity in the contact pair is not [`StaticBody`] and not [`Sleeping`].
     /// - Impulses stored in `contacts` are from the previous physics tick.
     /// - Command execution order is unspecified if the `parallel` feature is enabled.
     /// - Access to the [`ContactGraph`] resource is not allowed in this method.

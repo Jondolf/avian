@@ -50,7 +50,7 @@ fn setup(
     commands.spawn((
         Name::new("T-handle"),
         THandle,
-        RigidBody::Dynamic,
+        DynamicBody,
         AngularVelocity(Vector::Z * 10.0),
         Transform::from_xyz(-4.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(FRAC_PI_2)),
         Collider::from(large_cylinder),
@@ -70,7 +70,7 @@ fn setup(
     commands.spawn((
         Name::new("Tennis Racket"),
         Racket,
-        RigidBody::Dynamic,
+        DynamicBody,
         Transform::from_xyz(4.0, 0.0, 0.0).with_rotation(Quat::from_rotation_y(0.001)),
         AngularVelocity(Vector::X * 10.0),
         Visibility::default(),

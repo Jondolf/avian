@@ -35,8 +35,8 @@ struct ColliderQuery<C: AnyCollider> {
 #[derive(QueryData)]
 struct RigidBodyQuery {
     entity: Entity,
-    rb: Ref<'static, RigidBody>,
-    linear_velocity: Ref<'static, LinearVelocity>,
+    is_static: Has<StaticBody>,
+    linear_velocity: Option<Ref<'static, LinearVelocity>>,
     // TODO: We should define these as purely collider components and not query for them here.
     friction: Option<&'static Friction>,
     restitution: Option<&'static Restitution>,
@@ -445,8 +445,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .as_ref()
                     .map(|body| {
                         (
-                            body.rb.is_static(),
-                            body.linear_velocity.0,
+                            body.is_static,
+                            body.linear_velocity.as_ref().map_or(Vector::ZERO, |v| v.0),
                             body.friction,
                             body.collision_margin,
                             body.speculative_margin,
@@ -463,8 +463,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .as_ref()
                     .map(|body| {
                         (
-                            body.rb.is_static(),
-                            body.linear_velocity.0,
+                            body.is_static,
+                            body.linear_velocity.as_ref().map_or(Vector::ZERO, |v| v.0),
                             body.friction,
                             body.collision_margin,
                             body.speculative_margin,

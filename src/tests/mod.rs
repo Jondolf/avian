@@ -55,7 +55,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
     // copied from "cubes" example
     let floor_size = Vector::new(80.0, 1.0, 80.0);
     commands.spawn((
-        RigidBody::Static,
+        StaticBody,
         Position(Vector::NEG_Y),
         Collider::cuboid(floor_size.x, floor_size.y, floor_size.z),
     ));
@@ -74,7 +74,7 @@ fn setup_cubes_simulation(mut commands: Commands) {
                 );
                 commands.spawn((
                     Transform::default(),
-                    RigidBody::Dynamic,
+                    DynamicBody,
                     Position(pos + Vector::Y * 5.0),
                     Collider::cuboid(radius * 2.0, radius * 2.0, radius * 2.0),
                     Id(next_id),
@@ -110,7 +110,7 @@ fn body_with_velocity_moves() {
         // move right at 1 unit per second
         commands.spawn((
             Transform::default(),
-            RigidBody::Dynamic,
+            DynamicBody,
             LinearVelocity(Vector::X),
             #[cfg(feature = "2d")]
             MassPropertiesBundle::from_shape(&Circle::new(0.5), 1.0),

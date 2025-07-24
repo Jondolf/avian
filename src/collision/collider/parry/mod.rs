@@ -254,18 +254,18 @@ pub type TrimeshBuilderError = parry::shape::TriMeshBuilderError;
 /// // Spawn a dynamic body that falls onto a static platform
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 #[cfg_attr(feature = "2d", doc = "        Collider::circle(0.5),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::sphere(0.5),")]
 ///         Transform::from_xyz(0.0, 2.0, 0.0),
 ///     ));
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::rectangle(5.0, 0.5)));"
+    doc = "    commands.spawn((StaticBody, Collider::rectangle(5.0, 0.5)));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::cuboid(5.0, 0.5, 5.0)));"
+    doc = "    commands.spawn((StaticBody, Collider::cuboid(5.0, 0.5, 5.0)));"
 )]
 /// }
 /// ```
@@ -299,11 +299,11 @@ pub type TrimeshBuilderError = parry::shape::TriMeshBuilderError;
 ///     commands
 #[cfg_attr(
     feature = "2d",
-    doc = "        .spawn((RigidBody::Dynamic, Collider::circle(0.5)))"
+    doc = "        .spawn((DynamicBody, Collider::circle(0.5)))"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "        .spawn((RigidBody::Dynamic, Collider::sphere(0.5)))"
+    doc = "        .spawn((DynamicBody, Collider::sphere(0.5)))"
 )]
 ///         .with_children(|children| {
 ///             // Spawn the child colliders positioned relative to the rigid body

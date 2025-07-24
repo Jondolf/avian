@@ -36,7 +36,7 @@ fn setup(
     let material = materials.add(Color::srgb(0.3, 0.5, 0.3));
     for i in 0..row_count {
         commands.spawn((
-            RigidBody::Static,
+            StaticBody,
             collider.clone(),
             Transform::from_xyz(0.0, i as f32 * ground_delta_y, 0.0),
             Mesh2d(mesh.clone()),
@@ -97,7 +97,7 @@ fn spawn_small_pyramid(
             let x = (i + 1) as f32 * h + 2.0 * (j - i) as f32 * h + center_x - 0.5;
 
             commands.spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 collider.clone(),
                 Transform::from_xyz(x, y, 0.0),
                 Mesh2d(mesh.clone()),

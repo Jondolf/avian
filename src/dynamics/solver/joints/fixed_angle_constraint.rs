@@ -41,7 +41,7 @@ impl XpbdConstraint<2> for FixedAngleConstraint {
         self.lagrange = 0.0;
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], _dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], _dt: Scalar) {
         let [body1, body2] = bodies;
 
         // Prepare the base rotation difference.

@@ -43,13 +43,13 @@ impl XpbdConstraint<2> for PointConstraint {
         self.lagrange = 0.0;
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], _dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], _dt: Scalar) {
         let [body1, body2] = bodies;
 
-        self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass.0);
-        self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass.0);
+        self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass());
+        self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass());
         self.pre_step.center_difference = (body2.position.0 - body1.position.0)
-            + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
+            + (body2.rotation * body2.center_of_mass() - body1.rotation * body1.center_of_mass());
     }
 
     fn solve(

@@ -67,7 +67,7 @@
 //! fn setup(mut commands: Commands) {
 //!     // Spawn a rigid body with a maximum bound for the speculative margin.
 //!     commands.spawn((
-//!         RigidBody::Dynamic,
+//!         DynamicBody,
 //!         Collider::capsule(0.5, 2.0),
 //!         SpeculativeMargin(2.0),
 //!     ));
@@ -174,7 +174,7 @@
 //!     // Spawn a rigid body with swept CCD enabled.
 //!     // `SweepMode::NonLinear` is used by default.
 //!     commands.spawn((
-//!         RigidBody::Dynamic,
+//!         DynamicBody,
 //!         Collider::capsule(0.5, 2.0),
 //!         SweptCcd::default(),
 //!     ));
@@ -294,7 +294,7 @@ pub struct SweptCcdSet;
 /// fn setup(mut commands: Commands) {
 ///     // Spawn a rigid body with an unbounded speculative margin.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Collider::capsule(0.5, 2.0),
 ///         SpeculativeMargin::MAX,
 ///     ));
@@ -339,7 +339,7 @@ impl SpeculativeMargin {
 ///     // Spawn a dynamic rigid body with swept CCD, travelling towards the right at a high speed.
 ///     // The default CCD configuration considers both translational and rotational motion.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         SweptCcd::default(),
 #[cfg_attr(feature = "2d", doc = "        LinearVelocity(Vec2::X * 100.0),")]
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
@@ -351,7 +351,7 @@ impl SpeculativeMargin {
 ///     // Spawn another dynamic rigid body with swept CCD, but this time only considering
 ///     // linear motion and not rotation.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         SweptCcd::LINEAR, // or `SweptCcd::new_with_mode(SweepMode::Linear)`
 #[cfg_attr(feature = "2d", doc = "        LinearVelocity(Vec2::X * 100.0),")]
 #[cfg_attr(feature = "3d", doc = "        LinearVelocity(Vec3::X * 100.0),")]
@@ -364,7 +364,7 @@ impl SpeculativeMargin {
 ///     // The first ball should hit it, but the second one does not consider
 ///     // rotational motion, and most likely passes through.
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         LockedAxes::TRANSLATION_LOCKED,
 #[cfg_attr(feature = "2d", doc = "        AngularVelocity(100.0),")]
 #[cfg_attr(feature = "3d", doc = "        AngularVelocity(Vec3::Z * 100.0),")]
@@ -375,7 +375,7 @@ impl SpeculativeMargin {
 ///     // Spawn another thin, long object, this time not rotating.
 ///     // The second ball should now hit this.
 ///     commands.spawn((
-///         RigidBody::Static,
+///         StaticBody,
 #[cfg_attr(feature = "2d", doc = "        Collider::rectangle(0.2, 10.0),")]
 #[cfg_attr(feature = "3d", doc = "        Collider::cuboid(0.2, 10.0, 10.0),")]
 ///         Transform::from_xyz(15.0, 0.0, 0.0),
@@ -501,7 +501,7 @@ pub enum SweepMode {
 struct SweptCcdBodyQuery {
     entity: Entity,
     solver_body: Option<&'static mut SolverBody>,
-    rb: &'static RigidBody,
+    is_dynamic: Has<DynamicBody>,
     pos: &'static Position,
     rot: &'static Rotation,
     ccd: Option<&'static SweptCcd>,
@@ -571,7 +571,7 @@ fn solve_swept_ccd(
             // Safety: `AabbIntersections` should never contain the entity of a collider
             //         attached to the first body, and the entities are also ensured to be different above.
             if let Ok(body2) = unsafe { bodies.get_unchecked(entity2) } {
-                if !ccd1.include_dynamic && body2.rb.is_dynamic() {
+                if !ccd1.include_dynamic && body2.is_dynamic {
                     continue;
                 }
 

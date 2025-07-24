@@ -37,7 +37,7 @@ fn setup(
     // Spawn kinematic particle that can follow the mouse
     let mut previous_particle = commands
         .spawn((
-            RigidBody::Kinematic,
+            KinematicBody,
             FollowMouse,
             Mesh2d(particle_mesh.clone()),
             MeshMaterial2d(particle_material.clone()),
@@ -48,7 +48,7 @@ fn setup(
     for i in 1..particle_count {
         let current_particle = commands
             .spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 MassPropertiesBundle::from_shape(&Circle::new(particle_radius as f32), 1.0),
                 Mesh2d(particle_mesh.clone()),
                 MeshMaterial2d(particle_material.clone()),

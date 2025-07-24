@@ -57,7 +57,7 @@ fn setup(mut commands: Commands) {
             ..default()
         },
         Transform::from_xyz(-200.0, -200.0, 0.0),
-        RigidBody::Kinematic,
+        KinematicBody,
         AngularVelocity(25.0),
         Collider::rectangle(1.0, 400.0),
         // Enable swept CCD for this body. Considers both translational and rotational motion by default.
@@ -71,7 +71,7 @@ fn setup(mut commands: Commands) {
             ..default()
         },
         Transform::from_xyz(200.0, -200.0, 0.0),
-        RigidBody::Kinematic,
+        KinematicBody,
         AngularVelocity(-25.0),
         Collider::rectangle(1.0, 400.0),
         // Enable swept CCD for this body. Considers both translational and rotational motion by default.
@@ -139,7 +139,7 @@ fn spawn_balls(
         Mesh2d(meshes.add(circle)),
         MeshMaterial2d(materials.add(Color::srgb(0.2, 0.7, 0.9))),
         Transform::from_xyz(0.0, 350.0, 0.0),
-        RigidBody::Dynamic,
+        DynamicBody,
         LinearVelocity(2000.0 * direction),
         Friction::ZERO.with_combine_rule(CoefficientCombine::Min),
         Collider::from(circle),

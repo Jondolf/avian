@@ -89,7 +89,7 @@ impl XpbdConstraint<2> for RevoluteJoint {
         self.limit_lagrange = 0.0;
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], _dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], _dt: Scalar) {
         // Prepare the point-to-point constraint.
         self.point_constraint.prepare(bodies, _dt);
 

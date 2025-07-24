@@ -44,8 +44,8 @@ impl Default for IntegratorPlugin {
 
 impl Plugin for IntegratorPlugin {
     fn build(&self, app: &mut App) {
-        // Add `VelocityIntegrationData` to all `SolverBody`s.
-        app.register_required_components::<SolverBody, VelocityIntegrationData>();
+        // Add `VelocityIntegrationData` to all dynamic bodies.
+        app.register_required_components::<DynamicBody, VelocityIntegrationData>();
 
         app.init_resource::<Gravity>();
 
@@ -226,7 +226,6 @@ impl VelocityIntegrationData {
 /// Applies gravity and locked axes to the linear and angular velocity increments of bodies.
 pub fn pre_process_velocity_increments(
     mut bodies: Query<(
-        &RigidBody,
         &mut VelocityIntegrationData,
         Option<&LinearDamping>,
         Option<&AngularDamping>,
@@ -243,12 +242,7 @@ pub fn pre_process_velocity_increments(
 
     // TODO: Do we want to skip kinematic bodies here?
     bodies.par_iter_mut().for_each(
-        |(rb, mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
-            if !rb.is_dynamic() {
-                // Skip non-dynamic bodies.
-                return;
-            }
-
+        |(mut integration, lin_damping, ang_damping, gravity_scale, locked_axes)| {
             let locked_axes = locked_axes.map_or(LockedAxes::default(), |locked_axes| *locked_axes);
 
             // Update the cached right-hand side of the velocity damping equation,
@@ -281,7 +275,7 @@ pub fn pre_process_velocity_increments(
 
 /// Clears the velocity increments of bodies after the substepping loop.
 fn clear_velocity_increments(
-    mut bodies: Query<&mut VelocityIntegrationData, With<SolverBody>>,
+    mut bodies: Query<&mut VelocityIntegrationData>,
     mut diagnostics: ResMut<SolverDiagnostics>,
 ) {
     let start = crate::utils::Instant::now();
@@ -318,11 +312,6 @@ pub fn integrate_velocities(
     let delta_secs = time.delta_secs_f64() as Scalar;
 
     bodies.par_iter_mut().for_each(|mut body| {
-        if body.solver_body.flags.is_kinematic() {
-            // Skip kinematic bodies.
-            return;
-        }
-
         // Apply velocity damping.
         body.solver_body.linear_velocity *= body.integration.linear_damping_rhs;
         body.solver_body.angular_velocity *= body.integration.angular_damping_rhs;
@@ -532,7 +521,7 @@ mod tests {
         let body_entity = app
             .world_mut()
             .spawn((
-                RigidBody::Dynamic,
+                DynamicBody,
                 #[cfg(feature = "2d")]
                 {
                     (

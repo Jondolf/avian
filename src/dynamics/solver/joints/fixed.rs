@@ -55,7 +55,7 @@ impl XpbdConstraint<2> for FixedJoint {
         self.angle_constraint.clear_lagrange_multipliers();
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], dt: Scalar) {
         // Prepare the point-to-point constraint.
         self.point_constraint.prepare(bodies, dt);
 

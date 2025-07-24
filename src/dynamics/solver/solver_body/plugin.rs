@@ -8,7 +8,10 @@ use crate::{
     AngularVelocity, LinearVelocity, PhysicsSchedule, Position, RigidBody, RigidBodyActiveFilter,
     RigidBodyDisabled, Rotation, Sleeping, SolverSet, Vector,
     dynamics::solver::{SolverDiagnostics, solver_body::SolverBodyFlags},
-    prelude::{ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, LockedAxes},
+    prelude::{
+        ComputedAngularInertia, ComputedCenterOfMass, ComputedMass, DynamicBody, KinematicBody,
+        LockedAxes,
+    },
 };
 #[cfg(feature = "3d")]
 use crate::{
@@ -40,8 +43,8 @@ impl Plugin for SolverBodyPlugin {
 
         // Add a solver body for each dynamic and kinematic rigid body when the rigid body is created.
         app.add_observer(
-            |trigger: Trigger<OnAdd, RigidBody>,
-             rb_query: Query<&RigidBody, RigidBodyActiveFilter>,
+            |trigger: Trigger<OnAdd, (DynamicBody, KinematicBody)>,
+             rb_query: Query<(), RigidBodyActiveFilter>,
              commands: Commands| {
                 add_solver_body(In(trigger.target()), rb_query, commands);
             },
@@ -51,16 +54,23 @@ impl Plugin for SolverBodyPlugin {
         // when the associated rigid body is enabled or woken up.
         app.add_observer(
             |trigger: Trigger<OnRemove, RigidBodyDisabled>,
-             rb_query: Query<&RigidBody, Without<Sleeping>>,
+             rb_query: Query<
+                (),
+                (
+                    Or<(With<DynamicBody>, With<KinematicBody>)>,
+                    Without<Sleeping>,
+                ),
+            >,
              commands: Commands| {
-                add_solver_body::<Without<Sleeping>>(In(trigger.target()), rb_query, commands);
+                add_solver_body(In(trigger.target()), rb_query, commands);
             },
         );
         app.add_observer(
             |trigger: Trigger<OnRemove, Disabled>,
              rb_query: Query<
-                &RigidBody,
+                (),
                 (
+                    Or<(With<DynamicBody>, With<KinematicBody>)>,
                     // The body still has `Disabled` at this point,
                     // and we need to include in the query to match against the entity.
                     With<Disabled>,
@@ -69,22 +79,20 @@ impl Plugin for SolverBodyPlugin {
                 ),
             >,
              commands: Commands| {
-                add_solver_body::<(
-                    With<Disabled>,
-                    Without<RigidBodyDisabled>,
-                    Without<Sleeping>,
-                )>(In(trigger.target()), rb_query, commands);
+                add_solver_body(In(trigger.target()), rb_query, commands);
             },
         );
         app.add_observer(
             |trigger: Trigger<OnRemove, Sleeping>,
-             rb_query: Query<&RigidBody, Without<RigidBodyDisabled>>,
+             rb_query: Query<
+                (),
+                (
+                    Or<(With<DynamicBody>, With<KinematicBody>)>,
+                    Without<RigidBodyDisabled>,
+                ),
+            >,
              commands: Commands| {
-                add_solver_body::<Without<RigidBodyDisabled>>(
-                    In(trigger.target()),
-                    rb_query,
-                    commands,
-                );
+                add_solver_body(In(trigger.target()), rb_query, commands);
             },
         );
 
@@ -106,7 +114,10 @@ impl Plugin for SolverBodyPlugin {
         // Prepare solver bodies before the substepping loop.
         app.add_systems(
             PhysicsSchedule,
-            (on_change_rigid_body_type, prepare_solver_bodies)
+            (
+                prepare_dynamic_solver_bodies,
+                prepare_kinematic_solver_bodies,
+            )
                 .chain()
                 .in_set(SolverSet::PrepareSolverBodies),
         );
@@ -129,41 +140,12 @@ impl Plugin for SolverBodyPlugin {
     }
 }
 
-fn on_change_rigid_body_type(
-    rb_query: Query<(Entity, Ref<RigidBody>)>,
-    solver_body_query: Query<(), With<SolverBody>>,
-    mut commands: Commands,
-) {
-    for (entity, rb) in &rb_query {
-        // Only handle modifications to the rigid body type here.
-        if !rb.is_changed() || rb.is_added() {
-            continue;
-        }
-
-        if rb.is_static() {
-            // Remove the solver body if the rigid body is static.
-            commands
-                .entity(entity)
-                .try_remove::<(SolverBody, SolverBodyInertia)>();
-        } else if !solver_body_query.contains(entity) {
-            // Create a new solver body if the rigid body is dynamic or kinematic.
-            commands
-                .entity(entity)
-                .try_insert((SolverBody::default(), SolverBodyInertia::default()));
-        }
-    }
-}
-
 fn add_solver_body<F: QueryFilter>(
     In(entity): In<Entity>,
-    mut rb_query: Query<&RigidBody, F>,
+    query: Query<(), F>,
     mut commands: Commands,
 ) {
-    if let Ok(rb) = rb_query.get_mut(entity) {
-        if rb.is_static() {
-            return;
-        }
-
+    if query.contains(entity) {
         // Create a new solver body if the rigid body is dynamic or kinematic.
         commands
             .entity(entity)
@@ -181,23 +163,24 @@ fn remove_solver_body(In(entity): In<Entity>, mut deferred_world: DeferredWorld)
     }
 }
 
-fn prepare_solver_bodies(
-    mut query: Query<(
-        &RigidBody,
-        &mut SolverBody,
-        &mut SolverBodyInertia,
-        &LinearVelocity,
-        &AngularVelocity,
-        &Rotation,
-        &ComputedMass,
-        &ComputedAngularInertia,
-        Option<&LockedAxes>,
-    )>,
+fn prepare_dynamic_solver_bodies(
+    mut query: Query<
+        (
+            &mut SolverBody,
+            &mut SolverBodyInertia,
+            &LinearVelocity,
+            &AngularVelocity,
+            &Rotation,
+            &ComputedMass,
+            &ComputedAngularInertia,
+            Option<&LockedAxes>,
+        ),
+        With<DynamicBody>,
+    >,
 ) {
     #[allow(unused_variables)]
     query.par_iter_mut().for_each(
         |(
-            rb,
             mut solver_body,
             mut inertial_properties,
             linear_velocity,
@@ -222,9 +205,7 @@ fn prepare_solver_bodies(
                 locked_axes,
             );
             solver_body.flags = SolverBodyFlags(locked_axes.to_bits() as u32);
-            solver_body
-                .flags
-                .set(SolverBodyFlags::IS_KINEMATIC, rb.is_kinematic());
+            solver_body.flags.set(SolverBodyFlags::IS_KINEMATIC, false);
 
             #[cfg(feature = "3d")]
             {
@@ -257,6 +238,32 @@ fn prepare_solver_bodies(
     );
 }
 
+fn prepare_kinematic_solver_bodies(
+    mut query: Query<
+        (
+            &mut SolverBody,
+            &LinearVelocity,
+            &AngularVelocity,
+            Option<&LockedAxes>,
+        ),
+        With<KinematicBody>,
+    >,
+) {
+    #[allow(unused_variables)]
+    query.par_iter_mut().for_each(
+        |(mut solver_body, linear_velocity, angular_velocity, locked_axes)| {
+            solver_body.linear_velocity = linear_velocity.0;
+            solver_body.angular_velocity = angular_velocity.0;
+            solver_body.delta_position = Vector::ZERO;
+            solver_body.delta_rotation = Rotation::IDENTITY;
+
+            let locked_axes = locked_axes.copied().unwrap_or_default();
+            solver_body.flags = SolverBodyFlags(locked_axes.to_bits() as u32);
+            solver_body.flags.set(SolverBodyFlags::IS_KINEMATIC, true);
+        },
+    );
+}
+
 /// Writes back solver body data to rigid bodies.
 #[allow(clippy::type_complexity)]
 fn writeback_solver_bodies(
@@ -264,7 +271,7 @@ fn writeback_solver_bodies(
         &SolverBody,
         &mut Position,
         &mut Rotation,
-        &ComputedCenterOfMass,
+        Option<&ComputedCenterOfMass>,
         &mut LinearVelocity,
         &mut AngularVelocity,
     )>,
@@ -276,6 +283,7 @@ fn writeback_solver_bodies(
         |(solver_body, mut pos, mut rot, com, mut lin_vel, mut ang_vel)| {
             // Write back the position and rotation deltas,
             // rotating the body around its center of mass.
+            let com = com.copied().unwrap_or_default();
             let old_world_com = *rot * com.0;
             *rot = (solver_body.delta_rotation * *rot).fast_renormalize();
             let new_world_com = *rot * com.0;
@@ -304,7 +312,7 @@ pub(crate) fn update_solver_body_angular_inertia(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{PhysicsSchedulePlugin, SolverSchedulePlugin};
+    use crate::{PhysicsSchedulePlugin, SolverSchedulePlugin, prelude::StaticBody};
 
     fn create_app() -> App {
         let mut app = App::new();
@@ -327,9 +335,9 @@ mod tests {
         let mut app = create_app();
 
         // Create a dynamic, kinematic, and static rigid body.
-        let entity1 = app.world_mut().spawn(RigidBody::Dynamic).id();
-        let entity2 = app.world_mut().spawn(RigidBody::Kinematic).id();
-        let entity3 = app.world_mut().spawn(RigidBody::Static).id();
+        let entity1 = app.world_mut().spawn(DynamicBody).id();
+        let entity2 = app.world_mut().spawn(KinematicBody).id();
+        let entity3 = app.world_mut().spawn(StaticBody).id();
 
         app.update();
 

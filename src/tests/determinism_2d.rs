@@ -101,7 +101,7 @@ fn djb2_hash(mut hash: u32, data: &[u8]) -> u32 {
 fn setup_scene(mut commands: Commands) {
     commands.spawn((
         Name::new("Ground"),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(40.0, 2.0),
         Transform::from_xyz(0.0, -1.0, 0.0),
     ));
@@ -122,7 +122,7 @@ fn setup_scene(mut commands: Commands) {
             let entity = commands
                 .spawn((
                     Name::new("Square ({col}, {row})"),
-                    RigidBody::Dynamic,
+                    DynamicBody,
                     square_collider.clone(),
                     Transform::from_xyz(
                         x + offset * row as f32,

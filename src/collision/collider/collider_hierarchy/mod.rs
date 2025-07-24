@@ -28,7 +28,7 @@ use bevy::{
 /// # use bevy::prelude::*;
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     children![
 ///         (Collider::capsule(0.5, 1.5), Transform::from_xyz(-2.0, 0.0, 0.0)),

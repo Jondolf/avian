@@ -410,11 +410,11 @@ pub struct ColliderDisabled;
 ///     // Other bodies will pass through, but it will still send collision events.
 #[cfg_attr(
     feature = "2d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::circle(0.5), Sensor));"
+    doc = "    commands.spawn((StaticBody, Collider::circle(0.5), Sensor));"
 )]
 #[cfg_attr(
     feature = "3d",
-    doc = "    commands.spawn((RigidBody::Static, Collider::sphere(0.5), Sensor));"
+    doc = "    commands.spawn((StaticBody, Collider::sphere(0.5), Sensor));"
 )]
 /// }
 /// ```
@@ -576,7 +576,7 @@ impl ColliderAabb {
     doc = "    // Spawn a rigid body with a collider.
     // A margin of `0.1` is added around the shape.
     commands.spawn((
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::capsule(2.0, 0.5),
         CollisionMargin(0.1),
     ));"
@@ -588,7 +588,7 @@ impl ColliderAabb {
     // Spawn a rigid body with a triangle mesh collider.
     // A margin of `0.1` is added around the shape.
     commands.spawn((
-        RigidBody::Dynamic,
+        DynamicBody,
         Collider::trimesh_from_mesh(&mesh).unwrap(),
         CollisionMargin(0.1),
     ));"
@@ -614,7 +614,7 @@ pub struct CollisionMargin(pub Scalar);
 ///
 /// fn setup(mut commands: Commands) {
 ///     commands.spawn((
-///         RigidBody::Dynamic,
+///         DynamicBody,
 ///         Collider::capsule(0.5, 1.5),
 ///         // Add the `CollidingEntities` component to read entities colliding with this entity.
 ///         CollidingEntities::default(),

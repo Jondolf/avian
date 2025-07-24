@@ -26,18 +26,14 @@ fn setup(mut commands: Commands) {
     };
 
     let anchor = commands
-        .spawn((
-            square_sprite.clone(),
-            RigidBody::Kinematic,
-            AngularVelocity(1.5),
-        ))
+        .spawn((square_sprite.clone(), KinematicBody, AngularVelocity(1.5)))
         .id();
 
     let object = commands
         .spawn((
             square_sprite,
             Transform::from_xyz(100.0, 0.0, 0.0),
-            RigidBody::Dynamic,
+            DynamicBody,
             MassPropertiesBundle::from_shape(&Rectangle::from_length(50.0), 1.0),
         ))
         .id();

@@ -54,7 +54,7 @@ pub enum MassError {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(5.0),
 /// ));
@@ -72,7 +72,7 @@ pub enum MassError {
 /// # fn setup(mut commands: Commands) {
 /// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     ColliderDensity(2.0),
 /// ));
@@ -89,7 +89,7 @@ pub enum MassError {
 /// # fn setup(mut commands: Commands) {
 /// // Total mass: 10.0 + 5.0 = 15.0
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(10.0),
 /// ))
@@ -115,7 +115,7 @@ pub enum MassError {
 /// # fn setup(mut commands: Commands) {
 /// // Total mass: 10.0
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(10.0),
 ///     NoAutoMass,
@@ -235,7 +235,7 @@ pub enum AngularInertiaError {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia(2.0),
 /// ));
@@ -252,7 +252,7 @@ pub enum AngularInertiaError {
 /// # fn setup(mut commands: Commands) {
 /// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     ColliderDensity(2.0),
 /// ));
@@ -268,7 +268,7 @@ pub enum AngularInertiaError {
 /// # fn setup(mut commands: Commands) {
 /// // Total angular inertia: 3.0 + 2.0 = 5.0
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia(3.0),
 /// ))
@@ -286,7 +286,7 @@ pub enum AngularInertiaError {
 /// # fn setup(mut commands: Commands) {
 /// // Total angular inertia: 3.0
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia(3.0),
 ///     NoAutoAngularInertia,
@@ -435,7 +435,7 @@ impl AngularInertia {
 /// # #[cfg(feature = "f32")]
 /// # fn setup(mut commands: Commands) {
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia::new(Vec3::new(2.0, 5.0, 2.0)),
 /// ));
@@ -454,7 +454,7 @@ impl AngularInertia {
 /// # fn setup(mut commands: Commands) {
 /// // Note: `ColliderDensity` is optional, and defaults to `1.0` if not present.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     ColliderDensity(2.0),
 /// ));
@@ -472,7 +472,7 @@ impl AngularInertia {
 /// # fn setup(mut commands: Commands) {
 /// // Total angular inertia: [2.0, 5.0, 2.0] + [1.0, 2.0, 1.0] = [3.0, 7.0, 3.0]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia::new(Vec3::new(2.0, 5.0, 2.0)),
 /// ))
@@ -493,7 +493,7 @@ impl AngularInertia {
 /// # fn setup(mut commands: Commands) {
 /// // Total angular inertia: [2.0, 5.0, 2.0]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     AngularInertia::new(Vec3::new(2.0, 5.0, 2.0)),
 ///     NoAutoAngularInertia,
@@ -803,7 +803,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// # fn setup(mut commands: Commands) {
 /// // An offset of `-0.5` along the Y axis.
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
@@ -821,7 +821,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 /// #
 /// # fn setup(mut commands: Commands) {
 /// // For a capsule, the center of mass is at the local origin.
-/// commands.spawn((RigidBody::Dynamic, Collider::capsule(0.5, 1.5)));
+/// commands.spawn((DynamicBody, Collider::capsule(0.5, 1.5)));
 /// # }
 /// ```
 ///
@@ -843,7 +843,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
     doc = "// Total center of mass: (10.0 * [0.0, -0.5, 0.0] + 5.0 * [0.0, 4.0, 0.0]) / (10.0 + 5.0) = [0.0, 1.0, 0.0]"
 )]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 ///     Mass(10.0),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
@@ -871,7 +871,7 @@ impl From<AngularInertia> for AngularInertiaTensor {
 #[cfg_attr(feature = "2d", doc = "// Total center of mass: [0.0, -0.5]")]
 #[cfg_attr(feature = "3d", doc = "// Total center of mass: [0.0, -0.5, 0.0]")]
 /// commands.spawn((
-///     RigidBody::Dynamic,
+///     DynamicBody,
 ///     Collider::capsule(0.5, 1.5),
 #[cfg_attr(feature = "2d", doc = "    CenterOfMass::new(0.0, -0.5),")]
 #[cfg_attr(feature = "3d", doc = "    CenterOfMass::new(0.0, -0.5, 0.0),")]
@@ -1052,7 +1052,7 @@ impl MassPropertiesBundle {
     /// # fn setup(mut commands: Commands) {
     /// // Compute mass properties from a collider with a density of `2.0`.
     /// commands.spawn((
-    ///     RigidBody::Dynamic,
+    ///     DynamicBody,
     #[cfg_attr(
         feature = "2d",
         doc = "    MassPropertiesBundle::from_shape(&Collider::circle(0.5), 2.0),"
@@ -1065,7 +1065,7 @@ impl MassPropertiesBundle {
     ///
     /// // Bevy's primitive shapes can also be used.
     /// commands.spawn((
-    ///     RigidBody::Dynamic,
+    ///     DynamicBody,
     #[cfg_attr(
         feature = "2d",
         doc = "    MassPropertiesBundle::from_shape(&Circle::new(0.5), 2.0),"

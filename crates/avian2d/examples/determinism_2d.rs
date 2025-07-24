@@ -74,7 +74,7 @@ fn setup_scene(
     let ground_shape = Rectangle::new(40.0, 2.0);
     commands.spawn((
         Name::new("Ground"),
-        RigidBody::Static,
+        StaticBody,
         Collider::from(ground_shape),
         Mesh2d(meshes.add(ground_shape)),
         MeshMaterial2d(materials.add(Color::WHITE)),
@@ -100,7 +100,7 @@ fn setup_scene(
             let entity = commands
                 .spawn((
                     Name::new("Square ({col}, {row})"),
-                    RigidBody::Dynamic,
+                    DynamicBody,
                     square_collider.clone(),
                     Mesh2d(square_mesh.clone()),
                     MeshMaterial2d(square_material.clone()),

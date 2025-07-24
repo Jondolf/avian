@@ -27,7 +27,7 @@ fn setup(
         Mesh3d(meshes.add(Plane3d::default().mesh().size(8.0, 8.0))),
         MeshMaterial3d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
         ColliderConstructor::TrimeshFromMesh,
-        RigidBody::Static,
+        StaticBody,
     ));
 
     // Spawn Ferris the crab and generate colliders for the scene using ColliderConstructorHierarchy
@@ -43,7 +43,7 @@ fn setup(
             // Make the arms heavier to make it easier to stand upright
             .with_density_for_name("armL_mesh", 3.0)
             .with_density_for_name("armR_mesh", 3.0),
-        RigidBody::Dynamic,
+        DynamicBody,
     ));
 
     // Light

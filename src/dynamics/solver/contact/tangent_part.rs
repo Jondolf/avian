@@ -35,17 +35,15 @@ impl ContactTangentPart {
     #[allow(clippy::too_many_arguments)]
     pub fn generate(
         inverse_mass_sum: Scalar,
-        angular_inertia1: impl Into<ComputedAngularInertia>,
-        angular_inertia2: impl Into<ComputedAngularInertia>,
+        inverse_angular_inertia1: &SymmetricTensor,
+        inverse_angular_inertia2: &SymmetricTensor,
         r1: Vector,
         r2: Vector,
         tangents: [Vector; DIM - 1],
         warm_start_impulse: Option<TangentImpulse>,
     ) -> Self {
-        let angular_inertia1: ComputedAngularInertia = angular_inertia1.into();
-        let angular_inertia2: ComputedAngularInertia = angular_inertia2.into();
-        let i1 = angular_inertia1.inverse();
-        let i2 = angular_inertia2.inverse();
+        let i1 = inverse_angular_inertia1;
+        let i2 = inverse_angular_inertia2;
 
         let mut part = Self {
             impulse: warm_start_impulse.unwrap_or_default(),
@@ -195,6 +193,7 @@ impl ContactTangentPart {
 
             // Compute the incremental tangent impoulse magnitude.
             let mut impulse = self.effective_mass * (-tangent_speed);
+
             // Clamp the accumulated impulse.
             let new_impulse = (self.impulse + impulse).clamp(-impulse_limit, impulse_limit);
             impulse = new_impulse - self.impulse;

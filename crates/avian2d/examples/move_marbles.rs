@@ -40,28 +40,28 @@ fn setup(
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(0.0, 50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Floor
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(0.0, -50.0 * 6.0, 0.0).with_scale(Vec3::new(20.0, 1.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Left wall
     commands.spawn((
         square_sprite.clone(),
         Transform::from_xyz(-50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
     // Right wall
     commands.spawn((
         square_sprite,
         Transform::from_xyz(50.0 * 9.5, 0.0, 0.0).with_scale(Vec3::new(1.0, 11.0, 1.0)),
-        RigidBody::Static,
+        StaticBody,
         Collider::rectangle(50.0, 50.0),
     ));
 
@@ -80,7 +80,7 @@ fn setup(
                     y as f32 * 2.5 * marble_radius,
                     0.0,
                 ),
-                RigidBody::Dynamic,
+                DynamicBody,
                 Collider::circle(marble_radius as Scalar),
                 Marble,
             ));

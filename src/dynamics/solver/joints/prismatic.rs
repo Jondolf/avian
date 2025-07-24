@@ -81,17 +81,17 @@ impl XpbdConstraint<2> for PrismaticJoint {
         self.angle_constraint.clear_lagrange_multipliers();
     }
 
-    fn prepare(&mut self, bodies: [&RigidBodyQueryReadOnlyItem; 2], dt: Scalar) {
+    fn prepare(&mut self, bodies: [&XpbdBodyQueryItem; 2], dt: Scalar) {
         let [body1, body2] = bodies;
 
         // Prepare the point-to-point constraint.
         self.angle_constraint.prepare(bodies, dt);
 
         // Prepare the prismatic joint.
-        self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass.0);
-        self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass.0);
+        self.pre_step.world_r1 = body1.rotation * (self.local_anchor1 - body1.center_of_mass());
+        self.pre_step.world_r2 = body2.rotation * (self.local_anchor2 - body2.center_of_mass());
         self.pre_step.center_difference = (body2.position.0 - body1.position.0)
-            + (body2.rotation * body2.center_of_mass.0 - body1.rotation * body1.center_of_mass.0);
+            + (body2.rotation * body2.center_of_mass() - body1.rotation * body1.center_of_mass());
         self.pre_step.free_axis1 = body1.rotation * self.free_axis;
 
         // Prepare the relative dominance.
