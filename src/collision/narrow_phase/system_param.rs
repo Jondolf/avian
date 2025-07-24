@@ -10,7 +10,7 @@ use crate::{
 use bevy::{
     ecs::{
         query::QueryData,
-        system::{SystemParam, SystemParamItem},
+        system::{SystemParam, SystemParamItem, lifetimeless::Read},
     },
     prelude::*,
 };
@@ -20,28 +20,32 @@ use thread_local::ThreadLocal;
 #[derive(QueryData)]
 struct ColliderQuery<C: AnyCollider> {
     entity: Entity,
-    of: Option<&'static ColliderOf>,
-    shape: &'static C,
-    aabb: Ref<'static, ColliderAabb>,
-    position: Ref<'static, Position>,
-    rotation: Ref<'static, Rotation>,
-    layers: &'static CollisionLayers,
-    friction: Option<&'static Friction>,
-    restitution: Option<&'static Restitution>,
-    collision_margin: Option<&'static CollisionMargin>,
-    speculative_margin: Option<&'static SpeculativeMargin>,
+    of: Option<Read<ColliderOf>>,
+    shape: Read<C>,
+    aabb: Read<ColliderAabb>,
+    position: Read<Position>,
+    rotation: Read<Rotation>,
+    transform: Option<Read<ColliderTransform>>,
+    layers: Read<CollisionLayers>,
+    friction: Option<Read<Friction>>,
+    restitution: Option<Read<Restitution>>,
+    collision_margin: Option<Read<CollisionMargin>>,
+    speculative_margin: Option<Read<SpeculativeMargin>>,
 }
 
 #[derive(QueryData)]
 struct RigidBodyQuery {
     entity: Entity,
-    rb: Ref<'static, RigidBody>,
-    linear_velocity: Ref<'static, LinearVelocity>,
+    rb: Read<RigidBody>,
+    position: Read<Position>,
+    rotation: Read<Rotation>,
+    center_of_mass: Read<ComputedCenterOfMass>,
+    linear_velocity: Read<LinearVelocity>,
     // TODO: We should define these as purely collider components and not query for them here.
-    friction: Option<&'static Friction>,
-    restitution: Option<&'static Restitution>,
-    collision_margin: Option<&'static CollisionMargin>,
-    speculative_margin: Option<&'static SpeculativeMargin>,
+    friction: Option<Read<Friction>>,
+    restitution: Option<Read<Restitution>>,
+    collision_margin: Option<Read<CollisionMargin>>,
+    speculative_margin: Option<Read<SpeculativeMargin>>,
 }
 
 /// A system parameter for managing the narrow phase.
@@ -437,6 +441,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                 // will be used if the collider doesn't have them specified.
                 let (
                     is_static1,
+                    collider_offset1,
+                    world_com1,
                     mut lin_vel1,
                     rb_friction1,
                     rb_collision_margin1,
@@ -446,6 +452,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .map(|body| {
                         (
                             body.rb.is_static(),
+                            collider1.position.0 - body.position.0,
+                            body.position.0 * body.center_of_mass.0,
                             body.linear_velocity.0,
                             body.friction,
                             body.collision_margin,
@@ -455,6 +463,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .unwrap_or_default();
                 let (
                     is_static2,
+                    collider_offset2,
+                    world_com2,
                     mut lin_vel2,
                     rb_friction2,
                     rb_collision_margin2,
@@ -464,6 +474,8 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     .map(|body| {
                         (
                             body.rb.is_static(),
+                            collider2.position.0 - body.position.0,
+                            body.rotation * body.center_of_mass.0,
                             body.linear_velocity.0,
                             body.friction,
                             body.collision_margin,
@@ -591,7 +603,7 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     context,
                 );
 
-                // Set the initial surface properties and prune contact points.
+                // Set the initial surface properties and transform the contact points.
                 // TODO: This could be done in `contact_manifolds` to avoid the extra iteration.
                 contacts.manifolds.iter_mut().for_each(|manifold| {
                     manifold.friction = friction;
@@ -604,6 +616,15 @@ impl<C: AnyCollider> NarrowPhase<'_, '_, C> {
                     {
                         manifold.tangent_velocity = Vector::ZERO;
                     }
+
+                    manifold.points.iter_mut().for_each(|point| {
+                        // Transform contact points to be relative to the centers of mass of the bodies.
+                        point.anchor1 = point.anchor1 + collider_offset1 - world_com1;
+                        point.anchor2 = point.anchor2 + collider_offset2 - world_com2;
+
+                        // Add the collision margin to the penetration depth.
+                        point.penetration += collision_margin_sum;
+                    });
                 });
 
                 // Check if the colliders are now touching.

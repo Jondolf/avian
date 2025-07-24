@@ -433,21 +433,13 @@ impl ContactManifold {
                 // If the feature IDs are unknown and the contact positions match closely enough,
                 // copy the contact impulses over for warm starting.
                 if unknown_features
-                    && (contact
-                        .local_point1
-                        .distance_squared(previous_contact.local_point1)
+                    && (contact.anchor1.distance_squared(previous_contact.anchor1)
                         < distance_threshold_squared
-                        && contact
-                            .local_point2
-                            .distance_squared(previous_contact.local_point2)
+                        && contact.anchor2.distance_squared(previous_contact.anchor2)
                             < distance_threshold_squared)
-                    || (contact
-                        .local_point1
-                        .distance_squared(previous_contact.local_point2)
+                    || (contact.anchor1.distance_squared(previous_contact.anchor2)
                         < distance_threshold_squared
-                        && contact
-                            .local_point2
-                            .distance_squared(previous_contact.local_point1)
+                        && contact.anchor2.distance_squared(previous_contact.anchor1)
                             < distance_threshold_squared)
                 {
                     contact.warm_start_normal_impulse = previous_contact.warm_start_normal_impulse;
@@ -479,10 +471,17 @@ impl ContactManifold {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serialize", derive(serde::Serialize, serde::Deserialize))]
 pub struct ContactPoint {
-    /// The contact point on the first shape in local space.
-    pub local_point1: Vector,
-    /// The contact point on the second shape in local space.
-    pub local_point2: Vector,
+    /// The world-space contact point on the first shape relative to the center of mass.
+    pub anchor1: Vector,
+    /// The world-space contact point on the second shape relative to the center of mass.
+    pub anchor2: Vector,
+    /// The contact point in world space.
+    ///
+    /// This is the average position of the two contact points on the surfaces of the two shapes.
+    ///
+    /// Note that because the contact point is expressed in world space,
+    /// it is subject to precision loss at large coordinates.
+    pub point: Vector,
     /// The penetration depth.
     ///
     /// Can be negative if the objects are separated and [speculative collision] is enabled.
@@ -495,6 +494,14 @@ pub struct ContactPoint {
     /// This can be used to determine how "strong" a contact is. To compute the corresponding
     /// contact force, divide the impulse by the time step.
     pub normal_impulse: Scalar,
+    /// The relative velocity of the bodies at the contact point along the contact normal.
+    /// If negative, the bodies are approaching. The unit is typically m/s.
+    ///
+    /// This is computed before the solver, and can be used as an impact velocity to determine
+    /// how "strong" the contact is in a mass-independent way.
+    ///
+    /// Internally, the `normal_speed` is used for restitution.
+    pub normal_speed: Scalar,
     /// The normal impulse used to warm start the contact solver.
     ///
     /// This corresponds to the clamped accumulated impulse from the last substep
@@ -523,17 +530,20 @@ pub struct ContactPoint {
 }
 
 impl ContactPoint {
-    /// Creates a new [`ContactPoint`] with the given points expressed in the local space
-    /// of the first and second shape respectively.
+    /// Creates a new [`ContactPoint`] with the given world-space contact points
+    /// relative to the centers of mass of the two shapes, the world-space contact point,
+    /// and the penetration depth.
     ///
     /// [Feature IDs](PackedFeatureId) can be specified for the contact points using [`with_feature_ids`](Self::with_feature_ids).
-    #[inline]
-    pub fn new(local_point1: Vector, local_point2: Vector, penetration: Scalar) -> Self {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(anchor1: Vector, anchor2: Vector, world_point: Vector, penetration: Scalar) -> Self {
         Self {
-            local_point1,
-            local_point2,
+            anchor1,
+            anchor2,
+            point: world_point,
             penetration,
             normal_impulse: 0.0,
+            normal_speed: 0.0,
             warm_start_normal_impulse: 0.0,
             #[cfg(feature = "2d")]
             warm_start_tangent_impulse: 0.0,
@@ -552,25 +562,11 @@ impl ContactPoint {
         self
     }
 
-    /// Returns the global contact point on the first shape,
-    /// transforming the local point by the given position and rotation.
-    #[inline]
-    pub fn global_point1(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.local_point1
-    }
-
-    /// Returns the global contact point on the second shape,
-    /// transforming the local point by the given position and rotation.
-    #[inline]
-    pub fn global_point2(&self, position: &Position, rotation: &Rotation) -> Vector {
-        position.0 + rotation * self.local_point2
-    }
-
     /// Flips the contact data, swapping the points and feature IDs,
     /// and negating the impulses.
     #[inline]
     pub fn flip(&mut self) {
-        core::mem::swap(&mut self.local_point1, &mut self.local_point2);
+        core::mem::swap(&mut self.anchor1, &mut self.anchor2);
         core::mem::swap(&mut self.feature_id1, &mut self.feature_id2);
         self.normal_impulse = -self.normal_impulse;
         self.warm_start_normal_impulse = -self.warm_start_normal_impulse;
@@ -582,10 +578,12 @@ impl ContactPoint {
     #[inline]
     pub fn flipped(&self) -> Self {
         Self {
-            local_point1: self.local_point2,
-            local_point2: self.local_point1,
+            anchor1: self.anchor2,
+            anchor2: self.anchor1,
+            point: self.point,
             penetration: self.penetration,
             normal_impulse: -self.normal_impulse,
+            normal_speed: self.normal_speed,
             warm_start_normal_impulse: -self.warm_start_normal_impulse,
             warm_start_tangent_impulse: -self.warm_start_tangent_impulse,
             feature_id1: self.feature_id2,

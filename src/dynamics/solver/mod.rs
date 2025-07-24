@@ -464,7 +464,6 @@ fn prepare_contact_constraints(
     mut constraint_graph: ResMut<ConstraintGraph>,
     mut diagnostics: ResMut<SolverDiagnostics>,
     bodies: Query<BodyQuery, RigidBodyActiveFilter>,
-    collider_transforms: Query<(Option<&ColliderTransform>, Option<&CollisionMargin>)>,
     narrow_phase_config: Res<NarrowPhaseConfig>,
     contact_softness: Res<ContactSoftnessCoefficients>,
     time: Res<Time>,
@@ -510,7 +509,6 @@ fn prepare_contact_constraints(
             };
 
             // Get the two colliding bodies.
-            // TODO: get_disjoint
             let Ok(body1) = bodies.get(body1_entity) else {
                 continue;
             };
@@ -524,13 +522,6 @@ fn prepare_contact_constraints(
                 // If both bodies are static or kinematic, skip the contact.
                 continue;
             }
-
-            let (collider_transform1, collision_margin1) =
-                collider_transforms.get(contact_pair.collider1).unwrap();
-            let (collider_transform2, collision_margin2) =
-                collider_transforms.get(contact_pair.collider2).unwrap();
-            let collision_margin_sum =
-                collision_margin1.map_or(0.0, |cm| cm.0) + collision_margin2.map_or(0.0, |cm| cm.0);
 
             // Compute the relative dominance of the bodies.
             let relative_dominance = body1.dominance() - body2.dominance();
@@ -586,39 +577,24 @@ fn prepare_contact_constraints(
             let tangents =
                 constraint.tangent_directions(body1.linear_velocity.0, body2.linear_velocity.0);
 
-            for mut contact in manifold.points.iter().copied() {
-                // Transform contact points from collider-space to body-space.
-                if let Some(transform) = collider_transform1 {
-                    contact.local_point1 =
-                        transform.rotation * contact.local_point1 + transform.translation;
-                }
-                if let Some(transform) = collider_transform2 {
-                    contact.local_point2 =
-                        transform.rotation * contact.local_point2 + transform.translation;
-                }
-
-                contact.penetration += collision_margin_sum;
-
+            for contact in manifold.points.iter().copied() {
                 let effective_distance = -contact.penetration;
 
-                let local_anchor1 = contact.local_point1 - body1.center_of_mass.0;
-                let local_anchor2 = contact.local_point2 - body2.center_of_mass.0;
-
-                // Store fixed world-space anchors.
+                // Use fixed world-space anchors.
                 // This improves rolling behavior for shapes like balls and capsules.
-                let r1 = *body1.rotation * local_anchor1;
-                let r2 = *body2.rotation * local_anchor2;
+                let anchor1 = contact.anchor1;
+                let anchor2 = contact.anchor2;
 
                 // Relative velocity at the contact point.
                 // body2.velocity_at_point(r2) - body1.velocity_at_point(r1)
                 #[cfg(feature = "2d")]
                 let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0 * r2.perp()
-                    - body1.angular_velocity.0 * r1.perp();
+                    + body2.angular_velocity.0 * anchor2.perp()
+                    - body1.angular_velocity.0 * anchor1.perp();
                 #[cfg(feature = "3d")]
                 let relative_velocity = body2.linear_velocity.0 - body1.linear_velocity.0
-                    + body2.angular_velocity.0.cross(r2)
-                    - body1.angular_velocity.0.cross(r1);
+                    + body2.angular_velocity.0.cross(anchor2)
+                    - body1.angular_velocity.0.cross(anchor1);
                 let normal_speed = relative_velocity.dot(constraint.normal);
 
                 // Keep the contact if (1) the separation distance is below the required threshold,
@@ -640,8 +616,8 @@ fn prepare_contact_constraints(
                         inverse_mass_sum,
                         i1,
                         i2,
-                        r1,
-                        r2,
+                        anchor1,
+                        anchor2,
                         constraint.normal,
                         narrow_phase_config
                             .match_contacts
@@ -654,18 +630,19 @@ fn prepare_contact_constraints(
                             inverse_mass_sum,
                             i1,
                             i2,
-                            r1,
-                            r2,
+                            anchor1,
+                            anchor2,
                             tangents,
                             narrow_phase_config
                                 .match_contacts
                                 .then_some(contact.warm_start_tangent_impulse),
                         ),
                     ),
-                    anchor1: r1,
-                    anchor2: r2,
+                    anchor1,
+                    anchor2,
                     normal_speed,
-                    initial_separation: -contact.penetration - (r2 - r1).dot(constraint.normal),
+                    initial_separation: -contact.penetration
+                        - (anchor2 - anchor1).dot(constraint.normal),
                 };
 
                 constraint.points.push(point);
@@ -1000,6 +977,7 @@ fn store_contact_impulses(
                     .as_ref()
                     .map_or(default(), |part| part.impulse);
                 contact.normal_impulse = constraint_point.normal_part.total_impulse;
+                contact.normal_speed = constraint_point.normal_speed;
             }
         }
     }

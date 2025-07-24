@@ -294,7 +294,6 @@ fn debug_render_colliders(
 }
 
 fn debug_render_contacts(
-    colliders: Query<(&Position, &Rotation)>,
     collisions: Collisions,
     mut gizmos: Gizmos<PhysicsGizmos>,
     store: Res<GizmoConfigStore>,
@@ -308,18 +307,8 @@ fn debug_render_contacts(
     }
 
     for contacts in collisions.iter() {
-        let Ok((position1, rotation1)) = colliders.get(contacts.collider1) else {
-            continue;
-        };
-        let Ok((position2, rotation2)) = colliders.get(contacts.collider2) else {
-            continue;
-        };
-
         for manifold in contacts.manifolds.iter() {
             for contact in manifold.points.iter() {
-                let p1 = contact.global_point1(position1, rotation1);
-                let p2 = contact.global_point2(position2, rotation2);
-
                 // Don't render contacts that aren't penetrating
                 if contact.penetration <= Scalar::EPSILON {
                     continue;
@@ -329,21 +318,16 @@ fn debug_render_contacts(
                 if let Some(color) = config.contact_point_color {
                     #[cfg(feature = "2d")]
                     {
-                        gizmos.circle_2d(p1.f32(), 0.1 * length_unit.0 as f32, color);
-                        gizmos.circle_2d(p2.f32(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.circle_2d(contact.point.f32(), 0.1 * length_unit.0 as f32, color);
                     }
                     #[cfg(feature = "3d")]
                     {
-                        gizmos.sphere(p1.f32(), 0.1 * length_unit.0 as f32, color);
-                        gizmos.sphere(p2.f32(), 0.1 * length_unit.0 as f32, color);
+                        gizmos.sphere(contact.point.f32(), 0.1 * length_unit.0 as f32, color);
                     }
                 }
 
                 // Draw contact normals
                 if let Some(color) = config.contact_normal_color {
-                    // Use dimmer color for second normal
-                    let color_dim = color.mix(&Color::BLACK, 0.5);
-
                     // The length of the normal arrows
                     let length = length_unit.0
                         * match config.contact_normal_scale {
@@ -355,16 +339,10 @@ fn debug_render_contacts(
                         };
 
                     gizmos.draw_arrow(
-                        p1,
-                        p1 + manifold.normal * length,
+                        contact.point,
+                        contact.point + manifold.normal * length,
                         0.1 * length_unit.0,
                         color,
-                    );
-                    gizmos.draw_arrow(
-                        p2,
-                        p2 - manifold.normal * length,
-                        0.1 * length_unit.0,
-                        color_dim,
                     );
                 }
             }
