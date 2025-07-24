@@ -40,9 +40,9 @@ fn setup(
     let cube_size = 2.0;
 
     // Spawn cube stacks
-    for x in 0..1 {
-        for y in 0..1 {
-            for z in 0..1 {
+    for x in -2..2 {
+        for y in -2..2 {
+            for z in -2..2 {
                 let position = Vec3::new(x as f32, y as f32 + 3.0, z as f32) * (cube_size + 0.05);
                 commands.spawn((
                     DynamicBody,
