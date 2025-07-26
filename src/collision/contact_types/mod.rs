@@ -477,7 +477,7 @@ pub struct ContactPoint {
     pub anchor2: Vector,
     /// The contact point in world space.
     ///
-    /// This is the average position of the two contact points on the surfaces of the two shapes.
+    /// This is the midpoint between the closest points on the surfaces of the two shapes.
     ///
     /// Note that because the contact point is expressed in world space,
     /// it is subject to precision loss at large coordinates.
