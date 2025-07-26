@@ -336,7 +336,7 @@ impl Plugin for MassPropertyPlugin {
         // Update mass properties for entities with the `RecomputeMassProperties` component.
         app.add_systems(
             self.schedule,
-            (update_mass_properties, warn_missing_mass)
+            (update_mass_properties, warn_invalid_mass)
                 .chain()
                 .in_set(MassPropertySystems::UpdateComputedMassProperties),
         );
@@ -423,7 +423,7 @@ fn update_mass_properties(
 }
 
 /// Logs warnings when dynamic bodies have invalid [`Mass`] or [`AngularInertia`].
-fn warn_missing_mass(
+fn warn_invalid_mass(
     mut bodies: Query<
         (
             Entity,
@@ -435,11 +435,11 @@ fn warn_missing_mass(
     >,
 ) {
     for (entity, rb, mass, inertia) in &mut bodies {
-        let is_mass_valid = mass.value().is_finite();
+        let is_mass_valid = mass.is_finite();
         #[cfg(feature = "2d")]
-        let is_inertia_valid = inertia.value().is_finite();
+        let is_inertia_valid = inertia.is_finite();
         #[cfg(feature = "3d")]
-        let is_inertia_valid = inertia.value().is_finite();
+        let is_inertia_valid = inertia.is_finite();
 
         // Warn about dynamic bodies with no mass or inertia
         if rb.is_dynamic() && !(is_mass_valid && is_inertia_valid) {
